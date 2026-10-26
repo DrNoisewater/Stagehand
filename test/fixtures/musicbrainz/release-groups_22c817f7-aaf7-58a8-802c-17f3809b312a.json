@@ -1,0 +1,22 @@
+{
+ "release-group-count": 2,
+ "release-group-offset": 0,
+ "release-groups": [
+  {
+   "id": "341ca31b-d002-56ae-aa7a-c95a14028d8b",
+   "title": "Quiet Engines",
+   "primary-type": "Album",
+   "secondary-types": [],
+   "first-release-date": "2015-08-21",
+   "disambiguation": ""
+  },
+  {
+   "id": "3f6475c7-0389-5add-9b02-65a68fdfaf25",
+   "title": "Tall Grass",
+   "primary-type": "Album",
+   "secondary-types": [],
+   "first-release-date": "2019-10-04",
+   "disambiguation": ""
+  }
+ ]
+}

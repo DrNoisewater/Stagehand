@@ -1,0 +1,154 @@
+{
+ "release-count": 1,
+ "release-offset": 0,
+ "releases": [
+  {
+   "id": "ce6a156f-8d07-55c7-82c5-efbe271ed918",
+   "title": "Signal Fires",
+   "status": "Official",
+   "date": "2012-09-17",
+   "country": "GB",
+   "media": [
+    {
+     "position": 1,
+     "format": "Digital Media",
+     "track-count": 11,
+     "tracks": [
+      {
+       "id": "50b9d9ea-13d0-553d-a6a3-43a14918076f",
+       "number": "1",
+       "position": 1,
+       "title": "Harbour Lights",
+       "length": 214000,
+       "recording": {
+        "id": "d8ff75c1-9a21-57ce-9370-3dd1823b5f5d",
+        "title": "Harbour Lights",
+        "length": 214000
+       }
+      },
+      {
+       "id": "d6df6def-25cd-5f31-b657-9d67748271ca",
+       "number": "2",
+       "position": 2,
+       "title": "Signal Fires",
+       "length": 251000,
+       "recording": {
+        "id": "f3018c38-2ab6-509a-83f3-4823fe02d92c",
+        "title": "Signal Fires",
+        "length": 251000
+       }
+      },
+      {
+       "id": "b8df6c23-f1d1-57ac-b0fc-e1bc0c70097a",
+       "number": "3",
+       "position": 3,
+       "title": "Ghost Notes",
+       "length": 198000,
+       "recording": {
+        "id": "322b3f4b-8b41-53b0-8a3e-ef6c93745031",
+        "title": "Ghost Notes",
+        "length": 198000
+       }
+      },
+      {
+       "id": "08f3369a-0dc2-5f61-8ba3-0ffd190bb315",
+       "number": "4",
+       "position": 4,
+       "title": "Northern Line",
+       "length": 263000,
+       "recording": {
+        "id": "f99f08de-1286-5ae8-abb7-1ffd588cdf8a",
+        "title": "Northern Line",
+        "length": 263000
+       }
+      },
+      {
+       "id": "def60110-7b3e-5d73-a749-a4c7f244aff8",
+       "number": "5",
+       "position": 5,
+       "title": "Embers",
+       "length": 187000,
+       "recording": {
+        "id": "13f1bb74-66e8-5c3a-b834-f0b2af0a65ca",
+        "title": "Embers",
+        "length": 187000
+       }
+      },
+      {
+       "id": "a07943ee-1040-5aaf-9182-e9e2d7c99083",
+       "number": "6",
+       "position": 6,
+       "title": "Slow Burn",
+       "length": 305000,
+       "recording": {
+        "id": "bdd25a3d-ec87-5c19-b86e-8c1d62822359",
+        "title": "Slow Burn",
+        "length": 305000
+       }
+      },
+      {
+       "id": "f4486ba5-30c8-52ca-982e-febd0c7896cb",
+       "number": "7",
+       "position": 7,
+       "title": "Lighthouse Keeper",
+       "length": 242000,
+       "recording": {
+        "id": "47325d1d-19cb-5aed-8f85-97b423ebe0d2",
+        "title": "Lighthouse Keeper",
+        "length": 242000
+       }
+      },
+      {
+       "id": "52e4ad3e-29aa-5a3d-bac6-45aace2d4853",
+       "number": "8",
+       "position": 8,
+       "title": "Bellwether",
+       "length": 228000,
+       "recording": {
+        "id": "5b1958c5-21f5-529c-a3ee-e330cce29fec",
+        "title": "Bellwether",
+        "length": 228000
+       }
+      },
+      {
+       "id": "a64493ab-0b6c-5bea-89a0-6842b5a28e64",
+       "number": "9",
+       "position": 9,
+       "title": "Cinder Path",
+       "length": 276000,
+       "recording": {
+        "id": "18f64aff-f764-54bb-bcf5-c2ab85688cce",
+        "title": "Cinder Path",
+        "length": 276000
+       }
+      },
+      {
+       "id": "bfa875b2-138c-522b-b4d8-74f64948e6a5",
+       "number": "10",
+       "position": 10,
+       "title": "Morning Tide",
+       "length": 199000,
+       "recording": {
+        "id": "36f07f50-d70e-5d92-9edc-2ebcf94724b4",
+        "title": "Morning Tide",
+        "length": 199000
+       }
+      },
+      {
+       "id": "2263b880-1264-5e4b-b09b-0ead5d3b7d18",
+       "number": "11",
+       "position": 11,
+       "title": "Signal Fires (Reprise)",
+       "length": 233000,
+       "recording": {
+        "id": "7dbedbe6-079e-58b3-a6e6-f8cea9c044a7",
+        "title": "Signal Fires (Reprise)",
+        "length": 233000
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

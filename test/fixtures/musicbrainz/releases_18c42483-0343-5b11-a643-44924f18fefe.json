@@ -1,0 +1,46 @@
+{
+ "release-count": 1,
+ "release-offset": 0,
+ "releases": [
+  {
+   "id": "f2fef283-36a4-51ba-9532-af647501c7df",
+   "title": "Board Shorts",
+   "status": "Official",
+   "date": "2016-12-01",
+   "country": "AU",
+   "media": [
+    {
+     "position": 1,
+     "format": "Digital Media",
+     "track-count": 2,
+     "tracks": [
+      {
+       "id": "52a07c69-d1c2-595c-bea6-32a4912e7793",
+       "number": "1",
+       "position": 1,
+       "title": "Board Shorts",
+       "length": 214000,
+       "recording": {
+        "id": "caae9cf4-4605-5b19-b1e5-ba57061f9087",
+        "title": "Board Shorts",
+        "length": 214000
+       }
+      },
+      {
+       "id": "f67c6b86-815c-5866-8259-b89ad457d837",
+       "number": "2",
+       "position": 2,
+       "title": "Rip Current",
+       "length": 251000,
+       "recording": {
+        "id": "59c7202b-df15-5e0c-9551-eb8211679c1d",
+        "title": "Rip Current",
+        "length": 251000
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

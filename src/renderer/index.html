@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: stagehand:; media-src 'self' blob: stagehand:; connect-src 'self' stagehand: blob: data:; font-src 'self'; worker-src 'self' blob:"
+    />
+    <title>Stagehand</title>
+    <link rel="preload" href="fonts/Archivo-Variable.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/v3.css" />
+    <script src="splash/noisewater-splash.js" defer></script>
+    <script type="module" src="js/main.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <header class="titlebar">
+        <div class="brand">
+          <svg class="brand-mark" viewBox="8 8 240 240" aria-hidden="true">
+            <defs>
+              <linearGradient id="bmb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc978" stop-opacity="0.85" /><stop offset="1" stop-color="#ffb547" stop-opacity="0" /></linearGradient>
+            </defs>
+            <rect x="8" y="8" width="240" height="240" rx="56" fill="#1f2740" />
+            <path d="M106 52 L150 52 L204 206 L52 206 Z" fill="url(#bmb)" />
+            <rect x="96" y="34" width="64" height="26" rx="9" fill="#ffb547" />
+            <g stroke-linecap="round" stroke-width="16">
+              <path d="M72 196 v-20" stroke="#ff6b3d" /><path d="M100 196 v-48" stroke="#ffd497" /><path d="M128 196 v-34" stroke="#8c7bff" /><path d="M156 196 v-58" stroke="#ffd497" /><path d="M184 196 v-26" stroke="#33c8e0" />
+            </g>
+          </svg>
+          <span>Stagehand</span>
+        </div>
+        <label class="search">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.2-4.2" /></svg>
+          <input id="search" type="search" placeholder="Search songs, tones, artists" spellcheck="false" autocomplete="off" aria-label="Search" />
+          <span class="online-tag" aria-hidden="true">MusicBrainz</span>
+          <kbd>Ctrl F</kbd>
+        </label>
+        <div class="titlebar-actions">
+          <button id="activity" class="activity" type="button" hidden></button>
+          <button id="btn-settings" class="icon-btn" type="button" title="Settings (Ctrl ,)" aria-label="Settings">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 4v6M5 14v6M12 4v3M12 11v9M19 4v9M19 17v3" />
+              <circle cx="5" cy="12" r="2" /><circle cx="12" cy="9" r="2" /><circle cx="19" cy="15" r="2" />
+            </svg>
+          </button>
+          <button id="btn-nw" class="nw-logo-btn" type="button" title="Noisewater Labs" aria-label="Noisewater Labs: play the splash">
+            <img src="splash/logo-256.png" alt="" width="26" height="26" />
+          </button>
+        </div>
+      </header>
+      <div class="workspace">
+        <nav id="sidebar" class="sidebar" aria-label="Sections"></nav>
+        <main id="page-play" class="page page-play" aria-label="Play"></main>
+        <main id="library" class="library"></main>
+        <main id="discover" class="discover" aria-label="Discover"></main>
+        <main id="page-tones" class="page page-tones" aria-label="Tones"></main>
+        <main id="page-progress" class="page page-progress" aria-label="Progress"></main>
+        <aside id="inspector" class="inspector" aria-label="Song details"></aside>
+      </div>
+      <section id="stage" class="stage" aria-label="Now playing"></section>
+      <footer id="nowbar" class="nowbar" aria-label="Now playing"></footer>
+    </div>
+    <div id="overlays"></div>
+  </body>
+</html>

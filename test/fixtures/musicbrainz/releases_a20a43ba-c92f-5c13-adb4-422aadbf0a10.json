@@ -1,0 +1,34 @@
+{
+ "release-count": 1,
+ "release-offset": 0,
+ "releases": [
+  {
+   "id": "5c5f89d5-f79a-52e6-b249-074339070e87",
+   "title": "Kingfisher (Remixes)",
+   "status": "Official",
+   "date": "2018-01-19",
+   "country": "GB",
+   "media": [
+    {
+     "position": 1,
+     "format": "Digital Media",
+     "track-count": 1,
+     "tracks": [
+      {
+       "id": "c2d17bed-ade4-55b8-91cd-41e1526744dc",
+       "number": "1",
+       "position": 1,
+       "title": "Kingfisher (Club Mix)",
+       "length": 214000,
+       "recording": {
+        "id": "2dd73e52-6ba5-5287-9c29-01a61be7788f",
+        "title": "Kingfisher (Club Mix)",
+        "length": 214000
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

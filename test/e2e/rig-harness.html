@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>rig harness</title>
+<body>
+  <script type="module">
+    import { rig, TONES } from '/src/renderer/js/rig.js';
+    import { AudioEngine, loadTrackData } from '/src/renderer/js/audio-engine.js';
+    import { loadGear, toSpec } from '/src/renderer/js/gearspec.js';
+    const engine = new AudioEngine();
+    rig.player = engine;
+    window.__h = { rig, engine, TONES, loadTrackData, loadGear, toSpec };
+    window.__ready = true;
+  </script>
+</body>

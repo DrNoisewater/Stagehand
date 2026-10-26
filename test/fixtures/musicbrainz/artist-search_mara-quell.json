@@ -1,0 +1,19 @@
+{
+ "count": 1,
+ "offset": 0,
+ "artists": [
+  {
+   "id": "22c817f7-aaf7-58a8-802c-17f3809b312a",
+   "type": "Person",
+   "score": 100,
+   "name": "Mara Quell",
+   "sort-name": "Quell, Mara",
+   "country": "US",
+   "disambiguation": "singer-songwriter",
+   "life-span": {
+    "begin": "1988-04-02",
+    "ended": null
+   }
+  }
+ ]
+}

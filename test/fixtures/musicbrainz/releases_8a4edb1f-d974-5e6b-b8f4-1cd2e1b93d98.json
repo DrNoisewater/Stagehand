@@ -1,0 +1,142 @@
+{
+ "release-count": 1,
+ "release-offset": 0,
+ "releases": [
+  {
+   "id": "5508fafb-2046-5ebb-9ecd-a9907b530f3d",
+   "title": "First Light",
+   "status": "Official",
+   "date": "2009-03-02",
+   "country": "GB",
+   "media": [
+    {
+     "position": 1,
+     "format": "Digital Media",
+     "track-count": 10,
+     "tracks": [
+      {
+       "id": "87171f14-9beb-5573-bb91-4d50292049d8",
+       "number": "1",
+       "position": 1,
+       "title": "Static Bloom",
+       "length": 214000,
+       "recording": {
+        "id": "e5436602-33ca-512a-b4ba-06d8408f4c64",
+        "title": "Static Bloom",
+        "length": 214000
+       }
+      },
+      {
+       "id": "cbc27aee-ee13-5ba7-94a3-76f109e78684",
+       "number": "2",
+       "position": 2,
+       "title": "Undertow",
+       "length": 251000,
+       "recording": {
+        "id": "723a652b-5e55-5b4d-9153-962878bb26cf",
+        "title": "Undertow",
+        "length": 251000
+       }
+      },
+      {
+       "id": "1b405fed-cec0-5c82-b8e3-8b304cb89ad9",
+       "number": "3",
+       "position": 3,
+       "title": "First Light",
+       "length": 198000,
+       "recording": {
+        "id": "120daa5d-79bd-57d4-a167-51a8eb4cd6a3",
+        "title": "First Light",
+        "length": 198000
+       }
+      },
+      {
+       "id": "82d2b541-bc9a-5833-9cf6-94fd438be716",
+       "number": "4",
+       "position": 4,
+       "title": "Copper Wire",
+       "length": 263000,
+       "recording": {
+        "id": "7406d6ca-06e6-5b7c-bdb3-dbd87575a338",
+        "title": "Copper Wire",
+        "length": 263000
+       }
+      },
+      {
+       "id": "f78e2808-ccf1-56aa-8145-67d17898bdba",
+       "number": "5",
+       "position": 5,
+       "title": "Glasshouse",
+       "length": 187000,
+       "recording": {
+        "id": "ae7f0a16-f613-5d5c-9c3a-221f11cb7b07",
+        "title": "Glasshouse",
+        "length": 187000
+       }
+      },
+      {
+       "id": "0610f590-4866-5479-8a25-6300d1acb5fb",
+       "number": "6",
+       "position": 6,
+       "title": "Saltmarsh",
+       "length": 305000,
+       "recording": {
+        "id": "f2fe0911-5a07-5d18-89ad-cba4a4a099f4",
+        "title": "Saltmarsh",
+        "length": 305000
+       }
+      },
+      {
+       "id": "9e406793-a87a-5ff0-af67-ce97632c6e28",
+       "number": "7",
+       "position": 7,
+       "title": "Two Rivers",
+       "length": 242000,
+       "recording": {
+        "id": "1d1908ae-ef52-5002-8814-f42c562657e0",
+        "title": "Two Rivers",
+        "length": 242000
+       }
+      },
+      {
+       "id": "ddae7692-1bb7-5840-a8d3-4d559c9044fb",
+       "number": "8",
+       "position": 8,
+       "title": "Low Sun",
+       "length": 228000,
+       "recording": {
+        "id": "bd842986-916f-54d0-8023-7d440d6e527a",
+        "title": "Low Sun",
+        "length": 228000
+       }
+      },
+      {
+       "id": "811e4b0c-fa08-52c3-87f3-2ee3903cbe2f",
+       "number": "9",
+       "position": 9,
+       "title": "Weathervane",
+       "length": 276000,
+       "recording": {
+        "id": "7a954771-a4ee-5d5b-be09-77fa27e47634",
+        "title": "Weathervane",
+        "length": 276000
+       }
+      },
+      {
+       "id": "e460b89f-3e3c-5200-ad34-8734a9f08a1d",
+       "number": "10",
+       "position": 10,
+       "title": "Still Water",
+       "length": 199000,
+       "recording": {
+        "id": "9802ac4e-57e0-541d-b738-b99cf7e82f20",
+        "title": "Still Water",
+        "length": 199000
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

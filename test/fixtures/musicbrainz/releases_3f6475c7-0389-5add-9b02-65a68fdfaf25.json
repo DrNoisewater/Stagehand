@@ -1,0 +1,118 @@
+{
+ "release-count": 1,
+ "release-offset": 0,
+ "releases": [
+  {
+   "id": "5212b471-5aa3-5d4b-9939-129d27a0c9c2",
+   "title": "Tall Grass",
+   "status": "Official",
+   "date": "2019-10-04",
+   "country": "US",
+   "media": [
+    {
+     "position": 1,
+     "format": "Digital Media",
+     "track-count": 8,
+     "tracks": [
+      {
+       "id": "9e5bd6f6-92ee-5b9d-8e09-020b749bee49",
+       "number": "1",
+       "position": 1,
+       "title": "Tall Grass",
+       "length": 214000,
+       "recording": {
+        "id": "30378f53-c5b5-526d-9a15-3e3827d513d8",
+        "title": "Tall Grass",
+        "length": 214000
+       }
+      },
+      {
+       "id": "026fe7cd-ea7f-592d-84f7-d1509396712e",
+       "number": "2",
+       "position": 2,
+       "title": "Riverbend",
+       "length": 251000,
+       "recording": {
+        "id": "f5d8991c-dc27-5ab6-8e55-e8e8633d3a81",
+        "title": "Riverbend",
+        "length": 251000
+       }
+      },
+      {
+       "id": "e510e084-6c40-5522-bc1b-957365d46480",
+       "number": "3",
+       "position": 3,
+       "title": "Dust & Diamonds",
+       "length": 198000,
+       "recording": {
+        "id": "7415d86d-4467-5cc9-a796-00d10e726893",
+        "title": "Dust & Diamonds",
+        "length": 198000
+       }
+      },
+      {
+       "id": "0d465390-5de0-5231-94e9-6d5c724ba499",
+       "number": "4",
+       "position": 4,
+       "title": "Kerosene",
+       "length": 263000,
+       "recording": {
+        "id": "0a8a287e-4d7d-5c38-b5dc-344a27f8c91c",
+        "title": "Kerosene",
+        "length": 263000
+       }
+      },
+      {
+       "id": "407be95c-19a7-5081-9d76-dcbada8b3e01",
+       "number": "5",
+       "position": 5,
+       "title": "Open Country",
+       "length": 187000,
+       "recording": {
+        "id": "3fafa987-f20e-5974-8759-f7fee06799d2",
+        "title": "Open Country",
+        "length": 187000
+       }
+      },
+      {
+       "id": "4870e39f-9ba7-5eb0-ac56-119a3e94662f",
+       "number": "6",
+       "position": 6,
+       "title": "Harvest Moon Waltz",
+       "length": 305000,
+       "recording": {
+        "id": "a4c8cd38-a1d7-5062-89e7-37a17e52e9e4",
+        "title": "Harvest Moon Waltz",
+        "length": 305000
+       }
+      },
+      {
+       "id": "8998a70e-8ca8-5282-aa01-09feb3a4e972",
+       "number": "7",
+       "position": 7,
+       "title": "Ninety Days",
+       "length": 242000,
+       "recording": {
+        "id": "782fc88a-f2db-53a2-9cfe-c2cebe283cf8",
+        "title": "Ninety Days",
+        "length": 242000
+       }
+      },
+      {
+       "id": "21e8a97b-be8a-5eae-a345-6cfa8cf68919",
+       "number": "8",
+       "position": 8,
+       "title": "Goodnight, Ohio",
+       "length": 228000,
+       "recording": {
+        "id": "e0d9a318-a226-58f6-87ac-d8c50ed37f6b",
+        "title": "Goodnight, Ohio",
+        "length": 228000
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

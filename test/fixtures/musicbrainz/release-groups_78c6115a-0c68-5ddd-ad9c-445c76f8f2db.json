@@ -1,0 +1,68 @@
+{
+ "release-group-count": 7,
+ "release-group-offset": 0,
+ "release-groups": [
+  {
+   "id": "8a4edb1f-d974-5e6b-b8f4-1cd2e1b93d98",
+   "title": "First Light",
+   "primary-type": "Album",
+   "secondary-types": [],
+   "first-release-date": "2009-03-02",
+   "disambiguation": ""
+  },
+  {
+   "id": "e6065e88-5257-5540-a470-f5a1cce5b77a",
+   "title": "Live at the Roundhouse",
+   "primary-type": "Album",
+   "secondary-types": [
+    "Live"
+   ],
+   "first-release-date": "2011-06-10",
+   "disambiguation": ""
+  },
+  {
+   "id": "9e18f4c3-d95d-5f65-93ab-ae3b1da43af1",
+   "title": "Signal Fires",
+   "primary-type": "Album",
+   "secondary-types": [],
+   "first-release-date": "2012-09-17",
+   "disambiguation": ""
+  },
+  {
+   "id": "c00f8d9a-65fd-512e-b7fb-754c4d83a6b3",
+   "title": "Night Ferry",
+   "primary-type": "EP",
+   "secondary-types": [],
+   "first-release-date": "2014-02-24",
+   "disambiguation": ""
+  },
+  {
+   "id": "5d8b0757-c4f8-512e-b89f-675611976dd7",
+   "title": "The Best of The Lantern Hours",
+   "primary-type": "Album",
+   "secondary-types": [
+    "Compilation"
+   ],
+   "first-release-date": "2016-11-04",
+   "disambiguation": ""
+  },
+  {
+   "id": "301589d5-c34f-5567-bf5c-ca1f8de92eec",
+   "title": "Paper Moons",
+   "primary-type": "Album",
+   "secondary-types": [],
+   "first-release-date": "2017-05-12",
+   "disambiguation": ""
+  },
+  {
+   "id": "a20a43ba-c92f-5c13-adb4-422aadbf0a10",
+   "title": "Kingfisher (Remixes)",
+   "primary-type": "EP",
+   "secondary-types": [
+    "Remix"
+   ],
+   "first-release-date": "2018-01-19",
+   "disambiguation": ""
+  }
+ ]
+}

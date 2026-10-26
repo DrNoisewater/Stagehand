@@ -1,0 +1,36 @@
+{
+ "count": 1,
+ "offset": 0,
+ "recordings": [
+  {
+   "id": "75294918-5878-5f62-a0f9-86f519b9afed",
+   "score": 100,
+   "title": "Kingfisher",
+   "length": 214000,
+   "artist-credit": [
+    {
+     "name": "The Lantern Hours",
+     "artist": {
+      "id": "78c6115a-0c68-5ddd-ad9c-445c76f8f2db",
+      "name": "The Lantern Hours",
+      "sort-name": "Lantern Hours, The"
+     }
+    }
+   ],
+   "first-release-date": "2014-02-24",
+   "releases": [
+    {
+     "id": "d321d105-46a9-5d42-9f52-91e9f8e62da6",
+     "title": "Night Ferry",
+     "status": "Official",
+     "date": "2014-02-24",
+     "release-group": {
+      "id": "c00f8d9a-65fd-512e-b7fb-754c4d83a6b3",
+      "primary-type": "EP",
+      "secondary-types": []
+     }
+    }
+   ]
+  }
+ ]
+}

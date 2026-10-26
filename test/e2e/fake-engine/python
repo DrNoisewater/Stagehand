@@ -1,0 +1,3 @@
+#!/bin/bash
+# Point settings.engine.python here to use the fake engine (Linux/macOS).
+exec python3 "$(dirname "$0")/fake_engine.py" "$@"

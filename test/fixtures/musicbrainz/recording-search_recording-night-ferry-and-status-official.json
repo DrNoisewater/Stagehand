@@ -1,0 +1,98 @@
+{
+ "count": 3,
+ "offset": 0,
+ "recordings": [
+  {
+   "id": "216b1b8b-b70b-52f6-9457-91135a4537d5",
+   "score": 100,
+   "title": "Night Ferry",
+   "length": 214000,
+   "artist-credit": [
+    {
+     "name": "The Lantern Hours",
+     "artist": {
+      "id": "78c6115a-0c68-5ddd-ad9c-445c76f8f2db",
+      "name": "The Lantern Hours",
+      "sort-name": "Lantern Hours, The"
+     }
+    }
+   ],
+   "first-release-date": "2014-02-24",
+   "releases": [
+    {
+     "id": "d321d105-46a9-5d42-9f52-91e9f8e62da6",
+     "title": "Night Ferry",
+     "status": "Official",
+     "date": "2014-02-24",
+     "release-group": {
+      "id": "c00f8d9a-65fd-512e-b7fb-754c4d83a6b3",
+      "primary-type": "EP",
+      "secondary-types": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "2ff53a46-ac66-54b7-a11f-ac1b5a516a69",
+   "score": 92,
+   "title": "Night Ferry (Live)",
+   "length": 214000,
+   "artist-credit": [
+    {
+     "name": "The Lantern Hours",
+     "artist": {
+      "id": "78c6115a-0c68-5ddd-ad9c-445c76f8f2db",
+      "name": "The Lantern Hours",
+      "sort-name": "Lantern Hours, The"
+     }
+    }
+   ],
+   "first-release-date": "2011-06-10",
+   "releases": [
+    {
+     "id": "309af2d2-2c84-5c7f-80c4-e83eaefefeae",
+     "title": "Live at the Roundhouse",
+     "status": "Official",
+     "date": "2011-06-10",
+     "release-group": {
+      "id": "e6065e88-5257-5540-a470-f5a1cce5b77a",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Live"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "cd51556e-d250-5ccd-8227-7041f0705807",
+   "score": 74,
+   "title": "Night Ferry Blues",
+   "length": 214000,
+   "artist-credit": [
+    {
+     "name": "Mara Quell",
+     "artist": {
+      "id": "22c817f7-aaf7-58a8-802c-17f3809b312a",
+      "name": "Mara Quell",
+      "sort-name": "Quell, Mara"
+     }
+    }
+   ],
+   "first-release-date": "2019-10-04",
+   "releases": [
+    {
+     "id": "5212b471-5aa3-5d4b-9939-129d27a0c9c2",
+     "title": "Tall Grass",
+     "status": "Official",
+     "date": "2019-10-04",
+     "release-group": {
+      "id": "3f6475c7-0389-5add-9b02-65a68fdfaf25",
+      "primary-type": "Album",
+      "secondary-types": []
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,128 @@
+{
+ "count": 4,
+ "offset": 0,
+ "recordings": [
+  {
+   "id": "d8ff75c1-9a21-57ce-9370-3dd1823b5f5d",
+   "score": 100,
+   "title": "Harbour Lights",
+   "length": 214000,
+   "artist-credit": [
+    {
+     "name": "The Lantern Hours",
+     "artist": {
+      "id": "78c6115a-0c68-5ddd-ad9c-445c76f8f2db",
+      "name": "The Lantern Hours",
+      "sort-name": "Lantern Hours, The"
+     }
+    }
+   ],
+   "first-release-date": "2012-09-17",
+   "releases": [
+    {
+     "id": "ce6a156f-8d07-55c7-82c5-efbe271ed918",
+     "title": "Signal Fires",
+     "status": "Official",
+     "date": "2012-09-17",
+     "release-group": {
+      "id": "9e18f4c3-d95d-5f65-93ab-ae3b1da43af1",
+      "primary-type": "Album",
+      "secondary-types": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "ee21df94-c8d5-5a9f-a3f3-7902eb524e7c",
+   "score": 95,
+   "title": "Harbour Lights (Live)",
+   "length": 214000,
+   "artist-credit": [
+    {
+     "name": "The Lantern Hours",
+     "artist": {
+      "id": "78c6115a-0c68-5ddd-ad9c-445c76f8f2db",
+      "name": "The Lantern Hours",
+      "sort-name": "Lantern Hours, The"
+     }
+    }
+   ],
+   "first-release-date": "2011-06-10",
+   "releases": [
+    {
+     "id": "309af2d2-2c84-5c7f-80c4-e83eaefefeae",
+     "title": "Live at the Roundhouse",
+     "status": "Official",
+     "date": "2011-06-10",
+     "release-group": {
+      "id": "e6065e88-5257-5540-a470-f5a1cce5b77a",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Live"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "a95d1781-937f-5091-992d-10c6ce95c731",
+   "score": 90,
+   "title": "Quiet Harbour",
+   "length": 214000,
+   "artist-credit": [
+    {
+     "name": "The Lantern Hours",
+     "artist": {
+      "id": "78c6115a-0c68-5ddd-ad9c-445c76f8f2db",
+      "name": "The Lantern Hours",
+      "sort-name": "Lantern Hours, The"
+     }
+    }
+   ],
+   "first-release-date": "2014-02-24",
+   "releases": [
+    {
+     "id": "d321d105-46a9-5d42-9f52-91e9f8e62da6",
+     "title": "Night Ferry",
+     "status": "Official",
+     "date": "2014-02-24",
+     "release-group": {
+      "id": "c00f8d9a-65fd-512e-b7fb-754c4d83a6b3",
+      "primary-type": "EP",
+      "secondary-types": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "36760549-a4ea-5fba-8d2e-11508643cda7",
+   "score": 70,
+   "title": "Harbour Town",
+   "length": 214000,
+   "artist-credit": [
+    {
+     "name": "Mara Quell",
+     "artist": {
+      "id": "22c817f7-aaf7-58a8-802c-17f3809b312a",
+      "name": "Mara Quell",
+      "sort-name": "Quell, Mara"
+     }
+    }
+   ],
+   "first-release-date": "2015-08-21",
+   "releases": [
+    {
+     "id": "641549a7-a7ff-54c4-b756-65eaaf16e339",
+     "title": "Quiet Engines",
+     "status": "Official",
+     "date": "2015-08-21",
+     "release-group": {
+      "id": "341ca31b-d002-56ae-aa7a-c95a14028d8b",
+      "primary-type": "Album",
+      "secondary-types": []
+     }
+    }
+   ]
+  }
+ ]
+}

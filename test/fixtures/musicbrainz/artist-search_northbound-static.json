@@ -1,0 +1,32 @@
+{
+ "count": 2,
+ "offset": 0,
+ "artists": [
+  {
+   "id": "6f01ebcb-84de-554a-a05f-1346aaff955b",
+   "type": "Group",
+   "score": 88,
+   "name": "Northbound Statics",
+   "sort-name": "Northbound Statics",
+   "country": "CA",
+   "disambiguation": "post-punk band",
+   "life-span": {
+    "begin": "2011",
+    "ended": null
+   }
+  },
+  {
+   "id": "dd6ea761-1b39-5b11-8c37-6c091a7807dc",
+   "type": "Group",
+   "score": 81,
+   "name": "North Bound Static",
+   "sort-name": "North Bound Static",
+   "country": "AU",
+   "disambiguation": "surf rock duo",
+   "life-span": {
+    "begin": "2015",
+    "ended": null
+   }
+  }
+ ]
+}

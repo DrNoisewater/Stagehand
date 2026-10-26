@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Noisewater Labs</title>
+<style>html,body{margin:0;height:100%;background:#0a0907;overflow:hidden}</style>
+</head>
+<body>
+<!--
+  Self-contained splash page for desktop shells (WebView2, Electron, Tauri, CEF) or a browser.
+  URL options:  ?hold=800  &speed=1.25  &skippable=0  &transparent=1  &loop=1
+  When finished it signals the host every way it can:
+    WebView2:  chrome.webview.postMessage("nw-splash-done")
+    Electron:  window.nwSplash.done()            (expose via contextBridge)
+    iframe:    parent.postMessage("nw-splash-done", "*")
+    Tauri:     window.__TAURI__.event.emit("nw-splash-done")
+-->
+<script>
+/*!
+ * Noisewater Labs splash screen  v1.0.0
+ * Drop-in, zero-dependency, works offline. Lettering is baked to vector outlines
+ * (Montserrat, SIL Open Font License 1.1, see OFL.txt).
+ *
+ *   <script src="noisewater-splash.js"><\/script>
+ *   NoisewaterSplash.show().then(() => startApp());          // one line, full-screen overlay
+ *
+ * or as an element:
+ *   <noisewater-splash fullscreen auto-dismiss hold="800" speed="1"></noisewater-splash>
+ *
+ * Attributes: fullscreen | auto-dismiss | skippable | transparent | hold="ms" | speed="1.0"
+ * Events:     nw-splash-done  (animation + hold finished)   nw-splash-dismissed (faded out & removed)
+ * Methods:    play()  skip()  dismiss()
+ */
+(function () {
+  if (customElements.get('noisewater-splash')) return;
+
+  const ANIM_MS = 5200;   // last essential beat (sheen sweep) ends here at speed 1
+  const FADE_MS = 600;
+
+  const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -60 1060 1035" role="img" aria-label="Noisewater Labs">
+  <defs>
+    <linearGradient id="nw-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe08a"/><stop offset=".28" stop-color="#f2b928"/><stop offset=".55" stop-color="#ffd463"/><stop offset=".8" stop-color="#d99a16"/><stop offset="1" stop-color="#b97e0c"/>
+    </linearGradient>
+    <linearGradient id="nw-goldText" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff0a8"/><stop offset=".2" stop-color="#f6c33d"/><stop offset=".45" stop-color="#c98a12"/><stop offset=".62" stop-color="#f9d36a"/><stop offset=".85" stop-color="#b97a0a"/><stop offset="1" stop-color="#e8ac2a"/>
+    </linearGradient>
+    <linearGradient id="nw-sheen" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff6d6" stop-opacity="0"/><stop offset=".5" stop-color="#fff6d6" stop-opacity=".85"/><stop offset="1" stop-color="#fff6d6" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="nw-bloom"><stop offset="0" stop-color="#f2b928" stop-opacity=".45"/><stop offset="1" stop-color="#f2b928" stop-opacity="0"/></radialGradient>
+    <radialGradient id="nw-vig" cx=".42" cy=".38" r=".75"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></radialGradient>
+    <filter id="nw-stone" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".0025 .055" numOctaves="5" seed="5" result="layers"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".25 1.1" numOctaves="2" seed="11" result="grain"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".003 .005" numOctaves="3" seed="17" result="tone"/>
+      <feTurbulence type="turbulence" baseFrequency=".0015 .09" numOctaves="2" seed="29" result="streak"/>
+      <feComposite in="layers" in2="grain" operator="arithmetic" k2=".85" k3=".22" result="h"/>
+      <feDiffuseLighting in="h" surfaceScale="3" diffuseConstant="1" lighting-color="#ffffff" result="lit"><feDistantLight azimuth="265" elevation="58"/></feDiffuseLighting>
+      <feColorMatrix in="lit" type="matrix" values=".165 0 0 0 .012  0 .18 0 0 .016  0 0 .2 0 .022  0 0 0 0 1" result="slate"/>
+      <feColorMatrix in="tone" type="matrix" values="0 0 0 0 0  0 0 0 0 .01  0 0 0 0 .02  -1.6 0 0 0 .9" result="mottle"/>
+      <feColorMatrix in="streak" type="matrix" values="0 0 0 0 .42  0 0 0 0 .45  0 0 0 0 .5  -7 0 0 0 .3" result="streaks"/>
+      <feMerge result="all"><feMergeNode in="slate"/><feMergeNode in="streaks"/><feMergeNode in="mottle"/></feMerge>
+      <feComposite in="all" in2="SourceGraphic" operator="in"/>
+    </filter>
+    <filter id="nw-metal" x="-8%" y="-8%" width="116%" height="124%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".012 .7" numOctaves="2" seed="4" result="brush"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="3" seed="2" result="ham"/>
+      <feComposite in="brush" in2="ham" operator="arithmetic" k2=".35" k3=".75" result="bump"/>
+      <feSpecularLighting in="bump" surfaceScale="1" specularConstant="1" specularExponent="24" lighting-color="#fff3c4" result="spec"><feDistantLight azimuth="225" elevation="50"/></feSpecularLighting>
+      <feComposite in="spec" in2="SourceAlpha" operator="in" result="specIn"/>
+      <feColorMatrix in="bump" type="matrix" values="0 0 0 0 .18  0 0 0 0 .1  0 0 0 0 0  -.5 0 0 0 .3" result="shade"/>
+      <feComposite in="shade" in2="SourceAlpha" operator="in" result="shadeIn"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3.5" result="ab"/>
+      <feSpecularLighting in="ab" surfaceScale="7" specularConstant="1.1" specularExponent="16" lighting-color="#fff4c8" result="bevel"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+      <feComposite in="bevel" in2="SourceAlpha" operator="in" result="bevelIn"/>
+      <feMerge result="metal"><feMergeNode in="SourceGraphic"/><feMergeNode in="shadeIn"/></feMerge>
+      <feComposite in="metal" in2="specIn" operator="arithmetic" k2="1" k3=".25" result="m1"/>
+      <feComposite in="m1" in2="bevelIn" operator="arithmetic" k2="1" k3=".7" result="m2"/>
+      <feComposite in="m2" in2="SourceAlpha" operator="in" result="m3"/>
+      <feDropShadow in="m3" dx="0" dy="7" stdDeviation="5" flood-color="#000" flood-opacity=".75"/>
+    </filter>
+    <filter id="nw-emboss" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity=".7"/></filter>
+    <filter id="nw-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <clipPath id="nw-clip"><path d="M156.9 635V316.5H219.6L338.5 486.2V316.5H413.1V635H350.4L231.5 465.3V635Z"/><path d="M543.1 635 466.8 388.4H538L581.9 537.6L627.3 388.4H691.4L735.7 539L781.2 388.4H847.2L770.9 635H698.1L657.8 500.3L615.9 635Z"/></clipPath>
+  </defs>
+  <ellipse class="bloom" cx="470" cy="460" rx="620" ry="560" fill="url(#nw-bloom)"/>
+  <g class="panel">
+    <path d="M48 22H892L918 48V867L892 893H48L22 867V48Z" fill="#151412"/>
+    <path d="M48 22H892L918 48V867L892 893H48L22 867V48Z" fill="#000" filter="url(#nw-stone)"/>
+    <path d="M48 22H892L918 48V867L892 893H48L22 867V48Z" fill="url(#nw-vig)"/>
+    <path d="M32 0H908L940 32V883L908 915H32L0 883V32Z" fill="none" stroke="#000" stroke-width="22" opacity=".35" transform="translate(0 4)"/>
+  </g>
+  <g filter="url(#nw-metal)">
+    <path class="draw" style="--t:.2s;--d:1.5s" pathLength="1" d="M470 0H908L940 32V883L908 915H32L0 883V32L32 0Z" fill="none" stroke="url(#nw-gold)" stroke-width="11"/>
+    <path class="draw" style="--t:.5s;--d:1.4s" pathLength="1" d="M470 893H48L22 867V48L48 22H892L918 48V867L892 893Z" fill="none" stroke="url(#nw-gold)" stroke-width="4" opacity=".9"/>
+  </g>
+  <g filter="url(#nw-emboss)">
+    <path class="draw" filter="url(#nw-metal)" style="--t:1.5s;--d:.9s" pathLength="1" d="M672 102L696 122V250Q696 280 726 280H812Q842 280 842 250V122L866 102" fill="none" stroke="url(#nw-gold)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect class="bar" style="--t:2.15s" x="720" y="147" width="62" height="14" rx="7" fill="url(#nw-gold)"/>
+    <rect class="bar" style="--t:2.3s" x="740" y="177" width="78" height="15" rx="7.5" fill="#1fc98a" filter="url(#nw-glow)"/>
+    <rect class="bar" style="--t:2.45s" x="740" y="207" width="68" height="15" rx="7.5" fill="#f1f1ec"/>
+    <rect class="bar" style="--t:2.6s" x="720" y="238" width="46" height="14" rx="7" fill="url(#nw-gold)"/>
+  </g>
+  <g filter="url(#nw-metal)">
+    <path class="letter" style="--t:2.55s" fill="url(#nw-goldText)" d="M156.9 635V316.5H219.6L338.5 486.2V316.5H413.1V635H350.4L231.5 465.3V635Z"/>
+    <path class="letter" style="--t:2.8s" fill="url(#nw-goldText)" d="M543.1 635 466.8 388.4H538L581.9 537.6L627.3 388.4H691.4L735.7 539L781.2 388.4H847.2L770.9 635H698.1L657.8 500.3L615.9 635Z"/>
+  </g>
+  <g class="sheen-wrap" clip-path="url(#nw-clip)"><g transform="skewX(-18)"><rect class="sheen" x="-200" y="250" width="260" height="420" fill="url(#nw-sheen)"/></g></g>
+  <g filter="url(#nw-metal)">
+    <path class="word" style="--t:3.25s" fill="url(#nw-goldText)" d="M126.7 745V686.2H137.5L165.4 722V686.2H178.3V745H167.6L139.5 709.2V745ZM211.4 745.7Q204.5 745.7 199.1 742.7Q193.8 739.7 190.7 734.5Q187.6 729.2 187.6 722.4Q187.6 715.6 190.7 710.4Q193.8 705.1 199.1 702.1Q204.5 699.1 211.4 699.1Q218.2 699.1 223.6 702.1Q229 705.1 232.1 710.4Q235.1 715.6 235.1 722.4Q235.1 729.2 232.1 734.5Q229 739.7 223.6 742.7Q218.2 745.7 211.4 745.7ZM211.4 734.9Q216 734.9 219.2 731.6Q222.4 728.2 222.4 722.4Q222.4 716.5 219.2 713.2Q216 709.9 211.4 709.9Q206.6 709.9 203.5 713.2Q200.3 716.5 200.3 722.4Q200.3 728.2 203.5 731.6Q206.6 734.9 211.4 734.9ZM243.5 745V699.8H256V745ZM249.8 693.5Q246.3 693.5 244.1 691.4Q241.9 689.3 241.9 686.2Q241.9 683.2 244.1 681Q246.3 678.9 249.8 678.9Q253.2 678.9 255.4 680.9Q257.6 682.9 257.6 685.9Q257.6 689.2 255.4 691.4Q253.3 693.5 249.8 693.5ZM282.3 745.7Q276.7 745.7 271.6 744.3Q266.5 742.9 263.5 740.8L267.7 731.4Q270.6 733.4 274.7 734.6Q278.8 735.8 282.7 735.8Q287.1 735.8 288.9 734.7Q290.7 733.6 290.7 731.6Q290.7 729.5 288.1 728.7Q285.5 727.9 281.9 727.4Q279 726.9 276 726.3Q273 725.6 270.4 724.3Q267.8 722.9 266.2 720.4Q264.6 717.9 264.6 713.8Q264.6 707.4 269.8 703.3Q275.1 699.1 284.6 699.1Q289 699.1 293.6 700.2Q298.1 701.2 301.2 703.1L297.1 712.4Q293.8 710.5 290.7 709.8Q287.6 709 284.6 709Q280.3 709 278.4 710.3Q276.5 711.5 276.5 713.2Q276.5 715.2 278.4 716.1Q280.3 716.9 283.3 717.4Q286.3 717.9 289.6 718.5Q292.9 719.1 295.9 720.4Q298.9 721.7 300.8 724.3Q302.7 726.9 302.7 731.3Q302.7 737.6 297.3 741.6Q292 745.7 282.3 745.7ZM331.9 745.7Q324.4 745.7 318.9 742.6Q313.3 739.6 310.2 734.4Q307.2 729.1 307.2 722.4Q307.2 715.6 310.2 710.4Q313.2 705.1 318.4 702.1Q323.7 699.1 330.3 699.1Q336.6 699.1 341.7 702Q346.8 704.8 349.8 710.1Q352.8 715.3 352.8 722.6Q352.8 723.3 352.7 724.3Q352.6 725.3 352.6 726.1H319.8Q320.8 730.3 324 732.7Q327.3 735.2 332.2 735.2Q335.7 735.2 338.3 734.1Q340.9 733 343.1 730.8L349.7 738.4Q343.6 745.7 331.9 745.7ZM319.7 718.5H341Q340.3 714.2 337.5 711.6Q334.6 709 330.4 709Q326.1 709 323.2 711.6Q320.4 714.2 319.7 718.5ZM371.1 745 355.5 699.8H367.3L377.5 730.4L388.1 699.8H398.7L409 730.5L419.6 699.8H430.7L415 745H402.9L393.2 716.9L383.1 745ZM463.1 745V739.5Q459.5 745.7 449.9 745.7Q442.2 745.7 438 741.8Q433.7 737.9 433.7 732Q433.7 726 438.1 722.2Q442.4 718.5 452.3 718.5H462.3Q462.3 714.3 459.8 711.9Q457.4 709.6 452.3 709.6Q448.8 709.6 445.5 710.7Q442.2 711.8 439.8 713.8L435.3 704.6Q438.9 702 443.9 700.6Q448.8 699.1 454 699.1Q463.9 699.1 469.4 704Q474.8 709 474.8 719.2V745ZM462.3 730.7V726.1H453.7Q449.2 726.1 447.6 727.6Q445.9 729.1 445.9 731.4Q445.9 733.9 447.8 735.4Q449.7 736.9 453 736.9Q456.2 736.9 458.7 735.3Q461.2 733.7 462.3 730.7ZM503.9 745.7Q496.2 745.7 492 741.6Q487.7 737.5 487.7 729.5V709.9H481V699.8H487.7V689.8H500.2V699.8H511V709.9H500.2V729.3Q500.2 732.1 501.7 733.7Q503.1 735.3 505.6 735.3Q508.6 735.3 510.7 733.6L514.1 742.8Q512.2 744.2 509.5 745Q506.8 745.7 503.9 745.7ZM542.6 745.7Q535.2 745.7 529.6 742.6Q524.1 739.6 521 734.4Q517.9 729.1 517.9 722.4Q517.9 715.6 521 710.4Q524 705.1 529.2 702.1Q534.4 699.1 541 699.1Q547.4 699.1 552.5 702Q557.6 704.8 560.6 710.1Q563.6 715.3 563.6 722.6Q563.6 723.3 563.5 724.3Q563.4 725.3 563.3 726.1H530.6Q531.5 730.3 534.8 732.7Q538.1 735.2 543 735.2Q546.4 735.2 549 734.1Q551.6 733 553.8 730.8L560.5 738.4Q554.4 745.7 542.6 745.7ZM530.5 718.5H551.7Q551.1 714.2 548.2 711.6Q545.4 709 541.1 709Q536.8 709 534 711.6Q531.1 714.2 530.5 718.5ZM571.9 745V699.8H583.9V705.8Q588.5 699.1 598.8 699.1V711.2Q597.2 711.1 596 711.1Q590.7 711.1 587.6 714.1Q584.5 717.2 584.5 723.7V745ZM630.2 745V686.2H643.3V733.9H671.5V745ZM704.5 745V739.5Q700.9 745.7 691.3 745.7Q683.7 745.7 679.4 741.8Q675.1 737.9 675.1 732Q675.1 726 679.5 722.2Q683.8 718.5 693.7 718.5H703.7Q703.7 714.3 701.2 711.9Q698.8 709.6 693.7 709.6Q690.2 709.6 686.9 710.7Q683.6 711.8 681.2 713.8L676.7 704.6Q680.3 702 685.3 700.6Q690.2 699.1 695.4 699.1Q705.3 699.1 710.8 704Q716.2 709 716.2 719.2V745ZM703.7 730.7V726.1H695.1Q690.7 726.1 689 727.6Q687.4 729.1 687.4 731.4Q687.4 733.9 689.2 735.4Q691.1 736.9 694.4 736.9Q697.6 736.9 700.1 735.3Q702.6 733.7 703.7 730.7ZM753.2 745.7Q744.2 745.7 739.6 739.8V745H727.6V682.7H740.1V704.6Q742.5 701.8 745.8 700.5Q749.1 699.1 753.2 699.1Q759.2 699.1 764.1 702Q769 704.8 771.9 710.1Q774.7 715.3 774.7 722.4Q774.7 729.5 771.9 734.7Q769 740 764.1 742.8Q759.2 745.7 753.2 745.7ZM751 734.9Q755.6 734.9 758.8 731.6Q762 728.2 762 722.4Q762 716.5 758.8 713.2Q755.6 709.9 751 709.9Q746.2 709.9 743.1 713.2Q740 716.5 740 722.4Q740 728.2 743.1 731.6Q746.2 734.9 751 734.9ZM797.6 745.7Q792.1 745.7 787 744.3Q781.9 742.9 778.9 740.8L783.1 731.4Q786 733.4 790.1 734.6Q794.2 735.8 798.1 735.8Q802.5 735.8 804.3 734.7Q806.1 733.6 806.1 731.6Q806.1 729.5 803.5 728.7Q800.9 727.9 797.3 727.4Q794.4 726.9 791.4 726.3Q788.4 725.6 785.8 724.3Q783.2 722.9 781.5 720.4Q779.9 717.9 779.9 713.8Q779.9 707.4 785.2 703.3Q790.5 699.1 800 699.1Q804.4 699.1 808.9 700.2Q813.5 701.2 816.6 703.1L812.4 712.4Q809.2 710.5 806.1 709.8Q802.9 709 800 709Q795.7 709 793.8 710.3Q791.9 711.5 791.9 713.2Q791.9 715.2 793.8 716.1Q795.7 716.9 798.7 717.4Q801.7 717.9 805 718.5Q808.3 719.1 811.3 720.4Q814.3 721.7 816.2 724.3Q818.1 726.9 818.1 731.3Q818.1 737.6 812.7 741.6Q807.4 745.7 797.6 745.7Z"/>
+  </g>
+</svg>`;
+
+  const CSS = `
+:host{display:block;position:relative;overflow:hidden;
+  --nw-bg:radial-gradient(ellipse at 50% 45%,#1b1710 0%,#0a0907 62%) #0a0907;
+  background:var(--nw-bg);transition:opacity ${FADE_MS}ms ease;contain:strict}
+:host([fullscreen]){position:fixed;inset:0;z-index:2147483647;width:100vw;height:100vh;height:100dvh}
+:host(:not([fullscreen])){width:100%;aspect-ratio:16/9}
+:host([transparent]){background:transparent}
+:host([transparent]) .bloom{display:none}
+:host(.nw-out){opacity:0}
+:host([skippable]){cursor:pointer}
+.stage{position:absolute;inset:0;display:grid;place-items:center}
+svg{display:block;width:min(78%,82vmin);height:auto;max-height:86%;overflow:visible}
+${`.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:nw-draw var(--d,1.2s) cubic-bezier(.65,0,.35,1) var(--t,0s) both}
+@keyframes nw-draw{to{stroke-dashoffset:0}}
+.panel{opacity:0;animation:nw-fade 1.4s ease-out .3s both}
+@keyframes nw-fade{to{opacity:1}}
+.bar{transform-box:fill-box;transform-origin:left center;transform:scaleX(0);animation:nw-pour .55s cubic-bezier(.2,.9,.3,1.2) var(--t) both}
+@keyframes nw-pour{to{transform:scaleX(1)}}
+.letter{opacity:0;transform-box:fill-box;transform-origin:50% 100%;transform:translateY(60px) scale(.94);filter:blur(10px);animation:nw-rise .9s cubic-bezier(.16,1,.3,1) var(--t) both}
+@keyframes nw-rise{to{opacity:1;transform:none;filter:blur(0)}}
+.word{opacity:0;transform-box:fill-box;transform-origin:center;animation:nw-word 1.1s cubic-bezier(.16,1,.3,1) var(--t) both}
+@keyframes nw-word{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:none}}
+.sheen{transform:translateX(-1100px);animation:nw-sheen 1.3s cubic-bezier(.45,0,.2,1) 3.9s both}
+@keyframes nw-sheen{to{transform:translateX(1100px)}}
+.bloom{opacity:0;animation:nw-bloom 2.4s ease-out 3.7s both}
+@keyframes nw-bloom{0%{opacity:0}35%{opacity:.9}100%{opacity:.35}}`}
+@media (prefers-reduced-motion:reduce){
+  .draw,.panel,.bar,.letter,.word,.bloom{animation-duration:1ms!important;animation-delay:0s!important}
+  .sheen{animation:none!important}
+}`;
+
+  class NoisewaterSplash extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: 'open' }).innerHTML = `<style>${CSS}</style><div class="stage"></div>`;
+      this._stage = this.shadowRoot.querySelector('.stage');
+      this._timers = [];
+      this._onSkip = () => { if (this.hasAttribute('skippable')) this.skip(); };
+      this._onKey = (e) => { if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') this._onSkip(); };
+    }
+    connectedCallback() {
+      this.setAttribute('role', 'img');
+      this.setAttribute('aria-label', 'Noisewater Labs');
+      this.addEventListener('pointerdown', this._onSkip);
+      window.addEventListener('keydown', this._onKey);
+      this.play();
+    }
+    disconnectedCallback() {
+      this._clear();
+      this.removeEventListener('pointerdown', this._onSkip);
+      window.removeEventListener('keydown', this._onKey);
+    }
+    get speed() { const s = parseFloat(this.getAttribute('speed')); return s > 0 ? s : 1; }
+    get hold() { const h = parseFloat(this.getAttribute('hold')); return h >= 0 ? h : 1000; }
+
+    play() {
+      this._clear();
+      this.classList.remove('nw-out');
+      this._done = false;
+      this._stage.innerHTML = SVG;
+      void this._stage.offsetWidth;                      // let CSS animations start
+      const rate = this.speed;
+      this.shadowRoot.getAnimations().forEach((a) => (a.playbackRate = rate));
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      this._later(() => this._finish(), (reduced ? 0 : ANIM_MS / rate) + this.hold);
+    }
+    skip() {
+      if (this._done) return this.dismiss();
+      this.shadowRoot.getAnimations().forEach((a) => { try { a.finish(); } catch (e) {} });
+      this._clear();
+      this._finish(true);
+    }
+    dismiss() {
+      if (this._leaving) return;
+      this._leaving = true;
+      this._clear();
+      this.classList.add('nw-out');
+      this._later(() => {
+        this.dispatchEvent(new CustomEvent('nw-splash-dismissed', { bubbles: true, composed: true }));
+        this.remove();
+        this._leaving = false;
+      }, FADE_MS);
+    }
+    _finish(skipped) {
+      if (this._done) return;
+      this._done = true;
+      this.dispatchEvent(new CustomEvent('nw-splash-done', { bubbles: true, composed: true, detail: { skipped: !!skipped } }));
+      if (this.hasAttribute('auto-dismiss')) this.dismiss();
+    }
+    _later(fn, ms) { this._timers.push(setTimeout(fn, ms)); }
+    _clear() { this._timers.forEach(clearTimeout); this._timers = []; }
+
+    /** Full-screen overlay; resolves after it has faded out. */
+    static show(opts = {}) {
+      const el = document.createElement('noisewater-splash');
+      el.setAttribute('fullscreen', '');
+      el.setAttribute('auto-dismiss', '');
+      if (opts.skippable !== false) el.setAttribute('skippable', '');
+      if (opts.hold != null) el.setAttribute('hold', opts.hold);
+      if (opts.speed != null) el.setAttribute('speed', opts.speed);
+      if (opts.transparent) el.setAttribute('transparent', '');
+      return new Promise((resolve) => {
+        el.addEventListener('nw-splash-dismissed', () => resolve(), { once: true });
+        (opts.parent || document.body).appendChild(el);
+      });
+    }
+  }
+  customElements.define('noisewater-splash', NoisewaterSplash);
+  window.NoisewaterSplash = NoisewaterSplash;
+})();
+
+</script>
+<script>
+(function () {
+  const q = new URLSearchParams(location.search);
+  const el = document.createElement('noisewater-splash');
+  el.setAttribute('fullscreen', '');
+  el.setAttribute('hold', q.get('hold') ?? '800');
+  if (q.get('speed')) el.setAttribute('speed', q.get('speed'));
+  if (q.get('skippable') !== '0') el.setAttribute('skippable', '');
+  if (q.get('transparent') === '1') { el.setAttribute('transparent', ''); document.documentElement.style.background = document.body.style.background = 'transparent'; }
+  el.addEventListener('nw-splash-done', () => {
+    if (q.get('loop') === '1') return setTimeout(() => el.play(), 400);
+    const msg = 'nw-splash-done';
+    try { window.chrome && chrome.webview && chrome.webview.postMessage(msg); } catch (e) {}
+    try { window.nwSplash && window.nwSplash.done && window.nwSplash.done(); } catch (e) {}
+    try { window.__TAURI__ && window.__TAURI__.event.emit(msg); } catch (e) {}
+    try { if (window.parent !== window) window.parent.postMessage(msg, '*'); } catch (e) {}
+    document.dispatchEvent(new CustomEvent(msg));
+  });
+  document.body.appendChild(el);
+})();
+</script>
+</body>
+</html>

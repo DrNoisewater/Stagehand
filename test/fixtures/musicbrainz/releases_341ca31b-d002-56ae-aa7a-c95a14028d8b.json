@@ -1,0 +1,118 @@
+{
+ "release-count": 1,
+ "release-offset": 0,
+ "releases": [
+  {
+   "id": "641549a7-a7ff-54c4-b756-65eaaf16e339",
+   "title": "Quiet Engines",
+   "status": "Official",
+   "date": "2015-08-21",
+   "country": "US",
+   "media": [
+    {
+     "position": 1,
+     "format": "Digital Media",
+     "track-count": 8,
+     "tracks": [
+      {
+       "id": "c2b98f9e-9b80-5817-bc8b-005d764443cb",
+       "number": "1",
+       "position": 1,
+       "title": "Quiet Engines",
+       "length": 214000,
+       "recording": {
+        "id": "bfa9da95-4627-5b90-b944-bdc4732cd356",
+        "title": "Quiet Engines",
+        "length": 214000
+       }
+      },
+      {
+       "id": "e909437a-051e-51f2-844d-8166a4941426",
+       "number": "2",
+       "position": 2,
+       "title": "Ironwood",
+       "length": 251000,
+       "recording": {
+        "id": "b2d21caa-3dc1-5ee3-a700-b50f4347cc1a",
+        "title": "Ironwood",
+        "length": 251000
+       }
+      },
+      {
+       "id": "142a3cb2-1cca-5950-ab0c-e3b31b231439",
+       "number": "3",
+       "position": 3,
+       "title": "Blue Hour",
+       "length": 198000,
+       "recording": {
+        "id": "bf3d959c-85e7-5db0-9999-d9e25e59691b",
+        "title": "Blue Hour",
+        "length": 198000
+       }
+      },
+      {
+       "id": "8e4bf4e7-976e-5833-b76a-ae66b19e1d0b",
+       "number": "4",
+       "position": 4,
+       "title": "Wildfire Season",
+       "length": 263000,
+       "recording": {
+        "id": "0b5cfa28-c758-52bd-b5a5-ec97ba046eb2",
+        "title": "Wildfire Season",
+        "length": 263000
+       }
+      },
+      {
+       "id": "7483535d-252d-5e0e-ac9d-b47f6c6daf77",
+       "number": "5",
+       "position": 5,
+       "title": "Gravel Road",
+       "length": 187000,
+       "recording": {
+        "id": "480aa193-0f91-57f5-86b5-9ef56f2daa38",
+        "title": "Gravel Road",
+        "length": 187000
+       }
+      },
+      {
+       "id": "26078e38-45ec-5a82-a0c8-585b228f776c",
+       "number": "6",
+       "position": 6,
+       "title": "Telegraph",
+       "length": 305000,
+       "recording": {
+        "id": "e8d5d5b7-fa4a-5399-adcd-3fb08fa00058",
+        "title": "Telegraph",
+        "length": 305000
+       }
+      },
+      {
+       "id": "054f5aae-ea9c-550e-86e3-a8b2bf2fd35c",
+       "number": "7",
+       "position": 7,
+       "title": "Seventeen Miles",
+       "length": 242000,
+       "recording": {
+        "id": "f3d9e36a-59e1-5c36-a10f-98e9f359dd32",
+        "title": "Seventeen Miles",
+        "length": 242000
+       }
+      },
+      {
+       "id": "df876d14-6485-57f7-b3f7-83f2009085a3",
+       "number": "8",
+       "position": 8,
+       "title": "Paper Crown",
+       "length": 228000,
+       "recording": {
+        "id": "16d5c9ac-4f0b-5589-b4d9-81cadef44e97",
+        "title": "Paper Crown",
+        "length": 228000
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

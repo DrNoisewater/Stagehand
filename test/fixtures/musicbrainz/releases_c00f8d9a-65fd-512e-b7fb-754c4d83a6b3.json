@@ -1,0 +1,70 @@
+{
+ "release-count": 1,
+ "release-offset": 0,
+ "releases": [
+  {
+   "id": "d321d105-46a9-5d42-9f52-91e9f8e62da6",
+   "title": "Night Ferry",
+   "status": "Official",
+   "date": "2014-02-24",
+   "country": "GB",
+   "media": [
+    {
+     "position": 1,
+     "format": "Digital Media",
+     "track-count": 4,
+     "tracks": [
+      {
+       "id": "a918f727-6376-5995-8abb-53f859b7e183",
+       "number": "1",
+       "position": 1,
+       "title": "Night Ferry",
+       "length": 214000,
+       "recording": {
+        "id": "216b1b8b-b70b-52f6-9457-91135a4537d5",
+        "title": "Night Ferry",
+        "length": 214000
+       }
+      },
+      {
+       "id": "2bd4ea43-2985-5cc4-a77b-cf8e02cfdcb7",
+       "number": "2",
+       "position": 2,
+       "title": "Kingfisher",
+       "length": 251000,
+       "recording": {
+        "id": "75294918-5878-5f62-a0f9-86f519b9afed",
+        "title": "Kingfisher",
+        "length": 251000
+       }
+      },
+      {
+       "id": "5a943e0a-ca1e-5d41-96f9-3f35d0f61b24",
+       "number": "3",
+       "position": 3,
+       "title": "Lowlands",
+       "length": 198000,
+       "recording": {
+        "id": "a61f0b6a-7a63-5e33-8f64-179cdba01308",
+        "title": "Lowlands",
+        "length": 198000
+       }
+      },
+      {
+       "id": "8375595a-f689-5157-beab-53b2bae68c18",
+       "number": "4",
+       "position": 4,
+       "title": "Quiet Harbour",
+       "length": 263000,
+       "recording": {
+        "id": "a95d1781-937f-5091-992d-10c6ce95c731",
+        "title": "Quiet Harbour",
+        "length": 263000
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

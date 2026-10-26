@@ -1,0 +1,374 @@
+{
+ "release-count": 2,
+ "release-offset": 0,
+ "releases": [
+  {
+   "id": "aaae9327-207d-517c-a938-437a7db35d83",
+   "title": "Paper Moons",
+   "status": "Official",
+   "date": "2018-05-11",
+   "country": "GB",
+   "media": [
+    {
+     "position": 1,
+     "format": "Digital Media",
+     "track-count": 16,
+     "tracks": [
+      {
+       "id": "b20429b4-303b-54c7-a0d6-eba6c1585d8b",
+       "number": "1",
+       "position": 1,
+       "title": "Paper Moons",
+       "length": 214000,
+       "recording": {
+        "id": "f5e3ad96-83cd-540b-a591-1a8dea825d61",
+        "title": "Paper Moons",
+        "length": 214000
+       }
+      },
+      {
+       "id": "a77067e8-d9df-5ced-9925-b24fc4ac22d3",
+       "number": "2",
+       "position": 2,
+       "title": "Satellite",
+       "length": 251000,
+       "recording": {
+        "id": "a80e921e-04cd-5603-ad37-4f366d2ac950",
+        "title": "Satellite",
+        "length": 251000
+       }
+      },
+      {
+       "id": "69f0cceb-7fd7-5d24-8d21-be7a7ec105ff",
+       "number": "3",
+       "position": 3,
+       "title": "Pilot Light",
+       "length": 198000,
+       "recording": {
+        "id": "65ba23cc-f785-59be-bacc-a1562ff0e75b",
+        "title": "Pilot Light",
+        "length": 198000
+       }
+      },
+      {
+       "id": "1555e8b7-741b-5b47-b821-6f81406064ee",
+       "number": "4",
+       "position": 4,
+       "title": "Hollow Bones",
+       "length": 263000,
+       "recording": {
+        "id": "50adfc57-3532-56ac-8754-41730f154326",
+        "title": "Hollow Bones",
+        "length": 263000
+       }
+      },
+      {
+       "id": "46a2b7be-6e14-572b-8e82-35204fa42a36",
+       "number": "5",
+       "position": 5,
+       "title": "Arcadia",
+       "length": 187000,
+       "recording": {
+        "id": "c08ac6c1-8236-5fd9-a9e2-d9938d0f234f",
+        "title": "Arcadia",
+        "length": 187000
+       }
+      },
+      {
+       "id": "22394602-98f4-54fc-b6b4-ef5927dd280b",
+       "number": "6",
+       "position": 6,
+       "title": "Lamplighter",
+       "length": 305000,
+       "recording": {
+        "id": "2a45e51c-7fc6-535b-93c3-12839dd801dc",
+        "title": "Lamplighter",
+        "length": 305000
+       }
+      },
+      {
+       "id": "60a2412b-19aa-52eb-aff1-724bd2207722",
+       "number": "7",
+       "position": 7,
+       "title": "Tin Roof",
+       "length": 242000,
+       "recording": {
+        "id": "ded88010-7c8c-5e72-91e4-3a5aab318351",
+        "title": "Tin Roof",
+        "length": 242000
+       }
+      },
+      {
+       "id": "db565afb-9fb9-57df-80a2-b952b607b834",
+       "number": "8",
+       "position": 8,
+       "title": "Velvet Static",
+       "length": 228000,
+       "recording": {
+        "id": "ac9adb73-7e0c-5b03-b6d4-6d34e1540618",
+        "title": "Velvet Static",
+        "length": 228000
+       }
+      },
+      {
+       "id": "edfa6064-49d9-5365-9f21-59f907a17dc5",
+       "number": "9",
+       "position": 9,
+       "title": "Night Swimming",
+       "length": 276000,
+       "recording": {
+        "id": "73e249a5-517c-5b69-9f22-fbbeb310ceb6",
+        "title": "Night Swimming",
+        "length": 276000
+       }
+      },
+      {
+       "id": "14f3cdce-c984-57cd-b01a-93a57d66f173",
+       "number": "10",
+       "position": 10,
+       "title": "Long Way Down",
+       "length": 199000,
+       "recording": {
+        "id": "207e8479-bd0c-5ff0-bba5-832601043b8f",
+        "title": "Long Way Down",
+        "length": 199000
+       }
+      },
+      {
+       "id": "73e5986c-f958-53b3-9b67-0be00aa1b98e",
+       "number": "11",
+       "position": 11,
+       "title": "Afterglow",
+       "length": 233000,
+       "recording": {
+        "id": "05135862-89c5-5069-a8b3-bf2b91f0a525",
+        "title": "Afterglow",
+        "length": 233000
+       }
+      },
+      {
+       "id": "ea90ce22-296a-508d-b766-82d17153fc02",
+       "number": "12",
+       "position": 12,
+       "title": "Homeward",
+       "length": 219000,
+       "recording": {
+        "id": "64a572b3-b137-5ed6-8f02-2a97a4133b02",
+        "title": "Homeward",
+        "length": 219000
+       }
+      },
+      {
+       "id": "28fc989d-c5ba-5588-baaa-5f1319c14f7f",
+       "number": "13",
+       "position": 13,
+       "title": "Paper Moons (Demo)",
+       "length": 160000,
+       "recording": {
+        "id": "9974d02b-0568-54f5-9ec0-35e3fe4c2c27",
+        "title": "Paper Moons (Demo)",
+        "length": 160000
+       }
+      },
+      {
+       "id": "616a4ba4-302c-52b2-aa86-e28f7b5cfbba",
+       "number": "14",
+       "position": 14,
+       "title": "Satellite (Acoustic)",
+       "length": 175000,
+       "recording": {
+        "id": "a08989cc-ba81-52fb-95b6-86aea536c9d6",
+        "title": "Satellite (Acoustic)",
+        "length": 175000
+       }
+      },
+      {
+       "id": "a0612a5b-09a0-586d-a625-d7200c67c9f8",
+       "number": "15",
+       "position": 15,
+       "title": "Arcadia (Live)",
+       "length": 290000,
+       "recording": {
+        "id": "bd72be96-9f80-536c-9857-2a6439a47ef2",
+        "title": "Arcadia (Live)",
+        "length": 290000
+       }
+      },
+      {
+       "id": "98ba5e95-6180-5668-9e74-408d27c248fc",
+       "number": "16",
+       "position": 16,
+       "title": "Bonus Light",
+       "length": 140000,
+       "recording": {
+        "id": "a16b952f-0997-5e73-8a3f-219a8ae31e24",
+        "title": "Bonus Light",
+        "length": 140000
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "3fb78d16-8673-5a04-8f1d-36af2f07b230",
+   "title": "Paper Moons",
+   "status": "Official",
+   "date": "2017-05-12",
+   "country": "GB",
+   "media": [
+    {
+     "position": 1,
+     "format": "Digital Media",
+     "track-count": 12,
+     "tracks": [
+      {
+       "id": "a172edc9-44b2-53cf-8e8b-f72ca9c9c35c",
+       "number": "1",
+       "position": 1,
+       "title": "Paper Moons",
+       "length": 214000,
+       "recording": {
+        "id": "f5e3ad96-83cd-540b-a591-1a8dea825d61",
+        "title": "Paper Moons",
+        "length": 214000
+       }
+      },
+      {
+       "id": "00d90773-78ce-5e64-8366-4e7d31958d42",
+       "number": "2",
+       "position": 2,
+       "title": "Satellite",
+       "length": 251000,
+       "recording": {
+        "id": "a80e921e-04cd-5603-ad37-4f366d2ac950",
+        "title": "Satellite",
+        "length": 251000
+       }
+      },
+      {
+       "id": "d28bad1a-a743-52b5-9554-ba6b333395ba",
+       "number": "3",
+       "position": 3,
+       "title": "Pilot Light",
+       "length": 198000,
+       "recording": {
+        "id": "65ba23cc-f785-59be-bacc-a1562ff0e75b",
+        "title": "Pilot Light",
+        "length": 198000
+       }
+      },
+      {
+       "id": "a2efe774-e2ab-5183-9310-ba42abeeebca",
+       "number": "4",
+       "position": 4,
+       "title": "Hollow Bones",
+       "length": 263000,
+       "recording": {
+        "id": "50adfc57-3532-56ac-8754-41730f154326",
+        "title": "Hollow Bones",
+        "length": 263000
+       }
+      },
+      {
+       "id": "836c51ae-8d3c-5789-b542-7d2f1e75074a",
+       "number": "5",
+       "position": 5,
+       "title": "Arcadia",
+       "length": 187000,
+       "recording": {
+        "id": "c08ac6c1-8236-5fd9-a9e2-d9938d0f234f",
+        "title": "Arcadia",
+        "length": 187000
+       }
+      },
+      {
+       "id": "4ac771c6-ee07-5c5a-8c2d-45a69ecfb659",
+       "number": "6",
+       "position": 6,
+       "title": "Lamplighter",
+       "length": 305000,
+       "recording": {
+        "id": "2a45e51c-7fc6-535b-93c3-12839dd801dc",
+        "title": "Lamplighter",
+        "length": 305000
+       }
+      },
+      {
+       "id": "b958b9dc-77b0-5bd5-a083-8d35614b4dc6",
+       "number": "7",
+       "position": 7,
+       "title": "Tin Roof",
+       "length": 242000,
+       "recording": {
+        "id": "ded88010-7c8c-5e72-91e4-3a5aab318351",
+        "title": "Tin Roof",
+        "length": 242000
+       }
+      },
+      {
+       "id": "a42bea8a-cfe2-5821-8463-d171059ddca9",
+       "number": "8",
+       "position": 8,
+       "title": "Velvet Static",
+       "length": 228000,
+       "recording": {
+        "id": "ac9adb73-7e0c-5b03-b6d4-6d34e1540618",
+        "title": "Velvet Static",
+        "length": 228000
+       }
+      },
+      {
+       "id": "5a615896-a976-590f-8f65-578e990a9757",
+       "number": "9",
+       "position": 9,
+       "title": "Night Swimming",
+       "length": 276000,
+       "recording": {
+        "id": "73e249a5-517c-5b69-9f22-fbbeb310ceb6",
+        "title": "Night Swimming",
+        "length": 276000
+       }
+      },
+      {
+       "id": "20fcd093-61bb-54b5-9126-65156019cff6",
+       "number": "10",
+       "position": 10,
+       "title": "Long Way Down",
+       "length": 199000,
+       "recording": {
+        "id": "207e8479-bd0c-5ff0-bba5-832601043b8f",
+        "title": "Long Way Down",
+        "length": 199000
+       }
+      },
+      {
+       "id": "e08cab9e-f6da-5106-9919-2434e07e73ee",
+       "number": "11",
+       "position": 11,
+       "title": "Afterglow",
+       "length": 233000,
+       "recording": {
+        "id": "05135862-89c5-5069-a8b3-bf2b91f0a525",
+        "title": "Afterglow",
+        "length": 233000
+       }
+      },
+      {
+       "id": "d1595fb0-5847-51d4-a39b-8d45c5ef9822",
+       "number": "12",
+       "position": 12,
+       "title": "Homeward",
+       "length": 219000,
+       "recording": {
+        "id": "64a572b3-b137-5ed6-8f02-2a97a4133b02",
+        "title": "Homeward",
+        "length": 219000
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

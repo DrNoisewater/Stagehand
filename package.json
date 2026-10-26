@@ -1,0 +1,56 @@
+{
+  "name": "stagehand",
+  "productName": "Stagehand",
+  "version": "3.2.5",
+  "description": "Library, player and stem mixer for Rocksmith 2014 PSARC files",
+  "main": "src/main/main.js",
+  "author": "Stagehand",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/core.test.js && node test/gpu.test.js && node test/rsprofile.test.js && node test/rsmods.test.js && node test/discover.test.js && node test/tab.test.js && node test/rig.test.js && node test/captures.test.js && node test/toneindex.test.js && python test/engine_check_test.py",
+    "dist": "electron-builder --win nsis",
+    "dist:portable": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^44.1.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "app.stagehand.desktop",
+    "productName": "Stagehand",
+    "copyright": "Stagehand",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "engine/**/*",
+      "build/icon.*",
+      "native/bin/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "engine/**",
+      "native/bin/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Stagehand"
+    },
+    "portable": {
+      "artifactName": "Stagehand-${version}-portable.exe"
+    }
+  }
+}
