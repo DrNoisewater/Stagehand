@@ -10,7 +10,7 @@ const { TabService } = require('../../src/main/services/tabs');
   const ts = new TabService();
   const parts = ts.list(song);
   const out = {};
-  for (const part of parts) out[part.type] = await ts.load(song, part.id, { withLyrics: false });
+  for (const part of parts) out[part.type] = await ts.load(song, part.id, { withLyrics: true });
   require('fs').writeFileSync(process.argv[3], JSON.stringify(out));
   console.log(parts.map((x) => x.type), Object.values(out).map((t) => [t.strings, t.notes.length, t.chordEvents.length, t.anchors.length, t.notes[0] && t.notes[0].t]));
 })();

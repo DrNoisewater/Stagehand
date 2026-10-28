@@ -147,12 +147,14 @@ export function createHighway(stage) {
   }
   bottom.append(playBtn, time, h('span.grow'), h('span.hw-label', { text: 'Speed' }), speed);
   const msg = h('div.hw-msg', { hidden: true });
-  root.append(glCanvas, canvas, top, sections, bottom, msg, dock);
+  const fpsBox = h('div.hw-fps', { hidden: true });
+  // lyrics, two lines under the title, the words lighting up as they're sung (as in Rocksmith)
+  const lyricsBox = h('div.hw-lyrics', { hidden: true, 'aria-live': 'off' });
+  root.append(glCanvas, canvas, top, sections, bottom, msg, dock, fpsBox, lyricsBox);
   document.body.append(root);
   root.__hw = H; // for tests
   const ctx = canvas.getContext('2d');
   const R3 = createRenderer3D(glCanvas);
-  const bgCtx = R3 ? R3.bg.getContext('2d') : null;
   H.r3 = R3; // tests
 
   let lastInteraction = performance.now();
@@ -221,7 +223,7 @@ export function createHighway(stage) {
       const b = h('button.hw-venue', { type: 'button', title: v.name, 'aria-pressed': String(cur === v.id) }, th ? h('img', { src: th, alt: '' }) : h('i.plain'), h('span', { text: v.name }));
       b.onclick = () => {
         setPref('venue', v.id);
-        H.bgDrawn = false;
+
         renderOpts();
       };
       grid.append(b);
@@ -236,7 +238,6 @@ export function createHighway(stage) {
       closeOpts();
       openSync();
     };
-    const glowOn = prefs.glow !== false && !perf.noGlow;
     opts.append(
       sync,
       seg('Look ahead', [[2, '2 s'], [2.5, '2.5 s'], [3, '3 s'], [4, '4 s']], prefs.ahead, (v) => setPref('ahead', v)),
@@ -244,10 +245,8 @@ export function createHighway(stage) {
       venuePicker(),
       h('div.hw-opt-toggles', null,
         toggle('Score my playing', prefs.detect, () => setPref('detect', !prefs.detect)),
-        toggle('Glow', glowOn, () => {
-          perf.noGlow = false;
-          setPref('glow', !glowOn);
-        }, perf.noGlow && prefs.glow !== false ? 'Turned off: your PC was struggling' : 'Uses your graphics card'),
+        toggle('Lyrics', prefs.lyrics !== false, () => setPref('lyrics', prefs.lyrics === false)),
+        toggle('Chord names', prefs.chordNames !== false, () => setPref('chordNames', prefs.chordNames === false)),
         toggle('Fire on a streak', prefs.fx, () => setPref('fx', !prefs.fx)),
         toggle('Frame rate', !!prefs.showFps, () => setPref('showFps', !prefs.showFps))
       )
@@ -653,6 +652,8 @@ export function createHighway(stage) {
       prefs.part = H.tab.type === 'combo' ? 'lead' : H.tab.type;
       save();
       H.targets = buildTargets(H.tab);
+      H.lyricLines = buildLyrics(H.tab.lyrics || []);
+      lyricShown = -2;
       showMsg(null);
       applyPlayAlong();
       resetJudge();
@@ -690,6 +691,67 @@ export function createHighway(stage) {
     }
     H.sustainEnds = sustainIndex(t);
     return t;
+  }
+
+  /** Lyrics as lines of words ("+" ends a line, "-" joins syllables), for the karaoke line. */
+  function buildLyrics(ly) {
+    const lines = [];
+    let cur = null;
+    for (let i = 0; i < ly.length; i++) {
+      const w = ly[i];
+      const raw = String(w.w || '');
+      const end = raw.endsWith('+');
+      const clean = raw.replace(/\+$/, '');
+      const joined = clean.endsWith('-');
+      const text = joined ? clean.slice(0, -1) : clean;
+      if (!cur || (cur.words.length && (w.t - cur.t1 > 3 || (cur.words.length >= 12 && !cur.words[cur.words.length - 1].joined)))) {
+        cur = { t0: w.t, t1: w.t + (w.d || 0.3), words: [] };
+        lines.push(cur);
+      }
+      cur.words.push({ t: w.t, d: Math.max(0.15, w.d || 0.3), text, joined });
+      cur.t1 = w.t + Math.max(0.15, w.d || 0.3);
+      if (end) cur = null;
+    }
+    return lines;
+  }
+  let lyricShown = -2;
+  let lyricWord = -2;
+  function updateLyrics(t) {
+    const L = H.lyricLines || [];
+    if (prefs.lyrics === false || !L.length) {
+      lyricsBox.hidden = true;
+      return;
+    }
+    // the line being sung, or the next one shortly before it starts
+    let i = -1;
+    for (let k = 0; k < L.length; k++) {
+      if (L[k].t0 - 1.2 <= t) i = k;
+      else break;
+    }
+    const line = L[i];
+    const show = !!line && t < line.t1 + 1.5;
+    if (!show) {
+      if (!lyricsBox.hidden) lyricsBox.hidden = true;
+      return;
+    }
+    lyricsBox.hidden = false;
+    if (i !== lyricShown) {
+      lyricShown = i;
+      lyricWord = -2;
+      lyricsBox.innerHTML = '';
+      const row = h('div.hw-ly-now');
+      line.words.forEach((w, k) => row.append(h('span', { text: w.text + (w.joined || k === line.words.length - 1 ? '' : ' ') })));
+      const next = L[i + 1];
+      lyricsBox.append(row, h('div.hw-ly-next', { text: next ? next.words.map((w, k) => w.text + (w.joined || k === next.words.length - 1 ? '' : ' ')).join('') : '' }));
+    }
+    // sung words dim, the word being sung lights up, the rest wait in white
+    let wi = -1;
+    for (let k = 0; k < line.words.length; k++) if (line.words[k].t <= t) wi = k;
+    if (wi !== lyricWord) {
+      lyricWord = wi;
+      const spans = lyricsBox.firstChild.children;
+      for (let k = 0; k < spans.length; k++) spans[k].className = k < wi ? 'sung' : k === wi && t < line.words[k].t + line.words[k].d + 0.25 ? 'now' : k === wi ? 'sung' : '';
+    }
   }
 
   function instrument() {
@@ -781,10 +843,7 @@ export function createHighway(stage) {
     const avg = perf.acc / perf.n;
     perf.acc = 0;
     perf.n = 0;
-    if (avg > 26) {
-      if (!perf.noGlow && prefs.glow !== false) perf.noGlow = true;
-      else if (R3.scale > 0.5) R3.setScale(R3.scale > 0.75 ? 0.75 : 0.5, dpr);
-    }
+    if (avg > 26 && R3.scale > 0.5) R3.setScale(R3.scale > 0.75 ? 0.75 : 0.5, Math.min(dpr, 1.5));
     H.perf = { avg, glow: R3.glow, scale: R3.scale };
   }
 
@@ -792,6 +851,7 @@ export function createHighway(stage) {
     cancelAnimationFrame(H.raf);
     const step = (now) => {
       if (!H.open) return;
+      H.stepStart = performance.now();
       const dt = Math.min(0.1, (now - H.last) / 1000);
       H.last = now;
       // The song clock (engine.position) follows the speakers, but it arrives
@@ -832,15 +892,21 @@ export function createHighway(stage) {
       draw(vis, dt);
       govern(performance.now() - f0, dt);
       if (prefs.showFps) {
+        const ours = performance.now() - (H.stepStart || now);
+        H.other = (H.other || 0) * 0.95 + Math.max(0, dt * 1000 - ours) * 0.05;
+        H.worst = Math.max((H.worst || 0) * 0.995, dt * 1000);
         H.fpsAcc = (H.fpsAcc || 0) * 0.95 + dt * 0.05;
-        ctx.font = `700 13px ${FONT}`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillStyle = 'rgba(200, 230, 255, 0.85)';
-        const tm = H.timing || {};
-        ctx.fillText(`${Math.round(1 / Math.max(0.001, H.fpsAcc))} fps · frame ${(performance.now() - f0).toFixed(1)} ms (venue ${(tm.venue || 0).toFixed(1)}, scene ${(tm.build || 0).toFixed(1)}, draw ${(tm.gpu || 0).toFixed(1)}, text ${(tm.text || 0).toFixed(1)}) · glow ${R3 && R3.glow ? 'on' : 'off'} · ${R3 ? Math.round(R3.scale * 100) : 0}% · ${R3 ? R3.gpuName : ''}`, 24, HH - 120);
+        if (now - (H.fpsShown || 0) > 250) {
+          H.fpsShown = now;
+          const tm = H.timing || {};
+          fpsBox.textContent = `${Math.round(1 / Math.max(0.001, H.fpsAcc))} fps · worst ${Math.round(H.worst)} ms · ours ${(tm.build + tm.gpu || 0).toFixed(1)} ms (scene ${(tm.build || 0).toFixed(1)}, draw ${(tm.gpu || 0).toFixed(1)}) · waiting ${H.other.toFixed(1)} ms · ${R3 ? Math.round(R3.scale * 100) : 0}% · ${R3 ? R3.gpuName : ''}`;
+        }
       }
-      root.classList.toggle('hw-quiet', eng.playing && now - lastInteraction > 2500 && !mixOpen && !document.querySelector('.menu[role="menu"]') && !root.querySelector(':focus-visible'));
+      fpsBox.hidden = !prefs.showFps;
+      if (now - (H.quietAt || 0) > 250) {
+        H.quietAt = now;
+        root.classList.toggle('hw-quiet', eng.playing && now - lastInteraction > 2500 && !mixOpen && opts.hidden && !document.querySelector('.menu[role="menu"]') && !root.querySelector(':focus-visible'));
+      }
       updateHud(H.clock);
       updateMixLevels();
       H.raf = requestAnimationFrame(step);
@@ -1028,20 +1094,17 @@ export function createHighway(stage) {
 
   function draw(t, dt) {
     const tab = H.tab;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, HH);
     const T0 = performance.now();
-    drawBackdrop(t);
-    const T1 = performance.now();
-    if (!tab || !R3) {
-      if (R3) {
-        R3.begin();
-        R3.render(40, 1);
-      }
+    if (!tab) {
+      drawBackdrop(t);
+      R3.begin();
+      R3.render(40, 1);
       return;
     }
     geometry(t);
     camera(t, dt);
+    drawBackdrop(t);
+    const T1 = performance.now();
     const a = anchorAt(t);
     let f0 = 0;
     let f1 = 24;
@@ -1050,20 +1113,19 @@ export function createHighway(stage) {
     G.f0 = f0;
     G.f1 = f1;
     R3.begin();
-    R3.setGlow(prefs.glow !== false && !perf.noGlow);
     buildFloor(t, a, f0, f1);
     buildNeck(t, a, f0, f1);
     buildNotes(t, a);
     buildLands(t, a);
     buildHits(t, a);
-    const T2 = performance.now();
-    R3.render(G.zF, G.zs * PAST);
-    const T3 = performance.now();
     drawNeckFront(t, a, f0, f1);
     drawLabels();
     drawHitsFront(t, a, dt);
     drawFire(a, dt);
-    const T4 = performance.now();
+    const T2 = performance.now();
+    R3.render(G.zF, G.zs * PAST);
+    const T3 = performance.now();
+    const T4 = T3;
     const k = 0.9;
     const tm = (H.timing = H.timing || { venue: 0, build: 0, gpu: 0, text: 0 });
     tm.venue = tm.venue * k + (T1 - T0) * (1 - k);
@@ -1077,38 +1139,103 @@ export function createHighway(stage) {
   function label(text, x, y, z, opts) {
     labels.push({ text, x, y, z, ...opts });
   }
+  // Text and badges: drawn once into images in a texture on the graphics
+  // card (R3.text), then placed as flat quads each frame. Nothing is painted
+  // on the processor while you play.
+  const GB = 64; // base size the images are drawn at
+  const measureCtx = document.createElement('canvas').getContext('2d');
+  function glyph(text, style, weight) {
+    const key = `${text}|${style}|${weight}`;
+    const font = `${weight} ${GB}px ${FONT}`;
+    measureCtx.font = font;
+    const tw = measureCtx.measureText(text).width;
+    const pill = style.startsWith('pill:');
+    const disc = style === 'disc';
+    const pad = style === 'glow' || style.startsWith('streak') ? 24 : pill ? 4 : 12;
+    let w = Math.ceil(tw) + pad * 2 + (pill ? GB * 0.9 : 0);
+    let hgt = GB + pad * 2;
+    if (disc) w = hgt = GB * 1.4 + 8;
+    return R3.text.image(key, w, hgt, (g, W2, H2) => {
+      g.font = font;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      const cx = W2 / 2;
+      const cy = H2 / 2 + 3;
+      if (disc) {
+        g.beginPath();
+        g.arc(cx, H2 / 2, GB * 0.66, 0, Math.PI * 2);
+        g.fillStyle = 'rgba(245, 250, 255, 0.95)';
+        g.fill();
+        g.fillStyle = '#20252c';
+        g.fillText(text, cx, cy);
+        return;
+      }
+      if (pill) {
+        rr(g, 2, H2 / 2 - GB * 0.62, W2 - 4, GB * 1.24, GB * 0.62);
+        g.fillStyle = 'rgba(8, 12, 22, 0.85)';
+        g.fill();
+        g.fillStyle = style.slice(5);
+        g.fillText(text, cx, cy);
+        return;
+      }
+      if (style === 'plain') {
+        g.fillStyle = 'rgba(90, 200, 205, 0.7)';
+        g.fillText(text, cx, cy);
+        return;
+      }
+      const grad = (a, b) => {
+        const gr = g.createLinearGradient(0, cy - GB / 2, 0, cy + GB / 2);
+        gr.addColorStop(0, a);
+        gr.addColorStop(1, b);
+        return gr;
+      };
+      if (style === 'glow') {
+        g.shadowColor = 'rgba(255, 170, 30, 0.6)';
+        g.shadowBlur = 16;
+        g.fillStyle = grad('#ffe08a', '#f0a020');
+        g.fillText(text, cx, cy);
+        return;
+      }
+      g.lineJoin = 'round';
+      g.lineWidth = GB * (style.startsWith('streak') ? 0.12 : 0.16);
+      g.strokeStyle = 'rgba(5, 8, 15, 0.85)';
+      g.strokeText(text, cx, cy);
+      if (style === 'gold') g.fillStyle = grad('#ffe9a8', '#f3a51f');
+      else if (style === 'grey') g.fillStyle = grad('#a0a4b4', '#6a6f82');
+      else if (style === 'chord') g.fillStyle = grad('#ffffff', '#c9d2e6');
+      else if (style === 'streakHot' || style === 'streakCool') {
+        g.shadowColor = style === 'streakHot' ? '#ff7a1f' : '#4fe3ff';
+        g.shadowBlur = 18;
+        g.fillStyle = style === 'streakHot' ? grad('#fff3b0', '#ff6a1f') : grad('#ffffff', '#7fe8ff');
+      } else g.fillStyle = style;
+      g.fillText(text, cx, cy);
+    });
+  }
+  const WHITE = [1, 1, 1, 1];
+  const tint = (a) => (a >= 0.999 ? WHITE : [1, 1, 1, a]);
+  /** Text at (x, y) screen pixels, fs tall; base 'middle' | 'top' | 'bottom'; align 'center' | 'left' | 'right'. */
+  function txt(text, style, weight, x, y, fs, base = 'middle', alpha = 1, align = 'center') {
+    if (alpha <= 0.01 || fs < 4) return;
+    const gi = glyph(text, style, weight);
+    const k = fs / GB;
+    const dw = gi.w * k;
+    const dh = gi.h * k;
+    const top = base === 'top' ? y - dh * 0.18 : base === 'bottom' ? y - dh * 0.82 : y - dh / 2;
+    const left = align === 'left' ? x : align === 'right' ? x - dw : x - dw / 2;
+    R3.text.quad(gi, left, top, dw, dh, tint(alpha));
+  }
+  const blit = (text, style, weight, x, y, fs, base = 'middle') => txt(text, style, weight, x, y, fs, base);
+
   function drawLabels() {
-    ctx.textAlign = 'center';
     for (const l of labels) {
       const [sx, sy, sc, front] = R3.project(l.x, l.y, l.z);
       if (!front) continue;
       const fs = Math.round(Math.max(l.min || 10, Math.min(l.max || 36, (l.size || 0.4) * sc)));
       if (fs < (l.hide || 0)) continue;
-      ctx.globalAlpha = l.alpha ?? 1;
-      ctx.font = `${l.weight || 900} ${fs}px ${FONT}`;
-      ctx.textBaseline = l.base || 'middle';
       const y = sy + (l.dy || 0) * fs;
-      if (l.pill) {
-        const tw = ctx.measureText(l.text).width + fs * 0.9;
-        rr(ctx, sx - tw / 2, y - fs * 0.62, tw, fs * 1.24, fs * 0.62);
-        ctx.fillStyle = 'rgba(8, 12, 22, 0.85)';
-        ctx.fill();
-        ctx.fillStyle = l.color || '#ffe2b0';
-        ctx.fillText(l.text, sx, y + 1);
-        continue;
-      }
-      ctx.lineWidth = Math.max(2.5, fs * 0.16);
-      ctx.strokeStyle = 'rgba(5, 8, 15, 0.85)';
-      ctx.strokeText(l.text, sx, y);
-      if (l.gold) {
-        const g = ctx.createLinearGradient(0, y - fs / 2, 0, y + fs / 2);
-        g.addColorStop(0, l.grey ? '#a0a4b4' : '#ffe9a8');
-        g.addColorStop(1, l.grey ? '#6a6f82' : '#f3a51f');
-        ctx.fillStyle = g;
-      } else ctx.fillStyle = l.color || '#ffffff';
-      ctx.fillText(l.text, sx, y);
+      const style = l.pill ? `pill:${l.color || '#ffe2b0'}` : l.gold ? (l.grey ? 'grey' : 'gold') : l.color || '#ffffff';
+      txt(l.text, style, l.weight || 900, sx, y, fs, l.base || 'middle', l.alpha ?? 1);
     }
-    ctx.globalAlpha = 1;
     labels.length = 0;
   }
 
@@ -1119,31 +1246,22 @@ export function createHighway(stage) {
     const ha = PX(anX0(a), -0.25, 0);
     const hb = PX(anX1(a), -0.25, 0);
     const n0 = Math.max(0, PX(XF(0), -0.25, 0));
-    fire.update(Math.min(0.05, dt || 0.016), G.heat, [[n0, ha - 24], [hb + 24, W]], yBot + 2);
-    fire.draw(ctx);
+    // the fire is the one thing still drawn in 2D, and only while it burns
+    if (G.heat > 0.01 || H.fireOn) {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, HH);
+      fire.update(Math.min(0.05, dt || 0.016), G.heat, [[n0, ha - 24], [hb + 24, W]], yBot + 2);
+      fire.draw(ctx);
+      H.fireOn = G.heat > 0.01;
+    }
     const streak = H.forceStreak ?? (H.judge && prefs.detect && rig.on ? H.judge.streak : 0);
     if (streak >= 8) {
       const hot = G.heat;
       const fs = Math.round(Math.min(40, HH * 0.04) * (1 + 0.08 * G.pulse));
-      ctx.font = `900 ${fs}px ${FONT}`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'alphabetic';
       const x = W - 40;
       const y = Math.min(yTop - 24, HH * 0.62);
-      ctx.lineWidth = 6;
-      ctx.strokeStyle = 'rgba(5, 8, 15, 0.8)';
-      ctx.strokeText(String(streak), x, y);
-      const g = ctx.createLinearGradient(0, y - fs, 0, y);
-      g.addColorStop(0, hot > 0.5 ? '#fff3b0' : '#ffffff');
-      g.addColorStop(1, hot > 0.5 ? '#ff6a1f' : '#7fe8ff');
-      ctx.fillStyle = g;
-      ctx.shadowColor = hot > 0.5 ? '#ff7a1f' : '#4fe3ff';
-      ctx.shadowBlur = 10 + 20 * hot;
-      ctx.fillText(String(streak), x, y);
-      ctx.shadowBlur = 0;
-      ctx.font = `800 ${Math.round(fs * 0.36)}px ${FONT}`;
-      ctx.fillStyle = hot > 0.5 ? '#ffb070' : 'rgba(170, 230, 255, 0.85)';
-      ctx.fillText(hot >= 0.99 ? 'ON FIRE' : 'IN A ROW', x, y + fs * 0.45);
+      txt(String(streak), hot > 0.5 ? 'streakHot' : 'streakCool', 900, x, y, fs * 1.3, 'bottom', 1, 'right');
+      txt(hot >= 0.99 ? 'ON FIRE' : 'IN A ROW', hot > 0.5 ? '#ffb070' : '#aae6ff', 800, x, y + fs * 0.35, fs * 0.4, 'middle', 1, 'right');
     }
   }
 
@@ -1163,27 +1281,10 @@ export function createHighway(stage) {
     H.heat = (H.heat || 0) + (want - (H.heat || 0)) * (want < (H.heat || 0) ? 0.08 : 0.03);
     G.heat = prefs.fx ? H.heat : 0;
     G.pulse = beatPulse(t || 0);
-    const target = R3 ? bgCtx : ctx;
-    const bw = R3 ? R3.bg.width : W;
-    const bh = R3 ? R3.bg.height : HH;
-    // the venue behind the 3D scene only needs ~30 updates a second
-    if (R3) {
-      H.bgTick = (H.bgTick || 0) + 1;
-      if (H.bgTick % 2 && H.bgDrawn) return;
-      H.bgDrawn = true;
-      R3.bgDirty = true;
-    }
-    // photo venues line their horizon up with the highway's vanishing point and drift a little with the camera
-    const view = {};
-    if (R3 && H.tab && G.zF) {
-      // where the highway's far end meets the floor: the picture's floor line goes there
-      view.vpY = (R3.project(G.camX || 0, 0, G.zF * 0.8)[1] / HH) * bh;
-      view.shift = ((G.camX || 0) - 10) / 14;
-    }
-    venue.draw(target, prefs.venue || 'warehouse', bw, bh, performance.now() / 1000, G.pulse * 0.5, G.heat * 0.5, view);
-    const photo = VENUES.some((v) => v.id === (VENUE_ALIAS[prefs.venue] || prefs.venue) && v.photo);
-    target.fillStyle = photo ? 'rgba(4, 6, 10, 0.08)' : 'rgba(4, 6, 10, 0.3)';
-    target.fillRect(0, 0, bw, bh);
+    const v = VENUES.find((x) => x.id === (VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse'));
+    // the picture's floor line goes where the highway's far end meets the floor; it drifts a little with the camera
+    const vpY = H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 0.8)[1] : HH * 0.4;
+    R3.setVenue(v && v.photo ? v : null, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
   }
 
   /** Cyan edges that warm to orange as you heat up. */
@@ -1302,18 +1403,7 @@ export function createHighway(stage) {
       if (x < 14 || x > W - 14) continue;
       const big = inA(f);
       const fs = Math.round(Math.max(14, Math.min(big ? 48 : 30, sc * (big ? 0.42 : 0.3) * laneW(f))));
-      const y = y0 + 6;
-      ctx.font = `${big ? 900 : 700} ${fs}px ${FONT}`;
-      if (big) {
-        const g = ctx.createLinearGradient(0, y, 0, y + fs);
-        g.addColorStop(0, '#ffe08a');
-        g.addColorStop(1, '#f0a020');
-        ctx.fillStyle = g;
-        ctx.shadowColor = 'rgba(255, 170, 30, 0.55)';
-        ctx.shadowBlur = 12;
-      } else ctx.fillStyle = 'rgba(90, 200, 205, 0.65)';
-      ctx.fillText(String(f), x, y);
-      ctx.shadowBlur = 0;
+      blit(String(f), big ? 'glow' : 'plain', big ? 900 : 700, x, y0 + 6, fs, 'top');
     }
     // finger numbers on the neck: the coming chord's, or the shape you're holding
     const fingers = new Map();
@@ -1343,40 +1433,20 @@ export function createHighway(stage) {
     for (const [s, finger] of fingers) {
       const [px, py, sc] = R3.project(laneC(finger.f), strH(s), -0.1);
       const fs = Math.max(14, Math.min(34, G.gap * sc * 0.8));
-      ctx.globalAlpha = finger.alpha;
-      ctx.font = `800 ${Math.round(fs)}px ${FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.beginPath();
-      ctx.arc(px, py, fs * 0.62, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(245, 250, 255, 0.92)';
-      ctx.fill();
-      ctx.fillStyle = '#20252c';
-      ctx.fillText(String(finger.finger), px, py + 1);
+      txt(String(finger.finger), 'disc', 800, px, py, fs * 1.4 / 1.4, 'middle', finger.alpha);
     }
-    ctx.globalAlpha = 1;
-    // the next chord's name, big and bold on the left (as in Rocksmith)
-    for (let i = lower(T, t - 0.05); i < T.length && T[i].t < t + 1.6; i++) {
-      const tg = T[i];
-      if (tg.kind !== 'chord' || !tg.name) continue;
-      const k = Math.min(1, (1.6 - (tg.t - t)) / 0.4);
-      ctx.globalAlpha = Math.max(0, k);
-      const fs = Math.round(Math.min(88, HH * 0.08));
-      ctx.font = `900 ${fs}px ${FONT}`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'alphabetic';
-      const x = W * 0.15;
-      const y = HH * 0.5;
-      ctx.lineWidth = 8;
-      ctx.strokeStyle = 'rgba(5, 8, 15, 0.7)';
-      ctx.strokeText(tg.name, x, y);
-      const g = ctx.createLinearGradient(0, y - fs, 0, y);
-      g.addColorStop(0, '#ffffff');
-      g.addColorStop(1, '#c9d2e6');
-      ctx.fillStyle = g;
-      ctx.fillText(tg.name, x, y);
-      ctx.globalAlpha = 1;
-      break;
+    // the coming chord's name: small, just above the strings at your hand position (as in Rocksmith)
+    if (prefs.chordNames !== false) {
+      for (let i = lower(T, t - 0.05); i < T.length && T[i].t < t + 1.6; i++) {
+        const tg = T[i];
+        if (tg.kind !== 'chord' || !tg.name) continue;
+        const k = Math.min(1, (1.6 - (tg.t - t)) / 0.4);
+        const an = anchorAt(tg.t);
+        const [x, y, sc] = R3.project(anX0(an), G.yTop + G.gy * 1.3, -0.1);
+        const fs = Math.round(Math.max(18, Math.min(30, sc * 0.42)));
+        txt(tg.name, 'chord', 900, x - 12, y, fs, 'bottom', Math.max(0, k), 'right');
+        break;
+      }
     }
   }
 
@@ -1710,18 +1780,10 @@ export function createHighway(stage) {
       p.y += p.vy * dt;
     }
     for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].life > sparks[i].max) sparks.splice(i, 1);
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
     for (const p of sparks) {
       const k = 1 - p.life / p.max;
-      ctx.strokeStyle = rgba(p.col, k);
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(p.x - p.vx * 0.025, p.y - p.vy * 0.025);
-      ctx.stroke();
+      R3.text.line(p.x, p.y, p.x - p.vx * 0.025, p.y - p.vy * 0.025, 2, col(p.col, k));
     }
-    ctx.restore();
     // a small MISS over the note you missed (only the latest, so they never pile up)
     H.misses = (H.misses || []).filter((m) => now - m.at < 700).slice(-1);
     for (const m of H.misses) {
@@ -1730,17 +1792,7 @@ export function createHighway(stage) {
       const an = anchorAt(tg.t);
       const age = (now - m.at) / 700;
       const [px, py] = R3.project(noteX(tg.notes[0], an), G.yTop + G.gy * 1.2 + age * 0.15, 0);
-      const fs = Math.round(Math.min(26, HH * 0.022));
-      ctx.globalAlpha = Math.min(1, (1 - age) * 2.2);
-      ctx.font = `900 ${fs}px ${FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = 'rgba(5, 8, 15, 0.7)';
-      ctx.strokeText('MISS', px, py);
-      ctx.fillStyle = 'rgba(170, 205, 215, 0.95)';
-      ctx.fillText('MISS', px, py);
-      ctx.globalAlpha = 1;
+      txt('MISS', '#aacdd7', 900, px, py, Math.round(Math.min(26, HH * 0.022)), 'middle', Math.min(1, (1 - age) * 2.2));
     }
     for (const h of H.hits) {
       const age = (now - h.at) / 1000;
@@ -1749,19 +1801,7 @@ export function createHighway(stage) {
       const an = anchorAt(tg.t);
       const top = tg.notes.reduce((m, q) => (strH(q.s) > strH(m.s) ? q : m), tg.notes[0]);
       const [px, py0] = R3.project(noteX(tg.notes[0], an), strH(top.s), 0);
-      const fs = Math.round(Math.min(22, HH * 0.02));
-      ctx.globalAlpha = Math.min(1, (0.7 - age) * 3);
-      ctx.font = `900 ${fs}px ${FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = 'rgba(5, 8, 15, 0.85)';
-      const txt = h.offset < 0 ? 'EARLY' : 'LATE';
-      const py = py0 - 26 - age * 30;
-      ctx.strokeText(txt, px, py);
-      ctx.fillStyle = h.offset < 0 ? '#9fe6ff' : '#ffd38a';
-      ctx.fillText(txt, px, py);
-      ctx.globalAlpha = 1;
+      txt(h.offset < 0 ? 'EARLY' : 'LATE', h.offset < 0 ? '#9fe6ff' : '#ffd38a', 900, px, py0 - 26 - age * 30, Math.round(Math.min(22, HH * 0.02)), 'bottom', Math.min(1, (0.7 - age) * 3));
     }
   }
 
@@ -1789,10 +1829,16 @@ export function createHighway(stage) {
 
   // -------------------------------------------------------------- HUD --
   let lastSec = -2;
+  let scoreHtml = null;
+  const setScore = (html) => {
+    if (html !== scoreHtml) score.innerHTML = scoreHtml = html;
+  };
+  let lastTime = '';
   function updateHud(t) {
     const tab = H.tab;
     const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-    time.textContent = `${fmt(Math.max(0, t))} / ${fmt(stage.engine.duration || 0)}`;
+    const tt = `${fmt(Math.max(0, t))} / ${fmt(stage.engine.duration || 0)}`;
+    if (tt !== lastTime) time.textContent = lastTime = tt;
     if (playBtn.dataset.pl !== String(!!stage.engine.playing)) {
       playBtn.dataset.pl = String(!!stage.engine.playing);
       playBtn.innerHTML = icon(stage.engine.playing ? 'pause' : 'play');
@@ -1812,12 +1858,13 @@ export function createHighway(stage) {
       if (head) head.style.left = `${Math.min(100, (t / total) * 100)}%`;
     }
     renderLoop();
+    updateLyrics(H.vclock ?? t);
     if (H.judge && prefs.detect && rig.on) {
       const acc = H.judge.accuracy;
-      score.innerHTML = `<b>${acc === null ? '–' : Math.round(acc * 100) + '%'}</b><span>accuracy</span><b>${H.judge.streak}</b><span>streak</span><b>${H.judge.hits}/${H.judge.judged}</b><span>notes</span>`;
+      setScore(`<b>${acc === null ? '–' : Math.round(acc * 100) + '%'}</b><span>accuracy</span><b>${H.judge.streak}</b><span>streak</span><b>${H.judge.hits}/${H.judge.judged}</b><span>notes</span>`);
     } else if (prefs.detect && !rig.on) {
-      score.innerHTML = '<span>Turn on <b>Your guitar</b> to see how you’re playing</span>';
-    } else score.innerHTML = '';
+      setScore('<span>Turn on <b>Your guitar</b> to see how you’re playing</span>');
+    } else setScore('');
   }
 
   function jumpTo(t) {

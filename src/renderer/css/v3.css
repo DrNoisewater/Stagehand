@@ -813,3 +813,12 @@ body:has(> .highway:not([hidden])) .stem-wait { bottom: auto; top: 30%; }
 .hw-venue:hover { border-color: rgba(255, 255, 255, 0.35); }
 .hw-venue[aria-pressed='true'] { border-color: var(--tungsten); box-shadow: 0 0 12px rgba(255, 181, 71, 0.45); }
 .hw-opts { width: 400px; }
+
+/* 3.6.2 highway: lyrics and the frame-rate line */
+.hw-lyrics { position: absolute; left: 28px; top: 96px; z-index: 3; max-width: min(56vw, 900px); pointer-events: none; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85); }
+.hw-ly-now { font: 700 30px/1.25 var(--font); color: #f4f6fb; }
+.hw-ly-now span { transition: color 0.08s linear; }
+.hw-ly-now span.sung { color: rgba(200, 208, 225, 0.55); }
+.hw-ly-now span.now { color: #5cc8ff; text-shadow: 0 0 14px rgba(92, 200, 255, 0.55), 0 2px 8px rgba(0, 0, 0, 0.85); }
+.hw-ly-next { margin-top: 4px; font: 600 20px/1.25 var(--font); color: rgba(200, 208, 225, 0.5); min-height: 1.25em; }
+.hw-fps { position: absolute; left: 24px; bottom: 84px; z-index: 3; font: 700 12px var(--font); color: rgba(200, 230, 255, 0.9); background: rgba(5, 8, 15, 0.6); padding: 4px 8px; border-radius: 6px; pointer-events: none; }

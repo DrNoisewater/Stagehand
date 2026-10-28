@@ -129,7 +129,8 @@ export const practice = new (class extends EventTarget {
     }
     this.lastT = t;
     if (this.session && rig.on) this.session.secs += dt;
-    if (rig.on) {
+    // the highway scores on its own while it's open: don't analyse the guitar twice
+    if (rig.on && !document.getElementById('app').classList.contains('under-highway')) {
       const buf = rig.samples(this.buf);
       if (buf) {
         if (!this.an || this.an.sr !== rig.sampleRate) this.an = new Analyzer(rig.sampleRate);
