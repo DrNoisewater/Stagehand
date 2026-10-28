@@ -711,6 +711,23 @@ class FakePortMain extends EventEmitter {
   check(Math.max(f0, f1) > 0 && Math.min(f0, f1) === 0 && f2 === f0, `clicking Songs again folds and unfolds its menu (${f0} → ${f1} → ${f2})`);
   check((await page.locator('.nav-label:has-text("In Rocksmith")').count()) === 0, 'the In Rocksmith lists are gone from the menu');
   await shot('24-menu');
+  // 3.8: typing in the search from another page shows the song list, filtered
+  await page.locator('.nav-section:has-text("Tones")').click();
+  await page.waitForTimeout(400);
+  await page.locator('#search').fill('album name');
+  await page.waitForTimeout(600);
+  const sr = await page.evaluate(() => ({ cls: document.getElementById('app').className, sub: (document.querySelector('.lib-title .sub') || {}).textContent || '' }));
+  check(/page-songs/.test(sr.cls) && /^1 song\b/.test(sr.sub), `search from Tones jumps to your songs and filters as you type (“${sr.sub}”)`);
+  await page.locator('#search').fill('');
+  await page.waitForTimeout(300);
+  // 3.8: click an artist in the list to see their songs; bigger rows
+  await page.locator('#library .row[data-id] .go[data-go="artist"]').first().click();
+  await page.waitForTimeout(800);
+  const av = await page.evaluate(() => ({ h1: document.querySelector('.lib-title h1').textContent, rows: document.querySelectorAll('#library .row[data-id]').length, h: document.querySelector('#library .row[data-id]').getBoundingClientRect().height }));
+  check(av.rows === 1 && av.h >= 50, `clicking an artist lists their songs (“${av.h1}”, ${av.rows} song, rows ${av.h}px tall)`);
+  await shot('27-artist-view');
+  await page.locator('.nav-section:has-text("Songs")').click();
+  await page.waitForTimeout(300);
   // 3.7: duplicate songs (Songs › ⋯ › Find duplicate songs)
   await page.locator('.icon-btn[title="More"]').first().click();
   await page.waitForTimeout(300);

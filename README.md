@@ -79,6 +79,12 @@ If any step fails, the original is untouched. Undo is offered right after saving
 
 If Rocksmith is running it may lock the files; close it and save again.
 
+## 3.8.1
+
+- **Opening a song is never stuck behind another split:** the song you double-click goes first; a split of another song that's running stops and goes back in line right after it.
+- **Search from anywhere:** typing in the search box shows your songs straight away, filtered as you type (Discover still searches MusicBrainz).
+- **A smarter, bigger song list:** rows are taller and easier to read; click an **artist**, **album**, **year** or **tuning** to list the songs that share it, a **part letter** to show only songs with that part, or **your best** to see the songs at that level. **Your level** in the menu: Mastered (90 %+), Getting there, Learning, Not played yet. A double-click on any of those still plays the song.
+
 ## 3.8
 
 - **Jam:** the Jam button on Play (or **J**): full screen, no song, just the Fluid picture following what you play. The note you play picks the colour, how hard you play sets the size, and held notes keep streaming; the drums (Space) push from the corners. Esc leaves.

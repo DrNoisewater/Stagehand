@@ -110,7 +110,7 @@ contextBridge.exposeInMainWorld('stagehand', {
   stems: {
     status: (songId) => call('stems:status', songId),
     request: (songIds, opts) => call('stems:request', songIds, opts),
-    prioritize: (songId) => call('stems:prioritize', songId),
+    prioritize: (id, opts) => call('stems:prioritize', id, opts),
     cancel: (songId) => call('stems:cancel', songId),
     remove: (songId) => call('stems:remove', songId),
     queue: () => call('stems:queue'),

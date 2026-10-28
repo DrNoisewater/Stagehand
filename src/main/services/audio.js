@@ -92,7 +92,7 @@ class AudioService {
     const tmpWav = path.join(this.dir, `${key}.${tag}.tmp.wav`);
     await fsp.writeFile(wemPath, wem);
     try {
-      await run(vgm, ['-i', '-o', tmpWav, wemPath]);
+      await run(vgm, ['-i', '-o', tmpWav, wemPath], { timeoutMs: 90000 }); // a decoder that hangs mustn't hold the song up forever
       const info = await readWavInfo(tmpWav);
       if (!info.frames) throw new Error('Decoded audio is empty');
       await fsp.rename(tmpWav, this.wavPath(key));

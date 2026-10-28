@@ -42,7 +42,7 @@
   --stage-h: 468px;
   --sidebar-w: 220px;
   --inspector-w: 304px;
-  --row-h: 42px;
+  --row-h: 54px; /* 3.8: bigger rows */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   color-scheme: dark;
 }

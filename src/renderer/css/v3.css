@@ -361,13 +361,13 @@ input[type='range'].glow-range:disabled { opacity: 0.4; }
 
 /* --------------------------------------------------------------- Songs -- */
 .library { background: transparent; }
-.cols { grid-template-columns: 44px minmax(140px, 2.2fr) minmax(100px, 1.4fr) minmax(90px, 1.2fr) 44px 108px 94px 92px 48px 50px 84px; }
+.cols { grid-template-columns: 52px minmax(150px, 2.2fr) minmax(100px, 1.4fr) minmax(90px, 1.2fr) 46px 112px 96px 92px 48px 50px 84px; }
 @container (max-width: 980px) {
-  .cols { grid-template-columns: 44px minmax(140px, 2.2fr) minmax(100px, 1.4fr) 44px 108px 94px 92px 48px 50px 84px; }
+  .cols { grid-template-columns: 52px minmax(150px, 2.2fr) minmax(100px, 1.4fr) 46px 112px 96px 92px 48px 50px 84px; }
   .cols > :nth-child(4) { display: none; }
 }
 @container (max-width: 800px) {
-  .cols { grid-template-columns: 44px minmax(120px, 2fr) minmax(90px, 1.3fr) 104px 94px 92px 48px 50px; }
+  .cols { grid-template-columns: 52px minmax(120px, 2fr) minmax(90px, 1.3fr) 104px 94px 92px 48px 50px; }
   .cols > :nth-child(4), .cols > :nth-child(5), .cols > :nth-child(11) { display: none; }
 }
 .row.sel { background: linear-gradient(90deg, rgba(255, 181, 71, 0.15), rgba(255, 181, 71, 0.03)); box-shadow: inset 0 0 0 1px rgba(255, 181, 71, 0.35); }
@@ -904,3 +904,19 @@ body:has(> .highway:not([hidden])) .stem-wait { bottom: auto; top: 30%; }
 sup.acc { flex: none; font-size: 9.5px; font-weight: 700; line-height: 1; padding: 2px 4px; margin-top: -3px; border-radius: 6px; color: #9fb0d6; background: rgba(120, 140, 200, 0.14); letter-spacing: 0.01em; }
 sup.acc.high { color: #ffd36b; background: rgba(255, 196, 80, 0.13); }
 sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb547); box-shadow: 0 0 8px rgba(255, 181, 71, 0.55); }
+
+/* 3.8: a bigger, easier-to-read song list; artist, album, year, tuning, parts and your best are links */
+.row { font-size: 14px; color: #b9c1da; }
+.row .t { font-size: 15px; font-weight: 650; color: #f2f4fb; letter-spacing: 0.005em; }
+.row .thumb { width: 42px; height: 42px; border-radius: 8px; }
+.row .go { cursor: pointer; border-radius: 4px; transition: color 0.12s ease, background 0.12s ease; }
+.row .go:hover { color: var(--tungsten-hi); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--tungsten) 55%, transparent); text-underline-offset: 3px; }
+.row .go-best { cursor: pointer; }
+.row .go-best:hover .best { filter: brightness(1.25); }
+.row .parts .part[data-part] { cursor: pointer; }
+.row .parts .part[data-part]:hover { box-shadow: 0 0 0 1px var(--tungsten-line); }
+.nav-item.acc-mastered .name::before, .nav-item.acc-close .name::before, .nav-item.acc-learning .name::before, .nav-item.acc-unplayed .name::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; }
+.nav-item.acc-mastered .name::before { background: #ffd36b; box-shadow: 0 0 6px #ffb547; }
+.nav-item.acc-close .name::before { background: #45d07c; }
+.nav-item.acc-learning .name::before { background: #3da5ff; }
+.nav-item.acc-unplayed .name::before { background: #4a5270; }

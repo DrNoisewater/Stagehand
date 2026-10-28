@@ -17,7 +17,7 @@ import './progress.js';
 import './stemformat.js';
 import { rig } from './rig.js';
 import { loadTones, useSlot } from './tonelib.js';
-import { setPage } from './store.js';
+import { setPage, setView } from './store.js';
 import './jam.js';
 
 // the version, small, after the name in the title bar
@@ -32,11 +32,16 @@ api.app
 actions.register({ stage, inspector, dialogs });
 
 const search = document.getElementById('search');
-const inDiscover = () => state.view.kind === 'discover';
+const inDiscover = () => state.page === 'discover' && state.view.kind === 'discover';
 search.addEventListener('input', () => {
   // In Discover the same box searches MusicBrainz instead of the library.
   if (inDiscover()) return discover.setQuery(search.value);
+  // 3.8: typing anywhere else shows your songs straight away, filtered as you type
   state.search = search.value;
+  if (search.value && state.page !== 'songs') {
+    if (state.view.kind === 'discover') setView({ kind: 'all' });
+    else setPage('songs');
+  }
   bump();
   emit('search');
 });

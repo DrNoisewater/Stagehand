@@ -147,6 +147,17 @@ async function withFileLock(filePath, fn) {
   }
 }
 
+/**
+ * 3.8: reading a song (its audio, its parts) only waits for a save that's under way,
+ * not for other reads: before, a slow audio decode held the part reading for the
+ * same song up (and the other way round), so a song could sit "stuck".
+ */
+async function withFileRead(filePath, fn) {
+  const pending = fileLocks.get(norm(filePath));
+  if (pending) await pending;
+  return fn();
+}
+
 async function saveEdits(items) {
   const results = [];
   const groups = new Map();
@@ -550,18 +561,18 @@ function registerIpc() {
 
   handle('audio:prepare', async (songId) => {
     const song = requireSong(songId);
-    return withFileLock(song.path, () => audio.prepare(song));
+    return withFileRead(song.path, () => audio.prepare(song));
   });
 
   handle('tab:list', (songId) => tabs.list(requireSong(songId)));
   handle('tab:load', (songId, arrId) => {
     const song = requireSong(songId);
-    return withFileLock(song.path, () => tabs.load(song, arrId ? String(arrId) : null));
+    return withFileRead(song.path, () => tabs.load(song, arrId ? String(arrId) : null));
   });
 
   handle('stems:status', (songId) => stems.status(library.get(songId)));
   handle('stems:request', (songIds, opts) => stems.request(songIds, opts || {}));
-  handle('stems:prioritize', (songId) => stems.prioritize(songId));
+  handle('stems:prioritize', (songId, opts) => stems.prioritize(songId, opts || {}));
   handle('stems:cancel', (songId) => stems.cancel(songId));
   handle('stems:remove', (songId) => stems.remove(library.get(songId)));
   handle('stems:queue', () => stems.queueInfo());

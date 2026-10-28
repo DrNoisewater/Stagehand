@@ -97,6 +97,14 @@ function compare(a, b, key, dir) {
   return c * dir;
 }
 
+/** How well you play a song (your best, full speed): mastered / close / learning / unplayed. */
+export function accBand(s) {
+  const b = state.best && state.best[s.id];
+  const v = b && b.best !== undefined ? b.best : null;
+  if (v === null) return 'unplayed';
+  return v >= 0.9 ? 'mastered' : v >= 0.6 ? 'close' : 'learning';
+}
+
 export function hasPart(s, part) {
   return (s.arrangements || []).some((a) => a.type === part || (part === 'lead' && a.type === 'combo') || (part === 'vocals' && a.type === 'jvocals'));
 }
@@ -119,6 +127,12 @@ export function viewTitle(v = state.view) {
     }
     case 'tuning':
       return v.id;
+    case 'album':
+      return v.id || 'Unknown album';
+    case 'year':
+      return `From ${v.id}`;
+    case 'acc':
+      return { mastered: 'Mastered (90 % and up)', close: 'Getting there (60–89 %)', learning: 'Learning (under 60 %)', unplayed: 'Not played yet' }[v.id] || 'Your best';
     case 'artist':
       return v.id || 'Unknown artist';
     case 'folder':
@@ -159,6 +173,9 @@ export function visibleSongs() {
     keepOrder = true;
   } else if (v.kind === 'tuning') list = list.filter((s) => (s.tuning || 'Unknown') === v.id);
   else if (v.kind === 'artist') list = list.filter((s) => (s.artist || '') === v.id);
+  else if (v.kind === 'album') list = list.filter((s) => (s.album || '') === v.id && (!v.artist || (s.artist || '') === v.artist));
+  else if (v.kind === 'year') list = list.filter((s) => s.year === v.id);
+  else if (v.kind === 'acc') list = list.filter((s) => accBand(s) === v.id);
   else if (v.kind === 'folder') {
     const root = v.id.toLowerCase();
     list = list.filter((s) => s.path.toLowerCase().startsWith(root));

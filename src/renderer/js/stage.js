@@ -1063,10 +1063,15 @@ async function stemsFirst(song, token) {
     return false;
   }
   if (token !== S.token) return false;
-  if (st.state === 'ready' || st.state === 'running' || st.state === 'queued') return (S.waitStatus = st), true;
+  if (st.state === 'queued') {
+    // it's in line behind another song: this one goes first, now
+    await api.stems.prioritize(song.id, { now: true }).catch(() => {});
+    return (S.waitStatus = st), token === S.token;
+  }
+  if (st.state === 'ready' || st.state === 'running') return (S.waitStatus = st), true;
   if (st.state === 'none' && state.engine && state.engine.installed && (await actions.engineReady())) {
     await actions.requestStems([song.id]);
-    await api.stems.prioritize(song.id).catch(() => {});
+    await api.stems.prioritize(song.id, { now: true }).catch(() => {});
     S.waitStatus = state.stems.get(song.id) || { state: 'queued' };
     return token === S.token;
   }

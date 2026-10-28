@@ -181,9 +181,16 @@ class StemService extends EventEmitter {
   }
 
   /** Moves a queued song to the front (e.g. the one being listened to). */
-  prioritize(songId) {
+  prioritize(songId, { now = false } = {}) {
     const i = this.queue.findIndex((j) => j.songId === songId);
     if (i > 0) this.queue.unshift(this.queue.splice(i, 1)[0]);
+    // 3.8: the song you just opened to play goes first, right now: a split of another
+    // song that's running is stopped and put back in line right after it
+    if (now && this.queue.length && this.queue[0].songId === songId && this.current && this.current.songId !== songId && this.current.child && !this.current.cancelled) {
+      this.current.requeue = true;
+      this.log(`Stems: ${songId} jumps ahead of ${this.current.songId}`);
+      this.current.child.kill();
+    }
   }
 
   cancel(songId) {
@@ -213,7 +220,11 @@ class StemService extends EventEmitter {
     try {
       await this._run(job);
     } catch (err) {
-      if (job.cancelled) {
+      if (job.requeue) {
+        // stopped so the song you're about to play could go first: back in line, right after it
+        this.queue.splice(Math.min(1, this.queue.length), 0, { songId: job.songId, force: job.force });
+        this._set(job.songId, { state: 'queued', progress: 0, message: 'Waiting' });
+      } else if (job.cancelled) {
         this.states.delete(job.songId);
         this.emit('update', { songId: job.songId, state: 'none' });
       } else {

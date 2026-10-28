@@ -1,11 +1,11 @@
 /** Centre pane: the song table (virtualised) and the cover grid. */
 import { api } from './api.js';
-import { state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel } from './store.js';
+import { state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, setView, accBand, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel } from './store.js';
 import { h, icon, esc, fmtDuration, debounce } from './ui.js';
 import * as actions from './actions.js';
 import { addFolder } from './sidebar.js';
 
-const ROW_H = 42;
+const ROW_H = 54; // 3.8: bigger, easier to read
 const root = document.getElementById('library');
 
 const COLS = [
@@ -117,7 +117,7 @@ function thumbHtml(s, size) {
 function partsHtml(s) {
   return PARTS.map(([key, letter, label]) => {
     const n = (s.arrangements || []).filter((a) => a.type === key || (key === 'lead' && a.type === 'combo') || (key === 'vocals' && a.type === 'jvocals')).length;
-    return `<span class="part${n ? ' on' : ''}${n > 1 ? ' plus' : ''}" title="${n ? `${label}${n > 1 ? ` (${n})` : ''}` : `No ${label.toLowerCase()}`}">${letter}</span>`;
+    return `<span class="part${n ? ' on' : ''}${n > 1 ? ' plus' : ''}" ${n ? `data-part="${key}" ` : ''}title="${n ? `${label}${n > 1 ? ` (${n})` : ''}: click to show only songs with ${label.toLowerCase()}` : `No ${label.toLowerCase()}`}">${letter}</span>`;
   }).join('');
 }
 
@@ -177,12 +177,12 @@ function buildRow(s) {
   el.innerHTML = `
     <div><div class="thumb">${thumbHtml(s, 64)}</div></div>
     <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}</div>
-    <div title="${esc(s.artist)}">${esc(s.artist)}</div>
-    <div title="${esc(s.album)}">${esc(s.album)}</div>
-    <div class="num">${s.year || ''}</div>
-    <div title="${esc(tuningText(s))}">${esc(tuningText(s))}</div>
+    <div>${s.artist ? `<span class="go" data-go="artist" title="All songs by ${esc(s.artist)}">${esc(s.artist)}</span>` : ''}</div>
+    <div>${s.album ? `<span class="go" data-go="album" title="Everything from ${esc(s.album)}">${esc(s.album)}</span>` : ''}</div>
+    <div class="num">${s.year ? `<span class="go" data-go="year" title="Songs from ${s.year}">${s.year}</span>` : ''}</div>
+    <div>${s.tuning ? `<span class="go" data-go="tuning" title="All songs in ${esc(s.tuning)}">${esc(tuningText(s))}</span>` : ''}</div>
     <div class="parts">${partsHtml(s)}</div>
-    <div>${bestHtml(s)}</div>
+    <div class="go-best" data-go="acc" title="Songs at this level">${bestHtml(s)}</div>
     <div class="num">${fmtDuration(s.length)}</div>
     <div>${stemHtml(s)}</div>
     <div>${starsHtml(s)}</div>`;
@@ -467,6 +467,27 @@ function selectClick(id, e) {
   setSelection([id], { anchor: id, focus: id });
 }
 
+let goTimer = 0;
+function follow(go, id) {
+  const s = state.songs.get(id);
+  if (!s) return;
+    if (go.dataset.part) {
+      if (state.parts.has(go.dataset.part)) state.parts.delete(go.dataset.part);
+      else state.parts.add(go.dataset.part);
+      for (const c of partFilter.querySelectorAll('.chip')) c.setAttribute('aria-pressed', String(state.parts.has(PARTS[[...partFilter.children].indexOf(c)][0])));
+      persistUi();
+      bump();
+      render();
+      return;
+    }
+    const k = go.dataset.go;
+    if (k === 'artist') return setView({ kind: 'artist', id: s.artist || '' });
+    if (k === 'tuning') return setView({ kind: 'tuning', id: s.tuning || 'Unknown' });
+    if (k === 'album') return setView({ kind: 'album', id: s.album || '', artist: s.artist || '' });
+    if (k === 'year') return setView({ kind: 'year', id: s.year });
+    if (k === 'acc') return setView({ kind: 'acc', id: accBand(s) });
+}
+
 scroller.addEventListener('click', (e) => {
   const id = idAt(e.target);
   if (!id) {
@@ -481,6 +502,15 @@ scroller.addEventListener('click', (e) => {
     actions.rate(id, s.user && s.user.rating === n ? 0 : n);
     return;
   }
+  // 3.8: click an artist, album, year, tuning, part or your best to list the songs that share it
+  const go = e.target.closest('[data-go], [data-part]');
+  if (go && !e.shiftKey && !e.ctrlKey && !e.metaKey && e.detail === 1) {
+    // wait a moment: a double-click on the same spot plays the song instead
+    clearTimeout(goTimer);
+    goTimer = setTimeout(() => follow(go, id), 260);
+    selectClick(id, e);
+    return;
+  }
   if (e.target.closest('[data-play]')) {
     setSelection([id], { anchor: id, focus: id });
     actions.playSong(id, { autoplay: true });
@@ -490,6 +520,7 @@ scroller.addEventListener('click', (e) => {
 });
 
 scroller.addEventListener('dblclick', (e) => {
+  clearTimeout(goTimer);
   const id = idAt(e.target);
   // double-click plays along: straight to the highway
   if (id && !e.target.closest('[data-star]')) actions.playAlong(id);

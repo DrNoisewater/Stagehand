@@ -4,7 +4,8 @@
  * the guitar status card at the bottom.
  */
 import { api } from './api.js';
-import { state, on, setView, setPage, loadLibrary, emit, rsListIds, rsListLabel, rsListKeys } from './store.js';
+import { state, on, setView, setPage, loadLibrary, emit, rsListIds, rsListLabel, rsListKeys, accBand } from './store.js';
+const storeFns = { accBand };
 import { h, icon, esc, showMenu, confirmDialog, toast } from './ui.js';
 import { counts as discoverCounts } from './discover.js';
 
@@ -239,6 +240,24 @@ function renderSongGroups(append, songs) {
   if (bring) sls.push(bring);
   append(group('setlists', 'Setlists', sls, { action: addSl }));
 
+  // 3.8: songs by how well you play them (your best at full speed)
+  const { accBand } = storeFns;
+  const bands = { mastered: 0, close: 0, learning: 0, unplayed: 0 };
+  for (const s of songs) bands[accBand(s)]++;
+  const bandItems = [
+    ['mastered', 'Mastered', '90 % and up'],
+    ['close', 'Getting there', '60–89 %'],
+    ['learning', 'Learning', 'under 60 %'],
+    ['unplayed', 'Not played yet', ''],
+  ]
+    .filter(([k]) => bands[k] || k !== 'unplayed')
+    .map(([k, label, hint]) => {
+      const b = item({ kind: 'acc', id: k, label, count: bands[k], cls: `sub acc-${k}` });
+      if (hint) b.title = `${label}: your best is ${hint}`;
+      return b;
+    });
+  append(group('levels', 'Your level', bandItems, { collapsible: true }));
+
   const tunings = new Map();
   for (const s of songs) {
     const t = s.tuning || 'Unknown';
@@ -379,3 +398,4 @@ on('discover-gaps', render);
 on('rocksmith', render);
 on('stems', render);
 emit('sidebar-ready');
+on('best', render);
