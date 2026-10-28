@@ -722,12 +722,15 @@ export function createHighway(stage) {
       lyricsBox.hidden = true;
       return;
     }
-    // the line being sung, or the next one shortly before it starts
+    // the line being sung stays until its last word is done; only then does
+    // the next one move up (it's already showing underneath)
     let i = -1;
     for (let k = 0; k < L.length; k++) {
-      if (L[k].t0 - 1.2 <= t) i = k;
+      if (L[k].t0 <= t) i = k;
       else break;
     }
+    if (i < 0) i = L[0].t0 - 1.5 <= t ? 0 : -1;
+    else if (t > L[i].t1 + 0.1 && L[i + 1] && L[i + 1].t0 - t < 2.5) i++;
     const line = L[i];
     const show = !!line && t < line.t1 + 1.5;
     if (!show) {
@@ -885,6 +888,7 @@ export function createHighway(stage) {
 
       // your timing nudge: positive shows notes later (they reach the neck later)
       const vis = visualTime(H.vclock, prefs.offsetMs, eng.speed);
+      H.vis = vis; // lyrics follow the same timing as the notes
       if (H.judge && eng.playing && prefs.detect && rig.on) H.judge.tick(H.clock - (((rig.latencyMs || 20) / 1000 + 0.03) * eng.speed));
       processEvents(vis);
       followTone(H.clock);
@@ -1858,7 +1862,7 @@ export function createHighway(stage) {
       if (head) head.style.left = `${Math.min(100, (t / total) * 100)}%`;
     }
     renderLoop();
-    updateLyrics(H.vclock ?? t);
+    updateLyrics(H.vis ?? t);
     if (H.judge && prefs.detect && rig.on) {
       const acc = H.judge.accuracy;
       setScore(`<b>${acc === null ? '–' : Math.round(acc * 100) + '%'}</b><span>accuracy</span><b>${H.judge.streak}</b><span>streak</span><b>${H.judge.hits}/${H.judge.judged}</b><span>notes</span>`);

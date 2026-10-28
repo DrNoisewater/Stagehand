@@ -1,4 +1,4 @@
-# Stagehand handoff (v3.6.2, 2026-10-28): real 3D highway (three.js) + a real installer/updater
+# Stagehand handoff (v3.6.3, 2026-10-28): real 3D highway (three.js) + a real installer/updater
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
@@ -9,6 +9,9 @@ Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the p
 **Decision (user chose):** rebuild the highway in real 3D and tune against their videos. They re-sent the 3 Rocksmith videos (`Videos.zip`: v1 Bleed It Out lead, v2 New Orleans Is Sinking lead, v3 KO Save Your Tears solo) and the 3 songs (`linkinbleed_p.psarc`, `Tragically-Hip-The_New-Orleans-Is-Sinking_v7_DD_p.psarc`, `KO_Save-Your-Tears...psarc`). Clip ↔ song time: v1 21 s ≈ Bleed lead 33.0 s; v2 ≈ song + 1.6 s; v3 ≈ song + 2.4 s. Mid-session user note: "the bloom looks a little strong" (toned down: strength 0.32, radius 0.25, threshold 0.9).
 
 **Ask the user:** how the 3D highway looks and feels next to Rocksmith on their PC (GTX 1080 Ti): note pace (now 16 world units/s, 3 s preview), camera height/zoom, chord frames, glow (still too much?), frame rate; whether the friend's install now works; whether stem-splitter setup in the installer completed (it was only tested to the PyTorch download, which the sandbox blocks).
+
+### 3.6.3: lyrics timing (user: a line disappears before it should)
+- `updateLyrics` used to move to the next line 1.2 s before it started, cutting off the end of the current one. Now the sung line stays until its last word ends (+0.1 s), then the next moves up (it already shows underneath); lyrics use the same visual time as the notes (`H.vis`, includes the sync offset). Checked by simulation on Bleed It Out and New Orleans Is Sinking: every sung word is on the shown line.
 
 ### 3.6.2 (same day; user on 3.6.1: "still a bit laggy, 42 fps in places", "needs to be silky smooth", "the glow option looks awful", lyrics like Rocksmith, chord name way smaller and closer to the strings, both switchable)
 - **All GPU:** bloom/EffectComposer removed (glow option gone). Venue = full-screen shader quad in highway3d.js (`makeBackdrop`, `setVenue`): photo uploaded once as two textures (soft, lit), placement/floor darkening/pocket/vignette/beat/heat in the fragment shader. Text = `TextLayer`: glyph images painted once into a 1024² atlas (`R3.text.image(key, w, h, paint)`), drawn as screen-pixel quads (`quad`, `line` for sparks); highway.js `glyph()`/`txt()` (styles gold, grey, glow, plain, chord, disc, pill:<colour>, streakHot/Cool, or a CSS colour). The 2D canvas is used only for the streak fire, and only while it burns. Colours are sRGB (renderer output Linear = no conversion); `col()` caches arrays by numeric key, `Layer.q()` writes vertices without temporary arrays. Frame-rate line is a DOM element (`.hw-fps`): fps, worst frame, our ms, "waiting" (time outside our frame), scale, GPU name. CPU per frame here ≈ 3 ms; SwiftShader timings in the sandbox are too noisy to judge GPU cost.

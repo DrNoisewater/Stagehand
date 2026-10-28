@@ -1,7 +1,7 @@
 {
   "name": "stagehand",
   "productName": "Stagehand",
-  "version": "3.6.2",
+  "version": "3.6.3",
   "description": "Library, player and stem mixer for Rocksmith 2014 PSARC files",
   "main": "src/main/main.js",
   "author": "Stagehand",
