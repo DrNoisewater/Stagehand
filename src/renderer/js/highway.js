@@ -1,16 +1,22 @@
+import { APPROACH_UNITS, approachDepth, chordSpan, isChordRepeat } from './highway-layout.js';
 /**
  * Note highway: the part coming toward you down a 3D fretboard, Rocksmith
  * style. Low E on top. The camera glides between hand positions, the clock
- * is smoothed so nothing jumps, notes arrive early and slowly enough to read,
+ * follows speaker time without additional smoothing, notes arrive early and slowly enough to read,
  * and every gem carries a big fret number.
  */
+import { visualTime, sustainIndex, firstSustain, noteEnd } from './highway-timing.js';
 import { api } from './api.js';
 import { h, icon, esc, showMenu, toast } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
-import { VENUES, createVenue, createFire } from './venues.js';
+import { VENUES, VENUE_ALIAS, venueThumb, createVenue, createFire } from './venues.js';
+import { suggestionFor } from './captures.js';
+import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './detect.js';
+import { createRenderer3D, col, mix } from './highway3d.js';
+import { createClassicHighway } from './highway-classic.js';
 
 const STRING = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 const STRING_DARK = ['#7a1d27', '#7a5e12', '#164e80', '#7a4515', '#1c6a3c', '#55307f'];
@@ -20,10 +26,18 @@ const FONT = "'Archivo', 'Segoe UI', sans-serif";
 const SPEEDS = [0.5, 0.6, 0.75, 0.85, 1];
 
 function load() {
+  const base = { ahead: 3, flow: 1, lowTop: true, detect: true, venue: 'warehouse', fx: true, v: 36 };
   try {
-    return { ahead: 4, lowTop: true, detect: true, venue: 'arena', fx: true, ...(JSON.parse(localStorage.getItem('stagehand.highway') || '{}') || {}) };
+    const saved = JSON.parse(localStorage.getItem('stagehand.highway') || '{}') || {};
+    // 3.6: the 3D highway runs at the game's pace (measured off your videos), so older speed choices start fresh
+    if (saved.v !== 36) {
+      delete saved.ahead;
+      delete saved.flow;
+      delete saved.offsetMs;
+    }
+    return { ...base, ...saved, flow: 1, v: 36 };
   } catch (_) {
-    return { ahead: 4, lowTop: true, detect: true, venue: 'arena', fx: true };
+    return base;
   }
 }
 const prefs = load();
@@ -61,7 +75,18 @@ function pretty(name) {
   return map[n] || (n ? n[0].toUpperCase() + n.slice(1) : '');
 }
 
+function webglWorks() {
+  try {
+    const c = document.createElement('canvas');
+    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+  } catch (_) {
+    return false;
+  }
+}
+
 export function createHighway(stage) {
+  // no WebGL (very old or broken graphics drivers): the 2D highway instead
+  if (prefs.renderer === '2d' || !webglWorks()) return createClassicHighway(stage);
   const H = {
     open: false,
     song: null,
@@ -74,11 +99,15 @@ export function createHighway(stage) {
     last: 0,
     cam: { x: 10, d: 30, px: 40, ready: false },
     bursts: [],
+    hits: [],
+    lands: [],
     paused: true,
   };
 
   // ---------------------------------------------------------------- DOM --
   const root = h('div.highway', { hidden: true, role: 'dialog', 'aria-label': 'Note highway' });
+  // the 3D scene on the graphics card, and a 2D layer on top for crisp text
+  const glCanvas = h('canvas.hw-canvas.hw-gl');
   const canvas = h('canvas.hw-canvas');
   const top = h('div.hw-top');
   const back = h('button.hw-back', { type: 'button', title: 'Back (Esc)', html: `${icon('chevronLeft')}<span>Back</span>` });
@@ -87,8 +116,10 @@ export function createHighway(stage) {
   const playAlong = h('button.hw-chip', { type: 'button' });
   // Stagehand 3: the whole song plays; take your part out in the Mix panel instead.
   playAlong.style.display = 'none';
-  const guitarBtn = h('button.hw-chip', { type: 'button' });
-  const toneBtn = h('button.hw-chip', { type: 'button', title: 'Tone for your guitar' });
+  // your guitar: one pill, a mute button and the tone (with REAL when a real amp plays)
+  const guitarBtn = h('button.hw-rig-mute', { type: 'button' });
+  const toneBtn = h('button.hw-chip.hw-rig-tone', { type: 'button', title: 'Tone for your guitar' });
+  const rigBox = h('div.hw-rig', null, guitarBtn, toneBtn);
   const mixBtn = h('button.hw-chip', { type: 'button', title: 'Song mix: stem volumes, on and off', html: `${icon('sliders')}<span>Mix</span>` });
   // The song mix docks on the right edge and collapses to a small tab.
   const mixPanel = h('div.hw-mix');
@@ -96,7 +127,10 @@ export function createHighway(stage) {
   const dock = h('div.hw-dock', null, mixTab, mixPanel);
   let mixOpen = !!prefs.mixOpen;
   const optBtn = h('button.hw-icon', { type: 'button', title: 'Highway options', 'aria-label': 'Highway options', html: icon('sliders') });
-  top.append(back, titleBox, h('span.grow'), parts, mixBtn, playAlong, guitarBtn, toneBtn, optBtn);
+  // the Mix button doubled the tab on the right edge: the tab opens the mix now
+  const score = h('div.hw-score');
+  // the score sits up top (as in the game), leaving the fret numbers under the neck clear
+  top.append(back, titleBox, h('span.grow'), score, h('span.grow'), parts, playAlong, rigBox, optBtn);
   const sections = h('div.hw-sections');
   const bottom = h('div.hw-bottom');
   const playBtn = h('button.hw-play', { type: 'button', title: 'Play / pause (Space)' });
@@ -111,13 +145,22 @@ export function createHighway(stage) {
     };
     speed.append(b);
   }
-  const score = h('div.hw-score');
-  bottom.append(playBtn, time, h('span.grow'), score, h('span.grow'), h('span.hw-label', { text: 'Speed' }), speed);
+  bottom.append(playBtn, time, h('span.grow'), h('span.hw-label', { text: 'Speed' }), speed);
   const msg = h('div.hw-msg', { hidden: true });
-  root.append(canvas, top, sections, bottom, msg, dock);
+  root.append(glCanvas, canvas, top, sections, bottom, msg, dock);
   document.body.append(root);
   root.__hw = H; // for tests
   const ctx = canvas.getContext('2d');
+  const R3 = createRenderer3D(glCanvas);
+  const bgCtx = R3 ? R3.bg.getContext('2d') : null;
+  H.r3 = R3; // tests
+
+  let lastInteraction = performance.now();
+  const wakeControls = () => { lastInteraction = performance.now(); root.classList.remove('hw-quiet'); };
+  root.addEventListener('pointermove', wakeControls);
+  root.addEventListener('pointerdown', wakeControls);
+  root.addEventListener('focusin', wakeControls);
+  document.addEventListener('keydown', () => { if (H.open) wakeControls(); });
 
   back.onclick = () => close();
   playBtn.onclick = () => stage.toggle();
@@ -139,29 +182,251 @@ export function createHighway(stage) {
     }
     renderControls();
   };
-  optBtn.onclick = () => {
-    const r = optBtn.getBoundingClientRect();
-    const c = (on) => (on ? '✓' : '');
-    showMenu(
-      r.right,
-      r.bottom + 6,
-      [
-        { heading: true, label: 'How early notes appear' },
-        ...[3, 4, 5, 6].map((s) => ({ label: s === 4 ? `${s} seconds (default)` : `${s} seconds`, hint: c(prefs.ahead === s), onClick: () => setPref('ahead', s) })),
-        '-',
-        { label: 'Low E on top', hint: c(prefs.lowTop), onClick: () => setPref('lowTop', true) },
-        { label: 'High e on top', hint: c(!prefs.lowTop), onClick: () => setPref('lowTop', false) },
-        '-',
-        { label: 'Score my playing', hint: c(prefs.detect), onClick: () => setPref('detect', !prefs.detect) },
-        '-',
-        { heading: true, label: 'Venue' },
-        ...VENUES.map((v) => ({ label: v.name, hint: c(prefs.venue === v.id), onClick: () => setPref('venue', v.id) })),
-        { label: 'Fire when you’re on a streak', hint: c(prefs.fx), onClick: () => setPref('fx', !prefs.fx) },
-      ],
-      { align: 'right' }
+  // ------------------------------------------------------- options --
+  // A small panel instead of a long menu: what you change most, as buttons
+  // you can see at a glance. Timing is set by a sync check, not by guessing.
+  const opts = h('div.hw-opts', { hidden: true, role: 'dialog', 'aria-label': 'Highway options' });
+  root.append(opts);
+  function closeOpts() {
+    opts.hidden = true;
+    optBtn.setAttribute('aria-expanded', 'false');
+  }
+  function seg(label, items, cur, onPick) {
+    const row = h('div.hw-opt-row', null, h('span.hw-opt-label', { text: label }));
+    const g = h('div.hw-seg');
+    for (const [v, t] of items) {
+      const b = h('button', { type: 'button', text: t, 'aria-pressed': String(cur === v) });
+      b.onclick = () => {
+        onPick(v);
+        renderOpts();
+      };
+      g.append(b);
+    }
+    row.append(g);
+    return row;
+  }
+  function toggle(label, on, onFlip, sub) {
+    const b = h('button.hw-opt-toggle', { type: 'button', role: 'switch', 'aria-checked': String(!!on) }, h('span.hw-switch'), h('span', null, h('b', { text: label }), sub ? h('small', { text: sub }) : null));
+    b.onclick = () => {
+      onFlip();
+      renderOpts();
+    };
+    return b;
+  }
+  function venuePicker() {
+    const cur = VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse';
+    const grid = h('div.hw-venues');
+    for (const v of VENUES) {
+      const th = venueThumb(v);
+      const b = h('button.hw-venue', { type: 'button', title: v.name, 'aria-pressed': String(cur === v.id) }, th ? h('img', { src: th, alt: '' }) : h('i.plain'), h('span', { text: v.name }));
+      b.onclick = () => {
+        setPref('venue', v.id);
+        H.bgDrawn = false;
+        renderOpts();
+      };
+      grid.append(b);
+    }
+    return h('div.hw-opt-row', null, h('span.hw-opt-label', { text: 'Venue' }), grid);
+  }
+  function renderOpts() {
+    opts.innerHTML = '';
+    const off = prefs.offsetMs || 0;
+    const sync = h('button.hw-sync', { type: 'button' }, h('span.hw-sync-icon', { html: icon('clock') }), h('span', null, h('b', { text: 'Sync check' }), h('small', { text: off ? `Notes ${Math.abs(off)} ms ${off > 0 ? 'later' : 'earlier'}` : 'Tap along to set the timing' })));
+    sync.onclick = () => {
+      closeOpts();
+      openSync();
+    };
+    const glowOn = prefs.glow !== false && !perf.noGlow;
+    opts.append(
+      sync,
+      seg('Look ahead', [[2, '2 s'], [2.5, '2.5 s'], [3, '3 s'], [4, '4 s']], prefs.ahead, (v) => setPref('ahead', v)),
+      seg('Strings', [[true, 'Low E on top'], [false, 'High e on top']], !!prefs.lowTop, (v) => setPref('lowTop', v)),
+      venuePicker(),
+      h('div.hw-opt-toggles', null,
+        toggle('Score my playing', prefs.detect, () => setPref('detect', !prefs.detect)),
+        toggle('Glow', glowOn, () => {
+          perf.noGlow = false;
+          setPref('glow', !glowOn);
+        }, perf.noGlow && prefs.glow !== false ? 'Turned off: your PC was struggling' : 'Uses your graphics card'),
+        toggle('Fire on a streak', prefs.fx, () => setPref('fx', !prefs.fx)),
+        toggle('Frame rate', !!prefs.showFps, () => setPref('showFps', !prefs.showFps))
+      )
     );
+  }
+  optBtn.setAttribute('aria-expanded', 'false');
+  optBtn.onclick = (e) => {
+    e.stopPropagation();
+    if (!opts.hidden) return closeOpts();
+    renderOpts();
+    opts.hidden = false;
+    optBtn.setAttribute('aria-expanded', 'true');
   };
+  document.addEventListener('pointerdown', (e) => {
+    if (!opts.hidden && !opts.contains(e.target) && e.target !== optBtn && !optBtn.contains(e.target)) closeOpts();
+  });
 
+  // ----------------------------------------------------- sync check --
+  // Like Rocksmith's calibration: clicks play through the same path as the
+  // song; you tap on each one you hear. The average gap between the clicks
+  // and your taps is how late the sound really reaches you, and the notes
+  // are shown that much later so they land with the music.
+  const syncBox = h('div.hw-syncbox', { hidden: true, role: 'dialog', 'aria-label': 'Sync check' });
+  root.append(syncBox);
+  let syncRun = null;
+  function openSync() {
+    if (stage.engine.playing) stage.toggle();
+    syncBox.hidden = false;
+    syncIntro();
+  }
+  function closeSync() {
+    if (syncRun) syncRun.stop();
+    syncRun = null;
+    syncBox.hidden = true;
+  }
+  function syncIntro() {
+    syncBox.innerHTML = '';
+    const go = h('button.btn.primary', { type: 'button', text: 'Start' });
+    const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
+    go.onclick = () => syncStart();
+    cancel.onclick = () => closeSync();
+    syncBox.append(
+      h('div.hw-sync-ring', { html: icon('clock') }),
+      h('h3', { text: 'Sync check' }),
+      h('p', { text: 'You’ll hear 4 clicks to get ready, then 16 more. Tap Space (or click) on every click you hear. Closing your eyes helps.' }),
+      h('div.hw-sync-actions', null, cancel, go)
+    );
+    go.focus();
+  }
+  async function syncStart() {
+    const N0 = 4;
+    const N = 16;
+    const gap = 0.6; // 100 bpm
+    const { ctx: ac, node } = await stage.engine.extraOut();
+    const eng = stage.engine;
+    // "heard" clock of the engine (what engine.position uses), in context seconds
+    const heardNow = () => {
+      const ts = ac.getOutputTimestamp ? ac.getOutputTimestamp() : null;
+      if (ts && ts.contextTime > 0 && ts.performanceTime > 0) return ts.contextTime + Math.max(0, (performance.now() - ts.performanceTime) / 1000) - (eng.extraLatency || 0);
+      return ac.currentTime - (ac.outputLatency || ac.baseLatency || 0) - (eng.extraLatency || 0);
+    };
+    const t0 = ac.currentTime + 0.6;
+    const clicks = [];
+    const srcs = [];
+    for (let i = 0; i < N0 + N; i++) {
+      const T = t0 + i * gap;
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.frequency.value = i % 4 === 0 ? 1760 : 1320;
+      g.gain.setValueAtTime(0, T);
+      g.gain.linearRampToValueAtTime(0.5, T + 0.002);
+      g.gain.exponentialRampToValueAtTime(0.001, T + 0.06);
+      o.connect(g).connect(node);
+      o.start(T);
+      o.stop(T + 0.08);
+      srcs.push(o);
+      // when you'll hear it, on the page's clock
+      clicks.push({ i, T, at: performance.now() + (T - heardNow()) * 1000 });
+    }
+    const taps = [];
+    H.syncClicks = clicks; // tests
+    const ring = h('div.hw-sync-ring.live');
+    const dots = h('div.hw-sync-dots');
+    for (let i = 0; i < N; i++) dots.append(h('i'));
+    const label = h('p', { text: 'Get ready…' });
+    const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
+    cancel.onclick = () => closeSync();
+    syncBox.innerHTML = '';
+    syncBox.append(ring, h('h3', { text: 'Tap on every click' }), label, dots, h('div.hw-sync-actions', null, cancel));
+    const onTap = (e) => {
+      if (e.type === 'keydown') {
+        if (e.code !== 'Space' && e.key !== 'Enter') return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.repeat) return;
+      } else if (e.target.closest('button')) return;
+      const now = performance.now();
+      taps.push(now);
+      ring.classList.remove('tap');
+      void ring.offsetWidth;
+      ring.classList.add('tap');
+      const done = clicks.filter((c) => c.i >= N0 && c.at < now + 250).length;
+      label.textContent = done ? `${done} of ${N}` : 'Get ready…';
+      [...dots.children].forEach((d, k) => d.classList.toggle('on', k < done));
+    };
+    document.addEventListener('keydown', onTap, true);
+    syncBox.addEventListener('pointerdown', onTap);
+    const end = clicks[clicks.length - 1].at + 700;
+    const timer = setInterval(() => {
+      if (performance.now() > end) finish();
+    }, 100);
+    syncRun = {
+      stop() {
+        clearInterval(timer);
+        document.removeEventListener('keydown', onTap, true);
+        syncBox.removeEventListener('pointerdown', onTap);
+        for (const o of srcs) try { o.stop(); } catch (_) {}
+      },
+    };
+    function finish() {
+      syncRun.stop();
+      syncRun = null;
+      // each measured click: the nearest tap within a quarter second
+      const offs = [];
+      for (const c of clicks) {
+        if (c.i < N0) continue;
+        let best = null;
+        for (const t of taps) if (Math.abs(t - c.at) < 250 && (best === null || Math.abs(t - c.at) < Math.abs(best - c.at))) best = t;
+        if (best !== null) offs.push(best - c.at);
+      }
+      syncResult(offs, N);
+    }
+  }
+  function syncResult(offs, N) {
+    syncBox.innerHTML = '';
+    const again = h('button.btn.ghost', { type: 'button', text: 'Try again' });
+    again.onclick = () => syncStart();
+    if (offs.length < N / 2) {
+      const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
+      cancel.onclick = () => closeSync();
+      syncBox.append(h('div.hw-sync-ring', { html: icon('alert') }), h('h3', { text: 'Not enough taps' }), h('p', { text: `Only ${offs.length} of ${N} taps landed near a click. Tap Space on each click you hear.` }), h('div.hw-sync-actions', null, cancel, again));
+      return;
+    }
+    const sorted = [...offs].sort((a, b) => a - b);
+    const trim = sorted.slice(Math.floor(sorted.length * 0.2), Math.ceil(sorted.length * 0.8));
+    const ms = Math.round(trim.reduce((a, b) => a + b, 0) / trim.length / 5) * 5;
+    const spread = Math.round(Math.sqrt(trim.reduce((a, b) => a + (b - ms) ** 2, 0) / trim.length));
+    const use = Math.max(-300, Math.min(300, ms));
+    // your taps as dots around the beat (centre line): see how steady they were
+    const strip = h('div.hw-sync-strip', null, h('i.beat'));
+    for (const o of offs) {
+      const d = h('i.tap');
+      d.style.left = `${50 + Math.max(-48, Math.min(48, o / 5))}%`;
+      strip.append(d);
+    }
+    const avg = h('i.avg');
+    avg.style.left = `${50 + Math.max(-48, Math.min(48, use / 5))}%`;
+    strip.append(avg);
+    const ok = h('button.btn.primary', { type: 'button', text: use === 0 ? 'Keep in sync' : `Use ${use > 0 ? '+' : ''}${use} ms` });
+    ok.onclick = () => {
+      setPref('offsetMs', use);
+      closeSync();
+      toast({ title: use ? `Notes now ${Math.abs(use)} ms ${use > 0 ? 'later' : 'earlier'}` : 'Notes in sync', message: 'Only the picture moves; scoring is not affected.' });
+    };
+    const reset = h('button.btn.ghost', { type: 'button', text: 'Reset to 0' });
+    reset.onclick = () => {
+      setPref('offsetMs', 0);
+      closeSync();
+    };
+    const steady = spread < 25 ? 'Nice and steady.' : spread < 45 ? 'A bit uneven: try again for a surer result.' : 'Quite uneven: try again, tapping just as you hear each click.';
+    syncBox.append(
+      h('div.hw-sync-big', { text: `${use > 0 ? '+' : ''}${use} ms` }),
+      h('p', { text: use === 0 ? 'Your sound and the notes already line up.' : `The sound reaches you ${Math.abs(use)} ms ${use > 0 ? 'later' : 'earlier'} than Stagehand expected. The notes will move to match. ${steady}` }),
+      h('div.hw-sync-legend', null, h('span', { text: 'early' }), h('span', { text: 'on the click' }), h('span', { text: 'late' })),
+      strip,
+      h('div.hw-sync-actions', null, reset, again, ok)
+    );
+    ok.focus();
+  }
 
   // ------------------------------------------------------------- tones --
   function followsSong() {
@@ -217,6 +482,15 @@ export function createHighway(stage) {
     const song = rig.mode === 'song';
     const kind = H.tab && H.tab.type === 'bass' ? 'bass' : 'guitar';
     const items = [];
+    // what your amp is: the real one (a capture) or Stagehand's model, and the real one to get
+    const cap = rig.capture;
+    const sug = !cap && rig.tone ? suggestionFor(rig.tone) : null;
+    if (cap) {
+      const lbl = modelLabel(cap);
+      items.push({ heading: true, label: `REAL amp · ${cap.pack.title}${lbl ? ` · ${lbl}` : ''}` }, '-');
+    } else if (sug) {
+      items.push({ heading: true, label: 'Modelled amp' }, { label: `Get the real ${sug.def.title}`, icon: 'download', onClick: () => getRealAmp(sug.key, null) }, '-');
+    }
     if (H.tab && H.tab.songTones) {
       const cur = songToneAt(stage.engine.position);
       items.push({ heading: true, label: 'This song' }, { label: `Song tone${cur ? ` (${cur.name})` : ''}`, hint: c(song || followsSong()), onClick: () => chooseTone('song') }, '-');
@@ -407,13 +681,14 @@ export function createHighway(stage) {
     let prev = null;
     for (const x of t) {
       if (x.kind === 'chord' || (x.kind === 'mute' && x.notes.length > 1)) {
-        const sig = x.notes.map((n) => `${n.s}:${n.f}`).join(',');
-        x.repeat = prev && prev.sig === sig && x.t - prev.t < 1.2;
-        x.sig = sig;
+        const shape = (tab.handShapes || []).find((hs) => hs.start <= x.t + 0.001 && x.t < hs.end - 0.001);
+        x.repeat = isChordRepeat(prev, x, !!shape && prev?.shape === shape);
+        x.shape = shape;
         x.name = x.chord !== undefined && tab.chords[x.chord] ? tab.chords[x.chord].name : '';
         prev = x;
       } else if (x.notes.length === 1) prev = null;
     }
+    H.sustainEnds = sustainIndex(t);
     return t;
   }
 
@@ -439,10 +714,16 @@ export function createHighway(stage) {
   const analyzer = { an: null, on: null, buf: new Float32Array(8192) };
   function resetJudge() {
     H.judge = H.targets.length ? new Judge(H.targets) : null;
-    if (H.judge) H.judge.reset(stage.engine.position);
+    if (H.judge) {
+      H.judge.reset(stage.engine.position);
+      H.judge.next = lower(H.targets, stage.engine.position - H.judge.early);
+    }
     analyzer.an = new Analyzer(rig.sampleRate);
     analyzer.on = new OnsetTracker();
     H.bursts = [];
+    H.hits = [];
+    H.lands = [];
+    H.landNext = undefined;
   }
 
   function listen(songT) {
@@ -455,9 +736,20 @@ export function createHighway(stage) {
     const t = songT - delay;
     const f = analyzer.an.frame(buf);
     H.judge.push(t, f, analyzer.on.update(t, f));
-    for (const e of H.judge.events.splice(0)) {
-      const tg = H.targets[e.id];
-      if (e.hit) for (const n of tg.notes) H.bursts.push({ s: n.s, f: n.f, at: performance.now() });
+  }
+
+  /** Newly judged notes light up (or don't); with no scoring, notes still land with a soft flash. */
+  function processEvents(t) {
+    const scoring = H.judge && prefs.detect && rig.on;
+    if (scoring) for (const e of H.judge.events.splice(0)) onJudged(e);
+    const T = H.targets;
+    if (H.landNext === undefined || H.landNext > T.length || (H.landNext > 0 && T[H.landNext - 1].t > t + 0.05)) H.landNext = lower(T, t);
+    while (H.landNext < T.length && T[H.landNext].t <= t) {
+      const tg = T[H.landNext++];
+      if (!scoring && stage.engine.playing && t - tg.t < 0.2) {
+        const now = performance.now();
+        H.lands.push({ id: tg.id, at: now, until: tg.t + (tg.sus || 0) });
+      }
     }
   }
 
@@ -466,15 +758,35 @@ export function createHighway(stage) {
   let HH = 0;
   let dpr = 1;
   function resize() {
-    dpr = window.devicePixelRatio || 1;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
     W = window.innerWidth;
     HH = window.innerHeight;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(HH * dpr);
     canvas.style.width = `${W}px`;
     canvas.style.height = `${HH}px`;
+    if (R3) R3.resize(W, HH, Math.min(dpr, 1.5)); // the 3D picture needs no more than 1.5x on 4K screens (text stays sharp)
   }
   window.addEventListener('resize', () => H.open && resize());
+
+  // Keeps the highway smooth on slow graphics: if frames take too long, the
+  // glow goes first, then the 3D picture renders at a lower resolution.
+  const perf = { noGlow: false, acc: 0, n: 0, since: 0 };
+  H.perfState = perf;
+  function govern(ms, dt) {
+    if (!R3) return;
+    perf.acc += Math.max(ms, dt * 1000);
+    perf.n++;
+    if (perf.n < 60 && perf.acc < 1200) return;
+    const avg = perf.acc / perf.n;
+    perf.acc = 0;
+    perf.n = 0;
+    if (avg > 26) {
+      if (!perf.noGlow && prefs.glow !== false) perf.noGlow = true;
+      else if (R3.scale > 0.5) R3.setScale(R3.scale > 0.75 ? 0.75 : 0.5, dpr);
+    }
+    H.perf = { avg, glow: R3.glow, scale: R3.scale };
+  }
 
   function loop() {
     cancelAnimationFrame(H.raf);
@@ -482,23 +794,53 @@ export function createHighway(stage) {
       if (!H.open) return;
       const dt = Math.min(0.1, (now - H.last) / 1000);
       H.last = now;
-      // A steady clock: run on the frame timer and only lean gently toward
-      // the player's position, so the highway never jumps or stutters.
+      // The song clock (engine.position) follows the speakers, but it arrives
+      // in small uneven steps (audio is handed over in chunks). Drawn as is,
+      // fast notes judder. The picture runs on its own smooth clock that
+      // advances with real time and is pulled gently onto the song clock
+      // (no drift, no added delay); a seek, pause or loop snaps it at once.
       const eng = stage.engine;
       const raw = eng.position;
-      if (!eng.playing) H.clock = raw;
+      H.clock = raw; // scoring keeps the exact song clock
+      const realDt = Math.min(0.25, (now - (H.lastNow || now)) / 1000);
+      H.lastNow = now;
+      if (!eng.playing || !Number.isFinite(H.vclock) || Math.abs(raw - H.vclock) > 0.2) H.vclock = raw;
       else {
-        H.clock += dt * eng.speed;
-        const err = raw - H.clock;
-        if (Math.abs(err) > 0.25) H.clock = raw;
-        else H.clock += err * Math.min(1, dt * 3);
+        H.vclock += realDt * (eng.speed || 1);
+        H.vclock += (raw - H.vclock) * Math.min(1, realDt * 4);
       }
-      if (H.judge && eng.playing && H.clock < H.lastClock - 0.3) H.judge.rewind(H.clock);
+      if (Number.isFinite(H.lastClock) && (raw < H.lastClock - 0.05 || raw - H.lastClock > 0.5)) {
+        if (H.judge) {
+          H.judge.rewind(raw);
+          H.judge.next = lower(H.targets, raw - H.judge.early);
+          H.judge.events = []; H.judge.frames = []; H.judge.onsets = [];
+        }
+        H.landNext = lower(H.targets, raw);
+        H.lands = []; H.hits = []; H.bursts = []; H.misses = [];
+        sparks.length = 0;
+        H.cam.ready = false;
+      }
       H.lastClock = H.clock;
       listen(H.clock);
-      if (H.judge) H.judge.tick(H.clock - (((rig.latencyMs || 20) / 1000 + 0.03) * eng.speed));
+
+      // your timing nudge: positive shows notes later (they reach the neck later)
+      const vis = visualTime(H.vclock, prefs.offsetMs, eng.speed);
+      if (H.judge && eng.playing && prefs.detect && rig.on) H.judge.tick(H.clock - (((rig.latencyMs || 20) / 1000 + 0.03) * eng.speed));
+      processEvents(vis);
       followTone(H.clock);
-      draw(H.clock, dt);
+      const f0 = performance.now();
+      draw(vis, dt);
+      govern(performance.now() - f0, dt);
+      if (prefs.showFps) {
+        H.fpsAcc = (H.fpsAcc || 0) * 0.95 + dt * 0.05;
+        ctx.font = `700 13px ${FONT}`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = 'rgba(200, 230, 255, 0.85)';
+        const tm = H.timing || {};
+        ctx.fillText(`${Math.round(1 / Math.max(0.001, H.fpsAcc))} fps · frame ${(performance.now() - f0).toFixed(1)} ms (venue ${(tm.venue || 0).toFixed(1)}, scene ${(tm.build || 0).toFixed(1)}, draw ${(tm.gpu || 0).toFixed(1)}, text ${(tm.text || 0).toFixed(1)}) · glow ${R3 && R3.glow ? 'on' : 'off'} · ${R3 ? Math.round(R3.scale * 100) : 0}% · ${R3 ? R3.gpuName : ''}`, 24, HH - 120);
+      }
+      root.classList.toggle('hw-quiet', eng.playing && now - lastInteraction > 2500 && !mixOpen && !document.querySelector('.menu[role="menu"]') && !root.querySelector(':focus-visible'));
       updateHud(H.clock);
       updateMixLevels();
       H.raf = requestAnimationFrame(step);
@@ -516,22 +858,25 @@ export function createHighway(stage) {
   }
 
   // ================================================================ 3D ==
-  // A real perspective scene, laid out like Rocksmith's:
-  //   x runs along the neck (real fret spacing), y is height above the
-  //   highway floor (each string has its own height, low E on top by
-  //   default), z is time ahead (0 = the neck, where you play).
-  // The neck is an upright board at z = 0 facing you; the highway floor runs
-  // away from its foot. Hand positions are lit troughs that step across the
-  // floor as they come; the camera sits behind and above the neck and glides
-  // to frame the hand position, zooming in or out with its width.
-  const NECK = 64; // world units from nut to bridge
-  const NX = (f) => 1 - Math.pow(2, -Math.max(0, f) / 12);
-  const FX = (x) => -12 * Math.log2(Math.max(1e-6, 1 - x));
-  const XF = (f) => NECK * NX(f); // world x of fret wire f
-  const laneC = (f) => (XF(f - 1) + XF(f)) / 2; // middle of fret f's lane
+  // A real 3D scene on the graphics card (highway3d.js), laid out like
+  // Rocksmith 2014 as seen in your own gameplay videos:
+  //   x runs along the neck (about a unit per fret), y is height above the
+  //   highway floor (each string at its own height, low E on top by default),
+  //   z is time ahead (0 = the neck, where you play).
+  // The neck stands upright at z = 0 across the bottom of the screen. The
+  // floor runs from it to a far vanishing point; your hand position is a lit
+  // channel on that floor. Frets are nearly even in width so fret 20 reads
+  // as easily as fret 3. Text (fret numbers, chord names, MISS…) is drawn
+  // crisp on a 2D layer on top, placed by the 3D camera.
+  const RATIO = 0.982; // each fret this much narrower than the one before
+  const XF = (f) => (f < 0 ? f : (1 - Math.pow(RATIO, f)) / (1 - RATIO));
+  const FX = (x) => (x < 0 ? x : Math.log(Math.max(1e-6, 1 - x * (1 - RATIO))) / Math.log(RATIO));
+  const laneC = (f) => (XF(f - 1) + XF(f)) / 2;
   const laneW = (f) => XF(f) - XF(f - 1);
+  const INLAYS = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24];
+  const PAST = 0.14; // seconds a note keeps travelling past the neck toward you, fading
+  const CAM_LOOK = 6.5; // a roaming solo stays pulled back, as in your KO clip // seconds of hand positions the camera frames ahead
 
-  // Scene geometry, refreshed each frame.
   const G = {};
 
   function geometry(t) {
@@ -539,194 +884,243 @@ export function createHighway(stage) {
     G.n = n;
     G.t = t;
     G.L = prefs.ahead;
-    G.gap = n === 4 ? 1.0 : 0.75; // string spacing in height (a slim neck, like Rocksmith)
-    G.lift = 0.7; // lowest string above the floor
-    G.top = G.lift + (n - 1) * G.gap; // highest string
+    G.gy = n === 4 ? 0.36 : 0.27; // height per string (upright neck: every string at z = 0)
+    G.hl = 0.14; // the bottom string above the floor
+    G.gap = G.gy;
+    G.yMid = G.hl + ((n - 1) / 2) * G.gy;
+    G.yTop = G.hl + (n - 1) * G.gy;
+    G.zs = APPROACH_UNITS * (prefs.flow ?? 1); // world units per song second, never tied to the camera
+    G.zF = G.zs * G.L;
   }
   const level = (s) => (prefs.lowTop ? G.n - 1 - s : s);
-  const strH = (s) => G.lift + level(s) * G.gap;
-  const zOf = (time) => (time - G.t) * G.zs;
+  const nY = (L) => G.hl + L * G.gy;
+  const strH = (s) => nY(level(s));
+  const strZ = () => 0;
+  const zOf = (time) => approachDepth(time, G.t, prefs.flow ?? 1);
   const anX0 = (an) => XF(an.fret - 1);
   const anX1 = (an) => XF(an.fret - 1 + (an.width || 4));
   const noteX = (nt, a) => (nt.f === 0 ? (anX0(a) + anX1(a)) / 2 : laneC(nt.f));
 
   // ---- camera --
-  /** Can frets lo..hi share one view without zooming out so far the notes get small?
-   *  Measured in real neck length, so low frets (which are wide) count for more. */
-  const fitsView = (lo, hi) => hi - lo <= 6 && XF(Math.min(24, hi)) - XF(Math.max(0, lo)) <= 16;
-
-  function camera(t, dt) {
-    // Steady framing: keep a range of frets in view and only move when a hand
-    // position coming up in the next 1.6 s doesn't fit, so songs that hop
-    // between two positions don't make the camera sway back and forth.
-    // Zooming back in waits until things have been settled for a while.
+  /** Frets (as lane edges, lo..hi) that the next few seconds of play use. */
+  function playRange(t, horizon) {
     const A = H.tab.anchors || [];
-    let nlo = Infinity;
-    let nhi = -Infinity;
-    const take = (an) => {
-      nlo = Math.min(nlo, an.fret - 1);
-      nhi = Math.max(nhi, an.fret - 1 + Math.max(4, an.width || 4));
+    let lo = Infinity;
+    let hi = -Infinity;
+    const take = (a, b) => {
+      lo = Math.min(lo, a);
+      hi = Math.max(hi, b);
     };
-    // look 1.6 s ahead, but if that would mean framing a huge stretch of the
-    // neck (a big jump coming), look less far so the camera pans instead
-    for (const ahead of [1.6, 0.7, 0.25]) {
-      nlo = Infinity;
-      nhi = -Infinity;
-      take(anchorAt(t));
-      for (let i = lower(A, t); i < A.length && A[i].t < t + ahead; i++) take(A[i]);
-      if (fitsView(nlo, nhi)) break;
-    }
-    // still too much neck for one view (a big jump right now): frame where you are, then pan
-    if (!fitsView(nlo, nhi)) {
-      nlo = Infinity;
-      nhi = -Infinity;
-      take(anchorAt(t));
-    }
-    if (!isFinite(nlo)) {
-      nlo = 0;
-      nhi = 4;
-    }
-    const c0 = H.cam;
-    const fr = c0.frame;
-    const fits = fr && nlo >= fr.lo - 0.01 && nhi <= fr.hi + 0.01;
-    if (!fr || !c0.ready) c0.frame = { lo: nlo, hi: nhi, slack: 0 };
-    else if (!fits) {
-      // grow to take in the new spot, but never past 8 frets: beyond that, move over
-      const lo2 = Math.min(nlo, fr.lo);
-      const hi2 = Math.max(nhi, fr.hi);
-      if (fitsView(lo2, hi2)) c0.frame = { lo: lo2, hi: hi2, slack: 0 };
-      else {
-        // move only as far as needed: keep as much of the old view as still fits
-        let lo = nlo;
-        let hi = nhi;
-        for (let k = 0; k < 12; k++) {
-          if (fr.lo < lo && fitsView(lo - 1, hi)) lo--;
-          else if (fr.hi > hi && fitsView(lo, hi + 1)) hi++;
-          else break;
-        }
-        c0.frame = { lo, hi, slack: 0 };
+    const an = anchorAt(t);
+    take(an.fret - 1, an.fret - 1 + (an.width || 4));
+    for (let i = lower(A, t); i < A.length && A[i].t < t + horizon; i++) take(A[i].fret - 1, A[i].fret - 1 + (A[i].width || 4));
+    const T = H.targets;
+    for (let i = lower(T, t - 0.2); i < T.length && T[i].t < t + horizon; i++) {
+      for (const nt of T[i].notes) {
+        if (nt.f > 0) take(nt.f - 1, nt.f);
+        const sl = nt.slideTo !== undefined ? nt.slideTo : nt.slideUnpitchTo;
+        if (sl > 0) take(sl - 1, sl);
       }
     }
-    else if (nhi - nlo < (fr.hi - fr.lo) * 0.6) {
-      // much more room than needed: after 2.5 s of that, close in
-      fr.slack += dt;
-      if (fr.slack > 2.5) c0.frame = { lo: nlo, hi: nhi, slack: 0 };
-    } else fr.slack = 0;
-    let lo = Math.max(0, c0.frame.lo);
-    let hi = Math.min(24, c0.frame.hi);
-    const x0 = XF(lo);
-    const x1 = XF(hi);
-    // Like Rocksmith, the camera sits a little toward the high frets of the
-    // hand position, so the highway leans in from the left.
-    const targetX = x0 + (x1 - x0) * 0.62;
-    // How far back: the hand position takes about 45% of the screen width.
-    const aspect = W / Math.max(1, HH);
-    const span = Math.max(x1 - x0, 11);
-    // the neck sits about 1.26 camera-distances away; the hand position fills ~45% of the width
-    const targetD = Math.min(28, Math.max(12, (span * HH * 1.05) / (0.36 * W * 1.2)));
+    if (!isFinite(lo)) return { lo: 0, hi: 5 };
+    return { lo, hi };
+  }
+
+  /** The stretch of neck to show for a range: room each side, at least ~11 frets. */
+  function viewFor(r) {
+    let lo = r.lo - 1.6;
+    let hi = r.hi + 1.4;
+    const MIN = 11;
+    if (hi - lo < MIN) {
+      const c = (lo + hi) / 2;
+      lo = c - MIN / 2;
+      hi = c + MIN / 2;
+    }
+    if (lo < -2.5) {
+      hi += -2.5 - lo;
+      lo = -2.5;
+    }
+    if (hi > 24.8) {
+      lo = Math.max(-2.5, lo - (hi - 24.8));
+      hi = 24.8;
+    }
+    return { lo, hi };
+  }
+
+  const CAM = { fov: 60, yaw: 0.075, neckY: 0.83, fill: 0.88 };
+  function camera(t, dt) {
     const c = H.cam;
-    if (!c.ready) {
-      Object.assign(c, { x: targetX, d: targetD, vx: 0, vd: 0, ready: true });
-    } else {
-      const w = 2.6; // about 1.6 s to settle, no overshoot
+    const want = viewFor(playRange(t, CAM_LOOK));
+    const fr = c.frame;
+    if (!fr || !c.ready) c.frame = { ...want, slack: 0 };
+    else if (want.lo < fr.lo - 0.05 || want.hi > fr.hi + 0.05) {
+      // something coming doesn't fit: take it in now (keep what still fits, so it pans)
+      c.frame = { lo: Math.min(want.lo, fr.lo), hi: Math.max(want.hi, fr.hi), slack: 0 };
+      if (c.frame.hi - c.frame.lo > want.hi - want.lo + 2.5) c.frame = { ...want, slack: 0 };
+    } else if (want.hi - want.lo < (fr.hi - fr.lo) * 0.8) {
+      // more room than needed: close in once it has stayed that way a moment
+      fr.slack += dt;
+      if (fr.slack > 3.5) c.frame = { ...want, slack: 0 };
+    } else fr.slack = 0;
+    const x0 = XF(c.frame.lo);
+    const x1 = XF(c.frame.hi);
+    const tx = (x0 + x1) / 2;
+    const span = x1 - x0;
+    // zoomed right out (a solo roaming the neck) the camera drops a little lower and flatter
+    const zoomK0 = Math.max(0, Math.min(1, (span - 9.5) / 9));
+    c.zk = c.ready && c.zk !== undefined ? c.zk + (zoomK0 - c.zk) * Math.min(1, dt * 2.5) : zoomK0;
+    const zoomK = c.zk;
+    const elev = 0.56 - 0.1 * zoomK; // angle from the camera down to the neck
+    const pitch = 0.36 - 0.05 * zoomK; // how far the camera looks down
+    const F = HH / 2 / Math.tan(((CAM.fov / 2) * Math.PI) / 180); // focal length in pixels
+    const dView = (F * span) / (CAM.fill * W); // depth that fits the span across the screen at the neck
+    const td = dView / Math.cos(elev - pitch);
+    if (!c.ready) Object.assign(c, { x: tx, d: td, vx: 0, vd: 0, ready: true });
+    else {
+      // a critically damped glide: quick to pull back, gentle coming in
+      const w = td > c.d ? 4.2 : 2.2;
       for (let left = dt; left > 1e-6; left -= 1 / 120) {
-        const h = Math.min(left, 1 / 120);
-        c.vx += (w * w * (targetX - c.x) - 2 * w * c.vx) * h;
-        c.x += c.vx * h;
-        c.vd += (w * w * (targetD - c.d) - 2 * w * c.vd) * h;
-        c.d += c.vd * h;
+        const st = Math.min(left, 1 / 120);
+        c.vx += (4.2 * 4.2 * (tx - c.x) - 2 * 4.2 * c.vx) * st;
+        c.x += c.vx * st;
+        c.vd += (w * w * (td - c.d) - 2 * w * c.vd) * st;
+        c.d += c.vd * st;
       }
     }
-    c.f = FX(c.x / NECK); // camera centre in frets (tests read this)
-    c.px = W / ((c.d * aspect) / 0.9); // rough pixels per unit at the neck (tests)
-    // The view: behind the neck, above the strings, looking down the highway.
-    const pitch = 0.55; // radians down: looking along the highway, a slim neck below
-    G.cp = Math.cos(pitch);
-    G.sp = Math.sin(pitch);
+    const d = c.d;
+    const yaw = CAM.yaw; // looking a touch left: the strings fall gently to the right, the highway leans in
+    const target = [c.x, G.yMid, 0];
+    const ce = Math.cos(elev);
+    const pos = [target[0] + d * ce * Math.sin(yaw), target[1] + d * Math.sin(elev), -d * ce * Math.cos(yaw)];
+    const look = [pos[0] - Math.sin(yaw) * Math.cos(pitch), pos[1] - Math.sin(pitch), pos[2] + Math.cos(yaw) * Math.cos(pitch)];
+    // shift the picture (not the camera) so the neck sits low on the screen
+    const neckAt = HH / 2 + F * Math.tan(elev - pitch);
+    const dy = HH * (CAM.neckY + 0.04 * zoomK) - neckAt;
+    R3.setCamera(pos, look, CAM.fov, 0, dy);
+    // keep the gold fret numbers under the neck on screen at any window shape
+    const below = R3.project(c.x, -0.25, -0.1);
+    const numBottom = below[1] + 8 + Math.min(48, below[2] * 0.42 * laneW(Math.max(1, Math.round(FX(c.x)))));
+    if (numBottom > HH - 10) R3.setCamera(pos, look, CAM.fov, 0, dy - (numBottom - (HH - 10)));
     G.camX = c.x;
-    G.camY = G.top + c.d * 0.55;
-    G.camZ = -c.d;
-    G.F = HH * 1.05; // focal length in pixels
-    G.cx = W * 0.5;
-    // Put the middle of the neck at 76% of the screen height.
-    G.cy = 0;
-    const yNeck = G.top * 0.5;
-    G.cy = HH * 0.78 - (projY(c.x, yNeck, 0) - 0);
-    // the highway reaches about four camera-distances away, whatever the zoom
-    G.zF = c.d * 5.5;
-    G.zs = G.zF / G.L;
+    G.F = F;
+    G.zoomK = zoomK;
+    c.f = FX(c.x); // camera centre in frets (tests read this)
+    c.px = scaleAt(c.x, G.yMid, 0); // pixels per unit at the neck (tests)
+    H.projection = {
+      point: (f, s, time) => {
+        const p = R3.project(laneC(f), strH(s), zOf(time));
+        return [p[0], p[1]];
+      },
+      neck: (f, s) => {
+        const p = R3.project(laneC(f), strH(s), 0);
+        return [p[0], p[1]];
+      },
+    };
   }
 
-  // camera space: depth along the view, up along the view
-  const depth = (y, z) => (y - G.camY) * -G.sp + (z - G.camZ) * G.cp;
-  const upv = (y, z) => (y - G.camY) * G.cp + (z - G.camZ) * G.sp;
-  function projY(x, y, z) {
-    return G.cy - (G.F * upv(y, z)) / Math.max(0.5, depth(y, z));
-  }
-  const PX = (x, y, z) => G.cx + (G.F * (x - G.camX)) / Math.max(0.5, depth(y, z));
-  const PY = (x, y, z) => projY(x, y, z);
-  /** pixels per world unit at a point (for sizes) */
-  const scaleAt = (y, z) => G.F / Math.max(0.5, depth(y, z));
-
-  function poly(pts) {
-    ctx.beginPath();
-    pts.forEach(([x, y, z], i) => (i ? ctx.lineTo(PX(x, y, z), PY(x, y, z)) : ctx.moveTo(PX(x, y, z), PY(x, y, z))));
-    ctx.closePath();
-  }
-  function line3(a, b) {
-    ctx.beginPath();
-    ctx.moveTo(PX(a[0], a[1], a[2]), PY(a[0], a[1], a[2]));
-    ctx.lineTo(PX(b[0], b[1], b[2]), PY(b[0], b[1], b[2]));
-  }
+  const PX = (x, y, z) => R3.project(x, y, z)[0];
+  const PY = (x, y, z) => R3.project(x, y, z)[1];
+  const scaleAt = (x, y, z) => R3.project(x, y, z)[2];
+  const rgba = (hex, a) => {
+    const v = parseInt(hex.slice(1), 16);
+    return `rgba(${(v >> 16) & 255}, ${(v >> 8) & 255}, ${v & 255}, ${a})`;
+  };
 
   function draw(t, dt) {
     const tab = H.tab;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, HH);
+    const T0 = performance.now();
     drawBackdrop(t);
-    if (!tab) return;
+    const T1 = performance.now();
+    if (!tab || !R3) {
+      if (R3) {
+        R3.begin();
+        R3.render(40, 1);
+      }
+      return;
+    }
     geometry(t);
     camera(t, dt);
     const a = anchorAt(t);
-    // frets in view at the neck
-    const vis = (W * 0.5) / scaleAt(G.top * 0.5, 0);
-    const f0 = Math.max(0, Math.floor(FX(Math.max(0, G.camX - vis * 1.6) / NECK)) - 1);
-    const f1 = Math.min(24, Math.ceil(FX(Math.min(0.749, (G.camX + vis * 1.6) / NECK))) + 1);
-    drawFloor(t, a, f0, f1);
-    drawNeck(t, a, f0, f1); // notes arrive on top of the neck, as in Rocksmith
-    drawNotes(t, a);
+    let f0 = 0;
+    let f1 = 24;
+    while (f0 < 24 && PX(XF(f0 + 1), 0, 0) < -40) f0++;
+    while (f1 > 0 && PX(XF(f1 - 1), 0, 0) > W + 40) f1--;
+    G.f0 = f0;
+    G.f1 = f1;
+    R3.begin();
+    R3.setGlow(prefs.glow !== false && !perf.noGlow);
+    buildFloor(t, a, f0, f1);
+    buildNeck(t, a, f0, f1);
+    buildNotes(t, a);
+    buildLands(t, a);
+    buildHits(t, a);
+    const T2 = performance.now();
+    R3.render(G.zF, G.zs * PAST);
+    const T3 = performance.now();
     drawNeckFront(t, a, f0, f1);
+    drawLabels();
+    drawHitsFront(t, a, dt);
     drawFire(a, dt);
+    const T4 = performance.now();
+    const k = 0.9;
+    const tm = (H.timing = H.timing || { venue: 0, build: 0, gpu: 0, text: 0 });
+    tm.venue = tm.venue * k + (T1 - T0) * (1 - k);
+    tm.build = tm.build * k + (T2 - T1) * (1 - k);
+    tm.gpu = tm.gpu * k + (T3 - T2) * (1 - k);
+    tm.text = tm.text * k + (T4 - T3) * (1 - k);
   }
 
-  /** Flames off the neck across your hand position, and the streak badge. */
+  // labels gathered while building the scene, drawn on the 2D layer afterwards
+  const labels = [];
+  function label(text, x, y, z, opts) {
+    labels.push({ text, x, y, z, ...opts });
+  }
+  function drawLabels() {
+    ctx.textAlign = 'center';
+    for (const l of labels) {
+      const [sx, sy, sc, front] = R3.project(l.x, l.y, l.z);
+      if (!front) continue;
+      const fs = Math.round(Math.max(l.min || 10, Math.min(l.max || 36, (l.size || 0.4) * sc)));
+      if (fs < (l.hide || 0)) continue;
+      ctx.globalAlpha = l.alpha ?? 1;
+      ctx.font = `${l.weight || 900} ${fs}px ${FONT}`;
+      ctx.textBaseline = l.base || 'middle';
+      const y = sy + (l.dy || 0) * fs;
+      if (l.pill) {
+        const tw = ctx.measureText(l.text).width + fs * 0.9;
+        rr(ctx, sx - tw / 2, y - fs * 0.62, tw, fs * 1.24, fs * 0.62);
+        ctx.fillStyle = 'rgba(8, 12, 22, 0.85)';
+        ctx.fill();
+        ctx.fillStyle = l.color || '#ffe2b0';
+        ctx.fillText(l.text, sx, y + 1);
+        continue;
+      }
+      ctx.lineWidth = Math.max(2.5, fs * 0.16);
+      ctx.strokeStyle = 'rgba(5, 8, 15, 0.85)';
+      ctx.strokeText(l.text, sx, y);
+      if (l.gold) {
+        const g = ctx.createLinearGradient(0, y - fs / 2, 0, y + fs / 2);
+        g.addColorStop(0, l.grey ? '#a0a4b4' : '#ffe9a8');
+        g.addColorStop(1, l.grey ? '#6a6f82' : '#f3a51f');
+        ctx.fillStyle = g;
+      } else ctx.fillStyle = l.color || '#ffffff';
+      ctx.fillText(l.text, sx, y);
+    }
+    ctx.globalAlpha = 1;
+    labels.length = 0;
+  }
+
+  /** Flames off the neck outside your hand position, and the streak badge. */
   function drawFire(a, dt) {
-    // Never over the notes: embers rise from the neck's bottom edge outside
-    // your hand position, the bracket edges glow, the rails warm (drawFloor).
-    const yTop = PY(anX0(a), G.neckYt, 0);
-    const yBot = PY(anX0(a), G.neckYb, 0);
-    const ha = PX(anX0(a), G.neckYb, 0);
-    const hb = PX(anX1(a), G.neckYb, 0);
-    const n0 = Math.max(0, PX(XF(0), G.neckYb, 0));
+    const yTop = PY(anX0(a), nY(G.n - 1) + 0.3, 0);
+    const yBot = PY(anX0(a), -0.25, 0);
+    const ha = PX(anX0(a), -0.25, 0);
+    const hb = PX(anX1(a), -0.25, 0);
+    const n0 = Math.max(0, PX(XF(0), -0.25, 0));
     fire.update(Math.min(0.05, dt || 0.016), G.heat, [[n0, ha - 24], [hb + 24, W]], yBot + 2);
     fire.draw(ctx);
-    if (G.heat > 0.05) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      for (const x of [ha, hb]) {
-        const g = ctx.createLinearGradient(0, yBot, 0, yTop - 30);
-        g.addColorStop(0, `rgba(255, 120, 30, ${0.55 * G.heat})`);
-        g.addColorStop(1, 'rgba(255, 60, 0, 0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(x - 5, yTop - 30, 10, yBot - yTop + 30);
-      }
-      // a low ember glow along the bottom of the neck
-      const gl = ctx.createLinearGradient(0, yBot - 18, 0, yBot + 14);
-      gl.addColorStop(0, 'rgba(255, 90, 20, 0)');
-      gl.addColorStop(1, `rgba(255, 110, 30, ${0.22 * G.heat * (0.8 + 0.2 * G.pulse)})`);
-      ctx.fillStyle = gl;
-      ctx.fillRect(0, yBot - 18, W, 32);
-      ctx.restore();
-    }
     const streak = H.forceStreak ?? (H.judge && prefs.detect && rig.on ? H.judge.streak : 0);
     if (streak >= 8) {
       const hot = G.heat;
@@ -735,7 +1129,7 @@ export function createHighway(stage) {
       ctx.textAlign = 'right';
       ctx.textBaseline = 'alphabetic';
       const x = W - 40;
-      const y = yTop - 24;
+      const y = Math.min(yTop - 24, HH * 0.62);
       ctx.lineWidth = 6;
       ctx.strokeStyle = 'rgba(5, 8, 15, 0.8)';
       ctx.strokeText(String(streak), x, y);
@@ -764,338 +1158,233 @@ export function createHighway(stage) {
     return Math.exp(-k * (B[i].m >= 0 ? 5 : 7)) * (B[i].m >= 0 ? 1 : 0.65);
   }
   function drawBackdrop(t) {
-    // heat follows the streak: warms from 8 notes in a row, full fire at 40
-    const streak = H.forceStreak ?? (H.judge && prefs.detect && rig.on ? H.judge.streak : 0); // forceStreak: tests
+    const streak = H.forceStreak ?? (H.judge && prefs.detect && rig.on ? H.judge.streak : 0);
     const want = Math.max(0, Math.min(1, (streak - 8) / 32));
     H.heat = (H.heat || 0) + (want - (H.heat || 0)) * (want < (H.heat || 0) ? 0.08 : 0.03);
     G.heat = prefs.fx ? H.heat : 0;
     G.pulse = beatPulse(t || 0);
-    venue.draw(ctx, prefs.venue || 'arena', W, HH, performance.now() / 1000, G.pulse, G.heat);
+    const target = R3 ? bgCtx : ctx;
+    const bw = R3 ? R3.bg.width : W;
+    const bh = R3 ? R3.bg.height : HH;
+    // the venue behind the 3D scene only needs ~30 updates a second
+    if (R3) {
+      H.bgTick = (H.bgTick || 0) + 1;
+      if (H.bgTick % 2 && H.bgDrawn) return;
+      H.bgDrawn = true;
+      R3.bgDirty = true;
+    }
+    // photo venues line their horizon up with the highway's vanishing point and drift a little with the camera
+    const view = {};
+    if (R3 && H.tab && G.zF) {
+      // where the highway's far end meets the floor: the picture's floor line goes there
+      view.vpY = (R3.project(G.camX || 0, 0, G.zF * 0.8)[1] / HH) * bh;
+      view.shift = ((G.camX || 0) - 10) / 14;
+    }
+    venue.draw(target, prefs.venue || 'warehouse', bw, bh, performance.now() / 1000, G.pulse * 0.5, G.heat * 0.5, view);
+    const photo = VENUES.some((v) => v.id === (VENUE_ALIAS[prefs.venue] || prefs.venue) && v.photo);
+    target.fillStyle = photo ? 'rgba(4, 6, 10, 0.08)' : 'rgba(4, 6, 10, 0.3)';
+    target.fillRect(0, 0, bw, bh);
   }
 
-  const tab = () => H.tab;
-  /** Cyan rails that warm to orange as you heat up. */
+  /** Cyan edges that warm to orange as you heat up. */
+  const RAIL = '#50e8ff';
+  const RAIL_HOT = '#ff963c';
+  const railCol = (a, k = 1) => mix(RAIL, RAIL_HOT, G.heat || 0, a, k);
   function railColor(a) {
     const k = G.heat || 0;
-    const r = Math.round(90 + (255 - 90) * k);
-    const g = Math.round(235 + (150 - 235) * k);
-    const b = Math.round(255 + (60 - 255) * k);
-    return `rgba(${r}, ${g}, ${b}, ${a})`;
+    return `rgba(${Math.round(80 + 175 * k)}, ${Math.round(232 - 82 * k)}, ${Math.round(255 - 195 * k)}, ${a})`;
   }
 
-  function drawFloor(t, a, f0, f1) {
+  // ------------------------------------------------------------ floor --
+  function buildFloor(t, a, f0, f1) {
+    const { floor, glow } = R3.L;
     const zF = G.zF;
-    // The whole highway: a dark floor with faint lanes, fading into the distance.
-    poly([[XF(f0), 0, 0], [XF(f1), 0, 0], [XF(f1), 0, zF], [XF(f0), 0, zF]]);
-    const g = ctx.createLinearGradient(0, PY(G.camX, 0, zF), 0, PY(G.camX, 0, 0));
-    g.addColorStop(0, 'rgba(8, 20, 36, 0.0)');
-    g.addColorStop(0.35, 'rgba(10, 26, 46, 0.55)');
-    g.addColorStop(1, 'rgba(12, 32, 56, 0.85)');
-    ctx.fillStyle = g;
-    ctx.fill();
-    ctx.lineWidth = 1;
-    for (let f = f0; f <= f1; f++) {
-      ctx.strokeStyle = 'rgba(70, 170, 210, 0.14)';
-      line3([XF(f), 0, 0], [XF(f), 0, zF]);
-      ctx.stroke();
-    }
-    // Hand positions coming up: lit troughs with glowing rails, stepping across the floor.
-    const A = tab().anchors || [];
-    const segs = [];
+    const zN = -G.zs * PAST;
+    // every fret's line runs off to the vanishing point, faint
+    const lineC = col('#5ad2eb', 0.1);
+    for (let f = 0; f <= 24; f++) floor.bar([XF(f), 0, zN], [XF(f), 0, zF], 0.035, lineC);
+    // hand positions: dark blue channels, one per fret, bright edges, stepping across the floor
+    const A = H.tab.anchors || [];
     for (let i = Math.max(0, lower(A, t) - 1); i < A.length && A[i].t < t + G.L; i++) {
       const an = A[i];
-      const za = Math.max(0, zOf(an.t));
+      const za = Math.max(zN, zOf(an.t));
       const next = A[i + 1];
       const zb = Math.min(zF, zOf(next ? next.t : an.end || an.t + 600));
       if (zb <= za) continue;
-      segs.push({ an, za, zb });
-    }
-    // far to near so near walls sit on top
-    for (let k = segs.length - 1; k >= 0; k--) {
-      const { an, za, zb } = segs[k];
       const xa = anX0(an);
       const xb = anX1(an);
-      const wall = 0.55;
-      const fadeFar = (z) => Math.max(0, Math.min(1, (zF - z) / (zF * 0.3)));
-      // floor of the trough
-      poly([[xa, 0, za], [xb, 0, za], [xb, 0, zb], [xa, 0, zb]]);
-      const lg = ctx.createLinearGradient(0, PY(xa, 0, zb), 0, PY(xa, 0, za));
-      lg.addColorStop(0, `rgba(20, 70, 130, ${0.25 * fadeFar(zb)})`);
-      lg.addColorStop(1, `rgba(26, 92, 165, ${0.55 * fadeFar(za)})`);
-      ctx.fillStyle = lg;
-      ctx.fill();
-      // side walls
+      for (let f = an.fret; f < an.fret + (an.width || 4); f++) {
+        const l = XF(f - 1);
+        const r = XF(f);
+        const w = r - l;
+        floor.flat(l, r, za, zb, 0.002, col('#0f3346', 0.92), col('#0b2838', 0.92));
+        floor.flat(l + w * 0.18, r - w * 0.18, za, zb, 0.004, col('#3c8cb4', 0.16), col('#3c8cb4', 0.08));
+      }
+      for (let f = an.fret; f < an.fret - 1 + (an.width || 4); f++) floor.bar([XF(f), 0.006, za], [XF(f), 0.006, zb], 0.04, col('#78e6ff', 0.55));
+      // the bright rails
       for (const x of [xa, xb]) {
-        poly([[x, 0, za], [x, wall, za], [x, wall, zb], [x, 0, zb]]);
-        ctx.fillStyle = `rgba(40, 150, 220, ${0.22 * fadeFar(za)})`;
-        ctx.fill();
+        floor.bar([x, 0.008, za], [x, 0.008, zb], 0.07, railCol(0.95, 1.1));
+        glow.bar([x, 0.01, za], [x, 0.01, zb], 0.26, railCol(0.14, 1));
       }
-      // lane lines inside
-      ctx.lineWidth = 1.2;
-      for (let f = an.fret; f < an.fret - 1 + (an.width || 4); f++) {
-        ctx.strokeStyle = `rgba(110, 225, 255, ${0.35 * fadeFar(za)})`;
-        line3([XF(f), 0, za], [XF(f), 0, zb]);
-        ctx.stroke();
-      }
-      // glowing rails on top of the walls, and the step where it starts
-      ctx.shadowColor = '#3fe0ff';
-      ctx.shadowBlur = 12;
-      ctx.lineWidth = 2.4;
-      ctx.strokeStyle = railColor(0.95 * fadeFar(za));
-      ctx.shadowColor = G.heat > 0.3 ? '#ff8a3a' : '#3fe0ff';
-      for (const x of [xa, xb]) {
-        line3([x, wall, za], [x, wall, zb]);
-        ctx.stroke();
-      }
-      if (za > 0.2) {
-        line3([xa, wall, za], [xb, wall, za]);
-        ctx.stroke();
-        line3([xa, 0, za], [xb, 0, za]);
-        ctx.stroke();
-      }
-      ctx.shadowBlur = 0;
-      // A new hand position coming: its fret numbers on the floor at its front edge.
-      if (za > G.zs * 0.5 && za < zF * 0.85) {
-        const sc = scaleAt(0, za);
-        ctx.font = `800 ${Math.round(Math.max(11, Math.min(22, 0.9 * sc)))}px ${FONT}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        for (let f = an.fret; f < an.fret + (an.width || 4); f++) {
-          ctx.fillStyle = f === an.fret ? 'rgba(255, 197, 61, 0.95)' : 'rgba(110, 220, 230, 0.75)';
-          ctx.fillText(String(f), PX(laneC(f), 0, za), PY(laneC(f), 0, za) + 2);
+      // a new hand position: a light bar across its front edge and its fret numbers on the floor
+      if (za > G.zs * 0.3 && za < zF * 0.9) {
+        floor.bar([xa, 0.008, za], [xb, 0.008, za], 0.07, railCol(0.8, 1.2));
+        glow.bar([xa, 0.01, za], [xb, 0.01, za], 0.25, railCol(0.2));
+        const inA = (f) => f >= an.fret && f < an.fret + (an.width || 4);
+        for (let f = Math.max(1, an.fret - 4); f <= Math.min(24, an.fret + (an.width || 4) + 4); f++) {
+          if (!inA(f) && !INLAYS.includes(f)) continue;
+          label(String(f), laneC(f), 0, za - 0.35, { size: 0.42 * laneW(f), min: 9, max: 26, weight: 800, color: inA(f) ? '#ffffff' : 'rgba(90, 210, 220, 0.8)', alpha: Math.max(0, Math.min(1, (zF - za) / (zF * 0.45))) });
         }
       }
     }
-    // Beat and bar lines across the hand position
-    const beats = tab().beats || [];
+    // beat lines across the hand position: bars brighter
+    const beats = H.tab.beats || [];
     for (let i = lower(beats, t); i < beats.length && beats[i].t < t + G.L; i++) {
       const z = zOf(beats[i].t);
+      if (z < 0.05) continue;
       const bar = beats[i].m >= 0;
       const an = anchorAt(beats[i].t);
-      const fade = Math.max(0, Math.min(1, (zF - z) / (zF * 0.3)));
-      ctx.strokeStyle = bar ? `rgba(170, 240, 255, ${0.5 * fade})` : `rgba(170, 240, 255, ${0.14 * fade})`;
-      ctx.lineWidth = bar ? 2 : 1;
-      line3([anX0(an), 0.02, z], [anX1(an), 0.02, z]);
-      ctx.stroke();
+      floor.bar([anX0(an), 0.007, z], [anX1(an), 0.007, z], bar ? 0.06 : 0.03, col('#a0ebff', bar ? 0.45 : 0.16));
     }
   }
 
-  /** The neck: an upright fretboard at z = 0 with frets, inlays and glowing strings. */
-  function drawNeck(t, a, f0, f1) {
-    ctx.globalAlpha = 1;
+  // ------------------------------------------------------------- neck --
+  function buildNeck(t, a, f0, f1) {
+    const { solid, alpha, glow } = R3.L;
     const n = G.n;
+    const xn = XF(-3);
+    const xe = XF(24) + 0.8;
     const yb = -0.25;
-    const yt = G.top + 0.55;
-    const xn = XF(0);
-    const xe = XF(24) + 1.2;
-    // the board
-    poly([[xn, yb, 0], [xe, yb, 0], [xe, yt, 0], [xn, yt, 0]]);
-    const wood = ctx.createLinearGradient(0, PY(xn, yt, 0), 0, PY(xn, yb, 0));
-    wood.addColorStop(0, 'rgba(24, 18, 22, 0.42)');
-    wood.addColorStop(0.5, 'rgba(36, 26, 26, 0.5)');
-    wood.addColorStop(1, 'rgba(14, 11, 14, 0.7)');
-    ctx.fillStyle = wood;
-    ctx.fill();
-    // the lit hand position on the neck
-    poly([[anX0(a), yb, 0], [anX1(a), yb, 0], [anX1(a), yt, 0], [anX0(a), yt, 0]]);
-    const hl = ctx.createLinearGradient(0, PY(0, yt, 0), 0, PY(0, yb, 0));
-    hl.addColorStop(0, 'rgba(60, 200, 255, 0.04)');
-    hl.addColorStop(1, 'rgba(60, 200, 255, 0.2)');
-    ctx.fillStyle = hl;
-    ctx.fill();
-    // inlays
-    ctx.fillStyle = 'rgba(214, 190, 140, 0.32)';
-    const mid = (yb + yt) / 2;
-    for (const f of [3, 5, 7, 9, 12, 15, 17, 19, 21, 24]) {
-      if (f < f0 || f > f1) continue;
-      const r = Math.min(laneW(f) * 0.16, 0.32) * scaleAt(mid, 0);
-      for (const dy of f === 12 || f === 24 ? [-G.gap * 1.4, G.gap * 1.4] : [0]) {
-        ctx.beginPath();
-        ctx.arc(PX(laneC(f), mid + dy, 0), PY(laneC(f), mid + dy, 0), r, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    const yt = G.yTop + 0.32;
+    // your hand position, faintly lit on the neck
+    alpha.up(anX0(a), anX1(a), yb, yt, 0.06, col('#46c8ff', 0.05), col('#46c8ff', 0.1));
+    // inlay panels behind the strings: gold in your hand position, teal elsewhere
+    for (const f of INLAYS) {
+      if (f < f0 - 1 || f > f1 + 1) continue;
+      const inA = f >= a.fret && f < a.fret + (a.width || 4);
+      const w = laneW(f);
+      const c = laneC(f);
+      alpha.up(c - w * 0.3, c + w * 0.3, G.hl - 0.05, G.yTop + 0.05, 0.05, inA ? col('#ffc446', 0.3) : col('#50c8d2', 0.12), inA ? col('#ffc446', 0.14) : col('#50c8d2', 0.05));
     }
-    // nut and frets
-    for (let f = f0; f <= Math.min(24, f1 + 1); f++) {
-      const x = PX(XF(f), 0, 0);
-      if (x < -10 || x > W + 10) continue;
-      const top = PY(XF(f), yt, 0);
-      const bot = PY(XF(f), yb, 0);
-      const wd = f === 0 ? 7 : 3;
-      const g = ctx.createLinearGradient(x - wd / 2, 0, x + wd / 2, 0);
-      g.addColorStop(0, f === 0 ? '#d8d2c0' : '#6d5a48');
-      g.addColorStop(0.5, f === 0 ? '#fff8e6' : '#d8c7a8');
-      g.addColorStop(1, f === 0 ? '#d8d2c0' : '#5a4a3a');
-      ctx.fillStyle = g;
-      ctx.fillRect(x - wd / 2, top, wd, bot - top);
+    // fret wires: dark rods standing across the strings, the nut ivory
+    for (let f = Math.max(0, f0 - 1); f <= Math.min(24, f1 + 1); f++) {
+      const x = XF(f);
+      const hw = f === 0 ? 0.04 : 0.026;
+      solid.box(x - hw, x + hw, yb, yt, -0.04, 0.04, f === 0 ? col('#8a8476') : col('#1c1c22'), f === 0 ? col('#c8c0aa') : col('#6e675d'), f === 0 ? col('#5a5548') : col('#101014'));
+      if (f > 0) solid.up(x - hw * 0.35, x + hw * 0.35, yb, yt, -0.045, col('#6e675d', 1));
     }
-    // strings, thicker toward the low E, glowing when hit
-    const now = performance.now();
+    // strings: thin and coloured, a touch thicker toward the low E, with a soft glow
     for (let s = 0; s < n; s++) {
       const y = strH(s);
-      const glow = H.bursts.some((b) => b.s === s && now - b.at < 260);
-      const th = (n === 4 ? 4.6 : 3.8) - s * (n === 4 ? 0.55 : 0.42);
-      ctx.strokeStyle = STRING[s];
-      ctx.shadowColor = STRING[s];
-      ctx.shadowBlur = glow ? 22 : 8;
-      ctx.lineWidth = th + (glow ? 2 : 0);
-      line3([xn, y, 0], [xe, y, 0]);
-      ctx.stroke();
+      const th = (n === 4 ? 0.021 : 0.016) - s * (n === 4 ? 0.0025 : 0.0016);
+      solid.box(xn, xe, y - th, y + th, -th, th, col(STRING[s], 1, 0.5), col(STRING[s], 1, 0.68), col(STRING[s], 1, 0.38));
+      glow.up(xn, xe, y - th * 2.5, y + th * 2.5, -0.05, col(STRING[s], 0.08));
     }
-    ctx.shadowBlur = 0;
-    G.neckYb = yb;
-    G.neckYt = yt;
+    // the hand position's edges at the neck: two white posts, as in the game
+    const fy = yt + 0.25;
+    for (const x of [anX0(a), anX1(a)]) {
+      solid.box(x - 0.025, x + 0.025, yb - 0.1, fy, -0.08, -0.02, col('#fff0f8', 1, 1.0));
+      glow.up(x - 0.1, x + 0.1, yb - 0.1, fy + 0.05, -0.085, col('#ff7ad2', 0.12), col('#50e8ff', 0.1));
+    }
+
   }
 
-  /** On the neck: the hand-position bracket, landing targets, fret numbers, names, hit sparks. */
+  /** In front of the neck: fret numbers, the next chord's name, finger numbers as a chord lands. */
   function drawNeckFront(t, a, f0, f1) {
-    const n = G.n;
-    const yb = G.neckYb;
-    const yt = G.neckYt;
-    // The bracket around where your hand goes, with light posts at its edges.
-    const xa = anX0(a);
-    const xb = anX1(a);
-    ctx.shadowColor = '#5fe8ff';
-    ctx.shadowBlur = 18;
-    ctx.strokeStyle = 'rgba(120, 240, 255, 0.95)';
-    ctx.lineWidth = 3;
-    const c = 0.9; // corner length (world)
-    for (const [x, d] of [[xa, 1], [xb, -1]]) {
-      ctx.beginPath();
-      ctx.moveTo(PX(x + d * c, yt + 0.25, 0), PY(x + d * c, yt + 0.25, 0));
-      ctx.lineTo(PX(x, yt + 0.25, 0), PY(x, yt + 0.25, 0));
-      ctx.lineTo(PX(x, yb - 0.1, 0), PY(x, yb - 0.1, 0));
-      ctx.lineTo(PX(x + d * c, yb - 0.1, 0), PY(x + d * c, yb - 0.1, 0));
-      ctx.stroke();
-    }
-    ctx.shadowBlur = 0;
-    // Landing targets: the next notes outline their spot on the neck as they arrive.
     const T = H.targets;
-    const win = 0.7;
-    for (let i = lower(T, t - 0.15); i < T.length && T[i].t < t + win; i++) {
-      const tg = T[i];
-      const k = 1 - Math.min(1, Math.max(0, (tg.t - t) / win));
-      for (const nt of tg.notes) {
-        if (nt.f === 0) continue;
-        const x = laneC(nt.f);
-        const y = strH(nt.s);
-        const sc = scaleAt(y, 0);
-        const w = laneW(nt.f) * 0.66 * sc;
-        const hh = G.gap * 0.62 * sc;
-        const px = PX(x, y, 0);
-        const py = PY(x, y, 0);
-        ctx.globalAlpha = 0.2 + 0.8 * k;
-        ctx.strokeStyle = STRING[nt.s];
-        ctx.lineWidth = 2.5;
-        rr(ctx, px - w / 2, py - hh / 2, w, hh, 4);
-        ctx.stroke();
-        if (tg.kind === 'chord' && H.tab.chords[tg.chord] && k > 0.4) {
-          const fi = (H.tab.chords[tg.chord].fingers || [])[nt.s];
-          if (fi > 0) {
-            ctx.fillStyle = 'rgba(10,12,20,0.88)';
-            ctx.beginPath();
-            ctx.arc(px, py, hh * 0.6, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.fillStyle = '#ffffff';
-            ctx.font = `800 ${Math.round(hh * 0.78)}px ${FONT}`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(fi), px, py + 1);
-          }
-        }
-        ctx.globalAlpha = 1;
-      }
-    }
-    // Fret numbers under the neck: gold in your hand position.
+    const yb = -0.25;
+    const inA = (f) => f >= a.fret && f < a.fret + (a.width || 4);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     for (let f = Math.max(1, f0); f <= f1; f++) {
-      const x = PX(laneC(f), yb, 0);
+      if (!inA(f) && !INLAYS.includes(f)) continue;
+      const [x, y0, sc] = R3.project(laneC(f), yb, -0.1);
       if (x < 14 || x > W - 14) continue;
-      const inA = f >= a.fret && f < a.fret + (a.width || 4);
-      const y = PY(laneC(f), yb, 0) + 8;
-      ctx.font = `${inA ? 800 : 700} ${inA ? 26 : 18}px ${FONT}`;
-      ctx.fillStyle = inA ? '#ffc53d' : 'rgba(110, 200, 210, 0.45)';
-      if (inA) {
-        ctx.shadowColor = 'rgba(255, 180, 40, 0.6)';
-        ctx.shadowBlur = 10;
-      }
+      const big = inA(f);
+      const fs = Math.round(Math.max(14, Math.min(big ? 48 : 30, sc * (big ? 0.42 : 0.3) * laneW(f))));
+      const y = y0 + 6;
+      ctx.font = `${big ? 900 : 700} ${fs}px ${FONT}`;
+      if (big) {
+        const g = ctx.createLinearGradient(0, y, 0, y + fs);
+        g.addColorStop(0, '#ffe08a');
+        g.addColorStop(1, '#f0a020');
+        ctx.fillStyle = g;
+        ctx.shadowColor = 'rgba(255, 170, 30, 0.55)';
+        ctx.shadowBlur = 12;
+      } else ctx.fillStyle = 'rgba(90, 200, 205, 0.65)';
       ctx.fillText(String(f), x, y);
       ctx.shadowBlur = 0;
     }
-    // String names at the left edge
-    ctx.font = `800 13px ${FONT}`;
-    ctx.textBaseline = 'middle';
-    for (let s = 0; s < n; s++) {
-      const y = PY(XF(0), strH(s), 0);
-      ctx.fillStyle = 'rgba(5, 8, 15, 0.9)';
-      rr(ctx, 8, y - 10, 22, 20, 10);
-      ctx.fill();
-      ctx.strokeStyle = STRING[s];
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.fillStyle = STRING[s];
-      ctx.fillText((n === 4 ? NAMES4 : NAMES6)[s], 19, y + 1);
+    // finger numbers on the neck: the coming chord's, or the shape you're holding
+    const fingers = new Map();
+    const HS = H.tab.handShapes || [];
+    const hi = lower(HS, t + 0.0001, 'start') - 1;
+    const hs = hi >= 0 && t < HS[hi].end ? HS[hi] : null;
+    const shape = hs && H.tab.chords[hs.chord];
+    if (shape && shape.frets) shape.frets.forEach((f, s) => {
+      const finger = shape.fingers && shape.fingers[s];
+      if (f > 0 && finger > 0) fingers.set(s, { f, finger, alpha: 0.55 });
+    });
+    let nextChord = null;
+    for (let i = lower(T, t - 0.08); i < T.length && T[i].t < t + 0.45; i++) {
+      if (T[i].kind === 'chord') {
+        nextChord = T[i];
+        break;
+      }
     }
-    // The next chord's name, big, at the left (as in Rocksmith).
+    if (nextChord) {
+      const sh = H.tab.chords[nextChord.chord];
+      fingers.clear();
+      for (const nt of nextChord.notes) {
+        const finger = sh && sh.fingers && sh.fingers[nt.s];
+        if (nt.f > 0 && finger > 0) fingers.set(nt.s, { f: nt.f, finger, alpha: 0.95 });
+      }
+    }
+    for (const [s, finger] of fingers) {
+      const [px, py, sc] = R3.project(laneC(finger.f), strH(s), -0.1);
+      const fs = Math.max(14, Math.min(34, G.gap * sc * 0.8));
+      ctx.globalAlpha = finger.alpha;
+      ctx.font = `800 ${Math.round(fs)}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.beginPath();
+      ctx.arc(px, py, fs * 0.62, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(245, 250, 255, 0.92)';
+      ctx.fill();
+      ctx.fillStyle = '#20252c';
+      ctx.fillText(String(finger.finger), px, py + 1);
+    }
+    ctx.globalAlpha = 1;
+    // the next chord's name, big and bold on the left (as in Rocksmith)
     for (let i = lower(T, t - 0.05); i < T.length && T[i].t < t + 1.6; i++) {
       const tg = T[i];
       if (tg.kind !== 'chord' || !tg.name) continue;
       const k = Math.min(1, (1.6 - (tg.t - t)) / 0.4);
       ctx.globalAlpha = Math.max(0, k);
-      ctx.font = `800 ${Math.round(Math.min(60, HH * 0.062))}px ${FONT}`;
+      const fs = Math.round(Math.min(88, HH * 0.08));
+      ctx.font = `900 ${fs}px ${FONT}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
-      ctx.lineWidth = 6;
-      ctx.strokeStyle = 'rgba(5, 8, 15, 0.8)';
-      const y = PY(XF(0), yt, 0) - 22;
-      ctx.strokeText(tg.name, 44, y);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(tg.name, 44, y);
+      const x = W * 0.15;
+      const y = HH * 0.5;
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = 'rgba(5, 8, 15, 0.7)';
+      ctx.strokeText(tg.name, x, y);
+      const g = ctx.createLinearGradient(0, y - fs, 0, y);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(1, '#c9d2e6');
+      ctx.fillStyle = g;
+      ctx.fillText(tg.name, x, y);
       ctx.globalAlpha = 1;
       break;
-    }
-    // Hit sparks: a flash on the string and light posts at the hand position.
-    const now = performance.now();
-    H.bursts = H.bursts.filter((b) => now - b.at < 450);
-    for (const b of H.bursts) {
-      const k = (now - b.at) / 450;
-      const x = b.f === 0 ? noteX(b, a) : laneC(b.f);
-      const y = strH(b.s);
-      const px = PX(x, y, 0);
-      const py = PY(x, y, 0);
-      const g = ctx.createRadialGradient(px, py, 0, px, py, 40 + k * 40);
-      g.addColorStop(0, `rgba(255,255,255,${0.7 * (1 - k)})`);
-      g.addColorStop(0.3, STRING[b.s] + Math.round(160 * (1 - k)).toString(16).padStart(2, '0'));
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(px - 90, py - 90, 180, 180);
-    }
-    if (H.bursts.length) {
-      const k = Math.min(1, (now - Math.max(...H.bursts.map((b) => b.at))) / 450);
-      ctx.globalAlpha = 1 - k;
-      ctx.shadowColor = '#ff5c8a';
-      ctx.shadowBlur = 16;
-      ctx.strokeStyle = '#ffd1df';
-      ctx.lineWidth = 3;
-      for (const x of [xa, xb]) {
-        line3([x, yb - 0.2, 0], [x, yt + 2.2, 0]);
-        ctx.stroke();
-      }
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
     }
   }
 
   // ------------------------------------------------------------- notes --
-  /** Bend (in steps) of a note at song time `time`, from its real bend curve. */
+  /** Bend (in half steps) of a note at song time `time`, from its real bend curve. */
   function bendAt(nt, time) {
     const pts = nt.bends;
     if (pts && pts.length) {
-      // points are song times; some charts store them relative to the note
       const rel = pts[0].t < nt.t - 0.01;
       let pt = nt.t;
       let ps = 0;
@@ -1116,20 +1405,19 @@ export function createHighway(stage) {
     }
     return 0;
   }
-  // bends are charted in half steps: 1 = ½, 2 = full, 3 = 1½, 4 = 2
   const bendLabel = (b) => ({ 0.5: '¼', 1: '½', 1.5: '¾', 2: 'full', 3: '1½', 4: '2' })[b] || `${b / 2}`;
   const maxBend = (nt) => (nt.bends && nt.bends.length ? Math.max(...nt.bends.map((p) => p.step)) : nt.bend || 0);
+  const judged = (tg) => (H.judge && prefs.detect && rig.on ? H.judge.state.get(tg.id) : null);
+  const isChord = (tg) => tg.kind === 'chord' || (tg.kind === 'mute' && tg.notes.length > 1);
 
-  function drawNotes(t, a) {
+  function buildNotes(t, a) {
     const T = H.targets;
     const zF = G.zF;
-    const i0 = lower(T, t - 0.4);
+    const i0 = lower(T, t - PAST);
+    const sustain0 = firstSustain(H.sustainEnds || [], t);
     const i1 = lower(T, t + G.L);
-    const judged = (tg) => (H.judge && prefs.detect && rig.on ? H.judge.state.get(tg.id) : null);
-    const fadeOf = (z) => (z < 0 ? Math.max(0, 1 + z / 3) : z > zF * 0.8 ? Math.max(0, (zF - z) / (zF * 0.2)) : 1);
-    // Sustain trails first, under the gems: each follows the note exactly in
-    // time, rising with its real bend, moving with slides, shaking with vibrato.
-    for (let i = i0; i < i1; i++) {
+    // sustain ribbons, under the gems
+    for (let i = sustain0; i < i1; i++) {
       const tg = T[i];
       if (!tg.sus || tg.sus < 0.06) continue;
       const t0 = Math.max(tg.t, t);
@@ -1137,339 +1425,366 @@ export function createHighway(stage) {
       if (t1 <= t0) continue;
       const an = anchorAt(tg.t);
       const st = judged(tg);
-      const missed = st && st.result === 'miss';
-      for (const nt of tg.notes) drawTrail(nt, tg, t0, t1, an, missed, fadeOf(zOf(t0)));
+      for (const nt of tg.notes) {
+        const end = Math.min(t1, noteEnd(nt, tg));
+        if (end > t0) buildTrail(nt, tg, t0, end, an, st);
+      }
     }
-    // Gems and chords, far to near
     for (let i = i1 - 1; i >= i0; i--) {
       const tg = T[i];
       const z = zOf(tg.t);
       if (z > zF) continue;
       const st = judged(tg);
-      if (z < -0.5 && (!st || st.result === 'hit')) continue;
       const missed = st && st.result === 'miss';
-      const al = fadeOf(z) * (missed ? 0.35 : 1);
-      if (al <= 0.01) continue;
-      ctx.globalAlpha = al;
+      const hit = st && st.result === 'hit';
+      if (z < 0 && hit && t - tg.t > PAST * 0.6) continue; // a hit note bursts on the neck instead
       const an = anchorAt(tg.t);
-      if (tg.kind === 'chord' || (tg.kind === 'mute' && tg.notes.length > 1)) drawChord(tg, Math.max(0, z), an, missed);
-      else for (const nt of tg.notes) drawGem(nt, Math.max(0, z), an, missed, tg.kind === 'mute');
+      if (isChord(tg)) buildChord(tg, z, an, missed);
+      else for (const nt of tg.notes) buildGem(nt, z, an, missed, tg.kind === 'mute');
+    }
+  }
+
+  /** A note's sustain from t0 to t1 (song times): a flat glowing ribbon at its string's height. */
+  function buildTrail(nt, tg, t0, t1, an, st) {
+    const { alpha, glow } = R3.L;
+    const open = nt.f === 0;
+    const missed = st && st.result === 'miss';
+    const holding = st && st.result === 'hit' && G.t >= tg.t;
+    const hex = missed ? '#5a6078' : STRING[nt.s];
+    const x0 = noteX(nt, an);
+    const slideTo = nt.slideTo !== undefined ? nt.slideTo : nt.slideUnpitchTo;
+    const x1 = slideTo !== undefined ? laneC(Math.max(1, slideTo)) : x0;
+    const half = open ? 0.5 * (anX1(an) - anX0(an)) - 0.15 : laneW(Math.max(1, nt.f)) * 0.16;
+    const L0 = level(nt.s);
+    const lw = laneW(Math.max(1, nt.f || an.fret));
+    const steps = Math.max(6, Math.min(120, Math.round((t1 - t0) * 40)));
+    const duration = noteEnd(nt, tg) - tg.t;
+    let prev = null;
+    let peak = null;
+    for (let k = 0; k <= steps; k++) {
+      const time = t0 + ((t1 - t0) * k) / steps;
+      const u = duration > 0 ? (time - tg.t) / duration : 0;
+      const e = Math.min(1, Math.max(0, u));
+      let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
+      if (nt.vibrato && u > 0.06) x += Math.sin((time - tg.t) * Math.PI * 2 * 5.5) * lw * 0.16;
+      let L = L0 + (bendAt(nt, time) / 2) * 1.5;
+      if (nt.tremolo) L += (((time - tg.t) * 14) % 1 < 0.5 ? 1 : -1) * 0.12;
+      const p = [x, nY(L) - G.gy * 0.12, zOf(time)];
+      if (!peak || Math.abs(L - L0) > Math.abs(peak.L - L0)) peak = { p, L };
+      if (prev) {
+        const c = col(hex, holding ? 0.75 : 0.58, holding ? 1.3 : 1);
+        alpha.quad([prev[0] - half, prev[1], prev[2]], [prev[0] + half, prev[1], prev[2]], [p[0] + half, p[1], p[2]], [p[0] - half, p[1], p[2]], c);
+        const ec = missed ? col('#7a7f96', 0.8) : col(hex, 0.95, holding ? 2.2 : 1.5);
+        for (const side of [-1, 1]) alpha.bar([prev[0] + side * half, prev[1] + 0.002, prev[2]], [p[0] + side * half, p[1] + 0.002, p[2]], 0.035, ec);
+        if (!missed) glow.quad([prev[0] - half * 1.6, prev[1], prev[2]], [prev[0] + half * 1.6, prev[1], prev[2]], [p[0] + half * 1.6, p[1], p[2]], [p[0] - half * 1.6, p[1], p[2]], col(hex, holding ? 0.3 : 0.12));
+      }
+      prev = p;
+    }
+    const mb = maxBend(nt);
+    if (mb > 0 && peak && peak.p[2] >= 0) label(`↑${bendLabel(mb)}`, peak.p[0], peak.p[1] + G.gy * 0.4, peak.p[2], { size: 0.32, min: 12, max: 26, color: '#fff3d6', base: 'bottom' });
+    if (nt.slideUnpitchTo !== undefined && nt.slideTo === undefined) void 0;
+  }
+
+  /**
+   * A note: a glassy block in its string's colour at its string's height in
+   * its fret's lane, facing you, with a bright rim; a thin stem down to the
+   * floor with its fret number there.
+   */
+  function buildGem(nt, z, an, missed, mute, inChord = false, box = null, flare = 0, fade = 1) {
+    const { solid, alpha, glow } = R3.L;
+    const s = nt.s;
+    const hex = missed ? '#5a6078' : STRING[s];
+    const dark = missed ? '#3c4050' : STRING_DARK[s];
+    const near = Math.max(0, 1 - Math.abs(z) / (G.zs * 0.5));
+    const big = 1 + flare * 0.25;
+    const y = strH(s);
+    const DEPTH = 0.14;
+    const rimK = (missed ? 0.8 : 1.4 + 0.8 * near + 2 * flare) * fade;
+    if (nt.f === 0) {
+      // an open string: a bar across the hand position (or the chord's frame)
+      const xa = (box ? box[0] : anX0(an)) + 0.1;
+      const xb = (box ? box[1] : anX1(an)) - 0.1;
+      const hh = G.gy * 0.14 * big;
+      solid.box(xa, xb, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, 0.42, fade), col(hex, fade, 1.2), col(dark, fade));
+      glow.up(xa, xb, y - hh, y + hh, z - 0.005, col(hex, 0.55 * fade * (missed ? 0.3 : 1), rimK));
+      return;
+    }
+    const x = laneC(nt.f);
+    const lw = laneW(nt.f);
+    const hw = lw * (inChord ? 0.27 : 0.3) * big;
+    const hh = G.gy * (inChord ? 0.4 : 0.44) * big;
+    if (!inChord && z > G.zs * 0.1 && z < G.zF * 0.75) {
+      // a thin stem down to the floor, a mark in the lane, and the fret number there
+      alpha.up(x - 0.012, x + 0.012, 0, y - hh, z + DEPTH * 0.5, col(hex, 0.75));
+      alpha.flat(x - lw * 0.32, x + lw * 0.32, z - 0.05, z + 0.09, 0.012, col(hex, 0.55));
+      label(mute || nt.mute ? '×' : String(nt.f), x, 0, z - 0.3, { size: 0.42 * lw, min: 11, max: 36, gold: true, grey: missed });
+    }
+    // the block: dark glass front, lit top, darker sides
+    solid.box(x - hw, x + hw, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, missed ? 0.15 : 0.42, fade, 1 + 0.3 * near), col(hex, fade, 1.1), col(dark, fade, 0.85));
+    // bright rim around the front, and a light bar across the middle
+    const rim = Math.min(hw, hh) * 0.3;
+    const rc = flare > 0.05 ? col('#ffffff', fade, rimK) : col(hex, fade, rimK);
+    const zf = z - 0.006;
+    glow.up(x - hw, x + hw, y + hh - rim, y + hh, zf, rc);
+    glow.up(x - hw, x + hw, y - hh, y - hh + rim, zf, rc);
+    glow.up(x - hw, x - hw + rim, y - hh, y + hh, zf, rc);
+    glow.up(x + hw - rim, x + hw, y - hh, y + hh, zf, rc);
+    glow.up(x - hw * 0.55, x + hw * 0.55, y - rim * 0.45, y + rim * 0.45, zf, col(hex, fade * 0.9, rimK * 0.9));
+    if (!missed && near > 0.05) glow.up(x - hw * 1.8, x + hw * 1.8, y - hh * 1.8, y + hh * 1.8, z + 0.01, col(hex, 0.12 * near * fade));
+    if (nt.accent && !missed) {
+      const p = rim * 1.6;
+      for (const [a0, a1, b0, b1] of [[x - hw - p, x + hw + p, y + hh + p * 0.4, y + hh + p], [x - hw - p, x + hw + p, y - hh - p, y - hh - p * 0.4], [x - hw - p, x - hw - p * 0.4, y - hh - p, y + hh + p], [x + hw + p * 0.4, x + hw + p, y - hh - p, y + hh + p]]) glow.up(a0, a1, b0, b1, zf, col('#ffffff', 0.9 * fade, 1.5));
+    }
+    if (mute || nt.mute) {
+      glow.bar([x - hw * 0.5, y - hh * 0.6, zf - 0.002], [x + hw * 0.5, y + hh * 0.6, zf - 0.002], rim * 0.9, col('#ffffff', fade, 1.3), undefined, 'z');
+      glow.bar([x - hw * 0.5, y + hh * 0.6, zf - 0.002], [x + hw * 0.5, y - hh * 0.6, zf - 0.002], rim * 0.9, col('#ffffff', fade, 1.3), undefined, 'z');
+    }
+    // technique tags above the note
+    if (!inChord && z > 0.2) {
+      const marks = [];
+      if (nt.hammerOn) marks.push('H');
+      if (nt.pullOff) marks.push('P');
+      if (nt.tap) marks.push('T');
+      if (nt.palmMute) marks.push('PM');
+      if (nt.harmonic) marks.push('◆');
+      if (nt.pinchHarmonic) marks.push('PH');
+      if (nt.slap) marks.push('S');
+      if (nt.pop) marks.push('Pop');
+      if (maxBend(nt) && !(nt.sus > 0.06)) marks.push(`↑${bendLabel(maxBend(nt))}`);
+      if (nt.slideTo !== undefined && !(nt.sus > 0.06)) marks.push(nt.slideTo > nt.f ? '↗' : '↘');
+      if (marks.length) label(marks.join(' '), x, y + hh + G.gy * 0.35, z, { size: 0.22, min: 10, max: 18, hide: 11, weight: 800, pill: true });
+    }
+  }
+
+  /** Where a chord's frame sits across the neck. */
+  function chordBox(tg, an) {
+    const [left, right] = chordSpan(tg.notes, an);
+    return [XF(left), XF(right)];
+  }
+
+  /**
+   * A chord: an upright glowing frame standing on the highway across the
+   * hand position, from the floor to just above the top string. The first
+   * of a run holds its notes; repeats are lower, empty frames, so the
+   * strumming reads as steps.
+   */
+  function buildChord(tg, z, an, missed, flare = 0) {
+    const { alpha, glow, solid } = R3.L;
+    const [xa, xb] = chordBox(tg, an);
+    // as in the game, the frame reaches just above the highest string the chord uses
+    const topL = Math.max(...tg.notes.map((nt) => level(nt.s)));
+    const yT = nY(topL) + G.gy * 0.55;
+    const DZ = 0.3;
+    const accent = tg.notes.some((x) => x.accent);
+    const ec = missed ? col('#6e748c', 0.9) : railCol(1, 0.85 + 2 * flare);
+    const w = 0.04;
+    // smoked glass inside, the top face, and a dimmer back frame for depth
+    alpha.up(xa, xb, 0, yT, z, missed ? col('#3a3e4c', 0.3) : col('#0b2a36', 0.42), missed ? col('#3a3e4c', 0.3) : col('#103a48', 0.42));
+    alpha.flat(xa, xb, z, z + DZ, yT, missed ? col('#5a6078', 0.25) : col('#0e3646', 0.6));
+    const bc = missed ? col('#6e748c', 0.4) : railCol(0.5, 0.9);
+    for (const [p, q] of [[[xa, 0, z + DZ], [xa, yT, z + DZ]], [[xb, 0, z + DZ], [xb, yT, z + DZ]], [[xa, yT, z + DZ], [xb, yT, z + DZ]]]) alpha.bar(p, q, w * 0.7, bc, bc, 'z');
+    alpha.bar([xa, yT, z], [xa, yT, z + DZ], w, bc);
+    alpha.bar([xb, yT, z], [xb, yT, z + DZ], w, bc);
+    // the front frame, glowing
+    solid.box(xa - w, xa + w, 0, yT + w, z - w, z + w, ec);
+    solid.box(xb - w, xb + w, 0, yT + w, z - w, z + w, ec);
+    solid.box(xa - w, xb + w, yT - w, yT + w, z - w, z + w, ec);
+    if (!missed) {
+      const gc = railCol(0.1 + 0.3 * flare);
+      glow.up(xa - 0.12, xa + 0.12, 0, yT + 0.1, z - 0.01, gc);
+      glow.up(xb - 0.12, xb + 0.12, 0, yT + 0.1, z - 0.01, gc);
+      glow.up(xa - 0.12, xb + 0.12, yT - 0.1, yT + 0.12, z - 0.01, gc);
+    }
+    if (accent && !missed) {
+      const p = 0.09;
+      const c = col('#ffffff', 0.85, 1.2);
+      glow.up(xa - p - 0.03, xb + p + 0.03, yT + p, yT + p + 0.03, z - 0.01, c);
+      glow.up(xa - p - 0.03, xa - p, 0, yT + p + 0.03, z - 0.01, c);
+      glow.up(xb + p, xb + p + 0.03, 0, yT + p + 0.03, z - 0.01, c);
+    }
+    if (tg.kind === 'mute') label('×', (xa + xb) / 2, yT / 2, z, { size: 0.5, min: 12, max: 40 });
+    if (tg.repeat) return; // the same chord again: just its frame, so the rhythm reads at a glance
+    if (z > G.zs * 0.15) {
+      for (const f of [...new Set(tg.notes.filter((n) => n.f > 0).map((n) => n.f))]) label(String(f), laneC(f), 0, z - 0.3, { size: 0.32, min: 8, max: 28, hide: 9, weight: 800, color: '#f4cf75' });
+    }
+    for (const nt of tg.notes) buildGem(nt, z, an, missed, tg.kind === 'mute', true, [xa, xb], flare);
+    if (tg.name && z > 0.2 && prefs.chordLabels) label(tg.name, xa + 0.6, yT + G.gy * 0.5, z, { size: 0.24, min: 11, max: 22, hide: 11, weight: 800, pill: true, color: '#ffffff' });
+  }
+
+  // --------------------------------------------------------- hit feel --
+  // The moment a note lands and you hit it, its string blazes along its whole
+  // length, light posts stand at its fret, the note flares on the neck and
+  // sparks fly. A held note keeps its string lit. Miss it and nothing lights:
+  // the note passes the neck, grey.
+  const sparks = [];
+  function onJudged(e) {
+    const tg = H.targets[e.id];
+    if (!tg) return;
+    const now = performance.now();
+    const st = H.judge && H.judge.state.get(e.id);
+    if (!e.hit) {
+      H.misses = (H.misses || []).filter((m) => now - m.at < 600);
+      H.misses.push({ id: e.id, at: now });
+      return;
+    }
+    const chord = isChord(tg);
+    H.hits.push({ id: e.id, at: now, chord, until: tg.t + (tg.sus || 0), offset: st ? st.offset : null });
+    for (const nt of tg.notes) H.bursts.push({ s: nt.s, f: nt.f, at: now, until: tg.t + (tg.sus || 0) });
+    if (!G.F || !R3) return;
+    const an = anchorAt(tg.t);
+    for (const nt of tg.notes) {
+      const [px, py] = R3.project(noteX(nt, an), strH(nt.s), 0);
+      const n = chord ? 6 : 12;
+      for (let k = 0; k < n; k++) {
+        const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
+        const sp = 160 + Math.random() * 380;
+        sparks.push({ x: px, y: py, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 0, max: 0.35 + Math.random() * 0.35, col: Math.random() < 0.35 ? '#ffffff' : STRING[nt.s] });
+      }
+    }
+    if (sparks.length > 400) sparks.splice(0, sparks.length - 400);
+  }
+
+  function buildHits(t, a) {
+    const { glow, solid } = R3.L;
+    const now = performance.now();
+    H.hits = H.hits.filter((h) => now - h.at < 700 || t < h.until);
+    H.bursts = H.bursts.filter((b) => now - b.at < 700 || t < b.until);
+    // 1. the string blazes along its whole length, hottest at the note
+    const byString = new Map();
+    for (const b of H.bursts) {
+      const k = Math.max(Math.exp(-(now - b.at) / 260), t < b.until ? 0.55 : 0);
+      if (k < 0.02) continue;
+      const cur = byString.get(b.s);
+      if (!cur || cur.k < k) byString.set(b.s, { k, b });
+    }
+    const xn = XF(-3);
+    const xe = XF(24) + 0.8;
+    for (const [s, { k, b }] of byString) {
+      const y = strH(s);
+      glow.quad([xn, y - G.gy * 0.45, -0.06], [xe, y - G.gy * 0.45, -0.06], [xe, y, -0.06], [xn, y, -0.06], col(STRING[s], 0), col(STRING[s], 0), col(STRING[s], 0.45 * k), col(STRING[s], 0.45 * k));
+      glow.quad([xn, y, -0.06], [xe, y, -0.06], [xe, y + G.gy * 0.45, -0.06], [xn, y + G.gy * 0.45, -0.06], col(STRING[s], 0.45 * k), col(STRING[s], 0.45 * k), col(STRING[s], 0), col(STRING[s], 0));
+      glow.up(xn, xe, y - 0.02, y + 0.02, -0.065, col('#ffffff', 0.9 * k, 1.5));
+      const x = b.f === 0 ? noteX(b, a) : laneC(b.f);
+      const r = laneW(Math.max(1, b.f || a.fret)) * (0.7 + 0.4 * k);
+      glow.up(x - r, x + r, y - r * 0.5, y + r * 0.5, -0.07, col(STRING[s], 0.5 * k, 1.6));
+    }
+    // 2. light posts at the fret wires around what you hit (the chord's box for a chord)
+    const posts = new Map();
+    for (const h of H.hits) {
+      const tg = H.targets[h.id];
+      const k = Math.max(Math.exp(-(now - h.at) / 320), t < h.until ? 0.5 : 0);
+      if (k < 0.03) continue;
+      const an = anchorAt(tg.t);
+      const xs = h.chord ? chordBox(tg, an) : tg.notes.flatMap((nt) => (nt.f === 0 ? [anX0(an), anX1(an)] : [XF(nt.f - 1), XF(nt.f)]));
+      for (const x of xs) posts.set(x.toFixed(3), Math.max(posts.get(x.toFixed(3)) || 0, k));
+    }
+    for (const [xs, k] of posts) {
+      const x = Number(xs);
+      solid.box(x - 0.035, x + 0.035, -0.2, G.yTop + 0.9, -0.1, -0.03, col('#fff0f8', k, 2.2));
+      glow.up(x - 0.18, x + 0.18, -0.2, G.yTop + 0.95, -0.11, col('#ff5aaa', 0.4 * k, 1.3), col('#ff5aaa', 0.1 * k));
+    }
+    // 3. the note flares on the neck: a bright pop, held while you sustain
+    for (const h of H.hits) {
+      const tg = H.targets[h.id];
+      const age = (now - h.at) / 1000;
+      const holding = t < h.until;
+      const k = Math.max(Math.exp(-age / 0.22), holding ? 0.6 : 0);
+      if (k < 0.04) continue;
+      const an = anchorAt(tg.t);
+      const fl = Math.exp(-age / 0.15);
+      if (h.chord) {
+        const box = chordBox(tg, an);
+        for (const nt of tg.notes) buildGem(nt, -0.02, an, false, false, true, box, fl, Math.min(1, k * 1.2));
+      } else for (const nt of tg.notes) buildGem(nt, -0.02, an, false, tg.kind === 'mute', true, null, fl, Math.min(1, k * 1.2));
+    }
+  }
+
+  /** Sparks, MISS and EARLY / LATE on the 2D layer. */
+  function drawHitsFront(t, a, dt) {
+    const now = performance.now();
+    for (const p of sparks) {
+      p.life += dt;
+      p.vy += 900 * dt;
+      p.vx *= 1 - 1.8 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
+    for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].life > sparks[i].max) sparks.splice(i, 1);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of sparks) {
+      const k = 1 - p.life / p.max;
+      ctx.strokeStyle = rgba(p.col, k);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x - p.vx * 0.025, p.y - p.vy * 0.025);
+      ctx.stroke();
+    }
+    ctx.restore();
+    // a small MISS over the note you missed (only the latest, so they never pile up)
+    H.misses = (H.misses || []).filter((m) => now - m.at < 700).slice(-1);
+    for (const m of H.misses) {
+      const tg = H.targets[m.id];
+      if (!tg) continue;
+      const an = anchorAt(tg.t);
+      const age = (now - m.at) / 700;
+      const [px, py] = R3.project(noteX(tg.notes[0], an), G.yTop + G.gy * 1.2 + age * 0.15, 0);
+      const fs = Math.round(Math.min(26, HH * 0.022));
+      ctx.globalAlpha = Math.min(1, (1 - age) * 2.2);
+      ctx.font = `900 ${fs}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(5, 8, 15, 0.7)';
+      ctx.strokeText('MISS', px, py);
+      ctx.fillStyle = 'rgba(170, 205, 215, 0.95)';
+      ctx.fillText('MISS', px, py);
+      ctx.globalAlpha = 1;
+    }
+    for (const h of H.hits) {
+      const age = (now - h.at) / 1000;
+      if (h.offset === null || h.offset === undefined || Math.abs(h.offset) <= 90 || age >= 0.7) continue;
+      const tg = H.targets[h.id];
+      const an = anchorAt(tg.t);
+      const top = tg.notes.reduce((m, q) => (strH(q.s) > strH(m.s) ? q : m), tg.notes[0]);
+      const [px, py0] = R3.project(noteX(tg.notes[0], an), strH(top.s), 0);
+      const fs = Math.round(Math.min(22, HH * 0.02));
+      ctx.globalAlpha = Math.min(1, (0.7 - age) * 3);
+      ctx.font = `900 ${fs}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(5, 8, 15, 0.85)';
+      const txt = h.offset < 0 ? 'EARLY' : 'LATE';
+      const py = py0 - 26 - age * 30;
+      ctx.strokeText(txt, px, py);
+      ctx.fillStyle = h.offset < 0 ? '#9fe6ff' : '#ffd38a';
+      ctx.fillText(txt, px, py);
       ctx.globalAlpha = 1;
     }
   }
 
-  /** A note's sustain from t0 to t1 (song times), drawn where it really is. */
-  function drawTrail(nt, tg, t0, t1, an, missed, fade) {
-    const open = nt.f === 0;
-    const col = missed ? '#5a6078' : STRING[nt.s];
-    const x0 = noteX(nt, an);
-    const slideTo = nt.slideTo !== undefined ? nt.slideTo : nt.slideUnpitchTo;
-    const x1 = slideTo !== undefined ? laneC(Math.max(1, slideTo)) : x0;
-    const half = open ? 0.5 * (anX1(an) - anX0(an)) - 0.2 : laneW(Math.max(1, nt.f)) * 0.17;
-    const base = strH(nt.s);
-    const lw = laneW(Math.max(1, nt.f || an.fret));
-    const steps = Math.max(8, Math.min(90, Math.round((t1 - t0) * 40)));
-    const pts = [];
-    for (let k = 0; k <= steps; k++) {
-      const time = t0 + ((t1 - t0) * k) / steps;
-      const u = tg.sus > 0 ? (time - tg.t) / tg.sus : 0;
-      let x = x0 + (x1 - x0) * Math.min(1, Math.max(0, u));
-      // vibrato ~5.5 shakes a second, tremolo a fast zigzag: in real time, so they read true at any speed
-      if (nt.vibrato && u > 0.08) x += Math.sin((time - tg.t) * Math.PI * 2 * 5.5) * lw * 0.14;
-      let y = base + (bendAt(nt, time) / 2) * G.gap * 1.5; // a full step rises a string and a half
-      if (nt.tremolo) y += (((time - tg.t) * 14) % 1 < 0.5 ? 1 : -1) * G.gap * 0.12;
-      pts.push([x, y, zOf(time)]);
-    }
-    // the ribbon
-    ctx.beginPath();
-    pts.forEach(([x, y, z], k) => (k ? ctx.lineTo(PX(x - half, y, z), PY(x - half, y, z)) : ctx.moveTo(PX(x - half, y, z), PY(x - half, y, z))));
-    for (let k = pts.length - 1; k >= 0; k--) {
-      const [x, y, z] = pts[k];
-      ctx.lineTo(PX(x + half, y, z), PY(x + half, y, z));
-    }
-    ctx.closePath();
-    ctx.globalAlpha = 0.32 * fade;
-    ctx.fillStyle = col;
-    ctx.fill();
-    // a bright core line down the middle
-    ctx.globalAlpha = 0.95 * fade;
-    ctx.beginPath();
-    pts.forEach(([x, y, z], k) => (k ? ctx.lineTo(PX(x, y, z), PY(x, y, z)) : ctx.moveTo(PX(x, y, z), PY(x, y, z))));
-    ctx.strokeStyle = missed ? '#7a7f96' : lighten(col);
-    ctx.lineWidth = Math.max(1.5, Math.min(4, 0.1 * scaleAt(base, pts[0][2])));
-    ctx.shadowColor = col;
-    ctx.shadowBlur = missed ? 0 : 10;
-    if (nt.slideUnpitchTo !== undefined && nt.slideTo === undefined) ctx.setLineDash([6, 5]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.shadowBlur = 0;
-    // arrows along the bend: up while bending, down on the release
-    if (maxBend(nt) > 0) {
-      let last = -1;
-      for (let k = 1; k < pts.length; k++) {
-        const dy = pts[k][1] - pts[k - 1][1];
-        if (Math.abs(dy) < 1e-3 || k - last < 3 || pts[k][2] < 0) continue;
-        last = k;
-        const [x, y, z] = pts[k];
-        const px = PX(x, y, z);
-        const py = PY(x, y, z);
-        const sz = Math.max(4, Math.min(11, 0.3 * scaleAt(y, z)));
-        const up = dy > 0;
-        ctx.beginPath();
-        ctx.moveTo(px - sz, py + (up ? sz * 0.6 : -sz * 0.6));
-        ctx.lineTo(px, py + (up ? -sz * 0.6 : sz * 0.6));
-        ctx.lineTo(px + sz, py + (up ? sz * 0.6 : -sz * 0.6));
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2.2;
-        ctx.stroke();
+  /** Without scoring: notes still land with a soft flash on their string, so the timing reads. */
+  function buildLands(t, a) {
+    const { glow } = R3.L;
+    const now = performance.now();
+    H.lands = H.lands.filter((l) => now - l.at < 400 || t < l.until);
+    for (const l of H.lands) {
+      const tg = H.targets[l.id];
+      const age = (now - l.at) / 1000;
+      const k = Math.max(Math.exp(-age / 0.15), t < l.until ? 0.45 : 0);
+      if (k < 0.05) continue;
+      const an = anchorAt(tg.t);
+      for (const nt of tg.notes) {
+        const x = noteX(nt, an);
+        const y = strH(nt.s);
+        const r = laneW(Math.max(1, nt.f || an.fret)) * 0.75;
+        glow.up(x - r, x + r, y - r * 0.45, y + r * 0.45, -0.07, col(STRING[nt.s], 0.45 * k, 1.4));
       }
+      const box = isChord(tg) ? chordBox(tg, an) : null;
+      for (const nt of tg.notes) buildGem(nt, -0.02, an, false, tg.kind === 'mute', true, box, 0, k * 0.8);
     }
-    // the bend's size at its peak
-    const mb = maxBend(nt);
-    if (mb > 0) {
-      let best = 0;
-      pts.forEach((p, k) => p[1] > pts[best][1] && (best = k));
-      const [x, y, z] = pts[best];
-      if (z >= 0) {
-        const sc = scaleAt(y, z);
-        const fs = Math.round(Math.max(11, Math.min(22, sc * 0.55)));
-        ctx.font = `800 ${fs}px ${FONT}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = 'rgba(5, 8, 15, 0.9)';
-        const lbl = `↑${bendLabel(mb)}`;
-        ctx.strokeText(lbl, PX(x, y, z), PY(x, y, z) - 6);
-        ctx.fillStyle = '#fff3d6';
-        ctx.fillText(lbl, PX(x, y, z), PY(x, y, z) - 6);
-      }
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  /** A note: a glowing pill at its string's height in its fret's lane. */
-  function drawGem(nt, z, an, missed, mute, inChord = false, box = null) {
-    const s = nt.s;
-    const open = nt.f === 0;
-    const col = missed ? '#5a6078' : STRING[s];
-    const y = strH(s);
-    const a0 = ctx.globalAlpha;
-    const near = Math.max(0, 1 - z / (G.zs * 0.5)); // brightens over the last half second
-    if (open) {
-      // an open string: a bar across the hand position (or the chord's frame)
-      const xa = (box ? box[0] : anX0(an)) + 0.2;
-      const xb = (box ? box[1] : anX1(an)) - 0.2;
-      const hh = G.gap * 0.16;
-      const p0x = PX(xa, y, z);
-      const p1x = PX(xb, y, z);
-      const py0 = PY(xa, y + hh, z);
-      const py1 = PY(xa, y - hh, z);
-      rr(ctx, p0x, py0, p1x - p0x, Math.max(3, py1 - py0), Math.max(2, (py1 - py0) / 2));
-      const g = ctx.createLinearGradient(0, py0, 0, py1);
-      g.addColorStop(0, missed ? '#8a8fa6' : lighten(col));
-      g.addColorStop(1, col);
-      ctx.fillStyle = g;
-      ctx.shadowColor = col;
-      ctx.shadowBlur = missed ? 0 : 8 + 10 * near;
-      ctx.globalAlpha = a0 * 0.9;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = a0;
-      if (!inChord || !box) {
-        const sc = scaleAt(y, z);
-        const fs = Math.round(Math.max(12, Math.min(30, G.gap * 1.2 * sc)));
-        ctx.font = `900 ${fs}px ${FONT}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.lineWidth = Math.max(3, fs * 0.2);
-        ctx.strokeStyle = 'rgba(5, 8, 15, 0.9)';
-        const mx = (xa + xb) / 2;
-        ctx.strokeText('0', PX(mx, y, z), PY(mx, y, z));
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('0', PX(mx, y, z), PY(mx, y, z));
-      }
-      return;
-    }
-    const x = laneC(nt.f);
-    const hw = laneW(nt.f) * 0.36;
-    const hh = G.gap * 0.42;
-    if (!inChord && z > 0.3) {
-      // a thin stem down to its lane, ending in a soft mark, so the fret reads from afar
-      ctx.globalAlpha = a0 * 0.55;
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 1.5;
-      line3([x, y - hh, z], [x, 0, z]);
-      ctx.stroke();
-      poly([[x - hw * 0.8, 0.01, z - 0.18], [x + hw * 0.8, 0.01, z - 0.18], [x + hw * 0.8, 0.01, z + 0.18], [x - hw * 0.8, 0.01, z + 0.18]]);
-      ctx.fillStyle = col;
-      ctx.fill();
-      ctx.globalAlpha = a0;
-    }
-    const fx0 = PX(x - hw, y, z);
-    const fx1 = PX(x + hw, y, z);
-    const fy0 = PY(x, y + hh, z);
-    const fy1 = PY(x, y - hh, z);
-    const w = fx1 - fx0;
-    const ht = Math.max(6, fy1 - fy0);
-    const r = Math.min(ht / 2, 10);
-    // body: a deep gradient, a soft glow that grows as it arrives
-    const g = ctx.createLinearGradient(0, fy0, 0, fy0 + ht);
-    g.addColorStop(0, missed ? '#7a7f96' : lighten(col));
-    g.addColorStop(0.5, col);
-    g.addColorStop(1, missed ? '#3a3f52' : STRING_DARK[s]);
-    rr(ctx, fx0, fy0, w, ht, r);
-    ctx.fillStyle = g;
-    ctx.shadowColor = col;
-    ctx.shadowBlur = missed ? 0 : Math.min(24, 6 + 0.35 * scaleAt(y, z) + 12 * near);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    // a crisp light rim and a glassy highlight along the top
-    ctx.lineWidth = Math.max(1, Math.min(2.2, 0.06 * scaleAt(y, z)));
-    ctx.strokeStyle = nt.palmMute || mute ? 'rgba(20, 24, 36, 0.9)' : 'rgba(255,255,255,0.75)';
-    ctx.stroke();
-    if (ht > 10) {
-      rr(ctx, fx0 + r * 0.6, fy0 + ht * 0.12, w - r * 1.2, ht * 0.22, ht * 0.11);
-      ctx.fillStyle = 'rgba(255,255,255,0.28)';
-      ctx.fill();
-    }
-    if (nt.accent && !missed) accentOutline(x - hw, x + hw, y - hh, y + hh, z);
-    // the fret number
-    const label = mute || nt.mute ? '×' : nt.harmonic || nt.pinchHarmonic ? `◆${nt.f}` : String(nt.f);
-    const fs = Math.round(Math.max(12, Math.min(34, ht * 0.86)));
-    const cxp = (fx0 + fx1) / 2;
-    const cyp = fy0 + ht / 2;
-    ctx.font = `900 ${fs}px ${FONT}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = Math.max(3, fs * 0.2);
-    ctx.strokeStyle = 'rgba(5, 8, 15, 0.85)';
-    ctx.strokeText(label, cxp, cyp + 1);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(label, cxp, cyp + 1);
-    // technique tags above the note (bends and slides show on their trail)
-    const marks = [];
-    if (nt.hammerOn) marks.push('H');
-    if (nt.pullOff) marks.push('P');
-    if (nt.tap) marks.push('T');
-    if (nt.palmMute) marks.push('PM');
-    if (nt.slap) marks.push('S');
-    if (nt.pop) marks.push('Pop');
-    if (maxBend(nt) && !(nt.sus > 0.06)) marks.push(`↑${bendLabel(maxBend(nt))}`);
-    if (nt.slideTo !== undefined && !(nt.sus > 0.06)) marks.push(nt.slideTo > nt.f ? '↗' : '↘');
-    if (marks.length && fs > 13 && !inChord) {
-      const mfs = Math.round(Math.max(10, fs * 0.5));
-      ctx.font = `800 ${mfs}px ${FONT}`;
-      const txt = marks.join(' ');
-      const tw = ctx.measureText(txt).width + mfs * 0.9;
-      const ty = fy0 - mfs * 0.95;
-      rr(ctx, cxp - tw / 2, ty - mfs * 0.62, tw, mfs * 1.24, mfs * 0.62);
-      ctx.fillStyle = 'rgba(8, 12, 22, 0.85)';
-      ctx.fill();
-      ctx.fillStyle = '#ffe2b0';
-      ctx.fillText(txt, cxp, ty + 1);
-    }
-  }
-
-  /** Accented (played harder) notes and chords get a bright white outline, as in Rocksmith. */
-  function accentOutline(x0, x1, y0, y1, z) {
-    const sc = scaleAt((y0 + y1) / 2, z);
-    const pad = Math.max(2, Math.min(6, 0.14 * sc));
-    const ax = PX(x0, y1, z) - pad;
-    const bx = PX(x1, y1, z) + pad;
-    const ay = PY(x0, y1, z) - pad;
-    const by = PY(x0, y0, z) + pad;
-    rr(ctx, ax, ay, bx - ax, by - ay, Math.min(10, pad * 1.6));
-    ctx.lineWidth = Math.max(1.2, Math.min(2.6, 0.07 * sc));
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.85)';
-    ctx.shadowBlur = Math.min(14, 0.45 * sc);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-  }
-
-  /** A chord: a glass frame across the hand position with its notes inside. */
-  function drawChord(tg, z, an, missed) {
-    const fretted = tg.notes.filter((x) => x.f > 0).map((x) => x.f);
-    // always the whole hand position (and any fret beyond it), so open strings sit inside
-    const xa = Math.min(anX0(an), fretted.length ? XF(Math.min(...fretted) - 1) : Infinity) + 0.08;
-    const xb = Math.max(anX1(an), fretted.length ? XF(Math.max(...fretted)) : -Infinity) - 0.08;
-    const top = Math.max(...tg.notes.map((x) => strH(x.s)));
-    const yTop = top + G.gap * 0.7;
-    const accent = tg.notes.some((x) => x.accent);
-    const sc = scaleAt(yTop, z);
-    const pxa = PX(xa, yTop, z);
-    const pxb = PX(xb, yTop, z);
-    const pyt = PY(xa, yTop, z);
-    const pyb = PY(xa, 0, z);
-    const rad = Math.min(10, 0.25 * sc);
-    const edge = missed ? '#5a6078' : 'rgba(110, 236, 255, 0.95)';
-    if (tg.repeat) {
-      // the same chord again: just its frame, so the rhythm (and accents) read at a glance
-      rr(ctx, pxa, pyt, pxb - pxa, pyb - pyt, rad);
-      ctx.fillStyle = missed ? 'rgba(90, 96, 120, 0.06)' : 'rgba(60, 200, 240, 0.06)';
-      ctx.fill();
-      ctx.lineWidth = Math.max(1.2, Math.min(2.4, 0.07 * sc));
-      ctx.strokeStyle = missed ? '#5a6078' : 'rgba(110, 236, 255, 0.7)';
-      ctx.stroke();
-      if (accent && !missed) accentOutline(xa, xb, 0, yTop, z);
-      if (tg.kind === 'mute') {
-        ctx.font = `900 ${Math.round(Math.max(12, Math.min(30, sc * 1.0)))}px ${FONT}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('×', (pxa + pxb) / 2, (pyt + pyb) / 2);
-      }
-      return;
-    }
-    // glass panel: brighter at the top, fading to the floor
-    rr(ctx, pxa, pyt, pxb - pxa, pyb - pyt, rad);
-    const g = ctx.createLinearGradient(0, pyt, 0, pyb);
-    g.addColorStop(0, missed ? 'rgba(90, 96, 120, 0.16)' : 'rgba(80, 210, 250, 0.2)');
-    g.addColorStop(1, missed ? 'rgba(90, 96, 120, 0.04)' : 'rgba(40, 150, 220, 0.05)');
-    ctx.fillStyle = g;
-    ctx.fill();
-    ctx.lineWidth = Math.max(1.6, Math.min(3.4, 0.11 * sc));
-    ctx.strokeStyle = edge;
-    ctx.shadowColor = '#4fe3ff';
-    ctx.shadowBlur = missed ? 0 : 14;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    if (accent && !missed) accentOutline(xa, xb, 0, yTop, z);
-    // the chord's notes, inside the frame
-    const box = [xa, xb];
-    for (const nt of tg.notes) drawGem(nt, z, an, missed, tg.kind === 'mute', true, box);
-    // its name in a small tag above the frame
-    if (tg.name && sc > 12) {
-      const fs = Math.round(Math.max(11, Math.min(22, sc * 0.62)));
-      ctx.font = `800 ${fs}px ${FONT}`;
-      const tw = ctx.measureText(tg.name).width + fs * 0.9;
-      const ty = pyt - fs * 0.9;
-      rr(ctx, pxa, ty - fs * 0.62, tw, fs * 1.24, fs * 0.62);
-      ctx.fillStyle = 'rgba(8, 14, 26, 0.85)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(110, 236, 255, 0.5)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(tg.name, pxa + tw / 2, ty + 1);
-    }
-    if (tg.notes.some((x) => x.palmMute) && sc > 14) {
-      ctx.font = `800 ${Math.round(Math.max(10, sc * 0.42))}px ${FONT}`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
-      ctx.fillStyle = '#ffe2b0';
-      ctx.fillText('PM', pxb, pyt - 4);
-    }
-  }
-
-  function lighten(hex) {
-    const v = parseInt(hex.slice(1), 16);
-    const r = Math.min(255, ((v >> 16) & 255) + 70);
-    const g = Math.min(255, ((v >> 8) & 255) + 70);
-    const b = Math.min(255, (v & 255) + 70);
-    return `rgb(${r},${g},${b})`;
   }
 
   // -------------------------------------------------------------- HUD --
@@ -1496,12 +1811,38 @@ export function createHighway(stage) {
       const total = stage.engine.duration || tab.length || 1;
       if (head) head.style.left = `${Math.min(100, (t / total) * 100)}%`;
     }
+    renderLoop();
     if (H.judge && prefs.detect && rig.on) {
       const acc = H.judge.accuracy;
       score.innerHTML = `<b>${acc === null ? '–' : Math.round(acc * 100) + '%'}</b><span>accuracy</span><b>${H.judge.streak}</b><span>streak</span><b>${H.judge.hits}/${H.judge.judged}</b><span>notes</span>`;
     } else if (prefs.detect && !rig.on) {
       score.innerHTML = '<span>Turn on <b>Your guitar</b> to see how you’re playing</span>';
     } else score.innerHTML = '';
+  }
+
+  function jumpTo(t) {
+    stage.seek(t);
+    if (H.judge) H.judge.rewind(t);
+  }
+  // "Repeating: Chorus ✕" in the bottom bar, and the repeated section marked on the strip
+  const loopChip = h('button.hw-chip.hw-loop-chip', { type: 'button', hidden: true, title: 'Stop repeating' });
+  loopChip.onclick = () => {
+    stage.setLoop(null);
+    renderLoop();
+  };
+  bottom.insertBefore(loopChip, bottom.querySelector('.grow'));
+  let loopKey = '';
+  function renderLoop(force) {
+    const loop = stage.getLoop ? stage.getLoop() : null;
+    const key = loop ? `${loop.start}-${loop.end}` : '';
+    if (key === loopKey && !force) return;
+    loopKey = key;
+    loopChip.hidden = !loop;
+    if (loop) loopChip.innerHTML = `${icon('repeat')}<span>Repeating ${esc(loop.label || 'a part')}</span>${icon('x')}`;
+    for (const b of sections.querySelectorAll('button[data-i]')) {
+      const s = H.tab && H.tab.sections[Number(b.dataset.i)];
+      b.classList.toggle('looping', !!(loop && s && Math.abs(loop.start - s.start) < 0.01 && Math.abs(loop.end - s.end) < 0.01));
+    }
   }
 
   function renderControls() {
@@ -1521,12 +1862,18 @@ export function createHighway(stage) {
     const pa = hasStems && (prefs.playAlong ?? true);
     playAlong.setAttribute('aria-pressed', String(pa));
     playAlong.textContent = hasStems ? (pa ? `Play along · ${instrument()} muted` : 'Play along') : 'Play along · needs stems';
+    const muted = rig.on && rig.muted;
+    guitarBtn.classList.toggle('muted', muted);
     guitarBtn.setAttribute('aria-pressed', String(rig.on && !rig.muted));
-    guitarBtn.innerHTML = `${icon('amp')}<span>${rig.on ? (rig.muted ? 'Guitar muted' : 'Guitar on') : 'Your guitar'}</span>`;
+    guitarBtn.title = !rig.on ? 'Your guitar isn’t connected' : muted ? 'Your guitar is muted: click to hear it' : 'Mute your guitar';
+    guitarBtn.setAttribute('aria-label', guitarBtn.title);
+    guitarBtn.innerHTML = icon(muted || !rig.on ? 'volumeOff' : 'volume');
     const mineT = (tonelib.list || []).find((x) => x.id === rig.toneId);
-    const toneName = rig.mode === 'song' && rig.songTone ? `Song tone · ${rig.songTone.name}` : mineT ? `${mineT.slot ? `${mineT.slot} · ` : ''}${mineT.name}` : (TONES.find((x) => x.id === rig.toneId) || {}).name || 'Tone';
-    toneBtn.innerHTML = `<span>Tone: ${esc(toneName)}</span>${rig.capture ? '<span class="real-badge sm" title="Real amp">REAL</span>' : ''}`;
+    const cur = rig.mode === 'song' ? songToneAt(stage.engine.position) : null;
+    const toneName = rig.mode === 'song' ? `Song tone${cur && cur.name ? ` · ${cur.name}` : ''}` : rig.mode === 'live' && rig.liveTone ? rig.liveTone.name : mineT ? `${mineT.slot ? `${mineT.slot} · ` : ''}${mineT.name}` : (TONES.find((x) => x.id === rig.toneId) || {}).name || 'Tone';
+    toneBtn.innerHTML = `${icon('amp')}<span>${esc(toneName)}</span>${rig.capture ? '<span class="real-badge sm" title="A real amp is playing">REAL</span>' : ''}${icon('chevron')}`;
     toneBtn.hidden = !rig.on;
+    rigBox.classList.toggle('real', !!rig.capture);
     renderMix();
     for (const b of speed.querySelectorAll('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.s) === stage.engine.speed));
     // section strip
@@ -1540,17 +1887,32 @@ export function createHighway(stage) {
         sections.append(b0);
       }
       t.sections.forEach((s, i) => {
-        const b = h('button', { type: 'button', text: pretty(s.name), title: `${pretty(s.name)}: click to jump, double-click to loop` });
+        // click: jump there (and stop any repeat). The ⟲ on the section repeats it, on purpose only.
+        const b = h('button', { type: 'button', title: `${pretty(s.name)}: click to jump here` });
+        b.append(h('span.hw-sec-name', { text: pretty(s.name) }));
+        const rep = h('span.hw-sec-rep', { role: 'button', title: `Repeat ${pretty(s.name)}`, 'aria-label': `Repeat ${pretty(s.name)}`, html: icon('repeat') });
+        b.append(rep);
         b.style.flexGrow = String(Math.max(0.01, s.end - s.start));
         b.dataset.i = String(i);
-        b.onclick = () => {
-          stage.seek(Math.max(0, s.start - 1));
-          if (H.judge) H.judge.rewind(s.start - 1);
+        b.onclick = (e) => {
+          const loop = stage.getLoop ? stage.getLoop() : null;
+          if (e.target.closest('.hw-sec-rep')) {
+            const same = loop && Math.abs(loop.start - s.start) < 0.01 && Math.abs(loop.end - s.end) < 0.01;
+            if (same) stage.setLoop(null);
+            else {
+              stage.setLoop({ start: s.start, end: s.end, label: pretty(s.name) });
+              jumpTo(Math.max(0, s.start - 1));
+            }
+          } else {
+            if (loop) stage.setLoop(null);
+            jumpTo(Math.max(0, s.start - 1));
+          }
+          renderLoop();
         };
-        b.ondblclick = () => stage.setLoop({ start: s.start, end: s.end });
         sections.append(b);
       });
       sections.append(h('i.hw-head'));
+      renderLoop(true);
       void total;
       lastSec = -2;
     }
@@ -1562,6 +1924,16 @@ export function createHighway(stage) {
       if (!H.open) return;
       // a menu that's open handles its own keys (arrows, Enter, Escape)
       if (document.querySelector('.menu[role="menu"]')) return;
+      if (!syncBox.hidden) {
+        if (e.key === 'Escape') closeSync();
+        return;
+      }
+      if (e.key === 'Escape' && !opts.hidden) {
+        closeOpts();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       if (e.key === 'Escape') {
         if (mixOpen) setMixOpen(false);
         else close();

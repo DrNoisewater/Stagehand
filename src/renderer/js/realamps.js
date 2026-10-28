@@ -51,6 +51,50 @@ export async function getRealAmp(packKey, ampKey) {
   }
 }
 
+/** Getting several at once (Get all): { on, i, n, got, stop } */
+export const batch = { on: false, i: 0, n: 0, got: 0, stop: false };
+
+/**
+ * Gets every curated real amp your songs use, one after another. TONE3000 still
+ * asks you to confirm each (its rule for free apps); the next opens by itself.
+ * Closing a window skips that amp (e.g. when TONE3000 says it can't be used).
+ */
+export async function getAllRealAmps(keys) {
+  if (!keys.length || batch.on) return;
+  if (!caps.st.t3k.hasKey) return explain({ code: 'nokey' });
+  Object.assign(batch, { on: true, i: 0, n: keys.length, got: 0, stop: false });
+  const ping = () => caps.events.dispatchEvent(new Event('change'));
+  ping();
+  toast({ title: `Getting ${keys.length} real amps`, message: `Confirm each one ${where()}; the next opens by itself. Close a window to skip that amp.`, kind: 'info', timeout: 7000 });
+  const skipped = [];
+  for (const k of keys) {
+    if (batch.stop) break;
+    batch.i++;
+    ping();
+    const def = caps.st.map.packs[k];
+    try {
+      await capturesApi.get(k, null);
+      batch.got++;
+    } catch (err) {
+      if (err.code === 'nokey' || err.code === 'auth') {
+        explain(err);
+        break;
+      }
+      if (err.code === 'replaced') break;
+      skipped.push(def ? def.title : k);
+    }
+  }
+  const stopped = batch.stop;
+  Object.assign(batch, { on: false, stop: false });
+  ping();
+  toast({
+    title: `${batch.got} of ${batch.n} real amps ready`,
+    message: [stopped ? 'Stopped.' : '', skipped.length ? `Skipped: ${skipped.join(', ')}.` : ''].filter(Boolean).join(' '),
+    kind: batch.got ? 'ok' : 'info',
+    timeout: 8000,
+  });
+}
+
 async function browseFor(ampKey, d, onChange) {
   if (!caps.st.t3k.hasKey) return explain({ code: 'nokey' });
   try {
@@ -301,14 +345,26 @@ export async function pane(el, setting) {
     // more to get, the most-used first
     const want = Object.entries(st.map.packs || {}).filter(([k]) => !packForCurated(k));
     if (want.length) {
-      el.append(h('h3.ra-h', { text: 'Get more' }), h('p.np-fine', { text: library ? 'Sorted by how many tones in your songs use each amp.' : 'One click each; TONE3000 opens to confirm.' }));
       const count = (k) => (library ? library[k] || 0 : 0);
       want.sort((a, b) => count(b[0]) - count(a[0]) || a[1].title.localeCompare(b[1].title));
+      // everything your songs use, in one go (most used first)
+      const used = library ? want.filter(([k]) => count(k) > 0).map(([k]) => k) : want.map(([k]) => k);
+      const head = h('div.ra-gethead', null, h('h3.ra-h', { text: 'Get more' }), h('span.grow'));
+      if (batch.on) {
+        const stop = h('button.btn.small.ghost', { type: 'button', text: 'Stop after this one' });
+        stop.onclick = () => ((batch.stop = true), (stop.disabled = true));
+        head.append(h('span.ra-batch', null, h('span.spin'), ` Getting ${batch.i} of ${batch.n}`), stop);
+      } else if (used.length) {
+        const all = h('button.btn.small.glow-primary', { type: 'button', html: `${icon('download')}<span>Get all ${used.length} ${library ? 'for my songs' : ''}</span>`, disabled: st.busy ? true : null, title: 'Gets every real amp your songs use, most used first. TONE3000 asks you to confirm each one.' });
+        all.onclick = () => getAllRealAmps(used);
+        head.append(all);
+      }
+      el.append(head, h('p.np-fine', { text: library ? 'Sorted by how many tones in your songs use each amp. TONE3000 asks you to confirm each one.' : 'One click each; TONE3000 opens to confirm.' }));
       const list = h('div.ra-grid');
       for (const [k, def] of want) {
         const n = count(k);
         const tile = h('div.ra-tile.get', { style: { '--gel': def.bass ? 'var(--gel-bass)' : 'var(--tungsten)' } });
-        const get = h('button.btn.small', { type: 'button', html: `${icon('download')}<span>Get</span>`, disabled: st.busy ? true : null });
+        const get = h('button.btn.small', { type: 'button', html: `${icon('download')}<span>Get</span>`, disabled: st.busy || batch.on ? true : null });
         get.onclick = () => getRealAmp(k, null);
         const meter = h('span.ra-use', { title: n ? `${n} tones in your songs use it` : '' }, h('i', { style: { width: `${Math.min(100, n * 4)}%` } }));
         tile.append(h('div.ra-tile-top', null, meter, h('span.ra-n', { text: n ? String(n) : '' }), h('span.grow'), get), h('b', { text: def.title }), h('span.ra-sub', { text: `by ${def.maker} · ${def.variants.length > 1 ? `${def.variants.length} gain settings` : '1 setting'}${def.kind === 'full' ? ' · amp + cab' : ''}` }), h('div.ra-amps', null, ...(users[k] || []).slice(0, 5).map((a) => h('span.chip', { text: gearName(a) }))));

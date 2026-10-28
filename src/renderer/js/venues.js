@@ -4,12 +4,120 @@
  * calmer or wilder with how well you're playing ("heat", 0–1).
  */
 
+// Photo venues (3.6): `horizon` is where the floor meets the far wall, as a
+// fraction of the picture's height; it's lined up with the highway's
+// vanishing point so the highway lies on that floor.
 export const VENUES = [
-  { id: 'arena', name: 'Arena', desc: 'Big stage, sweeping lights, a crowd' },
-  { id: 'club', name: 'Club', desc: 'Brick walls, string lights, close and warm' },
-  { id: 'neon', name: 'Neon', desc: 'Synthwave sunset over a glowing grid' },
-  { id: 'studio', name: 'Studio', desc: 'Calm and dark, nothing to distract' },
+  { id: 'warehouse', name: 'Warehouse', photo: 'warehouse', horizon: 0.49 },
+  { id: 'jazz', name: 'Jazz club', photo: 'jazz', horizon: 0.45 },
+  { id: 'cellar', name: 'Cellar', photo: 'cellar', horizon: 0.45 },
+  { id: 'opera', name: 'Opera house', photo: 'opera', horizon: 0.53 },
+  { id: 'studio-room', name: 'Studio', photo: 'studio', horizon: 0.32 },
+  { id: 'rooftop', name: 'Rooftop', photo: 'rooftop', horizon: 0.37 },
+  { id: 'festival', name: 'Festival', photo: 'festival', horizon: 0.45 },
+  { id: 'canyon', name: 'Canyon', photo: 'canyon', horizon: 0.5 },
+  { id: 'astral', name: 'Astral', photo: 'astral', horizon: 0.32 },
+  { id: 'studio', name: 'Plain', desc: 'Calm and dark, nothing to distract' },
 ];
+/** Old (3.1–3.5) drawn venues map onto the photos. */
+export const VENUE_ALIAS = { arena: 'warehouse', club: 'cellar', neon: 'rooftop' };
+export const venueThumb = (v) => (v.photo ? `venues/${v.photo}-thumb.jpg` : null);
+
+// ------------------------------------------------------------ photos --
+const photos = new Map();
+function loadPhoto(name) {
+  let p = photos.get(name);
+  if (p) return p;
+  p = { img: new Image(), ready: false, soft: null, lit: null };
+  p.img.decoding = 'async';
+  p.img.onload = () => {
+    // Prepared once: a soft, darker copy (it's behind the notes, so it sits
+    // back like a blurred stage beyond the lights), and a "lights" copy that
+    // flashes in on the beat.
+    const w = p.img.naturalWidth;
+    const h = p.img.naturalHeight;
+    const soft = mk(w, h);
+    const g = soft.getContext('2d');
+    g.filter = 'blur(1.5px) brightness(0.8) saturate(0.92)';
+    g.drawImage(p.img, 0, 0);
+    g.filter = 'none';
+    const lit = mk(Math.round(w / 2), Math.round(h / 2));
+    const l = lit.getContext('2d');
+    l.filter = 'blur(6px) brightness(1.25) contrast(1.6) saturate(1.2)';
+    l.drawImage(p.img, 0, 0, lit.width, lit.height);
+    p.soft = soft;
+    p.lit = lit;
+    p.ready = true;
+  };
+  p.img.src = `venues/${name}.jpg`;
+  photos.set(name, p);
+  return p;
+}
+
+/**
+ * Draws a photo venue so its horizon sits at vpY (pixels): scaled to cover,
+ * a little extra for a slow sideways drift with the camera (depth), the
+ * floor and edges darkened so the strings and notes read, lights pulsing on
+ * the beat, warmer as you heat up.
+ */
+function drawPhoto(g, v, W, H, view, pulse, heat) {
+  const p = loadPhoto(v.photo);
+  g.fillStyle = '#05070c';
+  g.fillRect(0, 0, W, H);
+  if (!p.ready) return;
+  const iw = p.soft.width;
+  const ih = p.soft.height;
+  const hf = v.horizon;
+  const vpY = Math.max(H * 0.22, Math.min(H * 0.6, view.vpY ?? H * 0.4));
+  // smallest scale that covers the width (plus room to drift) with the horizon at vpY;
+  // below the picture the floor just carries on dark
+  const sc = Math.max((W * 1.08) / iw, H / ih * 0.85, vpY / (hf * ih));
+  const dw = iw * sc;
+  const dh = ih * sc;
+  const oy = vpY - hf * dh;
+  const room = (dw - W) / 2;
+  const ox = -room + Math.max(-1, Math.min(1, view.shift || 0)) * room * 0.6;
+  g.drawImage(p.soft, ox, oy, dw, dh);
+  if (oy + dh < H) {
+    // stretch the picture's last rows down so the floor continues
+    g.drawImage(p.soft, 0, ih - 2, iw, 2, ox, oy + dh - 1, dw, H - (oy + dh) + 1);
+  }
+  if (pulse > 0.02) {
+    g.save();
+    g.globalCompositeOperation = 'screen';
+    g.globalAlpha = Math.min(0.35, pulse * 0.32);
+    // only above the floor: the room's lights, not the floor in front of you
+    g.beginPath();
+    g.rect(0, 0, W, vpY + H * 0.04);
+    g.clip();
+    g.drawImage(p.lit, ox, oy, dw, dh);
+    g.restore();
+  }
+  // the floor in front darkens toward you (that's where the neck and strings are)
+  const fl = g.createLinearGradient(0, vpY, 0, H);
+  fl.addColorStop(0, 'rgba(4, 6, 10, 0)');
+  fl.addColorStop(0.5, 'rgba(4, 6, 10, 0.4)');
+  fl.addColorStop(1, 'rgba(4, 6, 10, 0.75)');
+  g.fillStyle = fl;
+  g.fillRect(0, vpY, W, H - vpY);
+  // a calm pocket behind the highway itself, and soft dark edges
+  const mid = g.createRadialGradient(W / 2, vpY, H * 0.02, W / 2, vpY, H * 0.45);
+  mid.addColorStop(0, 'rgba(4, 6, 10, 0.3)');
+  mid.addColorStop(1, 'rgba(4, 6, 10, 0)');
+  g.fillStyle = mid;
+  g.fillRect(0, 0, W, H);
+  const vg = g.createRadialGradient(W / 2, H * 0.45, H * 0.35, W / 2, H * 0.45, W * 0.75);
+  vg.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  vg.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+  g.fillStyle = vg;
+  g.fillRect(0, 0, W, H);
+  if (heat > 0.02) {
+    g.fillStyle = `rgba(255, 110, 30, ${0.1 * heat})`;
+    g.globalCompositeOperation = 'overlay';
+    g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'source-over';
+  }
+}
 
 const TAU = Math.PI * 2;
 const rnd = (s) => {
@@ -299,7 +407,10 @@ const ARENA_PAL = ['rgba(80, 200, 255, A)', 'rgba(255, 80, 180, A)', 'rgba(255, 
 export function createVenue() {
   const V = { id: null, W: 0, H: 0, still: null };
   return {
-    draw(g, id, W, H, t, pulse, heat) {
+    draw(g, id, W, H, t, pulse, heat, view = {}) {
+      id = VENUE_ALIAS[id] || id;
+      const pv = VENUES.find((v) => v.id === id && v.photo);
+      if (pv) return drawPhoto(g, pv, W, H, view, pulse, heat);
       if (V.id !== id || V.W !== W || V.H !== H) {
         V.id = id;
         V.W = W;

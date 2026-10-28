@@ -388,6 +388,11 @@ export function createTabView(host, stage) {
   function frame() {
     V.raf = 0;
     if (!V.visible) return;
+    // hidden under the full-screen highway: don't paint, just check back now and then
+    if (document.getElementById('app').classList.contains('under-highway')) {
+      setTimeout(() => draw(true), 300);
+      return;
+    }
     const t = stage.engine.position;
     const live = stage.engine.playing;
     paint(t);

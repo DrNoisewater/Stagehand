@@ -1,4 +1,4 @@
-# Installs Stagehand for the current user (no admin rights needed).
+# Backup installer (the main one is Stagehand-Setup.exe). Installs Stagehand for the current user (no admin rights needed).
 #   - downloads the Electron runtime the app runs on (about 150 MB, once;
 #     updates reuse the runtime that's already installed)
 #   - puts the app in %LOCALAPPDATA%\Programs\Stagehand
@@ -80,7 +80,16 @@ try {
       Step "Downloading the app runtime (Electron $ElectronVersion, about 150 MB). This happens once."
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
       $url = "https://github.com/electron/electron/releases/download/v$ElectronVersion/electron-v$ElectronVersion-win32-x64.zip"
-      Invoke-WebRequest -Uri $url -OutFile "$ElectronZip.part" -UseBasicParsing
+      # curl.exe (built into Windows 10 and 11) is fast and shows progress;
+      # Invoke-WebRequest is very slow on Windows PowerShell and looks frozen.
+      $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+      if (Test-Path $curl) {
+        & $curl -L --fail --retry 3 --connect-timeout 20 -C - -o "$ElectronZip.part" $url
+        if ($LASTEXITCODE -ne 0) { throw "Download failed (curl $LASTEXITCODE). Check your internet connection and run the installer again; it resumes where it stopped." }
+      } else {
+        $ProgressPreference = 'Continue'
+        Invoke-WebRequest -Uri $url -OutFile "$ElectronZip.part" -UseBasicParsing
+      }
       Move-Item -Force "$ElectronZip.part" $ElectronZip
     }
   }

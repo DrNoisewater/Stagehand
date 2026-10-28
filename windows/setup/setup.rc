@@ -1,0 +1,27 @@
+#include <windows.h>
+1 ICON "../../build/icon.ico"
+1 RT_MANIFEST "setup.manifest"
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION SH_V1,SH_V2,SH_V3,0
+PRODUCTVERSION SH_V1,SH_V2,SH_V3,0
+FILEOS 0x40004
+FILETYPE 0x1
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "Noisewater Labs"
+      VALUE "FileDescription", "Stagehand Setup"
+      VALUE "ProductName", "Stagehand"
+      VALUE "ProductVersion", SH_VSTR
+      VALUE "FileVersion", SH_VSTR
+      VALUE "LegalCopyright", "Noisewater Labs"
+      VALUE "OriginalFilename", "Stagehand-Setup.exe"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

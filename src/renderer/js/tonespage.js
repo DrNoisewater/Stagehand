@@ -10,7 +10,8 @@ import { rig, TONES } from './rig.js';
 import { loadGear } from './gearspec.js';
 import { readingBar, tonelib, byId, useTone, saveTone, removeTone, SLOT_GELS, SLOT_COUNT, TYPE_GELS, TYPE_NAMES, knobsOf, orderedGear, shortGearName, kindLabel, gelOf, chainText, songToneLibrary, bySlot } from './tonelib.js';
 import { chainEl, rotaryKnob, fmtKnob, gearSummary, demoButton, stopDemo } from './rigui.js';
-import { realAmpStrip, realBadge } from './realamps.js';
+import { realAmpStrip, realBadge, getAllRealAmps, batch } from './realamps.js';
+import { caps, ampOf, packForCurated } from './captures.js';
 
 const root = document.getElementById('page-tones');
 const T = { tab: (() => { try { return localStorage.getItem('stagehand.tonesTab') || 'mine'; } catch (_) { return 'mine'; } })(), sel: null, draft: null, block: null, dirty: false, filter: '', libLoading: false, liveT: 0, liveTimer: null };
@@ -166,6 +167,28 @@ function renderItems(box) {
     T.readBar = bar;
     loadLibrary(); // the tab may be open from last time: start reading (once) whenever this shows
     return;
+  }
+  if (T.tab === 'songs') {
+    // the real amps your songs use that you haven't got yet: all in one go
+    const counts = {};
+    for (const g of tonelib.library || [])
+      for (const t of g.tones) {
+        const a = ampOf(t);
+        const k = a && caps.st.map.amps && caps.st.map.amps[a.key];
+        if (k && !packForCurated(k)) counts[k] = (counts[k] || 0) + 1;
+      }
+    const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    if (keys.length || batch.on) {
+      const strip = h('div.ra-libstrip');
+      const tones = keys.reduce((n, k) => n + counts[k], 0);
+      strip.append(h('span.real-badge.off', { text: 'MODEL' }), h('span.grow', { text: batch.on ? `Getting real amps · ${batch.i} of ${batch.n}` : `${tones} of your song tones play modelled amps. ${keys.length} real ${keys.length === 1 ? 'amp' : 'amps'} to get.` }));
+      if (!batch.on) {
+        const b = h('button.btn.small.glow-primary', { type: 'button', html: `${icon('download')}<span>Get all ${keys.length}</span>` });
+        b.onclick = () => getAllRealAmps(keys);
+        strip.append(b);
+      }
+      box.append(strip);
+    }
   }
   const q = T.filter.trim().toLowerCase();
   const items = itemsFor(T.tab).filter((it) => !q || `${it.name} ${it.sub} ${it.group || ''}`.toLowerCase().includes(q));
@@ -589,4 +612,11 @@ on('tones-library', () => state.page === 'tones' && T.tab === 'songs' && renderL
 
 on('tones-progress', (p) => {
   if (T.readBar && T.readBar.el.isConnected) T.readBar.set(p);
+});
+
+caps.events.addEventListener('change', () => {
+  if (state.page === 'tones' && T.tab === 'songs' && tonelib.library) {
+    const box = listCol.querySelector('.tones-items');
+    if (box) renderItems(box);
+  }
 });

@@ -1,0 +1,121 @@
+// node shoot.js outDir scene:t[:play][:hits] ...
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require(process.env.PLAYWRIGHT || '/opt/npm-tools/node_modules/playwright');
+const R = path.join(__dirname, '..', '..', 'src', 'renderer');
+const STUBS = ['api.js', 'rig.js', 'tab.js', 'tonelib.js', 'captures.js', 'realamps.js'];
+const types = { '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.ttf': 'font/ttf', '.json': 'application/json', '.svg': 'image/svg+xml' };
+const srv = http.createServer((req, res) => {
+  let u = decodeURIComponent(req.url.split('?')[0]);
+  let f;
+  if (u === '/' || u === '/index.html') f = path.join(__dirname, 'index.html');
+  else if (u === '/harness.js' || u.endsWith('.json') && !u.startsWith('/data/')) f = path.join(__dirname, path.basename(u));
+  else if (u.startsWith('/js/') && STUBS.includes(path.basename(u))) f = path.join(__dirname, 'stubs', path.basename(u));
+  else f = path.join(R, u);
+  fs.readFile(f, (e, d) => {
+    if (e) { res.writeHead(404); return res.end(); }
+    res.writeHead(200, { 'content-type': types[path.extname(f)] || 'application/octet-stream' });
+    res.end(d);
+  });
+});
+(async () => {
+  await new Promise((r) => srv.listen(8765, r));
+  const out = process.argv[2];
+  fs.mkdirSync(out, { recursive: true });
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--single-process', '--no-zygote', '--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const page = await browser.newPage({ viewport: { width: Number(process.env.VW || 1920), height: Number(process.env.VH || 1080) }, ...(process.env.VIDEO ? { recordVideo: { dir: out, size: { width: 1280, height: 720 } } } : {}) });
+  page.on('pageerror', (e) => console.log('PAGEERR', e.message));
+  page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text()));
+  for (const spec of process.argv.slice(3)) {
+    const [scene, t, play, hits, file, part] = spec.split(':');
+    await page.goto(`http://localhost:8765/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}`);
+    await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+    if (process.env.VENUE) {
+      await page.evaluate((v) => { const p = JSON.parse(localStorage.getItem('stagehand.highway') || '{}'); p.venue = v; p.v = 36; localStorage.setItem('stagehand.highway', JSON.stringify(p)); }, process.env.VENUE);
+      await page.reload();
+      await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+    }
+    // software rendering here is slow: keep the glow on for stills (the app turns it off on slow PCs)
+    await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
+    if (process.env.VERIFY) {
+      const checks = await page.evaluate(async () => {
+        const H = document.querySelector('.highway').__hw;
+        const eng = window.__stage.engine;
+        const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const failures = [];
+        for (const speed of [1, .5, .85]) {
+          eng.speed = speed;
+          for (const t of [4, 4.016, 5.2, 2, 40, 40.01]) {
+            eng.position = t;
+            await frame();
+            if (Math.abs(H.clock - t) > .000001) failures.push('clock at ' + t);
+            for (let str = 0; str < H.tab.strings; str++) {
+              const a = H.projection.point(7, str, t), b = H.projection.neck(7, str);
+              if (Math.hypot(a[0]-b[0],a[1]-b[1]) > .001) failures.push('strike-plane mismatch');
+            }
+          }
+        }
+        const judged = H.judge?.judged;
+        await frame();
+        if (H.judge?.judged !== judged) failures.push('paused scoring changed');
+        eng.speed = 1; eng.position = Number(new URLSearchParams(location.search).get('t'));
+        await frame();
+        return failures;
+      });
+      if (checks.length) throw new Error(checks.join(', '));
+      console.log('PASS speaker clock, seeks, three speeds, all string strike planes, paused scoring:', spec);
+      await page.getByRole('button', { name: 'Highway options', exact: true }).click();
+      await page.locator('.hw-seg button', { hasText: '4 s' }).click();
+      if (!await page.evaluate(() => JSON.parse(localStorage.getItem('stagehand.highway')).ahead === 4)) throw new Error('Look-ahead not saved');
+      await page.locator('.hw-seg button', { hasText: '3 s' }).click();
+      console.log('PASS options panel saves look-ahead');
+
+    }
+    if (hits) {
+      await page.evaluate((mode) => {
+        const H = document.querySelector('.highway').__hw;
+        const T = H.targets;
+        let next = 0;
+        const j = { state: new Map(), events: [], streak: 0, hits: 0, judged: 0, accuracy: null,
+          push() {}, reset() {}, rewind() {},
+          tick(t) {
+            while (next < T.length && T[next].t <= t) {
+              const tg = T[next++];
+              if (t - tg.t > 0.3) continue;
+              const hit = mode === 'h' ? true : next % 3 !== 0;
+              const offset = Math.round((Math.random() - 0.5) * 200);
+              this.state.set(tg.id, { result: hit ? 'hit' : 'miss', at: t, offset });
+              this.events.push({ id: tg.id, hit });
+              this.judged++; if (hit) { this.hits++; this.streak++; } else this.streak = 0;
+              this.accuracy = this.hits / this.judged;
+            }
+          } };
+        const t0 = window.__stage.engine.position;
+        next = T.findIndex((x) => x.t > t0); if (next < 0) next = T.length;
+        H.judge = j;
+      }, hits);
+    }
+    if (process.env.VIDEO) {
+      const fps = await page.evaluate(() => new Promise((r) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 2000) requestAnimationFrame(f); else r(n / 2); }; requestAnimationFrame(f); }));
+      console.log('fps', fps);
+      await page.waitForTimeout(Number(process.env.VIDEO) * 1000);
+      continue;
+    }
+    if (process.env.SEQ) {
+      const [n, every] = process.env.SEQ.split(',').map(Number);
+      for (let i = 0; i < n; i++) {
+        await page.waitForTimeout(every);
+        await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
+    await page.screenshot({ timeout: 60000, path: path.join(out, `seq_${String(i).padStart(3, '0')}.jpg`), quality: 70 });
+      }
+      continue;
+    }
+    await page.waitForTimeout(play === 'p' ? 2600 : 2200);
+    await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
+    await page.screenshot({ timeout: 60000, path: path.join(out, `${scene}_${(file||'').replace('.json','')}_${t}${play === 'p' ? 'p' : ''}${hits || ''}.png`) });
+    console.log('shot', spec);
+  }
+  await browser.close();
+  srv.close();
+})();

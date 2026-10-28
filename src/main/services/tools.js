@@ -46,7 +46,7 @@ function which(cmd) {
   return null;
 }
 
-function run(cmd, args, { env, cwd, onLine, signal } = {}) {
+function run(cmd, args, { env, cwd, onLine, signal, timeoutMs } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { cwd, env: { ...process.env, ...env }, windowsHide: true });
     let tail = '';
@@ -58,6 +58,8 @@ function run(cmd, args, { env, cwd, onLine, signal } = {}) {
     child.stdout.on('data', feed);
     child.stderr.on('data', feed);
     if (signal) signal.onabort = () => child.kill();
+    const timer = timeoutMs ? setTimeout(() => child.kill(), timeoutMs) : null;
+    child.on('close', () => timer && clearTimeout(timer));
     child.on('error', reject);
     child.on('close', (code) => {
       if (code === 0) resolve(tail);
@@ -143,6 +145,43 @@ class Tools extends EventEmitter {
     return fs.existsSync(managed) ? managed : null;
   }
 
+  /**
+   * A Python already on this PC that has PyTorch and Demucs (installed by
+   * hand, by another app, or by Stagehand Setup). Using it saves a 3 GB
+   * download. Checked once per run.
+   */
+  async findExistingEngine() {
+    if (this._probed !== undefined) return this._probed;
+    this._probed = null;
+    const cands = [];
+    const add = (p) => p && !cands.includes(p) && !/WindowsApps/i.test(p) && fs.existsSync(p) && cands.push(p);
+    if (IS_WIN) {
+      const py = which('py');
+      if (py) {
+        try {
+          const out = await run(py, ['-0p'], { timeoutMs: 8000 });
+          for (const line of out.split(/\r?\n/)) {
+            const m = line.match(/([A-Za-z]:\\.*python(?:w)?\.exe)\s*$/i);
+            if (m) add(m[1].trim());
+          }
+        } catch (_) {}
+      }
+    }
+    add(which(IS_WIN ? 'python' : 'python3'));
+    for (const p of cands) {
+      try {
+        let ok = false;
+        await run(p, ['-c', 'import torch, demucs; print("ok", torch.__version__)'], { timeoutMs: 30000, onLine: (l) => (ok = ok || l.startsWith('ok ')) });
+        if (ok) {
+          this._probed = p;
+          this._log && this._log(`Stem engine: using the Python already on this PC (${p})`);
+          break;
+        }
+      } catch (_) {}
+    }
+    return this._probed;
+  }
+
   engineEnv() {
     return {
       TORCH_HOME: path.join(this.engineDir, 'torch'),
@@ -154,7 +193,14 @@ class Tools extends EventEmitter {
 
   async engineStatus({ refresh = false } = {}) {
     if (this._engineStatus && !refresh) return this._withAdvice(this._engineStatus);
-    const python = this.enginePython();
+    let python = this.enginePython();
+    if (!python) {
+      const found = await this.findExistingEngine().catch(() => null);
+      if (found) {
+        this.settings.set({ engine: { python: found, variant: 'existing', installedAt: Date.now() } });
+        python = found;
+      }
+    }
     if (!python) {
       this._engineStatus = { installed: false };
       return this._withAdvice(this._engineStatus);
@@ -261,6 +307,45 @@ class Tools extends EventEmitter {
     const steps = ['Download uv', 'Install Python', 'Install PyTorch', 'Install Demucs', 'Download separation model', 'Test the engine'];
     const total = steps.length;
     const step = (index, extra = {}) => report({ step: steps[index], index, total, ...extra });
+    // Big downloads print little for minutes: show how much has arrived and
+    // for how long, every second, so it never looks stuck.
+    let beat = null;
+    const dirBytes = (dir) => {
+      let n = 0;
+      const walk = (d) => {
+        let list = [];
+        try {
+          list = fs.readdirSync(d, { withFileTypes: true });
+        } catch (_) {
+          return;
+        }
+        for (const e of list) {
+          const p = path.join(d, e.name);
+          if (e.isDirectory()) walk(p);
+          else {
+            try {
+              n += fs.statSync(p).size;
+            } catch (_) {}
+          }
+        }
+      };
+      walk(dir);
+      return n;
+    };
+    const heartbeat = (index, dir) => {
+      if (beat) clearInterval(beat);
+      const t0 = Date.now();
+      const base = dir ? dirBytes(dir) : 0;
+      let k = 0;
+      beat = setInterval(() => {
+        const secs = Math.round((Date.now() - t0) / 1000);
+        const got = dir && ++k % 2 === 0 ? dirBytes(dir) - base : null;
+        const mb = got === null ? null : got / 1048576;
+        const size = mb === null ? '' : mb > 1024 ? `${(mb / 1024).toFixed(1)} GB · ` : mb >= 1 ? `${Math.round(mb)} MB · ` : '';
+        if (got !== null || secs % 2 === 1) step(index, { detail: `${size}${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}` });
+      }, 1000);
+    };
+    const stopBeat = () => beat && clearInterval(beat);
     const log = (line) => report({ log: line });
     const env = {
       UV_PYTHON_INSTALL_DIR: path.join(this.engineDir, 'python'),
@@ -296,6 +381,7 @@ class Tools extends EventEmitter {
       if (abort.signal.aborted) throw Object.assign(new Error('Cancelled'), { cancelled: true });
 
       step(1);
+      heartbeat(1, env.UV_PYTHON_INSTALL_DIR);
       const venv = path.join(this.engineDir, 'venv');
       const py = path.join(venv, IS_WIN ? 'Scripts' : 'bin', 'python' + EXE);
       const existing = fs.existsSync(py);
@@ -304,6 +390,7 @@ class Tools extends EventEmitter {
       }
 
       step(2);
+      heartbeat(2, env.UV_CACHE_DIR);
       // "torch==2.8.0" is already satisfied by 2.8.0+cpu, so force the swap
       // whenever an engine exists; uv's cache makes this cheap when unchanged.
       const reinstall = existing ? ['--reinstall-package', 'torch', '--reinstall-package', 'torchaudio'] : [];
@@ -314,12 +401,15 @@ class Tools extends EventEmitter {
       });
 
       step(3);
+      heartbeat(3, env.UV_CACHE_DIR);
       await run(uv, ['pip', 'install', '--python', py, ENGINE_PINS.demucs, 'numpy'], { env, onLine: log, signal: abort.signal });
 
       step(4);
+      heartbeat(4, this.engineEnv().TORCH_HOME);
       const model = this.settings.get().stems.model || 'htdemucs_6s';
       await run(py, ['-u', this.engineScript, '--prefetch', model], { env: this.engineEnv(), onLine: log, signal: abort.signal });
 
+      stopBeat();
       step(5);
       this.settings.set({ engine: { python: py, variant, installedAt: Date.now() } });
       const status = await this.engineStatus({ refresh: true });
@@ -329,6 +419,7 @@ class Tools extends EventEmitter {
       report({ done: true, status });
       return status;
     } finally {
+      stopBeat();
       this._setupAbort = null;
     }
   }

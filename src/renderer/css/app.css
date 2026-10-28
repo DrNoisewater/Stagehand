@@ -4018,7 +4018,7 @@ ol.how-steps li b {
   z-index: 2;
 }
 .hw-top { top: 0; background: linear-gradient(#070a12f0, #070a1200); }
-.hw-bottom { bottom: 0; background: linear-gradient(#070a1200, #070a12e6); padding-top: 26px; }
+.hw-bottom { bottom: 0; background: linear-gradient(#070a1200 30%, #070a1270); padding-top: 26px; }
 .hw-top .grow, .hw-bottom .grow { flex: 1; }
 .hw-back {
   display: inline-flex;
@@ -4249,3 +4249,13 @@ ol.how-steps li b {
   transition: opacity 0.3s ease;
 }
 .nw-backdrop.on { opacity: 1; }
+
+/* Keep the playing surface clear; controls return on movement or pause. */
+.hw-top, .hw-bottom, .hw-dock { transition: opacity 220ms ease; }
+.highway.hw-quiet .hw-top, .highway.hw-quiet .hw-bottom,
+.highway.hw-quiet .hw-dock { opacity: 0; pointer-events: none; }
+.highway.hw-quiet { cursor: none; }
+.hw-sections { left: 14%; right: 14%; height: 16px; }
+@media (prefers-reduced-motion: reduce) {
+  .hw-top, .hw-bottom, .hw-dock { transition: none; }
+}

@@ -1,0 +1,27 @@
+.jeffgrac_p.psarc.FYYvtz: FAILED TOC entry 4 points outside the archive
+1979_p.psarc: 2 arrangements
+3eyehows_p.psarc: 3 arrangements
+ABBA_Money-Money-Money_v1_m.psarc: 1 arrangements
+ACDC - The Jack v1.7_p.psarc: 3 arrangements
+ACDC_Its-A-Long-Way-To-The-Top_v1_0_m.psarc: 3 arrangements
+Alien_Ant_Farm-Smooth_Criminal_v1_3_DD_p.psarc: 3 arrangements
+Electric-Light-Orchestra_Last-Train-to-London_v2_DD_m.psarc: 2 arrangements
+Fleetwood-Mac_Dreams_v1_0_p.psarc: 3 arrangements
+Fleetwood-Mac_Oh-Well-Part-1-2_v1_p.psarc: 3 arrangements
+JP_WhoMadeWho_2v1_p.psarc: 3 arrangements
+Kfir-ochaion_Blinding-lights_v1_1_p.psarc: 1 arrangements
+Marvin-Gaye-and-Tammi-Terrell_Onion-Song-The_v1_p.psarc: 1 arrangements
+Metallica - Battery_p.psarc: 3 arrangements
+Metallica - No Leaf Clover_p.psarc: 3 arrangements
+Metallica - One.1.2_p.psarc: 3 arrangements
+Metallica_Atlas,-Rise_v2_0_DD_m.psarc: 4 arrangements
+Metallica_The-Day-That-Never-Comes_v2b_p.psarc: 2 arrangements
+Red-Hot-Chili-Peppers_Under-the-Bridge_v5_DD_m.psarc: 2 arrangements
+alteriso_p.psarc: 3 arrangements
+amonwaro_p.psarc: 4 arrangements
+anthcaug_p.psarc: 4 arrangements
+jeffgrac_p.psarc: 3 arrangements
+johnbeca_p.psarc: 3 arrangements
+remtheone_p.psarc: 3 arrangements
+rickrock_p.psarc: 4 arrangements
+69 arrangements; 69165 note/chord events

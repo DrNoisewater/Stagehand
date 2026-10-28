@@ -1,5 +1,9 @@
 #!/bin/sh
-# Builds Stagehand-Windows.zip and stagehand-source.zip into $1 (default: dist/).
+# Builds into $1 (default: dist/):
+#   Stagehand-Setup-<version>.exe   the installer/updater (main download), when SETUP_DEPS is set:
+#       SETUP_DEPS="<electron-win32-x64.zip> <vgmstream-win64.zip> <uv-windows.zip>"
+#   Stagehand-Windows.zip           backup script installer (downloads the runtime)
+#   stagehand-source.zip
 # Needs native/bin/stagehand-audio.exe already built (native/build.sh).
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,4 +20,9 @@ rm -f "$OUT/Stagehand-Windows.zip" "$OUT/stagehand-source.zip"
 (cd "$TMP" && zip -qr "$OUT/Stagehand-Windows.zip" Stagehand-Windows)
 (cd "$ROOT/.." && zip -qr "$OUT/stagehand-source.zip" "$(basename "$ROOT")" -x "*/node_modules/*" "*/native/build/*" "*/dist/*" "*/__pycache__/*")
 rm -rf "$TMP"
+if [ -n "$SETUP_DEPS" ]; then
+  # shellcheck disable=SC2086
+  bash "$ROOT/windows/setup/build-setup.sh" "$OUT" $SETUP_DEPS
+  rm -rf "$OUT/setup-build" "$OUT/Uninstall Stagehand.exe"
+fi
 ls -la "$OUT"

@@ -4,7 +4,7 @@ const { readJson, writeJsonAtomic } = require('../core/files');
 
 const DEFAULTS = {
   playback: { autoplay: true, endAction: 'stop' },
-  stems: { model: 'htdemucs_6s', shifts: 1, auto: true, device: 'auto', preferStems: true, cpuLoad: 'full', format: 'flac', cleared310: false },
+  stems: { model: 'htdemucs_6s', shifts: 1, auto: true, device: 'auto', preferStems: true, waitFirst: true, cpuLoad: 'full', format: 'flac', cleared310: false },
   engine: { python: null, variant: null, device: null, installedAt: null },
   tools: { vgmstream: null },
   rocksmith: { profile: null, steamDir: null, gameDir: null },

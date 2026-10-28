@@ -167,6 +167,7 @@ class FakePortMain extends EventEmitter {
   const captures = new Captures({ dir: capDir, openExternal: () => true, log: () => {} });
   await captures.load();
 
+  const stemHold = new Set(); // songs whose stems are "still splitting" (for the wait-for-stems check)
   const API = {
     'captures.get': () => captures.state(),
     'captures.assign': (a, p) => captures.assign(a, p),
@@ -191,7 +192,8 @@ class FakePortMain extends EventEmitter {
     'rig.available': () => true,
     // every song has stems in this test (all the same tone, which is fine for the UI)
     'stems.formats': () => library.snapshot().songs.map((x) => ({ songId: x.id, model: 'htdemucs_6s', format: 'wav', bytes: 6 * 48000 * 30 * 4, seconds: 30 })),
-    'stems.status': () => ({ state: 'ready', model: 'htdemucs_6s', format: 'wav', sampleRate: 48000, frames: 48000 * SECS, stems: ['guitar', 'bass', 'drums', 'vocals', 'piano', 'other'].map((name) => ({ name, url: '/song.wav' })) }),
+    'stems.status': (id) => (stemHold.has(id) ? { songId: id, state: 'running', progress: 0.4 } : { state: 'ready', model: 'htdemucs_6s', format: 'wav', sampleRate: 48000, frames: 48000 * SECS, stems: ['guitar', 'bass', 'drums', 'vocals', 'piano', 'other'].map((name) => ({ name, url: '/song.wav' })) }),
+    'stems.prioritize': () => true,
     'stems.queue': () => ({ items: [] }),
     'engine.status': () => ({ state: 'missing', ok: false }),
     'imports.status': () => ({ watching: false, history: [] }),
@@ -385,7 +387,10 @@ class FakePortMain extends EventEmitter {
   await page.locator('.lib-tools button:has-text("List")').click();
   await page.waitForTimeout(500);
   const row = page.locator('.row').first();
-  await row.dblclick().catch(() => {});
+  // ▶ on a song just listens (double-click now plays along on the highway)
+  await row.click().catch(() => {});
+  await page.waitForTimeout(400);
+  await page.locator('button:has-text("Just listen")').first().click();
   await page.waitForTimeout(2500);
   await shot('4-songs-playing');
   // song volume at 0 should be obvious at a glance
@@ -418,6 +423,13 @@ class FakePortMain extends EventEmitter {
   await shot('6b-highway');
   await page.waitForTimeout(3000);
   await shot('6c-highway');
+  // a correct note: the bracket flashes but stays its own height
+  await page.evaluate(() => {
+    const H = document.querySelector('.highway').__hw;
+    H.bursts.push({ s: 2, f: 3, at: performance.now() });
+  });
+  await page.waitForTimeout(60);
+  await shot('6c2-highway-hit');
   if (process.env.SH_HW_SEEK) {
     // jump ahead (5 s per press) to look at a busy part
     for (let i = 0; i < Number(process.env.SH_HW_SEEK); i++) await page.keyboard.press('ArrowRight');
@@ -606,6 +618,55 @@ class FakePortMain extends EventEmitter {
   check((await page.locator('.modal .ra-tile:not(.add):not(.get)').count()) === 1 && (await page.locator('.modal .ra-tile.get').count()) >= 10, 'then your real amps and the ones to get');
   await shot('17-settings-real-amps');
   await page.keyboard.press('Escape');
+
+  // highway: your guitar is one pill (mute + tone), no second Mix button
+  check((await page.locator('.hw-top .hw-rig .hw-rig-mute').count()) === 1 && (await page.locator('.hw-top > .hw-chip:has-text("Mix")').count()) === 0, 'highway: guitar and tone in one pill, no extra Mix button');
+
+  // Tones › From my songs offers every real amp your songs use, in one go
+  for (let i = 0; i < 3 && !(await page.locator('.nav-section:has-text("Tones")').first().isVisible()); i++) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(600);
+  }
+  await page.locator('.nav-section:has-text("Tones")').click();
+  await page.waitForTimeout(500);
+  await page.locator('.tones-tabs button:has-text("From my songs")').click();
+  await page.waitForTimeout(2500);
+  check((await page.locator('.ra-libstrip button:has-text("Get all")').count()) === 1, `From my songs offers Get all: “${(await page.locator('.ra-libstrip').textContent().catch(() => '')) || ''}”`);
+  await shot('20-tones-get-all');
+
+  // About: the Noisewater Labs logo next to Stagehand
+  await page.keyboard.press('Control+Comma');
+  await page.waitForTimeout(800);
+  await page.locator('.modal button:has-text("About")').first().click();
+  await page.waitForTimeout(800);
+  check((await page.locator('.modal .about-brand img[alt="Noisewater Labs"]').count()) === 1, 'About shows the Noisewater Labs logo next to Stagehand');
+  await shot('21-about');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+
+  // double-click a song: straight to the highway; it waits for the stems, then starts by itself
+  const firstId = library.snapshot().songs[0].id;
+  stemHold.add(firstId);
+  await page.locator('.nav-section:has-text("Songs")').click();
+  await page.waitForTimeout(800);
+  await page.evaluate(() => window.__stage && window.__stage.engine && window.__stage.engine.pause && window.__stage.engine.pause());
+  await page.locator(`[data-id="${firstId}"]`).first().dblclick();
+  await page.waitForTimeout(3000);
+  const w1 = await page.evaluate(() => ({ hw: !!document.querySelector('.highway:not([hidden])'), card: !document.querySelector('.stem-wait').hidden, text: document.querySelector('.stem-wait').textContent, playing: document.querySelector('.hw-play') && document.querySelector('.hw-play').title }));
+  check(w1.hw, 'double-clicking a song opens it on the highway');
+  check(w1.card && /Splitting the stems · 40%/.test(w1.text), `it waits for the stems with progress: “${w1.text.slice(0, 60)}”`);
+  await shot('22-waiting-for-stems');
+  const playingBefore = await page.evaluate(() => window.__stagePlaying && window.__stagePlaying());
+  stemHold.delete(firstId);
+  await page.evaluate((id) => window.__shEmit('stems:update', { songId: id, state: 'ready' }), firstId);
+  let started = false;
+  for (let i = 0; i < 40 && !started; i++) {
+    await page.waitForTimeout(250);
+    started = await page.evaluate(() => document.querySelector('.stem-wait').hidden && !!(window.__stagePlaying && window.__stagePlaying()));
+  }
+  check(!playingBefore && started, 'and starts by itself once they’re in');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
 
   // reopening Stagehand on Tones › From my songs (the tab is remembered) must start reading by itself
   await page.evaluate(() => localStorage.setItem('stagehand.tonesTab', 'songs'));

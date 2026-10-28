@@ -483,7 +483,8 @@ scroller.addEventListener('click', (e) => {
 
 scroller.addEventListener('dblclick', (e) => {
   const id = idAt(e.target);
-  if (id && !e.target.closest('[data-star]')) actions.playSong(id);
+  // double-click plays along: straight to the highway
+  if (id && !e.target.closest('[data-star]')) actions.playAlong(id);
 });
 
 scroller.addEventListener('contextmenu', (e) => {

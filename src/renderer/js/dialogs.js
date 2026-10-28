@@ -90,7 +90,7 @@ export async function engineSetup({ thenStems = null, mode = 'install', variant:
         stepEls.forEach((el, i) => {
           el.classList.toggle('done', i < p.index);
           el.classList.toggle('active', i === p.index);
-          if (i === p.index) el.querySelector('.v').textContent = p.value ? `${Math.round(p.value * 100)}%` : '';
+          if (i === p.index) el.querySelector('.v').textContent = p.value ? `${Math.round(p.value * 100)}%` : p.detail || '';
         });
       }
     });
@@ -373,6 +373,7 @@ const PANES = {
     el.append(setting('CPU load', 'How hard separation works the CPU when it runs there. Separation always runs at low priority, so other apps stay responsive. On a GPU the CPU stays mostly idle either way.', load));
 
     el.append(setting('Split songs automatically', 'When you open a song without stems, start separating it in the background.', toggleCtl(s.stems.auto, (v) => saveSettings({ stems: { auto: v } }), 'Split automatically')));
+    el.append(setting('Wait for the stems', 'When you open a song to play, it starts once its stems are split and loaded (they’re split for you), so the mix never changes under you. You can always press Play now.', toggleCtl(s.stems.waitFirst !== false, (v) => saveSettings({ stems: { waitFirst: v } }), 'Wait for the stems')));
     el.append(setting('Switch to stems when ready', 'Play through the stem mixer as soon as a song’s stems load, instead of the full mix.', toggleCtl(s.stems.preferStems, (v) => saveSettings({ stems: { preferStems: v } }), 'Prefer stems')));
   },
 
@@ -541,9 +542,9 @@ const PANES = {
   },
 
   async about(el) {
-    const vg = await api.tools.vgmstream();
+    const vg = (await api.tools.vgmstream().catch(() => null)) || {};
     el.append(
-      h('div', { style: { padding: '12px 0', lineHeight: '1.6' } }, h('div', { style: { fontSize: '20px', fontWeight: '750', fontStretch: '118%', color: 'var(--ink)' }, text: 'Stagehand' }), h('div', { text: `Version ${state.info.version}` }))
+      h('div.about-brand', null, h('img', { src: 'splash/logo-256.png', alt: 'Noisewater Labs', title: 'Noisewater Labs', width: '44', height: '44' }), h('div', { style: { lineHeight: '1.5' } }, h('div', { style: { fontSize: '20px', fontWeight: '750', fontStretch: '118%', color: 'var(--ink)' }, text: 'Stagehand' }), h('div', { text: `Version ${state.info.version} · Noisewater Labs` })))
     );
     el.append(setting('Audio decoder', vg.path ? esc(vg.path) : 'Not installed yet. It installs the first time you play a song.', h('span', { class: `status-pill ${vg.path ? 'ok' : 'warn'}`, text: vg.path ? 'Installed' : 'Missing' })));
     el.append(setting('Credits', 'Audio decoding by vgmstream. Stem separation by Demucs (Meta AI). Artist and album data from MusicBrainz; album covers from the Cover Art Archive. Interface set in Archivo by Omnibus-Type.'));

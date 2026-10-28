@@ -382,7 +382,7 @@ function songRow(t, item, { showArtist = true, num = null, quietMissing = false 
       }
     });
   } else if (t.songId) {
-    row.addEventListener('dblclick', () => actions.playSong(t.songId));
+    row.addEventListener('dblclick', () => actions.playAlong(t.songId));
   }
   return row;
 }

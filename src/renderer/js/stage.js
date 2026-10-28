@@ -241,7 +241,7 @@ function buildBody() {
       h(
         'div.stage-empty',
         null,
-        h('div', null, h('b', { text: 'Pick a song to hear it here' }), 'Double-click any song. Its full mix plays on top, with a separate lane for each instrument below once stems are split.')
+        h('div', null, h('b', { text: 'Pick a song to hear it here' }), 'Double-click any song to play along on the highway, or press ▶ on it to just listen.')
       )
     );
     return;
@@ -600,6 +600,9 @@ function smoothLevel(key, v) {
 function frame() {
   S.rafPending = false;
   if (!S.song || !lanes.size) return;
+  // Under the full-screen highway nothing here is visible: drawing the stem
+  // lanes, waveform and spectrum every frame only stole time from it (lag).
+  if (document.getElementById('app').classList.contains('under-highway')) return;
   drawScrub();
   const t = engine.position;
   const playing = engine.playing;
@@ -740,6 +743,7 @@ function showLoadingState(msg) {
 export async function load(song, { autoplay = true } = {}) {
   const token = ++S.token;
   engine.pause();
+  stopWaiting();
   S.song = song;
   const um = song.user && song.user.mix;
   S.mix = { you: um && um.you != null ? um.you : null, song: um && um.song != null ? um.song : null, stems: { ...((um && um.stems) || {}) } };
@@ -803,7 +807,11 @@ export async function load(song, { autoplay = true } = {}) {
     refreshLane(mix);
     playBtn.disabled = false;
     emit('stage-loaded');
-    if (autoplay) await engine.play();
+    if (autoplay) {
+      // with stems on the way, start once they're in, so the mix doesn't change under you
+      if (await stemsFirst(song, token)) startWaiting(token);
+      else await engine.play();
+    }
     api.songs
       .played(song.id)
       .then((s) => s && upsertSongs([s]))
@@ -882,6 +890,10 @@ async function loadStems(token, { switchMode = true } = {}) {
     if (tabView) tabView.stemsChanged();
     if (highway) highway.stemsChanged();
     requestDraw();
+    if (S.waitPlay === token) {
+      stopWaiting();
+      await engine.play();
+    }
     return;
   }
   if (st.state === 'none' && state.settings && state.settings.stems.auto && (await actions.engineReady())) {
@@ -1025,8 +1037,79 @@ function showDecoderPrompt(song, autoplay) {
 }
 
 // ---------------------------------------------------------------- public --
+// ------------------------------------------------- waiting for stems --
+const waitBox = h('div.stem-wait', { hidden: true, role: 'status' });
+document.body.append(waitBox);
+
+/** Should this song wait for its stems before it starts? Starts splitting it if needed. */
+async function stemsFirst(song, token) {
+  if (!state.settings || !state.settings.stems || state.settings.stems.waitFirst === false) return false;
+  let st;
+  try {
+    st = await api.stems.status(song.id);
+  } catch (_) {
+    return false;
+  }
+  if (token !== S.token) return false;
+  if (st.state === 'ready' || st.state === 'running' || st.state === 'queued') return (S.waitStatus = st), true;
+  if (st.state === 'none' && state.engine && state.engine.installed && (await actions.engineReady())) {
+    await actions.requestStems([song.id]);
+    await api.stems.prioritize(song.id).catch(() => {});
+    S.waitStatus = state.stems.get(song.id) || { state: 'queued' };
+    return token === S.token;
+  }
+  return false; // nothing to wait for (no stem engine yet): play the full mix
+}
+
+function startWaiting(token) {
+  S.waitPlay = token;
+  renderWaiting(S.waitStatus || S.status);
+  emit('stage-waiting', true);
+}
+
+function stopWaiting() {
+  if (!S.waitPlay) return;
+  S.waitPlay = 0;
+  waitBox.hidden = true;
+  emit('stage-waiting', false);
+}
+
+function renderWaiting(st) {
+  if (!S.waitPlay) return;
+  st = st || { state: 'queued' };
+  const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
+  const title = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : `Splitting the stems · ${pct}%`;
+  const note = st.state === 'queued' ? 'Another song is being split first.' : st.state === 'ready' ? 'Almost there.' : 'Guitar, bass, drums and the rest, so you can mix them. The song starts by itself.';
+  if (!waitBox.firstChild) {
+    waitBox.innerHTML = `<div class="read-bar"><div class="rb-top"><span class="eq"><i></i><i></i><i></i><i></i></span><span class="rb-label"></span><span class="rb-count"></span></div><div class="rb-track"><i></i></div><div class="rb-note"></div><div class="sw-row"><span class="sw-song"></span></div></div>`;
+    const now = h('button.btn.small', { type: 'button', html: `${icon('play')}<span>Play now with the full mix</span>` });
+    now.onclick = () => {
+      stopWaiting();
+      engine.play();
+    };
+    waitBox.querySelector('.sw-row').append(now);
+  }
+  waitBox.querySelector('.rb-label').textContent = title;
+  waitBox.querySelector('.rb-count').textContent = st.state === 'running' ? `${pct}%` : '';
+  waitBox.querySelector('.rb-note').textContent = note;
+  waitBox.querySelector('.sw-song').textContent = S.song ? `${S.song.title}${S.song.artist ? ` · ${S.song.artist}` : ''}` : '';
+  waitBox.querySelector('.read-bar').classList.toggle('waiting', st.state === 'queued');
+  waitBox.querySelector('.rb-track > i').style.width = `${Math.max(2, pct)}%`;
+  waitBox.hidden = false;
+}
+
+export function waitingForStems() {
+  return !!S.waitPlay;
+}
+
 export function toggle() {
   if (!S.song || playBtn.disabled) return;
+  if (S.waitPlay) {
+    // you pressed play while waiting for the stems: play the full mix now
+    stopWaiting();
+    if (!engine.playing) engine.play();
+    return;
+  }
   if (!engine.playing) S.follow = true;
   engine.toggle();
 }
@@ -1123,6 +1206,14 @@ tabViewBtn.onclick = () => setStageView('tab');
 on('stems-update', (u) => {
   if (!S.song || u.songId !== S.song.id) return;
   S.status = u;
+  if (S.waitPlay) {
+    if (u.state === 'running' || u.state === 'queued' || u.state === 'ready') renderWaiting(u);
+    else {
+      // split failed or was cancelled: play the full mix
+      stopWaiting();
+      engine.play();
+    }
+  }
   if (u.state === 'ready' && !S.stems.length) loadStems(S.token);
   else renderStemsCall();
 });
@@ -1190,6 +1281,7 @@ export function openHighway() {
       setMode: (m) => setMode(m),
       seek: (t) => seek(t),
       setLoop: (loop) => setLoop(loop),
+      getLoop: () => S.loop,
       toggle: () => toggle(),
       setStem: (name, patch) => setStem(name, patch),
       trackIndex: (name) => trackIndex(name),
@@ -1197,7 +1289,12 @@ export function openHighway() {
       label: (name) => STEM_LABEL[name] || name,
       stemStatus: () => S.status,
       requestStems: () => S.song && actions.requestStems([S.song.id]).then(() => api.stems.prioritize(S.song.id).catch(() => {})),
-      onHighwayClosed: () => (tabView && tabView.visible ? tabView.stemsChanged() : engine.setPlayAlong(null)),
+      onHighwayClosed: () => {
+        if (tabView && tabView.visible) tabView.stemsChanged();
+        else engine.setPlayAlong(null);
+        requestDraw();
+        if (tabView && tabView.visible && tabView.redraw) tabView.redraw();
+      },
     });
   return highway.open(S.song);
 }
@@ -1229,3 +1326,4 @@ export function requestStemsNow() {
 export function tabViewApi() {
   return tabView;
 }
+if (typeof window !== 'undefined') window.__stagePlaying = () => engine.playing; // for tests

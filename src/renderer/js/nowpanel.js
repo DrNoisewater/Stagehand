@@ -24,7 +24,7 @@ const PART_GEL = { lead: 'var(--gel-guitar)', combo: 'var(--gel-guitar)', rhythm
 const N = { tab: localStorage.getItem('stagehand.nowTab') || 'mix', raf: 0, toneKey: null, meters: [] };
 const R = { on: false, sec: -1, trainer: true, start: 0.6, step: 0.05, goal: 1, thresh: 0.9, countIn: true, passes: [] };
 
-const shown = () => state.page === 'now';
+const shown = () => state.page === 'now' && !document.getElementById('app').classList.contains('under-highway');
 const song = () => stage.current();
 
 // ------------------------------------------------------------ header bits --
