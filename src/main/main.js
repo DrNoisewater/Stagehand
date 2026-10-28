@@ -358,6 +358,10 @@ function createWindow() {
     if (!win || win.isDestroyed()) return;
     settings.set({ window: { bounds: win.isMaximized() ? st.bounds || win.getNormalBounds() : win.getBounds(), maximized: win.isMaximized() } });
   };
+  // 3.9: the mouse's back button (Windows sends it as an app command)
+  win.on('app-command', (_e, cmd) => {
+    if (cmd === 'browser-backward') send('nav:back');
+  });
   win.on('resize', saveBounds);
   win.on('move', saveBounds);
   win.on('closed', () => (win = null));

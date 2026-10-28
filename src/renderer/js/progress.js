@@ -3,6 +3,7 @@ import { api } from './api.js';
 import { state, on, setPage } from './store.js';
 import { h, icon, esc, toast, showMenu, confirmDialog } from './ui.js';
 import * as actions from './actions.js';
+import { KIND_LABEL } from './scorecard.js';
 import { coverEl } from './shell.js';
 import { engine } from './stage.js';
 
@@ -64,7 +65,9 @@ function render() {
     tile('var(--gel-bass)', 'Songs practised', String(d.songs), d.newSongs ? `${d.newSongs} new` : ''),
     tile('var(--gel-piano)', 'Average accuracy', d.accuracy === null ? '–' : `${Math.round(d.accuracy * 100)}%`, d.accuracyChange === null ? '' : `<span class="${d.accuracyChange >= 0 ? 'up' : 'down'}">${d.accuracyChange >= 0 ? '+' : '−'}${Math.abs(Math.round(d.accuracyChange * 100))} points</span>`, accRing)
   );
+  root.append(spotlight(d));
   root.append(tiles);
+  root.append(highlights(d));
 
   const row = h('div.prog-row');
   // minutes per day
@@ -89,7 +92,9 @@ function render() {
     if (!s) continue;
     const trend = h('div.trend');
     w.trend.forEach((v, i, a) => trend.append(h(`i${v >= 85 ? '.top' : ''}${i === a.length - 1 ? '.last' : ''}`, { style: { height: `${Math.max(3, Math.round((v / 100) * 28))}px` }, title: `${v}%` })));
-    const r = h('button.pw-row', { type: 'button', title: 'Open the song' }, coverEl(s, 64, 'sm'), h('span.pw-text', null, h('b', { text: s.title }), h('span', { text: `${{ lead: 'Lead', rhythm: 'Rhythm', bass: 'Bass' }[w.part] || 'Part'} · ${w.sessions} session${w.sessions === 1 ? '' : 's'}` })), trend, h(`b.pw-best${w.best >= 0.85 ? '.top' : ''}`, { text: `${Math.round(w.best * 100)}%` }));
+    const strip = h('span.pw-strip');
+    for (const x of w.sections || []) if (x.acc !== null) strip.append(h(`i.${band(x.acc)}`, { title: `${x.label}: ${pctOf(x.acc)}` }));
+    const r = h('button.pw-row', { type: 'button', title: 'Open the song' }, coverEl(s, 64, 'sm'), h('span.pw-text', null, h('b', { text: s.title }), h('span', { text: `${{ lead: 'Lead', rhythm: 'Rhythm', bass: 'Bass' }[w.part] || 'Part'} · ${w.sessions} session${w.sessions === 1 ? '' : 's'}` }), strip), trend, h(`b.pw-best${w.best >= 0.85 ? '.top' : ''}`, { text: `${Math.round(w.best * 100)}%` }));
     r.onclick = async () => {
       await actions.playSong(s.id, { autoplay: false });
       setPage('now');
@@ -145,6 +150,99 @@ function render() {
   row.append(takes);
   root.append(row);
 }
+
+// ------------------------------------------------- 3.9: spotlight + highlights --
+const PART = { lead: 'Lead', rhythm: 'Rhythm', bass: 'Bass' };
+const band = (a) => (a >= 0.9 ? 'g' : a >= 0.7 ? 'y' : a >= 0.5 ? 'o' : 'r');
+const pctOf = (a) => `${Math.round(a * 100)}%`;
+// bars from 40 % up, so the differences that matter show
+const barH = (a) => Math.max(6, Math.min(100, Math.round(((a - 0.4) / 0.6) * 100)));
+
+/** Your most recent run, big: score, change, sections, what went well and what to work on. */
+function spotlight(d) {
+  const L = d.last;
+  const s = L && state.songs.get(L.songId);
+  if (!L || !s) {
+    return h('section.card.pspot.empty', null, h('div.pspot-empty', null, h('span', { html: icon('guitar') }), h('div', null, h('b', { text: 'Play a song with your guitar plugged in' }), h('p', { text: 'Your run shows up here straight away: your score, each section, and what to work on next.' }))));
+  }
+  const card = h('section.card.pspot', { 'aria-label': 'Your last song' });
+  const ring = h(`div.pspot-ring.${band(L.accuracy)}`, { style: { '--deg': `${Math.round(L.accuracy * 360)}deg` } }, h('b', { text: pctOf(L.accuracy) }), h('span', { text: 'accuracy' }));
+  const delta = L.prevLast !== null && L.prevLast !== undefined ? L.accuracy - L.prevLast : null;
+  const isBest = L.prevBest === null || L.prevBest === undefined ? L.notes >= 20 : L.accuracy > L.prevBest + 0.005;
+  const when = new Date(L.at);
+  const ago = Math.round((Date.now() - L.at) / 60000);
+  const whenTxt = ago < 1 ? 'just now' : ago < 60 ? `${ago} min ago` : when.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  const chips = h('div.pspot-chips');
+  if (isBest) chips.append(h('span.chip-best', { html: `${icon('star')}<span>${L.prevBest === null || L.prevBest === undefined ? 'First score' : 'New best'}</span>` }));
+  if (delta !== null && Math.abs(delta) >= 0.005) chips.append(h(`span.${delta > 0 ? 'chip-up' : 'chip-down'}`, { text: `${delta > 0 ? '+' : '−'}${Math.abs(Math.round(delta * 100))} since last time` }));
+  if (L.bestStreak) chips.append(h('span', { text: `${L.bestStreak} in a row` }));
+  chips.append(h('span', { text: `${L.hit}/${L.notes} notes` }));
+  if (L.runs > 1) chips.append(h('span', { text: `run ${L.runs}` }));
+  const text = h('div.pspot-text', null, h('div.pspot-eyebrow', { text: `Your last song · ${whenTxt}` }), h('h2', { text: s.title }), h('div.pspot-sub', { text: `${s.artist || ''}${L.part ? ` · ${PART[L.part] || L.part}` : ''}` }), chips);
+  const top = h('div.pspot-top', null, coverEl(s, 128, 'md'), ring, text);
+  card.append(top);
+  const secs = (L.sections || []).map(([label, hit, notes]) => ({ label, hit, notes, acc: notes ? hit / notes : 0 })).filter((x) => x.notes);
+  if (secs.length) {
+    const bars = h('div.pspot-bars');
+    for (const x of secs) bars.append(h(`div.pspot-bar.${band(x.acc)}`, { title: `${x.label}: ${pctOf(x.acc)} (${x.hit}/${x.notes})` }, h('i', { style: { height: `${barH(x.acc)}%` } }), h('span', { text: x.label })));
+    card.append(h('div.pspot-label', { text: 'Section by section' }), bars);
+    const solid = secs.filter((x) => x.notes >= 4);
+    const best = solid.length ? solid.reduce((a, b) => (b.acc > a.acc ? b : a)) : null;
+    const worst = solid.length > 1 ? solid.reduce((a, b) => (b.acc < a.acc ? b : a)) : null;
+    const notes = h('div.pspot-notes');
+    if (best) notes.append(h('div.good', null, h('span', { html: icon('star') }), h('span', null, 'Nailed it: ', h('b', { text: `${best.label} · ${pctOf(best.acc)}` }))));
+    if (worst && worst !== best && worst.acc < 0.95) notes.append(h('div.work', null, h('span', { html: icon('repeat') }), h('span', null, 'Next to work on: ', h('b', { text: `${worst.label} · ${pctOf(worst.acc)}` }), h('small', { text: ' — repeat it slower on the highway (hover the section strip, ⟲), then speed it up.' }))));
+    card.append(notes);
+  }
+  const kinds = Object.entries(L.kinds || {}).filter(([, [, n]]) => n >= 3);
+  if (kinds.length > 1) {
+    const k = h('div.pspot-kinds');
+    for (const [kind, [hit, n]] of kinds) k.append(h(`span.${band(hit / n)}`, { title: `${hit}/${n}` }, `${KIND_LABEL[kind] || kind} `, h('b', { text: pctOf(hit / n) })));
+    card.append(k);
+  }
+  const play = h('button.btn.glow-primary', { type: 'button', html: `${icon('play')}<span>Play it again</span>` });
+  play.onclick = () => actions.playAlong(s.id);
+  card.append(h('div.pspot-actions', null, play));
+  return card;
+}
+
+/** Encouragement built from what you actually did. */
+function highlights(d) {
+  const items = [];
+  for (const im of d.improved || []) {
+    const s = state.songs.get(im.songId);
+    if (s) items.push(['up', `<b>${esc(s.title)}</b> went from ${pctOf(im.from)} to ${pctOf(im.to)} <span class="up">+${Math.round(im.gain * 100)}</span>`]);
+  }
+  if (d.streak >= 2) items.push(['fire', `<b>${d.streak} days in a row.</b> ${d.streak >= d.bestStreak ? 'Your longest streak yet.' : `Your best is ${d.bestStreak}: keep going.`}`]);
+  else if (d.streak === 1) items.push(['fire', 'You played today. Come back tomorrow to start a streak.']);
+  if (d.bestRun >= 10) items.push(['star', `Longest run of notes without a miss: <b>${d.bestRun}</b>.`]);
+  const kinds = (d.kinds || []).filter((k) => k.notes >= 10);
+  if (kinds.length) {
+    const top = kinds.reduce((a, b) => (b.acc > a.acc ? b : a));
+    const low = kinds.reduce((a, b) => (b.acc < a.acc ? b : a));
+    items.push(['good', `Your strongest: <b>${esc(KIND_LABEL[top.kind] || top.kind)}</b> at ${pctOf(top.acc)}.`]);
+    if (low !== top && low.acc < 0.85) items.push(['work', `Room to grow: <b>${esc(KIND_LABEL[low.kind] || low.kind)}</b> at ${pctOf(low.acc)}. Pick a song that's full of them and slow it down.`]);
+  }
+  if (d.newSongs) items.push(['new', `You tried <b>${d.newSongs} new song${d.newSongs === 1 ? '' : 's'}</b>.`]);
+  if (!items.length) items.push(['new', 'Play a few songs and Stagehand will point out what’s getting better and what to try next.']);
+  const card = h('section.card.phigh', { 'aria-label': 'Highlights' }, h('div.card-head', null, h('h2', { text: 'Highlights' })));
+  const ICON = { up: 'chart', fire: 'sparkle', star: 'star', good: 'check', work: 'repeat', new: 'music' };
+  for (const [kind, html] of items.slice(0, 7)) card.append(h(`div.ph-item.${kind}`, null, h('span.ph-ic', { html: icon(ICON[kind]) }), h('span', { html })));
+  // accuracy per kind of note, as bars
+  if (kinds.length) {
+    const kb = h('div.ph-kinds');
+    for (const k of kinds) kb.append(h(`div.ph-kind.${band(k.acc)}`, null, h('span', { text: KIND_LABEL[k.kind] || k.kind }), h('span.bar', null, h('i', { style: { width: `${Math.round(k.acc * 100)}%` } })), h('b', { text: pctOf(k.acc) })));
+    card.append(h('div.pspot-label', { text: 'By kind of note' }), kb);
+  }
+  return card;
+}
+
+// live: while Progress is open, what you're playing is logged and shown every few seconds
+setInterval(() => {
+  if (state.page !== 'progress') return;
+  if (window.__shPractice && engine.playing) window.__shPractice.checkpoint();
+  else load();
+}, 8000);
 
 /** Takes play through the same output as the song. */
 async function playTake(t) {

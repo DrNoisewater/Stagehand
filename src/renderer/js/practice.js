@@ -9,6 +9,7 @@ import { rig } from './rig.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './detect.js';
 import * as stage from './stage.js';
 import { toast } from './ui.js';
+import { breakdown, compact } from './scorecard.js';
 import { tuningPlan, tuningName, myTuning, setMyTuning, dropAlways, setDropAlways } from './tuning.js';
 
 /**
@@ -213,8 +214,8 @@ export const practice = new (class extends EventTarget {
   /** Where the score comes from: the highway's own judge while it's open, else ours. */
   _source() {
     const hw = typeof window !== 'undefined' ? window.__shHighway : null;
-    if (hw && hw.open() && hw.judge() && hw.songId() === (this.song && this.song.id)) return { judge: hw.judge(), part: hw.part() };
-    return { judge: this.judge, part: this.tab ? (this.tab.type === 'combo' ? 'lead' : this.tab.type) : null };
+    if (hw && hw.open() && hw.judge() && hw.songId() === (this.song && this.song.id)) return { judge: hw.judge(), part: hw.part(), tab: hw.tab(), targets: hw.targets() };
+    return { judge: this.judge, part: this.tab ? (this.tab.type === 'combo' ? 'lead' : this.tab.type) : null, tab: this.tab, targets: this.targets };
   }
 
   startSession() {
@@ -223,7 +224,7 @@ export const practice = new (class extends EventTarget {
       this.flush();
       const src = this._source();
       const j = src.judge;
-      this.session = { songId: this.song.id, part: src.part, secs: 0, at: Date.now(), judge: j, hits0: j ? j.hits : 0, judged0: j ? j.judged : 0, tuning: this.tab ? this.tab.tuning : null, kind: this.kind };
+      this.session = { songId: this.song.id, part: src.part, secs: 0, at: Date.now(), judge: j, hits0: j ? j.hits : 0, judged0: j ? j.judged : 0, tuning: this.tab ? this.tab.tuning : null, kind: this.kind, tab: src.tab, targets: src.targets, pos0: stage.engine.position - 0.5 };
     }
   }
 
@@ -250,7 +251,9 @@ export const practice = new (class extends EventTarget {
       const accuracy = notes > 0 ? hit / notes : null;
       // played it well with the Drop off: that's how your instrument is tuned now
       if (accuracy !== null && accuracy >= 0.6 && notes >= 30 && !rig.dropAmount() && s.tuning) setMyTuning(s.kind, s.tuning);
-      api.stats.log({ songId: s.songId, part: s.part, seconds: s.secs, accuracy, notes, hit, speed: stage.engine.speed, at: s.at }).then(() => emit('stats')).catch(() => {});
+      // the breakdown (sections, kinds of notes, longest streak) of what was played in this session
+      const detail = j && s.targets ? compact(breakdown(s.tab, s.targets, j, { from: s.pos0 })) : {};
+      api.stats.log({ songId: s.songId, part: s.part, seconds: s.secs, accuracy, notes, hit, speed: stage.engine.speed, at: s.at, ...detail }).then(() => emit('stats')).catch(() => {});
     }
   }
 

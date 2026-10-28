@@ -43,6 +43,13 @@ class Stats {
       speed: Number(s.speed) || 1,
       at: Number(s.at) || Date.now(),
     };
+    // 3.9: the breakdown of the run (sections, kinds of notes, longest streak), for Progress
+    if (Array.isArray(s.sections)) e.sections = s.sections.slice(0, 60).filter((x) => Array.isArray(x) && x.length === 3).map(([l, h, n]) => [String(l).slice(0, 40), Number(h) || 0, Number(n) || 0]);
+    if (s.kinds && typeof s.kinds === 'object') {
+      e.kinds = {};
+      for (const [k, v] of Object.entries(s.kinds)) if (/^[a-z]{3,10}$/.test(k) && Array.isArray(v)) e.kinds[k] = [Number(v[0]) || 0, Number(v[1]) || 0];
+    }
+    if (Number.isFinite(Number(s.bestStreak))) e.bestStreak = Number(s.bestStreak);
     this.data.sessions.push(e);
     if (this.data.sessions.length > 20000) this.data.sessions.splice(0, this.data.sessions.length - 20000);
     this.saveSoon();
@@ -139,8 +146,77 @@ class Stats {
       accuracy: accNow,
       accuracyChange: accNow !== null && accPrev !== null ? accNow - accPrev : null,
       perDay,
-      working,
+      working: working.map((w) => ({ ...w, ...this._songDetail(w.songId, w.part) })),
+      last: this._last(),
+      kinds: this._kinds(inRange),
+      bestRun: inRange.reduce((m, s) => Math.max(m, s.bestStreak || 0), 0),
+      improved: this._improved(from, all),
     };
+  }
+
+  /** Per-section average over the song's last 5 runs that have a breakdown: where it's solid, where it isn't. */
+  _songDetail(songId, part) {
+    const runs = this.data.sessions.filter((s) => s.songId === songId && (s.part || null) === (part || null) && s.sections && s.sections.length).slice(-5);
+    if (!runs.length) return {};
+    const agg = new Map();
+    for (const r of runs)
+      for (const [l, hh, n] of r.sections) {
+        const a = agg.get(l) || { label: l, hit: 0, notes: 0, order: agg.size };
+        a.hit += hh;
+        a.notes += n;
+        agg.set(l, a);
+      }
+    const sections = [...agg.values()].sort((a, b) => a.order - b.order).map((a) => ({ label: a.label, acc: a.notes ? a.hit / a.notes : null, notes: a.notes }));
+    return { sections };
+  }
+
+  /** The most recent run with a score, in detail. */
+  _last() {
+    for (let i = this.data.sessions.length - 1; i >= 0; i--) {
+      const s = this.data.sessions[i];
+      if (!s.songId || s.accuracy === null || (s.notes || 0) < 10) continue; // a few stray notes aren't a run
+      const prev = this.data.sessions.slice(0, i).filter((x) => x.songId === s.songId && (x.part || null) === (s.part || null) && x.accuracy !== null);
+      const prevBest = prev.length ? Math.max(...prev.map((x) => x.accuracy)) : null;
+      const prevLast = prev.length ? prev[prev.length - 1].accuracy : null;
+      return { ...s, prevBest, prevLast, runs: prev.length + 1 };
+    }
+    return null;
+  }
+
+  /** Accuracy per kind of note over a set of runs. */
+  _kinds(list) {
+    const out = {};
+    for (const s of list)
+      for (const [k, [hh, n]] of Object.entries(s.kinds || {})) {
+        out[k] = out[k] || { hit: 0, notes: 0 };
+        out[k].hit += hh;
+        out[k].notes += n;
+      }
+    return Object.entries(out)
+      .filter(([, v]) => v.notes >= 5)
+      .map(([kind, v]) => ({ kind, acc: v.hit / v.notes, notes: v.notes }))
+      .sort((a, b) => b.notes - a.notes);
+  }
+
+  /** Songs that got better in the period: first run in it vs your best in it. */
+  _improved(from, all) {
+    const by = new Map();
+    for (const s of all) {
+      if (!s.songId || s.accuracy === null || s.notes < 20) continue;
+      const k = `${s.songId}|${s.part || ''}`;
+      const o = by.get(k) || { songId: s.songId, part: s.part, before: null, first: null, best: null };
+      if (s.at < from) o.before = s.accuracy;
+      else {
+        if (o.first === null) o.first = o.before !== null ? o.before : s.accuracy;
+        o.best = Math.max(o.best ?? 0, s.accuracy);
+      }
+      by.set(k, o);
+    }
+    return [...by.values()]
+      .filter((o) => o.first !== null && o.best !== null && o.best - o.first >= 0.03)
+      .map((o) => ({ songId: o.songId, part: o.part, from: o.first, to: o.best, gain: o.best - o.first }))
+      .sort((a, b) => b.gain - a.gain)
+      .slice(0, 5);
   }
 
   saveSoon() {

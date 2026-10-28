@@ -17,8 +17,39 @@ import './progress.js';
 import './stemformat.js';
 import { rig } from './rig.js';
 import { loadTones, useSlot } from './tonelib.js';
-import { setPage, setView } from './store.js';
+import { setPage, setView, goBack } from './store.js';
 import './jam.js';
+
+// 3.9: the mouse's back button (and Alt+←, the Back key) goes to the previous screen:
+// out of Jam or the highway first, a dialog or menu closes, else the last page or list
+let lastBack = 0;
+function back() {
+  const now = performance.now();
+  if (now - lastBack < 300) return; // Windows can send both the button and the app command
+  lastBack = now;
+  if (document.querySelector('.menu[role="menu"]')) return document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  if (window.__jam && window.__jam.state.open) return window.__jam.close();
+  if (window.__shHighway && window.__shHighway.open()) return window.__shHighway.leave();
+  const m = topModal();
+  if (m && m.dismissable) return m.close();
+  goBack();
+}
+window.addEventListener('mousedown', (e) => {
+  if (e.button === 3) e.preventDefault();
+});
+window.addEventListener('mouseup', (e) => {
+  if (e.button === 3) {
+    e.preventDefault();
+    back();
+  }
+});
+api.on('nav:back', () => back());
+document.addEventListener('keydown', (e) => {
+  if ((e.altKey && e.key === 'ArrowLeft') || e.key === 'BrowserBack') {
+    e.preventDefault();
+    back();
+  }
+}, true);
 
 // the version, small, after the name in the title bar
 api.app

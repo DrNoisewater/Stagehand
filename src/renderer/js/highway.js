@@ -17,6 +17,8 @@ import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './detect.js';
 import { createRenderer3D, col, mix } from './highway3d.js';
 import { createFluid, guitarInk, ambient, hueRGB } from './fluidbg.js';
+import { tuningName, tuningPlan, myTuning, setMyTuning, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
+import { breakdown, cheer } from './scorecard.js';
 import { state } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
 
@@ -125,10 +127,9 @@ export function createHighway(stage) {
   const mixBtn = h('button.hw-chip', { type: 'button', title: 'Song mix: stem volumes, on and off', html: `${icon('sliders')}<span>Mix</span>` });
   // The song mix docks on the right edge and collapses to a small tab.
   const mixPanel = h('div.hw-mix');
-  const mixTab = h('button.hw-dock-tab', { type: 'button', title: 'Show or hide the song mix', 'aria-label': 'Song mix' });
+  const mixTab = h('button.hw-dock-tab', { type: 'button', title: 'Master Settings: mix, Drop and tuning, highway options', 'aria-label': 'Master Settings' });
   const dock = h('div.hw-dock', null, mixTab, mixPanel);
   let mixOpen = !!prefs.mixOpen;
-  const optBtn = h('button.hw-icon', { type: 'button', title: 'Highway options', 'aria-label': 'Highway options', html: icon('sliders') });
   // the Mix button doubled the tab on the right edge: the tab opens the mix now
   const score = h('div.hw-score');
   // the score sits up top (as in the game), leaving the fret numbers under the neck clear
@@ -141,11 +142,18 @@ export function createHighway(stage) {
     return b;
   };
   views.append(viewBtn('tab', 'Tab', 'tuning', 'Tab view (T)'), viewBtn('hw', 'Highway', 'play', 'Note highway'), viewBtn('wave', 'Waveform', 'split', 'Waveforms and stem lanes'));
-  top.append(back, titleBox, h('span.grow'), score, h('span.grow'), views, parts, playAlong, rigBox, optBtn);
   const sections = h('div.hw-sections');
-  const bottom = h('div.hw-bottom');
+  const bottom = h('div.hw-bottom', { hidden: true }); // 3.9: everything lives in the top bar now
   const playBtn = h('button.hw-play', { type: 'button', title: 'Play / pause (Space)' });
   const time = h('div.hw-time');
+  // practice speed: one chip with a menu (keeps the top bar short)
+  const speedChip = h('button.hw-chip.hw-speed-chip', { type: 'button', title: 'Practice speed' });
+  speedChip.onclick = () => {
+    const r = speedChip.getBoundingClientRect();
+    showMenu(r.left, r.bottom + 6, SPEEDS.map((sp) => ({ label: sp === 1 ? '100% (full speed)' : `${Math.round(sp * 100)}%`, icon: sp === stage.engine.speed ? 'check' : null, onClick: () => (stage.engine.setSpeed(sp), renderControls()) })));
+  };
+  const transport = h('div.hw-transport', null, playBtn, time, speedChip);
+  top.append(back, titleBox, transport, h('span.grow'), score, h('span.grow'), views, parts, playAlong, rigBox);
   const speed = h('div.hw-speed', { role: 'group', 'aria-label': 'Practice speed' });
   for (const s of SPEEDS) {
     const b = h('button', { type: 'button', text: s === 1 ? '100%' : `${Math.round(s * 100)}%` });
@@ -156,7 +164,7 @@ export function createHighway(stage) {
     };
     speed.append(b);
   }
-  bottom.append(playBtn, time, h('span.grow'), h('span.hw-label', { text: 'Speed' }), speed);
+  bottom.append(speed); // (hidden; the speed chip in the top bar is what you use)
   const msg = h('div.hw-msg', { hidden: true });
   const fpsBox = h('div.hw-fps', { hidden: true });
   // lyrics, two lines under the title, the words lighting up as they're sung (as in Rocksmith)
@@ -165,7 +173,7 @@ export function createHighway(stage) {
   document.body.append(root);
   root.__hw = H; // for tests
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
-  window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null) };
+  window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave() };
   const practiceCheckpoint = () => window.__shPractice && window.__shPractice.checkpoint();
   const ctx = canvas.getContext('2d');
   const R3 = createRenderer3D(glCanvas);
@@ -210,12 +218,9 @@ export function createHighway(stage) {
   // ------------------------------------------------------- options --
   // A small panel instead of a long menu: what you change most, as buttons
   // you can see at a glance. Timing is set by a sync check, not by guessing.
-  const opts = h('div.hw-opts', { hidden: true, role: 'dialog', 'aria-label': 'Highway options' });
-  root.append(opts);
-  function closeOpts() {
-    opts.hidden = true;
-    optBtn.setAttribute('aria-expanded', 'false');
-  }
+  // 3.9: the options live in the Master Settings pullout, with the mix and the Drop
+  const opts = h('div.hw-master-opts');
+  function closeOpts() {}
   function seg(label, items, cur, onPick) {
     const row = h('div.hw-opt-row', null, h('span.hw-opt-label', { text: label }));
     const g = h('div.hw-seg');
@@ -255,14 +260,8 @@ export function createHighway(stage) {
   }
   function renderOpts() {
     opts.innerHTML = '';
-    const off = prefs.offsetMs || 0;
-    const sync = h('button.hw-sync', { type: 'button' }, h('span.hw-sync-icon', { html: icon('clock') }), h('span', null, h('b', { text: 'Sync check' }), h('small', { text: off ? `Notes ${Math.abs(off)} ms ${off > 0 ? 'later' : 'earlier'}` : 'Tap along to set the timing' })));
-    sync.onclick = () => {
-      closeOpts();
-      openSync();
-    };
     opts.append(
-      sync,
+      h('div.hw-master-sec', { text: 'Highway' }),
       seg('Look ahead', [[2, '2 s'], [2.5, '2.5 s'], [3, '3 s'], [4, '4 s']], prefs.ahead, (v) => setPref('ahead', v)),
       seg('Strings', [[true, 'Low E on top'], [false, 'High e on top']], !!prefs.lowTop, (v) => setPref('lowTop', v)),
       venuePicker(),
@@ -271,21 +270,139 @@ export function createHighway(stage) {
         toggle('Lyrics', prefs.lyrics !== false, () => setPref('lyrics', prefs.lyrics === false)),
         toggle('Chord names', prefs.chordNames !== false, () => setPref('chordNames', prefs.chordNames === false)),
         toggle('Fire on a streak', prefs.fx, () => setPref('fx', !prefs.fx)),
+        toggle('Score card at the end', prefs.scoreCard !== false, () => setPref('scoreCard', prefs.scoreCard === false)),
         toggle('Frame rate', !!prefs.showFps, () => setPref('showFps', !prefs.showFps))
       )
     );
   }
-  optBtn.setAttribute('aria-expanded', 'false');
-  optBtn.onclick = (e) => {
-    e.stopPropagation();
-    if (!opts.hidden) return closeOpts();
-    renderOpts();
-    opts.hidden = false;
-    optBtn.setAttribute('aria-expanded', 'true');
-  };
-  document.addEventListener('pointerdown', (e) => {
-    if (!opts.hidden && !opts.contains(e.target) && e.target !== optBtn && !optBtn.contains(e.target)) closeOpts();
+  function syncButton() {
+    const off = prefs.offsetMs || 0;
+    const sync = h('button.hw-sync', { type: 'button' }, h('span.hw-sync-icon', { html: icon('clock') }), h('span', null, h('b', { text: 'Sync check' }), h('small', { text: off ? `Notes ${Math.abs(off)} ms ${off > 0 ? 'later' : 'earlier'}` : 'Tap along to set the timing' })));
+    sync.onclick = () => openSync();
+    return sync;
+  }
+  // the Drop and your tuning, right here (3.9: there was nowhere to drop on the highway)
+  const dropBox = h('div.hw-drop');
+  function renderDropBox() {
+    dropBox.innerHTML = '';
+    const d = rig.drop;
+    const kind = instrument() === 'bass' ? 'bass' : 'guitar';
+    const amt = rig.dropAmount();
+    const songT = H.tab && H.tab.tuning ? tuningName(H.tab.tuning, kind) : '';
+    const mine = myTuning(kind);
+    const plan = H.tab ? tuningPlan(H.tab.tuning, kind, mine) : { same: true };
+    const head = h('div.hw-drop-head', null, h('div', null, h('b', { text: 'Drop' }), h('small', { text: d.on ? (amt ? (amt === 12 ? 'An octave down' : `Down ${amt} semitone${amt === 1 ? '' : 's'}`) : 'On, nothing to drop') : 'Off' })));
+    const sw = h('button.hw-mix-on', { type: 'button', role: 'switch', 'aria-checked': String(d.on), title: 'The Drop on or off (D)' });
+    sw.style.setProperty('--gel', '#8c7bff');
+    sw.onclick = () => rig.setDrop({ on: !d.on });
+    head.append(sw);
+    dropBox.append(head);
+    let need = '';
+    if (H.tab) need = plan.same ? `${songT}: your ${kind} is ready` : plan.drop ? `${songT} song, your ${kind} is in ${tuningName(mine, kind)}: Drop −${plan.drop}` : `${songT}: retune ${plan.retune.map((r) => `${r.from}→${r.to}`).join(', ')}`;
+    if (need) dropBox.append(h(`div.hw-drop-need${plan.same ? '.ok' : ''}`, { text: need }));
+    if (plan.drop && !(d.on && d.match)) {
+      const b = h('button.hw-chip.hw-drop-match', { type: 'button', html: `${icon('check')}<span>Match the song (−${plan.drop})</span>` });
+      b.onclick = () => rig.setDrop({ on: true, match: true });
+      dropBox.append(b);
+    }
+    const steps = h('div.hw-seg.hw-drop-steps');
+    const matchT = h('button', { type: 'button', text: 'Match', title: 'Follow each song’s tuning', 'aria-pressed': String(d.on && d.match) });
+    matchT.onclick = () => rig.setDrop({ on: true, match: true });
+    steps.append(matchT);
+    for (const st of [1, 2, 3, 4, 5, 6, 7, 12]) {
+      const b = h('button', { type: 'button', text: st === 12 ? 'Oct' : `−${st}`, 'aria-pressed': String(d.on && !d.match && d.st === st) });
+      b.onclick = () => rig.setDrop({ st, match: false, on: true });
+      steps.append(b);
+    }
+    dropBox.append(steps);
+    const sel = h('select.input.hw-drop-mine', { 'aria-label': `Your ${kind} is tuned to` });
+    const cur = mine.join(',');
+    const list = kind === 'bass' ? MY_TUNINGS_BASS : MY_TUNINGS;
+    for (const o of list) sel.append(h('option', { value: o.join(','), text: tuningName(o, kind), selected: o.join(',') === cur ? true : null }));
+    if (!list.some((o) => o.join(',') === cur)) sel.append(h('option', { value: cur, text: tuningName(mine, kind), selected: true }));
+    sel.onchange = () => {
+      setMyTuning(kind, sel.value.split(',').map(Number));
+      if (H.tab) rig.setSongTuning(H.tab.tuning, kind);
+      renderDropBox();
+    };
+    dropBox.append(h('label.hw-drop-mine-row', null, h('span', { text: `Your ${kind} is in` }), sel));
+  }
+  rig.addEventListener('drop', () => H.open && mixOpen && renderDropBox());
+
+  // --------------------------------------------------------- score card --
+  // 3.9: when a song ends, how it went: your accuracy (and whether it's a new
+  // best), each section as a bar, what went best and what to work on (with a
+  // one-click repeat), and how you did on chords, bends, slides… It sits to
+  // the side and never blocks: close it, play again, or just go elsewhere.
+  const card = h('div.hw-card', { hidden: true, role: 'dialog', 'aria-label': 'How you did' });
+  root.append(card);
+  const bandCls = (a) => (a >= 0.9 ? 'g' : a >= 0.7 ? 'y' : a >= 0.5 ? 'o' : 'r');
+  function hideCard() {
+    card.hidden = true;
+  }
+  function showCard() {
+    if (prefs.scoreCard === false || !H.judge || !H.tab || !(prefs.detect && rig.on)) return;
+    const b = breakdown(H.tab, H.targets, H.judge);
+    if (!b.notes) return;
+    const part = H.tab.type === 'combo' ? 'lead' : H.tab.type;
+    const prev = H.prevBest && H.prevBest[part] !== undefined ? H.prevBest[part] : null;
+    const pct = Math.round(b.acc * 100);
+    const isBest = prev === null ? b.notes >= 20 : b.acc > prev + 0.005;
+    card.innerHTML = '';
+    const x = h('button.hw-card-x', { type: 'button', title: 'Close', 'aria-label': 'Close', html: icon('x') });
+    x.onclick = hideCard;
+    const ring = h(`div.hw-card-ring.${bandCls(b.acc)}`, { style: { '--deg': `${Math.round(b.acc * 360)}deg` } }, h('b', { text: `${pct}%` }), h('span', { text: 'accuracy' }));
+    const head = h('div.hw-card-head', null, ring, h('div.hw-card-titles', null, h('div.hw-card-eyebrow', { text: isBest ? (prev === null ? 'First score' : 'New best!') : 'Song complete' }), h('h3', { text: H.song ? H.song.title : 'Song' }), h('p', { text: cheer(b, prev) })), x);
+    card.append(head);
+    const facts = h('div.hw-card-facts');
+    const fact = (v, l) => facts.append(h('div', null, h('b', { text: v }), h('span', { text: l })));
+    fact(`${b.hit}/${b.notes}`, 'notes hit');
+    fact(String(b.bestStreak), 'longest streak');
+    fact(prev === null ? '–' : `${Math.round(prev * 100)}%`, 'best before');
+    card.append(facts);
+    if (b.sections.length) {
+      const bars = h('div.hw-card-bars');
+      for (const s of b.sections) {
+        const bar = h(`button.hw-card-bar.${bandCls(s.acc)}`, { type: 'button', title: `${s.label}: ${Math.round(s.acc * 100)}% (${s.hit}/${s.notes}). Click to repeat it.` }, h('i', { style: { height: `${Math.max(6, Math.min(100, Math.round(((s.acc - 0.4) / 0.6) * 100)))}%` } }));
+        bar.style.flexGrow = String(Math.max(0.5, s.end - s.start));
+        bar.onclick = () => repeat(s);
+        bars.append(bar);
+      }
+      card.append(h('div.hw-card-sub', { text: 'Section by section' }), bars);
+    }
+    const notes = h('div.hw-card-notes');
+    if (b.strongest) notes.append(h('div.good', null, h('span', { html: icon('star') }), h('span', null, 'Best part: ', h('b', { text: `${b.strongest.label} · ${Math.round(b.strongest.acc * 100)}%` }))));
+    if (b.weakest) {
+      const rep = h('button.hw-chip', { type: 'button', html: `${icon('repeat')}<span>Repeat it</span>` });
+      rep.onclick = () => repeat(b.weakest);
+      notes.append(h('div.work', null, h('span', { html: icon('repeat') }), h('span', null, 'Work on: ', h('b', { text: `${b.weakest.label} · ${Math.round(b.weakest.acc * 100)}%` })), rep));
+    }
+    if (notes.childNodes.length) card.append(notes);
+    if (b.kinds.length > 1) {
+      const kinds = h('div.hw-card-kinds');
+      for (const k of b.kinds) kinds.append(h(`span.${bandCls(k.acc)}`, { title: `${k.hit}/${k.notes}` }, `${k.label} `, h('b', { text: `${Math.round(k.acc * 100)}%` })));
+      card.append(kinds);
+    }
+    const again = h('button.hw-chip.hw-card-again', { type: 'button', html: `${icon('play')}<span>Play again</span>` });
+    again.onclick = () => {
+      hideCard();
+      jumpTo(0);
+      if (!stage.engine.playing) stage.toggle();
+    };
+    card.append(h('div.hw-card-actions', null, again));
+    card.hidden = false;
+  }
+  function repeat(s) {
+    hideCard();
+    stage.setLoop({ start: s.start, end: s.end, label: s.label });
+    jumpTo(Math.max(0, s.start - 1));
+    if (!stage.engine.playing) stage.toggle();
+  }
+  stage.engine.addEventListener('state', () => {
+    if (stage.engine.playing) hideCard();
   });
+  stage.engine.addEventListener('ended', () => H.open && showCard());
+  H.showCard = showCard; // tests
 
   // ----------------------------------------------------- sync check --
   // Like Rocksmith's calibration: clicks play through the same path as the
@@ -545,7 +662,7 @@ export function createHighway(stage) {
     dock.classList.toggle('collapsed', !on);
     mixBtn.setAttribute('aria-pressed', String(on));
     mixTab.setAttribute('aria-expanded', String(on));
-    mixTab.innerHTML = `${icon(on ? 'chevronRight' : 'chevronLeft')}<span>Mix</span>`;
+    mixTab.innerHTML = `${icon(on ? 'chevronRight' : 'chevronLeft')}<span>Master Settings</span>`;
     renderMix();
   }
   mixBtn.onclick = () => setMixOpen(!mixOpen);
@@ -558,6 +675,13 @@ export function createHighway(stage) {
     if (document.activeElement && document.activeElement.classList.contains('stem-vol') && mixPanel.contains(document.activeElement)) return;
     mixPanel.innerHTML = '';
     mixMeters.clear();
+    mixPanel.append(h('div.hw-master-title', null, h('b', { text: 'Master Settings' })), syncButton());
+    renderMixBody();
+    mixPanel.append(h('div.hw-master-sec', { text: 'Tuning' }), dropBox, opts);
+    renderDropBox();
+    renderOpts();
+  }
+  function renderMixBody() {
     const stems = stage.stems();
     // Two big levels first: your guitar (live, through your tone) and the whole song.
     const level = (cls, label, sub, value, color, onInput) => {
@@ -570,7 +694,7 @@ export function createHighway(stage) {
       return row;
     };
     mixPanel.append(
-      h('div.hw-mix-head', null, h('b', { text: 'Mix' })),
+      h('div.hw-master-sec', { text: 'Mix' }),
       level('you', 'Your guitar', 'what you play, live', rig.knobs.volume ?? 0.7, '#ff6b3d', (v) => stage.setYou(v)),
       level('master', 'Whole song', 'the band, all together', stage.songLevel(), '#ffb547', (v) => stage.setSongLevel(v)),
       h('div.hw-mix-head.sub', null, h('b', { text: 'Song stems' }), h('span', { text: stems.length ? 'Each instrument in the recording' : '' }))
@@ -648,6 +772,8 @@ export function createHighway(stage) {
     resize();
     H.clock = stage.engine.position;
     H.last = performance.now();
+    H.prevBest = H.song && state.best ? { ...(state.best[H.song.id] || {}) } : null;
+    hideCard();
     resetJudge();
     renderControls();
     loop();
@@ -935,7 +1061,7 @@ export function createHighway(stage) {
       fpsBox.hidden = !prefs.showFps;
       if (now - (H.quietAt || 0) > 250) {
         H.quietAt = now;
-        root.classList.toggle('hw-quiet', eng.playing && now - lastInteraction > 2500 && !mixOpen && opts.hidden && !document.querySelector('.menu[role="menu"]') && !root.querySelector(':focus-visible'));
+        root.classList.toggle('hw-quiet', eng.playing && now - lastInteraction > 2500 && !mixOpen && !document.querySelector('.menu[role="menu"]') && !root.querySelector(':focus-visible'));
       }
       updateHud(H.clock);
       updateMixLevels();
@@ -2073,7 +2199,7 @@ export function createHighway(stage) {
     stage.setLoop(null);
     renderLoop();
   };
-  bottom.insertBefore(loopChip, bottom.querySelector('.grow'));
+  transport.append(loopChip);
   let loopKey = '';
   function renderLoop(force) {
     const loop = stage.getLoop ? stage.getLoop() : null;
@@ -2119,6 +2245,9 @@ export function createHighway(stage) {
     rigBox.classList.toggle('real', !!rig.capture);
     renderMix();
     for (const b of speed.querySelectorAll('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.s) === stage.engine.speed));
+    const sp = stage.engine.speed || 1;
+    speedChip.innerHTML = `${icon('clock')}<span>${Math.round(sp * 100)}%</span>`;
+    speedChip.classList.toggle('slow', sp < 0.999);
     // section strip
     sections.innerHTML = '';
     if (t && t.sections.length) {
@@ -2169,12 +2298,6 @@ export function createHighway(stage) {
       if (document.querySelector('.menu[role="menu"]')) return;
       if (!syncBox.hidden) {
         if (e.key === 'Escape') closeSync();
-        return;
-      }
-      if (e.key === 'Escape' && !opts.hidden) {
-        closeOpts();
-        e.preventDefault();
-        e.stopPropagation();
         return;
       }
       if (e.key === 'Escape') {

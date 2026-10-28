@@ -8,7 +8,7 @@ async function call(channel, ...args) {
   return { __sh: true, ...(r || { ok: false, error: 'Something went wrong' }) };
 }
 
-const EVENTS = new Set([
+const EVENTS = new Set(['nav:back', 
   'library:reset',
   'library:songs',
   'scan:progress',

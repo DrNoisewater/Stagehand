@@ -4,7 +4,7 @@
  */
 import { state, on, setPage, emit } from './store.js';
 import { openJam } from './jam.js';
-import { tuningName, myTuning, setMyTuning } from './tuning.js';
+import { tuningName, myTuning, setMyTuning, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { h, icon, esc, toast, showMenu } from './ui.js';
 import { rig } from './rig.js';
 import { api } from './api.js';
@@ -344,8 +344,6 @@ drums.addEventListener('change', renderDrums);
 
 // ----------------------------------------------------------------- drop --
 const DROP_STEPS = [1, 2, 3, 4, 5, 6, 7, 12];
-const MY_TUNINGS = [[0, 0, 0, 0, 0, 0], [-1, -1, -1, -1, -1, -1], [-2, -2, -2, -2, -2, -2], [-3, -3, -3, -3, -3, -3], [-4, -4, -4, -4, -4, -4], [-2, 0, 0, 0, 0, 0], [-3, -1, -1, -1, -1, -1], [-4, -2, -2, -2, -2, -2], [-5, -3, -3, -3, -3, -3]];
-const MY_TUNINGS_BASS = [[0, 0, 0, 0], [-1, -1, -1, -1], [-2, -2, -2, -2], [-3, -3, -3, -3], [-2, 0, 0, 0], [-4, -2, -2, -2]];
 const TUNE_NAMES = { 1: 'E♭ Standard', 2: 'D Standard', 3: 'C♯ Standard', 4: 'C Standard', 5: 'B Standard', 6: 'B♭ Standard', 7: 'A Standard', 12: 'an octave down' };
 export function renderDrop() {
   const d = rig.drop;

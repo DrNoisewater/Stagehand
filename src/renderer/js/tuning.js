@@ -79,3 +79,7 @@ export function tuningPlan(songOffs, kind = 'guitar', mine = myTuning(kind)) {
   });
   return { retune };
 }
+
+/** Common tunings to pick from (offsets per string, low to high). */
+export const MY_TUNINGS = [[0, 0, 0, 0, 0, 0], [-1, -1, -1, -1, -1, -1], [-2, -2, -2, -2, -2, -2], [-3, -3, -3, -3, -3, -3], [-4, -4, -4, -4, -4, -4], [-2, 0, 0, 0, 0, 0], [-3, -1, -1, -1, -1, -1], [-4, -2, -2, -2, -2, -2], [-5, -3, -3, -3, -3, -3]];
+export const MY_TUNINGS_BASS = [[0, 0, 0, 0], [-1, -1, -1, -1], [-2, -2, -2, -2], [-3, -3, -3, -3], [-2, 0, 0, 0], [-4, -2, -2, -2]];

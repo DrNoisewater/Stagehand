@@ -79,6 +79,14 @@ If any step fails, the original is untouched. Undo is offered right after saving
 
 If Rocksmith is running it may lock the files; close it and save again.
 
+## 3.9
+
+- **Back button:** your mouse's back button (or Alt+←) goes to the screen you were on before. On the highway or in Jam it leaves them, and it closes an open dialog or menu first.
+- **Highway controls all at the top:** play/pause, the time and the practice speed now sit next to the song's name in the top bar.
+- **Master Settings:** the pullout on the right edge of the highway has everything: Sync check, the mix (your guitar, the whole song, every stem), **the Drop and your tuning** (what the song needs, Match the song, −1…−7/Oct, which tuning your guitar is in), and the highway options (look ahead, strings, venue, switches). The separate options button is gone.
+- **Score card:** when a song ends, a card shows your accuracy (and whether it's a new best), each section as a bar (click one to repeat it), what went best and what to work on (with Repeat it), and how you did on single notes, chords, bends, slides and hammer-ons. It sits to the side and never blocks: close it, Play again, or just carry on. Switch it off in Master Settings.
+- **Progress:** your last song up top, big: score, change since last time, new best, longest streak, every section as a bar, what you nailed and what to work on, and how you did by kind of note. **Highlights** point out the songs that got better, your streak, your longest run and your strongest and weakest techniques. It updates live while it's open.
+
 ## 3.8.1
 
 - **Opening a song is never stuck behind another split:** the song you double-click goes first; a split of another song that's running stops and goes back in line right after it.

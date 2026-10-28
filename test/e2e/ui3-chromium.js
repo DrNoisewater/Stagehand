@@ -153,7 +153,7 @@ class FakePortMain extends EventEmitter {
   const takes = new Takes(path.join(tmp, 'Takes'));
   // a little practice history so Progress has something to show
   const ids = library.snapshot().songs.map((x) => x.id);
-  for (let d = 0; d < 9; d++) for (const [i, id] of ids.entries()) if ((d + i) % 3 !== 1) stats.log({ songId: id, part: 'lead', seconds: 300 + d * 40 + i * 60, accuracy: 0.5 + d * 0.04 + i * 0.03, notes: 200, hit: 150, at: Date.now() - d * 86400000 - i * 3600000 });
+  for (let d = 0; d < 9; d++) for (const [i, id] of ids.entries()) if ((d + i) % 3 !== 1) stats.log({ songId: id, part: 'lead', seconds: 300 + d * 40 + i * 60, accuracy: 0.5 + d * 0.04 + i * 0.03, notes: 200, hit: 150, at: Date.now() - d * 86400000 - i * 3600000, sections: [['Intro 1', 20, 22], ['Verse 1', 40, 50], ['Chorus 1', 45, 48], ['Verse 2', 30 + d, 50], ['Solo 1', 18 + d * 2, 40], ['Chorus 2', 44, 48], ['Outro 1', 12, 14]], kinds: { single: [120, 140], chord: [40, 46], bend: [10 + d, 22], slide: [9, 12], legato: [14, 20] }, bestStreak: 20 + d * 3 });
 
   // real amps: a Plexi pack as if got from TONE3000 (small test models stand in for the captures)
   const capDir = path.join(tmp, 'Captures');
@@ -728,6 +728,13 @@ class FakePortMain extends EventEmitter {
   await shot('27-artist-view');
   await page.locator('.nav-section:has-text("Songs")').click();
   await page.waitForTimeout(300);
+  // 3.9: back (mouse button / Alt+←) goes to the previous screen
+  await page.locator('.nav-section:has-text("Progress")').click();
+  await page.waitForTimeout(400);
+  await page.keyboard.press('Alt+ArrowLeft');
+  await page.waitForTimeout(400);
+  const bk = await page.evaluate(() => document.getElementById('app').className);
+  check(/page-songs/.test(bk), `back goes to the previous screen (${bk.match(/page-\w+/)})`);
   // 3.7: duplicate songs (Songs › ⋯ › Find duplicate songs)
   await page.locator('.icon-btn[title="More"]').first().click();
   await page.waitForTimeout(300);

@@ -300,9 +300,45 @@ export function setSelection(ids, { anchor, focus } = {}) {
   emit('selection');
 }
 
+// 3.9: where you've been, for the mouse's back button (and Alt+←)
+const trail = [];
+let goingBack = false;
+const here = () => ({ page: state.page, view: state.view });
+function remember() {
+  if (goingBack) return;
+  const cur = here();
+  const last = trail[trail.length - 1];
+  if (last && last.page === cur.page && JSON.stringify(last.view) === JSON.stringify(cur.view)) return;
+  trail.push(cur);
+  if (trail.length > 60) trail.shift();
+}
+/** Back to the previous screen. Returns false when there's nowhere to go. */
+export function goBack() {
+  const cur = here();
+  let to = trail.pop();
+  while (to && to.page === cur.page && JSON.stringify(to.view) === JSON.stringify(cur.view)) to = trail.pop();
+  if (!to) return false;
+  goingBack = true;
+  try {
+    if (JSON.stringify(to.view) !== JSON.stringify(state.view) && (to.page === 'songs' || to.page === 'discover')) setView(to.view);
+    else state.view = to.view;
+    setPage(to.page);
+  } finally {
+    goingBack = false;
+  }
+  return true;
+}
+
 export function setView(view) {
+  if (JSON.stringify(view) !== JSON.stringify(state.view) || state.page !== (view.kind === 'discover' ? 'discover' : 'songs')) remember();
   state.view = view;
-  setPage(view.kind === 'discover' ? 'discover' : 'songs', { quiet: true });
+  const was = goingBack;
+  goingBack = true; // (setPage below mustn't remember the half-changed state)
+  try {
+    setPage(view.kind === 'discover' ? 'discover' : 'songs', { quiet: true });
+  } finally {
+    goingBack = was;
+  }
   state.userSorted = false;
   persistUi();
   bump();
@@ -314,6 +350,7 @@ export function setPage(page, { quiet = false } = {}) {
   if (page !== 'now' && state.page !== 'now') state.lastPage = state.page;
   if (page === 'now' && state.page !== 'now') state.backPage = state.page;
   const changed = state.page !== page;
+  if (changed) remember();
   state.page = page;
   if (changed) emit('page');
   if (!quiet && changed) emit('view');
