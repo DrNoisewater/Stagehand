@@ -3,6 +3,8 @@
  * you're on, slots 1–9, the rig with its knobs, the tuner, drums and the looper.
  */
 import { state, on, setPage, emit } from './store.js';
+import { openJam } from './jam.js';
+import { tuningName, myTuning, setMyTuning } from './tuning.js';
 import { h, icon, esc, toast, showMenu } from './ui.js';
 import { rig } from './rig.js';
 import { api } from './api.js';
@@ -129,7 +131,10 @@ function renderHead() {
     emit('tones-open', { tone: t, id: t && t.id && byId(t.id) ? t.id : null });
     setPage('tones');
   };
-  headHost.append(text, calib, edit);
+  // 3.7: Jam, full screen: just the Fluid picture reacting to your playing (J)
+  const jam = h('button.btn.soft.jam-open', { type: 'button', title: 'Full screen, no song: the Fluid picture follows what you play (J)', html: `${icon('sparkle')}<span>Jam</span>` });
+  jam.onclick = () => openJam();
+  headHost.append(text, calib, jam, edit);
 }
 
 // ---------------------------------------------------------------- slots --
@@ -339,6 +344,8 @@ drums.addEventListener('change', renderDrums);
 
 // ----------------------------------------------------------------- drop --
 const DROP_STEPS = [1, 2, 3, 4, 5, 6, 7, 12];
+const MY_TUNINGS = [[0, 0, 0, 0, 0, 0], [-1, -1, -1, -1, -1, -1], [-2, -2, -2, -2, -2, -2], [-3, -3, -3, -3, -3, -3], [-4, -4, -4, -4, -4, -4], [-2, 0, 0, 0, 0, 0], [-3, -1, -1, -1, -1, -1], [-4, -2, -2, -2, -2, -2], [-5, -3, -3, -3, -3, -3]];
+const MY_TUNINGS_BASS = [[0, 0, 0, 0], [-1, -1, -1, -1], [-2, -2, -2, -2], [-3, -3, -3, -3], [-2, 0, 0, 0], [-4, -2, -2, -2]];
 const TUNE_NAMES = { 1: 'E♭ Standard', 2: 'D Standard', 3: 'C♯ Standard', 4: 'C Standard', 5: 'B Standard', 6: 'B♭ Standard', 7: 'A Standard', 12: 'an octave down' };
 export function renderDrop() {
   const d = rig.drop;
@@ -357,10 +364,24 @@ export function renderDrop() {
   }
   dropCard.append(chips);
   const songSt = rig.dropSong;
-  const match = h('label.check.drop-match', null, h('input', { type: 'checkbox', checked: d.match ? true : null }), h('span', { text: songSt ? `Match the song (${TUNE_NAMES[songSt] || `−${songSt}`}: −${songSt})` : 'Match the song’s tuning' }));
+  const kind = rig.songKind || 'guitar';
+  const songName = rig.songTuning && rig.songTuning.length ? tuningName(rig.songTuning, kind) : '';
+  const match = h('label.check.drop-match', null, h('input', { type: 'checkbox', checked: d.match ? true : null }), h('span', { text: songSt ? `Match the song (${songName}: −${songSt})` : 'Match the song’s tuning' }));
   match.querySelector('input').onchange = (e) => rig.setDrop({ match: e.target.checked, on: e.target.checked ? true : d.on });
   dropCard.append(match);
-  dropCard.append(h('p.drop-fine', { text: 'Stay in E standard and play songs tuned lower, like a DigiTech Drop. Scoring follows it.' }));
+  // 3.7: what your instrument is actually tuned to (Stagehand also learns it from your playing)
+  const mine = h('select.input.drop-mine', { 'aria-label': `Your ${kind} is tuned to` });
+  const cur = myTuning(kind).join(',');
+  const opts = kind === 'bass' ? MY_TUNINGS_BASS : MY_TUNINGS;
+  for (const o of opts) mine.append(h('option', { value: o.join(','), text: tuningName(o, kind), selected: o.join(',') === cur ? true : null }));
+  if (!opts.some((o) => o.join(',') === cur)) mine.append(h('option', { value: cur, text: tuningName(myTuning(kind), kind), selected: true }));
+  mine.onchange = () => {
+    setMyTuning(kind, mine.value.split(',').map(Number));
+    if (rig.songTuning) rig.setSongTuning(rig.songTuning, kind);
+    renderDrop();
+  };
+  dropCard.append(h('label.drop-mine-row', null, h('span', { text: `Your ${kind} is in` }), mine));
+  dropCard.append(h('p.drop-fine', { text: 'Play songs tuned lower than your instrument without retuning, like a DigiTech Drop. Scoring follows it. When a song needs it, Stagehand offers the Drop or tells you which strings to retune.' }));
 }
 rig.addEventListener('drop', () => state.page === 'play' && renderDrop());
 

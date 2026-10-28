@@ -822,3 +822,85 @@ body:has(> .highway:not([hidden])) .stem-wait { bottom: auto; top: 30%; }
 .hw-ly-now span.now { color: #5cc8ff; text-shadow: 0 0 14px rgba(92, 200, 255, 0.55), 0 2px 8px rgba(0, 0, 0, 0.85); }
 .hw-ly-next { margin-top: 4px; font: 600 20px/1.25 var(--font); color: rgba(200, 208, 225, 0.5); min-height: 1.25em; }
 .hw-fps { position: absolute; left: 24px; bottom: 84px; z-index: 3; font: 700 12px var(--font); color: rgba(200, 230, 255, 0.9); background: rgba(5, 8, 15, 0.6); padding: 4px 8px; border-radius: 6px; pointer-events: none; }
+
+/* 3.7: Songs / Discover fold on a second click; the chevron shows which way */
+.nav-section.has-sub::after { content: ''; margin-left: auto; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; opacity: 0; transform: rotate(45deg) translate(-2px, -2px); transition: transform 0.18s ease, opacity 0.18s ease; }
+.nav-section.has-sub[aria-current='page']::after, .nav-section.has-sub:hover::after { opacity: 0.55; }
+.nav-section.has-sub.folded::after { transform: rotate(-45deg); }
+/* one-time "Bring over Rocksmith lists" row under Setlists */
+.nav-item.rs-bring { display: flex; align-items: center; gap: 0; padding: 0; background: color-mix(in srgb, var(--tungsten) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tungsten) 28%, transparent); border-radius: 8px; margin: 2px 0; }
+.rs-bring-go { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px 0 10px; border: 0; background: transparent; color: var(--tungsten); font-size: 12.5px; text-align: left; }
+.rs-bring-go svg { width: 14px; height: 14px; flex: none; }
+.rs-bring-go .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-bring-x { width: 26px; height: 30px; border: 0; background: transparent; color: var(--ink-3); display: grid; place-items: center; }
+.rs-bring-x svg { width: 12px; height: 12px; }
+.rs-bring-x:hover { color: var(--ink); }
+
+/* 3.7: Tab | Highway | Waveform on the highway itself */
+.hw-views { display: inline-flex; height: 32px; padding: 2px; border-radius: 16px; border: 1px solid var(--rule); background: rgba(28, 35, 55, 0.85); margin-right: 4px; }
+.hw-views button { display: inline-flex; align-items: center; gap: 5px; padding: 0 11px; border: 0; border-radius: 14px; background: transparent; color: var(--ink-2); font: 600 12.5px var(--font); cursor: pointer; }
+.hw-views button svg { width: 14px; height: 14px; }
+.hw-views button:hover { color: var(--ink); }
+.hw-views button[aria-pressed='true'] { background: color-mix(in srgb, var(--tungsten) 22%, transparent); color: #fff; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tungsten) 40%, transparent); cursor: default; }
+@media (max-width: 1250px) { .hw-views button span { display: none; } }
+
+/* 3.7: the Fluid venue (an ink simulation page) sits under the highway's canvases */
+.hw-fluid { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; background: #000; display: block; }
+.hw-venue i.fluid { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: radial-gradient(circle at 25% 70%, #ff4b55cc, transparent 45%), radial-gradient(circle at 75% 65%, #3da5ffcc, transparent 45%), radial-gradient(circle at 50% 30%, #b67dffaa, transparent 50%), radial-gradient(circle at 60% 85%, #45d07c99, transparent 40%), #05070c; filter: blur(2px) saturate(1.3); }
+
+/* 3.7: the version, small, after the name */
+.brand-ver { margin-left: -3px; font-size: 11px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.02em; align-self: center; padding-top: 2px; }
+
+/* 3.7: Jam, full screen: just the Fluid picture and your guitar */
+.jam { position: fixed; inset: 0; z-index: 200; background: #000; color: var(--ink); font-family: var(--font); overflow: hidden; }
+.jam-top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: linear-gradient(#000a, transparent); transition: opacity 0.6s ease; z-index: 2; }
+.jam-back { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px 0 10px; border-radius: 18px; border: 1px solid var(--rule); background: rgba(28, 35, 55, 0.7); color: var(--ink); font: 700 14px var(--font); cursor: pointer; }
+.jam-back svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; }
+.jam-back:hover { border-color: var(--tungsten-line); color: var(--tungsten-hi); }
+.jam-title { font-size: 18px; font-weight: 800; letter-spacing: 0.02em; }
+.jam-tone, .jam-chip { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 13px; border-radius: 16px; border: 1px solid var(--rule); background: rgba(28, 35, 55, 0.7); color: var(--ink); font: 600 13px var(--font); }
+.jam-tone svg, .jam-chip svg { width: 15px; height: 15px; }
+.jam-tone.off { color: var(--ink-3); }
+.jam-chip { cursor: pointer; }
+.jam-chip[aria-pressed='true'] { border-color: color-mix(in srgb, var(--gel-drums) 60%, transparent); box-shadow: 0 0 12px color-mix(in srgb, var(--gel-drums) 45%, transparent); }
+.jam-note { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 900 180px/1 var(--font); color: var(--c, #fff); opacity: 0.16; text-shadow: 0 0 40px var(--c, #fff); pointer-events: none; z-index: 1; transition: color 0.2s ease; }
+.jam-hint { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-size: 13px; color: rgba(255, 255, 255, 0.55); transition: opacity 0.6s ease; z-index: 2; pointer-events: none; }
+.jam.jam-quiet .jam-top, .jam.jam-quiet .jam-hint { opacity: 0; }
+.jam.jam-quiet { cursor: none; }
+.btn.jam-open { display: inline-flex; align-items: center; gap: 6px; }
+.btn.jam-open svg { width: 15px; height: 15px; color: #b67dff; filter: drop-shadow(0 0 4px #b67dff); }
+/* 3.7: your best on the highway */
+.hw-score b.hw-best { color: #ffd36b; text-shadow: 0 0 10px rgba(255, 196, 80, 0.45); }
+
+/* 3.7: duplicate songs */
+.dupes { display: flex; flex-direction: column; gap: 12px; }
+.dupes-note { margin: 0; color: var(--ink-2); line-height: 1.5; }
+.dupes-list { display: flex; flex-direction: column; gap: 10px; max-height: 58vh; overflow: auto; padding-right: 4px; }
+.dupe-group { border: 1px solid var(--rule); border-radius: 12px; padding: 8px; background: rgba(255, 255, 255, 0.02); display: flex; flex-direction: column; gap: 4px; }
+.dupe-head { display: flex; align-items: baseline; gap: 10px; padding: 2px 6px 6px; }
+.dupe-head span { color: var(--ink-3); font-size: 12.5px; }
+.dupe-row { display: grid; grid-template-columns: 118px 1fr auto; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--ink); text-align: left; cursor: pointer; font-size: 12.5px; }
+.dupe-row:hover { background: rgba(255, 255, 255, 0.04); }
+.dupe-row.keep { border-color: color-mix(in srgb, #45d07c 50%, transparent); background: color-mix(in srgb, #45d07c 9%, transparent); cursor: default; }
+.dupe-row.drop .dupe-file { color: var(--ink-3); text-decoration: line-through; }
+.dupe-state { font-weight: 700; font-size: 11.5px; letter-spacing: 0.02em; color: var(--ink-3); }
+.dupe-row.keep .dupe-state { color: #45d07c; }
+.dupe-row.drop .dupe-state { color: #ff8a65; }
+.dupe-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dupe-chips { display: inline-flex; align-items: center; gap: 5px; }
+.dupe-chips i { font-style: normal; display: inline-flex; align-items: center; gap: 3px; height: 20px; min-width: 20px; justify-content: center; padding: 0 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.05); color: var(--ink-2); font-size: 11px; font-weight: 700; }
+.dupe-chips i svg { width: 12px; height: 12px; }
+.dupe-chips i.ok { color: #45d07c; }
+.dupe-chips i.bad { color: #ff5a5f; background: color-mix(in srgb, #ff5a5f 14%, transparent); }
+.dupe-chips i.part { color: var(--ink-3); opacity: 0.45; }
+.dupe-chips i.part.on { color: var(--ink); opacity: 1; }
+.dupe-chips i.size { font-weight: 500; color: var(--ink-3); background: none; }
+/* 3.7: your instrument's tuning on the Drop card */
+.drop-mine-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12.5px; color: var(--ink-2); }
+.drop-mine-row select { flex: 1; max-width: 200px; height: 30px; }
+/* 3.7: your best accuracy, small, to the upper right of the title */
+.row .t, .tile .tt { display: flex; align-items: flex-start; gap: 5px; min-width: 0; }
+.row .t .tt-text, .tile .tt .tt-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+sup.acc { flex: none; font-size: 9.5px; font-weight: 700; line-height: 1; padding: 2px 4px; margin-top: -3px; border-radius: 6px; color: #9fb0d6; background: rgba(120, 140, 200, 0.14); letter-spacing: 0.01em; }
+sup.acc.high { color: #ffd36b; background: rgba(255, 196, 80, 0.13); }
+sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb547); box-shadow: 0 0 8px rgba(255, 181, 71, 0.55); }

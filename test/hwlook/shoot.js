@@ -32,7 +32,7 @@ const srv = http.createServer((req, res) => {
     await page.goto(`http://localhost:8765/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}`);
     await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     if (process.env.VENUE) {
-      await page.evaluate((v) => { const p = JSON.parse(localStorage.getItem('stagehand.highway') || '{}'); p.venue = v; p.v = 36; localStorage.setItem('stagehand.highway', JSON.stringify(p)); }, process.env.VENUE);
+      await page.evaluate((v) => { const p = JSON.parse(localStorage.getItem('stagehand.highway') || '{}'); p.venue = v; p.v = 36; localStorage.setItem('stagehand.highway', JSON.stringify(p)); localStorage.setItem('stagehand.fluidDye', '256'); }, process.env.VENUE);
       await page.reload();
       await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     }

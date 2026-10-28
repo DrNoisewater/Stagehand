@@ -20,7 +20,7 @@ export const state = {
   unreadable: [],
   loaded: false,
   // Always open on the song list (a saved list or folder is fine, Discover isn't).
-  view: saved.view && saved.view.kind !== 'discover' ? saved.view : { kind: 'all' },
+  view: saved.view && saved.view.kind !== 'discover' && saved.view.kind !== 'rslist' ? saved.view : { kind: 'all' },
   // Stagehand 3: which section is showing. Always opens on Play.
   page: 'play',
   search: '',

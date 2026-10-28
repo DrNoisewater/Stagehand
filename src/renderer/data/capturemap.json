@@ -3,137 +3,357 @@
   "version": 1,
   "packs": {
     "rectifier": {
-      "toneId": 70207, "title": "Mesa Dual Rectifier (Rev G 1998)", "maker": "deathblossomaudio", "kind": "amp",
+      "toneId": 70207,
+      "title": "Mesa Dual Rectifier (Rev G 1998)",
+      "maker": "deathblossomaudio",
+      "kind": "amp",
       "url": "https://www.tone3000.com/tones/mesa-dual-rectifier-rev-g-1998-full-gain-pack-70207",
       "variants": [
-        { "match": "MESADUAL - RED - MODERN - GAIN 1", "gain": 0.1 },
-        { "match": "MESADUAL - RED - MODERN - GAIN 2", "gain": 0.2 },
-        { "match": "MESADUAL - RED - MODERN - GAIN 3", "gain": 0.3 },
-        { "match": "MESADUAL - RED - MODERN - GAIN 4", "gain": 0.4 },
-        { "match": "MESADUAL - RED - MODERN - GAIN 5", "gain": 0.5 },
-        { "match": "MESADUAL - RED - MODERN - GAIN 6", "gain": 0.6 },
-        { "match": "MESADUAL - RED - MODERN - GAIN 7", "gain": 0.7 },
-        { "match": "MESADUAL - RED - MODERN - GAIN 8", "gain": 0.8 },
-        { "match": "MESADUAL - RED - MODERN - GAIN 9", "gain": 0.9 },
-        { "match": "MESADUAL - RED - MODERN - GAIN MAX", "gain": 1.0 }
-      ]
+        {
+          "match": "MESADUAL - RED - MODERN - GAIN 1",
+          "gain": 0.1
+        },
+        {
+          "match": "MESADUAL - RED - MODERN - GAIN 2",
+          "gain": 0.2
+        },
+        {
+          "match": "MESADUAL - RED - MODERN - GAIN 3",
+          "gain": 0.3
+        },
+        {
+          "match": "MESADUAL - RED - MODERN - GAIN 4",
+          "gain": 0.4
+        },
+        {
+          "match": "MESADUAL - RED - MODERN - GAIN 5",
+          "gain": 0.5
+        },
+        {
+          "match": "MESADUAL - RED - MODERN - GAIN 6",
+          "gain": 0.6
+        },
+        {
+          "match": "MESADUAL - RED - MODERN - GAIN 7",
+          "gain": 0.7
+        },
+        {
+          "match": "MESADUAL - RED - MODERN - GAIN 8",
+          "gain": 0.8
+        },
+        {
+          "match": "MESADUAL - RED - MODERN - GAIN 9",
+          "gain": 0.9
+        },
+        {
+          "match": "MESADUAL - RED - MODERN - GAIN MAX",
+          "gain": 1.0
+        }
+      ],
+      "arch": 2
     },
     "5150": {
-      "toneId": 44664, "title": "Peavey 5150 Block Letter", "maker": "deathblossomaudio", "kind": "amp",
+      "toneId": 44664,
+      "title": "Peavey 5150 Block Letter",
+      "maker": "deathblossomaudio",
+      "kind": "amp",
       "url": "https://www.tone3000.com/tones/5150-block-letter-44664",
       "variants": [
-        { "match": "5150BL G CRUNCH #1", "gain": 0.25 },
-        { "match": "5150BL G CRUNCH #2", "gain": 0.4 },
-        { "match": "5150BL R GAIN #1", "gain": 0.55 },
-        { "match": "5150BL R GAIN #2", "gain": 0.7 },
-        { "match": "5150BL R GAIN #3", "gain": 0.85 },
-        { "match": "5150BL R GAIN #4", "gain": 1.0 }
+        {
+          "match": "5150BL G CRUNCH #1",
+          "gain": 0.25
+        },
+        {
+          "match": "5150BL G CRUNCH #2",
+          "gain": 0.4
+        },
+        {
+          "match": "5150BL R GAIN #1",
+          "gain": 0.55
+        },
+        {
+          "match": "5150BL R GAIN #2",
+          "gain": 0.7
+        },
+        {
+          "match": "5150BL R GAIN #3",
+          "gain": 0.85
+        },
+        {
+          "match": "5150BL R GAIN #4",
+          "gain": 1.0
+        }
       ]
     },
     "jcm800": {
-      "toneId": 1543, "title": "Marshall JCM 800 2203", "maker": "mcjano", "kind": "amp",
+      "toneId": 1543,
+      "title": "Marshall JCM 800 2203",
+      "maker": "mcjano",
+      "kind": "amp",
       "url": "https://www.tone3000.com/tones/marshall-jcm-800-2203-1543",
       "variants": [
-        { "match": "JCM 800 Low channel - P5 B5 M5 T5 M10 PA10", "gain": 0.4 },
-        { "match": "JCM 800 High channel - P5 B5 M5 T5 M10 PA10", "gain": 0.75 },
-        { "match": "JCM 800 Lead - Low channel - SD1", "gain": 0.95 }
+        {
+          "match": "JCM 800 Low channel - P5 B5 M5 T5 M10 PA10",
+          "gain": 0.4
+        },
+        {
+          "match": "JCM 800 High channel - P5 B5 M5 T5 M10 PA10",
+          "gain": 0.75
+        },
+        {
+          "match": "JCM 800 Lead - Low channel - SD1",
+          "gain": 0.95
+        }
       ]
     },
     "plexi": {
-      "toneId": 80875, "title": "Marshall 1959 Plexi Super Lead", "maker": "tonecast", "kind": "amp",
+      "toneId": 80875,
+      "title": "Marshall 1959 Plexi Super Lead",
+      "maker": "tonecast",
+      "kind": "amp",
       "url": "https://www.tone3000.com/tones/-marshall-1959-plexi-super-lead--80875",
       "variants": [
-        { "match": "Marshall 1959 Plexi Super Lead Low Gain", "gain": 0.35 },
-        { "match": "Marshall 1959 Plexi Super Lead Driven", "gain": 0.65 },
-        { "match": "Marshall 1959 Plexi Super Lead + Boost", "gain": 0.92 }
-      ]
+        {
+          "match": "Marshall 1959 Plexi Super Lead Low Gain",
+          "gain": 0.35
+        },
+        {
+          "match": "Marshall 1959 Plexi Super Lead Driven",
+          "gain": 0.65
+        },
+        {
+          "match": "Marshall 1959 Plexi Super Lead + Boost",
+          "gain": 0.92
+        }
+      ],
+      "arch": 2
     },
     "jtm45": {
-      "toneId": 1538, "title": "Marshall JTM45", "maker": "fatdracula", "kind": "amp",
+      "toneId": 1538,
+      "title": "Marshall JTM45",
+      "maker": "fatdracula",
+      "kind": "amp",
       "url": "https://www.tone3000.com/tones/marshall-jtm45-1538",
       "variants": [
-        { "match": "JTM45 Normal5/", "gain": 0.25 },
-        { "match": "JTM45 Treble5/", "gain": 0.45 },
-        { "match": "JTM45 Treble10/", "gain": 0.7 },
-        { "match": "BLEND Treb10 Norm10", "gain": 0.92 }
+        {
+          "match": "JTM45 Normal5/",
+          "gain": 0.25
+        },
+        {
+          "match": "JTM45 Treble5/",
+          "gain": 0.45
+        },
+        {
+          "match": "JTM45 Treble10/",
+          "gain": 0.7
+        },
+        {
+          "match": "BLEND Treb10 Norm10",
+          "gain": 0.92
+        }
       ]
     },
     "jvm": {
-      "toneId": 67714, "title": "Marshall JVM410H", "maker": "AmpsPedalsPickups", "kind": "amp",
+      "toneId": 67714,
+      "title": "Marshall JVM410H",
+      "maker": "AmpsPedalsPickups",
+      "kind": "amp",
       "url": "https://www.tone3000.com/tones/marshall-jvm410h-full-pack-67714",
       "variants": [
-        { "match": "APP-JVM-CLEAN-Red-IV", "gain": 0.15 },
-        { "match": "APP-JVM-CRUNCH-Red-IV", "gain": 0.45 },
-        { "match": "APP-JVM-OD1-Red-IV", "gain": 0.7 },
-        { "match": "APP-JVM-OD2-Red-IV", "gain": 0.92 }
+        {
+          "match": "APP-JVM-CLEAN-Red-IV",
+          "gain": 0.15
+        },
+        {
+          "match": "APP-JVM-CRUNCH-Red-IV",
+          "gain": 0.45
+        },
+        {
+          "match": "APP-JVM-OD1-Red-IV",
+          "gain": 0.7
+        },
+        {
+          "match": "APP-JVM-OD2-Red-IV",
+          "gain": 0.92
+        }
       ]
     },
     "rockerverb": {
-      "toneId": 41391, "title": "Orange Rockerverb 50 MkII", "maker": "deathblossomaudio", "kind": "amp",
+      "toneId": 41391,
+      "title": "Orange Rockerverb 50 MkII",
+      "maker": "deathblossomaudio",
+      "kind": "amp",
       "url": "https://www.tone3000.com/tones/orange-rockerverb-50-mkii-41391",
       "variants": [
-        { "match": "ROCKERVERB50 CRUNCH", "gain": 0.45 },
-        { "match": "ROCKERVERB50 HIGAIN", "gain": 0.85 }
+        {
+          "match": "ROCKERVERB50 CRUNCH",
+          "gain": 0.45
+        },
+        {
+          "match": "ROCKERVERB50 HIGAIN",
+          "gain": 0.85
+        }
       ]
     },
     "ac30": {
-      "toneId": 55221, "title": "Vox AC30S1 (head only)", "maker": "jtmulcahey", "kind": "amp",
+      "toneId": 55221,
+      "title": "Vox AC30S1 (head only)",
+      "maker": "jtmulcahey",
+      "kind": "amp",
       "url": "https://www.tone3000.com/tones/ac30s1-head-only-10-pack-eq-neutral-55221",
       "variants": [
-        { "match": "Pedal Clean", "gain": 0.1 },
-        { "match": "Historic Chime", "gain": 0.2 },
-        { "match": "Edge of Breakup", "gain": 0.3 },
-        { "match": "Hair Clip", "gain": 0.4 },
-        { "match": "Denney Crunch", "gain": 0.5 },
-        { "match": "Dartford Drive", "gain": 0.6 },
-        { "match": "Bubble Bath", "gain": 0.7 },
-        { "match": "Jennings", "gain": 0.8 },
-        { "match": "Korg Collar", "gain": 0.9 },
-        { "match": "Cytherea Soak", "gain": 1.0 }
+        {
+          "match": "Pedal Clean",
+          "gain": 0.1
+        },
+        {
+          "match": "Historic Chime",
+          "gain": 0.2
+        },
+        {
+          "match": "Edge of Breakup",
+          "gain": 0.3
+        },
+        {
+          "match": "Hair Clip",
+          "gain": 0.4
+        },
+        {
+          "match": "Denney Crunch",
+          "gain": 0.5
+        },
+        {
+          "match": "Dartford Drive",
+          "gain": 0.6
+        },
+        {
+          "match": "Bubble Bath",
+          "gain": 0.7
+        },
+        {
+          "match": "Jennings",
+          "gain": 0.8
+        },
+        {
+          "match": "Korg Collar",
+          "gain": 0.9
+        },
+        {
+          "match": "Cytherea Soak",
+          "gain": 1.0
+        }
       ]
     },
     "deluxe": {
-      "toneId": 51649, "title": "Fender Deluxe Reverb '65 (full rig)", "maker": "gindabestari", "kind": "full",
+      "toneId": 51649,
+      "title": "Fender Deluxe Reverb '65 (full rig)",
+      "maker": "gindabestari",
+      "kind": "full",
       "url": "https://www.tone3000.com/tones/deluxe-reverb-65-reissue-clean-51649",
-      "variants": [{ "match": "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 (No Room)", "gain": 0.3 }]
-    },
-    "tweed": {
-      "toneId": 75305, "title": "Fender Tweed Deluxe 5E3", "maker": "madhatteramplab", "kind": "amp",
-      "url": "https://www.tone3000.com/tones/tweed-deluxe-5e3-75305",
       "variants": [
-        { "match": "Tweed-5E3-005-OnTheEdge", "gain": 0.35 },
-        { "match": "Tweed-5E3-008-RockNRoll", "gain": 0.75 }
+        {
+          "match": "NEW VERSION | Fender DRRI | Clean | SM57 + Royer R-121 (No Room)",
+          "gain": 0.3
+        }
       ]
     },
+    "tweed": {
+      "toneId": 75305,
+      "title": "Fender Tweed Deluxe 5E3",
+      "maker": "madhatteramplab",
+      "kind": "amp",
+      "url": "https://www.tone3000.com/tones/tweed-deluxe-5e3-75305",
+      "variants": [
+        {
+          "match": "Tweed-5E3-005-OnTheEdge",
+          "gain": 0.35
+        },
+        {
+          "match": "Tweed-5E3-008-RockNRoll",
+          "gain": 0.75
+        }
+      ],
+      "arch": 2
+    },
     "svt": {
-      "toneId": 45809, "title": "Ampeg SVT-CL", "maker": "deathblossomaudio", "kind": "amp", "bass": true,
+      "toneId": 45809,
+      "title": "Ampeg SVT-CL",
+      "maker": "deathblossomaudio",
+      "kind": "amp",
+      "bass": true,
       "url": "https://www.tone3000.com/tones/ampeg-svt-cl-bass-head-45809",
       "variants": [
-        { "match": "SVT CLEAN", "gain": 0.2 },
-        { "match": "SVT CLEAN PUSHED", "gain": 0.4 },
-        { "match": "SVT PUSHED", "gain": 0.55 },
-        { "match": "SVT DIRTY", "gain": 0.75 },
-        { "match": "SVT DIRTY PUSHED", "gain": 0.92 }
+        {
+          "match": "SVT CLEAN",
+          "gain": 0.2
+        },
+        {
+          "match": "SVT CLEAN PUSHED",
+          "gain": 0.4
+        },
+        {
+          "match": "SVT PUSHED",
+          "gain": 0.55
+        },
+        {
+          "match": "SVT DIRTY",
+          "gain": 0.75
+        },
+        {
+          "match": "SVT DIRTY PUSHED",
+          "gain": 0.92
+        }
       ]
     },
     "ad200": {
-      "toneId": 1537, "title": "Orange AD200B", "maker": "fatdracula", "kind": "amp", "bass": true,
+      "toneId": 1537,
+      "title": "Orange AD200B",
+      "maker": "fatdracula",
+      "kind": "amp",
+      "bass": true,
       "url": "https://www.tone3000.com/tones/orange-ad200b-1537",
       "variants": [
-        { "match": "AD200 Bass5Mid5Treb5 Master10 Gain3/", "gain": 0.3 },
-        { "match": "AD200 Bass5Mid5Treb5 Master10 Gain5/", "gain": 0.5 },
-        { "match": "AD200 Bass5Mid5Treb5 Master10 Gain10/", "gain": 0.9 }
+        {
+          "match": "AD200 Bass5Mid5Treb5 Master10 Gain3/",
+          "gain": 0.3
+        },
+        {
+          "match": "AD200 Bass5Mid5Treb5 Master10 Gain5/",
+          "gain": 0.5
+        },
+        {
+          "match": "AD200 Bass5Mid5Treb5 Master10 Gain10/",
+          "gain": 0.9
+        }
       ]
     },
     "eden": {
-      "toneId": 35019, "title": "Eden WTDI bass preamp", "maker": "plingubus", "kind": "amp", "bass": true,
+      "toneId": 35019,
+      "title": "Eden WTDI bass preamp",
+      "maker": "plingubus",
+      "kind": "amp",
+      "bass": true,
       "url": "https://www.tone3000.com/tones/eden-wtdi-bass-guitar-pre-amplifier-35019",
-      "variants": [{ "match": "EDEN WTDI Bass Guitar Pre Amplifier 03", "gain": 0.5 }]
+      "variants": [
+        {
+          "match": "EDEN WTDI Bass Guitar Pre Amplifier 03",
+          "gain": 0.5
+        }
+      ]
     },
     "gk800": {
-      "toneId": 56782, "title": "Gallien-Krueger 800RB (full rig)", "maker": "joeformat", "kind": "full", "bass": true,
+      "toneId": 56782,
+      "title": "Gallien-Krueger 800RB (full rig)",
+      "maker": "joeformat",
+      "kind": "full",
+      "bass": true,
       "url": "https://www.tone3000.com/tones/gallien-krueger-800-rb-56782",
-      "variants": [{ "match": "", "gain": 0.3 }]
+      "variants": [
+        {
+          "match": "",
+          "gain": 0.3
+        }
+      ]
     }
   },
   "amps": {

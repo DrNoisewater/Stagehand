@@ -8,6 +8,48 @@ import { state, on, emit } from './store.js';
 import { rig } from './rig.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './detect.js';
 import * as stage from './stage.js';
+import { toast } from './ui.js';
+import { tuningPlan, tuningName, myTuning, setMyTuning, dropAlways, setDropAlways } from './tuning.js';
+
+/**
+ * 3.7: when a song needs a different tuning from the one your instrument is in,
+ * say so before you play: the Drop in one click (or always), or which strings
+ * to retune. Each situation is offered once; answering it updates what Stagehand
+ * knows, so the next song in the same tuning just plays.
+ */
+let lastAsk = '';
+function suggestTuning(tab, kind) {
+  const mine = myTuning(kind);
+  const p = tuningPlan(tab.tuning, kind, mine);
+  if (p.same) return;
+  const songName = tuningName(tab.tuning, kind);
+  const myName = tuningName(mine, kind);
+  const what = kind === 'bass' ? 'bass' : 'guitar';
+  const key = `${kind}|${(tab.tuning || []).join(',')}|${mine.join(',')}`;
+  const retuned = { label: 'I retuned', onClick: () => { setMyTuning(kind, tab.tuning); rig.setSongTuning(tab.tuning, kind); if (rig.drop.on && rig.drop.match) rig.setDrop({ on: false }); toast({ title: `Your ${what}: ${songName}`, kind: 'ok', timeout: 2000 }); } };
+  if (p.drop) {
+    const on = () => rig.setDrop({ on: true, match: true });
+    if (rig.drop.on && rig.drop.match) return toast({ title: `Drop −${p.drop} for ${songName}`, message: `Your ${what} stays in ${myName}.`, kind: 'info', timeout: 2500 });
+    if (dropAlways()) {
+      on();
+      return toast({ title: `Drop −${p.drop} for ${songName}`, message: `Your ${what} stays in ${myName}.`, kind: 'info', timeout: 2500 });
+    }
+    if (key === lastAsk) return;
+    lastAsk = key;
+    return toast({
+      title: `${songName} song, your ${what} is in ${myName}`,
+      message: `The Drop can lower you ${p.drop} semitone${p.drop === 1 ? '' : 's'}: no retuning.`,
+      kind: 'info',
+      timeout: 12000,
+      actions: [{ label: `Drop −${p.drop}`, onClick: on }, { label: 'Always', onClick: () => (setDropAlways(true), on()) }, retuned],
+    });
+  }
+  if (key === lastAsk) return;
+  lastAsk = key;
+  const n = kind === 'bass' ? 4 : 6;
+  const steps = p.retune.map((r) => `${n + 1 - r.string}: ${r.from} ${r.up ? '↑' : '↓'} ${r.to}`).join('  ·  ');
+  toast({ title: `Retune for ${songName}`, message: `From ${myName}. String ${steps}`, kind: 'info', timeout: 14000, actions: [retuned] });
+}
 
 const PREF_KEY = 'stagehand.tab';
 function partPref() {
@@ -80,7 +122,9 @@ export const practice = new (class extends EventTarget {
     if (this.song !== song) return;
     this.flush();
     this.tab = tab;
-    rig.setSongTuning(tab.tuning);
+    const kind = tab.type === 'bass' ? 'bass' : 'guitar';
+    rig.setSongTuning(tab.tuning, kind);
+    suggestTuning(tab, kind);
     tuneShift.st = rig.dropAmount();
     this.targets = targetsFromTab(tab);
     this.resetJudge();
@@ -166,12 +210,32 @@ export const practice = new (class extends EventTarget {
     this.dispatchEvent(new CustomEvent('pass', { detail: { hits, judged, total, accuracy: total ? hits / total : null, speed: stage.engine.speed } }));
   }
 
+  /** Where the score comes from: the highway's own judge while it's open, else ours. */
+  _source() {
+    const hw = typeof window !== 'undefined' ? window.__shHighway : null;
+    if (hw && hw.open() && hw.judge() && hw.songId() === (this.song && this.song.id)) return { judge: hw.judge(), part: hw.part() };
+    return { judge: this.judge, part: this.tab ? (this.tab.type === 'combo' ? 'lead' : this.tab.type) : null };
+  }
+
   startSession() {
     if (!this.song) return;
     if (!this.session || this.session.songId !== this.song.id) {
       this.flush();
-      this.session = { songId: this.song.id, part: this.tab ? (this.tab.type === 'combo' ? 'lead' : this.tab.type) : null, secs: 0, at: Date.now() };
+      const src = this._source();
+      const j = src.judge;
+      this.session = { songId: this.song.id, part: src.part, secs: 0, at: Date.now(), judge: j, hits0: j ? j.hits : 0, judged0: j ? j.judged : 0, tuning: this.tab ? this.tab.tuning : null, kind: this.kind };
     }
+  }
+
+  /**
+   * Logs what's been played so far and carries on with a fresh session (3.7:
+   * called when the highway opens or closes and when Progress is shown, so the
+   * song you just played is there straight away, with the highway's score).
+   */
+  checkpoint() {
+    if (!this.session) return;
+    this.flush();
+    if (stage.engine.playing && rig.on) this.startSession();
   }
 
   /** Logs the practice so far (song time with your guitar on). */
@@ -179,8 +243,14 @@ export const practice = new (class extends EventTarget {
     const s = this.session;
     this.session = null;
     if (s && s.secs >= 10) {
-      const j = this.judge;
-      api.stats.log({ songId: s.songId, part: s.part, seconds: s.secs, accuracy: j ? j.accuracy : null, notes: j ? j.judged : 0, hit: j ? j.hits : 0, speed: stage.engine.speed, at: s.at }).then(() => emit('stats')).catch(() => {});
+      const j = s.judge;
+      let hit = j ? j.hits - s.hits0 : 0;
+      let notes = j ? j.judged - s.judged0 : 0;
+      if (j && (notes < 0 || hit < 0)) (hit = j.hits), (notes = j.judged); // the score was reset (seek back): count what's there
+      const accuracy = notes > 0 ? hit / notes : null;
+      // played it well with the Drop off: that's how your instrument is tuned now
+      if (accuracy !== null && accuracy >= 0.6 && notes >= 30 && !rig.dropAmount() && s.tuning) setMyTuning(s.kind, s.tuning);
+      api.stats.log({ songId: s.songId, part: s.part, seconds: s.secs, accuracy, notes, hit, speed: stage.engine.speed, at: s.at }).then(() => emit('stats')).catch(() => {});
     }
   }
 
@@ -206,6 +276,14 @@ on('stage-song', () => practice.setSong(stage.current()));
 stage.engine.addEventListener('state', () => {
   if (stage.engine.playing && rig.on) practice.startSession();
 });
+// the song ends: log it now, not when the next song starts
+stage.engine.addEventListener('state', () => {
+  if (!stage.engine.playing && stage.engine.duration && stage.engine.position >= stage.engine.duration - 0.5) practice.flush();
+});
+on('page', () => {
+  if (state.page === 'progress') practice.checkpoint();
+});
+if (typeof window !== 'undefined') window.__shPractice = practice;
 stage.engine.addEventListener('seek', () => {
   if (practice.judge) practice.judge.rewind(stage.engine.position);
 });

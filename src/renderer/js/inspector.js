@@ -1,6 +1,6 @@
 /** Right pane: song details, metadata editor (single and batch). */
 import { api } from './api.js';
-import { state, on, emit, selectedSongs, upsertSongs, setView, rsListIds, rsHas, rsListLabel } from './store.js';
+import { state, on, emit, selectedSongs, upsertSongs, setView } from './store.js';
 import { h, icon, esc, fmtDuration, fmtBytes, fmtDate, toast } from './ui.js';
 import * as actions from './actions.js';
 import { setPage } from './store.js';
@@ -171,7 +171,7 @@ function renderOne(s) {
     arrs.append(el);
   }
   if ((s.arrangements || []).length) root.append(section('Parts', arrs));
-  // The essentials at a glance, as chips: tuning, length, tempo, plays, Rocksmith lists.
+  // The essentials at a glance, as chips: tuning, length, tempo, plays.
   // (Tones live on the Tones page; file details are in the ⋯ menu.)
   const chips = h('div.insp-facts');
   const chip = (ic, text, title, cls = '') => chips.append(h(`span.fact${cls}`, { title }, h('span.fi', { html: icon(ic) }), h('span', { text })));
@@ -179,8 +179,6 @@ function renderOne(s) {
   if (s.length) chip('clock', fmtDuration(s.length), 'Length');
   if (s.tempo) chip('drum', `${Math.round(s.tempo)}`, 'Tempo (BPM)');
   if (s.user && s.user.plays) chip('play', `${s.user.plays}×`, 'Times played');
-  const lists = state.rs && state.rs.profile ? rsListIds().filter((id) => rsHas(id, s)).map(rsListLabel) : [];
-  if (lists.length) chip('list', lists.join(', '), 'In Rocksmith');
   root.append(chips);
 }
 

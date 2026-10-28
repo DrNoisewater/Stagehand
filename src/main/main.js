@@ -10,6 +10,7 @@ const rocksmith = require('./core/rocksmith');
 const { dirSize } = require('./core/files');
 const { Settings } = require('./services/settings');
 const { Library, norm } = require('./services/library');
+const { Dupes, findDuplicates } = require('./services/dupes');
 const { Tools } = require('./services/tools');
 const { AudioService } = require('./services/audio');
 const { StemService, MODELS } = require('./services/stems');
@@ -493,6 +494,19 @@ function registerIpc() {
   handle('library:removeSongs', (ids) => {
     library.removeSongs(ids);
     send('library:reset');
+  });
+  // 3.7: duplicate songs (the same song in several files): find, move extras aside, undo
+  const dupes = () => new Dupes({ library, dir: path.join(D.backups, 'Duplicates') });
+  handle('dupes:find', (stemIds) => findDuplicates(Object.values(library.data.songs), new Set(Array.isArray(stemIds) ? stemIds : [])));
+  handle('dupes:remove', async (pairs) => {
+    const r = await dupes().remove(Array.isArray(pairs) ? pairs : []);
+    send('library:reset');
+    return r;
+  });
+  handle('dupes:undo', async (id) => {
+    const r = await dupes().undo(id);
+    send('library:reset');
+    return r;
   });
 
   handle('song:setUser', (id, patch) => {

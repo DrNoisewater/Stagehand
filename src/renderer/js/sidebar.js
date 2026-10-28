@@ -1,18 +1,23 @@
 /**
- * Left menu (Stagehand 3): Play, Songs (with its lists, setlists, Rocksmith
- * song lists, tunings, artists and folders), Tones, Progress, Discover, and
+ * Left menu (Stagehand 3): Play, Songs (with its lists, setlists, tunings,
+ * artists and folders), Tones, Progress, Discover, and
  * the guitar status card at the bottom.
  */
 import { api } from './api.js';
-import { state, on, setView, setPage, loadLibrary, emit, rsListIds, rsListCount, RS_STOCK_LISTS, RS_MAX_LISTS, rsListLabel, rsStockLabel, rsListKeys, loadRocksmith } from './store.js';
+import { state, on, setView, setPage, loadLibrary, emit, rsListIds, rsListLabel, rsListKeys } from './store.js';
 import { h, icon, esc, showMenu, confirmDialog, toast } from './ui.js';
-import * as actions from './actions.js';
 import { counts as discoverCounts } from './discover.js';
 
 const side = document.getElementById('sidebar');
 const root = h('div.nav-scroll');
 export const guitarCardHost = h('div.guitar-card-host');
 side.append(root, guitarCardHost);
+// A section you're already in folds its sub-menu on a second click (and opens on the next).
+let folded = null;
+const fold = (page) => {
+  folded = folded === page ? null : page;
+  render();
+};
 const collapsed = new Set(JSON.parse(localStorage.getItem('stagehand.nav') || '["artists"]'));
 
 function isCurrent(kind, id) {
@@ -46,9 +51,9 @@ function item({ kind, id, label, iconName, count, cls = '', onContext, drop, cur
 }
 
 /** A top-level section of the menu, with its own gel colour. */
-function section({ page, label, iconName, gel, onClick }) {
+function section({ page, label, iconName, gel, onClick, sub }) {
   const cur = state.page === page;
-  const b = h('button.nav-section', { type: 'button', 'aria-current': cur ? 'page' : 'false', style: { '--gel': gel } });
+  const b = h(`button.nav-section${sub ? '.has-sub' : ''}`, { type: 'button', 'aria-current': cur ? 'page' : 'false', style: { '--gel': gel } });
   b.innerHTML = `${icon(iconName)}<span class="name">${esc(label)}</span>`;
   b.onclick = onClick || (() => setPage(page));
   return b;
@@ -131,9 +136,14 @@ export function render() {
     section({
       page: 'songs',
       label: 'Songs',
+      sub: true,
       iconName: 'music',
       gel: 'var(--tungsten)',
-      onClick: () => (state.view.kind === 'discover' ? setView({ kind: 'all' }) : setPage('songs')),
+      onClick: () => {
+        if (state.page === 'songs' && state.view.kind !== 'discover') return fold('songs');
+        folded = null;
+        state.view.kind === 'discover' ? setView({ kind: 'all' }) : setPage('songs');
+      },
     })
   );
   const songsSub = h('div.nav-sub');
@@ -144,9 +154,14 @@ export function render() {
     section({
       page: 'discover',
       label: 'Discover',
+      sub: true,
       iconName: 'compass',
       gel: 'var(--gel-vocals)',
-      onClick: () => setView({ kind: 'discover', id: state.view.kind === 'discover' ? state.view.id : (state.discover && state.discover.lastId) || 'search' }),
+      onClick: () => {
+        if (state.page === 'discover' && state.view.kind === 'discover') return fold('discover');
+        folded = null;
+        setView({ kind: 'discover', id: state.view.kind === 'discover' ? state.view.id : (state.discover && state.discover.lastId) || 'search' });
+      },
     })
   );
   const discoverSub = h('div.nav-sub');
@@ -157,6 +172,9 @@ export function render() {
   const idx = { play: 0, songs: 1, tones: 2, progress: 3, discover: 4 }[page];
   const secs = top.querySelectorAll('.nav-section');
   if (secs[idx]) secs[idx].setAttribute('aria-current', 'page');
+  if (folded && folded !== page) folded = null;
+  if (secs[idx]) secs[idx].classList.toggle('folded', folded === page);
+  if (folded === page) return;
   if (page === 'discover') {
     discoverSub.append(...discoverGroup().querySelectorAll('.nav-item'));
     return;
@@ -196,21 +214,6 @@ function renderSongGroups(append, songs) {
         showMenu(e.clientX, e.clientY, [
           { label: 'Rename', icon: 'edit', onClick: () => renameSetlist(sl.id) },
           {
-            label: 'Send to Rocksmith',
-            icon: 'music',
-            submenu: state.rs && state.rs.profile
-              ? rsListIds().flatMap((id) => [
-                  {
-                    label: `Replace ${rsListLabel(id)}`,
-                    icon: id === 'favorites' ? 'heart' : 'setlist',
-                    hint: String(rsListKeys(id).length),
-                    onClick: () => actions.replaceRocksmithList(id, sl.songIds.filter((x) => state.songs.has(x)), `“${sl.name}”`),
-                  },
-                  ...(id === 'favorites' ? ['-'] : []),
-                ])
-              : [{ label: 'No Rocksmith profile found', disabled: true }],
-          },
-          {
             label: 'Delete setlist',
             icon: 'trash',
             danger: true,
@@ -232,9 +235,9 @@ function renderSongGroups(append, songs) {
     hint.textContent = 'Drag songs here or press +';
     sls.push(hint);
   }
+  const bring = importRow();
+  if (bring) sls.push(bring);
   append(group('setlists', 'Setlists', sls, { action: addSl }));
-
-  append(rocksmithGroup());
 
   const tunings = new Map();
   for (const s of songs) {
@@ -306,133 +309,57 @@ function discoverGroup() {
   return group('discover', 'Discover', items);
 }
 
-function rocksmithGroup() {
-  const r = state.rs;
-  const refresh = h('button.icon-btn', { type: 'button', title: 'Read the lists from Rocksmith again', html: icon('refresh') });
-  refresh.onclick = async () => {
-    await loadRocksmith();
-    toast({ title: 'Read your Rocksmith lists', kind: 'info', timeout: 2000 });
-  };
-  const count = rsListCount();
-  const full = count >= RS_MAX_LISTS;
-  const add = h('button.icon-btn', {
-    type: 'button',
-    title: full ? `${RS_MAX_LISTS} song lists is the most Rocksmith can show` : `New song list (${count} of ${RS_MAX_LISTS})`,
-    'aria-label': 'New song list',
-    disabled: full || !r || !r.profile ? true : null,
-    html: icon('plus'),
-  });
-  add.onclick = async () => {
-    const id = await actions.addRocksmithList();
-    if (id !== null) {
-      if (collapsed.has('rocksmith')) {
-        collapsed.delete('rocksmith');
-        localStorage.setItem('stagehand.nav', JSON.stringify([...collapsed]));
-      }
-      render();
-      const el = root.querySelector(`.nav-item[data-rslist="${id}"]`);
-      if (el) el.scrollIntoView({ block: 'nearest' });
-      renameRsList(id);
-    }
-  };
-  const tools = h('span.nav-actions', null, add, refresh);
-  const items = [];
-  if (!r) {
-    items.push(h('div.nav-item.sub', { style: { color: 'var(--ink-3)', cursor: 'default' }, text: 'Reading your profile…' }));
-  } else if (!r.profile || r.error) {
-    const b = h('button.nav-item.sub', { type: 'button', html: `${icon('alert')}<span class="name">${esc(r.error ? 'Profile could not be read' : 'Find my Rocksmith profile')}</span>` });
-    b.onclick = () => import('./dialogs.js').then((d) => d.settings('rocksmith'));
-    items.push(b);
-  } else {
-    for (const id of rsListIds()) {
-      const b = item({
-        kind: 'rslist',
-        id,
-        label: rsListLabel(id),
-        iconName: id === 'favorites' ? 'heart' : 'setlist',
-        count: rsListKeys(id).length,
-        drop: (ids) => actions.addToRocksmith(id, ids),
-        onContext: (e) =>
-          showMenu(e.clientX, e.clientY, [
-            id !== 'favorites' ? { label: 'Rename…', icon: 'edit', hint: 'F2', onClick: () => renameRsList(id) } : null,
-            id !== 'favorites' && rsListLabel(id) !== rsStockLabel(id) ? { label: `Use the name ${rsStockLabel(id)}`, icon: 'restore', onClick: () => actions.renameRocksmithList(id, '') } : null,
-            id !== 'favorites' ? '-' : null,
-            {
-              label: 'Fill from a setlist',
-              icon: 'setlist',
-              submenu: state.setlists.length
-                ? state.setlists.map((sl) => ({ label: sl.name, onClick: () => actions.replaceRocksmithList(id, sl.songIds.filter((x) => state.songs.has(x)), `“${sl.name}”`) }))
-                : [{ label: 'Make a setlist first', disabled: true }],
-            },
-            { label: 'Copy into a new setlist', icon: 'plus', onClick: () => copyToSetlist(id) },
-            '-',
-            { label: 'Clear this list', icon: 'trash', danger: true, disabled: !rsListKeys(id).length, onClick: () => actions.clearRocksmithList(id) },
-            id !== 'favorites' && Number(id) >= RS_STOCK_LISTS && Number(id) === rsListCount() - 1
-              ? { label: 'Remove this list', icon: 'x', danger: true, onClick: () => actions.removeRocksmithList(id) }
-              : null,
-          ]),
-      });
-      b.dataset.rslist = id;
-      if (id !== 'favorites') {
-        b.title = rsListLabel(id) === rsStockLabel(id) ? `${rsStockLabel(id)} in Rocksmith. Double-click to rename.` : `${rsStockLabel(id)} in Rocksmith, shown as “${rsListLabel(id)}”. Double-click to rename.`;
-        b.addEventListener('dblclick', () => renameRsList(id));
-        b.addEventListener('keydown', (e) => {
-          if (e.key === 'F2') {
-            e.preventDefault();
-            e.stopPropagation();
-            renameRsList(id);
-          }
-        });
-      }
-      items.push(b);
-    }
-    if (r.profiles && r.profiles.length > 1) {
-      const who = h('button.nav-item.sub', { type: 'button', title: 'Choose a different Rocksmith profile', html: `${icon('person')}<span class="name">${esc(r.profile.name || 'Profile')}</span>` });
-      who.onclick = () => import('./dialogs.js').then((d) => d.settings('rocksmith'));
-      items.push(who);
-    }
-  }
-  return group('rocksmith', 'In Rocksmith', items, { action: tools, collapsible: true });
-}
-
-function renameRsList(id) {
-  const btn = root.querySelector(`.nav-item[data-rslist="${id}"]`);
-  if (!btn || id === 'favorites') return;
-  const current = rsListLabel(id);
-  const input = h('input.rename', { value: current === rsStockLabel(id) ? '' : current, placeholder: rsStockLabel(id), maxlength: '25', 'aria-label': `Name for ${rsStockLabel(id)}` });
-  editRow(btn, input);
-  input.focus();
-  input.select();
+// Rocksmith's own song lists are retired (3.7): Stagehand is where you play now,
+// so lists live as setlists. One click brings the old ones over, once.
+const IMPORTED = 'stagehand.rsListsImported';
+function importRow() {
   let done = false;
-  const commit = async (save) => {
-    if (done) return;
-    done = true;
-    const name = input.value.trim();
-    if (save && name !== (current === rsStockLabel(id) ? '' : current)) await actions.renameRocksmithList(id, name);
+  try {
+    done = localStorage.getItem(IMPORTED) === '1';
+  } catch (_) {}
+  const r = state.rs;
+  if (done || !r || !r.profile) return null;
+  const ids = rsListIds().filter((id) => rsListKeys(id).length);
+  if (!ids.length) return null;
+  const n = ids.reduce((a, id) => a + rsListKeys(id).length, 0);
+  const row = h('div.nav-item.sub.rs-bring', { title: `Copy your ${ids.length} Rocksmith song lists (${n} songs) into setlists` });
+  const go = h('button.rs-bring-go', { type: 'button', html: `${icon('download')}<span class="name">Bring over Rocksmith lists</span><span class="count">${ids.length}</span>` });
+  go.onclick = () => importRocksmithLists();
+  const x = h('button.rs-bring-x', { type: 'button', title: 'No thanks', 'aria-label': 'No thanks', html: icon('x') });
+  x.onclick = () => {
+    try {
+      localStorage.setItem(IMPORTED, '1');
+    } catch (_) {}
     render();
   };
-  input.addEventListener('keydown', (e) => {
-    e.stopPropagation();
-    if (e.key === 'Enter') commit(true);
-    if (e.key === 'Escape') commit(false);
-  });
-  input.addEventListener('blur', () => commit(true));
-  input.addEventListener('click', (e) => e.stopPropagation());
-  input.addEventListener('dblclick', (e) => e.stopPropagation());
+  row.append(go, x);
+  return row;
 }
 
-async function copyToSetlist(listId) {
+export async function importRocksmithLists() {
   const { songsByKey } = await import('./store.js');
   const byKey = songsByKey();
-  const ids = rsListKeys(listId)
-    .map((k) => byKey.get(k.toLowerCase()))
-    .filter(Boolean)
-    .map((s) => s.id);
-  const sl = await api.setlists.create(rsListLabel(listId));
-  if (ids.length) await api.setlists.add(sl.id, ids);
+  const have = new Set(state.setlists.map((sl) => sl.name.toLowerCase()));
+  let made = 0;
+  let songs = 0;
+  for (const id of rsListIds()) {
+    const ids = rsListKeys(id)
+      .map((k) => byKey.get(k.toLowerCase()))
+      .filter(Boolean)
+      .map((s) => s.id);
+    if (!ids.length) continue;
+    const name = id === 'favorites' ? 'Rocksmith favorites' : rsListLabel(id);
+    if (have.has(name.toLowerCase())) continue;
+    const sl = await api.setlists.create(name);
+    await api.setlists.add(sl.id, ids);
+    made++;
+    songs += ids.length;
+  }
+  try {
+    localStorage.setItem(IMPORTED, '1');
+  } catch (_) {}
   await loadLibrary();
-  setView({ kind: 'setlist', id: sl.id });
-  toast({ title: `Copied into a new setlist`, message: `${ids.length} song${ids.length === 1 ? '' : 's'} from ${rsListLabel(listId)}.` });
+  toast({ title: made ? `${made} setlist${made === 1 ? '' : 's'} made` : 'Nothing new to bring over', message: made ? `${songs} songs from your Rocksmith lists.` : '', kind: 'ok' });
 }
 
 export async function addFolder(p) {

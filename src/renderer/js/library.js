@@ -163,12 +163,20 @@ function tuningText(s) {
   return s.tuningCents ? `${s.tuning} (${s.tuningCents})` : s.tuning;
 }
 
+/** 3.7: your best accuracy (full speed), as a small badge to the upper right of the title. */
+function bestBadge(s) {
+  const b = bestOf(s);
+  if (b === null) return '';
+  const pct = Math.round(b * 100);
+  return `<sup class="acc${pct >= 100 ? ' full' : pct >= 90 ? ' high' : ''}" title="Your best accuracy: ${pct}%">${pct}%</sup>`;
+}
+
 function buildRow(s) {
   const el = h('div.row.cols', { role: 'row', draggable: 'true' });
   el.dataset.id = s.id;
   el.innerHTML = `
     <div><div class="thumb">${thumbHtml(s, 64)}</div></div>
-    <div class="t" title="${esc(s.title)}">${esc(s.title)}</div>
+    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}</div>
     <div title="${esc(s.artist)}">${esc(s.artist)}</div>
     <div title="${esc(s.album)}">${esc(s.album)}</div>
     <div class="num">${s.year || ''}</div>
@@ -196,7 +204,7 @@ function buildTile(s) {
     .map(([key, letter, label]) => `<span class="pb pb-${key}" title="${label}">${letter}</span>`)
     .join('');
   el.innerHTML = `<div class="halo"></div><div class="cover gelled"><span class="ini">${esc(initialsOf(s))}</span>${s.art ? `<img src="${esc(api.artUrl(s, 256))}" alt="" loading="lazy" decoding="async" draggable="false">` : ''}<span class="badges">${badges}</span>${ring}<button type="button" class="play" title="Play" data-play>${icon('play')}</button></div>
-    <div class="tt" title="${esc(s.title)}">${esc(s.title)}</div><div class="ta">${esc(s.artist)}${s.tuning ? ` · ${esc(s.tuning)}` : ''}</div>`;
+    <div class="tt" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}</div><div class="ta">${esc(s.artist)}${s.tuning ? ` · ${esc(s.tuning)}` : ''}</div>`;
   const img = el.querySelector('img');
   if (img) {
     img.onload = () => el.querySelector('.cover').classList.add('has-img');

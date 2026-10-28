@@ -34,6 +34,8 @@ const M = {
   IGNORE: 0x40000,
   UNPITCHED_SLIDE: 0x400000,
   ACCENT: 0x4000000,
+  PARENT: 0x08000000, // held into the next note (linkNext)
+  CHILD: 0x10000000, // carried on from the previous note: not picked again
   ARPEGGIO: 0x20000000,
 };
 
@@ -235,6 +237,25 @@ function parse(buf) {
   return { beats, phrases, chords, chordNotes, vocals, phraseIterations, events, tones, sections, levels, meta };
 }
 
+/**
+ * Linked notes (Rocksmith's linkNext): a note held into the next one on the
+ * same string (usually to slide or bend off it) is ONE pick, not two. The
+ * following note gets `linked` so the highway draws one continuous note and
+ * scoring doesn't ask you to pick it again.
+ */
+function markLinks(notes, chordEvents) {
+  const all = [];
+  for (const n of notes) all.push({ t: n.t, s: n.s, n });
+  for (const c of chordEvents) for (const x of c.strings) all.push({ t: c.t, s: x.s, n: x });
+  all.sort((a, b) => a.t - b.t);
+  const last = new Map();
+  for (const e of all) {
+    const prev = last.get(e.s);
+    if (prev && prev.n.linkNext && e.t - prev.t < (prev.n.sus || 0) + 0.25) e.n.linked = true;
+    last.set(e.s, e);
+  }
+}
+
 function techFromMask(mask, extra = {}) {
   const t = {};
   if (mask & M.HAMMER_ON) t.hammerOn = true;
@@ -249,6 +270,8 @@ function techFromMask(mask, extra = {}) {
   if (mask & M.PLUCK) t.pop = true;
   if (mask & M.ACCENT) t.accent = true;
   if (mask & M.VIBRATO || extra.vibrato) t.vibrato = true;
+  if (mask & M.PARENT) t.linkNext = true;
+  if (mask & M.CHILD) t.linked = true;
   if (extra.slideTo >= 0) t.slideTo = extra.slideTo;
   if (extra.slideUnpitchTo >= 0) t.slideUnpitchTo = extra.slideUnpitchTo;
   if (extra.bend > 0) t.bend = Math.round(extra.bend * 2) / 2;
@@ -309,6 +332,7 @@ function toTab(sng, { type = 'lead', tuning = null, capo = null, name = '' } = {
   });
   notes.sort((a, b) => a.t - b.t || a.s - b.s);
   chordEvents.sort((a, b) => a.t - b.t);
+  markLinks(notes, chordEvents);
   anchors.sort((a, b) => a.t - b.t);
   const isBass = type === 'bass';
   const t = tuning || sng.meta.tuning || [];

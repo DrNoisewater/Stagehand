@@ -1,4 +1,5 @@
 import { detectPitch, PitchSmoother } from './pitch.js';
+import { tuningPlan } from './tuning.js';
 import { loadGear, toSpec, ampGain, describe } from './gearspec.js';
 import { resolveCapture, caps } from './captures.js';
 
@@ -932,11 +933,14 @@ export class Rig extends EventTarget {
   }
 
   /** The open song's tuning, so "match the song" knows how far to drop. */
-  setSongTuning(offsets) {
-    const o = (offsets || []).map(Number).filter((x) => Number.isFinite(x));
-    // a song tuned down evenly (E♭, D, C♯ standard…) can be played in E standard with the Drop
-    const even = o.length && o.every((x) => x === o[0]) && o[0] < 0 ? -o[0] : 0;
-    this.dropSong = Math.min(12, even);
+  setSongTuning(offsets, kind = 'guitar') {
+    // 3.7: relative to what YOUR instrument is tuned to (tuning.js), not always E Standard:
+    // a song that's the same tuning, just lower (E♭/D/C♯ Standard from E, Drop C from Drop D…)
+    // can be played with the Drop
+    this.songTuning = offsets || [];
+    this.songKind = kind;
+    const p = tuningPlan(this.songTuning, kind);
+    this.dropSong = Math.min(12, p.drop || 0);
     if (this.drop.on && this.drop.match) this._sendDrop();
     else this.dispatchEvent(new Event('drop'));
   }

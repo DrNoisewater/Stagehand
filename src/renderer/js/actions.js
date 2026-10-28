@@ -312,9 +312,7 @@ export function songMenu(x, y, ids) {
     { label: one ? 'Edit details' : `Edit ${songs.length} songs`, icon: 'edit', hint: 'F2', onClick: () => editSongs(ids) },
     { label: allFav ? 'Remove from favorites' : 'Add to favorites', icon: 'heart', onClick: () => toggleFav(ids) },
     { label: 'Add to setlist', icon: 'setlist', submenu: setlistItems },
-    { label: 'Add to Rocksmith', icon: 'music', submenu: rocksmithMenu(ids) },
     state.view.kind === 'setlist' ? { label: 'Remove from this setlist', icon: 'x', onClick: () => removeFromSetlist(state.view.id, ids) } : null,
-    state.view.kind === 'rslist' ? { label: `Remove from ${rsListLabel(state.view.id)}`, icon: 'x', hint: 'Del', onClick: () => removeFromRocksmith(state.view.id, ids) } : null,
     '-',
     stemsReady
       ? { label: 'Split stems again', icon: 'split', onClick: () => requestStems(ids, { force: true }) }
@@ -365,6 +363,7 @@ export function libraryMenu(x, y) {
     [
       { label: 'Rename files…', icon: 'wand', onClick: () => dialogsApi && dialogsApi.organize(state.selection.size ? [...state.selection] : visible.map((s) => s.id)) },
       { label: `Split stems for ${state.selection.size > 1 ? 'selected' : 'all shown'} songs`, icon: 'split', onClick: () => requestStems(state.selection.size > 1 ? [...state.selection] : visible.map((s) => s.id)) },
+      { label: 'Find duplicate songs…', icon: 'copy', onClick: () => dialogsApi && dialogsApi.duplicates() },
       '-',
       { label: 'Check folders for changes', icon: 'refresh', onClick: () => api.library.rescan() },
       { label: 'Re-read every file', icon: 'refresh', onClick: () => api.library.rescan({ full: true }) },

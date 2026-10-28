@@ -40,7 +40,7 @@ Open Stagehand and play: your guitar is live straight away, no song needed. The 
 
 Your tones can play through **captures of the real amps** (Neural Amp Modeler, the same format as Slopsmith and the NAM plugin) instead of Stagehand's modelled ones. Each Rocksmith amp is matched to a real one (the Cali-100 to a Mesa Dual Rectifier, the HG amps to a Peavey 5150, the AT amps to a Vox AC30, and so on: 57 of the 60), and many come at several gain settings, so the song's **Gain** knob picks the matching capture. Song tones keep switching by themselves, as before.
 
-- **Get a real amp:** on a tone's amp (Tones, click the amp), press **Get the real amp**. [TONE3000](https://www.tone3000.com) opens in your browser to confirm, and Stagehand downloads it. After that, every tone with that amp uses it. **Settings › Real amps** lists them all, the ones your songs use most first.
+- **Get a real amp:** on a tone's amp (Tones, click the amp), press **Get the real amp**. [TONE3000](https://www.tone3000.com) opens in your browser to confirm, and Stagehand downloads it. After that, every tone with that amp uses it. **Settings › Real amps** lists them all, the ones your songs use most first. (3.7: the Plexi, Rectifier and Tweed captures only come in TONE3000's newer A2 format; Stagehand now tells TONE3000 it plays A2, so they're no longer refused as “not compatible”.)
 - **One-time setup:** TONE3000 asks free apps to connect with your own key. Settings › Real amps walks you through it in three steps (make a free account and key, add the address it shows, paste the key).
 - **Real | Modelled** on the amp switches a tone back and forth; **Change** picks another capture, browses TONE3000, or adds captures you downloaded yourself (`.nam` files, or the `.zip` TONE3000's Download all gives; gain levels are read from the names). **REAL** marks every tone and amp that plays a capture.
 - **Presets are built on real amps (3.2.1):** Clean (Fender Deluxe), Chime (Vox AC30), Crunch (Marshall Plexi), Overdrive (JCM800), Lead (Peavey 5150), Metal (Mesa Rectifier), Fuzz (Orange), Bass clean (Ampeg SVT) and Bass grit (Orange AD200), each set to land on one of the capture's gain settings. Slots still holding an old preset you never changed get the new version; your edited ones stay.
@@ -57,7 +57,7 @@ The whole song always plays while you play; turn your part down or off in the Mi
 - **Stems.** Stored as lossless FLAC (3.1 cleared older stems once so you can remake them). One click splits a song into guitar, bass, drums, vocals, keys and other with Demucs, running locally. Each stem gets its own lane with a waveform drawn from that stem's actual audio, plus volume, mute and solo. Waveform height follows the fader, so what you see is what you hear. All stems play from one sample clock, so they never drift. Your mix is remembered for each song.
 - **Safe editing.** Change title, artist, album, year, sort names (and Japanese names where present) for one song or many at once. See "How saving works" below.
 - **Rename files.** Rename and optionally sort files into artist folders from a pattern like `{artist} - {title}`, with a full preview, clash detection and one-click undo. The `_p`/`_m` suffix is kept.
-- **Rocksmith song lists.** Edit the game's own Favorites and Song Lists 1 to 6 without opening the game. See below.
+- **Setlists.** Your own lists of songs; bring your old Rocksmith lists over in one click. See below.
 - **Note highway.** The part coming at you down a 3D fretboard, Rocksmith style, full screen, with big fret numbers and a camera that glides between hand positions. See below.
 - **Tab view.** Every guitar and bass part as tab that plays along with the song, with play-along (your part taken out of the mix), practice speed, lyrics, and your own guitar through the Rocksmith cable with amp tones and a precise tuner. See below.
 - **Discover.** Search any artist or song, see which album tracks you're missing, keep a Wanted list, and have downloads go straight into Rocksmith. See below.
@@ -79,58 +79,24 @@ If any step fails, the original is untouched. Undo is offered right after saving
 
 If Rocksmith is running it may lock the files; close it and save again.
 
-## Rocksmith song lists
+## 3.8
 
-The sidebar's **In Rocksmith** section shows Favorites and your song lists from your Rocksmith profile, the same lists you'd otherwise build inside the game.
+- **Jam:** the Jam button on Play (or **J**): full screen, no song, just the Fluid picture following what you play. The note you play picks the colour, how hard you play sets the size, and held notes keep streaming; the drums (Space) push from the corners. Esc leaves.
+- **Fluid venue:** fills the whole picture (mirrored like a kaleidoscope, over the song's own fret range), keeps flowing between notes, drifts through the colours, softer bloom; it follows your playing as well as the song.
+- **Smart tuning:** Stagehand knows what your guitar and your bass are tuned to (set it on the Drop card, or it learns: finish a song well with the Drop off and that's your tuning). When a song is the same tuning but lower (D Standard on an E Standard guitar, Drop C on Drop D…), it offers the Drop (or does it always); otherwise it says which strings to retune and to what.
+- **Duplicate songs:** Songs › ⋯ › **Find duplicate songs**: each song you have more than once, with what each copy has (audio, parts, version, DD, stems). It keeps the copy with audio, the most parts and the newest version (click another to keep that instead) and moves the others to Stagehand's backups, with Undo. Favourites, plays and setlists move to the copy kept. Stagehand always plays the full part, so DD and non-DD copies play the same.
+- **Progress:** the song you just played shows straight away, with the highway's score; your **best** shows on the highway next to your accuracy, and as a small badge next to each song's title.
+- The version shows after Stagehand in the title bar.
 
-- Drag songs onto a list, or right-click songs → **Add to Rocksmith**.
-- Open a list and press Delete to remove songs from it.
-- Build a setlist in Stagehand, then right-click it → **Send to Rocksmith** → pick a list to replace it.
-- Right-click a list to clear it, fill it from a setlist, or copy it into a new Stagehand setlist.
-- Songs in a list that Stagehand has no file for (on-disc songs, for example) are kept as they are.
+## Setlists (3.7: Rocksmith's song lists retired)
 
-**Up to 20 lists.** Press **+** next to In Rocksmith to add a song list and name it straight away; you can have up to 20. Right-click the last extra list to remove it (the game's first six always stay; its songs stay installed). Lists beyond six are an [RSMods](https://github.com/Lovrom8/RSMods) feature: RSMods names them and adds them to Non-Stop Play, and Stagehand asks first if RSMods isn't installed. The section collapses like Tunings and Artists, and long menus scroll.
-
-**Renaming lists.** Double-click a song list in the sidebar (or right-click → Rename). Plain Rocksmith always calls its lists SONG LIST 1 to 6; custom names are shown in the game by the free [RSMods](https://github.com/Lovrom8/RSMods) mod, which reads them from `RSMods.ini` in your Rocksmith folder. Stagehand writes the names there, changing only the `SongListTitle_N` lines (the rest of your RSMods settings stay as they are, and the file is backed up first). Without RSMods installed the names show in Stagehand only, and appear in the game once you install it. Names can be up to 25 characters; Favorites can't be renamed.
-
-**Close Rocksmith before making changes.** The game writes its profile when it saves, so changes made while it's running would be lost; Stagehand refuses and tells you. Changes show up the next time you start the game.
-
-How it's kept safe:
-
-1. Stagehand finds your profile in `Steam\userdata\<id>\221680\remote` (Settings → Rocksmith lets you pick the profile, or point at your Steam or Rocksmith folder).
-2. It first proves it can rebuild your exact profile from what it read, or it won't touch it.
-3. It backs up the profile, `LocalProfiles.json` and Steam's `remotecache.vdf`.
-4. It changes only the song list entries. Every other byte of your profile's data stays exactly as Rocksmith wrote it, in Rocksmith's own layout.
-5. It reads the new file back before and after swapping it in, and puts the backup back if anything doesn't match.
-6. It updates Steam Cloud's records for the profile so Steam uploads the new lists instead of restoring the old ones.
-
-Every change has **Undo** in its notification, and Settings → Rocksmith lists the last 20 profile backups with **Restore**. The file format and approach follow [rsrtools](https://github.com/BuongiornoTexas/rsrtools), which has edited these lists since 2019, and [Rocksmith2014.NET](https://github.com/iminashi/Rocksmith2014.NET).
-
-## Tab view
-
-Press **Tab** in the player (or **T**) to see the song's part as tablature, read from the song file itself, scrolling under a fixed playhead in time with the music.
-
-- **Parts.** Lead, Rhythm and Bass (and bonus parts), each with its tuning and capo. Notes are shown at Rocksmith's hardest level, with chord names, hammer-ons and pull-offs, slides, bends, vibrato, palm mutes, harmonics, taps, slaps and pops, sustain bars, bar numbers, section names and where the song changes tone. Lyrics run underneath.
-- **Your part.** The whole song plays while you play. With stems split, **Take my part out** in the Mix panel turns your instrument's stem off (guitar for Lead and Rhythm, bass for Bass), and the mix is remembered for the song.
-- **Practice speed.** 50% to 100% without changing pitch; stems stay in sync.
-- **Options** (the sliders button): low E on top (the default) or high e on top, scrolling or pages (pages show the next lines below so you can read ahead) and lyrics on or off. Zoom with + and −.
-
-**Your guitar.** Plug in the Rocksmith Real Tone Cable and Stagehand starts it by itself and plays it through a real amp rig, on the same speakers or headphones as the song. The rig, tones and tuner are on **Play**; input, output, sound engine, buffer and calibration are in **Settings › Guitar & audio**.
-
-- **The sound engine.** Stagehand opens the cable and your speakers or headphones directly, the way Rocksmith does, so your guitar doesn't go through Windows' shared sound mixer, which is where most of the delay used to come from. It runs the amp and plays the song too, and the panel shows the delay it works out for your devices. Other sounds on your PC (Discord, the browser) go quiet while your guitar is on and come back when you turn it off.
-  - **Engine** choices: *Fastest* (takes over your output; the default), *Shared* (other apps keep playing; a little more delay) and *In-app* (the amp runs inside Stagehand like before; use it if the others don't work). If Stagehand can't take over your output, for example because another program is using it, it shares it instead and tells you.
-  - **Buffer:** *Smallest delay*, *Small delay* (default) or *Safe*. If you hear crackles, pick a safer one.
-  - **Output** picks the speakers or headphones; it starts on your Windows default.
-  - **Set level** works like Rocksmith's calibration: press it and strum as hard as you play for 4 seconds, and Stagehand sets the input level.
-  - Close Rocksmith (and anything else using ASIO4ALL or the cable) before turning your guitar on in Stagehand, since only one program can have the devices.
-- **Song tone** is the song's actual Rocksmith rig: its amp, pedals, cabinet and mic, and rack effects, with every knob where the song's author set it. All of Rocksmith 2014's 63 amps, 83 pedals, 17 rack units and 450 cabinet and mic combinations are supported, each modelled on the kind of circuit or speaker it's based on, and the panel lists the chain (for example *Super Drive → Cali-100 → CA-412C*). Tone switches in the song happen with a short crossfade, and a song's tones are prepared ahead so they switch instantly. Pick any other tone for a song and Stagehand remembers it for that song; press Song tone to go back.
-- **Tones:** Clean, Crunch, Overdrive, Metal, Fuzz and Lead, plus Bass clean and Bass grit, each built from Rocksmith gear too. Every tone works on any part. Gain, Bass, Mid, Treble, Effects, Volume and Input level are adjustable; on a song tone the sliders start in the middle, which means exactly as the song has it. Each preset keeps its own settings. Double-click a slider to reset it.
-- **Tuner.** Accurate to about a tenth of a cent, with a strobe, needle and the frequency you're playing next to the target. It tunes to the song's tuning and reference pitch (including A432-style songs) by default, or pick any of E/E♭/D/C♯/C/B/F Standard, Drop D/C♯/C/B/B♭/A, Open G/D/E/A/C, DADGAD, or chromatic, and A = 432–446 Hz. Click a string to lock the tuner to it.
-- If you hear yourself twice, turn off "Listen to this device" for the cable in Windows sound settings.
+Stagehand is where you play now, so your lists live here as **setlists**: drag songs onto one, or right-click songs → **Add to setlist**; press **+** next to Setlists for a new one. Stagehand no longer edits Rocksmith's own Favorites and Song Lists. If you had lists in Rocksmith, **Bring over Rocksmith lists** under Setlists copies them all into setlists in one click (✕ hides the offer). Your Rocksmith profile is never changed.
 
 ## Note highway
 
-Press **Highway** in the player (or **H**), or **double-click a song** (3.2.6), for the Rocksmith-style view, full screen. If the song hasn't been split into stems yet, it waits for them first and shows the progress (Settings › Stems › Wait for the stems; **Play now with the full mix** skips the wait). A correct note flashes the hand bracket without making it taller. **Back** or **Esc** returns to Stagehand.
+Press **Highway** in the player (or **H**), or **double-click a song** (3.2.6), for the Rocksmith-style view, full screen. If the song hasn't been split into stems yet, it waits for them first and shows the progress (Settings › Stems › Wait for the stems; **Play now with the full mix** skips the wait). A correct note flashes the hand bracket without making it taller. **Back** or **Esc** goes to your songs; **Tab | Highway | Waveform** at the top switches to another view of the same song (T for Tab).
+
+- **3.7:** each technique has its own look: a **bend** climbs and glows warmer with ↑ and how far on the note; **vibrato** snakes side to side in a smooth wave (~ on the note); **tremolo picking** is cut into quick bright stripes (/// on the note). A note held into a slide or bend (Rocksmith's linked notes, like the slides in Sugar) is **one note**: no second gem, and you're not asked to pick it twice. Venue pictures are sharper. New venue: **Fluid**, ink that the song itself plays: every note splashes its string's colour from its fret, chords burst, held notes stream (vibrato swings, bends climb, tremolo puffs), bars and beats push in from the corners, your hits flare white, and a hot streak warms it up. After stems are made, their conversion to FLAC runs in the background without reloading the song, so the highway stays smooth.
 
 - **3.6.2:** everything on the highway is now drawn by the graphics card (the venue picture, every number and label, the sparks), with nothing repainted on the processor each frame, so it stays at your screen's full frame rate. The glow effect is gone. **Lyrics** show under the song's title and light up as they're sung, as in Rocksmith, and the coming **chord name** is small and sits just above the strings at your hand position. Both can be switched off in the options.
 - **3.6.1:** smoother motion (the picture runs on its own steady clock locked to the song, so fast notes no longer judder), nothing else in Stagehand draws while the highway is open, brighter notes, **venue pictures** (Warehouse, Jazz club, Cellar, Opera house, Studio, Rooftop, Festival, Canyon, Astral, or Plain) lined up so the highway lies on their floor, a simpler **options panel**, and a **Sync check**: tap Space on the clicks you hear and Stagehand sets the note timing for you. **Frame rate** in the options shows how fast it's drawing and on which graphics card.
@@ -241,4 +207,4 @@ test/                core tests (npm test) and Playwright end-to-end scripts
 
 ## Credits
 
-vgmstream (ISC), Demucs (MIT, Meta AI), uv (MIT/Apache-2.0), Electron (MIT), Archivo typeface (SIL OFL, Omnibus-Type). Artist and album data from MusicBrainz (CC0); covers from the Cover Art Archive. Rocksmith save-file format as documented by rsrtools (MIT) and Rocksmith2014.NET (MIT). Song list names follow the `RSMods.ini` format used by RSMods. The NAM engine is a C port of [NeuralAmpModelerCore](https://github.com/sdatkinson/NeuralAmpModelerCore) (MIT, Steven Atkinson). Real amp captures are made by their creators and shared on [TONE3000](https://www.tone3000.com) (powered by TONE3000).
+vgmstream (ISC), Demucs (MIT, Meta AI), uv (MIT/Apache-2.0), Electron (MIT), Archivo typeface (SIL OFL, Omnibus-Type). Artist and album data from MusicBrainz (CC0); covers from the Cover Art Archive. Rocksmith save-file format as documented by rsrtools (MIT) and Rocksmith2014.NET (MIT). The NAM engine is a C port of [NeuralAmpModelerCore](https://github.com/sdatkinson/NeuralAmpModelerCore) (MIT, Steven Atkinson). The Fluid venue uses Pavel Dobryakov's [WebGL Fluid Simulation](https://github.com/PavelDoGreat/WebGL-Fluid-Simulation) (MIT). Real amp captures are made by their creators and shared on [TONE3000](https://www.tone3000.com) (powered by TONE3000).

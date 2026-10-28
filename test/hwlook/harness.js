@@ -37,6 +37,20 @@ function songB() {
   notes.sort((a, b) => a.t - b.t);
   return { strings: 6, notes, chordEvents: [], anchors, beats, chords: [], sections: [{ name: 'intro', start: 2, end: 20 }, { name: 'solo', start: 20, end: 40 }], type: 'lead', tuningName: 'E Standard', length: 60, handShapes: [] };
 }
+function songT() {
+  // techniques side by side: a full bend, vibrato, tremolo picking, then all three again on other strings
+  const notes = [], beats = [];
+  const anchors = [{ t: 0, end: 60, fret: 5, width: 4 }];
+  for (let i = 0; i < 200; i++) beats.push({ t: 1 + i * 0.5, m: i % 4 === 0 ? i / 4 : -1 });
+  const mk = (t, s, f, sus, x) => notes.push({ t, s, f, sus, ...x });
+  for (let r = 0; r < 4; r++) {
+    const t = 2 + r * 4;
+    mk(t, 3, 7, 1.2, { bend: 2, bends: [{ t: t + 0.25, step: 2 }, { t: t + 1.2, step: 2 }] });
+    mk(t + 1.4, 2, 7, 1.2, { vibrato: true });
+    mk(t + 2.8, 4, 5, 1.0, { tremolo: true });
+  }
+  return { strings: 6, notes, chordEvents: [], anchors, beats, chords: [], sections: [{ name: 'riff', start: 2, end: 20 }], type: 'lead', tuningName: 'E Standard', length: 60, handShapes: [] };
+}
 function songC() {
   // solo across the neck: low at 4-7, a long slide up to 17-20, back down
   const notes = [], beats = [];
@@ -54,7 +68,7 @@ function songC() {
   for (const f of [5, 7, 8, 5, 7]) { notes.push({ t, s: 2, f, sus: 0 }); t += b / 2; }
   return { strings: 6, notes, chordEvents: [], anchors, beats, chords: [], sections: [{ name: 'solo', start: 2, end: 20 }], type: 'lead', tuningName: 'E Standard', length: 30, handShapes: [] };
 }
-const tab = scene.startsWith('R') ? (await (await fetch('/' + (q.get('file') || 'real.json'))).json())[q.get('part') || (scene === 'RB' ? 'bass' : 'lead')] : { A: songA, B: songB, C: songC }[scene]();
+const tab = scene.startsWith('R') ? (await (await fetch('/' + (q.get('file') || 'real.json'))).json())[q.get('part') || (scene === 'RB' ? 'bass' : 'lead')] : { A: songA, B: songB, C: songC, T: songT }[scene]();
 tab.id = 'p1';
 window.__tab = tab;
 window.__parts = [{ id: 'p1', type: 'lead', name: 'Lead' }];

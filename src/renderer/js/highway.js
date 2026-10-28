@@ -16,6 +16,8 @@ import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './detect.js';
 import { createRenderer3D, col, mix } from './highway3d.js';
+import { createFluid, guitarInk, ambient, hueRGB } from './fluidbg.js';
+import { state } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
 
 const STRING = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
@@ -130,7 +132,16 @@ export function createHighway(stage) {
   // the Mix button doubled the tab on the right edge: the tab opens the mix now
   const score = h('div.hw-score');
   // the score sits up top (as in the game), leaving the fret numbers under the neck clear
-  top.append(back, titleBox, h('span.grow'), score, h('span.grow'), parts, playAlong, rigBox, optBtn);
+  // switch straight to the Tab or Waveform view of the same song (Back goes to your songs)
+  const views = h('div.hw-views', { role: 'group', 'aria-label': 'What you see' });
+  const viewBtn = (v, label, ic, title) => {
+    const b = h('button', { type: 'button', title, html: `${icon(ic)}<span>${label}</span>`, 'aria-pressed': String(v === 'hw') });
+    b.dataset.v = v;
+    if (v !== 'hw') b.onclick = () => switchView(v);
+    return b;
+  };
+  views.append(viewBtn('tab', 'Tab', 'tuning', 'Tab view (T)'), viewBtn('hw', 'Highway', 'play', 'Note highway'), viewBtn('wave', 'Waveform', 'split', 'Waveforms and stem lanes'));
+  top.append(back, titleBox, h('span.grow'), score, h('span.grow'), views, parts, playAlong, rigBox, optBtn);
   const sections = h('div.hw-sections');
   const bottom = h('div.hw-bottom');
   const playBtn = h('button.hw-play', { type: 'button', title: 'Play / pause (Space)' });
@@ -153,6 +164,9 @@ export function createHighway(stage) {
   root.append(glCanvas, canvas, top, sections, bottom, msg, dock, fpsBox, lyricsBox);
   document.body.append(root);
   root.__hw = H; // for tests
+  // practice.js logs your sessions (Progress) from the highway's own score while it's open
+  window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null) };
+  const practiceCheckpoint = () => window.__shPractice && window.__shPractice.checkpoint();
   const ctx = canvas.getContext('2d');
   const R3 = createRenderer3D(glCanvas);
   H.r3 = R3; // tests
@@ -164,7 +178,16 @@ export function createHighway(stage) {
   root.addEventListener('focusin', wakeControls);
   document.addEventListener('keydown', () => { if (H.open) wakeControls(); });
 
-  back.onclick = () => close();
+  back.onclick = () => leave();
+  // Back (and Esc) from the highway go to your song list; Tab/Waveform stay on the song
+  function leave() {
+    close();
+    stage.goBack && stage.goBack();
+  }
+  function switchView(v) {
+    close();
+    stage.showView && stage.showView(v);
+  }
   playBtn.onclick = () => stage.toggle();
   playAlong.onclick = () => {
     if (!stage.stems().length) return toast({ title: 'Split stems first', message: 'Play along takes your part out of the song, which needs the song’s stems.', kind: 'info' });
@@ -220,7 +243,7 @@ export function createHighway(stage) {
     const grid = h('div.hw-venues');
     for (const v of VENUES) {
       const th = venueThumb(v);
-      const b = h('button.hw-venue', { type: 'button', title: v.name, 'aria-pressed': String(cur === v.id) }, th ? h('img', { src: th, alt: '' }) : h('i.plain'), h('span', { text: v.name }));
+      const b = h('button.hw-venue', { type: 'button', title: v.name, 'aria-pressed': String(cur === v.id) }, th ? h('img', { src: th, alt: '' }) : h(v.fluid ? 'i.fluid' : 'i.plain'), h('span', { text: v.name }));
       b.onclick = () => {
         setPref('venue', v.id);
 
@@ -632,6 +655,8 @@ export function createHighway(stage) {
 
   function close() {
     H.open = false;
+    practiceCheckpoint();
+    dropFluid();
     root.hidden = true;
     cancelAnimationFrame(H.raf);
     H.raf = 0;
@@ -779,6 +804,7 @@ export function createHighway(stage) {
   const analyzer = { an: null, on: null, buf: new Float32Array(8192) };
   function resetJudge() {
     H.judge = H.targets.length ? new Judge(H.targets) : null;
+    practiceCheckpoint();
     if (H.judge) {
       H.judge.reset(stage.engine.position);
       H.judge.next = lower(H.targets, stage.engine.position - H.judge.early);
@@ -1288,7 +1314,131 @@ export function createHighway(stage) {
     const v = VENUES.find((x) => x.id === (VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse'));
     // the picture's floor line goes where the highway's far end meets the floor; it drifts a little with the camera
     const vpY = H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 0.8)[1] : HH * 0.4;
-    R3.setVenue(v && v.photo ? v : null, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
+    R3.setVenue(v && (v.photo || v.fluid) ? v : null, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
+    if (v && v.fluid && H.open) driveFluid(t || 0);
+    else dropFluid();
+  }
+
+  // --------------------------------------------------- fluid venue (3.7) --
+  // Pavel Dobryakov's ink simulation behind the highway, played by the song
+  // itself: every note splashes ink in its string's colour from its fret,
+  // chords burst, sustains keep streaming (vibrato swings, bends climb,
+  // tremolo puffs), bars and beats push from the corners, your hits flare
+  // white, and a hot streak warms it all up. Nothing is guessed from audio.
+  const fluid = createFluid(root);
+  let fluidT = null;
+  let fluidSus = 0;
+  let fluidTab = null;
+  let fluidRange = [0, 12];
+  let fluidInk = null;
+  const fluidHits = [];
+  function dropFluid() {
+    fluid.drop();
+    fluidT = null;
+    fluidHits.length = 0;
+  }
+  const inkRGB = (hex, k) => {
+    const v = parseInt(hex.slice(1), 16);
+    const heat = G.heat || 0;
+    // a slow rainbow drift over the string colours (the psychedelic part), warmer with the streak
+    const d = hueRGB(((fluidT || 0) * 0.025) % 1, 1);
+    const m = (c, dc) => c * 0.72 + dc * 0.28;
+    const r = m(((v >> 16) & 255) / 255, d.r);
+    const g = m(((v >> 8) & 255) / 255, d.g);
+    const b = m((v & 255) / 255, d.b);
+    return { r: (r * (1 - heat * 0.3) + heat * 0.3) * k, g: g * (1 - heat * 0.25) * k, b: b * (1 - heat * 0.55) * k };
+  };
+  function driveFluid(t) {
+    fluid.ensure();
+    if (!fluid.ready || !H.tab) return;
+    if (fluidTab !== H.tab) {
+      // spread this song's own fret range over the picture (mirrored, so it fills both sides)
+      fluidTab = H.tab;
+      let lo = 99;
+      let hi = 0;
+      for (const n of H.tab.notes || []) if (n.f > 0) (lo = Math.min(lo, n.f)), (hi = Math.max(hi, n.f));
+      for (const c of H.tab.chordEvents || []) for (const n of c.strings) if (n.f > 0) (lo = Math.min(lo, n.f)), (hi = Math.max(hi, n.f));
+      fluidRange = hi > lo ? [lo, hi] : [0, 12];
+      fluidInk = guitarInk();
+    }
+    const playing = stage.engine.playing;
+    const prev = fluidT;
+    fluidT = t;
+    if (!playing || prev === null || t <= prev || t - prev > 0.25) {
+      fluidHits.length = 0;
+      return; // paused, or a seek: the ink just settles
+    }
+    const out = [];
+    const nStr = (H.tab && H.tab.strings) || 6;
+    const fx = (f) => 0.05 + 0.4 * Math.min(1, Math.max(0, ((f || 0) - fluidRange[0]) / Math.max(1, fluidRange[1] - fluidRange[0])));
+    const sy = (st) => 0.08 + (st / Math.max(1, nStr - 1)) * 0.5;
+    const outward = (x) => (x < 0.5 ? -1 : 1);
+    const T = H.targets || [];
+    // notes and chords that reached the neck since the last frame
+    for (let i = lower(T, prev); i < T.length && T[i].t <= t; i++) {
+      const tg = T[i];
+      if (tg.linked) continue; // held on from the note before: no new pick
+      const chord = tg.notes.length > 1;
+      const accent = tg.notes.some((n) => n.accent);
+      let cx = 0;
+      for (const nt of tg.notes) {
+        const x = nt.f === 0 ? 0.45 - (nt.s / Math.max(1, nStr - 1)) * 0.3 : fx(nt.f);
+        cx += x;
+        const mute = tg.kind === 'mute' || nt.mute;
+        const k = mute ? 0.06 : (chord ? 0.2 : 0.3) * (accent ? 1.5 : 1);
+        out.push({ x, y: sy(nt.s), dx: outward(x) * (200 + 300 * Math.random()), dy: 700 + (accent ? 500 : 0), radius: mute ? 0.35 : chord ? 0.55 : 0.7, ...inkRGB(mute ? '#9aa3b8' : STRING[nt.s] || '#ffffff', k) });
+      }
+      if (chord && tg.kind !== 'mute') {
+        cx /= tg.notes.length;
+        // a chord also bursts outward from its middle
+        for (let j = 0; j < 4; j++) {
+          const a = Math.PI * 0.15 + (j / 3) * Math.PI * 0.7;
+          out.push({ x: cx, y: 0.12, dx: Math.cos(a) * 900, dy: Math.sin(a) * 900, radius: 0.8, ...inkRGB(STRING[tg.notes[j % tg.notes.length].s] || '#ffffff', 0.08) });
+        }
+      }
+    }
+    // bars and beats: pushes from the bottom corners (bars harder)
+    const B = H.tab.beats || [];
+    for (let i = lower(B, prev); i < B.length && B[i].t <= t; i++) {
+      const bar = B[i].m >= 0;
+      const hue = mix(RAIL, RAIL_HOT, G.heat || 0, 1);
+      const bk = bar ? 0.08 : 0.025;
+      const c = { r: hue[0] * bk, g: hue[1] * bk, b: hue[2] * bk };
+      for (const side of [0, 1]) out.push({ x: side ? 0.97 : 0.03, y: 0.04, dx: (side ? -1 : 1) * (bar ? 1200 : 450), dy: bar ? 1500 : 600, radius: bar ? 1.4 : 0.8, ...c });
+    }
+    // held notes keep streaming (about 20 times a second)
+    fluidSus += t - prev;
+    if (fluidSus >= 0.05) {
+      fluidSus = 0;
+      const ends = H.sustainEnds || [];
+      for (let i = firstSustain(ends, t); i < T.length && T[i].t <= t; i++) {
+        const tg = T[i];
+        for (const nt of tg.notes) {
+          if (!(nt.sus > 0.06) || t > noteEnd(nt, tg) || nt.mute) continue;
+          const slide = nt.slideTo !== undefined ? nt.slideTo : nt.slideUnpitchTo;
+          const u = Math.min(1, (t - tg.t) / Math.max(0.05, nt.sus));
+          const f = slide !== undefined ? nt.f + (slide - nt.f) * u : nt.f;
+          const x = nt.f === 0 ? 0.3 : fx(f);
+          const bend = bendAt(nt, t);
+          let dx = outward(x) * 80;
+          if (nt.vibrato) dx += Math.sin((t - tg.t) * Math.PI * 2 * 5.5) * 900;
+          if (slide !== undefined) dx += (slide > nt.f ? 1 : -1) * 600;
+          const k = nt.tremolo ? (((t - tg.t) * 12) % 1 < 0.5 ? 0.12 : 0.02) : 0.05;
+          out.push({ x, y: sy(nt.s) + bend * 0.03, dx, dy: 250 + bend * 450, radius: nt.tremolo ? 0.45 : 0.4, ...inkRGB(STRING[nt.s] || '#ffffff', k) });
+        }
+      }
+    }
+    // what you hit flares white
+    for (const tg of fluidHits.splice(0)) {
+      const nt = tg.notes[0];
+      const x = nt.f === 0 ? 0.3 : fx(nt.f);
+      out.push({ x, y: 0.1, dx: 0, dy: 1100, radius: tg.notes.length > 1 ? 1.2 : 0.8, r: 0.16, g: 0.16, b: 0.18 });
+    }
+    // your own playing paints too (pitch picks the colour), softer behind the notes
+    if (fluidInk) out.push(...fluidInk(t, t - prev, { gain: 0.55 }));
+    // and a slow pair of eddies keeps it flowing between notes
+    if (Math.floor(t * 20) !== Math.floor(prev * 20)) out.push(...ambient(t, 0.25 + (G.pulse || 0) * 0.5));
+    fluid.send(out);
   }
 
   /** Cyan edges that warm to orange as you heat up. */
@@ -1518,7 +1668,12 @@ export function createHighway(stage) {
     }
   }
 
-  /** A note's sustain from t0 to t1 (song times): a flat glowing ribbon at its string's height. */
+  /**
+   * A note's sustain from t0 to t1 (song times): a flat glowing ribbon at its
+   * string's height. Each technique has its own look, so they read at a glance:
+   * a bend climbs (with ↑ and how far), vibrato snakes side to side in a smooth
+   * wave, tremolo picking is cut into quick bright stripes like a ladder.
+   */
   function buildTrail(nt, tg, t0, t1, an, st) {
     const { alpha, glow } = R3.L;
     const open = nt.f === 0;
@@ -1531,32 +1686,52 @@ export function createHighway(stage) {
     const half = open ? 0.5 * (anX1(an) - anX0(an)) - 0.15 : laneW(Math.max(1, nt.f)) * 0.16;
     const L0 = level(nt.s);
     const lw = laneW(Math.max(1, nt.f || an.fret));
-    const steps = Math.max(6, Math.min(120, Math.round((t1 - t0) * 40)));
     const duration = noteEnd(nt, tg) - tg.t;
-    let prev = null;
-    let peak = null;
-    for (let k = 0; k <= steps; k++) {
-      const time = t0 + ((t1 - t0) * k) / steps;
+    const vib = !!nt.vibrato && !open;
+    // vibrato: ~2 waves per world-second of travel, wide enough to see from the back
+    const VIB_HZ = 5.5;
+    const vibAmp = lw * 0.25;
+    const posAt = (time) => {
       const u = duration > 0 ? (time - tg.t) / duration : 0;
       const e = Math.min(1, Math.max(0, u));
       let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
-      if (nt.vibrato && u > 0.06) x += Math.sin((time - tg.t) * Math.PI * 2 * 5.5) * lw * 0.16;
-      let L = L0 + (bendAt(nt, time) / 2) * 1.5;
-      if (nt.tremolo) L += (((time - tg.t) * 14) % 1 < 0.5 ? 1 : -1) * 0.12;
-      const p = [x, nY(L) - G.gy * 0.12, zOf(time)];
+      if (vib) x += Math.sin((time - tg.t) * Math.PI * 2 * VIB_HZ) * vibAmp * Math.min(1, Math.max(0, (time - tg.t) / 0.12));
+      const L = L0 + (bendAt(nt, time) / 2) * 1.5;
+      return [x, nY(L) - G.gy * 0.12, zOf(time), L];
+    };
+    // enough points for the vibrato wave to stay smooth (no stepping)
+    const steps = Math.max(6, Math.min(vib ? 360 : 120, Math.round((t1 - t0) * (vib ? VIB_HZ * 14 : 40))));
+    const bending = maxBend(nt) > 0;
+    let prev = null;
+    let peak = null;
+    for (let k = 0; k <= steps; k++) {
+      const p = posAt(t0 + ((t1 - t0) * k) / steps);
+      const L = p[3];
       if (!peak || Math.abs(L - L0) > Math.abs(peak.L - L0)) peak = { p, L };
       if (prev) {
-        const c = col(hex, holding ? 0.75 : 0.58, holding ? 1.3 : 1);
+        // a bend glows warmer and brighter the higher it goes
+        const lift = bending ? Math.min(1, Math.abs(L - L0) / 1.5) : 0;
+        const c = col(hex, holding ? 0.75 : 0.58, (holding ? 1.3 : 1) + lift * 0.5);
         alpha.quad([prev[0] - half, prev[1], prev[2]], [prev[0] + half, prev[1], prev[2]], [p[0] + half, p[1], p[2]], [p[0] - half, p[1], p[2]], c);
-        const ec = missed ? col('#7a7f96', 0.8) : col(hex, 0.95, holding ? 2.2 : 1.5);
-        for (const side of [-1, 1]) alpha.bar([prev[0] + side * half, prev[1] + 0.002, prev[2]], [p[0] + side * half, p[1] + 0.002, p[2]], 0.035, ec);
+        const ec = missed ? col('#7a7f96', 0.8) : lift > 0.05 ? col('#fff3d6', 0.95, 1.4 + lift) : col(hex, 0.95, holding ? 2.2 : 1.5);
+        for (const side of [-1, 1]) alpha.bar([prev[0] + side * half, prev[1] + 0.002, prev[2]], [p[0] + side * half, p[1] + 0.002, p[2]], vib ? 0.05 : 0.035, ec);
         if (!missed) glow.quad([prev[0] - half * 1.6, prev[1], prev[2]], [prev[0] + half * 1.6, prev[1], prev[2]], [p[0] + half * 1.6, p[1], p[2]], [p[0] - half * 1.6, p[1], p[2]], col(hex, holding ? 0.3 : 0.12));
       }
       prev = p;
     }
+    if (nt.tremolo && !missed) {
+      // tremolo picking: a stripe across the ribbon for every quick pick (fixed spacing in time, so it never shimmers)
+      const RATE = 12;
+      const first = Math.ceil((t0 - tg.t) * RATE);
+      const last = Math.floor((t1 - tg.t) * RATE);
+      for (let k = Math.max(1, first); k <= last; k++) {
+        const p = posAt(tg.t + k / RATE);
+        const w = half * 1.55;
+        glow.bar([p[0] - w, p[1] + 0.004, p[2]], [p[0] + w, p[1] + 0.004, p[2]], 0.11, col('#ffffff', 0.85, holding ? 1.8 : 1.3));
+      }
+    }
     const mb = maxBend(nt);
     if (mb > 0 && peak && peak.p[2] >= 0) label(`↑${bendLabel(mb)}`, peak.p[0], peak.p[1] + G.gy * 0.4, peak.p[2], { size: 0.32, min: 12, max: 26, color: '#fff3d6', base: 'bottom' });
-    if (nt.slideUnpitchTo !== undefined && nt.slideTo === undefined) void 0;
   }
 
   /**
@@ -1565,6 +1740,8 @@ export function createHighway(stage) {
    * floor with its fret number there.
    */
   function buildGem(nt, z, an, missed, mute, inChord = false, box = null, flare = 0, fade = 1) {
+    // held on from the note before (linkNext): no new gem, its sustain just carries on
+    if (nt.linked) return;
     const { solid, alpha, glow } = R3.L;
     const s = nt.s;
     const hex = missed ? '#5a6078' : STRING[s];
@@ -1609,6 +1786,13 @@ export function createHighway(stage) {
       const p = rim * 1.6;
       for (const [a0, a1, b0, b1] of [[x - hw - p, x + hw + p, y + hh + p * 0.4, y + hh + p], [x - hw - p, x + hw + p, y - hh - p, y - hh - p * 0.4], [x - hw - p, x - hw - p * 0.4, y - hh - p, y + hh + p], [x + hw + p * 0.4, x + hw + p, y - hh - p, y + hh + p]]) glow.up(a0, a1, b0, b1, zf, col('#ffffff', 0.9 * fade, 1.5));
     }
+    if (maxBend(nt) > 0 && !missed) {
+      // a bend: a bright upward chevron on the note's face
+      const cy = y + hh * 0.05;
+      const ac = col('#fff3d6', fade, 1.6);
+      glow.bar([x - hw * 0.55, cy - hh * 0.35, zf - 0.003], [x, cy + hh * 0.45, zf - 0.003], rim * 0.95, ac, undefined, 'z');
+      glow.bar([x, cy + hh * 0.45, zf - 0.003], [x + hw * 0.55, cy - hh * 0.35, zf - 0.003], rim * 0.95, ac, undefined, 'z');
+    }
     if (mute || nt.mute) {
       glow.bar([x - hw * 0.5, y - hh * 0.6, zf - 0.002], [x + hw * 0.5, y + hh * 0.6, zf - 0.002], rim * 0.9, col('#ffffff', fade, 1.3), undefined, 'z');
       glow.bar([x - hw * 0.5, y + hh * 0.6, zf - 0.002], [x + hw * 0.5, y - hh * 0.6, zf - 0.002], rim * 0.9, col('#ffffff', fade, 1.3), undefined, 'z');
@@ -1625,6 +1809,8 @@ export function createHighway(stage) {
       if (nt.slap) marks.push('S');
       if (nt.pop) marks.push('Pop');
       if (maxBend(nt) && !(nt.sus > 0.06)) marks.push(`↑${bendLabel(maxBend(nt))}`);
+      if (nt.vibrato) marks.push('~');
+      if (nt.tremolo) marks.push('///');
       if (nt.slideTo !== undefined && !(nt.sus > 0.06)) marks.push(nt.slideTo > nt.f ? '↗' : '↘');
       if (marks.length) label(marks.join(' '), x, y + hh + G.gy * 0.35, z, { size: 0.22, min: 10, max: 18, hide: 11, weight: 800, pill: true });
     }
@@ -1694,6 +1880,7 @@ export function createHighway(stage) {
   function onJudged(e) {
     const tg = H.targets[e.id];
     if (!tg) return;
+    if (e.hit) fluidHits.push(tg);
     const now = performance.now();
     const st = H.judge && H.judge.state.get(e.id);
     if (!e.hit) {
@@ -1863,9 +2050,14 @@ export function createHighway(stage) {
     }
     renderLoop();
     updateLyrics(H.vis ?? t);
+    // your best on this part (full speed), from Progress
+    const bestRec = H.song && state.best ? state.best[H.song.id] : null;
+    const partKey = H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null;
+    const best = bestRec && partKey ? bestRec[partKey] : undefined;
+    const bestHtml = best !== undefined ? `<b class="hw-best">${Math.round(best * 100)}%</b><span>best</span>` : '';
     if (H.judge && prefs.detect && rig.on) {
       const acc = H.judge.accuracy;
-      setScore(`<b>${acc === null ? '–' : Math.round(acc * 100) + '%'}</b><span>accuracy</span><b>${H.judge.streak}</b><span>streak</span><b>${H.judge.hits}/${H.judge.judged}</b><span>notes</span>`);
+      setScore(`<b>${acc === null ? '–' : Math.round(acc * 100) + '%'}</b><span>accuracy</span>${bestHtml}<b>${H.judge.streak}</b><span>streak</span><b>${H.judge.hits}/${H.judge.judged}</b><span>notes</span>`);
     } else if (prefs.detect && !rig.on) {
       setScore('<span>Turn on <b>Your guitar</b> to see how you’re playing</span>');
     } else setScore('');
@@ -1987,7 +2179,11 @@ export function createHighway(stage) {
       }
       if (e.key === 'Escape') {
         if (mixOpen) setMixOpen(false);
-        else close();
+        else leave();
+        e.preventDefault();
+        e.stopPropagation();
+      } else if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        switchView('tab');
         e.preventDefault();
         e.stopPropagation();
       } else if (e.code === 'Space') {

@@ -34,6 +34,7 @@ let peaksSeq = 0;
 const peaksWaiting = new Map();
 function computePeaks(buffer, wav) {
   if (!peaksWorker) {
+    // (also turns decoded floats into the player's 16-bit WAV layout, off the page)
     peaksWorker = new Worker(new URL('../workers/peaks-worker.js', import.meta.url));
     peaksWorker.onmessage = (e) => {
       const w = peaksWaiting.get(e.data.id);
@@ -46,7 +47,8 @@ function computePeaks(buffer, wav) {
   const id = ++peaksSeq;
   return new Promise((resolve) => {
     peaksWaiting.set(id, resolve);
-    peaksWorker.postMessage({ id, buffer, dataOffset: wav.dataOffset, frames: wav.frames, channels: wav.channels }, [buffer]);
+    if (wav.L) peaksWorker.postMessage({ id, L: wav.L, R: wav.R, rate: wav.rate }, [wav.L.buffer, wav.R.buffer]);
+    else peaksWorker.postMessage({ id, buffer, dataOffset: wav.dataOffset, frames: wav.frames, channels: wav.channels }, [buffer]);
   });
 }
 
@@ -54,14 +56,21 @@ export async function loadTrackData(url, signal, { rate, frames } = {}) {
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`Could not load audio (${res.status})`);
   let buffer = await res.arrayBuffer();
+  let out;
+  let wav;
   if (!/\.wav(\?|$)/i.test(url)) {
-    // compressed stems (FLAC / Opus): decode, then stream it like a WAV
-    const { decodeTo, wavFrom } = await import('./codec.js');
+    // compressed stems (FLAC / Opus): the browser decodes on its own thread; the
+    // worker packs the floats into a WAV and measures it (3.7: was on the page,
+    // which made the highway stutter while stems loaded)
+    const { decodeTo } = await import('./codec.js');
     const d = await decodeTo(buffer, rate || 48000, frames || 0);
-    buffer = wavFrom(d.L, d.R, rate || 48000);
+    buffer = null;
+    out = await computePeaks(null, { L: d.L, R: d.R, rate: rate || 48000 });
+    wav = parseWav(out.buffer);
+  } else {
+    wav = parseWav(buffer);
+    out = await computePeaks(buffer, wav);
   }
-  const wav = parseWav(buffer);
-  const out = await computePeaks(buffer, wav);
   return {
     buffer: out.buffer,
     wav,

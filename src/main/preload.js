@@ -42,6 +42,9 @@ contextBridge.exposeInMainWorld('stagehand', {
     rescan: (opts) => call('library:rescan', opts),
     detect: () => call('library:detect'),
     removeSongs: (ids) => call('library:removeSongs', ids),
+    findDuplicates: (stemIds) => call('dupes:find', stemIds),
+    removeDuplicates: (pairs) => call('dupes:remove', pairs),
+    undoDuplicates: (id) => call('dupes:undo', id),
   },
   songs: {
     setUser: (id, patch) => call('song:setUser', id, patch),

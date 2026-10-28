@@ -17,6 +17,7 @@ export const VENUES = [
   { id: 'festival', name: 'Festival', photo: 'festival', horizon: 0.45 },
   { id: 'canyon', name: 'Canyon', photo: 'canyon', horizon: 0.5 },
   { id: 'astral', name: 'Astral', photo: 'astral', horizon: 0.32 },
+  { id: 'fluid', name: 'Fluid', fluid: true, desc: 'Ink that moves with the notes and beats' },
   { id: 'studio', name: 'Plain', desc: 'Calm and dark, nothing to distract' },
 ];
 /** Old (3.1–3.5) drawn venues map onto the photos. */

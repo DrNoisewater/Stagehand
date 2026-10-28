@@ -184,6 +184,19 @@ export function targetsFromTab(tab) {
   }
   out.sort((a, b) => a.t - b.t);
   out.forEach((x, i) => (x.id = i));
+  // a note held on from the one before it (linkNext) isn't picked again: it
+  // carries its parent's result instead of being judged on its own
+  const lastOn = new Map();
+  for (const x of out) {
+    if (x.notes.length && x.notes.every((n) => n.linked)) {
+      const p = lastOn.get(x.notes[0].s);
+      if (p !== undefined) {
+        x.linked = true;
+        x.parent = p;
+      }
+    }
+    for (const n of x.notes) lastOn.set(n.s, x.id);
+  }
   return out;
 }
 
@@ -224,8 +237,10 @@ export class Judge {
     for (const [id, st] of this.state) {
       const tg = this.targets[id];
       if (tg && tg.t >= t - this.early) {
-        if (st.result === 'hit') this.hits--;
-        this.judged--;
+        if (!st.linked) {
+          if (st.result === 'hit') this.hits--;
+          this.judged--;
+        }
         this.state.delete(id);
       }
     }
@@ -360,6 +375,12 @@ export class Judge {
     const T = this.targets;
     while (this.next < T.length && T[this.next].t + this.late + 0.08 < t) {
       const tg = T[this.next];
+      if (tg.linked) {
+        const ps = this.state.get(tg.parent);
+        if (ps && !this.state.has(tg.id)) this.state.set(tg.id, { ...ps, linked: true });
+        this.next++;
+        continue;
+      }
       if (!this.state.has(tg.id)) {
         const from = tg.t - this.early;
         const to = tg.t + this.late;

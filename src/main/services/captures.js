@@ -465,7 +465,55 @@ class Captures extends EventEmitter {
   async get(packKey, ampKey) {
     const def = MAP.packs[packKey];
     if (!def) throw new Error('Unknown capture.');
-    return this._fetchTone({ prompt: 'load_tone', tone_id: def.toneId }, { def, packKey, ampKey });
+    const extra = { prompt: 'load_tone', tone_id: def.toneId };
+    // TONE3000 treats A1 + Custom as the default and calls a tone with only A2
+    // (newer) models "not compatible" unless the app says it can play A2. We can.
+    const arch = await this._archFor(def.toneId, def.arch);
+    if (arch) extra.architecture = arch;
+    return this._fetchTone(extra, { def, packKey, ampKey });
+  }
+
+  /** '2' when a tone only has A2 models (asked of TONE3000 when signed in, else the map's hint). */
+  async _archFor(toneId, hint) {
+    if (this._token()) {
+      try {
+        const t = await this._get(`/tones/${toneId}?architecture=2`);
+        const n = (k) => Number((t && t[k]) || 0);
+        if (t && ('a2_models_count' in t || 'a1_models_count' in t)) return n('a1_models_count') + n('custom_models_count') === 0 && n('a2_models_count') > 0 ? '2' : null;
+      } catch (_) {}
+    }
+    return hint ? String(hint) : null;
+  }
+
+  /** Every model of a tone: TONE3000 leaves A2 models out unless asked for them. */
+  async _allModels(toneId) {
+    const rows = (l) => {
+      const m = l && (l.data || l.models || l);
+      return Array.isArray(m) ? m : [];
+    };
+    const seen = new Set();
+    const out = [];
+    const add = (list) => {
+      for (const m of list) {
+        const k = m && (m.id ?? m.model_url);
+        if (k == null || seen.has(k)) continue;
+        seen.add(k);
+        out.push(m);
+      }
+    };
+    let first = null;
+    try {
+      add(rows(await this._get(`/models?tone_id=${toneId}&page_size=300`)));
+    } catch (e) {
+      first = e;
+    }
+    try {
+      add(rows(await this._get(`/models?tone_id=${toneId}&page_size=300&architecture=2`)));
+    } catch (e) {
+      if (first || e.code === 'auth') throw e;
+    }
+    if (!out.length && first) throw first;
+    return out;
   }
 
   /** Browse TONE3000 and pick any capture (select_tone). */
@@ -483,10 +531,9 @@ class Captures extends EventEmitter {
       if (!toneId) throw new Error('No capture was picked.');
       this._setBusy({ stage: 'download', packKey: packKey || null, ampKey: ampKey || null });
       const tone = await this._get(`/tones/${toneId}`).catch(() => null);
-      const list = await this._get(`/models?tone_id=${toneId}&page_size=300`);
-      const models = (list && (list.data || list.models || list)) || [];
+      const models = await this._allModels(toneId);
       const same = def && toneId === def.toneId;
-      const picks = pickModels(Array.isArray(models) ? models : [], same ? def.variants : null);
+      const picks = pickModels(models, same ? def.variants : null);
       if (!picks.length) throw new Error('That capture has no NAM models Stagehand can use.');
       const id = `t3k_${toneId}`;
       const dir = path.join(this.dir, id);

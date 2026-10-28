@@ -420,6 +420,7 @@ void main() { gl_Position = vec4(position.xy, 0.999, 1.0); }`;
 const BFS = /* glsl */ `
 uniform sampler2D soft;
 uniform sampler2D lit;
+uniform vec2 texel;    // one picture pixel in texture units
 uniform float hasImg;
 uniform vec2 res;      // CSS pixels
 uniform float dpr;
@@ -435,6 +436,10 @@ void main() {
     uv = clamp(uv, vec2(0.0, 0.0), vec2(1.0, 0.999));
     vec2 tuv = vec2(uv.x, 1.0 - uv.y);
     c = texture2D(soft, tuv).rgb;
+    // a light unsharp mask: the photos are stretched past their own size, which softens them
+    vec3 b = (texture2D(soft, tuv + vec2(texel.x, 0.0)).rgb + texture2D(soft, tuv - vec2(texel.x, 0.0)).rgb
+            + texture2D(soft, tuv + vec2(0.0, texel.y)).rgb + texture2D(soft, tuv - vec2(0.0, texel.y)).rgb) * 0.25;
+    c = max(c + (c - b) * 0.6, 0.0);
     if (p.y < vp + res.y * 0.04) {
       vec3 l = texture2D(lit, tuv).rgb * min(0.35, pulse * 0.32);
       c = 1.0 - (1.0 - c) * (1.0 - l);
@@ -464,6 +469,7 @@ function makeBackdrop(scene) {
     uniforms: {
       soft: { value: null },
       lit: { value: null },
+      texel: { value: new THREE.Vector2(1 / 1600, 1 / 900) },
       hasImg: { value: 0 },
       res: { value: new THREE.Vector2(1, 1) },
       dpr: { value: 1 },
@@ -508,7 +514,7 @@ function photoTextures(name) {
       t.generateMipmaps = false;
       return t;
     };
-    p.soft = mk(w, h, 'blur(1.5px) brightness(0.8) saturate(0.92)');
+    p.soft = mk(w, h, 'brightness(0.8) saturate(0.92)'); // 3.7: no blur on the picture itself (user: a little sharper)
     p.lit = mk(Math.round(w / 2), Math.round(h / 2), 'blur(6px) brightness(1.25) contrast(1.6) saturate(1.2)');
     p.w = w;
     p.h = h;
@@ -526,7 +532,8 @@ function photoTextures(name) {
 export function createRenderer3D(canvas) {
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+    // alpha: the Fluid venue shows through from behind (another page under this canvas)
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   } catch (err) {
     console.warn('Highway: WebGL unavailable', err);
     return null;
@@ -544,6 +551,8 @@ export function createRenderer3D(canvas) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.05, 600);
   const back = makeBackdrop(scene);
+  const backMesh = scene.children[scene.children.length - 1];
+  let seeThrough = false;
   const L = {
     floor: new Layer(scene, { order: 0 }),
     solid: new Layer(scene, { order: 2, depthWrite: true }),
@@ -628,6 +637,14 @@ export function createRenderer3D(canvas) {
       u.heat.value = heat;
       const vp = Math.max(H * 0.22, Math.min(H * 0.6, vpY));
       u.vp.value = vp;
+      // the Fluid venue lives behind this canvas: draw no backdrop, clear to transparent
+      const fluid = !!(v && v.fluid);
+      if (fluid !== seeThrough) {
+        seeThrough = fluid;
+        backMesh.visible = !fluid;
+        renderer.setClearColor(0x05070c, fluid ? 0 : 1);
+      }
+      if (fluid) return;
       const p = v && v.photo ? photoTextures(v.photo) : null;
       if (!p || !p.ready) {
         u.hasImg.value = 0;
@@ -636,6 +653,7 @@ export function createRenderer3D(canvas) {
       u.hasImg.value = 1;
       u.soft.value = p.soft;
       u.lit.value = p.lit;
+      u.texel.value.set(1 / p.w, 1 / p.h);
       const sc = Math.max((W * 1.08) / p.w, (H / p.h) * 0.85, vp / (v.horizon * p.h));
       const dw = p.w * sc;
       const dh = p.h * sc;

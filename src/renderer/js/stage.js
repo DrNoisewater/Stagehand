@@ -904,6 +904,18 @@ async function loadStems(token, { switchMode = true } = {}) {
   renderStemsCall();
 }
 
+/** The open song's stems were re-stored losslessly (WAV → FLAC): same audio, new files. */
+export async function stemsMoved() {
+  if (!S.song) return;
+  const token = S.token;
+  try {
+    const st = await api.stems.status(S.song.id);
+    if (token !== S.token || !st) return;
+    state.stems.set(S.song.id, st);
+    S.status = st;
+  } catch (_) {}
+}
+
 export async function reloadStems() {
   if (!S.song) return;
   engine.unloadStems();
@@ -1289,6 +1301,8 @@ export function openHighway() {
       label: (name) => STEM_LABEL[name] || name,
       stemStatus: () => S.status,
       requestStems: () => S.song && actions.requestStems([S.song.id]).then(() => api.stems.prioritize(S.song.id).catch(() => {})),
+      goBack: () => setPage('songs'),
+      showView: (v) => setStageView(v),
       onHighwayClosed: () => {
         if (tabView && tabView.visible) tabView.stemsChanged();
         else engine.setPlayAlong(null);

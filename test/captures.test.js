@@ -97,11 +97,12 @@ function storedZip(files) {
     if (!authed) return json({ error: 'unauthorized' }, 401);
     seen.bearer++;
     if (u.pathname === '/api/v1/user') return json({ username: 'rockfan', display_name: null });
-    if (u.pathname === '/api/v1/tones/70207') return json({ id: 70207, title: 'MESA DUAL RECTIFIER (REV G 1998) - FULL GAIN PACK', user: { username: 'deathblossomaudio', url: 'https://example/deathblossomaudio' }, license: 'T3K', gear: 'amp', url: 'https://www.tone3000.com/tones/x-70207' });
+    if (u.pathname === '/api/v1/tones/70207') return json({ id: 70207, title: 'MESA DUAL RECTIFIER (REV G 1998) - FULL GAIN PACK', user: { username: 'deathblossomaudio', url: 'https://example/deathblossomaudio' }, license: 'T3K', gear: 'amp', url: 'https://www.tone3000.com/tones/x-70207', a1_models_count: 0, custom_models_count: 0, a2_models_count: 11 });
     if (u.pathname === '/api/v1/tones/999') return json({ id: 999, title: 'Some LSTM amp', user: { username: 'someone' }, license: 'T3K', gear: 'full-rig' });
     if (u.pathname === '/api/v1/models') {
       const id = u.searchParams.get('tone_id');
       const base = `http://127.0.0.1:${server.address().port}`;
+      if (id === '70207' && u.searchParams.get('architecture') !== '2') return json({ data: [] }); // like TONE3000: A2 only when asked
       if (id === '70207')
         return json({
           data: [
@@ -175,6 +176,7 @@ function storedZip(files) {
   const r = await caps.get('rectifier', 'Amp_CA100');
   const a1 = seen.auth[1];
   ok(a1.prompt === 'load_tone' && a1.tone_id === '70207', 'opens the Rectifier on TONE3000 to confirm');
+  ok(a1.architecture === '2', 'tells TONE3000 we play A2 models (else it says the tone isn’t compatible)');
   const pack = caps.state().packs.find((p) => p.id === r.id);
   ok(pack && pack.models.length === 4, `kept 4 models (the gain variants that exist, no lite duplicate, no IR): ${pack && pack.models.map((m) => m.name).join(', ')}`);
   ok(pack && pack.maker === 'deathblossomaudio' && pack.license === 'T3K' && pack.mapKey === 'rectifier', 'maker, licence and source recorded for credits');

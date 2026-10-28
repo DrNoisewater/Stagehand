@@ -33,8 +33,7 @@ async function readStem(url, rate, frames) {
 let flacWorker = null;
 let flacSeq = 0;
 const flacWait = new Map();
-function encode(fmt, l, r, rate) {
-  if (typeof Worker === 'undefined') return encodeFlac(l, r, rate);
+function flac() {
   if (!flacWorker) {
     flacWorker = new Worker(new URL('../workers/flac-worker.js', import.meta.url), { type: 'module' });
     flacWorker.onmessage = (e) => {
@@ -45,12 +44,24 @@ function encode(fmt, l, r, rate) {
       else w.resolve(new Uint8Array(e.data.bytes));
     };
   }
+  return flacWorker;
+}
+function encode(fmt, l, r, rate) {
+  if (typeof Worker === 'undefined') return encodeFlac(l, r, rate);
   const id = ++flacSeq;
   const L = l.slice();
   const R = r.slice();
   return new Promise((resolve, reject) => {
     flacWait.set(id, { resolve, reject });
-    flacWorker.postMessage({ id, l: L, r: R, rate }, [L.buffer, R.buffer]);
+    flac().postMessage({ id, l: L, r: R, rate }, [L.buffer, R.buffer]);
+  });
+}
+/** A WAV stem straight to FLAC: the bytes go to the worker untouched (nothing heavy on the page). */
+function encodeWav(buf) {
+  const id = ++flacSeq;
+  return new Promise((resolve, reject) => {
+    flacWait.set(id, { resolve, reject });
+    flac().postMessage({ id, wav: buf }, [buf]);
   });
 }
 
@@ -99,16 +110,28 @@ async function convert(songId, model, format) {
   const fmt = fmtById(format);
   if (fmt.id !== 'wav') {
     for (const s of st.stems) {
-      const a = await readStem(s.url, st.sampleRate, st.frames);
-      const bytes = await encode(fmt, a.l, a.r, a.rate);
+      let bytes;
+      if (fmt.id === 'flac' && /\.wav(\?|$)/i.test(s.url) && typeof Worker !== 'undefined') {
+        bytes = await encodeWav(await (await fetch(s.url)).arrayBuffer());
+      } else {
+        const a = await readStem(s.url, st.sampleRate, st.frames);
+        bytes = await encode(fmt, a.l, a.r, a.rate);
+      }
       await api.stems.store(songId, model, s.name, fmt.ext, bytes);
+      // let the page (and the highway) breathe between stems
+      await new Promise((r) => setTimeout(r, 30));
     }
   }
   // (back to WAV isn't offered: the WAVs are gone once converted)
   if (fmt.id !== 'wav') await api.stems.finish(songId, model, format);
-  // if this song is open, reload its stems in the new format
+  // If this song is open: FLAC is a perfect copy of what's already playing, so
+  // nothing is reloaded (that used to decode every stem again mid-song and made
+  // the highway stutter). Only a lossy format would need the new audio.
   const cur = stage.current();
-  if (cur && cur.id === songId) stage.reloadStems();
+  if (cur && cur.id === songId) {
+    if (fmt.id === 'flac') stage.stemsMoved && stage.stemsMoved();
+    else stage.reloadStems();
+  }
 }
 
 // New stems get stored in the chosen format as soon as they're made.

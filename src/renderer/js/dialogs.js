@@ -171,7 +171,6 @@ export async function settings(tab = 'library') {
     ['amps', 'Real amps'],
     ['playback', 'Playback'],
     ['stems', 'Stems'],
-    ['rocksmith', 'Rocksmith'],
     ['saving', 'Saving and backups'],
     ['storage', 'Storage'],
     ['about', 'About'],
@@ -789,3 +788,91 @@ document.addEventListener('mousedown', (e) => {
 on('scan', renderActivity);
 on('stems', renderActivity);
 on('stems-progress', renderActivity);
+
+// -------------------------------------------------------------- duplicates --
+/**
+ * 3.7: the same song in more than one file. Each group shows its copies with
+ * what's in them; the copy kept (green) must have audio, then has the most
+ * parts and the newest version. Click another copy to keep that one instead.
+ * The others move to Stagehand's backups (Undo brings them back).
+ */
+export async function duplicates() {
+  const body = h('div.dupes');
+  const note = h('p.dupes-note', { text: 'Looking for songs you have more than once…' });
+  body.append(note);
+  const cancel = h('button.btn.soft', { type: 'button', text: 'Close' });
+  const go = h('button.btn.primary', { type: 'button', text: 'Move extra copies', disabled: true });
+  const m = modal({ title: 'Duplicate songs', body, footer: [cancel, go], wide: true });
+  cancel.onclick = () => m.close();
+  const stemIds = [...state.songs.values()].filter((s) => s.hasStems || (state.stems.get(s.id) || {}).state === 'ready').map((s) => s.id);
+  let groups = [];
+  try {
+    groups = await api.library.findDuplicates(stemIds);
+  } catch (err) {
+    note.textContent = `Couldn’t check: ${err.message}`;
+    return;
+  }
+  const count = () => groups.reduce((n, g) => n + g.items.filter((i) => i.remove).length, 0);
+  const sync = () => {
+    const n = count();
+    go.disabled = !n;
+    go.textContent = n ? `Move ${n} extra ${n === 1 ? 'copy' : 'copies'}` : 'Nothing to move';
+  };
+  if (!groups.length) {
+    note.textContent = 'No duplicates: every song is in your library once.';
+    sync();
+    return;
+  }
+  note.innerHTML = `<b>${groups.length} song${groups.length === 1 ? '' : 's'}</b> ${groups.length === 1 ? 'is' : 'are'} in your library more than once. Stagehand always plays the full part (the hardest level), so a DD copy plays the same as a non-DD one. It keeps the copy with audio, the most parts and the newest version (green), and moves the others to its backups. Your favourites, plays and setlists move to the copy kept. Click a copy to keep that one instead.`;
+  const list = h('div.dupes-list');
+  body.append(list);
+  const partLetter = { lead: 'L', rhythm: 'R', bass: 'B', combo: 'C', vocals: 'V' };
+  const render = () => {
+    list.innerHTML = '';
+    for (const g of groups) {
+      const card = h('div.dupe-group');
+      card.append(h('div.dupe-head', null, h('b', { text: g.title }), h('span', { text: g.artist || '' })));
+      for (const it of g.items) {
+        const keep = it.id === g.keep;
+        const row = h(`button.dupe-row${keep ? '.keep' : it.remove ? '.drop' : '.stay'}`, { type: 'button', title: it.path || it.fileName });
+        const badge = keep ? 'Keep' : it.pack ? 'In a pack: stays' : it.remove ? 'Move aside' : 'Stays';
+        row.innerHTML = `<span class="dupe-state">${esc(badge)}</span><span class="dupe-file">${esc(it.fileName || '')}</span>
+          <span class="dupe-chips">${it.audio ? `<i class="ok" title="Has audio">${icon('volume')}</i>` : `<i class="bad" title="No audio inside">${icon('volumeOff')} no audio</i>`}
+          ${['lead', 'rhythm', 'bass', 'vocals'].map((p) => `<i class="part${it.parts.includes(p) ? ' on' : ''}" title="${p}">${partLetter[p]}</i>`).join('')}
+          ${it.version && it.version !== '0' ? `<i title="Version">v${esc(it.version)}</i>` : ''}${it.dd ? '<i title="Dynamic difficulty build">DD</i>' : ''}${it.stems ? `<i class="ok" title="Stems ready">${icon('split')}</i>` : ''}${it.plays ? `<i title="Times played">${it.plays}×</i>` : ''}<i class="size">${fmtBytes(it.size)}</i></span>`;
+        row.onclick = () => {
+          if (keep || it.pack) return;
+          g.keep = it.id;
+          for (const x of g.items) x.remove = x.id !== it.id && !x.pack;
+          render();
+          sync();
+        };
+        card.append(row);
+      }
+      list.append(card);
+    }
+  };
+  render();
+  sync();
+  go.onclick = async () => {
+    const pairs = [];
+    for (const g of groups) for (const it of g.items) if (it.remove) pairs.push({ remove: it.id, keep: g.keep });
+    go.disabled = true;
+    go.textContent = 'Moving…';
+    try {
+      const r = await api.library.removeDuplicates(pairs);
+      m.close();
+      await loadLibrary();
+      toast({
+        title: `${r.moved} extra ${r.moved === 1 ? 'copy' : 'copies'} moved aside`,
+        message: r.failed.length ? `${r.failed.length} couldn’t be moved (in use?).` : 'They’re in Stagehand’s backups, not deleted.',
+        kind: 'ok',
+        timeout: 12000,
+        actions: [{ label: 'Undo', onClick: async () => { const u = await api.library.undoDuplicates(r.id); await loadLibrary(); toast({ title: `${u.restored} put back`, kind: 'info', timeout: 3000 }); } }],
+      });
+    } catch (err) {
+      sync();
+      toast({ title: 'Couldn’t move the copies', message: err.message, kind: 'err' });
+    }
+  };
+}

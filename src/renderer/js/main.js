@@ -18,6 +18,16 @@ import './stemformat.js';
 import { rig } from './rig.js';
 import { loadTones, useSlot } from './tonelib.js';
 import { setPage } from './store.js';
+import './jam.js';
+
+// the version, small, after the name in the title bar
+api.app
+  .info()
+  .then((i) => {
+    const el = document.getElementById('brand-ver');
+    if (el && i && i.version) el.textContent = `v${i.version}`;
+  })
+  .catch(() => {});
 
 actions.register({ stage, inspector, dialogs });
 

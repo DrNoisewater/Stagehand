@@ -43,12 +43,32 @@ function tech(a) {
   if (num(a.pluck, -1) > 0) t.pop = true;
   if (num(a.accent)) t.accent = true;
   if (num(a.vibrato)) t.vibrato = true;
+  if (num(a.linkNext)) t.linkNext = true;
   if (num(a.slideTo, -1) >= 0) t.slideTo = num(a.slideTo);
   if (num(a.slideUnpitchTo, -1) >= 0) t.slideUnpitchTo = num(a.slideUnpitchTo);
   if (num(a.bend) > 0) t.bend = Math.round(num(a.bend) * 2) / 2;
   // the whole bend: when it moves and how far (in steps), for drawing it exactly
   if (a._bv && a._bv.length) t.bends = a._bv;
   return t;
+}
+
+/**
+ * Linked notes (Rocksmith's linkNext): a note held into the next one on the
+ * same string (usually to slide or bend off it) is ONE pick, not two. The
+ * following note gets `linked` so the highway draws one continuous note and
+ * scoring doesn't ask you to pick it again.
+ */
+function markLinks(notes, chordEvents) {
+  const all = [];
+  for (const n of notes) all.push({ t: n.t, s: n.s, n });
+  for (const c of chordEvents) for (const x of c.strings) all.push({ t: c.t, s: x.s, n: x });
+  all.sort((a, b) => a.t - b.t);
+  const last = new Map();
+  for (const e of all) {
+    const prev = last.get(e.s);
+    if (prev && prev.n.linkNext && e.t - prev.t < (prev.n.sus || 0) + 0.25) e.n.linked = true;
+    last.set(e.s, e);
+  }
 }
 
 function parseXml(text, { type = 'lead', name = '' } = {}) {
@@ -108,6 +128,7 @@ function parseXml(text, { type = 'lead', name = '' } = {}) {
   });
   notes.sort((a, b) => a.t - b.t || a.s - b.s);
   chordEvents.sort((a, b) => a.t - b.t);
+  markLinks(notes, chordEvents);
   anchors.sort((a, b) => a.t - b.t);
   anchors.forEach((a, i) => (a.end = i + 1 < anchors.length ? anchors[i + 1].t : round(length)));
   const maxLevel = levels.get(Math.max(...levels.keys())) || { handShapes: [] };

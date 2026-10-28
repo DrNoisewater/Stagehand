@@ -3,8 +3,43 @@
 const BASE = 64; // frames per bucket at the finest level
 const FACTOR = 8;
 
+/** Decoded floats → a 16-bit stereo WAV (the layout the player streams). */
+function wavFrom(L, R, rate) {
+  const n = L.length;
+  const buf = new ArrayBuffer(44 + n * 4);
+  const dv = new DataView(buf);
+  const tag = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  tag(0, 'RIFF');
+  dv.setUint32(4, 36 + n * 4, true);
+  tag(8, 'WAVE');
+  tag(12, 'fmt ');
+  dv.setUint32(16, 16, true);
+  dv.setUint16(20, 1, true);
+  dv.setUint16(22, 2, true);
+  dv.setUint32(24, rate, true);
+  dv.setUint32(28, rate * 4, true);
+  dv.setUint16(32, 4, true);
+  dv.setUint16(34, 16, true);
+  tag(36, 'data');
+  dv.setUint32(40, n * 4, true);
+  const pcm = new Int16Array(buf, 44, n * 2);
+  for (let i = 0; i < n; i++) {
+    const a = Math.round(L[i] * 32767);
+    const b = Math.round(R[i] * 32767);
+    pcm[i * 2] = a > 32767 ? 32767 : a < -32768 ? -32768 : a;
+    pcm[i * 2 + 1] = b > 32767 ? 32767 : b < -32768 ? -32768 : b;
+  }
+  return buf;
+}
+
 self.onmessage = (e) => {
-  const { id, buffer, dataOffset, frames, channels } = e.data;
+  let { id, buffer, dataOffset, frames, channels } = e.data;
+  if (e.data.L) {
+    buffer = wavFrom(e.data.L, e.data.R, e.data.rate);
+    dataOffset = 44;
+    frames = e.data.L.length;
+    channels = 2;
+  }
   let pcm;
   if (dataOffset % 2 === 0) {
     pcm = new Int16Array(buffer, dataOffset, frames * channels);

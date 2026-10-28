@@ -181,6 +181,17 @@ class FakePortMain extends EventEmitter {
     'app.log': () => [],
     'settings.get': () => settings.get(),
     'settings.set': (p) => settings.set(p),
+    // the real grouping over the test songs plus three made-up copies of one song (for the picture)
+    'library.findDuplicates': (stemIds) => {
+      const { findDuplicates } = require('../../src/main/services/dupes');
+      const a = (...t) => t.map((type) => ({ type }));
+      const fake = [
+        { id: 'f1', title: 'Sugar', artist: 'System Of A Down', fileName: 'System-Of-A-Down_Sugar_v1_p.psarc', audioEntry: 'x', arrangements: a('lead', 'bass'), packageVersion: '1', fileSize: 9.1e6, user: { plays: 4 } },
+        { id: 'f2', title: 'Sugar', artist: 'System of a Down', fileName: 'SOAD_Sugar_v3_DD_p.psarc', audioEntry: 'y', arrangements: a('lead', 'rhythm', 'bass', 'vocals'), packageVersion: '3', fileSize: 10.4e6 },
+        { id: 'f3', title: 'Sugar', artist: 'System Of A Down', fileName: 'sugar_broken_p.psarc', audioEntry: null, arrangements: a('lead', 'rhythm', 'bass', 'vocals'), packageVersion: '4', fileSize: 1.2e6 },
+      ];
+      return findDuplicates([...library.snapshot().songs, ...fake], new Set(stemIds || []));
+    },
     'library.get': () => {
       const s = library.snapshot();
       s.songs = s.songs.map((x) => ({ ...x, hasStems: false }));
@@ -199,7 +210,12 @@ class FakePortMain extends EventEmitter {
     'imports.status': () => ({ watching: false, history: [] }),
     'discover.wanted': () => [],
     'discover.recent': () => [],
-    'rocksmith.read': () => null,
+    // a profile with Rocksmith mastery for the test songs' parts (3.7: shown next to titles)
+    'rocksmith.read': () => {
+      const m = {};
+      library.snapshot().songs.forEach((x, i) => (x.arrangements || []).forEach((a, j) => a.id && (m[String(a.id).toUpperCase()] = i === 0 ? 1 : 0.62 + j * 0.1)));
+      return { profile: { id: 'p', name: 'Test' }, profiles: [{ id: 'p', name: 'Test' }], lists: [], favorites: [], mastery: m, rsmods: {}, names: [] };
+    },
     'tones.get': () => toneStore.get(),
     'tones.save': (t) => toneStore.save(t),
     'tones.remove': (id) => toneStore.remove(id),
@@ -665,8 +681,61 @@ class FakePortMain extends EventEmitter {
     started = await page.evaluate(() => document.querySelector('.stem-wait').hidden && !!(window.__stagePlaying && window.__stagePlaying()));
   }
   check(!playingBefore && started, 'and starts by itself once they’re in');
+  // 3.7: Tab | Waveform on the highway, and Back goes to your songs
+  await page.mouse.move(400, 300);
+  await page.mouse.move(420, 320);
+  await page.waitForTimeout(300);
+  await page.locator('.hw-views button:has-text("Tab")').click();
+  await page.waitForTimeout(600);
+  const v1 = await page.evaluate(() => ({ hw: !!document.querySelector('.highway:not([hidden])'), now: document.getElementById('app').className }));
+  check(!v1.hw && /now/.test(v1.now), 'Tab on the highway switches to the Tab view of the song');
+  await page.keyboard.press('h');
+  await page.waitForTimeout(800);
+  if (!(await page.evaluate(() => !!document.querySelector('.highway:not([hidden])')))) await page.evaluate(() => window.__stage && window.__stage.openHighway && window.__stage.openHighway());
+  await page.waitForTimeout(800);
+  await shot('23-highway-views');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(600);
+  const v2 = await page.evaluate(() => ({ hw: !!document.querySelector('.highway:not([hidden])'), cls: document.getElementById('app').className }));
+  check(!v2.hw && /songs/.test(v2.cls), `Back (Esc) from the highway goes to your songs (${v2.cls})`);
+  // Songs folds its sub-menu on a second click; no Rocksmith lists any more
+  await page.locator('.nav-section:has-text("Songs")').click();
+  await page.waitForTimeout(400);
+  const f0 = await page.locator('.nav-sub .nav-item').count();
+  await page.locator('.nav-section:has-text("Songs")').click();
+  await page.waitForTimeout(400);
+  const f1 = await page.locator('.nav-sub .nav-item').count();
+  await page.locator('.nav-section:has-text("Songs")').click();
+  await page.waitForTimeout(400);
+  const f2 = await page.locator('.nav-sub .nav-item').count();
+  check(Math.max(f0, f1) > 0 && Math.min(f0, f1) === 0 && f2 === f0, `clicking Songs again folds and unfolds its menu (${f0} → ${f1} → ${f2})`);
+  check((await page.locator('.nav-label:has-text("In Rocksmith")').count()) === 0, 'the In Rocksmith lists are gone from the menu');
+  await shot('24-menu');
+  // 3.7: duplicate songs (Songs › ⋯ › Find duplicate songs)
+  await page.locator('.icon-btn[title="More"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('.menu button:has-text("Find duplicate songs")').click();
+  await page.waitForTimeout(1200);
+  const dz = await page.evaluate(() => ({ groups: document.querySelectorAll('.dupe-group').length, keep: [...document.querySelectorAll('.dupe-row.keep .dupe-file')].map((x) => x.textContent), drop: document.querySelectorAll('.dupe-row.drop').length, go: (document.querySelector('.modal footer .btn.primary') || {}).textContent }));
+  check(dz.groups === 1 && /v3_DD/.test(dz.keep[0]) && dz.drop === 2, `duplicates: keeps the copy with audio and the most parts (${dz.keep[0]}), ${dz.drop} to move (“${dz.go}”)`);
+  await shot('26-duplicates');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  // 3.7: Jam (full screen, just the Fluid picture and your guitar), and the version in the title bar
+  check(/^v\d+\.\d+\.\d+$/.test(((await page.locator('#brand-ver').textContent()) || '').trim()), 'the version shows after Stagehand in the title bar');
+  await page.locator('.nav-section:has-text("Play")').click();
+  await page.waitForTimeout(600);
+  await page.locator('.jam-open').click();
+  await page.waitForTimeout(4000);
+  const jam = await page.evaluate(() => ({ open: !document.querySelector('.jam').hidden, frame: !!document.querySelector('.jam .hw-fluid'), ready: !!(document.querySelector('.jam .hw-fluid') && document.querySelector('.jam .hw-fluid').contentWindow.FluidVisuals) }));
+  check(jam.open && jam.frame && jam.ready, 'Jam opens full screen with the Fluid picture');
+  await page.evaluate(() => document.querySelector('.jam .hw-fluid').contentWindow.FluidVisuals.splats([{ x: 0.3, y: 0.3, dx: 400, dy: 900, r: 0.2, g: 0.05, b: 0.25, radius: 1.2 }, { x: 0.7, y: 0.3, dx: -400, dy: 900, r: 0.05, g: 0.15, b: 0.3, radius: 1.2 }]));
+  await page.waitForTimeout(2500);
+  await page.mouse.move(300, 300);
+  await shot('25-jam');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(500);
+  check(await page.evaluate(() => document.querySelector('.jam').hidden && !document.querySelector('.jam .hw-fluid')), 'Esc leaves Jam and stops the picture');
 
   // reopening Stagehand on Tones › From my songs (the tab is remembered) must start reading by itself
   await page.evaluate(() => localStorage.setItem('stagehand.tonesTab', 'songs'));
