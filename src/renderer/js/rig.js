@@ -562,8 +562,7 @@ export class Rig extends EventTarget {
   setLiveTone(tone) {
     this.autoSong=false;
     if (!tone || !tone.gear || !tone.gear.length) return;
-    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs,...(this._toneMatchOriginal||{}) };
-    this._toneMatchOriginal=null;
+    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs };
     this.mode = 'live';
     this.liveTone = { ...tone, gain: ampGain(tone) };
     this.knobs = { ...DEFAULT_KNOBS, input: this.knobs.input, volume: this.knobs.volume };
@@ -631,7 +630,7 @@ export class Rig extends EventTarget {
     try {
       localStorage.setItem(
         'stagehand.rig',
-        JSON.stringify({ deviceId: this.deviceId, outputId: this.outputId, engine: this.engineChoice, exclusive: this.exclusive, buffer: this.buffer, toneId: this.toneId, knobs: {...this.knobs,...(this._toneMatchOriginal||{})}, perTone: this.perTone, muted: this.muted, instrument: this.instrumentPref, sensed: this.sense.instrument, lastByKind: this.lastByKind })
+        JSON.stringify({ deviceId: this.deviceId, outputId: this.outputId, engine: this.engineChoice, exclusive: this.exclusive, buffer: this.buffer, toneId: this.toneId, knobs: this.knobs, perTone: this.perTone, muted: this.muted, instrument: this.instrumentPref, sensed: this.sense.instrument, lastByKind: this.lastByKind })
       );
     } catch (_) {}
   }
@@ -1019,8 +1018,7 @@ export class Rig extends EventTarget {
   /** Follow the song: its own Rocksmith rig. */
   setSongTone(mapped) {
     if (!mapped) return;
-    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs,...(this._toneMatchOriginal||{}) };
-    this._toneMatchOriginal=null;
+    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs };
     this.mode = 'song';
     this.songTone = { ...mapped, gainPos: mapped.gear ? ampGain(mapped) : mapped.knobs && mapped.knobs.gain };
     this.toneId = mapped.preset;
@@ -1034,9 +1032,8 @@ export class Rig extends EventTarget {
 
   setTone(id) {
     this.autoSong=false;
-    if(this._toneMatchOriginal){for(const [k,v] of Object.entries(this._toneMatchOriginal)){if(v===undefined)delete this.knobs[k];else this.knobs[k]=v;}this._toneMatchOriginal=null;}
     // Each tone remembers its own knob settings.
-    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs,...(this._toneMatchOriginal||{}) };
+    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs };
     this.mode = 'preset';
     this.songTone = null;
     this.liveTone = null;

@@ -7,7 +7,7 @@ import {createClipRecorder} from './take-video.js';
  */
 import * as stage from './stage.js';
 import { state, setPage } from './store.js';
-import { audioSplats,createReactive } from './reactive-bg.js';
+import { audioSplats } from './reactive-bg.js';
 import { api } from './api.js';
 import { h, icon, esc, isTyping, toast } from './ui.js';
 import { rig } from './rig.js';
@@ -24,11 +24,8 @@ const top = h('div.jam-top', null, back, h('span.jam-title', { text: 'Jam' }), h
 const backing=h('button.jam-chip',{text:'Play over song · Off',title:'Use the loaded song’s stems as your backing band'});
 const choose=h('button.jam-chip',{text:'Choose song',title:'Choose a song from your library, then return to Jam'});
 const part=h('select.input',{'aria-label':'Your part'},h('option',{value:'guitar',text:'Mute guitar'}),h('option',{value:'bass',text:'Mute bass'}));
-const look=h('select.input',{'aria-label':'Jam visualizer'},...['fluid','aurora','orbit','spectrum'].map(id=>h('option',{value:id,text:{fluid:'Fluid',aurora:'Aurora',orbit:'Orbital',spectrum:'Prism'}[id]})));
-look.value=localStorage.getItem('stagehand.jamLook')||'fluid';
-look.onchange=()=>localStorage.setItem('stagehand.jamLook',look.value);
 export const backingControls=h('div.jam-backing-controls',null,choose,backing,part);
-const controls=h('div.jam-controls',null,look);
+const controls=h('div.jam-controls');
 root.append(controls);
 let savedMix=null,wasPlaying=false,backingSong=null,savedMode=null;
 const snapshot=()=>stage.engine.tracks.map(t=>({muted:t.muted,solo:t.solo,volume:t.volume}));
@@ -48,7 +45,6 @@ const hint = h('div.jam-hint', { text: 'Play anything. Esc to leave.' });
 root.append(top, note, hint);
 document.body.append(root);
 const fluid = createFluid(root, { jam: true });
-const reactive=createReactive(root);
 
 back.onclick = () => closeJam();
 drumBtn.onclick = () => (drums.on ? drums.stop() : drums.start());
@@ -80,7 +76,7 @@ export function openJam() {
   root.hidden = false;
   document.getElementById('app').classList.add('under-highway'); // nothing else draws underneath
   api.app.fullscreen(true).catch(() => {});
-  if(look.value==='fluid')fluid.ensure();
+  fluid.ensure();
   renderHud();
   J.raf = requestAnimationFrame(frame);
 }
@@ -88,7 +84,7 @@ export function openJam() {
 export function closeJam() {
   if (!J.open) return;
   J.open = false;
-  closeDrawer();document.querySelector('.jam-launch-options')?.prepend(backingControls,recordControl);reactive.drop();
+  closeDrawer();document.querySelector('.jam-launch-options')?.prepend(backingControls,recordControl);
 
   cancelAnimationFrame(J.raf);
   fluid.drop();
@@ -117,8 +113,8 @@ function frame(now) {
   const dt = Math.min(0.1, (now - J.last) / 1000);
   J.last = now;
   J.t += dt;
-  if(look.value!=='fluid'){fluid.drop();reactive.draw(look.value,stage.engine,now);}else{reactive.drop();fluid.ensure();}
-  if (look.value==='fluid' && fluid.ready) {
+  fluid.ensure();
+  if (fluid.ready) {
     const out = J.ink(J.t, dt, { gain: 1.3 });
     drumBeats(out);
     out.push(...audioSplats(stage.engine,J.t));

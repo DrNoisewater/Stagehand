@@ -290,7 +290,6 @@ class FakePortMain extends EventEmitter {
   }
   await page.addInitScript(([fakeIn, shape]) => {
     localStorage.setItem('stagehand.fluidDye','256');
-    localStorage.setItem('stagehand.jamLook','aurora');
     window.__shFakeAudio = { fakeIn };
     let seq = 0;
     const local = new Map();
@@ -359,12 +358,12 @@ class FakePortMain extends EventEmitter {
     const volumes=await page.evaluate(async()=>{const stage=await import('./js/stage.js'),{rig}=await import('./js/rig.js'),{state}=await import('./js/store.js'),a=await import('./js/actions.js');stage.setSongLevel(.63);stage.setYou(.72);const songs=[...state.songs.values()];await a.playSong(songs[1].id,{autoplay:false});return [stage.songLevel(),rig.knobs.volume];});
     check(Math.abs(volumes[0]-.63)<.001&&Math.abs(volumes[1]-.72)<.001,'master volumes persist across songs: '+volumes);
     await page.locator('.nav-section:has-text("Jam")').click();
-    for(const mode of ['aurora','orbit','spectrum']){await page.getByLabel('Jam visualizer').selectOption(mode);await page.waitForTimeout(800);await shot('repair-'+mode);}
+    await page.waitForTimeout(800);await shot('repair-jam');check(!(await page.getByLabel('Jam visualizer').count()),'Jam has no Aurora/Orbital/Prism picker');
     const layout=await page.evaluate(()=>[...document.querySelectorAll('.jam-chip')].every(e=>e.scrollHeight<=e.clientHeight+2));check(layout,'Jam labels fit their controls');
     await page.keyboard.press('Escape');
     await page.evaluate(async()=>{const {state}=await import('./js/store.js'),a=await import('./js/actions.js');await a.playAlong(state.nowPlaying);});
     const stable=await page.evaluate(async()=>{const {rig}=await import('./js/rig.js'),H=document.querySelector('.highway').__hw;const judge=H.judge;rig._sendAllParams();return judge===H.judge;});check(stable,'tone parameter refresh does not reset note judge');
-    await page.getByRole('button',{name:'Tone match · Off',exact:true}).click();await shot('repair-tone-match');
+    check(!(await page.getByRole('button',{name:/Tone match/}).count()),'no Tone match button on the highway');await shot('repair-highway');
     check(!logs.some(l=>/^pageerror/.test(l)||/Visualizer:/.test(l)),'no script or shader errors');
     await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
   }
@@ -387,7 +386,7 @@ class FakePortMain extends EventEmitter {
     await page.getByLabel('Your part',{exact:true}).selectOption('bass');
     const bass=await page.evaluate(async()=>{const {engine}=await import('./js/stage.js');return {guitar:engine.tracks.find(t=>t.name==='guitar')?.muted,bass:engine.tracks.find(t=>t.name==='bass')?.muted};});
     check(!bass.guitar&&bass.bass,'switching Jam part restores guitar and mutes bass');
-    await page.getByLabel('Jam visualizer').selectOption('aurora');await page.waitForTimeout(1000);await shot('performance-jam');
+    await page.waitForTimeout(1000);await shot('performance-jam');
     await page.keyboard.press('Escape');
     check(await page.evaluate(()=>document.querySelector('.jam').hidden),'Jam exits cleanly');
     await page.evaluate(async()=>{const {state}=await import('./js/store.js');const a=await import('./js/actions.js');await a.playAlong(state.nowPlaying);});
@@ -395,12 +394,6 @@ class FakePortMain extends EventEmitter {
     check(await page.locator('.hw-mini-tuner').isVisible(),'U opens highway tuner');await page.keyboard.press('u');check(!(await page.locator('.hw-mini-tuner').isVisible()),'U closes highway tuner');
     await page.getByRole('button',{name:'Score attack',exact:true}).click();await page.waitForTimeout(400);
     check(await page.locator('.attack-hud').isVisible(),'Score attack starts');
-    await page.getByRole('button',{name:'Tone match · β',exact:true}).click();
-    check(await page.getByRole('button',{name:'Listen for 8 seconds'}).isVisible(),'Tone match offers simple listening action');
-    await page.evaluate(async()=>{const {engine}=await import('./js/stage.js');engine.seek(0);await engine.play();});
-    await page.getByRole('button',{name:'Listen for 8 seconds'}).click();await page.waitForFunction(()=>!document.querySelector('.perf-panel button').disabled,null,{timeout:45000});
-    const mt=await page.locator('.perf-panel').first().textContent();
-    check(/Matched gently|Not enough guitar signal/.test(mt),'Tone match completes actual analysis: '+mt);
     await shot('performance-highway');
     await page.evaluate(()=>{
       const real=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
@@ -586,7 +579,7 @@ class FakePortMain extends EventEmitter {
   check((await page.locator('.tones-edit .demo-btn[aria-pressed="true"]').count()) === 1, 'demo riff plays through the tone');
   await shot('7c-tones-demo');
   // looper: record a couple of seconds of the fake guitar
-  await page.locator('.nav-section:has-text("Play")').click();
+  await page.locator('.nav-section:has-text("Jam")').click();
   await page.waitForTimeout(800);
   await page.locator('.looper3 .btn.rec').click();
   await page.waitForTimeout(4000);
@@ -620,7 +613,7 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(400);
   await page.locator('.nav-section:has-text("Tones")').click();
   await page.waitForTimeout(1000);
-  check((await page.locator('.slot-strip .ss-tile').count()) === 9, 'Tones shows your 9 slots');
+  check((await page.locator('.slot-strip .ss-tile').count()) === 8, 'Tones shows your slots 2–9 (1 follows the song)');
   await page.locator('.tones-tabs button:has-text("Presets")').click();
   await page.waitForTimeout(500);
   await page.locator('.tones-items .tone-item .ti-main').first().click();
@@ -630,12 +623,12 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(500);
   const after = await page.locator('.tone-item.on b').first().textContent();
   check(before !== after, `↓ moves to the next tone (${before} → ${after})`);
-  await page.locator('.slot-strip .ss-tile').nth(8).click();
+  await page.locator('.slot-strip .ss-tile').nth(7).click();
   await page.waitForTimeout(1200);
-  check((await page.locator('.slot-strip .ss-tile').nth(8).locator('.ss-name').textContent()) === after, 'clicking slot 9 puts the selected tone there');
+  check((await page.locator('.slot-strip .ss-tile').nth(7).locator('.ss-name').textContent()) === after, 'clicking slot 9 puts the selected tone there');
   check((await page.locator('.tones-tabs button[aria-pressed="true"]').textContent()) === 'Presets', 'stays on the tab you were on');
   await shot('7e-tones-slots');
-  await page.locator('.nav-section:has-text("Play")').first().click();
+  await page.locator('.nav-section:has-text("Jam")').first().click();
   await page.waitForTimeout(500);
   await page.locator('.nav-section:has-text("Tones")').click();
   await page.waitForTimeout(600);
@@ -685,11 +678,11 @@ class FakePortMain extends EventEmitter {
     }
     return false;
   };
-  for (let i = 0; i < 3 && !(await page.locator('.nav-section:has-text("Play")').first().isVisible()); i++) {
+  for (let i = 0; i < 3 && !(await page.locator('.nav-section:has-text("Jam")').first().isVisible()); i++) {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(700);
   }
-  await page.locator('.nav-section:has-text("Play")').first().click();
+  await page.locator('.nav-section:has-text("Jam")').first().click();
   await page.evaluate(() => window.__rig.setTone('crunch'));
   await until(() => page.evaluate(() => !!window.__rig.capture));
   const capSt = await page.evaluate(() => ({ cap: window.__rig.capture ? `${window.__rig.capture.pack.title} / ${window.__rig.capture.model.name}` : null, slot: window.__rig.slots[window.__rig.active] || '' }));
@@ -844,9 +837,11 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(300);
   // 3.7: Jam (full screen, just the Fluid picture and your guitar), and the version in the title bar
   check(/^v\d+\.\d+\.\d+$/.test(((await page.locator('#brand-ver').textContent()) || '').trim()), 'the version shows after Stagehand in the title bar');
-  await page.locator('.nav-section:has-text("Play")').click();
-  await page.waitForTimeout(600);
-  await page.locator('.nav-section:has-text("Jam")').click();
+  // 3.11: the Jam menu item is the Jam dashboard; Open visualizer (or J) goes full screen
+  await page.locator('.nav-section:has-text("Jam")').first().click();
+  await page.waitForTimeout(800);
+  await shot('24-jam-home');
+  await page.getByRole('button', { name: 'Open visualizer' }).first().click();
   await page.waitForTimeout(4000);
   const jam = await page.evaluate(() => ({ open: !document.querySelector('.jam').hidden, frame: !!document.querySelector('.jam .hw-fluid'), ready: !!(document.querySelector('.jam .hw-fluid') && document.querySelector('.jam .hw-fluid').contentWindow.FluidVisuals) }));
   check(jam.open && jam.frame && jam.ready, 'Jam opens full screen with the Fluid picture');

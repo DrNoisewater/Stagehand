@@ -18,9 +18,3 @@ export function scoreHit(run, hit) {
   run.bestCombo=Math.max(run.bestCombo,run.combo);
   return run;
 }
-export function matchDelta(reference, played) {
-  const total=a=>a.reduce((s,x)=>s+x,0);
-  const r=total(reference),p=total(played);
-  if(r<1e-10||p<1e-10) return null;
-  return reference.map((v,i)=>Math.max(-.15,Math.min(.15,10*Math.log10((v/r+1e-8)/(played[i]/p+1e-8))/40)));
-}

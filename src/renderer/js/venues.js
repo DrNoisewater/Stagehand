@@ -17,12 +17,11 @@ export const VENUES = [
   { id: 'festival', name: 'Festival', photo: 'festival', horizon: 0.45 },
   { id: 'canyon', name: 'Canyon', photo: 'canyon', horizon: 0.5 },
   { id: 'astral', name: 'Astral', photo: 'astral', horizon: 0.32 },
-  ...['aurora','orbit','spectrum'].map(id=>({id,name:{aurora:'Aurora',orbit:'Orbital',spectrum:'Prism'}[id],fluid:true,reactive:true})),
   { id: 'fluid', name: 'Fluid', fluid: true, desc: 'Ink that moves with the notes and beats' },
   { id: 'studio', name: 'Plain', desc: 'Calm and dark, nothing to distract' },
 ];
 /** Old (3.1–3.5) drawn venues map onto the photos. */
-export const VENUE_ALIAS = { arena: 'warehouse', club: 'cellar', neon: 'rooftop' };
+export const VENUE_ALIAS = { arena: 'warehouse', club: 'cellar', neon: 'rooftop', aurora: 'fluid', orbit: 'fluid', spectrum: 'fluid' }; // 3.10 GPU scenes, taken out in 3.12
 export const venueThumb = (v) => (v.photo ? `venues/${v.photo}-thumb.jpg` : null);
 
 // ------------------------------------------------------------ photos --

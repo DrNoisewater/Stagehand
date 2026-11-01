@@ -12,7 +12,7 @@ import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
 import { bendValue } from './performance-math.js';
-import { createReactive, audioSplats } from './reactive-bg.js';
+import { audioSplats } from './reactive-bg.js';
 import { createPerformanceTools } from './performance-tools.js';
 import { VENUES, VENUE_ALIAS, venueThumb, createVenue, createFire } from './venues.js';
 import { suggestionFor } from './captures.js';
@@ -777,7 +777,6 @@ export function createHighway(stage) {
   function close() {
     H.open = false;
     extras.close();
-    reactive.drop();
     practiceCheckpoint();
     dropFluid();
     root.hidden = true;
@@ -1443,13 +1442,11 @@ export function createHighway(stage) {
     // the picture's floor line goes where the highway's far end meets the floor; it drifts a little with the camera
     const vpY = H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 0.8)[1] : HH * 0.4;
     R3.setVenue(v && (v.photo || v.fluid) ? v : null, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
-    if (v?.reactive && H.open) { dropFluid(); reactive.draw(v.id,stage.engine,performance.now()); }
-    else { reactive.drop(); if(v?.fluid && H.open) driveFluid(t||0); else dropFluid(); }
+    if (v?.fluid && H.open) driveFluid(t || 0); else dropFluid();
   }
 
   // Audio-driven backgrounds follow the audible song bus and processed instrument.
   const fluid = createFluid(root);
-  const reactive = createReactive(root);
   function dropFluid(){fluid.drop();}
   function driveFluid(){
     fluid.ensure();if(!fluid.ready)return;
