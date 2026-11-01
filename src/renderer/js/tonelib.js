@@ -1,3 +1,4 @@
+import {toneToast} from './ui.js';
 /**
  * Your tones: the saved list (tones.json via the main process), slots 1–9,
  * and helpers for using, saving and copying tones. The rig looks saved tones
@@ -55,7 +56,7 @@ async function upgradePresets(list) {
   }
   // the new preset gets an empty slot if there is one
   const chime = TONES.find((p) => p.id === 'chime');
-  const free = [9, 8, 7, 6, 5, 4, 3, 2, 1].find((n) => !list.some((t) => t.slot === n));
+  const free = [9, 8, 7, 6, 5, 4, 3, 2].find((n) => !list.some((t) => t.slot === n));
   if (chime && free && !list.some((t) => t.from && t.from.preset === 'chime')) {
     await api.tones.save({ name: chime.name, kind: chime.kind, gear: chime.gear, slot: free, from: { preset: 'chime' } });
     changed = true;
@@ -68,7 +69,7 @@ export async function loadTones() {
   let d = await api.tones.get();
   if (!d.seeded) {
     // First run: Stagehand's presets fill slots 1–8 as your own tones.
-    const seed = TONES.map((t, i) => ({ name: t.name, kind: t.kind, gear: t.gear, slot: i < SLOT_COUNT ? i + 1 : null, from: { preset: t.id } }));
+    const seed = TONES.map((t, i) => ({ name: t.name, kind: t.kind, gear: t.gear, slot: i < SLOT_COUNT-1 ? i + 2 : null, from: { preset: t.id } }));
     d = await api.tones.seed(seed);
   } else {
     let done = false;
@@ -94,6 +95,7 @@ export async function loadTones() {
 }
 
 export function bySlot(n) {
+  if(n===1)return {id:'@song-auto',slot:1,name:'Automatic Song Tone',kind:rig.tone?.kind||'guitar',gear:rig.tone?.gear||[]};
   return tonelib.list.find((t) => t.slot === n) || null;
 }
 
@@ -124,6 +126,7 @@ export function activeTone() {
 }
 
 export function activeSlot() {
+  if(rig.autoSong)return 1;
   const t = activeTone();
   return t ? t.slot : null;
 }
@@ -142,12 +145,13 @@ export function nowPlayingTone() {
 }
 
 export function useSlot(n) {
+  if(n===1){rig.autoSong=true;rig.dispatchEvent(new Event('song-auto'));emit('tones');toneToast(1,'Automatic Song Tone');return true;}
   const t = bySlot(n);
-  if (!t) return false;
+  if(!t){toneToast(n,'No Tone Assigned');return false;}
   try {
     localStorage.setItem('stagehand.slot', String(n));
   } catch (_) {}
-  rig.setTone(t.id);
+  rig.setTone(t.id);toneToast(n,t.name);
   emit('tones');
   return true;
 }
@@ -182,7 +186,7 @@ export async function removeTone(id) {
 
 /** First empty slot, or null. */
 export function freeSlot() {
-  for (let n = 1; n <= SLOT_COUNT; n++) if (!bySlot(n)) return n;
+  for (let n = 2; n <= SLOT_COUNT; n++) if (!bySlot(n)) return n;
   return null;
 }
 

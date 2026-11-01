@@ -11,12 +11,15 @@ import { h, icon, esc, showMenu, toast } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
+import { bendValue } from './performance-math.js';
+import { createReactive, audioSplats } from './reactive-bg.js';
+import { createPerformanceTools } from './performance-tools.js';
 import { VENUES, VENUE_ALIAS, venueThumb, createVenue, createFire } from './venues.js';
 import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './detect.js';
 import { createRenderer3D, col, mix } from './highway3d.js';
-import { createFluid, guitarInk, ambient, hueRGB } from './fluidbg.js';
+import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, setMyTuning, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { breakdown, cheer } from './scorecard.js';
 import { state } from './store.js';
@@ -174,6 +177,7 @@ export function createHighway(stage) {
   root.__hw = H; // for tests
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
   window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave() };
+  const extras = createPerformanceTools({root,top,stage,H,rig});
   const practiceCheckpoint = () => window.__shPractice && window.__shPractice.checkpoint();
   const ctx = canvas.getContext('2d');
   const R3 = createRenderer3D(glCanvas);
@@ -282,17 +286,18 @@ export function createHighway(stage) {
     return sync;
   }
   // the Drop and your tuning, right here (3.9: there was nowhere to drop on the highway)
-  const dropBox = h('div.hw-drop');
+  const dropBox = h('div.hw-drop.drop3', {style:{'--gel':'var(--gel-bass)'}});
   function renderDropBox() {
     dropBox.innerHTML = '';
+    dropBox.classList.toggle('on',rig.drop.on);
     const d = rig.drop;
     const kind = instrument() === 'bass' ? 'bass' : 'guitar';
     const amt = rig.dropAmount();
     const songT = H.tab && H.tab.tuning ? tuningName(H.tab.tuning, kind) : '';
     const mine = myTuning(kind);
     const plan = H.tab ? tuningPlan(H.tab.tuning, kind, mine) : { same: true };
-    const head = h('div.hw-drop-head', null, h('div', null, h('b', { text: 'Drop' }), h('small', { text: d.on ? (amt ? (amt === 12 ? 'An octave down' : `Down ${amt} semitone${amt === 1 ? '' : 's'}`) : 'On, nothing to drop') : 'Off' })));
-    const sw = h('button.hw-mix-on', { type: 'button', role: 'switch', 'aria-checked': String(d.on), title: 'The Drop on or off (D)' });
+    const head = h('div.hw-drop-head', null, h('div', null, h('b', { text: 'Drop' }), h('small', { text: d.on ? (amt ? (amt === 12 ? 'An octave down' : `Down ${amt} semitone${amt === 1 ? '' : 's'}`) : 'Song is in standard') : 'Off' })));
+    const sw = h('button.drop-switch', { type: 'button', 'aria-pressed': String(d.on), title: 'The Drop on or off (D)' }, h('span.led'));
     sw.style.setProperty('--gel', '#8c7bff');
     sw.onclick = () => rig.setDrop({ on: !d.on });
     head.append(sw);
@@ -305,10 +310,13 @@ export function createHighway(stage) {
       b.onclick = () => rig.setDrop({ on: true, match: true });
       dropBox.append(b);
     }
-    const steps = h('div.hw-seg.hw-drop-steps');
+    const steps = h('div.drop-steps');
     const matchT = h('button', { type: 'button', text: 'Match', title: 'Follow each song’s tuning', 'aria-pressed': String(d.on && d.match) });
     matchT.onclick = () => rig.setDrop({ on: true, match: true });
-    steps.append(matchT);
+    // Keep the original eight-button Drop layout; auto-match is separate.
+    dropBox.append(matchT);
+    matchT.className='hw-chip hw-drop-match';
+    matchT.textContent='Match song tuning';
     for (const st of [1, 2, 3, 4, 5, 6, 7, 12]) {
       const b = h('button', { type: 'button', text: st === 12 ? 'Oct' : `−${st}`, 'aria-pressed': String(d.on && !d.match && d.st === st) });
       b.onclick = () => rig.setDrop({ st, match: false, on: true });
@@ -401,7 +409,7 @@ export function createHighway(stage) {
   stage.engine.addEventListener('state', () => {
     if (stage.engine.playing) hideCard();
   });
-  stage.engine.addEventListener('ended', () => H.open && showCard());
+  stage.engine.addEventListener('ended', () => { if(H.open){ extras.ended(); showCard(); } });
   H.showCard = showCard; // tests
 
   // ----------------------------------------------------- sync check --
@@ -571,7 +579,7 @@ export function createHighway(stage) {
   function followsSong() {
     const st = H.tab && H.tab.songTones;
     if (!st || !H.song) return false;
-    return (songToneChoice[H.song.id] || 'song') === 'song';
+    return !!rig.autoSong;
   }
   function songToneAt(t) {
     const st = H.tab && H.tab.songTones;
@@ -586,29 +594,16 @@ export function createHighway(stage) {
   function applyTone() {
     if (!H.tab || !rig.on) return;
     if (H.tab.songTones) rig.prepareTones(H.tab.songTones.tones);
-    const choice = H.song ? songToneChoice[H.song.id] : null;
-    if (followsSong()) {
-      const tone = songToneAt(stage.engine.position);
-      H.toneKey = tone ? tone.key : null;
-      if (tone) rig.setSongTone(tone);
-    } else if (choice && choice !== 'song' && rig.findTone(choice)) {
-      if (rig.mode === 'song' || rig.toneId !== choice) rig.setTone(choice);
-    }
+    if(rig.autoSong)rig.dispatchEvent(new Event('song-auto'));
   }
-  function followTone(t) {
-    if (!rig.on || !followsSong() || rig.mode !== 'song') return;
-    const tone = songToneAt(t);
-    if (tone && tone.key !== H.toneKey) {
-      H.toneKey = tone.key;
-      rig.setSongTone(tone);
-    }
-  }
+  function followTone(t) {}
   function chooseTone(id) {
     if (H.song) {
       songToneChoice[H.song.id] = id;
       saveToneChoice();
     }
     if (id === 'song') {
+      rig.autoSong=true;rig.dispatchEvent(new Event('song-auto'));
       H.toneKey = null;
       if (rig.on) applyTone();
     } else if ((tonelib.list || []).some((t) => t.id === id)) useTone(id); // remembers the slot, like keys 1–9
@@ -781,6 +776,8 @@ export function createHighway(stage) {
 
   function close() {
     H.open = false;
+    extras.close();
+    reactive.drop();
     practiceCheckpoint();
     dropFluid();
     root.hidden = true;
@@ -802,6 +799,8 @@ export function createHighway(stage) {
       H.tab = await api.tab.load(song.id, want);
       prefs.part = H.tab.type === 'combo' ? 'lead' : H.tab.type;
       save();
+      rig.setSongTuning(H.tab.tuning, instrument());
+      H.scoringShift=tuneShift.st=rig.dropAmount();
       H.targets = buildTargets(H.tab);
       H.lyricLines = buildLyrics(H.tab.lyrics || []);
       lyricShown = -2;
@@ -921,7 +920,10 @@ export function createHighway(stage) {
   // The Drop changes what pitches you play: re-aim the scoring here too.
   rig.addEventListener('drop', () => {
     if (!H.tab) return;
-    tuneShift.st = rig.dropAmount();
+    const shift=rig.dropAmount();
+    if(H.scoringShift===shift)return;
+    H.scoringShift=shift;
+    tuneShift.st = shift;
     H.targets = buildTargets(H.tab);
     resetJudge();
   });
@@ -1441,130 +1443,18 @@ export function createHighway(stage) {
     // the picture's floor line goes where the highway's far end meets the floor; it drifts a little with the camera
     const vpY = H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 0.8)[1] : HH * 0.4;
     R3.setVenue(v && (v.photo || v.fluid) ? v : null, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
-    if (v && v.fluid && H.open) driveFluid(t || 0);
-    else dropFluid();
+    if (v?.reactive && H.open) { dropFluid(); reactive.draw(v.id,stage.engine,performance.now()); }
+    else { reactive.drop(); if(v?.fluid && H.open) driveFluid(t||0); else dropFluid(); }
   }
 
-  // --------------------------------------------------- fluid venue (3.7) --
-  // Pavel Dobryakov's ink simulation behind the highway, played by the song
-  // itself: every note splashes ink in its string's colour from its fret,
-  // chords burst, sustains keep streaming (vibrato swings, bends climb,
-  // tremolo puffs), bars and beats push from the corners, your hits flare
-  // white, and a hot streak warms it all up. Nothing is guessed from audio.
+  // Audio-driven backgrounds follow the audible song bus and processed instrument.
   const fluid = createFluid(root);
-  let fluidT = null;
-  let fluidSus = 0;
-  let fluidTab = null;
-  let fluidRange = [0, 12];
-  let fluidInk = null;
-  const fluidHits = [];
-  function dropFluid() {
-    fluid.drop();
-    fluidT = null;
-    fluidHits.length = 0;
-  }
-  const inkRGB = (hex, k) => {
-    const v = parseInt(hex.slice(1), 16);
-    const heat = G.heat || 0;
-    // a slow rainbow drift over the string colours (the psychedelic part), warmer with the streak
-    const d = hueRGB(((fluidT || 0) * 0.025) % 1, 1);
-    const m = (c, dc) => c * 0.72 + dc * 0.28;
-    const r = m(((v >> 16) & 255) / 255, d.r);
-    const g = m(((v >> 8) & 255) / 255, d.g);
-    const b = m((v & 255) / 255, d.b);
-    return { r: (r * (1 - heat * 0.3) + heat * 0.3) * k, g: g * (1 - heat * 0.25) * k, b: b * (1 - heat * 0.55) * k };
-  };
-  function driveFluid(t) {
-    fluid.ensure();
-    if (!fluid.ready || !H.tab) return;
-    if (fluidTab !== H.tab) {
-      // spread this song's own fret range over the picture (mirrored, so it fills both sides)
-      fluidTab = H.tab;
-      let lo = 99;
-      let hi = 0;
-      for (const n of H.tab.notes || []) if (n.f > 0) (lo = Math.min(lo, n.f)), (hi = Math.max(hi, n.f));
-      for (const c of H.tab.chordEvents || []) for (const n of c.strings) if (n.f > 0) (lo = Math.min(lo, n.f)), (hi = Math.max(hi, n.f));
-      fluidRange = hi > lo ? [lo, hi] : [0, 12];
-      fluidInk = guitarInk();
-    }
-    const playing = stage.engine.playing;
-    const prev = fluidT;
-    fluidT = t;
-    if (!playing || prev === null || t <= prev || t - prev > 0.25) {
-      fluidHits.length = 0;
-      return; // paused, or a seek: the ink just settles
-    }
-    const out = [];
-    const nStr = (H.tab && H.tab.strings) || 6;
-    const fx = (f) => 0.05 + 0.4 * Math.min(1, Math.max(0, ((f || 0) - fluidRange[0]) / Math.max(1, fluidRange[1] - fluidRange[0])));
-    const sy = (st) => 0.08 + (st / Math.max(1, nStr - 1)) * 0.5;
-    const outward = (x) => (x < 0.5 ? -1 : 1);
-    const T = H.targets || [];
-    // notes and chords that reached the neck since the last frame
-    for (let i = lower(T, prev); i < T.length && T[i].t <= t; i++) {
-      const tg = T[i];
-      if (tg.linked) continue; // held on from the note before: no new pick
-      const chord = tg.notes.length > 1;
-      const accent = tg.notes.some((n) => n.accent);
-      let cx = 0;
-      for (const nt of tg.notes) {
-        const x = nt.f === 0 ? 0.45 - (nt.s / Math.max(1, nStr - 1)) * 0.3 : fx(nt.f);
-        cx += x;
-        const mute = tg.kind === 'mute' || nt.mute;
-        const k = mute ? 0.06 : (chord ? 0.2 : 0.3) * (accent ? 1.5 : 1);
-        out.push({ x, y: sy(nt.s), dx: outward(x) * (200 + 300 * Math.random()), dy: 700 + (accent ? 500 : 0), radius: mute ? 0.35 : chord ? 0.55 : 0.7, ...inkRGB(mute ? '#9aa3b8' : STRING[nt.s] || '#ffffff', k) });
-      }
-      if (chord && tg.kind !== 'mute') {
-        cx /= tg.notes.length;
-        // a chord also bursts outward from its middle
-        for (let j = 0; j < 4; j++) {
-          const a = Math.PI * 0.15 + (j / 3) * Math.PI * 0.7;
-          out.push({ x: cx, y: 0.12, dx: Math.cos(a) * 900, dy: Math.sin(a) * 900, radius: 0.8, ...inkRGB(STRING[tg.notes[j % tg.notes.length].s] || '#ffffff', 0.08) });
-        }
-      }
-    }
-    // bars and beats: pushes from the bottom corners (bars harder)
-    const B = H.tab.beats || [];
-    for (let i = lower(B, prev); i < B.length && B[i].t <= t; i++) {
-      const bar = B[i].m >= 0;
-      const hue = mix(RAIL, RAIL_HOT, G.heat || 0, 1);
-      const bk = bar ? 0.08 : 0.025;
-      const c = { r: hue[0] * bk, g: hue[1] * bk, b: hue[2] * bk };
-      for (const side of [0, 1]) out.push({ x: side ? 0.97 : 0.03, y: 0.04, dx: (side ? -1 : 1) * (bar ? 1200 : 450), dy: bar ? 1500 : 600, radius: bar ? 1.4 : 0.8, ...c });
-    }
-    // held notes keep streaming (about 20 times a second)
-    fluidSus += t - prev;
-    if (fluidSus >= 0.05) {
-      fluidSus = 0;
-      const ends = H.sustainEnds || [];
-      for (let i = firstSustain(ends, t); i < T.length && T[i].t <= t; i++) {
-        const tg = T[i];
-        for (const nt of tg.notes) {
-          if (!(nt.sus > 0.06) || t > noteEnd(nt, tg) || nt.mute) continue;
-          const slide = nt.slideTo !== undefined ? nt.slideTo : nt.slideUnpitchTo;
-          const u = Math.min(1, (t - tg.t) / Math.max(0.05, nt.sus));
-          const f = slide !== undefined ? nt.f + (slide - nt.f) * u : nt.f;
-          const x = nt.f === 0 ? 0.3 : fx(f);
-          const bend = bendAt(nt, t);
-          let dx = outward(x) * 80;
-          if (nt.vibrato) dx += Math.sin((t - tg.t) * Math.PI * 2 * 5.5) * 900;
-          if (slide !== undefined) dx += (slide > nt.f ? 1 : -1) * 600;
-          const k = nt.tremolo ? (((t - tg.t) * 12) % 1 < 0.5 ? 0.12 : 0.02) : 0.05;
-          out.push({ x, y: sy(nt.s) + bend * 0.03, dx, dy: 250 + bend * 450, radius: nt.tremolo ? 0.45 : 0.4, ...inkRGB(STRING[nt.s] || '#ffffff', k) });
-        }
-      }
-    }
-    // what you hit flares white
-    for (const tg of fluidHits.splice(0)) {
-      const nt = tg.notes[0];
-      const x = nt.f === 0 ? 0.3 : fx(nt.f);
-      out.push({ x, y: 0.1, dx: 0, dy: 1100, radius: tg.notes.length > 1 ? 1.2 : 0.8, r: 0.16, g: 0.16, b: 0.18 });
-    }
-    // your own playing paints too (pitch picks the colour), softer behind the notes
-    if (fluidInk) out.push(...fluidInk(t, t - prev, { gain: 0.55 }));
-    // and a slow pair of eddies keeps it flowing between notes
-    if (Math.floor(t * 20) !== Math.floor(prev * 20)) out.push(...ambient(t, 0.25 + (G.pulse || 0) * 0.5));
-    fluid.send(out);
+  const reactive = createReactive(root);
+  function dropFluid(){fluid.drop();}
+  function driveFluid(){
+    fluid.ensure();if(!fluid.ready)return;
+    const now=performance.now();if(now-(H.inkAt||0)<40)return;
+    H.inkAt=now;fluid.send(audioSplats(stage.engine,now/1000));
   }
 
   /** Cyan edges that warm to orange as you heat up. */
@@ -1732,29 +1622,7 @@ export function createHighway(stage) {
 
   // ------------------------------------------------------------- notes --
   /** Bend (in half steps) of a note at song time `time`, from its real bend curve. */
-  function bendAt(nt, time) {
-    const pts = nt.bends;
-    if (pts && pts.length) {
-      const rel = pts[0].t < nt.t - 0.01;
-      let pt = nt.t;
-      let ps = 0;
-      for (const p of pts) {
-        const pt2 = rel ? nt.t + p.t : p.t;
-        if (time <= pt2) {
-          if (pt2 <= pt) return p.step;
-          return ps + ((p.step - ps) * (time - pt)) / (pt2 - pt);
-        }
-        pt = pt2;
-        ps = p.step;
-      }
-      return ps;
-    }
-    if (nt.bend) {
-      const ramp = Math.max(0.08, (nt.sus || 0.3) * 0.3);
-      return nt.bend * Math.min(1, Math.max(0, (time - nt.t) / ramp));
-    }
-    return 0;
-  }
+  const bendAt = bendValue;
   const bendLabel = (b) => ({ 0.5: '¼', 1: '½', 1.5: '¾', 2: 'full', 3: '1½', 4: '2' })[b] || `${b / 2}`;
   const maxBend = (nt) => (nt.bends && nt.bends.length ? Math.max(...nt.bends.map((p) => p.step)) : nt.bend || 0);
   const judged = (tg) => (H.judge && prefs.detect && rig.on ? H.judge.state.get(tg.id) : null);
@@ -1822,7 +1690,9 @@ export function createHighway(stage) {
       const e = Math.min(1, Math.max(0, u));
       let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
       if (vib) x += Math.sin((time - tg.t) * Math.PI * 2 * VIB_HZ) * vibAmp * Math.min(1, Math.max(0, (time - tg.t) / 0.12));
-      const L = L0 + (bendAt(nt, time) / 2) * 1.5;
+      const bend = bendAt(nt,time);
+      const direction = L0 > (G.n-1)/2 ? -1 : 1; // push lower strings inward; pull upper strings inward
+      const L = L0 + direction * bend * .70;
       return [x, nY(L) - G.gy * 0.12, zOf(time), L];
     };
     // enough points for the vibrato wave to stay smooth (no stepping)
@@ -1857,6 +1727,10 @@ export function createHighway(stage) {
       }
     }
     const mb = maxBend(nt);
+    if(mb>0 && peak){
+      const p=posAt(Math.max(t0,tg.t));
+      alpha.bar([p[0],nY(L0)-G.gy*.12,p[2]],[p[0],p[1],p[2]],.045,col('#fff3d6',.8));
+    }
     if (mb > 0 && peak && peak.p[2] >= 0) label(`↑${bendLabel(mb)}`, peak.p[0], peak.p[1] + G.gy * 0.4, peak.p[2], { size: 0.32, min: 12, max: 26, color: '#fff3d6', base: 'bottom' });
   }
 
@@ -2004,9 +1878,9 @@ export function createHighway(stage) {
   // the note passes the neck, grey.
   const sparks = [];
   function onJudged(e) {
+    extras.judged(e);
     const tg = H.targets[e.id];
     if (!tg) return;
-    if (e.hit) fluidHits.push(tg);
     const now = performance.now();
     const st = H.judge && H.judge.state.get(e.id);
     if (!e.hit) {
@@ -2021,11 +1895,11 @@ export function createHighway(stage) {
     const an = anchorAt(tg.t);
     for (const nt of tg.notes) {
       const [px, py] = R3.project(noteX(nt, an), strH(nt.s), 0);
-      const n = chord ? 6 : 12;
+      const n = chord ? 2 : 4;
       for (let k = 0; k < n; k++) {
         const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
-        const sp = 160 + Math.random() * 380;
-        sparks.push({ x: px, y: py, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 0, max: 0.35 + Math.random() * 0.35, col: Math.random() < 0.35 ? '#ffffff' : STRING[nt.s] });
+        const sp = 65 + Math.random() * 110;
+        sparks.push({ x: px, y: py, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 0, max: 0.18 + Math.random() * 0.16, col: Math.random() < 0.35 ? '#ffffff' : STRING[nt.s] });
       }
     }
     if (sparks.length > 400) sparks.splice(0, sparks.length - 400);
@@ -2039,7 +1913,7 @@ export function createHighway(stage) {
     // 1. the string blazes along its whole length, hottest at the note
     const byString = new Map();
     for (const b of H.bursts) {
-      const k = Math.max(Math.exp(-(now - b.at) / 260), t < b.until ? 0.55 : 0);
+      const k = Math.max(Math.exp(-(now - b.at) / 150)*.38, t < b.until ? .12 : 0);
       if (k < 0.02) continue;
       const cur = byString.get(b.s);
       if (!cur || cur.k < k) byString.set(b.s, { k, b });
@@ -2059,7 +1933,7 @@ export function createHighway(stage) {
     const posts = new Map();
     for (const h of H.hits) {
       const tg = H.targets[h.id];
-      const k = Math.max(Math.exp(-(now - h.at) / 320), t < h.until ? 0.5 : 0);
+      const k = Math.max(Math.exp(-(now - h.at) / 180)*.4, t < h.until ? .12 : 0);
       if (k < 0.03) continue;
       const an = anchorAt(tg.t);
       const xs = h.chord ? chordBox(tg, an) : tg.notes.flatMap((nt) => (nt.f === 0 ? [anX0(an), anX1(an)] : [XF(nt.f - 1), XF(nt.f)]));
@@ -2075,10 +1949,10 @@ export function createHighway(stage) {
       const tg = H.targets[h.id];
       const age = (now - h.at) / 1000;
       const holding = t < h.until;
-      const k = Math.max(Math.exp(-age / 0.22), holding ? 0.6 : 0);
+      const k = Math.max(Math.exp(-age / 0.16)*.4, holding ? .15 : 0);
       if (k < 0.04) continue;
       const an = anchorAt(tg.t);
-      const fl = Math.exp(-age / 0.15);
+      const fl = Math.exp(-age / 0.12)*.4;
       if (h.chord) {
         const box = chordBox(tg, an);
         for (const nt of tg.notes) buildGem(nt, -0.02, an, false, false, true, box, fl, Math.min(1, k * 1.2));

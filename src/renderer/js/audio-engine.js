@@ -481,7 +481,7 @@ export class AudioEngine extends EventTarget {
   }
 
   masterLevel() {
-    if (!this.masterAnalyser || !this.playing) return 0;
+    if (!this.masterAnalyser) return 0;
     if (!this._mb) this._mb = new Float32Array(2048);
     const b = this._mb;
     this.masterAnalyser.getFloatTimeDomainData(b);

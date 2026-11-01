@@ -3,3 +3,7 @@ class R extends EventTarget { constructor(){super(); this.on = true; this.muted=
   setDrop(p){Object.assign(this.drop,p||{});this.dispatchEvent(new Event('drop'))} setSongTuning(){}
   samples(){return null} levels(){return {}} prepareTones(){} setSongTone(){} setTone(){} findTone(){return null} dropAmount(){return 0} setSink(){} async start(){return true} setMuted(m){this.muted=m} }
 export const rig = new R();
+
+export const TUNINGS=[{id:"e-std",name:"E Standard",o:[0,0,0,0,0,0]}];
+export const noteName=m=>["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"][m%12];
+rig.pitch=()=>null;

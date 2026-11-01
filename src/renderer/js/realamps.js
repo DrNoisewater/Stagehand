@@ -17,7 +17,7 @@ const openSettings = (tab) => import('./dialogs.js').then((m) => m.settings(tab)
 loadCaptures();
 
 const where = () => (caps.st.t3k && caps.st.t3k.inApp && !caps.st.t3k.useBrowser ? 'in the TONE3000 window' : 'on TONE3000 in your browser');
-const busyLine = (b) => (!b ? '' : b.stage === 'signin' ? `Sign in ${where()}…` : b.stage === 'browser' ? `Confirm ${where()}…` : 'Downloading the capture…');
+const busyLine = (b) => (!b ? '' : b.stage === 'signin' ? `Sign in ${where()}…` : b.stage === 'browser' ? `Confirm ${where()}…` : 'Downloading your rig…');
 
 /** "REAL" badge for a tone whose amp is a capture, else null. */
 export function realBadge(tone, opts = {}) {
@@ -45,7 +45,7 @@ export async function getRealAmp(packKey, ampKey) {
   try {
     const r = await capturesApi.get(packKey, ampKey);
     const p = caps.st.packs.find((x) => x.id === r.id);
-    toast({ title: 'Real amp ready', message: p ? `${p.title} · ${p.models.length} gain ${p.models.length === 1 ? 'setting' : 'settings'}` : '', kind: 'ok' });
+    toast({ title: r.cabWarning ? 'Amp ready' : 'Amp + cabinet ready', message: r.cabWarning || (p ? `${p.title} · ${p.models.length} gain ${p.models.length === 1 ? 'setting' : 'settings'}` : ''), kind: r.cabWarning ? 'info' : 'ok' });
   } catch (err) {
     explain(err);
   }
@@ -226,7 +226,7 @@ export function realAmpStrip(d, onChange) {
     }
     if (failed) wrap.append(h('div.ra-note.err', { text: `That capture didn’t load: ${failed}` }));
     if (sug) {
-      const get = h('button.btn.glow-primary.ra-get', { type: 'button', html: `${icon('download')}<span>Get the real amp</span>` });
+      const get = h('button.btn.glow-primary.ra-get', { type: 'button', html: `${icon('download')}<span>Download amp + cab</span>` });
       get.onclick = () => getRealAmp(sug.key, amp.key);
       wrap.append(h('div.ra-offer', null, get, h('div.ra-title', null, h('b', { text: sug.def.title }), h('span.ra-sub', { text: `by ${sug.def.maker} · free on TONE3000, opens to confirm` }))));
     } else if (!realAmpsOn()) wrap.append(h('div.ra-note', { text: 'Real amps are off (Settings › Real amps).' }));

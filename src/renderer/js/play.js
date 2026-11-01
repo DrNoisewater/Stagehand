@@ -3,9 +3,9 @@
  * you're on, slots 1–9, the rig with its knobs, the tuner, drums and the looper.
  */
 import { state, on, setPage, emit } from './store.js';
-import { openJam } from './jam.js';
+import { openJam, registerJamControls, jamOpen, backingControls, recordControl } from './jam.js';
 import { tuningName, myTuning, setMyTuning, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
-import { h, icon, esc, toast, showMenu } from './ui.js';
+import { h, icon, esc, toast, showMenu, holdButton } from './ui.js';
 import { rig } from './rig.js';
 import { api } from './api.js';
 import { tonelib, bySlot, byId, useSlot, useTone, SLOT_GELS, SLOT_COUNT, nowPlayingTone, kindLabel, saveTone, freeSlot, knobsOf, orderedGear, TYPE_GELS, TYPE_NAMES, shortGearName, gelOf } from './tonelib.js';
@@ -28,8 +28,10 @@ const tuner = createTuner();
 const drumsCard = h('section.card.tint.drums3', { 'aria-label': 'Drums and metronome', style: { '--gel': 'var(--gel-drums)' } });
 const loopCard = h('section.card.tint.looper3', { 'aria-label': 'Looper', style: { '--gel': 'var(--gel-guitar)' } });
 const dropCard = h('section.card.tint.drop3', { 'aria-label': 'Drop', style: { '--gel': 'var(--gel-bass)' } });
-side.append(tuner.el, dropCard, drumsCard, loopCard);
-root.append(noteHost, headHost, slotsHost, h('div.play-grid', null, rigCard, side));
+side.append(tuner.el, dropCard);
+const lower=h('div.jam-workbench',null,drumsCard,loopCard);
+const rigColumn=h('div.jam-rig-column',null,rigCard,lower);
+root.append(noteHost, headHost, slotsHost, h('div.play-grid', null, rigColumn, side));
 
 // --------------------------------------------------------------- helpers --
 function current() {
@@ -105,6 +107,7 @@ function discardDraft() {
 
 // ----------------------------------------------------------------- head --
 function renderNote() {
+  noteHost.hidden=rig.on;
   noteHost.innerHTML = '';
   if (rig.on) return;
   const s = guitarStatus();
@@ -125,22 +128,23 @@ function renderHead() {
     if (!r) toast({ title: 'Didn’t hear anything', message: 'Check the cable is plugged in, then strum hard while it counts down.', kind: 'info' });
     else toast({ title: 'Input level set', message: `Your hardest strum peaked at ${Math.round(r.peakDb)} dB.`, kind: 'ok' });
   };
-  const edit = h('button.btn.glow-primary', { type: 'button', text: 'Edit this tone' });
+  const edit = h('button.btn.glow-primary', { type: 'button', text: 'Edit this tone',disabled:rig.autoSong,title:rig.autoSong?'Automatic song tones are read-only. Choose a saved tone to edit.':'Edit this tone' });
   edit.onclick = () => {
     const t = shownTone();
     emit('tones-open', { tone: t, id: t && t.id && byId(t.id) ? t.id : null });
     setPage('tones');
   };
   // 3.7: Jam, full screen: just the Fluid picture reacting to your playing (J)
-  const jam = h('button.btn.soft.jam-open', { type: 'button', title: 'Full screen, no song: the Fluid picture follows what you play (J)', html: `${icon('sparkle')}<span>Jam</span>` });
+  const jam = h('button.btn.soft.jam-open', { type: 'button', title: 'Open the music visualizer (J)', html: `${icon('sparkle')}<span>Jam</span>` });
   jam.onclick = () => openJam();
-  headHost.append(text, calib, jam, edit);
+  jam.querySelector('span').textContent='Open visualizer';jam.classList.remove('soft');jam.classList.add('glow-primary');
+  headHost.append(text,jam,calib,edit);
 }
 
 // ---------------------------------------------------------------- slots --
 function renderSlots() {
   slotsHost.innerHTML = '';
-  const active = rig.mode === 'preset' ? (byId(rig.toneId) || {}).slot : null;
+  const active = rig.autoSong?1:rig.mode === 'preset' ? (byId(rig.toneId) || {}).slot : null;
   for (let n = 1; n <= SLOT_COUNT; n++) {
     const t = bySlot(n);
     const gel = SLOT_GELS[n - 1];
@@ -148,10 +152,11 @@ function renderSlots() {
     const b = h(`button.slot${on ? '.on.lit' : ''}${t ? '' : '.empty'}`, { type: 'button', style: { '--gel': t ? gel : '#2c3552' }, title: t ? `${t.name} (key ${n})` : `Empty slot ${n}: click to save the tone you’re playing here` });
     const top = h('span.sl-top', null, h('span.num', { text: String(n) }));
     if (on && rig.on && !rig.muted) top.append(h('span.eq', { style: { '--gel': gel } }, h('i'), h('i'), h('i')));
-    else top.append(h('span.kind', { text: t ? kindLabel(t) : 'Empty' }));
-    b.append(top, h('span.name', { text: t ? t.name : '+ Save here' }), h('span.strip'));
+    else top.append(h('span.kind', { text: n===1?'Reserved':t ? kindLabel(t) : 'Empty' }));
+    b.append(top, h('span.name', { text: n===1?'Song tone · Auto':t ? t.name : '+ Save here' }), h('span.strip'));
     b.onclick = () => (t ? useSlot(n) : saveHere(n));
     b.oncontextmenu = (e) => {
+      if(n===1){e.preventDefault();return;}
       e.preventDefault();
       const items = [];
       if (t) items.push({ label: `Use ${t.name}`, icon: 'play', onClick: () => useSlot(n) });
@@ -167,6 +172,7 @@ function renderSlots() {
 }
 
 async function saveHere(n) {
+  if(n===1)return;
   const np = current();
   const tone = shownTone();
   if (!tone || !tone.gear || !tone.gear.length) return;
@@ -235,6 +241,7 @@ function renderRig() {
         gel,
         fmt: (v) => fmtKnob(k, v),
         onInput: (v) => {
+          if(rig.autoSong)return;
           const d = startDraft();
           const dg = d.gear[P.block];
           dg.knobs = { ...(dg.knobs || {}), [k.key]: v };
@@ -244,6 +251,7 @@ function renderRig() {
       })
     );
   }
+  if(rig.autoSong)for(const k of knobs.querySelectorAll('button')){k.disabled=true;k.title='Automatic Song Tone is read-only';}
   well.append(knobs);
   rigCard.append(well);
   const slider = (name, label, gelc) => {
@@ -277,6 +285,9 @@ function renderRigHeadOnly() {
 // ---------------------------------------------------------------- drums --
 const D = { padEls: [], raf: 0, lastStep: -2 };
 function renderDrums() {
+  const signature=drums.pattern+'|'+drums.on;
+  if(D.signature===signature&&drumsCard.querySelector('.bpm')){drumsCard.querySelector('.bpm').innerHTML=`${drums.bpm}<small> BPM</small>`;return;}
+  D.signature=signature;
   drumsCard.innerHTML = '';
   const start = h('button.btn.small.soft.start', { type: 'button', text: drums.on ? 'Stop' : 'Start', 'aria-pressed': String(drums.on) });
   start.onclick = () => drums.toggle();
@@ -284,8 +295,8 @@ function renderDrums() {
   const minus = h('button.sq', { type: 'button', 'aria-label': 'Slower', text: '−' });
   const plus = h('button.sq', { type: 'button', 'aria-label': 'Faster', text: '+' });
   const tap = h('button.btn.small.soft', { type: 'button', text: 'Tap' });
-  minus.onclick = (e) => drums.setBpm(drums.bpm - (e.shiftKey ? 10 : 1));
-  plus.onclick = (e) => drums.setBpm(drums.bpm + (e.shiftKey ? 10 : 1));
+  holdButton(minus,n=>drums.setBpm(drums.bpm-n));
+  holdButton(plus,n=>drums.setBpm(drums.bpm+n));
   tap.onclick = () => drums.tap();
   const bpm = h('div.bpm', { html: `${drums.bpm}<small> BPM</small>`, title: 'Scroll to change' });
   bpm.addEventListener('wheel', (e) => {
@@ -327,7 +338,7 @@ function drumLights() {
   if (D.raf) return;
   const f = () => {
     D.raf = 0;
-    if (!drums.on || state.page !== 'play') {
+    if (!drums.on || state.page !== 'play' && !jamOpen()) {
       for (const [, el] of D.padEls) el.classList.remove('now');
       return;
     }
@@ -341,6 +352,7 @@ function drumLights() {
   D.raf = requestAnimationFrame(f);
 }
 drums.addEventListener('change', renderDrums);
+let lastTempoNotice=0;drums.addEventListener('tempo-locked',()=>{if(Date.now()-lastTempoNotice>2500){lastTempoNotice=Date.now();toast({title:'Loop tempo is locked',message:'Clear the loop to change tempo without changing its pitch.',kind:'info'});}});
 
 // ----------------------------------------------------------------- drop --
 const DROP_STEPS = [1, 2, 3, 4, 5, 6, 7, 12];
@@ -477,7 +489,7 @@ function sig() {
 }
 
 function render() {
-  if (state.page !== 'play') return;
+  if (state.page !== 'play' && !jamOpen()) return;
   renderNote();
   renderHead();
   renderSlots();
@@ -500,6 +512,7 @@ rig.addEventListener('change', () => {
   // A tone picked somewhere else ends any edit here.
   if (P.draft && rig.mode !== 'live') P.draft = null;
   render();
+  if(looper.state==='empty')renderLooper();
 });
 on('tones', () => {
   P.sig = '';
@@ -515,3 +528,13 @@ if (state.page === 'play') {
   renderAll();
   tuner.show();
 }
+
+const launchOptions=h('div.jam-launch-options');
+const auto=h('input',{type:'checkbox',checked:localStorage.getItem('stagehand.autoVisual')==='1'?true:null});
+auto.onchange=()=>localStorage.setItem('stagehand.autoVisual',auto.checked?'1':'0');
+launchOptions.append(backingControls,recordControl,h('label.check',null,auto,h('span',{text:'Open visualizer after 60 seconds of playing'})));root.insertBefore(launchOptions,slotsHost);
+registerJamControls({Tones:slotsHost,Rig:rigCard,Tuner:tuner.el,Drop:dropCard,Drums:drumsCard,Looper:loopCard},()=>{renderAll();tuner.show();});
+let activeSeconds=0,lastActivity=0;
+setInterval(()=>{if(rig.on&&!rig.muted&&(rig.levels().input||0)>.0001)lastActivity=Date.now();
+ if(state.page==='play'&&!jamOpen()&&auto.checked&&(Date.now()-lastActivity<2500||drums.on||rig.player?.playing)){activeSeconds++;if(activeSeconds>=60){activeSeconds=0;openJam();}}else activeSeconds=0;
+},1000);

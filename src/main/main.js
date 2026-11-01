@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, Menu, clipboard, MessageChannelMain, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, Menu, clipboard, MessageChannelMain, safeStorage, desktopCapturer } = require('electron');
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
@@ -454,6 +454,11 @@ function registerIpc() {
   handle('tones:seed', (list) => toneStore.seed(list));
   handle('tones:library', () => toneIndex.list(library.data.songs ? Object.values(library.data.songs) : library.snapshot().songs, { onProgress: (p) => send('tones:progress', p) }));
   // Real amp captures (NAM) and TONE3000
+  handle('cabs:ensure', id => require('./services/cabinets').ensureCab(path.join(D.captures,'Cabinets'),id,(url,opts)=>net.fetch(url,opts)));
+  handle('cabs:bytes',async id=>{
+    const file=await require('./services/cabinets').ensureCab(path.join(D.captures,'Cabinets'),id,(url,opts)=>net.fetch(url,opts));
+    return new Uint8Array(await fsp.readFile(file));
+  });
   handle('captures:get', () => captures.state());
   handle('captures:assign', (ampKey, packId) => captures.assign(ampKey, packId));
   handle('captures:remove', (packId) => captures.remove(packId));
@@ -467,12 +472,41 @@ function registerIpc() {
   handle('captures:connect', () => captures.connect());
   handle('captures:disconnect', () => captures.disconnect());
   handle('captures:useBrowser', (on) => captures.setUseBrowser(on));
-  handle('captures:get3k', (packKey, ampKey) => captures.get(packKey, ampKey));
+  handle('captures:get3k', async(packKey,ampKey)=>{
+    const result=await captures.get(packKey,ampKey);
+    const ids=Object.keys(require('../renderer/data/cabs/manifest.json')).filter(id=>(/bass/i.test(ampKey||packKey)||!!captures.state().map.packs[packKey]?.bass) ? id.startsWith('bass-') : !id.startsWith('bass-'));
+    const failed=[];
+    await Promise.all(ids.map(id=>require('./services/cabinets').ensureCab(path.join(D.captures,'Cabinets'),id,(url,opts)=>net.fetch(url,opts)).catch(e=>{failed.push(id);log('Cabinet download: '+e.message);})));
+    if(failed.length)result.cabWarning='The amp is ready, but the cabinet download failed. The modeled cabinet will play until the download is available.';
+    return result;
+  });
   handle('captures:browse', (ampKey, opts) => captures.browse(ampKey, opts));
   handle('stats:log', (s) => stats.log(s));
   handle('stats:summary', (period) => stats.summary(period));
   handle('stats:best', () => stats.best());
-  handle('takes:list', () => takes.list());
+  handle('clips:source', async () => {
+    const sources=await desktopCapturer.getSources({types:['window'],thumbnailSize:{width:0,height:0}});
+    const own=win;
+    const id=own?.getMediaSourceId();const source=sources.find(s=>s.id===id);
+    if(!source)throw Error('Stagehand’s window could not be captured.');
+    return source.id;
+  });
+  handle('clips:prepare',()=>require('./services/video-export').ensureEncoder(tools).then(()=>true));
+  handle('clips:save',async(data)=>{
+    if(!(data instanceof Uint8Array)||data.byteLength>650*1024*1024)throw Error('Clip exceeds the 650 MB limit.');
+    const result=await dialog.showSaveDialog({title:'Export highway take',defaultPath:path.join(D.takes,`Stagehand-${Date.now()}.mp4`),filters:[{name:'MP4 video',extensions:['mp4']}]});
+    if(result.canceled)return null;
+    const file=/\.mp4$/i.test(result.filePath)?result.filePath:result.filePath+'.mp4';
+    const temp=await fsp.mkdtemp(path.join(app.getPath('temp'),'stagehand-video-'));
+    const input=path.join(temp,'capture.webm'),output=path.join(temp,'export.mp4');
+    try{
+      await fsp.writeFile(input,data);
+      const video=require('./services/video-export');
+      await video.exportMp4(await video.ensureEncoder(tools),input,output);
+      await fsp.copyFile(output,file);return file;
+    }finally{await fsp.rm(temp,{recursive:true,force:true});}
+  });
+  handle('takes:list' , () => takes.list());
   handle('takes:save', (t) => takes.save(t));
   handle('takes:remove', (id) => takes.remove(id));
   handle('takes:rename', (id, name) => takes.rename(id, name));

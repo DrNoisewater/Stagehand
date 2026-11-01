@@ -6,7 +6,7 @@ stub, out, root, ezip, vzip, uzip = sys.argv[1:7]
 APP = ['package.json', 'src', 'engine', 'build', 'native/bin']
 SKIP_DIRS = {'__pycache__', 'node_modules', '.git'}
 tmp = out + '.zip'
-with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as z:
     def copy_zip(src, prefix, strip_top=False):
         with zipfile.ZipFile(src) as s:
             names = [n for n in s.namelist() if not n.endswith('/')]
@@ -16,7 +16,7 @@ with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
                 rel = n[len(top):]
                 info = zipfile.ZipInfo(prefix + rel, date_time=s.getinfo(n).date_time)
                 info.compress_type = zipfile.ZIP_DEFLATED
-                z.writestr(info, s.read(n), compresslevel=9)
+                z.writestr(info, s.read(n), compresslevel=1)
     copy_zip(ezip, 'runtime/')
     for item in APP:
         p = os.path.join(root, item)

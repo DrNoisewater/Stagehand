@@ -15,6 +15,7 @@ int main(void) {
   void *mem = malloc(sh_engine_mem_needed());
   sh_engine *e = sh_engine_init(mem, sh_engine_mem_needed(), sr);
   sh_engine_param(e, SHP_BYPASS, 1);
+  sh_engine_param(e, SHP_ROOM, 0);
   int N = sr * 2;
   float *in = malloc(N * 4), *L = malloc(N * 4), *R = malloc(N * 4);
   int fail = 0;
@@ -22,7 +23,7 @@ int main(void) {
     double hz = 220;
     for (int i = 0; i < N; i++) in[i] = 0.3f * sinf(2 * M_PI * hz * i / sr) + 0.15f * sinf(2 * M_PI * hz * 1.5 * i / sr);
     sh_engine_param(e, SHP_DROP, st);
-    for (int o = 0; o < N; o += 256) sh_engine_process(e, in + o, L + o, R + o, 256);
+    for (int o = 0; o < N; o += 256) sh_engine_process(e, in + o, L + o, R + o, N-o < 256 ? N-o : 256);
     double f = st ? est(L + sr, sr / 2, sr, hz * pow(2, -st / 12.0)) : hz;
     double want = hz * pow(2, -st / 12.0);
     /* level steadiness in 10 ms windows */

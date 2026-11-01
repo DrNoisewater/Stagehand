@@ -1,3 +1,4 @@
+import { cabinetFor,prepareCab,cabSamples } from './cabinets.js';
 import { detectPitch, PitchSmoother } from './pitch.js';
 import { tuningPlan, myTuning } from './tuning.js';
 import { InstrumentSense } from './instrument.js';
@@ -127,6 +128,10 @@ class NativeBackend {
 
   _msg(m) {
     if (!m) return;
+    if(m.t==='processed'||m.t==='mixed') {
+      for(const listener of this.rig._monitors || []) if(listener.kind===m.t)listener.feed(m.d,this.rate);
+      return;
+    }
     if (m.t === 'in') {
       const d = m.d;
       const r = this.ring;
@@ -469,6 +474,7 @@ export class Rig extends EventTarget {
     this.custom = []; // your own tones (tones.js), looked up before the presets
     this.liveTone = null; // a tone being auditioned or edited, not saved yet
     this.auto = false;
+    this.autoSong=true;
     this._pollT = null;
     this._taps = new Set();
     this._irSlots = new Set();
@@ -479,6 +485,45 @@ export class Rig extends EventTarget {
     caps.events.addEventListener('change', () => {
       if (this.on && this.backend) this._useTone(this._currentTone());
     });
+  }
+
+  /** Final stereo instrument, before song/drum/loop mixing. */
+  async captureProcessed(feed){
+    if(!this.on||!this.backend)throw Error('Connect your instrument first.');
+    const b=this.backend;
+    if(this.kind==='native'){
+      const listener={kind:'processed',feed};this._monitors??=new Set();this._monitors.add(listener);b._cmd({cmd:'monitor',on:1});
+      return {rate:b.rate,close:()=>{this._monitors.delete(listener);if(!this._monitors.size)b._cmd({cmd:'monitor',on:0});}};
+    }
+    const ctx=b.ctx,node=ctx.createScriptProcessor(1024,2,2),silent=ctx.createGain();silent.gain.value=0;
+    node.onaudioprocess=e=>{const L=e.inputBuffer.getChannelData(0),R=e.inputBuffer.getChannelData(1),d=new Float32Array(L.length*2);for(let i=0;i<L.length;i++){d[2*i]=L[i];d[2*i+1]=R[i];}feed(d,ctx.sampleRate);};
+    b.node.connect(node);node.connect(silent);silent.connect(ctx.destination);
+    return {rate:ctx.sampleRate,close:()=>{b.node.disconnect(node);node.disconnect();silent.disconnect();node.onaudioprocess=null;}};
+  }
+
+  async monitorProcessed(){ return this._monitor('processed'); }
+  async monitorMix(){ return this._monitor('mixed'); }
+  async _monitor(kind){
+    if(!this.on||!this.backend)throw Error('Connect your instrument first.');
+    const backend=this.backend;
+    if(this.kind!=='native')return {ctx:backend.ctx,node:backend.node,close(){}};
+    const ctx=new AudioContext({sampleRate:backend.rate});
+    // Silent sink prevents a second audible copy and works with exclusive WASAPI.
+    if(ctx.setSinkId)await ctx.setSinkId({type:'none'});
+    await ctx.resume();
+    const node=ctx.createGain();let next=0,alive=true;
+    let received;const ready=new Promise(resolve=>received=resolve);
+    const listener={kind,feed(data,rate){
+      if(!alive)return;received();
+      const n=data.length/2,buf=ctx.createBuffer(2,n,rate);
+      for(let c=0;c<2;c++){const dst=buf.getChannelData(c);for(let i=0;i<n;i++)dst[i]=data[i*2+c];}
+      const src=ctx.createBufferSource();src.buffer=buf;src.connect(node);
+      if(next<ctx.currentTime||next>ctx.currentTime+.3)next=ctx.currentTime+.04;
+      src.start(next);next+=n/rate;
+    }};
+    this._monitors=this._monitors||new Set();this._monitors.add(listener);backend._cmd({cmd:'monitor',on:1});
+    let timeout;try{await Promise.race([ready,new Promise((_,reject)=>timeout=setTimeout(()=>reject(Error('Recording audio is unavailable. Reinstall the updated Stagehand audio helper.')),3000))]);}catch(e){alive=false;this._monitors.delete(listener);if(!this._monitors.size)backend._cmd({cmd:'monitor',on:0});await ctx.close();throw e;}finally{clearTimeout(timeout);}
+    return {ctx,node,close:()=>{alive=false;this._monitors.delete(listener);if(!this._monitors.size)backend._cmd({cmd:'monitor',on:0});ctx.close();}};
   }
 
   /** Listen to the raw guitar (before the amp), e.g. for recording. fn(Float32Array) */
@@ -515,8 +560,10 @@ export class Rig extends EventTarget {
 
   /** Plays a tone that isn't saved (or isn't saved yet): auditions, edits, song tones from other songs. */
   setLiveTone(tone) {
+    this.autoSong=false;
     if (!tone || !tone.gear || !tone.gear.length) return;
-    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs };
+    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs,...(this._toneMatchOriginal||{}) };
+    this._toneMatchOriginal=null;
     this.mode = 'live';
     this.liveTone = { ...tone, gain: ampGain(tone) };
     this.knobs = { ...DEFAULT_KNOBS, input: this.knobs.input, volume: this.knobs.volume };
@@ -584,7 +631,7 @@ export class Rig extends EventTarget {
     try {
       localStorage.setItem(
         'stagehand.rig',
-        JSON.stringify({ deviceId: this.deviceId, outputId: this.outputId, engine: this.engineChoice, exclusive: this.exclusive, buffer: this.buffer, toneId: this.toneId, knobs: this.knobs, perTone: this.perTone, muted: this.muted, instrument: this.instrumentPref, sensed: this.sense.instrument, lastByKind: this.lastByKind })
+        JSON.stringify({ deviceId: this.deviceId, outputId: this.outputId, engine: this.engineChoice, exclusive: this.exclusive, buffer: this.buffer, toneId: this.toneId, knobs: {...this.knobs,...(this._toneMatchOriginal||{})}, perTone: this.perTone, muted: this.muted, instrument: this.instrumentPref, sensed: this.sense.instrument, lastByKind: this.lastByKind })
       );
     } catch (_) {}
   }
@@ -879,8 +926,14 @@ export class Rig extends EventTarget {
   async _slotFor(tone) {
     const spec = toSpec(tone);
     const cap = this.backend.nam ? this.captureFor(tone) : null;
+    const autoCab = !tone.ir && cabinetFor(tone,cap);
+    let irPath = cap?.fullRig ? null : tone.ir;
+    if(autoCab && this.backend.ir) {
+      try{irPath=await prepareCab(autoCab);}catch(e){console.warn('Cabinet fallback:',e.message);}
+    }
     // your own cab file (IR) and the real amp are part of what makes a slot this tone
-    let key = tone.ir ? `${spec}\nir\t${tone.ir}` : spec;
+    let key = irPath ? `${spec}\nir\t${irPath}` : spec;
+    if(autoCab)key+=`\ncab:${autoCab}`;
     if (cap) key += `\nnam\t${cap.path}\t${cap.gainRef.toFixed(3)}\t${cap.fullRig ? 1 : 0}`;
     let slot = this.slots.indexOf(key);
     if (slot >= 0) {
@@ -906,11 +959,15 @@ export class Rig extends EventTarget {
       } else if (cap) this._namSlots.add(best);
       else this._namSlots.delete(best);
     }
+    if(this.backend.irData){
+      const data=autoCab ? await cabSamples(autoCab,this.backend.rate).catch(e=>{console.warn('Cabinet fallback:',e.message);return null;}) : null;
+      this.backend.irData(best,data);
+    }
     const ok = await this.backend.build(best, spec);
     if (!ok) return -1;
-    if (this.backend.ir && (tone.ir || this._irSlots.has(best))) {
-      this.backend.ir(best, tone.ir || '');
-      if (tone.ir) this._irSlots.add(best);
+    if (this.backend.ir && (irPath || this._irSlots.has(best))) {
+      this.backend.ir(best, irPath || '');
+      if (irPath) this._irSlots.add(best);
       else this._irSlots.delete(best);
     }
     this.slots[best] = key;
@@ -962,7 +1019,8 @@ export class Rig extends EventTarget {
   /** Follow the song: its own Rocksmith rig. */
   setSongTone(mapped) {
     if (!mapped) return;
-    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs };
+    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs,...(this._toneMatchOriginal||{}) };
+    this._toneMatchOriginal=null;
     this.mode = 'song';
     this.songTone = { ...mapped, gainPos: mapped.gear ? ampGain(mapped) : mapped.knobs && mapped.knobs.gain };
     this.toneId = mapped.preset;
@@ -975,8 +1033,10 @@ export class Rig extends EventTarget {
   }
 
   setTone(id) {
+    this.autoSong=false;
+    if(this._toneMatchOriginal){for(const [k,v] of Object.entries(this._toneMatchOriginal)){if(v===undefined)delete this.knobs[k];else this.knobs[k]=v;}this._toneMatchOriginal=null;}
     // Each tone remembers its own knob settings.
-    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs };
+    if (this.mode !== 'song' && this.mode !== 'live') this.perTone[this.toneId] = { ...this.knobs,...(this._toneMatchOriginal||{}) };
     this.mode = 'preset';
     this.songTone = null;
     this.liveTone = null;

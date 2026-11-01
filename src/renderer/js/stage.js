@@ -81,7 +81,8 @@ function saveMixSoon(now) {
   clearTimeout(mixTimer);
   const song = S.song;
   if (!song || !S.mix || !remembersMix(song.id)) return;
-  const go = () => api.songs.setUser(song.id, { mix: S.mix }).then((x) => x && upsertSongs([x])).catch(() => {});
+  const mix=JSON.parse(JSON.stringify(S.mix));
+  const go = () => api.songs.setUser(song.id, { mix }).then((x) => x && upsertSongs([x])).catch(() => {});
   if (now) go();
   else mixTimer = setTimeout(go, 700);
 }
@@ -786,11 +787,12 @@ export async function load(song, { autoplay = true } = {}) {
     const data = await loadTrackData(info.url);
     if (token !== S.token) return;
     await engine.reset(info.sampleRate, info.frames);
-    const songLevel = S.mix.song ?? mixer.master ?? 0.85;
+    // Master levels are global. Old per-song snapshots must not silence the next song.
+    const songLevel = mixer.master ?? engine.master ?? 0.85;
     engine.setMaster(songLevel);
     vol.value = String(songLevel);
     vol.style.setProperty('--p', `${Math.round(songLevel * 100)}%`);
-    if (S.mix.you != null) rig.setKnob('volume', S.mix.you);
+    // Preserve the current instrument level across every song and tone change.
     for (const name of STEM_ORDER) {
       const pref = stemPref(name);
       Object.assign(engine.tracks[trackIndex(name)], { volume: pref.volume, muted: pref.muted, solo: false });

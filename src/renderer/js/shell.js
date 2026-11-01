@@ -108,8 +108,8 @@ function renderBar() {
   for (const el of [art, text, playBtn, prog, sVolBox, openBtn]) el.hidden = !has;
   empty.hidden = has;
   if (!has) return;
-  art.innerHTML = '';
-  art.append(h('span.halo', { style: { '--gel': songGel(song) } }), coverEl(song, 96));
+  const key=song.id+'|'+String(song.art||'');
+  if(art.dataset.key!==key){art.dataset.key=key;art.replaceChildren(h('span.halo',{style:{'--gel':songGel(song)}}),coverEl(song,96));}
   const part = stage.partLabel();
   text.innerHTML = `<b>${esc(song.title)}</b><span>${esc(song.artist || '')}${part ? ` · ${esc(part)}` : ''}</span>`;
   draw();

@@ -36,6 +36,7 @@ class ToneStore {
   async load() {
     const d = await readJson(this.file, null);
     if (d && Array.isArray(d.tones)) this.data = { seeded: !!d.seeded, tones: d.tones };
+    if(this.data.tones.some(t=>t.slot===1)){for(const t of this.data.tones)if(t.slot===1)t.slot=null;await writeJsonAtomic(this.file,this.data);}
     return this.get();
   }
 
@@ -50,7 +51,8 @@ class ToneStore {
     if (!gear.length) throw new Error('A tone needs at least an amp or a pedal.');
     const name = String(tone.name || '').trim().slice(0, 80) || 'My tone';
     let slot = tone.slot === null || tone.slot === undefined || tone.slot === '' ? null : Number(tone.slot);
-    if (slot !== null && !(slot >= 1 && slot <= SLOTS)) slot = null;
+    if(slot===1)throw new Error('Slot 1 is reserved for Automatic Song Tone. Choose slots 2–9.');
+    if (slot !== null && !(slot >= 2 && slot <= SLOTS)) slot = null;
     const now = Date.now();
     let t = tone.id ? this.data.tones.find((x) => x.id === tone.id) : null;
     if (!t) {
@@ -60,7 +62,7 @@ class ToneStore {
     const ir = typeof tone.ir === 'string' && tone.ir ? tone.ir.slice(0, 1000) : null;
     // real amp: a capture pack id, 'off' (the modelled amp), or null (Stagehand's choice)
     const capture = typeof tone.capture === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(tone.capture) ? tone.capture : null;
-    Object.assign(t, { name, kind: tone.kind === 'bass' ? 'bass' : 'guitar', gear, slot, from: tone.from || t.from || null, ir, capture, updatedAt: now });
+    Object.assign(t, { name, kind: tone.kind === 'bass' ? 'bass' : 'guitar', gear, slot, from: tone.from || t.from || null, ir, autoCab: tone.autoCab !== false, capture, updatedAt: now });
     if (slot !== null) for (const o of this.data.tones) if (o !== t && o.slot === slot) o.slot = null;
     this.saveSoon();
     return t;
