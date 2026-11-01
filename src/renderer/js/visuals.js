@@ -281,7 +281,8 @@ void main() {
   gl_PointSize = uSize * (0.8 + band * 1.2);
   vec3 col = pal(k * 0.6 + speed * 0.4);
   col = mix(col, hue(uGuitar.z), uGuitar.x * uGuitar.w * 0.5 * step(0.7, fract(k * 7.0)));
-  vCol = col * (0.03 + band * 0.12 + speed * 0.1 + uKick * 0.05);
+  // a soft glow even when it's quiet; brighter with the music and your playing
+  vCol = col * (0.08 + band * 0.12 + speed * 0.1 + uKick * 0.05 + uEnergy * 0.05 + uGuitar.x * uGuitar.w * 0.05);
 }`;
 const SWARM_FRAG = `#version 300 es
 precision highp float;
@@ -429,7 +430,7 @@ export function createVisuals(host, { highway = false } = {}) {
     gl.uniform1f(u.uTime, (now / 1000) % 1000);
     gl.uniform1f(u.uPhase, F.phase);
     gl.uniform1f(u.uDt, dt);
-    gl.uniform1f(u.uEnergy, F.energy);
+    gl.uniform1f(u.uEnergy, F.drive);
     gl.uniform1f(u.uKick, highway ? F.kick * 0.7 : F.kick);
     gl.uniform1f(u.uSnap, highway ? F.snap * 0.6 : F.snap);
     gl.uniform1f(u.uBeats, F.beats % 64);
@@ -525,7 +526,7 @@ export function createVisuals(host, { highway = false } = {}) {
     gl.viewport(0, 0, W, H);
     gl.useProgram(dots.p);
     gl.uniform2f(dots.u.uRes, W, H);
-    gl.uniform1f(dots.u.uEnergy, F.energy);
+    gl.uniform1f(dots.u.uEnergy, F.drive);
     gl.uniform1f(dots.u.uKick, F.kick);
     gl.uniform1f(dots.u.uHue, (F.t * 0.006) % 1);
     gl.uniform1f(dots.u.uSize, Math.max(1.5, H / 420));

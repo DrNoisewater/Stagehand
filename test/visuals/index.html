@@ -25,6 +25,8 @@ import { createFluidDriver } from '../../src/renderer/js/reactive-bg.js';
 
 const q = new URLSearchParams(location.search);
 const highway = q.get('highway') === '1';
+// mode: song (song and guitar), guitar (you alone, no song), quiet (nothing playing)
+const mode = q.get('mode') || 'song';
 const host = document.getElementById('host');
 const neck = document.getElementById('neck');
 if (highway) {
@@ -54,7 +56,7 @@ let T = 0; // song seconds
 const BPM = 120, SPB = 60 / BPM;
 const env = (x, k) => (x < 0 ? 0 : Math.exp(-x * k));
 const engine = {
-  playing: true,
+  playing: mode === 'song',
   ctx: { sampleRate: 48000 },
   _spec: new Uint8Array(2048),
   spectrum() {
@@ -95,7 +97,7 @@ const engine = {
 };
 // your guitar: a pick every half beat, ringing between
 const rig = {
-  on: true,
+  on: mode !== 'quiet',
   muted: false,
   levels() {
     const ph = (T / (SPB / 2)) % 1;
@@ -114,7 +116,7 @@ window.step = (n, fps = 60) => {
     const now = T * 1000;
     // the highway lands a note every half beat on the riff's string
     const k = Math.floor((T / SPB) * 2);
-    if (k !== lastNote) {
+    if (k !== lastNote && mode === 'song') {
       lastNote = k;
       const s = [2, 3, 3, 4, 3, 3, 2, 1][k % 8];
       F.note(s, [2, 5, 7, 9, 7, 5, 2, 0][k % 8] + 3, k % 3 !== 0, now);

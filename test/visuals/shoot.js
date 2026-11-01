@@ -10,6 +10,7 @@ const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 
 const root = path.join(__dirname, '..', '..');
 const out = path.resolve(process.argv[2] || 'visuals-out');
+const MODE = process.env.MODE || 'song'; // song | guitar | quiet
 const scenes = process.argv.slice(3).length ? process.argv.slice(3) : ['fluid', 'nebula', 'swarm', 'mandala', 'strings'];
 fs.mkdirSync(out, { recursive: true });
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json' };
@@ -36,7 +37,7 @@ const server = http.createServer((req, res) => {
   let ok = true;
   for (const scene of scenes) {
     for (const hw of [0, 1]) {
-      await page.goto(`http://localhost:${port}/test/visuals/index.html?scene=${scene}&highway=${hw}`);
+      await page.goto(`http://localhost:${port}/test/visuals/index.html?scene=${scene}&highway=${hw}&mode=${MODE}`);
       await page.waitForFunction(() => window.ready);
       const moments = hw ? [150] : [60, 150, 240];
       let done = 0;
@@ -61,7 +62,7 @@ const server = http.createServer((req, res) => {
           console.log(`FAIL ${scene}: the scene could not draw`);
         }
       }
-      if (!hw && new Set(sums).size < 2) {
+      if (!hw && MODE !== 'quiet' && new Set(sums).size < 2) {
         ok = false;
         console.log(`FAIL ${scene}: the picture didn't change`);
       }

@@ -23,6 +23,7 @@ export function createFeatures() {
   const F = {
     bands: new Float32Array(5),
     energy: 0,
+    drive: 0,
     kick: 0,
     snap: 0,
     beats: 0, // counts kicks: scenes use it to change something every hit
@@ -124,6 +125,7 @@ export function createFeatures() {
     if (gl > gPrev * 1.35 + 0.12 && t - lastAttack > 0.07) {
       lastAttack = t;
       g.attack = 1;
+      F.snap = Math.max(F.snap, 0.7); // your picks hit the pictures like a snare
     }
     gPrev = gl;
     g.level += (gl - g.level) * Math.min(1, dt * 12);
@@ -139,6 +141,8 @@ export function createFeatures() {
 
     // the clock: slow drift when quiet, faster with the music and your playing
     F.phase += dt * (0.25 + F.energy * 0.9 + F.kick * 0.8 + g.level * 0.4);
+    // what drives the brightness: the song, or your guitar when you play alone
+    F.drive = Math.max(F.energy, g.on ? g.level * 0.85 : 0);
     F.events = F.events.filter((e) => now - e.at < 1500);
     return F;
   };
