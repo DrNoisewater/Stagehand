@@ -1,10 +1,10 @@
-# Stagehand handoff (v3.8.0, 2026-10-28): Jam, smart tuning, duplicates; 3.7 polish of the 3D highway
+# Stagehand handoff (v3.9.1, 2026-11-01): Jam, smart tuning, duplicates; 3.7 polish of the 3D highway
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
 
-## Guitar or bass (after 3.9.0)
+## 3.9.1: Guitar or bass
 
 User plugged in a bass for the first time: "tone and note detection a little off", "static really crazy" with a guitar tone on the bass; wants it to notice a bass without picking guitar/bass like Rocksmith ("sometimes I want to play the bass part with my guitar").
 - **Detection on real bass** (`detect.js` `_pitchVote`): the spectrum check judges low notes only by harmonics 5+ (where a semitone spans 2 bins), which a real bass barely has. When it fails, single notes also pass if the tracked pitch (YIN, `f.midi`) sits on the note for ≥3 frames (≥40 %) 50–240 ms after the onset. A more realistic bass synth in `detect.test.mjs` (`realBass`: 1/h² partials, fast upper decay, inharmonicity, hum) went 44–67 % → 96–100 %; wrong notes unchanged (0–8 %, all from the spectral path); guitar notes 94 → 98 %.
