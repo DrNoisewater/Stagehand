@@ -1,0 +1,79 @@
+# Checks every pull request on Windows: runs the tests and builds the
+# Windows sound engine (native/bin/stagehand-audio.exe) from source.
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.12'
+  LLVM_MINGW_VERSION: '20251104' # same compiler scripts/session-setup.sh uses for the shipped .exe
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Keep line endings as they are in the repo
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install test dependencies
+        # The tests need no npm packages (no lockfile, nothing in node_modules is used);
+        # the Rocksmith profile tests need Python's cryptography package.
+        run: python -m pip install --disable-pip-version-check cryptography
+
+      - name: Run tests
+        env:
+          PYTHON: python # test/rsprofile.test.js otherwise calls python3, which Windows doesn't have
+        run: npm test
+
+      - name: Cache the Windows compiler (llvm-mingw)
+        id: lm-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/llvm-mingw
+          key: llvm-mingw-${{ env.LLVM_MINGW_VERSION }}-ucrt-x86_64
+
+      - name: Get the Windows compiler (llvm-mingw)
+        if: steps.lm-cache.outputs.cache-hit != 'true'
+        run: |
+          $v = $env:LLVM_MINGW_VERSION
+          $zip = Join-Path $env:RUNNER_TEMP 'llvm-mingw.zip'
+          Invoke-WebRequest "https://github.com/mstorsjo/llvm-mingw/releases/download/$v/llvm-mingw-$v-ucrt-x86_64.zip" -OutFile $zip
+          Expand-Archive $zip -DestinationPath $env:RUNNER_TEMP
+          Move-Item (Join-Path $env:RUNNER_TEMP "llvm-mingw-$v-ucrt-x86_64") (Join-Path $env:RUNNER_TEMP 'llvm-mingw')
+
+      - name: Build the sound engine (stagehand-audio.exe, Release flags from native/build.sh)
+        working-directory: native
+        run: |
+          $lm = Join-Path $env:RUNNER_TEMP 'llvm-mingw\bin'
+          $dsp = 'dsp/sh_util.c','dsp/sh_amp.c','dsp/sh_cab.c','dsp/sh_fx.c','dsp/sh_rev.c','dsp/sh_engine.c','dsp/sh_nam.c'
+          New-Item -ItemType Directory -Force build | Out-Null
+          & "$lm\x86_64-w64-mingw32-clang.exe" -O3 -ffp-contract=fast -fno-math-errno -Wall -Wno-unused-function `
+            -march=x86-64-v2 -mtune=generic -static '-Wl,--subsystem,console' `
+            -o build/stagehand-audio.exe host/host.c host/io_wasapi.c @dsp -lole32 -luuid -lavrt -lksuser
+          if ($LASTEXITCODE -ne 0) { throw "The sound engine didn't compile (exit $LASTEXITCODE)." }
+          & "$lm\llvm-strip.exe" build/stagehand-audio.exe
+          if ($LASTEXITCODE -ne 0) { throw 'llvm-strip failed.' }
+          Get-Item build/stagehand-audio.exe | Format-List Name, Length

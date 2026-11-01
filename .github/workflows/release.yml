@@ -1,0 +1,140 @@
+# Makes a Windows release by hand: Actions → Release → Run workflow → enter the version.
+# Checks the version, runs the tests, builds the sound engine, packages the app as
+# Stagehand-v<version>-win-x64.zip, tags the commit v<version> and publishes a
+# GitHub Release with the zip and auto-generated notes.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, without the v (e.g. 3.9.0). Must match "version" in package.json.'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  APP_NAME: Stagehand
+  VERSION: ${{ inputs.version }}
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.12'
+  LLVM_MINGW_VERSION: '20251104' # same compiler scripts/session-setup.sh uses for the shipped .exe
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Keep line endings as they are in the repo
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags, and history for the release notes
+
+      - name: Check the version and that the tag is new
+        run: |
+          $v = $env:VERSION.Trim()
+          if ($v -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Version '$v' isn't in the form 1.2.3 (three numbers, no leading v)."
+          }
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($pkg -ne $v) {
+            throw "package.json says version $pkg but you asked to release $v. Bump `"version`" in package.json to $v (and commit it) first, so the app shows the right version."
+          }
+          git ls-remote --exit-code --tags origin "refs/tags/v$v" | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            throw "The tag v$v already exists, so v$v has already been released. Pick a new version number."
+          }
+          if ($LASTEXITCODE -ne 2) { throw "Couldn't check the tags on origin (git exit $LASTEXITCODE)." }
+          $global:LASTEXITCODE = 0
+          Write-Host "Releasing v$v from $env:GITHUB_SHA"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check cryptography
+
+      - name: Run tests (the release stops here if any fail)
+        env:
+          PYTHON: python
+        run: npm test
+
+      - name: Cache the Windows compiler (llvm-mingw)
+        id: lm-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/llvm-mingw
+          key: llvm-mingw-${{ env.LLVM_MINGW_VERSION }}-ucrt-x86_64
+
+      - name: Get the Windows compiler (llvm-mingw)
+        if: steps.lm-cache.outputs.cache-hit != 'true'
+        run: |
+          $v = $env:LLVM_MINGW_VERSION
+          $zip = Join-Path $env:RUNNER_TEMP 'llvm-mingw.zip'
+          Invoke-WebRequest "https://github.com/mstorsjo/llvm-mingw/releases/download/$v/llvm-mingw-$v-ucrt-x86_64.zip" -OutFile $zip
+          Expand-Archive $zip -DestinationPath $env:RUNNER_TEMP
+          Move-Item (Join-Path $env:RUNNER_TEMP "llvm-mingw-$v-ucrt-x86_64") (Join-Path $env:RUNNER_TEMP 'llvm-mingw')
+
+      - name: Build the sound engine (stagehand-audio.exe, Release flags from native/build.sh)
+        working-directory: native
+        run: |
+          $lm = Join-Path $env:RUNNER_TEMP 'llvm-mingw\bin'
+          $dsp = 'dsp/sh_util.c','dsp/sh_amp.c','dsp/sh_cab.c','dsp/sh_fx.c','dsp/sh_rev.c','dsp/sh_engine.c','dsp/sh_nam.c'
+          # replaces the committed prebuilt .exe in this runner's copy only, so the zip matches the tagged source
+          & "$lm\x86_64-w64-mingw32-clang.exe" -O3 -ffp-contract=fast -fno-math-errno -Wall -Wno-unused-function `
+            -march=x86-64-v2 -mtune=generic -static '-Wl,--subsystem,console' `
+            -o bin/stagehand-audio.exe host/host.c host/io_wasapi.c @dsp -lole32 -luuid -lavrt -lksuser
+          if ($LASTEXITCODE -ne 0) { throw "The sound engine didn't compile (exit $LASTEXITCODE)." }
+          & "$lm\llvm-strip.exe" bin/stagehand-audio.exe
+          if ($LASTEXITCODE -ne 0) { throw 'llvm-strip failed.' }
+          Get-Item bin/stagehand-audio.exe | Format-List Name, Length
+
+      - name: Package the zip
+        id: pkg
+        # Same layout as Stagehand-Windows.zip from scripts/package.sh: unzip, run "Install Stagehand.bat".
+        run: |
+          $name = "$env:APP_NAME-v$env:VERSION-win-x64"
+          $stage = Join-Path $env:RUNNER_TEMP 'pkg'
+          $top = Join-Path $stage $name
+          $app = Join-Path $top 'app'
+          New-Item -ItemType Directory -Force (Join-Path $app 'native') | Out-Null
+          Copy-Item src, engine, build, package.json -Destination $app -Recurse
+          Copy-Item native/bin -Destination (Join-Path $app 'native') -Recurse
+          Copy-Item windows/install.ps1, windows/uninstall.ps1, 'windows/Install Stagehand.bat', 'windows/Uninstall Stagehand.bat', README.md -Destination $top
+          Get-ChildItem $stage -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
+          foreach ($f in 'Install Stagehand.bat', 'install.ps1', 'app/package.json', 'app/src/main/main.js', 'app/engine/stagehand_stems.py', 'app/native/bin/stagehand-audio.exe', 'app/src/renderer/worklets/rig-dsp.wasm') {
+            if (-not (Test-Path (Join-Path $top $f))) { throw "The package is missing $f." }
+          }
+          $zip = Join-Path $env:RUNNER_TEMP "$name.zip"
+          Compress-Archive -Path $top -DestinationPath $zip -CompressionLevel Optimal
+          $mb = [math]::Round((Get-Item $zip).Length / 1MB, 1)
+          Write-Host "Built $name.zip ($mb MB)"
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Tag v${{ inputs.version }}
+        run: |
+          git tag "v$env:VERSION" $env:GITHUB_SHA
+          git push origin "refs/tags/v$env:VERSION"
+          if ($LASTEXITCODE -ne 0) { throw "Couldn't push the tag v$env:VERSION (someone may have just released it)." }
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$env:VERSION" "${{ steps.pkg.outputs.zip }}" --verify-tag --generate-notes --title "$env:APP_NAME v$env:VERSION"
+          if ($LASTEXITCODE -ne 0) { throw 'Creating the release failed.' }
