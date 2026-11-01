@@ -1,6 +1,6 @@
 /* Note detection: "play" synthesized guitar parts into the detector. `node test/detect.test.mjs` */
 import assert from 'assert';
-import { Analyzer, OnsetTracker, Judge, targetsFromTab, noteMidi } from '../src/renderer/js/detect.js';
+import { Analyzer, OnsetTracker, Judge, targetsFromTab, noteMidi, instrumentShift } from '../src/renderer/js/detect.js';
 
 const SR = 48000;
 let seed = 7;
@@ -167,6 +167,62 @@ test('bass down to the low E', () => {
   const wrong = score(tab, perform(tab, { mistake: (m) => m + 2 }));
   console.log(`     right ${(r.note * 100).toFixed(0)}%   wrong ${(wrong.note * 100).toFixed(0)}%`);
   assert.ok(r.note >= 0.9 && wrong.note <= 0.1);
+});
+
+/**
+ * A bass more like a real one: a strong fundamental, upper partials weak
+ * (pluck position, falling as 1/h², `bright` per step) and dying fast,
+ * stiff-string inharmonicity, mains hum. `oct` plays it that many semitones up.
+ */
+function realBass(tab, { mistake = (m) => m, bright = 0.85, oct = 0 } = {}) {
+  const tg = targetsFromTab(tab);
+  const total = Math.ceil((tab.length + 0.5) * SR);
+  const out = new Float32Array(total);
+  const vs = tg.map((x) => ({ start: x.t + rnd() * 0.03, midi: mistake(x.notes[0].midi) + oct }));
+  for (let i = 0; i < vs.length; i++) {
+    const v = vs[i];
+    const end = vs[i + 1] ? vs[i + 1].start + 0.01 : v.start + 2;
+    const f0 = 440 * Math.pow(2, (v.midi - 69) / 12);
+    const a0 = Math.floor(v.start * SR);
+    const a1 = Math.min(total, Math.floor(end * SR));
+    for (let k = a0; k < a1; k++) {
+      const t = (k - a0) / SR;
+      let x = 0;
+      for (let h = 1; h <= 16; h++) {
+        const fh = f0 * h * Math.sqrt(1 + 0.0003 * h * h);
+        if (fh > 4000) break;
+        x += ((2 * Math.abs(Math.sin(Math.PI * h * 0.18))) / (h * h)) * Math.pow(bright, h - 1) * Math.sin(2 * Math.PI * fh * t) * Math.exp(-t * (1.5 + 0.27 * h * h));
+      }
+      out[k] += 0.35 * Math.min(1, t / 0.003) * Math.min(1, (a1 - k) / (SR * 0.01)) * x;
+    }
+  }
+  for (let k = 0; k < total; k++) out[k] += 0.002 * rnd() + 0.004 * Math.sin((2 * Math.PI * 60 * k) / SR);
+  return out;
+}
+
+test('a real-sounding bass (few overtones) still scores, wrong notes still miss', () => {
+  const tab = part('bass');
+  const r = score(tab, realBass(tab));
+  const dull = score(tab, realBass(tab, { bright: 0.7 }));
+  const semi = score(tab, realBass(tab, { mistake: (m) => m + 1 }));
+  const tone = score(tab, realBass(tab, { mistake: (m) => m - 2 }));
+  console.log(`     right ${(r.note * 100).toFixed(0)}%  dull ${(dull.note * 100).toFixed(0)}%  semitone off ${(semi.note * 100).toFixed(0)}%  tone off ${(tone.note * 100).toFixed(0)}%`);
+  assert.ok(r.note >= 0.9 && dull.note >= 0.85, `right ${r.note} dull ${dull.note}`);
+  assert.ok(semi.note <= 0.1 && tone.note <= 0.1, `semi ${semi.note} tone ${tone.note}`);
+});
+
+test('a bass part played on guitar (an octave up) scores when a guitar is heard', () => {
+  const tab = part('bass');
+  try {
+    instrumentShift.st = 12;
+    const r = score(tab, realBass(tab, { oct: 12, bright: 0.95 }));
+    const wrong = score(tab, realBass(tab, { oct: 12, bright: 0.95, mistake: (m) => m + 2 }));
+    const bass = score(tab, realBass(tab));
+    console.log(`     guitar right ${(r.note * 100).toFixed(0)}%  wrong ${(wrong.note * 100).toFixed(0)}%  (bass itself ${(bass.note * 100).toFixed(0)}%)`);
+    assert.ok(r.note >= 0.9 && wrong.note <= 0.1 && bass.note >= 0.9, `${r.note} ${wrong.note} ${bass.note}`);
+  } finally {
+    instrumentShift.st = 0;
+  }
 });
 
 test('drop tunings and capo shift the expected pitch', () => {

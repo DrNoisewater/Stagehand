@@ -158,6 +158,8 @@ export class OnsetTracker {
 /** MIDI note a fretted string sounds (fret numbers are absolute, capo included). */
 /** Semitones your guitar is dropped by (the Drop): you fret higher than the chart, so expect that. */
 export const tuneShift = { st: 0 };
+/** Semitones what's plugged in sounds from the part: +12 a guitar on a bass part, −12 a bass on a guitar part. */
+export const instrumentShift = { st: 0 };
 
 export function noteMidi(tab, s, f) {
   const base = tab.type === 'bass' ? [28, 33, 38, 43] : [40, 45, 50, 55, 59, 64];
@@ -328,8 +330,10 @@ export class Judge {
     let expect = want.midi;
     if (want.harmonic) expect = want.midi - want.f + (HARMONIC_UP[want.f] || 12);
     const cands = [expect];
+    if (instrumentShift.st) cands.push(expect + instrumentShift.st);
     if (want.bend) for (let b = 0.5; b <= want.bend + 0.01; b += 0.5) cands.push(expect + b); // bends are in half steps
     if (want.pinchHarmonic) cands.push(expect + 12, expect + 19, expect + 24);
+    if (instrumentShift.st && want.bend) for (let b = 0.5; b <= want.bend + 0.01; b += 0.5) cands.push(expect + instrumentShift.st + b);
     const top = this._strongest(ne);
     if (top <= 0) return null;
     let bestSal = 0;
@@ -349,7 +353,26 @@ export class Judge {
     let far = 0;
     for (const d of [-5, -4, 4, 5]) far = Math.max(far, this._salience(ne, bestM + d));
     const ok = bestSal >= 0.3 * top && bestSal >= near && bestSal >= 0.7 * far;
-    return ok ? Math.round((bestM - expect) * 100) : null;
+    if (ok) return Math.round((bestM - expect) * 100);
+    // A real bass has a strong fundamental and few upper partials, which the
+    // spectrum check above leans on for low notes. The pitch tracker reads the
+    // fundamental itself: if it settles on the note just after the pick, count it.
+    return this._pitchVote(cands, onsetT, expect);
+  }
+
+  /** Cents off `expect` when the tracked pitch after the onset sits on one of `cands`, else null. */
+  _pitchVote(cands, onsetT, expect) {
+    let seen = 0;
+    const agree = [];
+    for (const f of this.frames) {
+      if (f.t < onsetT + 0.05 || f.t > onsetT + 0.24) continue;
+      seen++;
+      if (f.midi === null || f.midi === undefined) continue;
+      for (const m of cands) if (Math.abs(f.midi - m) < 0.45) agree.push(f.midi - expect);
+    }
+    if (agree.length < 3 || agree.length < seen * 0.4) return null;
+    agree.sort((a, b) => a - b);
+    return Math.round(agree[agree.length >> 1] * 100);
   }
 
   _matchChord(tg, onsetT) {
@@ -357,7 +380,12 @@ export class Judge {
     if (!ne) return null;
     const top = this._strongest(ne);
     if (top <= 0) return null;
-    const midis = [...new Set(tg.notes.filter((x) => !x.mute).map((x) => Math.round(x.midi * 100) / 100))];
+    const r = this._chordIn(ne, top, tg, 0);
+    return r === null && instrumentShift.st ? this._chordIn(ne, top, tg, instrumentShift.st) : r;
+  }
+
+  _chordIn(ne, top, tg, shift) {
+    const midis = [...new Set(tg.notes.filter((x) => !x.mute).map((x) => Math.round((x.midi + shift) * 100) / 100))];
     let present = 0;
     // Chords ring with many loud partials; judge each tone on harmonics spaced
     // well apart so a loud neighbour's spill-over can't pass for it.

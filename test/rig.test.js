@@ -18,7 +18,7 @@ const ok = (cond, msg) => {
 
 (async () => {
   global.localStorage = { getItem: () => null, setItem: () => {} };
-  const gs = await import(path.join(ROOT, 'src/renderer/js/gearspec.js'));
+  const gs = await import(require('url').pathToFileURL(path.join(ROOT, 'src/renderer/js/gearspec.js')).href);
   gs.setGear(JSON.parse(fs.readFileSync(path.join(ROOT, 'src/renderer/data/gear2014.json'), 'utf8')));
 
   // 1. a real manifest's tone → gear chain → engine text
@@ -37,7 +37,7 @@ const ok = (cond, msg) => {
   ok(Math.abs(gs.ampGain(t) - (60 - 1) / 99) < 1e-6, 'gain slider starts where the song has it');
 
   // 2. engine: build and run presets and the song tone
-  const { TONES } = await import(path.join(ROOT, 'src/renderer/js/rig.js')).catch(() => ({ TONES: null }));
+  const { TONES } = await import(require('url').pathToFileURL(path.join(ROOT, 'src/renderer/js/rig.js')).href).catch(() => ({ TONES: null }));
   const wasm = new WebAssembly.Module(fs.readFileSync(path.join(ROOT, 'src/renderer/worklets/rig-dsp.wasm')));
   const x = new WebAssembly.Instance(wasm, {}).exports;
   const need = x.mem_needed();

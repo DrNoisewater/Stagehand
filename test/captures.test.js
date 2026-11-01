@@ -134,9 +134,9 @@ function storedZip(files) {
   ok(Object.keys(MAP.amps).every((k) => gear[k]), 'no made-up amp keys in the map');
   // the presets are built on real amps: each one's gain sits on a capture's gain setting
   global.localStorage = global.localStorage || { getItem: () => null, setItem: () => {} };
-  const gs = await import(path.join(ROOT, 'src/renderer/js/gearspec.js'));
+  const gs = await import(require('url').pathToFileURL(path.join(ROOT, 'src/renderer/js/gearspec.js')).href);
   gs.setGear(gear);
-  const { TONES } = await import(path.join(ROOT, 'src/renderer/js/rig.js'));
+  const { TONES } = await import(require('url').pathToFileURL(path.join(ROOT, 'src/renderer/js/rig.js')).href);
   for (const t of TONES) {
     const amp = t.gear.find((g) => g.slot === 'amp');
     const pk = MAP.packs[MAP.amps[amp.key]];

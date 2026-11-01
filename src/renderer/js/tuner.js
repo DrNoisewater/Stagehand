@@ -36,7 +36,8 @@ export function createTuner() {
   );
 
   function bass() {
-    return rig.tone && rig.tone.kind === 'bass';
+    // what's plugged in, when Stagehand has heard it; else the tone you picked
+    return (rig.instrument || (rig.tone && rig.tone.kind)) === 'bass';
   }
 
   function targets() {
