@@ -1571,11 +1571,11 @@ export function createHighway(stage) {
       solid.box(xn, xe, y - th, y + th, -th, th, col(STRING[s], 1, 0.5), col(STRING[s], 1, 0.68), col(STRING[s], 1, 0.38));
       glow.up(xn, xe, y - th * 2.5, y + th * 2.5, -0.05, col(STRING[s], 0.08));
     }
-    // the hand position's edges at the neck: two white posts, as in the game
-    const fy = yt + 0.25;
+    // the hand position's edges at the neck: two white posts, the same height as
+    // the frets (3.12: they used to stand taller, which looked off to the user)
     for (const x of [anX0(a), anX1(a)]) {
-      solid.box(x - 0.025, x + 0.025, yb - 0.1, fy, -0.08, -0.02, col('#fff0f8', 1, 1.0));
-      glow.up(x - 0.1, x + 0.1, yb - 0.1, fy + 0.05, -0.085, col('#ff7ad2', 0.12), col('#50e8ff', 0.1));
+      solid.box(x - 0.025, x + 0.025, yb, yt, -0.08, -0.02, col('#fff0f8', 1, 1.0));
+      glow.up(x - 0.1, x + 0.1, yb, yt, -0.085, col('#ff7ad2', 0.12), col('#50e8ff', 0.1));
     }
 
   }

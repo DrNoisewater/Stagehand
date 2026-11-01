@@ -20,6 +20,7 @@ User asked: drop **Tone match** ("for now"), and the **Aurora / Orbital / Prism*
   - Venues: the scenes are in the picker (`scene:` in `VENUES`, CSS thumbnails `.sc-*`). Jam has a **Jam look** picker (Fluid + the four, `stagehand.jamLook`).
   - **Fluid** (`reactive-bg.js` `createFluidDriver`): each part of the music has its own gesture: kick = plumes from the bottom corners, snare = a ring of bursts, bass = slow low swirl, mids = a stream up the middle, highs = flecks near the top, highway notes in string colours along the neck, your guitar in your note's colour (Jam keeps its own guitar ink too).
   - Look test: `node test/visuals/shoot.js <outDir> [scene…]` plays a made-up song through each look (Jam and behind the highway) and writes `sheet.png`. ui3-chromium.js shoots each scene on the highway (`6g-highway-*`) and in Jam (`25-jam-*`).
+- **Hand-position posts** (user: "the bars on the section we are playing are higher than the rest of the frets"): the two white posts at the hand position's edges stood 0.25 above and 0.1 below the fret wires since 3.6.1 (copying the game); now flush with the frets, still white with their glow (`buildNeck`). Ask whether that looks right.
   - Only seen in software rendering here (slow): **ask how each one looks and moves on their GPU, whether any costs frames behind the highway, and which they like.** Tune amounts in the shaders (`NEBULA`, `MANDALA`, `STRINGS`, `SWARM_*`) and in `createFluidDriver`.
 
 ## 3.9.1: Guitar or bass
