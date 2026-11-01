@@ -12,6 +12,7 @@ mkdir -p build bin
 CF="-O3 -ffp-contract=fast -fno-math-errno -Wall -Wno-unused-function"
 cc $CF -o build/dsp_bench test/dsp_bench.c $DSP -lm
 cc $CF -o build/drop_test test/drop_test.c $DSP -lm
+cc $CF -o build/drop_quality_test test/drop_quality_test.c $(echo $DSP | sed 's#dsp/sh_engine.c##') -lm
 cc $CF -march=x86-64-v2 -o build/nam_test test/nam_test.c $DSP -lm
 cc $CF -march=x86-64-v2 -o build/nam_engine_test test/nam_engine_test.c $DSP -lm
 cc $CF -o build/rs_test test/rs_test.c $(echo $DSP | sed 's#dsp/sh_nam.c##') -lm

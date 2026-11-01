@@ -41,11 +41,12 @@ No admin rights needed. The first install downloads the app runtime (about 150 M
 
 Plug in the Rocksmith cable and your guitar is live straight away, no song needed.
 
-- **Tones on slots 1–9.** Press a number anywhere to switch. The rig shows as a chain of pedals, amp, cabinet and rack. Click any piece to turn its knobs.
+- **Tones on keys 1–9.** **1** always follows the song's own tone (and its tone changes); **2–9** are your saved tones. Press a number anywhere to switch. The rig shows as a chain of pedals, amp, cabinet and rack. Click any piece to turn its knobs.
 - **Guitar or bass, automatically (3.9.1).** Stagehand hears which one is plugged in. If your tone is for the other instrument, it plays one that suits what you're holding, and your own tone comes back when you switch back. A bass part played on guitar is scored an octave up.
 - **Tuner, Drop and calibration.** A precise tuner, plus **Set input level**. The **Drop** works like a DigiTech Drop: lower your instrument 1–7 semitones or an octave, or match the song, so you can play E♭/D/C♯ songs without retuning. Press **D** anywhere.
-- **Drums & metronome** (Click, Rock, Shuffle, Metal, Half-time, 40–240 BPM, Tap) and a **Looper** that locks to the bar.
-- **Jam** (**J**): full screen, no song. A fluid picture follows what you play.
+- **Moving backgrounds** behind the highway or full screen in Jam: **Fluid**, **Nebula**, **Swarm**, **Mandala** and **Strings**. They move with the song's bass, beats and highs, flash with the notes on the highway in their string colours, and follow what you play.
+- **Jam is home.** Rig, tuner, Drop, drums and looper on one screen. **Play over song** lets you improvise with a song's stems, your own part muted. **Open visualizer** (**J**) goes full screen with Fluid.
+- **Drums** with 17 styles (Rock, Shuffle, Metal, Funk, Reggae, Jazz ride, Bossa, Drum & bass and more, 40–240 BPM, Tap; hold **+**/**−** to change tempo fast) and a **Looper** that records exactly what you hear and locks to the bar.
 
 ### 🎵 Play along
 
@@ -57,10 +58,12 @@ Double-click a song, or press **Play along**.
 - **Riff repeater** with a speed trainer that starts at 60% and adds 5% after each clean pass.
 - **Mix panel:** your level, the song, and every stem with a slider. **Take my part out** removes your part from the song.
 - **Tone** follows the song's own tone changes, or pick any tone.
+- **Score attack:** a full-speed run with a ×4 multiplier and your ten best runs per song. **Record clip** saves a video (MP4) of the highway with the song and your guitar. **U** opens a small tuner without stopping the song.
 
 ### 🔊 Tones and real amps
 
 - **My tones, From my songs, Presets.** ▶ plays a demo riff through any tone. Rename tones, give them slots, edit the chain, pick the cab, mic and mic position, or load your own cab IR.
+- **Real cabinets.** **Download amp + cab** pairs each real amp with a recorded cabinet: four guitar cabinets come with Stagehand, five bass cabinets download the first time you need them.
 - **Real amps.** Tones can play through **captures of the real amps** ([Neural Amp Modeler](https://github.com/sdatkinson/NeuralAmpModelerCore)) instead of the modelled ones. 57 of Rocksmith's 60 amps are matched to a real one, many at several gain settings. Press **Get the real amp** on any amp, or **Get all**. They come from [TONE3000](https://www.tone3000.com) after a one-time setup in **Settings › Real amps**.
 - **Presets on real amps:** Clean (Fender Deluxe), Chime (Vox AC30), Crunch (Marshall Plexi), Overdrive (JCM800), Lead (Peavey 5150), Metal (Mesa Rectifier), Fuzz (Orange), Bass clean (Ampeg SVT) and Bass grit (Orange AD200).
 
@@ -99,7 +102,9 @@ Time played, day streak, accuracy over time, the songs you're working on, highli
 | <kbd>Space</kbd> | Play / pause |
 | <kbd>←</kbd> <kbd>→</kbd> | Back / forward 5 s (<kbd>Shift</kbd>: 15 s) |
 | <kbd>Enter</kbd> | Open the selected song |
-| <kbd>1</kbd>–<kbd>9</kbd> | Switch to the tone in that slot |
+| <kbd>1</kbd> | Follow the song's tone |
+| <kbd>2</kbd>–<kbd>9</kbd> | Switch to the tone in that slot |
+| <kbd>U</kbd> | Small tuner on the highway |
 | <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>6</kbd> | Turn a stem off or on (<kbd>Shift</kbd>+<kbd>Alt</kbd>: solo) |
 | <kbd>H</kbd> | Note highway (<kbd>Esc</kbd> to go back) |
 | <kbd>T</kbd> | Tab view / waveform view |
@@ -182,7 +187,25 @@ Rocksmith audio is Wwise `.wem`. Stagehand decodes it with [vgmstream](https://g
 
 ## What's new
 
-**3.9.1:** Stagehand hears whether a guitar or a bass is plugged in and plays a matching tone. Real bass notes score much better, and a bass part played on guitar is scored an octave up. Full notes are on [Releases](https://github.com/DrNoisewater/stagehand/releases).
+**3.12:** everything from 3.10 to 3.11.1 (real cabinets, Jam as home, 17 drum styles, a better looper, Score attack, Record clip, tone keys, progress goals, the Drop repair, clearer yellow and orange strings) together with 3.9.1's guitar-or-bass sensing. New moving backgrounds (Nebula, Swarm, Mandala, Strings) replace Aurora, Orbital and Prism, and Fluid reacts much more to the music. Tone match is gone for now. Full notes are on [Releases](https://github.com/DrNoisewater/stagehand/releases).
+
+<details>
+<summary><b>3.10 to 3.11.1</b></summary>
+
+<br>
+
+Real cabinets paired with real amps; Jam as the home screen with Play over song; 17 drum styles; the looper records the processed guitar; Score attack; Record clip (MP4); tone keys (1 follows the song); Progress goals (five songs at 95 %, a seven-day streak, a perfect section); bends drawn along the chart's curve; U for a quick tuner; the Drop no longer jumps in level. Built outside GitHub and brought in with 3.12.
+
+</details>
+
+<details>
+<summary><b>3.9.1</b></summary>
+
+<br>
+
+Stagehand hears whether a guitar or a bass is plugged in and plays a matching tone. Real bass notes score much better, and a bass part played on guitar is scored an octave up.
+
+</details>
 
 <details>
 <summary><b>3.9</b></summary>
@@ -252,7 +275,7 @@ Every pull request is checked on Windows by [CI](.github/workflows/ci.yml). Rele
 
 ## Credits
 
-[vgmstream](https://github.com/vgmstream/vgmstream) (ISC) · [Demucs](https://github.com/facebookresearch/demucs) (MIT, Meta AI) · [uv](https://github.com/astral-sh/uv) (MIT/Apache-2.0) · [Electron](https://www.electronjs.org) (MIT) · Archivo typeface (SIL OFL, Omnibus-Type) · NAM engine ported from [NeuralAmpModelerCore](https://github.com/sdatkinson/NeuralAmpModelerCore) (MIT, Steven Atkinson) · Fluid venue from Pavel Dobryakov's [WebGL Fluid Simulation](https://github.com/PavelDoGreat/WebGL-Fluid-Simulation) (MIT)
+[vgmstream](https://github.com/vgmstream/vgmstream) (ISC) · [Demucs](https://github.com/facebookresearch/demucs) (MIT, Meta AI) · [uv](https://github.com/astral-sh/uv) (MIT/Apache-2.0) · [Electron](https://www.electronjs.org) (MIT) · Archivo typeface (SIL OFL, Omnibus-Type) · NAM engine ported from [NeuralAmpModelerCore](https://github.com/sdatkinson/NeuralAmpModelerCore) (MIT, Steven Atkinson) · guitar cabinet IRs from zoyd's "650 Assorted Cabinet Impulses" (public domain, via [0xFX](https://github.com/averagenative/0xFX)) · bass cabinet IRs downloaded from [Shift Line](https://shift-line.com/irpackbass) (free pack, personal use) · Fluid venue from Pavel Dobryakov's [WebGL Fluid Simulation](https://github.com/PavelDoGreat/WebGL-Fluid-Simulation) (MIT)
 
 Artist and album data from [MusicBrainz](https://musicbrainz.org) (CC0), covers from the Cover Art Archive. Rocksmith save format as documented by rsrtools (MIT) and [Rocksmith2014.NET](https://github.com/iminashi/Rocksmith2014.NET) (MIT), whose test archives are used in `test/fixtures`. Real amp captures are made by their creators and shared on [TONE3000](https://www.tone3000.com).
 

@@ -69,6 +69,17 @@ class Stats {
     return out;
   }
 
+  goals(now=Date.now(),bestStreak=0){
+    const date=new Date(now),month=new Date(date.getFullYear(),date.getMonth(),1).getTime();
+    const mastered=new Set(this.data.sessions.filter(s=>s.at>=month&&s.songId&&s.notes>=100&&s.accuracy>=.95&&s.speed>=.999).map(s=>s.songId));
+    const perfect=this.data.sessions.some(s=>s.speed>=.999&&(s.sections||[]).some(([,h,n])=>n>=10&&h===n));
+    return [
+      {id:`master-${date.getFullYear()}-${date.getMonth()+1}`,name:'Master 5 songs this month',detail:'95% accuracy · 100+ notes · full speed',value:Math.min(5,mastered.size),target:5},
+      {id:'streak7',name:'7-day streak',detail:'Play on seven consecutive days',value:Math.min(7,bestStreak),target:7},
+      {id:'perfect-section',name:'First 100% section',detail:'10+ notes · full speed',value:perfect?1:0,target:1}
+    ];
+  }
+
   /** Totals for a period: 'week' | 'month' | 'all'. */
   summary(period = 'week', now = Date.now()) {
     const start = new Date(now);
@@ -136,6 +147,7 @@ class Stats {
     const accNow = acc(inRange);
     const accPrev = acc(prev);
     return {
+      goals: this.goals(now,bestStreak),
       period,
       seconds: secs(inRange),
       prevSeconds: days ? secs(prev) : null,

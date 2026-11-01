@@ -169,6 +169,10 @@ class FakePortMain extends EventEmitter {
 
   const stemHold = new Set(); // songs whose stems are "still splitting" (for the wait-for-stems check)
   const API = {
+    'clips.source': () => 'test-window',
+    'clips.save': data => { const f=path.join(outDir,'export-test.webm');fs.writeFileSync(f,Buffer.from(Object.values(data)));return f;},
+    'cabs.ensure': id => require('../../src/main/services/cabinets').ensureCab(path.join(tmp,'Cabs'),id,async()=>{throw Error('offline test');}),
+    'cabs.bytes': id => Array.from(fs.readFileSync(path.join(ROOT,'src/renderer/data/cabs',id+'.wav'))),
     'captures.get': () => captures.state(),
     'captures.assign': (a, p) => captures.assign(a, p),
     'captures.remove': (p) => captures.remove(p),
@@ -222,7 +226,7 @@ class FakePortMain extends EventEmitter {
     'tones.setSlot': (id, n) => toneStore.setSlot(id, n),
     'tones.seed': (l) => toneStore.seed(l),
     'tones.library': async () => {
-      if (process.env.SH_SLOW_TONES) {
+  if (process.env.SH_SLOW_TONES) {
         // stand in for a big library read for the first time: 1,200 songs over ~12 s
         for (let d = 0; d <= 1200; d += 40) {
           await page.evaluate((p) => window.__shEmit('tones:progress', p), { done: d, total: 1200 }).catch(() => {});
@@ -241,8 +245,9 @@ class FakePortMain extends EventEmitter {
     'songs.played': (id) => library.markPlayed(id),
   };
 
-  const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
-  const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--autoplay-policy=no-user-gesture-required','--single-process','--no-zygote','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+  const page = await browser.newPage({ viewport: { width: 1600, height: process.env.SH_PICTURES311?1100:950 } });
+  page.setDefaultTimeout(60000);
   const logs = [];
   page.on('console', (m) => (logs.push(`${m.type()}: ${m.text()}`), /error|warn/.test(m.type()) && !/404|Failed to load/.test(m.text()) && console.log('CONSOLE', m.type(), m.text())));
   page.on('pageerror', (e) => (logs.push(`pageerror: ${e.message}`), console.log('PAGEERROR', e.message, (e.stack || '').split('\n').slice(0, 3).join(' | '))));
@@ -284,6 +289,7 @@ class FakePortMain extends EventEmitter {
     if (/^  \},?\s*$/.test(line)) cur = null;
   }
   await page.addInitScript(([fakeIn, shape]) => {
+    localStorage.setItem('stagehand.fluidDye','256');
     window.__shFakeAudio = { fakeIn };
     let seq = 0;
     const local = new Map();
@@ -323,7 +329,91 @@ class FakePortMain extends EventEmitter {
 
   await page.goto(`${base}/src/renderer/index.html`);
   await page.waitForTimeout(3500);
-  const shot = (n) => (console.log('SHOT', n), page.screenshot({ path: path.join(outDir, `v3-${n}.png`) }));
+  const shot = (n) => process.env.SH_NO_PICS?Promise.resolve():(console.log('SHOT', n), page.screenshot({ path: path.join(outDir, `v3-${n}.png`) }));
+  if(process.env.SH_PICTURES311){
+    await shot('311-jam');
+    await page.getByRole('button',{name:'Open visualizer',exact:true}).click();
+    await page.getByLabel('Jam visualizer').selectOption('orbit');
+    await page.locator('.jam-controls').getByRole('button',{name:'Drums',exact:true}).click();
+    await page.locator('.jam-drawer').getByRole('button',{name:'Funk',exact:true}).click();
+    await page.waitForTimeout(500);await shot('311-visualizer-controls');
+    await browser.close();relay.quit();server.close();process.exit(0);
+  }
+  if(process.env.SH_JAM311){
+    check(await page.locator('.nav-section:has-text("Jam")').count()===1,'one unified Jam entry');check(await page.locator('.jam').isHidden(),'starts on dashboard');await shot('311-jam');
+    await page.evaluate(async()=>{const {state,setPage}=await import('./js/store.js'),a=await import('./js/actions.js');await a.playSong([...state.songs.values()][0].id,{autoplay:false});setPage('play');});await page.waitForTimeout(700);
+    check(await page.evaluate(async()=>{const e=document.querySelector('.nb-art img'),{emit}=await import('./js/store.js');emit('playing');return !e||e===document.querySelector('.nb-art img');}),'artwork node is retained');
+    const tones=await page.evaluate(async()=>{const {rig}=await import('./js/rig.js'),{useSlot,bySlot}=await import('./js/tonelib.js'),{refreshSongTone}=await import('./js/song-auto.js');const p=window.__shPractice,old=p.tab;const a={...rig.tone,key:'a',name:'Auto clean'},b={...rig.tone,key:'b',name:'Auto lead'};p.tab={...p.tab,songTones:{base:'a',tones:[a,b],changes:[{t:0,key:'b'}]}};useSlot(1);refreshSongTone(true);const auto=rig.autoSong&&rig.songTone?.name==='Auto lead';useSlot(2);refreshSongTone(true);const manual=!rig.autoSong&&rig.toneId===bySlot(2)?.id;useSlot(1);const back=rig.autoSong&&rig.songTone?.name==='Auto lead';p.tab=old;return {auto,manual,back};});check(tones.auto&&tones.manual&&tones.back,'automatic/manual/return tone switching '+JSON.stringify(tones));
+    const exact=await page.evaluate(async()=>{const {rig}=await import('./js/rig.js'),{ProcessedRecorder}=await import('./js/looper.js');const original=rig.captureProcessed;let feed;rig.captureProcessed=async f=>{feed=f;return {rate:48000,close(){}}};const rec=new ProcessedRecorder();await rec.start();feed(Float32Array.of(.25,-.5,.75,-.125),48000);const x=rec.stop();rig.captureProcessed=original;return [...x.L,...x.R].join(',')==='0.25,0.75,-0.5,-0.125';});check(exact,'processed recorder retains exact stereo PCM');
+    await page.evaluate(async()=>{const {looper}=await import('./js/looper.js');window.__testLooper=looper;await looper.record();});await page.waitForFunction(()=>window.__testLooper.rec.n>40000,null,{timeout:15000});
+    const loop=await page.evaluate(async()=>{const {looper}=await import('./js/looper.js');const before={state:looper.state,n:looper.rec.n,rate:looper.rec.rate};await looper.stopRecording();const r={before,toast:document.querySelector('.toasts')?.textContent,state:looper.state,length:looper.length,signal:looper.L?.some(x=>Math.abs(x)>.00001),finite:looper.L?.every(Number.isFinite)};looper.clear();return r;});check(loop.state==='playing'&&loop.signal&&loop.finite,'native processed loop '+JSON.stringify(loop));
+    if(process.env.SH_LOOP_ONLY){await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);}
+    await page.getByRole('button',{name:'Open visualizer',exact:true}).click();await page.getByLabel('Jam visualizer').selectOption('orbit');await page.locator('.jam-controls').getByRole('button',{name:'Drums',exact:true}).click();await page.locator('.jam-drawer').getByRole('button',{name:'Funk',exact:true}).click();
+    const before=await page.evaluate(async()=>(await import('./js/drums.js')).drums.bpm);const faster=page.locator('.jam-drawer').getByRole('button',{name:'Faster',exact:true});await faster.hover();await page.mouse.down();await page.waitForTimeout(900);await page.mouse.up();const after=await page.evaluate(async()=>(await import('./js/drums.js')).drums.bpm);check(after>before+2,'hold-to-adjust tempo');
+    await shot('311-visualizer-controls');await page.keyboard.press('Escape');check(await page.locator('#page-play .drums3').count()===1,'shared drums restored to dashboard');check(!logs.some(l=>/^pageerror/.test(l)||/Visualizer:/.test(l)),'no runtime/shader errors');
+    await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
+  }
+  if(process.env.SH_REPAIR){
+    await page.evaluate(async()=>{const {state}=await import('./js/store.js');const a=await import('./js/actions.js');await a.playSong([...state.songs.values()][0].id,{autoplay:false});});
+    const volumes=await page.evaluate(async()=>{const stage=await import('./js/stage.js'),{rig}=await import('./js/rig.js'),{state}=await import('./js/store.js'),a=await import('./js/actions.js');stage.setSongLevel(.63);stage.setYou(.72);const songs=[...state.songs.values()];await a.playSong(songs[1].id,{autoplay:false});return [stage.songLevel(),rig.knobs.volume];});
+    check(Math.abs(volumes[0]-.63)<.001&&Math.abs(volumes[1]-.72)<.001,'master volumes persist across songs: '+volumes);
+    await page.locator('.nav-section:has-text("Jam")').click();
+    await page.waitForTimeout(800);await shot('repair-jam');check(!(await page.getByLabel('Jam visualizer').count()),'the old Aurora/Orbital/Prism picker is gone');
+    const layout=await page.evaluate(()=>[...document.querySelectorAll('.jam-chip')].every(e=>e.scrollHeight<=e.clientHeight+2));check(layout,'Jam labels fit their controls');
+    await page.keyboard.press('Escape');
+    await page.evaluate(async()=>{const {state}=await import('./js/store.js'),a=await import('./js/actions.js');await a.playAlong(state.nowPlaying);});
+    const stable=await page.evaluate(async()=>{const {rig}=await import('./js/rig.js'),H=document.querySelector('.highway').__hw;const judge=H.judge;rig._sendAllParams();return judge===H.judge;});check(stable,'tone parameter refresh does not reset note judge');
+    check(!(await page.getByRole('button',{name:/Tone match/}).count()),'no Tone match button on the highway');await shot('repair-highway');
+    check(!logs.some(l=>/^pageerror/.test(l)||/Visualizer:/.test(l)),'no script or shader errors');
+    await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
+  }
+  if(process.env.SH_PERFORMANCE){
+    await page.locator('.nav-section:has-text("Progress")').click();
+    await page.waitForTimeout(1500);
+    check(await page.locator('.goal-card').count()===3,'three goals on Progress');
+    await page.locator('.goal-grid').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(5000);await shot('performance-goals');
+    check(await page.locator('.nav-section:has-text("Jam")').count()===1,'Jam is a main navigation item');
+    const loaded=await page.evaluate(async()=>{
+      const {state}=await import('./js/store.js');const a=await import('./js/actions.js');
+      const song=[...state.songs.values()][0];await a.playSong(song.id,{autoplay:false});return song.id;
+    });
+    await page.waitForTimeout(3000);
+    await page.locator('.nav-section:has-text("Jam")').click();await page.waitForTimeout(600);
+    await page.getByRole('button',{name:'Play over song · Off',exact:true}).click({force:true});await page.waitForTimeout(800);
+    const mix=await page.evaluate(async()=>{const {engine}=await import('./js/stage.js');return {mode:engine.mode,playing:engine.playing,guitar:engine.tracks.find(t=>t.name==='guitar')?.muted};});
+    check(mix.mode==='stems'&&mix.playing&&mix.guitar,'Jam backing starts stems with guitar muted');
+    await page.getByLabel('Your part',{exact:true}).selectOption('bass');
+    const bass=await page.evaluate(async()=>{const {engine}=await import('./js/stage.js');return {guitar:engine.tracks.find(t=>t.name==='guitar')?.muted,bass:engine.tracks.find(t=>t.name==='bass')?.muted};});
+    check(!bass.guitar&&bass.bass,'switching Jam part restores guitar and mutes bass');
+    await page.waitForTimeout(1000);await shot('performance-jam');
+    await page.keyboard.press('Escape');
+    check(await page.evaluate(()=>document.querySelector('.jam').hidden),'Jam exits cleanly');
+    await page.evaluate(async()=>{const {state}=await import('./js/store.js');const a=await import('./js/actions.js');await a.playAlong(state.nowPlaying);});
+    await page.waitForTimeout(1800);await page.keyboard.press('u');
+    check(await page.locator('.hw-mini-tuner').isVisible(),'U opens highway tuner');await page.keyboard.press('u');check(!(await page.locator('.hw-mini-tuner').isVisible()),'U closes highway tuner');
+    await page.getByRole('button',{name:'Score attack',exact:true}).click();await page.waitForTimeout(400);
+    check(await page.locator('.attack-hud').isVisible(),'Score attack starts');
+    await shot('performance-highway');
+    await page.evaluate(()=>{
+      const real=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia=async c=>{
+        if(c.video?.mandatory?.chromeMediaSource){
+          const canvas=document.createElement('canvas');canvas.width=640;canvas.height=360;const g=canvas.getContext('2d');
+          const timer=setInterval(()=>{g.fillStyle='#10141e';g.fillRect(0,0,640,360);g.fillStyle='#ffb547';g.fillRect((performance.now()/10)%640,60,40,220);},30);
+          const stream=canvas.captureStream(30);stream.getVideoTracks()[0].addEventListener('ended',()=>clearInterval(timer));return stream;
+        }return real(c);
+      };
+    });
+    await page.evaluate(async()=>{const {engine}=await import('./js/stage.js');engine.seek(0);await engine.play();});
+    await page.getByRole('button',{name:'● Record clip',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelector('.hw-tools').textContent.includes('■ Save clip'),null,{timeout:10000});
+    await page.waitForTimeout(3500);await page.getByRole('button',{name:'■ Save clip',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelector('.hw-tools').textContent.includes('● Record clip'),null,{timeout:15000});
+    check(fs.existsSync(path.join(outDir,'export-test.webm')) && fs.statSync(path.join(outDir,'export-test.webm')).size>10000,'WebM export contains encoded video and internal audio');
+    const errs=logs.filter(l=>/^pageerror/.test(l));check(!errs.length,'no page errors: '+errs.join(';'));
+    await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
+  }
   if (process.env.SH_SLOW_TONES) {
     await page.locator('.nav-section:has-text("Tones")').click();
     await page.waitForTimeout(600);
@@ -439,6 +529,17 @@ class FakePortMain extends EventEmitter {
   await shot('6b-highway');
   await page.waitForTimeout(3000);
   await shot('6c-highway');
+  // 3.12: the moving scenes behind the highway
+  for (const id of ['nebula', 'swarm', 'mandala', 'strings']) {
+    await page.evaluate((v) => { document.querySelector('.highway').__hw.prefs.venue = v; }, id);
+    await page.waitForTimeout(2500);
+    const drawn = await page.evaluate(() => !!document.querySelector('.highway canvas.hw-visual') && !document.querySelector('.highway iframe.hw-fluid'));
+    check(drawn, `${id} draws behind the highway`);
+    await shot(`6g-highway-${id}`);
+  }
+  await page.evaluate(() => { document.querySelector('.highway').__hw.prefs.venue = 'warehouse'; });
+  await page.waitForTimeout(600);
+  check(await page.evaluate(() => !document.querySelector('.highway canvas.hw-visual')), 'a photo venue puts the scene away');
   // a correct note: the bracket flashes but stays its own height
   await page.evaluate(() => {
     const H = document.querySelector('.highway').__hw;
@@ -489,7 +590,7 @@ class FakePortMain extends EventEmitter {
   check((await page.locator('.tones-edit .demo-btn[aria-pressed="true"]').count()) === 1, 'demo riff plays through the tone');
   await shot('7c-tones-demo');
   // looper: record a couple of seconds of the fake guitar
-  await page.locator('.nav-section:has-text("Play")').click();
+  await page.locator('.nav-section:has-text("Jam")').click();
   await page.waitForTimeout(800);
   await page.locator('.looper3 .btn.rec').click();
   await page.waitForTimeout(4000);
@@ -523,7 +624,7 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(400);
   await page.locator('.nav-section:has-text("Tones")').click();
   await page.waitForTimeout(1000);
-  check((await page.locator('.slot-strip .ss-tile').count()) === 9, 'Tones shows your 9 slots');
+  check((await page.locator('.slot-strip .ss-tile').count()) === 8, 'Tones shows your slots 2–9 (1 follows the song)');
   await page.locator('.tones-tabs button:has-text("Presets")').click();
   await page.waitForTimeout(500);
   await page.locator('.tones-items .tone-item .ti-main').first().click();
@@ -533,12 +634,12 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(500);
   const after = await page.locator('.tone-item.on b').first().textContent();
   check(before !== after, `↓ moves to the next tone (${before} → ${after})`);
-  await page.locator('.slot-strip .ss-tile').nth(8).click();
+  await page.locator('.slot-strip .ss-tile').nth(7).click();
   await page.waitForTimeout(1200);
-  check((await page.locator('.slot-strip .ss-tile').nth(8).locator('.ss-name').textContent()) === after, 'clicking slot 9 puts the selected tone there');
+  check((await page.locator('.slot-strip .ss-tile').nth(7).locator('.ss-name').textContent()) === after, 'clicking slot 9 puts the selected tone there');
   check((await page.locator('.tones-tabs button[aria-pressed="true"]').textContent()) === 'Presets', 'stays on the tab you were on');
   await shot('7e-tones-slots');
-  await page.locator('.nav-section:has-text("Play")').first().click();
+  await page.locator('.nav-section:has-text("Jam")').first().click();
   await page.waitForTimeout(500);
   await page.locator('.nav-section:has-text("Tones")').click();
   await page.waitForTimeout(600);
@@ -588,11 +689,11 @@ class FakePortMain extends EventEmitter {
     }
     return false;
   };
-  for (let i = 0; i < 3 && !(await page.locator('.nav-section:has-text("Play")').first().isVisible()); i++) {
+  for (let i = 0; i < 3 && !(await page.locator('.nav-section:has-text("Jam")').first().isVisible()); i++) {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(700);
   }
-  await page.locator('.nav-section:has-text("Play")').first().click();
+  await page.locator('.nav-section:has-text("Jam")').first().click();
   await page.evaluate(() => window.__rig.setTone('crunch'));
   await until(() => page.evaluate(() => !!window.__rig.capture));
   const capSt = await page.evaluate(() => ({ cap: window.__rig.capture ? `${window.__rig.capture.pack.title} / ${window.__rig.capture.model.name}` : null, slot: window.__rig.slots[window.__rig.active] || '' }));
@@ -747,9 +848,11 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(300);
   // 3.7: Jam (full screen, just the Fluid picture and your guitar), and the version in the title bar
   check(/^v\d+\.\d+\.\d+$/.test(((await page.locator('#brand-ver').textContent()) || '').trim()), 'the version shows after Stagehand in the title bar');
-  await page.locator('.nav-section:has-text("Play")').click();
-  await page.waitForTimeout(600);
-  await page.locator('.jam-open').click();
+  // 3.11: the Jam menu item is the Jam dashboard; Open visualizer (or J) goes full screen
+  await page.locator('.nav-section:has-text("Jam")').first().click();
+  await page.waitForTimeout(800);
+  await shot('24-jam-home');
+  await page.getByRole('button', { name: 'Open visualizer' }).first().click();
   await page.waitForTimeout(4000);
   const jam = await page.evaluate(() => ({ open: !document.querySelector('.jam').hidden, frame: !!document.querySelector('.jam .hw-fluid'), ready: !!(document.querySelector('.jam .hw-fluid') && document.querySelector('.jam .hw-fluid').contentWindow.FluidVisuals) }));
   check(jam.open && jam.frame && jam.ready, 'Jam opens full screen with the Fluid picture');
@@ -757,6 +860,16 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(2500);
   await page.mouse.move(300, 300);
   await shot('25-jam');
+  // 3.12: Jam's look picker: Fluid and the four scenes
+  check((await page.getByLabel('Jam look').locator('option').count()) === 5, 'Jam offers Fluid and four scenes');
+  for (const id of ['nebula', 'swarm', 'mandala', 'strings']) {
+    await page.getByLabel('Jam look').selectOption(id);
+    await page.waitForTimeout(2500);
+    check(await page.evaluate(() => !!document.querySelector('.jam canvas.hw-visual') && !document.querySelector('.jam iframe.hw-fluid')), `Jam shows ${id}`);
+    await shot(`25-jam-${id}`);
+  }
+  await page.getByLabel('Jam look').selectOption('fluid');
+  await page.waitForTimeout(1500);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(500);
   check(await page.evaluate(() => document.querySelector('.jam').hidden && !document.querySelector('.jam .hw-fluid')), 'Esc leaves Jam and stops the picture');

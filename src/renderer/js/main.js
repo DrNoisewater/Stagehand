@@ -19,6 +19,7 @@ import { rig } from './rig.js';
 import { loadTones, useSlot } from './tonelib.js';
 import { setPage, setView, goBack } from './store.js';
 import './jam.js';
+import './song-auto.js';
 
 // 3.9: the mouse's back button (and Alt+←, the Back key) goes to the previous screen:
 // out of Jam or the highway first, a dialog or menu closes, else the last page or list
@@ -126,7 +127,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (isTyping()) return;
   // 1–9: tone slots. Shift+1–6: mute a stem.
-  const digit = /^Digit([1-9])$/.exec(e.code);
+  const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
   if (e.code === 'Space') stage.toggle();
   else if (e.key === 'ArrowLeft') stage.seekBy(e.shiftKey ? -15 : -5);
   else if (e.key === 'ArrowRight') stage.seekBy(e.shiftKey ? 15 : 5);

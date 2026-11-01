@@ -314,3 +314,13 @@ export function isTyping() {
   const a = document.activeElement;
   return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable);
 }
+
+export function toneToast(number,name){
+ document.querySelector('.tone-toast')?.remove();const el=h('div.tone-toast',{role:'status',text:`Tone ${number} — ${name}`});document.body.append(el);
+ setTimeout(()=>{el.classList.add('leaving');setTimeout(()=>el.remove(),250);},2000);
+}
+export function holdButton(button,action){
+ let timer=null,start=0,held=false;const stop=()=>{clearTimeout(timer);timer=null;};
+ button.onpointerdown=e=>{if(e.button!==0)return;stop();held=true;start=performance.now();button.setPointerCapture(e.pointerId);action(1);const repeat=()=>{if(!button.isConnected)return stop();action(performance.now()-start>1600?3:1);timer=setTimeout(repeat,performance.now()-start>1600?65:120);};timer=setTimeout(repeat,380);};
+ button.onpointerup=stop;button.onpointercancel=stop;button.onlostpointercapture=stop;button.onclick=e=>{if(e.detail===0||!held)action(1);held=false;};
+}

@@ -1,0 +1,58 @@
+{
+  "4x12_straight": {
+    "sha256": "d1582603d5a70886dca61b4fb7dfe8d706fc4fd3341aef854c8c3f24a8ec422e",
+    "url": "https://raw.githubusercontent.com/averagenative/0xFX/5b248779c96dce6e64d0ed29cfa598014dc4d3c4/resources/ir/bundled/4x12_straight.wav"
+  },
+  "1x12_open": {
+    "sha256": "2951147ad155e0f203db8d80b5ecd1053151292ee4b283be7281a3fa16f5a105",
+    "url": "https://raw.githubusercontent.com/averagenative/0xFX/5b248779c96dce6e64d0ed29cfa598014dc4d3c4/resources/ir/bundled/1x12_open.wav"
+  },
+  "4x12_slant": {
+    "sha256": "9c54a6e4d5144e8bdcda1a75875adaff384e2a0d0036724a5d24e746e416db32",
+    "url": "https://raw.githubusercontent.com/averagenative/0xFX/5b248779c96dce6e64d0ed29cfa598014dc4d3c4/resources/ir/bundled/4x12_slant.wav"
+  },
+  "2x12_closed": {
+    "sha256": "482448bb74da7afb9faed0a070f96aa5c117014d3df653da7076a633c30e19ed",
+    "url": "https://raw.githubusercontent.com/averagenative/0xFX/5b248779c96dce6e64d0ed29cfa598014dc4d3c4/resources/ir/bundled/2x12_closed.wav"
+  },
+  "bass-410": {
+    "sha256": "21aac291b362027d493845398224144f68c43576a6ddbe39258a7303e7cebbac",
+    "url": "https://shiftline-shared.s3.amazonaws.com/Shift_Line_Bass_IR_Pack.zip",
+    "archiveSha256": "d7b1e98b2d0a254f9864bfb6158748042c4cd9ef6e68a5b6c48fded9bd2955f6",
+    "entry": "01_EBS_PL_410_by_Shift_Line.wav",
+    "source": "https://shift-line.com/irpackbass",
+    "downloadOnly": true
+  },
+  "bass-115": {
+    "sha256": "1d42553082896193d3a66007dfa0fe1423268aba5f663152ad98323dcb6544fb",
+    "url": "https://shiftline-shared.s3.amazonaws.com/Shift_Line_Bass_IR_Pack.zip",
+    "archiveSha256": "d7b1e98b2d0a254f9864bfb6158748042c4cd9ef6e68a5b6c48fded9bd2955f6",
+    "entry": "04_Ampeg_Heritage_B15_by_Shift_Line.wav",
+    "source": "https://shift-line.com/irpackbass",
+    "downloadOnly": true
+  },
+  "bass-215": {
+    "sha256": "028c19f99d11ffe643839af0c6e57b588c58888391f70e817ff72002ad11c0a5",
+    "url": "https://shiftline-shared.s3.amazonaws.com/Shift_Line_Bass_IR_Pack.zip",
+    "archiveSha256": "d7b1e98b2d0a254f9864bfb6158748042c4cd9ef6e68a5b6c48fded9bd2955f6",
+    "entry": "05_Sunn_200s_by_Shift_Line.wav",
+    "source": "https://shift-line.com/irpackbass",
+    "downloadOnly": true
+  },
+  "bass-810": {
+    "sha256": "071cb577a8346d7d2c73d5e1d345af658d472101de059284b9b2f2dd88d7ba17",
+    "url": "https://shiftline-shared.s3.amazonaws.com/Shift_Line_Bass_IR_Pack.zip",
+    "archiveSha256": "d7b1e98b2d0a254f9864bfb6158748042c4cd9ef6e68a5b6c48fded9bd2955f6",
+    "entry": "07_Ampeg_SVT-810E_by_Shift_Line.wav",
+    "source": "https://shift-line.com/irpackbass",
+    "downloadOnly": true
+  },
+  "bass-orange": {
+    "sha256": "a348681c76c6a31006be657256d409917ee4b0e12f28295726ed0fdfbd84b6dd",
+    "url": "https://shiftline-shared.s3.amazonaws.com/Shift_Line_Bass_IR_Pack.zip",
+    "archiveSha256": "d7b1e98b2d0a254f9864bfb6158748042c4cd9ef6e68a5b6c48fded9bd2955f6",
+    "entry": "09_Orange_PPC212_bass_edition_by_Shift_Line.wav",
+    "source": "https://shift-line.com/irpackbass",
+    "downloadOnly": true
+  }
+}

@@ -481,13 +481,23 @@ export class AudioEngine extends EventTarget {
   }
 
   masterLevel() {
-    if (!this.masterAnalyser || !this.playing) return 0;
+    if (!this.masterAnalyser) return 0;
     if (!this._mb) this._mb = new Float32Array(2048);
     const b = this._mb;
     this.masterAnalyser.getFloatTimeDomainData(b);
     let s = 0;
     for (let k = 0; k < b.length; k++) s += b[k] * b[k];
     return Math.sqrt(s / b.length);
+  }
+
+  /** The newest samples of the mix (after the faders) into `out` (-1–1), for the backgrounds. */
+  waveform(out) {
+    if (!this.masterAnalyser) return null;
+    if (!this._wb) this._wb = new Float32Array(this.masterAnalyser.fftSize);
+    this.masterAnalyser.getFloatTimeDomainData(this._wb);
+    const step = this._wb.length / out.length;
+    for (let i = 0; i < out.length; i++) out[i] = this._wb[Math.floor(i * step)];
+    return out;
   }
 
   spectrum() {

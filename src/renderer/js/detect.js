@@ -225,6 +225,8 @@ export class Judge {
 
   reset(t) {
     this.state.clear();
+    this.confirmed=new Map();
+    this.events=[];
     this.onsets = [];
     this.frames = [];
     this.next = this._index(t - 1);
@@ -236,6 +238,7 @@ export class Judge {
 
   /** Forget results from `t` on (after a seek backwards or a loop). */
   rewind(t) {
+    for(const [id]of this.confirmed||[])if(this.targets[id]?.t>=t)this.confirmed.delete(id);
     for (const [id, st] of this.state) {
       const tg = this.targets[id];
       if (tg && tg.t >= t - this.early) {
@@ -269,6 +272,8 @@ export class Judge {
     if (onsetKind) this.onsets.push({ t, kind: onsetKind });
     if (this.debug) this.debug.push({ t, midi: frame.midi, rms: frame.rms, flux: frame.flux, onset: onsetKind });
     while (this.onsets.length && this.onsets[0].t < t - 1.5) this.onsets.shift();
+    this.confirmed ||= new Map();
+    for(let i=this.next;i<this.targets.length;i++){const tg=this.targets[i];if(tg.t>t+this.early)break;if(t>tg.t+this.late||this.confirmed.has(tg.id))continue;const result=this._evaluate(tg);if(result.hit)this.confirmed.set(tg.id,result);}
     this._judge(t);
   }
 
@@ -281,8 +286,9 @@ export class Judge {
   _newEnergy(onsetT) {
     const before = this._frameNear(onsetT - 0.07);
     let after = null;
+    const end=Math.min(onsetT+.17,this.onsets.find(o=>o.t>onsetT+.015)?.t??Infinity);
     for (const f of this.frames) {
-      if (f.t < onsetT + 0.025 || f.t > onsetT + 0.17 || !f.spec) continue;
+      if (f.t < onsetT + 0.025 || f.t > end || !f.spec) continue;
       if (!after) after = Float32Array.from(f.spec);
       else for (let k = 0; k < after.length; k++) if (f.spec[k] > after[k]) after[k] = f.spec[k];
     }
@@ -412,7 +418,7 @@ export class Judge {
       if (!this.state.has(tg.id)) {
         const from = tg.t - this.early;
         const to = tg.t + this.late;
-        const res = this._evaluate(tg);
+        const res = this.confirmed?.get(tg.id)||this._evaluate(tg);
         const hit = res.hit;
         const cents = res.cents;
         const onset = res.onset;

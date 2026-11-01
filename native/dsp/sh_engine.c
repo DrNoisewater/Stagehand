@@ -407,14 +407,16 @@ static inline float limit(float x) {
  * A low-latency polyphonic pitch drop: the input is read back slower through
  * a short delay line; when the delay grows too long the read head jumps
  * forward to the best-matching point (so the splice lands in phase) and the
- * two heads crossfade. About 10–15 ms of extra delay while it's on. */
+ * two heads crossfade. Delay varies with splice alignment (roughly 4–44 ms).
+ * Search spans a low E bass period; correlated heads use unity-sum fades. */
 #define DR_MIN_MS 3.5
-#define DR_SEARCH_MS 11.0
-#define DR_SPAN_MS 9.0
-#define DR_XF_MS 5.0
+#define DR_SEARCH_MS 26.0
+#define DR_SPAN_MS 6.0
+#define DR_XF_MS 8.0
 
 static inline float dr_read(const sh_engine *e, double pos) {
   int i = (int)pos;
+  if (pos < i) --i; /* floor, including initial negative read positions */
   float f = (float)(pos - i);
   float a = e->dr_buf[i & (DR_LEN - 1)], b = e->dr_buf[(i + 1) & (DR_LEN - 1)];
   return a + (b - a) * f;
@@ -466,14 +468,18 @@ static void drop_process(sh_engine *e, float *x, int n) {
     float y = dr_read(e, e->dr_rp[0]);
     if (e->dr_xf > 0) {
       float t = (float)e->dr_xf / xf_len; /* 1 → 0 */
-      float a = sh_sqrtf(1 - t), b = sh_sqrtf(t);
-      y = y * a + dr_read(e, e->dr_rp[1]) * b;
+      /* These are phase-aligned copies, not independent sources. Equal-power
+       * gains sum to sqrt(2) at mid-fade and pulse the amp drive by +3 dB.
+       * Smooth unity-sum weights preserve amplitude without sharp fade edges. */
+      t = t * t * (3 - 2 * t);
+      y = y * (1 - t) + dr_read(e, e->dr_rp[1]) * t;
       e->dr_rp[1] += r;
       e->dr_xf--;
     }
     e->dr_rp[0] += r;
     e->dr_mix += 0.003f * (e->dr_mix_t - e->dr_mix);
     if (e->dr_mix_t <= 0 && e->dr_mix < 1e-4f) e->dr_mix = 0;
+    if (e->dr_mix_t >= 1 && e->dr_mix > 1 - 1e-4f) e->dr_mix = 1;
     x[i] = dry + (y - dry) * e->dr_mix;
   }
   if (e->dr_w > 0x40000000) { /* keep positions small */

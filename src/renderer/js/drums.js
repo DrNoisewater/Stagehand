@@ -9,6 +9,18 @@ export const PATTERNS = [
   { id: 'rock', name: 'Rock', k: [0, 8, 10], s: [4, 12], h: [0, 2, 4, 6, 8, 10, 12, 14] },
   { id: 'shuffle', name: 'Shuffle', k: [0, 8, 11], s: [4, 12], h: [0, 2, 4, 6, 8, 10, 12, 14], swing: true },
   { id: 'metal', name: 'Metal', k: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], s: [4, 12], h: [0, 4, 8, 12] },
+  {id:'funk',name:'Funk',k:[0,3,6,10,14],s:[4,12],h:[0,2,4,6,8,10,12,14],ghost:[7,15]},
+  {id:'disco',name:'Disco',k:[0,4,8,12],s:[4,12],h:[2,6,10,14],open:[2,10]},
+  {id:'soul',name:'Soul',k:[0,7,8],s:[4,12],h:[0,2,4,6,8,10,12,14],ghost:[3,11]},
+  {id:'reggae',name:'Reggae',k:[8],s:[8],h:[2,6,10,14],rim:[4,12]},
+  {id:'punk',name:'Punk',k:[0,6,8,14],s:[4,12],h:[0,2,4,6,8,10,12,14],open:[14]},
+  {id:'blues',name:'Blues shuffle',k:[0,8,10],s:[4,12],h:[0,2,4,6,8,10,12,14],swing:true,ghost:[7,15]},
+  {id:'jazz',name:'Jazz ride',k:[0,8],s:[4,12],h:[0,4,6,8,12,14],swing:true,ghost:[3,10]},
+  {id:'bossa',name:'Bossa',k:[0,6,8,14],s:[],h:[0,2,4,6,8,10,12,14],rim:[0,6,12]},
+  {id:'hiphop',name:'Hip-hop',k:[0,3,10],s:[4,12],h:[0,2,4,6,8,10,12,14],swing:true,ghost:[15]},
+  {id:'dnb',name:'Drum & bass',k:[0,10],s:[4,12],h:[0,2,3,6,8,10,11,14],ghost:[7,15]},
+  {id:'pop',name:'Pop',k:[0,8,11],s:[4,12],h:[0,2,4,6,8,10,12,14],open:[14]},
+  {id:'train',name:'Train beat',k:[0,8],s:[0,2,4,6,8,10,12,14],h:[4,12],ghost:[1,5,9,13]},
   { id: 'half', name: 'Half-time', k: [0, 6], s: [8], h: [0, 2, 4, 6, 8, 10, 12, 14] },
 ];
 
@@ -68,7 +80,8 @@ function makeVoices(ctx) {
     buf(0.03, (d, n) => {
       for (let i = 0; i < n; i++) d[i] = Math.sin((2 * Math.PI * hz * i) / r) * Math.exp(-(i / r) * 140) * 0.6;
     });
-  return { kick, snare, hat, click: click(1000), accent: click(1600) };
+  const open=buf(.35,(d,n)=>{const z=noise(n);let lp=0;for(let i=0;i<n;i++){lp+=.8*(z[i]-lp);d[i]=(z[i]-lp)*Math.exp(-i/r*12)*.5;}});
+  return { kick, snare, hat, open, rim:click(700), click: click(1000), accent: click(1600) };
 }
 
 class Drums extends EventTarget {
@@ -146,12 +159,16 @@ class Drums extends EventTarget {
   }
 
   setBpm(v) {
+    if(this.tempoLock){this.dispatchEvent(new Event('tempo-locked'));return;}
+    const old=this.bpm,now=this.ctx?.currentTime||0,beat=this.on?(now-this.startTime)*old/60:0;
     this.bpm = Math.round(Math.max(40, Math.min(240, Number(v) || 100)));
+    if(this.on){this.startTime=now-beat*60/this.bpm;this.nextTime=this.startTime+this.step*60/this.bpm/4;}
     this.save();
     this.dispatchEvent(new Event('change'));
   }
 
   setPattern(id) {
+    if(!PATTERNS.some(p=>p.id===id))return;
     this.pattern = id;
     this.save();
     this.dispatchEvent(new Event('change'));
@@ -196,6 +213,9 @@ class Drums extends EventTarget {
       const swing = p.swing && i % 4 === 2 ? sd * 0.66 : 0;
       const t = this.nextTime + swing;
       if ((p.k || []).includes(i)) this._hit(this.voices.kick, t);
+      if((p.ghost||[]).includes(i))this._hit(this.voices.snare,t,.25);
+      if((p.rim||[]).includes(i))this._hit(this.voices.rim,t,.6);
+      if((p.open||[]).includes(i))this._hit(this.voices.open,t,.8);
       if ((p.s || []).includes(i)) this._hit(this.voices.snare, t);
       if ((p.h || []).includes(i)) this._hit(this.voices.hat, t, i % 4 === 0 ? 1 : 0.7);
       if ((p.c || []).includes(i)) this._hit(i === 0 ? this.voices.accent : this.voices.click, t);

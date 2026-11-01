@@ -1,3 +1,4 @@
+import {cabinetFor} from './cabinets.js';
 /**
  * Tones: browse your tones, every tone in your songs, and the presets; hear
  * one (your guitar, or a demo riff), save it, rename it, put it in a slot,
@@ -11,7 +12,7 @@ import { loadGear } from './gearspec.js';
 import { readingBar, tonelib, byId, useTone, saveTone, removeTone, SLOT_GELS, SLOT_COUNT, TYPE_GELS, TYPE_NAMES, knobsOf, orderedGear, shortGearName, kindLabel, gelOf, chainText, songToneLibrary, bySlot } from './tonelib.js';
 import { chainEl, rotaryKnob, fmtKnob, gearSummary, demoButton, stopDemo } from './rigui.js';
 import { realAmpStrip, realBadge, getAllRealAmps, batch } from './realamps.js';
-import { caps, ampOf, packForCurated } from './captures.js';
+import { caps, ampOf, packForCurated, resolveCapture } from './captures.js';
 
 const root = document.getElementById('page-tones');
 const T = { tab: (() => { try { return localStorage.getItem('stagehand.tonesTab') || 'mine'; } catch (_) { return 'mine'; } })(), sel: null, draft: null, block: null, dirty: false, filter: '', libLoading: false, liveT: 0, liveTimer: null };
@@ -34,7 +35,7 @@ function setTab(id) {
 function slotStrip() {
   const strip = h('div.slot-strip', { role: 'group', 'aria-label': 'Your slots' });
   const d = T.draft;
-  for (let n = 1; n <= SLOT_COUNT; n++) {
+  for (let n = 2; n <= SLOT_COUNT; n++) {
     const t = bySlot(n);
     const here = d && d.mine && d.id && t && t.id === d.id;
     const tile = h(`button.ss-tile${t ? '' : '.empty'}${here ? '.here' : ''}`, { type: 'button', style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: d ? (here ? `${d.name} is in slot ${n}` : `Put ${d.name} in slot ${n}${t ? ` (replaces ${t.name})` : ''}  ·  Alt+${n}`) : t ? `Slot ${n}: ${t.name}` : `Slot ${n} is empty` });
@@ -62,12 +63,13 @@ function slotStrip() {
 
 /** The selected tone goes into slot n (a song tone or preset is saved to your tones first). */
 async function putInSlot(n) {
+  if(n===1)return toast({title:'Slot 1 follows the song automatically',message:'Use slots 2–9 for saved tones.',kind:'info'});
   const d = T.draft;
   if (!d) return toast({ title: 'Pick a tone first', kind: 'info', timeout: 2500 });
   try {
     let saved;
     if (d.mine && d.id && !T.dirty) saved = await saveTone({ ...byId(d.id), slot: n });
-    else saved = await saveTone({ id: d.mine ? d.id : undefined, name: d.name, kind: d.kind, gear: d.gear, slot: n, from: d.from, ir: d.ir || null, capture: d.capture || null });
+    else saved = await saveTone({ id: d.mine ? d.id : undefined, name: d.name, kind: d.kind, gear: d.gear, slot: n, from: d.from, ir: d.ir || null, autoCab: d.autoCab !== false, capture: d.capture || null });
     // stay on this tab; just show it landed
     T.draft = { ...clone(saved), id: saved.id, mine: true };
     if (T.tab === 'mine') T.sel = `mine:${saved.id}`;
@@ -218,7 +220,7 @@ function renderItems(box) {
       e.preventDefault();
       const items2 = [{ label: 'Try it on my guitar', icon: 'play', onClick: () => select(it) }];
       if (it.mine) {
-        for (let n = 1; n <= SLOT_COUNT; n++) if (it.slot !== n) items2.push({ label: `Put in slot ${n}${bySlot(n) ? ` (replaces ${bySlot(n).name})` : ''}`, icon: 'plus', onClick: () => setSlot(it.tone, n) });
+        for (let n = 2; n <= SLOT_COUNT; n++) if (it.slot !== n) items2.push({ label: `Put in slot ${n}${bySlot(n) ? ` (replaces ${bySlot(n).name})` : ''}`, icon: 'plus', onClick: () => setSlot(it.tone, n) });
         if (it.slot) items2.push({ label: 'Take out of its slot', icon: 'x', onClick: () => setSlot(it.tone, null) });
         items2.push('-', { label: 'Delete', icon: 'trash', onClick: () => del(it.tone) });
       } else items2.push({ label: 'Save to my tones', icon: 'plus', onClick: () => (select(it), save()) });
@@ -284,7 +286,7 @@ async function save() {
   const d = T.draft;
   if (!d) return;
   try {
-    const saved = await saveTone({ id: d.mine ? d.id : undefined, name: d.name, kind: d.kind, gear: d.gear, slot: d.slot, from: d.from, ir: d.ir || null, capture: d.capture || null });
+    const saved = await saveTone({ id: d.mine ? d.id : undefined, name: d.name, kind: d.kind, gear: d.gear, slot: d.slot, from: d.from, ir: d.ir || null, autoCab: d.autoCab !== false, capture: d.capture || null });
     if (T.tab === 'mine') T.sel = `mine:${saved.id}`;
     T.draft = { ...clone(saved), id: saved.id, mine: true };
     T.dirty = false;
@@ -402,7 +404,7 @@ function renderEditor() {
   };
   const slot = h('select.input.te-slot', { 'aria-label': 'Slot' });
   slot.append(h('option', { value: '', text: 'No slot' }));
-  for (let n = 1; n <= SLOT_COUNT; n++) {
+  for (let n = 2; n <= SLOT_COUNT; n++) {
     const t = bySlot(n);
     slot.append(h('option', { value: String(n), text: t ? `${n} · ${t.id === d.id ? 'this tone' : `replaces ${t.name}`}` : `${n} (empty)`, selected: d.slot === n ? true : null }));
   }
@@ -551,10 +553,23 @@ function cabCard(d) {
     b.onclick = () => setKey(base, mic, v);
     posSeg.append(b);
   }
-  const ir = h('button.btn.soft.small', { type: 'button', text: d.ir ? 'Use the built-in cab' : 'Use my own cab file (IR)…' });
+  const fullRig=!!resolveCapture(d)?.fullRig;
+  const automatic=d.autoCab!==false;
+  const mode=h('button.btn.soft.small',{text:automatic?'Use modeled cabinet controls':'Use automatic captured cabinet',disabled:fullRig||!!d.ir});
+  mode.onclick=()=>{d.autoCab=!automatic;changed();renderEditor();};
+  cabSel.disabled=micSel.disabled=fullRig||!!d.ir||automatic;
+  for(const b of posSeg.querySelectorAll('button'))b.disabled=cabSel.disabled;
+  const advanced=h('details',null,h('summary',{text:'Advanced cabinet options'}));
+  advanced.append(mode);
+  const cabId=cabinetFor(d,resolveCapture(d));
+  const names={'1x12_open':'1×12 open-back','2x12_closed':'2×12 closed-back','4x12_straight':'4×12 straight','4x12_slant':'4×12 slant','bass-410':'EBS 4×10','bass-115':'Ampeg B15 1×15','bass-215':'Sunn 2×15','bass-810':'Ampeg SVT 8×10','bass-orange':'Orange 2×12'};
+  card.append(h('p.cab-status',{text:fullRig?'Cabinet included in this amp capture':d.ir?'Custom cabinet active':automatic?`Automatic cabinet · ${names[cabId]||cabId}`:'Modeled cabinet active'}));
+  card.append(h('p.np-fine',{text:'Included with Download amp + cab. Stagehand loads it for you—no separate files to choose.'}));
+  const ir = h('button.btn.soft.small' , { type: 'button', text: d.ir ? 'Use automatic cab' : 'Use my own cab file (IR)…' });
+  ir.disabled=fullRig;
   ir.onclick = async () => {
     if (d.ir) {
-      d.ir = null;
+      d.ir = null;d.autoCab=true;
       changed();
       return renderEditor();
     }
@@ -565,12 +580,13 @@ function cabCard(d) {
     renderEditor();
     if (rig.kind !== 'native') toast({ title: 'Saved with the tone', message: 'Your own cab files work with the fastest sound engine (Settings › Guitar & audio).', kind: 'info' });
   };
-  card.append(spk, h('label.te-field', null, h('span', { text: 'Speaker cab' }), cabSel), h('label.te-field', null, h('span', { text: 'Mic' }), micSel), h('div.te-field', null, h('span', { text: 'Position' }), posSeg));
+  advanced.append(spk, h('label.te-field', null, h('span', { text: 'Speaker cab' }), cabSel), h('label.te-field', null, h('span', { text: 'Mic' }), micSel), h('div.te-field', null, h('span', { text: 'Position' }), posSeg));
   if (d.ir) card.append(h('div.np-fine', { text: `Your cab file: ${d.ir.split(/[\\/]/).pop()}` }));
   // where to get cab files: TONE3000 (formerly ToneHunt), free community captures and IRs
   const get = h('button.btn.ghost.small', { type: 'button', html: `<span>Get cab files</span> ${icon('external')}`, title: 'Opens TONE3000 in your browser: free cab IRs (download a .wav, then use it here)' });
   get.onclick = () => api.shell.openExternal('https://www.tone3000.com/categories/tags/guitar').catch(() => {});
-  card.append(h('div.te-ir-row', null, ir, get));
+  advanced.append(h('div.te-ir-row', null, ir));
+  card.append(advanced);
   return card;
 }
 

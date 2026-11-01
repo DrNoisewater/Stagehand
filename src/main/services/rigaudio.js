@@ -88,10 +88,10 @@ class RigAudio extends EventEmitter {
           continue;
         }
         this._event(ev);
-      } else if (type === 3) {
+      } else if (type === 3 || type === 4 || type === 5) {
         const f = new Float32Array(len / 4);
         Buffer.from(f.buffer).set(payload);
-        for (const p of this.ports) if (p.kind === 'control') p.port.postMessage({ t: 'in', d: f });
+        for (const p of this.ports) if (p.kind === 'control') p.port.postMessage({ t: type === 3 ? 'in' : type === 4 ? 'processed' : 'mixed', d: f });
       }
     }
     this.buf = off >= this.buf.length ? Buffer.alloc(0) : this.buf.subarray(off);

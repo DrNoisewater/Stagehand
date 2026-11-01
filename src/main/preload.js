@@ -71,6 +71,10 @@ contextBridge.exposeInMainWorld('stagehand', {
     // The port arrives as a window message ('stagehand-rig-port'), since ports can't cross the bridge.
     connect: (kind) => ipcRenderer.send('rig:connect', kind),
   },
+  cabs: {
+    ensure: (id) => call('cabs:ensure',id),
+    bytes: (id) => call('cabs:bytes',id),
+  },
   captures: {
     get: () => call('captures:get'),
     assign: (ampKey, packId) => call('captures:assign', ampKey, packId),
@@ -96,6 +100,11 @@ contextBridge.exposeInMainWorld('stagehand', {
     log: (session) => call('stats:log', session),
     summary: (period) => call('stats:summary', period),
     best: () => call('stats:best'),
+  },
+  clips: {
+    prepare: () => call('clips:prepare'),
+    source: () => call('clips:source'),
+    save: (data) => call('clips:save',data),
   },
   takes: {
     list: () => call('takes:list'),

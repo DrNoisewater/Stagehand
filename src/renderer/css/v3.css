@@ -847,6 +847,11 @@ body:has(> .highway:not([hidden])) .stem-wait { bottom: auto; top: 30%; }
 /* 3.7: the Fluid venue (an ink simulation page) sits under the highway's canvases */
 .hw-fluid { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; background: #000; display: block; }
 .hw-venue i.fluid { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: radial-gradient(circle at 25% 70%, #ff4b55cc, transparent 45%), radial-gradient(circle at 75% 65%, #3da5ffcc, transparent 45%), radial-gradient(circle at 50% 30%, #b67dffaa, transparent 50%), radial-gradient(circle at 60% 85%, #45d07c99, transparent 40%), #05070c; filter: blur(2px) saturate(1.3); }
+/* 3.12 scene thumbnails: a hint of each look */
+.hw-venue i.fluid.sc-nebula { background: radial-gradient(ellipse at 35% 45%, #c04cff99, transparent 55%), radial-gradient(ellipse at 70% 60%, #2fb6ff88, transparent 50%), radial-gradient(circle at 55% 35%, #ffd9a0aa, transparent 18%), #04050b; filter: blur(3px) saturate(1.4); }
+.hw-venue i.fluid.sc-swarm { background: radial-gradient(circle, #ffffffcc 0 1px, transparent 1.5px) 0 0 / 7px 7px, radial-gradient(circle, #7fe3ffaa 0 1px, transparent 1.5px) 3px 4px / 9px 9px, radial-gradient(ellipse at 50% 50%, #ff6ad555, transparent 65%), #04050b; filter: none; }
+.hw-venue i.fluid.sc-mandala { background: repeating-conic-gradient(from 0deg at 50% 50%, #ff8a3d55 0 15deg, #7a4dff55 15deg 30deg), radial-gradient(circle at 50% 50%, #ffd36b 0 6%, transparent 7%, transparent 28%, #39d0ff99 29%, transparent 31%), #05050c; background-blend-mode: screen; filter: blur(0.6px) saturate(1.3); }
+.hw-venue i.fluid.sc-strings { background: linear-gradient(transparent 20%, #ff4b55 21%, transparent 23%, transparent 31%, #ffe41a 32%, transparent 34%, transparent 42%, #3da5ff 43%, transparent 45%, transparent 53%, #ff7316 54%, transparent 56%, transparent 64%, #45d07c 65%, transparent 67%, transparent 75%, #b67dff 76%, transparent 78%), #05070c; filter: blur(1px) saturate(1.2); }
 
 /* 3.7: the version, small, after the name */
 .brand-ver { margin-left: -3px; font-size: 11px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.02em; align-self: center; padding-top: 2px; }
@@ -1051,3 +1056,40 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 .hw-top > .grow { min-width: 0; }
 @media (max-width: 1750px) { .hw-views button span { display: none; } .hw-views button { padding: 0 9px; } }
 @media (max-width: 1500px) { .hw-score span { display: none; } .hw-rig-tone span:not(.real) { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+
+/* 3.10 Performance tools: existing Stagehand card, chip and gel vocabulary. */
+.hw-tools{position:absolute;right:26px;top:100px;display:flex;gap:7px;z-index:15}.hw-tools .hw-chip{background:rgba(17,20,28,.88)}
+.hw-mini-tuner{position:absolute;right:24px;top:148px;width:370px;z-index:25;box-shadow:0 16px 60px #0008}.hw-mini-tuner[hidden]{display:none}
+.attack-hud{position:absolute;left:28px;top:200px;padding:15px 22px;border-left:3px solid var(--tungsten);background:linear-gradient(90deg,#17171ee8,#17171e00);color:var(--tungsten);z-index:12;pointer-events:none}.attack-hud b{font-size:32px;display:block;font-variant-numeric:tabular-nums}.attack-hud small{letter-spacing:.12em;text-transform:uppercase}
+.perf-panel{position:absolute;right:24px;top:148px;width:370px;padding:20px;z-index:24;background:var(--panel,#181c24);border:1px solid var(--line,#ffffff20);border-radius:14px}.perf-panel[hidden]{display:none}.perf-panel p{color:var(--ink-3);line-height:1.6}.perf-panel button{margin:5px}.goal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0}.goal-card{padding:20px}.goal-card b{display:block;font-size:17px;margin:8px 0}.goal-card progress{width:100%;accent-color:var(--tungsten);height:7px}.goal-card.earned{border-color:var(--tungsten);animation:badge-arrive .7s ease-out}.goal-card small{color:var(--ink-3)}@keyframes badge-arrive{50%{box-shadow:0 0 35px #efb96044;transform:translateY(-3px)}}.reactive-bg{width:100%;height:100%;pointer-events:none}.jam-backing{max-width:210px}.jam-controls{display:flex;gap:10px;align-items:center}.hw-chip[aria-pressed=true]{color:var(--tungsten);border-color:var(--tungsten)}
+
+/* 3.10.1: use the existing controls, with room for real song titles. */
+.jam-top { flex-wrap:nowrap; }
+.jam-tone { max-width:min(42vw,420px); min-width:0; }
+.jam-tone span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.jam-chip,.jam-back { flex-shrink:0; white-space:nowrap; line-height:1; }
+.jam-controls { position:absolute; z-index:3; top:70px; left:18px; right:18px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; transition:opacity .6s; }
+.jam-controls .input { width:auto; height:34px; max-width:220px; border-radius:17px; padding:0 14px; font-size:13px; }
+.jam-chip[aria-pressed='true'] { border-color:var(--gel-bass); box-shadow:0 0 14px #8c7bff26; }
+.jam.jam-quiet .jam-controls { opacity:0; }
+.jam-controls:focus-within,.jam-top:focus-within { opacity:1!important; }
+.hw-drop { border-radius:18px; padding:14px; }
+.hw-drop-head>div { display:flex; align-items:center; gap:10px; }
+.hw-drop .drop-steps { margin-top:0; }
+.hw-drop-mine-row { flex-wrap:wrap; }
+.hw-drop-mine-row select { min-width:130px; }
+.cab-status { color:var(--ink); line-height:1.6; }
+.te-cab details { margin-top:12px; }
+.te-cab summary { cursor:pointer; color:var(--ink-3); font-size:12px; }
+.hw-chip[aria-pressed='true'] { border-color:#a99aff; background:#8c7bff30; }
+/* Unified Jam workspace. */
+.jam-rig-column{flex:1 1 600px;min-width:0;display:grid;gap:16px}.jam-rig-column>.rig-card{display:flex;flex-direction:column;gap:16px}.play-grid>.play-side{flex:0 1 310px;min-width:270px}
+.jam-workbench{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}.jam-workbench .bpm-row{flex-wrap:wrap}.jam-workbench .chips{gap:6px}.jam-workbench .gchip{font-size:12px;padding:6px 10px}
+.jam-launch-options{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 18px}.jam-launch-options>.check{margin-left:auto;font-size:12px;color:var(--ink-3)}.jam-backing-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.jam-backing-controls .input{width:auto;max-width:180px;height:34px;border-radius:17px;font-size:12px}
+.jam-drawer{position:absolute;right:20px;top:150px;bottom:24px;width:min(440px,calc(100vw - 40px));z-index:8;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--rule);border-radius:18px;background:#111522ed;backdrop-filter:blur(18px);box-shadow:0 18px 60px #0008}.jam-drawer[hidden]{display:none}.jam-drawer>.btn{align-self:flex-end}.jam-drawer>.card{flex:none}.jam-drawer[data-tool='Rig'],.jam-drawer[data-tool='Tones']{width:min(900px,calc(100vw - 40px))}.jam-drawer .slots{grid-template-columns:repeat(3,minmax(0,1fr));width:100%}.jam-drawer .rig-card{display:flex;flex-direction:column;gap:16px}.jam-controls{right:20px;gap:8px}.jam-controls>.jam-chip{height:30px;padding:0 11px;font-size:12px}
+.guitar-card{gap:5px;padding:9px 10px}.guitar-card .gc-text{display:none}.guitar-card .gc-top{font-size:12px}.guitar-card:hover .gc-text,.guitar-card:focus-within .gc-text{display:block}
+.tone-toast{position:fixed;top:24px;right:24px;z-index:2000;max-width:calc(100vw - 48px);padding:15px 20px;border:1px solid #33c8e066;border-radius:14px;background:#171e2af2;color:#ecf5ff;font:600 14px var(--font);box-shadow:0 10px 35px #0005,inset 3px 0 #33c8e0;animation:tone-arrive .22s ease-out;pointer-events:none}.tone-toast.leaving{transform:translateX(35px);opacity:0;transition:transform .22s,opacity .22s}@keyframes tone-arrive{from{transform:translateX(35px);opacity:0}to{transform:translateX(0);opacity:1}}
+@media(max-width:1050px){.play-grid>.play-side{flex:1 1 100%;display:grid;grid-template-columns:1fr 1fr}.jam-launch-options>.check{margin-left:0}}@media(max-width:700px){.jam-workbench,.play-grid>.play-side{grid-template-columns:1fr}.jam-drawer{top:190px}.jam-top .jam-tone{max-width:180px}}
+#page-play{gap:14px}.jam-launch-options{margin-bottom:0}.play-head h1{font-size:30px}.slots .slot{height:76px}.slot .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.jam-rig-column>.rig-card{gap:12px;padding:16px}.jam-rig-column .knob-well{padding:12px 14px;gap:10px}.jam-rig-column .rknob .ring{width:52px;height:52px}.jam-rig-column .rknob{gap:4px}.jam-rig-column .chain{padding-top:2px;padding-bottom:4px}.jam-open.glow-primary{color:var(--tungsten-ink);background:linear-gradient(#ffce7d,#ffb547);border-color:#ffb547}.rknob:disabled{cursor:default;opacity:.7}
+.jam-drawer{bottom:auto;max-height:calc(100vh - 174px)}
+@media(max-width:700px){.jam-drawer{max-height:calc(100vh - 214px)}}

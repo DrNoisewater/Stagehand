@@ -30,6 +30,9 @@ cd native && mkdir -p build && cc -O3 -ffp-contract=fast -fno-math-errno -Wno-un
 
 # the rig end to end in Chromium (real rig.js + WebAssembly + relay + fake helper); ends with "all passed"
 node test/e2e/rig-chromium.js native/build/stagehand-audio-fake <outDir>
+
+# the moving backgrounds on a made-up song, Jam and behind the highway; writes sheet.png
+node test/visuals/shoot.js <outDir> [fluid nebula swarm mandala strings]
 ```
 
 Also documented in HANDOFF.md but not re-run on 2026-11-01:

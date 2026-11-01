@@ -12,7 +12,7 @@
 #include <math.h>
 #include "host.h"
 
-#define VERSION "1.0.0"
+#define VERSION "1.1.0"
 
 /* ---------------------------------------------------------------- rings -- */
 int ring_init(ring_t *r, uint32_t cap) {
@@ -278,7 +278,8 @@ static struct {
   void *mem;
   size_t memsz;
   int rate, in_rate, in_period, out_period;
-  ring_t in_ring, song_ring, tap_ring;
+  ring_t in_ring, song_ring, tap_ring, processed_ring, mix_ring;
+  _Atomic int monitor;
   drs_t in_drs;
   slip_t song_slip;
   int song_rate, song_on;
@@ -446,6 +447,13 @@ void host_on_render(float *L, float *R, int frames) {
     } else {
       memcpy(L + done, H.gl, sizeof(float) * n);
       memcpy(R + done, H.gr, sizeof(float) * n);
+    }
+    if (atomic_load(&H.monitor)) {
+      float stereo[SH_MAX_BLOCK*2];
+      for(int i=0;i<n;i++){stereo[i*2]=H.gl[i];stereo[i*2+1]=H.gr[i];}
+      ring_write(&H.processed_ring,stereo,n*2);
+      for(int i=0;i<n;i++){stereo[i*2]=L[done+i];stereo[i*2+1]=R[done+i];}
+      ring_write(&H.mix_ring,stereo,n*2);
     }
     done += n;
   }
@@ -712,6 +720,7 @@ static void handle_json(const char *j) {
     q_push(Q_SONGON, on, 0);
   } else if (!strcmp(cmd, "ir")) cmd_ir(j);
   else if (!strcmp(cmd, "nam")) cmd_nam(j);
+  else if (!strcmp(cmd, "monitor")) atomic_store(&H.monitor,(int)jnum(j,"on",0));
   else if (!strcmp(cmd, "quit")) atomic_store(&H.quit, 1);
   free(cmd);
 }
@@ -730,6 +739,8 @@ static PLAT_THREAD_FN(pump_thread) {
       ring_read(&H.tap_ring, buf, n);
       send_frame(3, buf, n * sizeof(float));
     }
+    while((n=ring_fill(&H.processed_ring))>=512){if(n>4096)n=4096;ring_read(&H.processed_ring,buf,n);send_frame(4,buf,n*sizeof(float));}
+    while((n=ring_fill(&H.mix_ring))>=512){if(n>4096)n=4096;ring_read(&H.mix_ring,buf,n);send_frame(5,buf,n*sizeof(float));}
     double now = plat_now();
     if (now >= next_meter && H.eng) {
       next_meter = now + 0.05;
@@ -844,6 +855,8 @@ int main(int argc, char **argv) {
   plat_mutex_init(&H.out_lock);
   ring_init(&H.in_ring, 1 << 15);
   ring_init(&H.tap_ring, 1 << 16);
+  ring_init(&H.processed_ring,1<<18);
+  ring_init(&H.mix_ring,1<<18);
   ring_init(&H.song_ring, 1 << 17);
   H.active = -1;
   plat_thread pump;

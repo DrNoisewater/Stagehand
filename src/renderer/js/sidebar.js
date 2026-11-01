@@ -3,6 +3,7 @@
  * artists and folders), Tones, Progress, Discover, and
  * the guitar status card at the bottom.
  */
+import { openJam } from './jam.js';
 import { api } from './api.js';
 import { state, on, setView, setPage, loadLibrary, emit, rsListIds, rsListLabel, rsListKeys, accBand } from './store.js';
 const storeFns = { accBand };
@@ -132,7 +133,7 @@ export function render() {
   root.innerHTML = '';
   const page = state.page === 'now' ? state.backPage || 'songs' : state.page;
   const top = h('div.nav-sections');
-  top.append(section({ page: 'play', label: 'Play', iconName: 'guitar', gel: 'var(--gel-guitar)' }));
+  top.append(section({ page: 'play', label: 'Jam', iconName: 'guitar', gel: 'var(--gel-guitar)' }));
   top.append(
     section({
       page: 'songs',
@@ -167,6 +168,7 @@ export function render() {
   );
   const discoverSub = h('div.nav-sub');
   top.append(discoverSub);
+
   root.append(top);
   // section highlight follows the page, not the Songs list
   for (const b of top.querySelectorAll('.nav-section')) b.setAttribute('aria-current', 'false');

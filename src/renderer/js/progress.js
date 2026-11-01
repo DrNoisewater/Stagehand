@@ -67,6 +67,13 @@ function render() {
   );
   root.append(spotlight(d));
   root.append(tiles);
+  const goals=h('div.goal-grid');
+  for(const g of d.goals||[]){
+    const earned=g.value>=g.target;
+    goals.append(h(`section.card.goal-card${earned?'.earned':''}`,null,h('small',{text:earned?'BADGE EARNED':'YOUR NEXT MILESTONE'}),h('b',{text:(earned?'★ ':'')+g.name}),h('p',{text:g.detail}),h('progress',{max:g.target,value:g.value}),h('small',{text:`${g.value} / ${g.target}`})));
+    if(earned&&!localStorage.getItem('stagehand.badge:'+g.id)){localStorage.setItem('stagehand.badge:'+g.id,'1');toast({title:'★ '+g.name,message:'Badge earned. Keep it going!',kind:'ok'});}
+  }
+  root.append(goals);
   root.append(highlights(d));
 
   const row = h('div.prog-row');
