@@ -197,6 +197,21 @@ async function boot() {
     state.engine = await api.engine.status();
     emit('engine');
   });
+  // Picked up a bass (or back to guitar): say what tone is playing now, and let you keep yours.
+  rig.addEventListener('instrument', (e) => {
+    if (!e.detail.sensed) return;
+    const what = e.detail.instrument === 'bass' ? 'Bass' : 'Guitar';
+    const chosen = rig.tone;
+    if (rig.standIn) {
+      toast({
+        title: `${what} plugged in: playing ${rig.standIn.name}`,
+        message: `${chosen ? `${chosen.name} is a ${chosen.kind === 'bass' ? 'bass' : 'guitar'} tone. ` : ''}Your tone comes back when you switch back.`,
+        kind: 'info',
+        timeout: 7000,
+        actions: [{ label: `Keep ${chosen ? chosen.name : 'my tone'}`, onClick: () => rig.holdTone() }],
+      });
+    } else toast({ title: `${what} plugged in`, kind: 'info', timeout: 2500 });
+  });
   // Your guitar just works: start it now, and again whenever the cable shows up.
   loadTones()
     .catch((err) => console.warn('Tones failed to load', err))

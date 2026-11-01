@@ -232,6 +232,31 @@ class FakePortMain extends EventEmitter {
   check(r2.mode === 'song' && r2.slots >= 2, `song tone (Orange AD50 → 2x12 → spring → studio EQ) built (${r2.slots} tones ready)`);
   check(r2.out > 0.01, 'still sounding after tone switch and knob moves');
 
+  // a bass is heard while a guitar song tone is chosen: a bass tone plays instead, the song tone stays chosen
+  const rb = await page.evaluate(async () => {
+    const { rig } = window.__h;
+    const { instrumentShift } = await import('/src/renderer/js/detect.js');
+    const slotBefore = rig.active;
+    rig.setSongTuning([0, 0, 0, 0, 0, 0], 'guitar');
+    rig.sense.instrument = 'bass';
+    rig._instrumentChanged(true);
+    await rig._busy;
+    await new Promise((r) => setTimeout(r, 300));
+    const bass = { standIn: rig.standIn && rig.standIn.id, mode: rig.mode, chosen: rig.tone.name, shift: instrumentShift.st, changed: rig.active !== slotBefore, out: rig.levels().output };
+    rig.holdTone();
+    await rig._busy;
+    const held = { standIn: rig.standIn, active: rig.active === slotBefore };
+    rig.sense.instrument = 'guitar';
+    rig._instrumentChanged(true);
+    await rig._busy;
+    const back = { standIn: rig.standIn, shift: instrumentShift.st, hold: rig._holdFor };
+    return { bass, held, back };
+  });
+  check(rb.bass.standIn === 'bass-clean' && rb.bass.mode === 'song' && rb.bass.chosen === 'Lead' && rb.bass.changed && rb.bass.out > 0.01, `bass heard: Bass clean plays in place of the guitar song tone (${JSON.stringify(rb.bass)})`);
+  check(rb.bass.shift === -12, 'bass on a guitar part: scored an octave down');
+  check(rb.held.standIn === null && rb.held.active, '"Keep my tone" goes back to the chosen tone');
+  check(rb.back.standIn === null && rb.back.shift === 0 && rb.back.hold === null, 'guitar again: nothing stands in, scoring back to normal');
+
   // calibration
   const r3 = await page.evaluate(async () => {
     const { rig } = window.__h;

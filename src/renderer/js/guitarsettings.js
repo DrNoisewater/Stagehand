@@ -105,6 +105,11 @@ export async function pane(el, setting) {
       room.style.setProperty('--p', `${Math.round(Number(room.value) * 100)}%`);
     };
     el.append(setting('Room', 'A little space around your amp, like a mic’d cab in a studio. Slide left for a dry close mic.', room));
+    const inst = h('select.input', { 'aria-label': 'Instrument' });
+    const heard = rig.sense.instrument ? ` (hearing a ${rig.sense.instrument} now)` : '';
+    for (const [v, label] of [['auto', `Tell by what I play${heard}`], ['guitar', 'Always guitar'], ['bass', 'Always bass']]) inst.append(h('option', { value: v, text: label, selected: v === rig.instrumentPref ? true : null }));
+    inst.onchange = () => rig.setInstrumentPref(inst.value);
+    el.append(setting('Guitar or bass', 'Stagehand hears which one is plugged in. If your tone is for the other one, it plays a tone that suits what you’re holding (the last one you picked for it), and scores a bass part played on guitar an octave up.', inst));
     el.append(h('p.np-fine', { text: 'If you hear yourself twice, turn off “Listen to this device” for the cable in Windows sound settings.', style: { marginTop: '10px' } }));
   };
   await draw();
