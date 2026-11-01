@@ -12,7 +12,9 @@ import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
 import { bendValue } from './performance-math.js';
-import { audioSplats } from './reactive-bg.js';
+import { createFluidDriver } from './reactive-bg.js';
+import { createFeatures } from './music-features.js';
+import { createVisuals } from './visuals.js';
 import { createPerformanceTools } from './performance-tools.js';
 import { VENUES, VENUE_ALIAS, venueThumb, createVenue, createFire } from './venues.js';
 import { suggestionFor } from './captures.js';
@@ -252,7 +254,7 @@ export function createHighway(stage) {
     const grid = h('div.hw-venues');
     for (const v of VENUES) {
       const th = venueThumb(v);
-      const b = h('button.hw-venue', { type: 'button', title: v.name, 'aria-pressed': String(cur === v.id) }, th ? h('img', { src: th, alt: '' }) : h(v.fluid ? 'i.fluid' : 'i.plain'), h('span', { text: v.name }));
+      const b = h('button.hw-venue', { type: 'button', title: v.name, 'aria-pressed': String(cur === v.id) }, th ? h('img', { src: th, alt: '' }) : h(v.scene ? `i.fluid.sc-${v.scene}` : v.fluid ? 'i.fluid' : 'i.plain'), h('span', { text: v.name }));
       b.onclick = () => {
         setPref('venue', v.id);
 
@@ -779,6 +781,7 @@ export function createHighway(stage) {
     extras.close();
     practiceCheckpoint();
     dropFluid();
+    visuals.drop();
     root.hidden = true;
     cancelAnimationFrame(H.raf);
     H.raf = 0;
@@ -964,6 +967,8 @@ export function createHighway(stage) {
     if (H.landNext === undefined || H.landNext > T.length || (H.landNext > 0 && T[H.landNext - 1].t > t + 0.05)) H.landNext = lower(T, t);
     while (H.landNext < T.length && T[H.landNext].t <= t) {
       const tg = T[H.landNext++];
+      // the backgrounds see every note land, in its string's colour
+      if (stage.engine.playing && t - tg.t < 0.2) for (const n of tg.notes) if (!n.mute && !n.linked) feat.note(n.s, n.f, false);
       if (!scoring && stage.engine.playing && t - tg.t < 0.2) {
         const now = performance.now();
         H.lands.push({ id: tg.id, at: now, until: tg.t + (tg.sus || 0) });
@@ -1442,16 +1447,34 @@ export function createHighway(stage) {
     // the picture's floor line goes where the highway's far end meets the floor; it drifts a little with the camera
     const vpY = H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 0.8)[1] : HH * 0.4;
     R3.setVenue(v && (v.photo || v.fluid) ? v : null, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
-    if (v?.fluid && H.open) driveFluid(t || 0); else dropFluid();
+    if (v?.scene && H.open) {
+      dropFluid();
+      const now = performance.now();
+      feat.update(stage.engine, rig, now);
+      visuals.draw(v.scene, feat, now);
+    } else {
+      visuals.drop();
+      if (v?.fluid && H.open) driveFluid(t || 0); else dropFluid();
+    }
   }
 
   // Audio-driven backgrounds follow the audible song bus and processed instrument.
   const fluid = createFluid(root);
-  function dropFluid(){fluid.drop();}
-  function driveFluid(){
-    fluid.ensure();if(!fluid.ready)return;
-    const now=performance.now();if(now-(H.inkAt||0)<40)return;
-    H.inkAt=now;fluid.send(audioSplats(stage.engine,now/1000));
+  const feat = createFeatures(); // one reading of the music shared by Fluid and the scenes
+  const visuals = createVisuals(root, { highway: true });
+  const ink = createFluidDriver({ highway: true });
+  H.feat = feat;
+  H.prefs = prefs; // for the tests
+  function dropFluid() {
+    fluid.drop();
+  }
+  function driveFluid() {
+    fluid.ensure();
+    const now = performance.now();
+    feat.update(stage.engine, rig, now);
+    if (!fluid.ready || now - (H.inkAt || 0) < 40) return;
+    H.inkAt = now;
+    fluid.send(ink(feat, now / 1000));
   }
 
   /** Cyan edges that warm to orange as you heat up. */
@@ -1878,6 +1901,7 @@ export function createHighway(stage) {
     extras.judged(e);
     const tg = H.targets[e.id];
     if (!tg) return;
+    if (e.hit) for (const n of tg.notes) if (!n.mute) feat.note(n.s, n.f, true);
     const now = performance.now();
     const st = H.judge && H.judge.state.get(e.id);
     if (!e.hit) {

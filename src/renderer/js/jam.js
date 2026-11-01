@@ -7,7 +7,9 @@ import {createClipRecorder} from './take-video.js';
  */
 import * as stage from './stage.js';
 import { state, setPage } from './store.js';
-import { audioSplats } from './reactive-bg.js';
+import { createFluidDriver } from './reactive-bg.js';
+import { createFeatures } from './music-features.js';
+import { createVisuals, SCENES } from './visuals.js';
 import { api } from './api.js';
 import { h, icon, esc, isTyping, toast } from './ui.js';
 import { rig } from './rig.js';
@@ -25,7 +27,21 @@ const backing=h('button.jam-chip',{text:'Play over song · Off',title:'Use the l
 const choose=h('button.jam-chip',{text:'Choose song',title:'Choose a song from your library, then return to Jam'});
 const part=h('select.input',{'aria-label':'Your part'},h('option',{value:'guitar',text:'Mute guitar'}),h('option',{value:'bass',text:'Mute bass'}));
 export const backingControls=h('div.jam-backing-controls',null,choose,backing,part);
-const controls=h('div.jam-controls');
+// 3.12: pick the picture: Fluid or one of the moving scenes; Jam remembers it
+const LOOKS = [{ id: 'fluid', name: 'Fluid' }, ...SCENES];
+const look = h('select.input', { 'aria-label': 'Jam look', title: 'What moves behind you' }, ...LOOKS.map((l) => h('option', { value: l.id, text: l.name })));
+try {
+  const saved = localStorage.getItem('stagehand.jamLook');
+  look.value = LOOKS.some((l) => l.id === saved) ? saved : 'fluid';
+} catch (_) {
+  look.value = 'fluid';
+}
+look.onchange = () => {
+  try {
+    localStorage.setItem('stagehand.jamLook', look.value);
+  } catch (_) {}
+};
+const controls=h('div.jam-controls',null,look);
 root.append(controls);
 let savedMix=null,wasPlaying=false,backingSong=null,savedMode=null;
 const snapshot=()=>stage.engine.tracks.map(t=>({muted:t.muted,solo:t.solo,volume:t.volume}));
@@ -45,6 +61,9 @@ const hint = h('div.jam-hint', { text: 'Play anything. Esc to leave.' });
 root.append(top, note, hint);
 document.body.append(root);
 const fluid = createFluid(root, { jam: true });
+const feat = createFeatures();
+const visuals = createVisuals(root);
+const ink = createFluidDriver({ guitar: false }); // Jam's own guitar ink (fluidbg.js) paints your playing
 
 back.onclick = () => closeJam();
 drumBtn.onclick = () => (drums.on ? drums.stop() : drums.start());
@@ -76,7 +95,7 @@ export function openJam() {
   root.hidden = false;
   document.getElementById('app').classList.add('under-highway'); // nothing else draws underneath
   api.app.fullscreen(true).catch(() => {});
-  fluid.ensure();
+  if (look.value === 'fluid') fluid.ensure();
   renderHud();
   J.raf = requestAnimationFrame(frame);
 }
@@ -88,6 +107,7 @@ export function closeJam() {
 
   cancelAnimationFrame(J.raf);
   fluid.drop();
+  visuals.drop();
   root.hidden = true;
   document.getElementById('app').classList.remove('under-highway');
   api.app.fullscreen(false).catch(() => {});
@@ -102,6 +122,9 @@ function drumBeats(out) {
   if (i < 0 || i === J.beat) return;
   J.beat = i;
   const bar = i % 4 === 0;
+  // the drums aren't in the song's mix, so they hit the scenes here
+  feat.kick = Math.max(feat.kick, bar ? 1 : 0.7);
+  feat.beats++;
   const c = hueRGB((J.t * 0.02 + (bar ? 0.5 : 0.55)) % 1, bar ? 0.09 : 0.035);
   out.push({ x: 0.03, y: 0.04, dx: bar ? 1300 : 500, dy: bar ? 1500 : 650, radius: bar ? 1.5 : 0.9, ...c });
 }
@@ -113,23 +136,34 @@ function frame(now) {
   const dt = Math.min(0.1, (now - J.last) / 1000);
   J.last = now;
   J.t += dt;
-  fluid.ensure();
-  if (fluid.ready) {
-    const out = J.ink(J.t, dt, { gain: 1.3 });
-    drumBeats(out);
-    out.push(...audioSplats(stage.engine,J.t));
-    const lvl = rig.on ? Math.min(1, Math.sqrt(rig.levels().input || 0) * 2.2) : 0;
-    if (lvl > 0.05) J.quietAt = now;
-    // keep it flowing between notes
-    if (Math.floor(J.t * 20) !== Math.floor((J.t - dt) * 20)) out.push(...ambient(J.t, lvl));
-    fluid.send(out);
-    // the note you're playing, big and faint
-    if (Math.floor(J.t * 12) !== Math.floor((J.t - dt) * 12)) {
-      const p = lvl > 0.06 ? rig.pitch() : null;
-      const txt = p ? `${p.note}` : '';
-      if (note.textContent !== txt) note.textContent = txt;
-      if (p) note.style.setProperty('--c', `hsl(${Math.round(((p.midi % 12) / 12) * 360)} 90% 70%)`);
+  feat.update(stage.engine, rig, now);
+  const out = [];
+  drumBeats(out);
+  const lvl = rig.on ? Math.min(1, Math.sqrt(rig.levels().input || 0) * 2.2) : 0;
+  if (lvl > 0.05) J.quietAt = now;
+  if (look.value === 'fluid') {
+    visuals.drop();
+    fluid.ensure();
+    if (fluid.ready) {
+      out.push(...J.ink(J.t, dt, { gain: 1.3 }));
+      if (now - (J.inkAt || 0) >= 40) {
+        J.inkAt = now;
+        out.push(...ink(feat, J.t));
+      }
+      // keep it flowing between notes
+      if (Math.floor(J.t * 20) !== Math.floor((J.t - dt) * 20)) out.push(...ambient(J.t, lvl));
+      fluid.send(out);
     }
+  } else {
+    fluid.drop();
+    visuals.draw(look.value, feat, now);
+  }
+  // the note you're playing, big and faint
+  if (Math.floor(J.t * 12) !== Math.floor((J.t - dt) * 12)) {
+    const p = lvl > 0.06 ? rig.pitch() : null;
+    const txt = p ? `${p.note}` : '';
+    if (note.textContent !== txt) note.textContent = txt;
+    if (p) note.style.setProperty('--c', `hsl(${Math.round(((p.midi % 12) / 12) * 360)} 90% 70%)`);
   }
   // controls fade while you play
   root.classList.toggle('jam-quiet', drawer.hidden && now - J.quietAt < 2500 && now - (J.moved || 0) > 2500);

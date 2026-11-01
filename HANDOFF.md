@@ -1,4 +1,4 @@
-# Stagehand handoff (v3.12.0, 2026-11-01): 3.10–3.11.1 brought in, tone match and the GPU scenes out
+# Stagehand handoff (v3.12.0, 2026-11-01): 3.10–3.11.1 brought in, tone match out, new moving backgrounds
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
@@ -14,7 +14,13 @@ User asked: drop **Tone match** ("for now"), and the **Aurora / Orbital / Prism*
 - **Combining:** only three clashes (rig's saved settings, the test list, this file). `performance-tools.js` rewritten readable; the rest of ChatGPT's code is still dense one-liners with few comments: tidy it when touching it.
 - **Tests:** `npm test`, `rig-chromium.js`, `native-monitor.test.js`, the Drop checks all pass. ChatGPT never ran `ui3-chromium.js` after 3.11; it was stale (Play page → Jam, 9 slots → 8) and is fixed here. `rig-chromium.js`'s "bass heard" check failed once on timing and passed on two reruns.
 - **Ask the user:** with a real guitar and bass: does the bass switch quickly, any static, any flips mid-song, scoring fair; do the real cabinets sound right (and the bass cabinets download); does Record clip work on their PC; does tone key 1 and the guitar-or-bass stand-in get along (a bass on a guitar song with key 1 should get a bass tone).
-- **Next:** new moving backgrounds to replace the three removed ones (agreed: a few scenes with their own look, reacting to notes, beat and playing, like Fluid).
+- **New moving backgrounds** (user: "add similar but different visualizers… same with the fluid one, really cool looking, very reactive to music, and able to play behind the highway"). Before merging 3.12:
+  - `js/music-features.js` `createFeatures()`: one reading per frame shared by all of them: 5 auto-levelled bands, energy, `kick`/`snap` hit detection (band flux vs its running mean), 64 log bands, 512-sample waveform (new `engine.waveform()`), `phase` (a clock that speeds up with the music), guitar `{level, attack, hue, midi}` from the rig, and note `events` from the highway (every landed note, and your hits) with string and fret. Jam's drum machine isn't in the mix, so Jam pushes its beats into `kick`.
+  - `js/visuals.js` `createVisuals(host, {highway})`, WebGL2 with a feedback picture (trails) and a finishing pass (exposure, colour split on kicks, behind the highway: darker overall and much darker under the neck): **Nebula** (domain-warped gas, violet/teal/warm, turning slowly; lightning on snares and your picks; your note glows inside; stars with the highs; landed notes flash in string colours), **Swarm** (65,536 sparks on the card following a curl-noise flow; kicks send a shock wave; your notes pull a swirl; needs EXT_color_buffer_float, else it falls back to Nebula), **Mandala** (kaleidoscope feedback: waveform ring, spectrum petals, folds change every 32 kicks), **Strings** (six string-coloured ribbons swaying with their part of the spectrum; landed notes send ripples from their fret; smoky trails). Drawn at 75 % of the window (`stagehand.visualScale` 0.4–1).
+  - Venues: the scenes are in the picker (`scene:` in `VENUES`, CSS thumbnails `.sc-*`). Jam has a **Jam look** picker (Fluid + the four, `stagehand.jamLook`).
+  - **Fluid** (`reactive-bg.js` `createFluidDriver`): each part of the music has its own gesture: kick = plumes from the bottom corners, snare = a ring of bursts, bass = slow low swirl, mids = a stream up the middle, highs = flecks near the top, highway notes in string colours along the neck, your guitar in your note's colour (Jam keeps its own guitar ink too).
+  - Look test: `node test/visuals/shoot.js <outDir> [scene…]` plays a made-up song through each look (Jam and behind the highway) and writes `sheet.png`. ui3-chromium.js shoots each scene on the highway (`6g-highway-*`) and in Jam (`25-jam-*`).
+  - Only seen in software rendering here (slow): **ask how each one looks and moves on their GPU, whether any costs frames behind the highway, and which they like.** Tune amounts in the shaders (`NEBULA`, `MANDALA`, `STRINGS`, `SWARM_*`) and in `createFluidDriver`.
 
 ## 3.9.1: Guitar or bass
 

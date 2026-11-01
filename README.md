@@ -44,6 +44,7 @@ Plug in the Rocksmith cable and your guitar is live straight away, no song neede
 - **Tones on keys 1–9.** **1** always follows the song's own tone (and its tone changes); **2–9** are your saved tones. Press a number anywhere to switch. The rig shows as a chain of pedals, amp, cabinet and rack. Click any piece to turn its knobs.
 - **Guitar or bass, automatically (3.9.1).** Stagehand hears which one is plugged in. If your tone is for the other instrument, it plays one that suits what you're holding, and your own tone comes back when you switch back. A bass part played on guitar is scored an octave up.
 - **Tuner, Drop and calibration.** A precise tuner, plus **Set input level**. The **Drop** works like a DigiTech Drop: lower your instrument 1–7 semitones or an octave, or match the song, so you can play E♭/D/C♯ songs without retuning. Press **D** anywhere.
+- **Moving backgrounds** behind the highway or full screen in Jam: **Fluid**, **Nebula**, **Swarm**, **Mandala** and **Strings**. They move with the song's bass, beats and highs, flash with the notes on the highway in their string colours, and follow what you play.
 - **Jam is home.** Rig, tuner, Drop, drums and looper on one screen. **Play over song** lets you improvise with a song's stems, your own part muted. **Open visualizer** (**J**) goes full screen with Fluid.
 - **Drums** with 17 styles (Rock, Shuffle, Metal, Funk, Reggae, Jazz ride, Bossa, Drum & bass and more, 40–240 BPM, Tap; hold **+**/**−** to change tempo fast) and a **Looper** that records exactly what you hear and locks to the bar.
 
@@ -186,7 +187,7 @@ Rocksmith audio is Wwise `.wem`. Stagehand decodes it with [vgmstream](https://g
 
 ## What's new
 
-**3.12:** everything from 3.10 to 3.11.1 (real cabinets, Jam as home, 17 drum styles, a better looper, Score attack, Record clip, tone keys, progress goals, the Drop repair, clearer yellow and orange strings) together with 3.9.1's guitar-or-bass sensing. Tone match and the Aurora, Orbital and Prism backgrounds are gone. Full notes are on [Releases](https://github.com/DrNoisewater/stagehand/releases).
+**3.12:** everything from 3.10 to 3.11.1 (real cabinets, Jam as home, 17 drum styles, a better looper, Score attack, Record clip, tone keys, progress goals, the Drop repair, clearer yellow and orange strings) together with 3.9.1's guitar-or-bass sensing. New moving backgrounds (Nebula, Swarm, Mandala, Strings) replace Aurora, Orbital and Prism, and Fluid reacts much more to the music. Tone match is gone for now. Full notes are on [Releases](https://github.com/DrNoisewater/stagehand/releases).
 
 <details>
 <summary><b>3.10 to 3.11.1</b></summary>

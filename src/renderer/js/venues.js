@@ -3,6 +3,7 @@
  * Everything is drawn in code (no images), lit by the song's beat, and
  * calmer or wilder with how well you're playing ("heat", 0–1).
  */
+import { SCENES } from './visuals.js';
 
 // Photo venues (3.6): `horizon` is where the floor meets the far wall, as a
 // fraction of the picture's height; it's lined up with the highway's
@@ -18,6 +19,8 @@ export const VENUES = [
   { id: 'canyon', name: 'Canyon', photo: 'canyon', horizon: 0.5 },
   { id: 'astral', name: 'Astral', photo: 'astral', horizon: 0.32 },
   { id: 'fluid', name: 'Fluid', fluid: true, desc: 'Ink that moves with the notes and beats' },
+  // 3.12: moving scenes drawn on the graphics card (visuals.js)
+  ...SCENES.map((s) => ({ id: s.id, name: s.name, fluid: true, scene: s.id, desc: s.desc })),
   { id: 'studio', name: 'Plain', desc: 'Calm and dark, nothing to distract' },
 ];
 /** Old (3.1–3.5) drawn venues map onto the photos. */

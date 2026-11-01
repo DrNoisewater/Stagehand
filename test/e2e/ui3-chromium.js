@@ -358,7 +358,7 @@ class FakePortMain extends EventEmitter {
     const volumes=await page.evaluate(async()=>{const stage=await import('./js/stage.js'),{rig}=await import('./js/rig.js'),{state}=await import('./js/store.js'),a=await import('./js/actions.js');stage.setSongLevel(.63);stage.setYou(.72);const songs=[...state.songs.values()];await a.playSong(songs[1].id,{autoplay:false});return [stage.songLevel(),rig.knobs.volume];});
     check(Math.abs(volumes[0]-.63)<.001&&Math.abs(volumes[1]-.72)<.001,'master volumes persist across songs: '+volumes);
     await page.locator('.nav-section:has-text("Jam")').click();
-    await page.waitForTimeout(800);await shot('repair-jam');check(!(await page.getByLabel('Jam visualizer').count()),'Jam has no Aurora/Orbital/Prism picker');
+    await page.waitForTimeout(800);await shot('repair-jam');check(!(await page.getByLabel('Jam visualizer').count()),'the old Aurora/Orbital/Prism picker is gone');
     const layout=await page.evaluate(()=>[...document.querySelectorAll('.jam-chip')].every(e=>e.scrollHeight<=e.clientHeight+2));check(layout,'Jam labels fit their controls');
     await page.keyboard.press('Escape');
     await page.evaluate(async()=>{const {state}=await import('./js/store.js'),a=await import('./js/actions.js');await a.playAlong(state.nowPlaying);});
@@ -529,6 +529,17 @@ class FakePortMain extends EventEmitter {
   await shot('6b-highway');
   await page.waitForTimeout(3000);
   await shot('6c-highway');
+  // 3.12: the moving scenes behind the highway
+  for (const id of ['nebula', 'swarm', 'mandala', 'strings']) {
+    await page.evaluate((v) => { document.querySelector('.highway').__hw.prefs.venue = v; }, id);
+    await page.waitForTimeout(2500);
+    const drawn = await page.evaluate(() => !!document.querySelector('.highway canvas.hw-visual') && !document.querySelector('.highway iframe.hw-fluid'));
+    check(drawn, `${id} draws behind the highway`);
+    await shot(`6g-highway-${id}`);
+  }
+  await page.evaluate(() => { document.querySelector('.highway').__hw.prefs.venue = 'warehouse'; });
+  await page.waitForTimeout(600);
+  check(await page.evaluate(() => !document.querySelector('.highway canvas.hw-visual')), 'a photo venue puts the scene away');
   // a correct note: the bracket flashes but stays its own height
   await page.evaluate(() => {
     const H = document.querySelector('.highway').__hw;
@@ -849,6 +860,16 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(2500);
   await page.mouse.move(300, 300);
   await shot('25-jam');
+  // 3.12: Jam's look picker: Fluid and the four scenes
+  check((await page.getByLabel('Jam look').locator('option').count()) === 5, 'Jam offers Fluid and four scenes');
+  for (const id of ['nebula', 'swarm', 'mandala', 'strings']) {
+    await page.getByLabel('Jam look').selectOption(id);
+    await page.waitForTimeout(2500);
+    check(await page.evaluate(() => !!document.querySelector('.jam canvas.hw-visual') && !document.querySelector('.jam iframe.hw-fluid')), `Jam shows ${id}`);
+    await shot(`25-jam-${id}`);
+  }
+  await page.getByLabel('Jam look').selectOption('fluid');
+  await page.waitForTimeout(1500);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(500);
   check(await page.evaluate(() => document.querySelector('.jam').hidden && !document.querySelector('.jam .hw-fluid')), 'Esc leaves Jam and stops the picture');

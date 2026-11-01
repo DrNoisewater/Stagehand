@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stagehand scenes</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #host { position: absolute; inset: 0; }
+  .hw-fluid { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #neck { position: absolute; left: 0; right: 0; bottom: 0; height: 42%; pointer-events: none;
+    background: linear-gradient(transparent, rgba(0,0,0,.15)); display: none; }
+  #neck.on { display: block; }
+  #neck i { position: absolute; left: 4%; right: 4%; height: 3px; border-radius: 2px; opacity: .85; }
+</style>
+</head>
+<body>
+<div id="host"></div>
+<div id="neck"></div>
+<script type="module">
+// A made-up song (120 bpm: kick, snare on 2 and 4, eighth-note hats, a bass
+// line, a guitar riff) fed to the real scenes, frame by frame on a fixed clock.
+import { createFeatures, STRING_RGB } from '../../src/renderer/js/music-features.js';
+import { createVisuals } from '../../src/renderer/js/visuals.js';
+import { createFluidDriver } from '../../src/renderer/js/reactive-bg.js';
+
+const q = new URLSearchParams(location.search);
+const highway = q.get('highway') === '1';
+const host = document.getElementById('host');
+const neck = document.getElementById('neck');
+if (highway) {
+  neck.classList.add('on');
+  STRING_RGB.forEach((c, i) => {
+    const s = document.createElement('i');
+    s.style.top = `${18 + (5 - i) * 13}%`;
+    s.style.background = `rgb(${c.map((v) => Math.round(v * 255)).join(',')})`;
+    neck.append(s);
+  });
+}
+const scene = q.get('scene') || 'nebula';
+const vis = createVisuals(host, { highway });
+// Fluid runs in its own frame, painted by the same driver the app uses
+let fluidApi = null;
+const ink = createFluidDriver({ highway });
+if (scene === 'fluid') {
+  const f = document.createElement('iframe');
+  f.className = 'hw-fluid';
+  f.style.border = '0';
+  f.src = `../../src/renderer/fluid/fluid.html?embed=1${highway ? '' : '&jam=1'}&dye=512`;
+  f.onload = () => { fluidApi = f.contentWindow.FluidVisuals; window.ready = true; };
+  host.prepend(f);
+}
+const F = createFeatures();
+let T = 0; // song seconds
+const BPM = 120, SPB = 60 / BPM;
+const env = (x, k) => (x < 0 ? 0 : Math.exp(-x * k));
+const engine = {
+  playing: true,
+  ctx: { sampleRate: 48000 },
+  _spec: new Uint8Array(2048),
+  spectrum() {
+    const b = T / SPB, beat = b % 1, bar = b % 4;
+    const kick = env(beat * SPB, 18);
+    const snare = (Math.floor(bar) % 2 === 1) ? env(beat * SPB, 14) : 0;
+    const hat = env(((b * 2) % 1) * SPB / 2, 40);
+    const bassNote = [41, 41, 44, 39][Math.floor(T / (SPB * 4)) % 4];
+    const gNote = [64, 67, 69, 71, 69, 67, 64, 62][Math.floor(b * 2) % 8];
+    const binHz = 24000 / 2048;
+    for (let k = 0; k < 2048; k++) {
+      const f = k * binHz + 1;
+      let db = -95 + 8 * Math.random();
+      db = Math.max(db, -40 - 20 * Math.log10(f / 200 + 1)); // a song-like slope
+      const lin = (hz, w, a) => a * Math.exp(-((Math.log2(f / hz)) ** 2) / (2 * w * w));
+      let p = 0;
+      p += lin(55, 0.35, kick * 1.0);
+      p += lin(440 * 2 ** ((bassNote - 69) / 12), 0.08, 0.6) + lin(880 * 2 ** ((bassNote - 69) / 12), 0.08, 0.3);
+      for (let h = 1; h <= 5; h++) p += lin(440 * 2 ** ((gNote - 69) / 12) * h, 0.03, 0.5 / h);
+      p += snare * (f > 180 && f < 6000 ? 0.45 : 0) + hat * (f > 6000 ? 0.4 : 0);
+      if (p > 0) db = Math.max(db, -30 + 20 * Math.log10(p + 1e-3) + 10);
+      this._spec[k] = Math.max(0, Math.min(255, ((db + 100) / 70) * 255));
+    }
+    return this._spec;
+  },
+  masterLevel() {
+    const b = T / SPB;
+    return 0.08 + 0.1 * env((b % 1) * SPB, 10) + 0.03 * Math.sin(T * 0.3);
+  },
+  waveform(out) {
+    const kick = env(((T / SPB) % 1) * SPB, 18);
+    for (let i = 0; i < out.length; i++) {
+      const x = i / out.length;
+      out[i] = 0.35 * Math.sin(x * 40 + T * 9) * (0.4 + kick) + 0.15 * Math.sin(x * 170 + T * 23) + 0.05 * (Math.random() - 0.5);
+    }
+    return out;
+  },
+};
+// your guitar: a pick every half beat, ringing between
+const rig = {
+  on: true,
+  muted: false,
+  levels() {
+    const ph = (T / (SPB / 2)) % 1;
+    const v = 0.03 + 0.25 * env(ph * SPB / 2, 6);
+    return { input: v, output: v * 1.5 };
+  },
+  pitch() {
+    const m = [64, 67, 69, 71, 69, 67, 64, 62][Math.floor((T / SPB) * 2) % 8];
+    return { midi: m, hz: 440 * 2 ** ((m - 69) / 12), note: 'E' };
+  },
+};
+let lastNote = -1;
+window.step = (n, fps = 60) => {
+  for (let i = 0; i < n; i++) {
+    T += 1 / fps;
+    const now = T * 1000;
+    // the highway lands a note every half beat on the riff's string
+    const k = Math.floor((T / SPB) * 2);
+    if (k !== lastNote) {
+      lastNote = k;
+      const s = [2, 3, 3, 4, 3, 3, 2, 1][k % 8];
+      F.note(s, [2, 5, 7, 9, 7, 5, 2, 0][k % 8] + 3, k % 3 !== 0, now);
+    }
+    F.update(engine, rig, now);
+    if (scene === 'fluid') {
+      if (i % 2 === 0 && fluidApi) {
+        const list = ink(F, T);
+        fluidApi.splats(list.concat(list.map((s) => ({ ...s, x: 1 - s.x, dx: -(s.dx || 0) }))));
+      }
+    } else vis.draw(scene, F, now);
+  }
+  return { kick: F.kick, snap: F.snap, energy: F.energy, bands: [...F.bands], beats: F.beats, failed: vis.failed };
+};
+if (scene !== 'fluid') window.ready = true;
+</script>
+</body>
+</html>

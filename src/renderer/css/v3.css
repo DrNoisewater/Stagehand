@@ -847,6 +847,11 @@ body:has(> .highway:not([hidden])) .stem-wait { bottom: auto; top: 30%; }
 /* 3.7: the Fluid venue (an ink simulation page) sits under the highway's canvases */
 .hw-fluid { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; background: #000; display: block; }
 .hw-venue i.fluid { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: radial-gradient(circle at 25% 70%, #ff4b55cc, transparent 45%), radial-gradient(circle at 75% 65%, #3da5ffcc, transparent 45%), radial-gradient(circle at 50% 30%, #b67dffaa, transparent 50%), radial-gradient(circle at 60% 85%, #45d07c99, transparent 40%), #05070c; filter: blur(2px) saturate(1.3); }
+/* 3.12 scene thumbnails: a hint of each look */
+.hw-venue i.fluid.sc-nebula { background: radial-gradient(ellipse at 35% 45%, #c04cff99, transparent 55%), radial-gradient(ellipse at 70% 60%, #2fb6ff88, transparent 50%), radial-gradient(circle at 55% 35%, #ffd9a0aa, transparent 18%), #04050b; filter: blur(3px) saturate(1.4); }
+.hw-venue i.fluid.sc-swarm { background: radial-gradient(circle, #ffffffcc 0 1px, transparent 1.5px) 0 0 / 7px 7px, radial-gradient(circle, #7fe3ffaa 0 1px, transparent 1.5px) 3px 4px / 9px 9px, radial-gradient(ellipse at 50% 50%, #ff6ad555, transparent 65%), #04050b; filter: none; }
+.hw-venue i.fluid.sc-mandala { background: repeating-conic-gradient(from 0deg at 50% 50%, #ff8a3d55 0 15deg, #7a4dff55 15deg 30deg), radial-gradient(circle at 50% 50%, #ffd36b 0 6%, transparent 7%, transparent 28%, #39d0ff99 29%, transparent 31%), #05050c; background-blend-mode: screen; filter: blur(0.6px) saturate(1.3); }
+.hw-venue i.fluid.sc-strings { background: linear-gradient(transparent 20%, #ff4b55 21%, transparent 23%, transparent 31%, #ffe41a 32%, transparent 34%, transparent 42%, #3da5ff 43%, transparent 45%, transparent 53%, #ff7316 54%, transparent 56%, transparent 64%, #45d07c 65%, transparent 67%, transparent 75%, #b67dff 76%, transparent 78%), #05070c; filter: blur(1px) saturate(1.2); }
 
 /* 3.7: the version, small, after the name */
 .brand-ver { margin-left: -3px; font-size: 11px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.02em; align-self: center; padding-top: 2px; }

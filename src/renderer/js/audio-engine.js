@@ -490,6 +490,16 @@ export class AudioEngine extends EventTarget {
     return Math.sqrt(s / b.length);
   }
 
+  /** The newest samples of the mix (after the faders) into `out` (-1–1), for the backgrounds. */
+  waveform(out) {
+    if (!this.masterAnalyser) return null;
+    if (!this._wb) this._wb = new Float32Array(this.masterAnalyser.fftSize);
+    this.masterAnalyser.getFloatTimeDomainData(this._wb);
+    const step = this._wb.length / out.length;
+    for (let i = 0; i < out.length; i++) out[i] = this._wb[Math.floor(i * step)];
+    return out;
+  }
+
   spectrum() {
     if (!this.masterAnalyser) return null;
     this.masterAnalyser.getByteFrequencyData(this._specBuf);
