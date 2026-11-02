@@ -241,6 +241,7 @@ class FakePortMain extends EventEmitter {
     'stems.queue': () => ({ items: [] }),
     'engine.status': () => ({ state: 'missing', ok: false }),
     'imports.status': () => ({ watching: false, history: [] }),
+    'imports.scanPC': () => ({ places: [], found: [] }),
     'discover.wanted': () => [],
     'discover.recent': () => [],
     // a profile with Rocksmith mastery for the test songs' parts (3.7: shown next to titles)

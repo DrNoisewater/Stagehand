@@ -1005,6 +1005,8 @@ function renderImports(page) {
     page.append(h('div.dv-loading', null, h('div.spin'), h('span', { text: 'Loading…' })));
     return;
   }
+  // 4.0: songs already on this PC, outside the library
+  page.append(findOnPcCard());
   // Settings
   const card = h('section.imp-card');
   const watch = h('input.toggle', { type: 'checkbox', 'aria-label': 'Watch for downloads' });
@@ -1179,6 +1181,47 @@ function importRow(e) {
   return row;
 }
 
+/** "Find songs on this PC": looks in Downloads, Desktop, Documents and Music. */
+function findOnPcCard() {
+  const card = h('section.imp-card.find-pc');
+  const res = D.pcScan;
+  const go = btn(res && res.busy ? 'Looking…' : 'Look for songs', { cls: 'small', iconName: 'search', disabled: !!(res && res.busy), onClick: () => scanPC({ show: true }) });
+  card.append(setting('Find songs on this PC', 'Looks in your Downloads, Desktop, Documents and Music folders for song files (<b>.psarc</b>) that aren’t in your library yet.', [go]));
+  if (res && res.found) {
+    if (!res.found.length) card.append(h('p.np-fine', { text: 'Nothing new found: every song file there is already in your library.' }));
+    else {
+      const list = h('div.find-list');
+      for (const f of res.found.slice(0, 12)) list.append(h('div.find-row', null, h('span', { text: f.name }), h('span.muted', { text: shortPath(f.path) })));
+      if (res.found.length > 12) list.append(h('div.find-row.muted', { text: `…and ${res.found.length - 12} more` }));
+      const add = btn(`Add ${plural(res.found.length, 'song')}`, { cls: 'primary', iconName: 'download', onClick: () => addFound() });
+      card.append(list, h('div.find-acts', null, add));
+    }
+  }
+  return card;
+}
+
+async function scanPC({ show = false } = {}) {
+  D.pcScan = { busy: true };
+  if (show) render();
+  try {
+    const r = await api.imports.scanPC();
+    D.pcScan = { found: r.found || [] };
+  } catch (e) {
+    D.pcScan = null;
+    if (show) toast({ title: 'Couldn’t look for songs', message: e.message, kind: 'err' });
+  }
+  if (show || sub() === 'imports') render();
+  return D.pcScan;
+}
+
+async function addFound() {
+  const paths = ((D.pcScan && D.pcScan.found) || []).map((f) => f.path);
+  if (!paths.length) return;
+  D.pcScan = null;
+  await importFiles(paths);
+  render();
+}
+
 export async function importFiles(paths) {
   try {
     const r = await api.imports.files(paths);
@@ -1344,6 +1387,19 @@ export async function init() {
     api.discover.gaps().catch(() => null),
   ]);
   Object.assign(D, { wanted, imports, recent, gaps });
+  // once a day, quietly look for songs on this PC that aren't in the library, and offer them
+  setTimeout(async () => {
+    let last = 0;
+    try {
+      last = Number(localStorage.getItem('stagehand.pcScanAt')) || 0;
+    } catch (_) {}
+    if (Date.now() - last < 86400000) return;
+    try {
+      localStorage.setItem('stagehand.pcScanAt', String(Date.now()));
+    } catch (_) {}
+    const r = await scanPC();
+    if (r && r.found && r.found.length) toast({ title: `Found ${plural(r.found.length, 'song')} on this PC`, message: 'They aren’t in your library yet.', kind: 'info', timeout: 12000, actions: [{ label: 'Add them', onClick: () => addFound() }, { label: 'Show', onClick: () => open('imports') }] });
+  }, 20000);
   emit('discover-wanted');
   emit('discover-imports');
   if (isDiscover() && sub() === 'artist') loadArtist();

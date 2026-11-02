@@ -176,6 +176,7 @@ contextBridge.exposeInMainWorld('stagehand', {
     retryLists: () => call('import:retryLists'),
     clearHistory: () => call('import:clearHistory'),
     pickFolder: (which) => call('import:pickFolder', which),
+    scanPC: () => call('import:scanPC'),
   },
   // Paths of files dropped on the window (for importing songs).
   pathFor: (file) => {

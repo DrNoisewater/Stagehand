@@ -1171,3 +1171,9 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 .album .tracks .dv-row { grid-template-columns: 22px 22px minmax(0, 1fr) 40px 0 116px; }
 .album .tracks .dv-row .c-state { overflow: hidden; }
 .dv-row .acts .icon-btn { opacity: 0.7; }
+
+/* Imports 4.0: songs found on this PC */
+.find-list { display: flex; flex-direction: column; gap: 2px; margin: 8px 0; max-height: 260px; overflow: auto; }
+.find-row { display: flex; gap: 12px; justify-content: space-between; padding: 5px 8px; border-radius: 6px; background: #ffffff06; font: 500 13px var(--font); }
+.find-row .muted, .find-row.muted { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.find-acts { display: flex; justify-content: flex-end; }

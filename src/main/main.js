@@ -545,6 +545,22 @@ function registerIpc() {
     library.scan(opts || {});
   });
   handle('library:detect', () => detectRocksmith());
+  // 4.0: song files elsewhere on this PC that aren't in your library yet
+  handle('import:scanPC', async () => {
+    const places = ['downloads', 'desktop', 'documents', 'music'].map((k) => {
+      try {
+        return app.getPath(k);
+      } catch (_) {
+        return null;
+      }
+    });
+    const songs = library.snapshot().songs;
+    const have = new Set(songs.map((x) => String(x.path || '').toLowerCase()));
+    const haveNames = new Set(songs.map((x) => String(x.fileName || path.basename(x.path || '')).toLowerCase()));
+    const { findSongs } = require('./services/songfinder');
+    const found = await findSongs(places.filter(Boolean), { have, haveNames });
+    return { places: places.filter(Boolean), found };
+  });
   handle('library:removeSongs', (ids) => {
     library.removeSongs(ids);
     send('library:reset');
