@@ -1136,14 +1136,26 @@ async function stemsFirst(song, token) {
   return false; // nothing to wait for (no stem engine yet): play the full mix
 }
 
+// 4.0: never wait long for stems. A split can take minutes on a CPU: after this long
+// the song starts with the full mix and the stems come in when they're ready.
+const WAIT_MAX_MS = 15000;
+
 function startWaiting(token) {
   S.waitPlay = token;
+  clearTimeout(S.waitTimer);
+  S.waitTimer = setTimeout(() => {
+    if (S.waitPlay !== token || token !== S.token) return;
+    stopWaiting();
+    if (S.phase === 'ready' && !engine.playing) engine.play();
+    toast({ title: 'Playing the full mix for now', message: 'The stems are still being made; they come in by themselves when they’re ready.', kind: 'info', timeout: 6000 });
+  }, WAIT_MAX_MS);
   renderWaiting(S.waitStatus || S.status);
   emit('stage-waiting', true);
   emit('stage-phase');
 }
 
 function stopWaiting() {
+  clearTimeout(S.waitTimer);
   if (!S.waitPlay) return;
   S.waitPlay = 0;
   waitBox.hidden = true;
@@ -1156,7 +1168,7 @@ function renderWaiting(st) {
   st = st || { state: 'queued' };
   const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
   const title = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : `Splitting the stems · ${pct}%`;
-  const note = st.state === 'queued' ? 'Another song is being split first.' : st.state === 'ready' ? 'Almost there.' : 'Guitar, bass, drums and the rest, so you can mix them. The song starts by itself.';
+  const note = st.state === 'queued' ? 'Another song is being split first. The song starts with the full mix in a few seconds if it takes long.' : st.state === 'ready' ? 'Almost there.' : 'Guitar, bass, drums and the rest, so you can mix them. The song starts by itself (with the full mix if this takes long).';
   if (!waitBox.firstChild) {
     waitBox.innerHTML = `<div class="read-bar"><div class="rb-top"><span class="eq"><i></i><i></i><i></i><i></i></span><span class="rb-label"></span><span class="rb-count"></span></div><div class="rb-track"><i></i></div><div class="rb-note"></div><div class="sw-row"><span class="sw-song"></span></div></div>`;
     const now = h('button.btn.small', { type: 'button', html: `${icon('play')}<span>Play now with the full mix</span>` });

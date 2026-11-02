@@ -911,6 +911,9 @@ class FakePortMain extends EventEmitter {
     await page.waitForTimeout(2500); // A's late answer comes now
     v = await hwState();
     check(v.song === sB && /Splitting/.test(v.status) && !v.playing, `an older song finishing late doesn't press play on the new one (${JSON.stringify({ song: v.song === sB, waiting: /Splitting/.test(v.status), playing: v.playing })})`);
+    // and it never waits long: after about 15 s it starts with the full mix while the stems are made
+    v = await until((x) => x.playing, 25000);
+    check(v.playing && v.song === sB && !v.status, `a song waiting for slow stems starts with the full mix after a few seconds (${JSON.stringify({ playing: v.playing, status: v.status.slice(0, 30) })})`);
     stemHold.delete(sB);
     stemsDelay.clear();
     await page.evaluate((id) => window.__shEmit('stems:update', { songId: id, state: 'ready' }), sB);

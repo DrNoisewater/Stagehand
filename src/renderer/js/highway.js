@@ -999,7 +999,7 @@ export function createHighway(stage) {
         statusBox.hidden = false;
         return;
       }
-      html = `<div class="hw-st-box"><b>${what}</b><span>${title} starts by itself when they’re ready.</span><div class="hw-st-bar"><i style="width:${Math.max(2, pct)}%"></i></div><div class="hw-st-acts"><button type="button" class="btn small" data-act="now">Play now with the full mix</button></div></div>`;
+      html = `<div class="hw-st-box"><b>${what}</b><span>${title} starts by itself: with the stems, or with the full mix in a few seconds if they take long.</span><div class="hw-st-bar"><i style="width:${Math.max(2, pct)}%"></i></div><div class="hw-st-acts"><button type="button" class="btn small" data-act="now">Play now with the full mix</button></div></div>`;
     }
     if (!html) {
       statusBox.hidden = true;
