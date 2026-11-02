@@ -269,6 +269,18 @@ async function readSongs(psarc) {
     } catch (_) {}
   }
 
+  // 4.0.4: signs of a custom song, for telling official DLC apart: custom files keep the
+  // chart's .xml files (official ones hold only the compiled charts) and most use the
+  // toolkit's stand-in Steam id (248750, Cherub Rock's).
+  let appId = '';
+  const ap = names.find((n) => n.toLowerCase() === 'appid.appid');
+  if (ap) {
+    try {
+      appId = (await psarc.read(ap)).toString('utf8').trim().slice(0, 20);
+    } catch (_) {}
+  }
+  const chartXml = names.some((n) => /^songs\/arr\/.+\.xml$/i.test(n) && !/_showlights\.xml$/i.test(n));
+
   const wems = audioFolderInfo(names);
   const bankCache = new Map();
   const readBank = async (bankName) => {
@@ -364,6 +376,8 @@ async function readSongs(psarc) {
       packageVersion: toolkit.version || '',
       packageComment: toolkit.comment || '',
       toolkit: toolkit.toolkit || '',
+      appId,
+      chartXml,
       art,
       audioEntry: audio,
       previewEntry: preview,

@@ -6,8 +6,10 @@
  * is official only when it has no creator stamp AND its artist and title are on the list of
  * official DLC (src/main/data/official-songs.json, built by scripts/official-songs.js from
  * Wikipedia's "List of downloadable songs for Rocksmith"; DLC ended in March 2020).
+ * 4.0.4: and the file itself has none of the signs of a custom song (see isOfficial).
  */
 const LIST = require('../data/official-songs.json');
+const STANDIN_APPID = '248750'; // Cherub Rock: the toolkit's default for custom songs
 
 /** Loose form for comparing names: case, accents, "the", "feat.", brackets and punctuation don't count. */
 function norm(s) {
@@ -43,9 +45,15 @@ class OfficialList {
     return artists.some((x) => x === a || (Math.min(x.length, a.length) >= 4 && (x.includes(a) || a.includes(x))));
   }
 
-  /** Official DLC: no creator stamp in the file and on the list. */
+  /**
+   * Official DLC: on the list, and the file shows none of the signs of a custom song:
+   * a creator stamp, the chart's .xml files, or the toolkit's stand-in Steam id.
+   * A file not yet read for those signs doesn't count.
+   */
   isOfficial(song) {
     if (!song || song.toolkit || song.author || song.packageVersion) return false;
+    if (song.appId === undefined || song.chartXml !== false) return false;
+    if ((!song.appId || song.appId === STANDIN_APPID) && norm(song.title) !== 'cherubrock') return false;
     return this.has(song.artist, song.title);
   }
 }
