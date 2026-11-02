@@ -19,7 +19,7 @@ import { createPerformanceTools } from './performance-tools.js';
 import { VENUES, VENUE_ALIAS, venueThumb, createVenue, createFire } from './venues.js';
 import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
-import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './detect.js';
+import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShift } from './detect.js';
 import { createRenderer3D, col, mix } from './highway3d.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, setMyTuning, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
@@ -180,6 +180,7 @@ export function createHighway(stage) {
   document.body.append(root);
   root.__hw = H; // for tests
   root.__openSync = () => openSync(); // for tests
+  H.openSync = () => openSync();
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
   window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave() };
   const extras = createPerformanceTools({root,top,stage,H,rig});
@@ -1485,6 +1486,7 @@ export function createHighway(stage) {
     buildNotes(t, a);
     buildLands(t, a);
     buildHits(t, a);
+    buildBendGauge(t);
     drawNeckFront(t, a, f0, f1);
     drawLabels();
     drawHitsFront(t, a, dt);
@@ -1965,6 +1967,46 @@ export function createHighway(stage) {
       alpha.bar([p[0],nY(L0)-G.gy*.12,p[2]],[p[0],p[1],p[2]],.045,col('#fff3d6',.8));
     }
     if (mb > 0 && peak && peak.p[2] >= 0) label(`↑${bendLabel(mb)}`, peak.p[0], peak.p[1] + G.gy * 0.4, peak.p[2], { size: 0.32, min: 12, max: 26, color: '#fff3d6', base: 'bottom' });
+  }
+
+  /**
+   * 4.0: while you hold a bend at the neck, a small gauge stands on its string:
+   * a rail up to how far to bend (with the amount), a bright mark where the
+   * chart's bend is right now, and a white mark for how far you've bent (heard
+   * from your guitar), so you can match it.
+   */
+  function buildBendGauge(t) {
+    const { alpha, glow } = R3.L;
+    const T = H.targets;
+    let heard = null;
+    for (let i = Math.max(0, lower(T, t - 8)); i < T.length && T[i].t <= t; i++) {
+      const tg = T[i];
+      for (const nt of tg.notes) {
+        if (t > noteEnd(nt, tg) || !(maxBend(nt) > 0)) continue;
+        const an = anchorAt(tg.t);
+        const L0 = level(nt.s);
+        const dir = L0 > (G.n - 1) / 2 ? -1 : 1; // the same way the sustain ribbon bends
+        const yAt = (b) => nY(L0 + dir * b * 0.7);
+        const x = noteX(nt, an) + laneW(Math.max(1, nt.f || an.fret)) * 0.32;
+        const top = maxBend(nt);
+        const now = bendAt(nt, t);
+        const z = -0.06;
+        alpha.bar([x, yAt(0), z], [x, yAt(top), z], 0.07, col('#fff3d6', 0.45));
+        // the target: a bar across, gold
+        glow.bar([x - 0.18, yAt(top), z], [x + 0.18, yAt(top), z], 0.06, col('#ffc446', 0.95, 1.6));
+        // where the chart is right now
+        glow.bar([x - 0.13, yAt(now), z - 0.002], [x + 0.13, yAt(now), z - 0.002], 0.09, col(STRING[nt.s], 1, 2));
+        // how far you've bent, heard from your guitar
+        if (rig.on && stage.engine.playing) {
+          if (heard === null) {
+            const p = rig.pitch();
+            heard = p ? p.midi + p.cents / 100 : NaN;
+          }
+          const mine = heard - (nt.midi + instrumentShift.st);
+          if (Number.isFinite(mine) && mine > -0.6 && mine < top + 1.5) glow.bar([x - 0.14, yAt(Math.max(0, mine)), z - 0.004], [x + 0.14, yAt(Math.max(0, mine)), z - 0.004], 0.03, col('#ffffff', 0.95, 1.8));
+        }
+      }
+    }
   }
 
   /**

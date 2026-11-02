@@ -192,7 +192,7 @@ class FakePortMain extends EventEmitter {
   const later = (ms) => new Promise((r) => setTimeout(r, ms || 0));
   const API = {
     'clips.source': () => 'test-window',
-    'clips.save': data => { const f=path.join(outDir,'export-test.webm');fs.writeFileSync(f,Buffer.from(Object.values(data)));return f;},
+    'clips.save': (data, meta) => { const f=path.join(outDir,'export-test.webm');fs.writeFileSync(f,Buffer.from(Object.values(data)));return {path:f,take:{id:'k_0000000000',name:`SH - ${(meta&&meta.title)||'Jam Session'}`}};},
     'cabs.ensure': id => require('../../src/main/services/cabinets').ensureCab(path.join(tmp,'Cabs'),id,async()=>{throw Error('offline test');}),
     'cabs.bytes': id => Array.from(fs.readFileSync(path.join(ROOT,'src/renderer/data/cabs',id+'.wav'))),
     'captures.get': () => captures.state(),
@@ -421,7 +421,7 @@ class FakePortMain extends EventEmitter {
     await page.evaluate(async()=>{const {state}=await import('./js/store.js');const a=await import('./js/actions.js');await a.playAlong(state.nowPlaying);});
     await page.waitForTimeout(1800);await page.keyboard.press('u');
     check(await page.locator('.hw-mini-tuner').isVisible(),'U opens highway tuner');await page.keyboard.press('u');check(!(await page.locator('.hw-mini-tuner').isVisible()),'U closes highway tuner');
-    await page.getByRole('button',{name:'Score attack',exact:true}).click();await page.waitForTimeout(400);
+    await page.locator('.hw-tools-btn').click();await page.locator('.menu button:has-text("Score attack")').click();await page.waitForTimeout(400);
     check(await page.locator('.attack-hud').isVisible(),'Score attack starts');
     await shot('performance-highway');
     await page.evaluate(()=>{
@@ -435,10 +435,11 @@ class FakePortMain extends EventEmitter {
       };
     });
     await page.evaluate(async()=>{const {engine}=await import('./js/stage.js');engine.seek(0);await engine.play();});
-    await page.getByRole('button',{name:'● Record clip',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('.hw-tools').textContent.includes('■ Save clip'),null,{timeout:10000});
-    await page.waitForTimeout(3500);await page.getByRole('button',{name:'■ Save clip',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('.hw-tools').textContent.includes('● Record clip'),null,{timeout:15000});
+    await page.locator('.hw-tools-btn').click();await page.locator('.menu button:has-text("Record a video clip")').click();
+    await page.waitForFunction(()=>document.querySelector('.hw-tools').textContent.includes('Recording'),null,{timeout:10000});
+    check(await page.locator('.hw-tools .hw-chip:visible').count()<=3,'the highway shows one Tools button (plus what is running), not a row of floating buttons');
+    await page.waitForTimeout(3500);await page.locator('.hw-tool-live').click();
+    await page.waitForFunction(()=>!document.querySelector('.hw-tools').textContent.includes('Recording')&&!document.querySelector('.hw-tools').textContent.includes('Saving'),null,{timeout:15000});
     check(fs.existsSync(path.join(outDir,'export-test.webm')) && fs.statSync(path.join(outDir,'export-test.webm')).size>10000,'WebM export contains encoded video and internal audio');
     const errs=logs.filter(l=>/^pageerror/.test(l));check(!errs.length,'no page errors: '+errs.join(';'));
     await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);

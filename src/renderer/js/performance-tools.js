@@ -1,8 +1,10 @@
 /**
  * Highway tools (3.10): the small tuner (U), Score attack and Record clip.
  * Tone match was here in 3.10 and 3.11; taken out in 3.12 at the user's request.
+ * 4.0: one Tools menu instead of three floating buttons; while something runs
+ * (recording, a score attack) one small chip shows it and stops it.
  */
-import { h, toast, isTyping } from './ui.js';
+import { h, toast, isTyping, showMenu, icon } from './ui.js';
 import { createTuner } from './tuner.js';
 import { scoreHit } from './performance-math.js';
 import { createClipRecorder } from './take-video.js';
@@ -11,12 +13,15 @@ export function createPerformanceTools({ root, stage, H, rig }) {
   const eng = stage.engine;
   const row = h('div.hw-tools');
   root.append(row);
+  // stand-ins for the old buttons: they keep their text/pressed state, the menu reads it
   const button = (text, title, fn) => {
     const b = h('button.hw-chip', { type: 'button', text, title });
     b.onclick = fn;
-    row.append(b);
     return b;
   };
+  const toolsBtn = h('button.hw-chip.hw-tools-btn', { type: 'button', title: 'Tuner, score attack, recording', html: `<span>Tools</span>${icon('chevron')}` });
+  const status = h('button.hw-chip.hw-tool-live', { type: 'button', hidden: true });
+  row.append(status, toolsBtn);
 
   // ------------------------------------------------------------ tuner --
   const tuner = createTuner();
@@ -28,6 +33,7 @@ export function createPerformanceTools({ root, stage, H, rig }) {
     if (tuner.el.hidden) tuner.hide(); else tuner.show();
   };
   button('Tuner · U', 'Open tuner without leaving the song (U)', toggleTuner);
+  const tunerOpen = () => !tuner.el.hidden;
 
   // ----------------------------------------------------- score attack --
   // A full-speed run from the start. Hits earn 100 × multiplier (up to ×4,
@@ -93,7 +99,45 @@ export function createPerformanceTools({ root, stage, H, rig }) {
     }
   });
 
+  // the one menu
+  toolsBtn.onclick = () => {
+    const r = toolsBtn.getBoundingClientRect();
+    showMenu(r.right, r.bottom + 4, [
+      { label: tunerOpen() ? 'Hide the tuner' : 'Tuner', hint: 'U', icon: 'tuning', onClick: toggleTuner },
+      { label: run ? 'Stop the score attack' : 'Score attack: a full run for points', icon: 'star', onClick: () => attack.onclick() },
+      { label: clip.active ? 'Stop and save the clip' : 'Record a video clip', icon: 'record', onClick: () => rec.onclick() },
+      '-',
+      { label: 'Recordings', icon: 'folder', onClick: () => import('./recordings.js').then((m) => m.openRecordings()) },
+      { label: 'Timing check', icon: 'clock', onClick: () => H.openSync && H.openSync() },
+    ], { align: 'right' });
+  };
+  // what's running right now, with one click to stop it
+  let recAt = 0;
+  status.onclick = () => (clip.active ? rec.onclick() : run ? attack.onclick() : null);
+  const showStatus = () => {
+    if (clip.active) {
+      if (!recAt) recAt = performance.now();
+      const s2 = Math.round((performance.now() - recAt) / 1000);
+      status.innerHTML = `<i class="rec-dot"></i><span>Recording ${Math.floor(s2 / 60)}:${String(s2 % 60).padStart(2, '0')} · Stop</span>`;
+      status.title = 'Stop and save the clip';
+      status.hidden = false;
+    } else if (rec.textContent === 'Exporting MP4…') {
+      recAt = 0;
+      status.innerHTML = '<span>Saving the clip…</span>';
+      status.hidden = false;
+    } else if (run) {
+      recAt = 0;
+      status.innerHTML = '<span>Score attack · Stop</span>';
+      status.title = 'Stop the score attack';
+      status.hidden = false;
+    } else {
+      recAt = 0;
+      status.hidden = true;
+    }
+  };
+
   setInterval(() => {
+    showStatus();
     if (!H.open) return;
     if (run) {
       const pos = eng.position;

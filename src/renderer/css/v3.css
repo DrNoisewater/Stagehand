@@ -1132,3 +1132,9 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 .ts-key.here { box-shadow: 0 0 0 2px var(--gel); cursor: default; }
 .ts-key:not(.here):hover { background: color-mix(in srgb, var(--gel) 22%, #121826); }
 .te-simple { align-self: flex-start; margin: 10px 0 4px; }
+
+/* 4.0: one Tools menu on the highway, and a chip while something runs */
+.hw-tools-btn svg { width: 12px; height: 12px; margin-left: 4px; }
+.hw-tool-live { color: #ffd2d2 !important; border-color: #ff5d5d88 !important; }
+.hw-tool-live .rec-dot { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; background: #ff4d4d; box-shadow: 0 0 8px #ff4d4d; animation: rec-blink 1s steps(2) infinite; }
+@keyframes rec-blink { 50% { opacity: 0.35; } }
