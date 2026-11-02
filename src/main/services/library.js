@@ -12,6 +12,7 @@ const { Psarc } = require('../core/psarc');
 const rocksmith = require('../core/rocksmith');
 const { readJson, writeJsonAtomic } = require('../core/files');
 
+const AUDIO_REV = 1; // 3.9.1: bump to re-read files that had no song audio found
 const IS_WIN = process.platform === 'win32';
 const norm = (p) => {
   const r = path.resolve(p);
@@ -142,6 +143,8 @@ class Library extends EventEmitter {
         }
         const rec = this.data.files[np];
         if (full || !rec || rec.size !== st.size || rec.mtimeMs !== st.mtimeMs) todo.push({ np, p, st });
+        // 3.9.1: files read before Stagehand could find audio stored differently get one more look
+        else if ((rec.audioRev || 0) < AUDIO_REV && (rec.songIds || []).some((id) => this.data.songs[id] && !this.data.songs[id].audioEntry)) todo.push({ np, p, st });
       }
 
       let done = 0;
@@ -233,7 +236,7 @@ class Library extends EventEmitter {
       oldIds.delete(id);
     }
     for (const id of oldIds) delete this.data.songs[id];
-    this.data.files[np] = { path: filePath, size: st.size, mtimeMs: st.mtimeMs, songIds: ids, error: error || (parsed.length ? null : undefined) };
+    this.data.files[np] = { path: filePath, size: st.size, mtimeMs: st.mtimeMs, songIds: ids, error: error || (parsed.length ? null : undefined), audioRev: AUDIO_REV };
     if (error) this.emit('log', `Could not read ${filePath}: ${error}`);
     return ids;
   }

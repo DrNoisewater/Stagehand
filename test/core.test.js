@@ -196,6 +196,21 @@ test('album art decodes to PNG', async () => {
   fs.writeFileSync(path.join(tmpDir, 'art.png'), png);
 });
 
+test('3.9.1: song audio stored inside a sound bank (DIDX/DATA) is found', () => {
+  const { bankMedia } = require('../src/main/core/rocksmith');
+  const chunk = (tag, body) => { const b = Buffer.alloc(8 + body.length); b.write(tag); b.writeUInt32LE(body.length, 4); body.copy(b, 8); return b; };
+  const idx = Buffer.alloc(24);
+  idx.writeUInt32LE(11, 0); idx.writeUInt32LE(0, 4); idx.writeUInt32LE(3, 8);
+  idx.writeUInt32LE(22, 12); idx.writeUInt32LE(3, 16); idx.writeUInt32LE(5, 20);
+  const bank = Buffer.concat([chunk('BKHD', Buffer.alloc(4)), chunk('DIDX', idx), chunk('DATA', Buffer.from('abcRIFFx')), chunk('HIRC', Buffer.alloc(4))]);
+  const m = bankMedia(bank);
+  assert.strictEqual(m.length, 2);
+  const big = m.reduce((a, b) => (b.size > a.size ? b : a));
+  assert.strictEqual(big.id, 22);
+  assert.strictEqual(bank.toString('latin1', big.offset, big.offset + big.size), 'RIFFx');
+  assert.deepStrictEqual(bankMedia(Buffer.from('not a bank')), []);
+});
+
 (async () => {
   for (const t of tests) {
     try {

@@ -125,7 +125,63 @@ function audioFolderInfo(names) {
     const m = /^audio\/(windows|mac|xbox360|ps3)\/(\d+)\.wem$/i.exec(n);
     if (m) wems.push({ name: n, id: Number(m[2]), platform: m[1].toLowerCase() });
   }
+  if (wems.length) return wems;
+  // 3.9.1: some files (official DLC among them) name or place their audio differently:
+  // any .wem (or Wwise .ogg) anywhere in the archive, by number when it has one
+  for (const n of names) {
+    if (!/\.(wem|ogg)$/i.test(n)) continue;
+    const base = n.split('/').pop().replace(/\.[^.]+$/, '');
+    const plat = /(?:^|\/)(windows|mac|xbox360|ps3)\//i.exec(n);
+    wems.push({ name: n, id: /^\d+$/.test(base) ? Number(base) : null, platform: plat ? plat[1].toLowerCase() : 'windows' });
+  }
   return wems;
+}
+
+/**
+ * Audio stored inside a Wwise sound bank (DIDX index + DATA chunk) rather than as a
+ * separate .wem: [{ id, offset, size }] with offsets into the bank buffer.
+ */
+function bankMedia(bank) {
+  if (!bank || bank.length < 8) return [];
+  let didx = null;
+  let data = -1;
+  for (let off = 0; off + 8 <= bank.length; ) {
+    const tag = bank.toString('latin1', off, off + 4);
+    const len = bank.readUInt32LE(off + 4);
+    if (!/^[A-Z]{4}$/.test(tag) || off + 8 + len > bank.length) break;
+    if (tag === 'DIDX') didx = { start: off + 8, len };
+    if (tag === 'DATA') data = off + 8;
+    off += 8 + len;
+  }
+  if (!didx || data < 0) return [];
+  const out = [];
+  for (let i = didx.start; i + 12 <= didx.start + didx.len; i += 12) {
+    const m = { id: bank.readUInt32LE(i), offset: data + bank.readUInt32LE(i + 4), size: bank.readUInt32LE(i + 8) };
+    if (m.size > 0 && m.offset + m.size <= bank.length) out.push(m);
+  }
+  return out;
+}
+
+/** Entry names for a song's audio: 'name' or, inside a bank, 'name#id'. */
+function splitAudioEntry(entry) {
+  const i = String(entry).lastIndexOf('#');
+  return i < 0 ? { name: entry, media: null } : { name: entry.slice(0, i), media: Number(entry.slice(i + 1)) };
+}
+
+/** Reads a song's audio bytes from an open archive (a .wem, or media inside a bank). */
+async function readAudio(psarc, entry) {
+  const { name, media } = splitAudioEntry(entry);
+  const buf = await psarc.read(name);
+  if (media === null) return buf;
+  const m = bankMedia(buf).find((x) => x.id === media);
+  if (!m) throw new Error('The song audio is missing from its sound bank');
+  return buf.subarray(m.offset, m.offset + m.size);
+}
+
+/** What a file holds that looks like audio, for the log when no song audio is found. */
+function audioDiagnosis(names) {
+  const hits = names.filter((n) => /^audio\/|\.(wem|ogg|bnk|wav)$/i.test(n));
+  return hits.length ? `${hits.length} audio-like entries: ${hits.slice(0, 12).join(', ')}${hits.length > 12 ? ', …' : ''}` : `no audio entries among ${names.length} files`;
 }
 
 /**
@@ -250,7 +306,7 @@ async function readSongs(psarc) {
     // Main audio: the .wem referenced by the song's sound bank.
     let audio = null;
     let preview = null;
-    const ids = wems.map((w) => w.id);
+    const ids = wems.map((w) => w.id).filter((id) => id !== null);
     const sizeOf = (name) => psarc.entryFor(name).length;
     const bank = await readBank(s._bank);
     if (bank) {
@@ -268,6 +324,15 @@ async function readSongs(psarc) {
       let best = pool[0];
       for (const w of pool) if (psarc.entryFor(w.name).length > psarc.entryFor(best.name).length) best = w;
       audio = best.name;
+    }
+    // 3.9.1: no separate audio file: the audio may be inside the song's sound bank
+    if (!audio && bank) {
+      const media = bankMedia(bank);
+      if (media.length) {
+        const full = names.find((n) => n.toLowerCase().endsWith('/' + String(s._bank).toLowerCase()));
+        const big = media.reduce((a, b) => (b.size > a.size ? b : a));
+        if (full) audio = `${full}#${big.id}`;
+      }
     }
 
     const secs = (s._sections || s._sectionsAny || [])
@@ -303,6 +368,7 @@ async function readSongs(psarc) {
       audioEntry: audio,
       previewEntry: preview,
       platform: wems[0] ? wems[0].platform : null,
+      audioNote: audio ? undefined : audioDiagnosis(names),
     });
   }
   return out;
@@ -464,6 +530,8 @@ async function buildEdit(psarc, songKey, rawChanges) {
 
 module.exports = {
   readSongs,
+  readAudio,
+  bankMedia,
   buildEdit,
   normalizeChanges,
   sortableName,
