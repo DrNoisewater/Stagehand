@@ -632,10 +632,25 @@ on('library', render);
 on('rocksmith', () => {
   if (state.view.kind === 'rslist') rebuild();
 });
+// 4.0.4: coming back to a list (after opening a song, or from another list) keeps your place
+const savedTop = new Map();
+const viewKey = () => `${state.layout}|${JSON.stringify(state.view)}`;
+const shownNow = () => scroller.isConnected && scroller.clientHeight > 0;
+scroller.addEventListener('scroll', () => {
+  if (shownNow()) savedTop.set(viewKey(), scroller.scrollTop);
+}, { passive: true });
+function restoreTop() {
+  const top = savedTop.get(viewKey()) || 0;
+  if (scroller.scrollTop !== top) scroller.scrollTop = top;
+  renderWindow();
+}
 on('view', () => {
-  scroller.scrollTop = 0;
+  scroller.scrollTop = savedTop.get(viewKey()) || 0;
   rebuild();
+  // the page may only just be shown again: set it once more after layout
+  requestAnimationFrame(() => shownNow() && restoreTop());
 });
+on('page', () => requestAnimationFrame(() => shownNow() && restoreTop()));
 on('selection', refreshDecorations);
 on('playing', refreshDecorations);
 on('stems', debounce(() => {
@@ -651,6 +666,7 @@ on('scan', () => {
 });
 on('search', () => {
   scroller.scrollTop = 0;
+  savedTop.delete(viewKey());
   render();
 });
 

@@ -356,7 +356,12 @@ export function setPage(page, { quiet = false } = {}) {
   if (!quiet && changed) emit('view');
 }
 
-/** 4.0.3: official (paid) Rocksmith DLC: custom songs carry a toolkit or author stamp, official files don't. */
+/** 4.0.4: official (paid) Rocksmith DLC: no creator stamp and on the official song list (worked out by the main process). */
 export function isOfficial(s) {
+  return !!s && !!s.official;
+}
+
+/** A file with no creator stamp (official DLC, or a custom made without one): its audio may be in another file. */
+export function noStamp(s) {
   return !!s && !s.toolkit && !s.author && !s.packageVersion;
 }

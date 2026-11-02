@@ -222,6 +222,8 @@ class FakePortMain extends EventEmitter {
     'library.get': () => {
       const s = library.snapshot();
       s.songs = s.songs.map((x) => ({ ...x, hasStems: false }));
+      // SH_LISTPOS_ONLY: a long list, so there's somewhere to scroll to
+      if (process.env.SH_LISTPOS_ONLY) s.songs = s.songs.concat(Array.from({ length: 300 }, (_, i) => ({ ...s.songs[i % s.songs.length], id: `pad${i}`, title: `Padding ${String(i).padStart(3, '0')}` })));
       return s;
     },
     'audio.prepare': async (id) => {
@@ -361,6 +363,29 @@ class FakePortMain extends EventEmitter {
   await page.goto(`${base}/src/renderer/index.html`);
   await page.waitForTimeout(3500);
   const shot = (n) => process.env.SH_NO_PICS?Promise.resolve():(console.log('SHOT', n), page.screenshot({ path: path.join(outDir, `v3-${n}.png`) }));
+  if (process.env.SH_LISTPOS_ONLY) {
+    // 4.0.4: opening a song and coming back keeps your place in the list
+    await page.evaluate(async () => (await import('./js/store.js')).setPage('songs'));
+    await page.waitForTimeout(400);
+    await page.evaluate(() => { document.querySelector('.scroller').scrollTop = 4000; });
+    await page.waitForTimeout(300);
+    const row = page.locator('.scroller .row').filter({ hasText: 'Padding' }).nth(3).getByText(/^Padding \d+$/);
+    await row.click();
+    await page.waitForTimeout(200);
+    const before = await page.evaluate(() => document.querySelector('.scroller').scrollTop);
+    await row.dblclick();
+    await page.waitForTimeout(1500);
+    const away = await page.evaluate(async () => (await import('./js/store.js')).state.page);
+    check(away !== 'songs', `opening a song leaves the list (${away})`);
+    await page.evaluate(async () => (await import('./js/store.js')).setPage('songs'));
+    await page.waitForTimeout(600);
+    const top = await page.evaluate(() => document.querySelector('.scroller').scrollTop);
+    check(Math.abs(top - before) < 2, `back on the list at the same place (${top}, was ${before})`);
+    const rows = await page.locator('.scroller .row').filter({ hasText: 'Padding' }).count();
+    check(rows > 3, `rows are drawn there (${rows})`);
+    await shot('listpos');
+    await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
+  }
   if(process.env.SH_PICTURES311){
     await shot('311-jam');
     await page.getByRole('button',{name:'Open visualizer',exact:true}).click();

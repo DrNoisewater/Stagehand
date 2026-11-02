@@ -19,6 +19,8 @@ const { ArtService } = require('./services/art');
 const { Organizer } = require('./services/organize');
 const { RsProfiles } = require('./services/rsprofiles');
 const { MusicBrainz } = require('./services/musicbrainz');
+const { OfficialList } = require('./services/officiallist');
+const officialList = new OfficialList();
 const { Discover, IGNITION } = require('./services/discover');
 const { Importer } = require('./services/importer');
 const { Covers, imageType } = require('./services/covers');
@@ -122,7 +124,7 @@ function handle(channel, fn) {
 }
 
 function withStems(s) {
-  return { ...s, hasStems: !!stems.ready(s) };
+  return { ...s, hasStems: !!stems.ready(s), official: officialList.isOfficial(s) };
 }
 
 function requireSong(id) {
