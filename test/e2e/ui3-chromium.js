@@ -593,6 +593,12 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(2500);
   await page.locator('.tone-item .ti-main').first().click();
   await page.waitForTimeout(800);
+  // 3.13: a picked tone shows the simple view first: what it is, play it, put it on a key
+  check((await page.locator('.tones-edit .ts-keys .ts-key').count()) === 8 && (await page.locator('.tones-edit .knobs3').count()) === 0, 'Tones opens a tone simply: keys 2–9 to put it on, no knobs in the way');
+  await shot('7a-tones-simple');
+  await page.locator('.tones-edit button:has-text("Edit tone")').click();
+  await page.waitForTimeout(500);
+  check((await page.locator('.tones-edit .chain, .tones-edit .knobs3').count()) > 0, 'Edit tone opens the full editor');
   await shot('7b-tones-song');
   await page.locator('.te-save').click();
   await page.waitForTimeout(800);

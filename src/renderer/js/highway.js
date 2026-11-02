@@ -132,7 +132,7 @@ export function createHighway(stage) {
   const mixBtn = h('button.hw-chip', { type: 'button', title: 'Song mix: stem volumes, on and off', html: `${icon('sliders')}<span>Mix</span>` });
   // The song mix docks on the right edge and collapses to a small tab.
   const mixPanel = h('div.hw-mix');
-  const mixTab = h('button.hw-dock-tab', { type: 'button', title: 'Master Settings: mix, Drop and tuning, highway options', 'aria-label': 'Master Settings' });
+  const mixTab = h('button.hw-dock-tab', { type: 'button', title: 'Sound & settings: the mix, Drop and tuning, timing, how the highway looks', 'aria-label': 'Sound and settings' });
   const dock = h('div.hw-dock', null, mixTab, mixPanel);
   let mixOpen = !!prefs.mixOpen;
   // the Mix button doubled the tab on the right edge: the tab opens the mix now
@@ -798,7 +798,7 @@ export function createHighway(stage) {
     dock.classList.toggle('collapsed', !on);
     mixBtn.setAttribute('aria-pressed', String(on));
     mixTab.setAttribute('aria-expanded', String(on));
-    mixTab.innerHTML = `${icon(on ? 'chevronRight' : 'chevronLeft')}<span>Master Settings</span>`;
+    mixTab.innerHTML = `${icon(on ? 'chevronRight' : 'chevronLeft')}<span>Sound &amp; settings</span>`;
     renderMix();
   }
   mixBtn.onclick = () => setMixOpen(!mixOpen);
@@ -811,7 +811,7 @@ export function createHighway(stage) {
     if (document.activeElement && document.activeElement.classList.contains('stem-vol') && mixPanel.contains(document.activeElement)) return;
     mixPanel.innerHTML = '';
     mixMeters.clear();
-    mixPanel.append(h('div.hw-master-title', null, h('b', { text: 'Master Settings' })), syncButton());
+    mixPanel.append(h('div.hw-master-title', null, h('b', { text: 'Sound & settings' })), syncButton());
     renderMixBody();
     mixPanel.append(h('div.hw-master-sec', { text: 'Tuning' }), dropBox, opts);
     renderDropBox();
