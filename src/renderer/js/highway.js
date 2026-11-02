@@ -1908,10 +1908,10 @@ export function createHighway(stage) {
   /**
    * A note's sustain from t0 to t1 (song times): a flat glowing ribbon at its
    * string's height. Each technique has its own look, so they read at a glance:
-   * a bend climbs (with ↑ and how far); vibrato is a smooth, rounded wave (and a
-   * bent note's bend wobbles with it: one bend that wobbles, 4.0.6); tremolo picking
-   * is a sharp zigzag with hard corners, wider and quicker (as in Rocksmith), so the
-   * two never look alike.
+   * a bend climbs (with ↑ and how far); vibrato is quick little bends, smooth and
+   * round, the same way (a bent note's bend wobbles: one bend that wobbles, 4.0.6);
+   * tremolo picking is a sharp sideways zigzag with hard corners (as in Rocksmith),
+   * so the two never look alike.
    */
   function buildTrail(nt, tg, t0, t1, an, st) {
     const { alpha, glow } = R3.L;
@@ -1936,14 +1936,19 @@ export function createHighway(stage) {
       let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
       const age = Math.max(0, time - tg.t);
       const ease = Math.min(1, age / 0.12);
-      // tremolo: a triangle wave (straight lines, sharp corners); vibrato: a sine (round)
+      // tremolo: a sideways triangle wave (straight lines, sharp corners)
       if (trem) {
         const ph = (age * TREM_HZ) % 1;
         x += (ph < 0.5 ? ph * 4 - 1 : 3 - ph * 4) * lw * 0.3 * ease;
-      } else if (vib) x += Math.sin(age * Math.PI * 2 * VIB_HZ) * lw * 0.13 * ease;
-      // a bent note's vibrato wobbles the bend; a straight note's stays flat (its round wave says it)
+      }
+      // vibrato is little bends, smooth and quick: up and back on a straight note, down
+      // from the bend and back on a bent one, the same way the ribbon bends (drawn twice
+      // as big as it sounds, a half step, so it reads from the back; no ↑ label)
       const hb = heldBend(nt, time);
-      const bend = hb >= 0.25 ? hb + vibratoAt(nt, time, hb) : hb;
+      const vb = vibratoAt(nt, time, hb);
+      const bend = hb + 2 * vb;
+      // seen from behind, lifting alone hardly shows: it leans a little sideways with each lift
+      if (vb) x += Math.abs(vb) * 2 * lw * 0.22;
       const direction = L0 > (G.n-1)/2 ? -1 : 1; // push lower strings inward; pull upper strings inward
       const L = L0 + direction * bend * .70;
       return [x, nY(L) - G.gy * 0.12, zOf(time), L];

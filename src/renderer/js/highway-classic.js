@@ -1295,13 +1295,15 @@ export function createClassicHighway(stage) {
       const e = Math.min(1, Math.max(0, u));
       let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
       // a bend pushes the ribbon across the strings: a full step a string and a half, and
-      // a bent note's vibrato wobbles the bend. Vibrato is a smooth wave, tremolo a sharp
-      // zigzag (4.0.6: they must never look alike), in real time so they read true at any speed
+      // vibrato is quick little bends (smooth, one side), tremolo a sharp
+      // zigzag across (4.0.6: they must never look alike), in real time so they read true at any speed
       const age = Math.max(0, time - tg.t);
       if (nt.tremolo) { const ph = (age * 6) % 1; x += (ph < 0.5 ? ph * 4 - 1 : 3 - ph * 4) * lw * 0.24; }
-      else if (nt.vibrato && u > 0.06) x += Math.sin(age * Math.PI * 2 * 5.5) * lw * 0.12;
       const b = bendAt(nt, time);
-      const L = L0 + ((b + (b > 0 ? vibratoAt(nt, time, b) : 0)) / 2) * 1.5;
+      // vibrato: quick little bends (drawn a half step), leaning a little sideways with each
+      const vb = vibratoAt(nt, time, b);
+      if (vb) x += Math.abs(vb) * 2 * lw * 0.2;
+      const L = L0 + ((b + 2 * vb) / 2) * 1.5;
       pts.push([x, L, zOf(time)]);
     }
     const edge = (side) => pts.map(([x, L, dz]) => {
