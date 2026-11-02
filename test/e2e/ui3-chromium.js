@@ -804,7 +804,8 @@ class FakePortMain extends EventEmitter {
   // ---- 3.13: song switching never leaves the wrong song, a dead spinner, or a silent stall ----
   {
     const ids3 = library.snapshot().songs.map((x) => x.id);
-    const [sA, sB, sC] = ids3;
+    // (the test library has two songs: A and B)
+    const [sA, sB] = ids3;
     const hwState = () =>
       page.evaluate(async () => {
         const st = await import('/src/renderer/js/stage.js');
@@ -824,15 +825,15 @@ class FakePortMain extends EventEmitter {
       }
       return v;
     };
-    // rapid switching: B's part answers slowly, C is picked straight after: C must win
+    // rapid switching: B's part answers slowly, A is picked straight after: A must win
     tabDelay.set(sB, 2500);
     along(sB);
     await page.waitForTimeout(150);
-    along(sC);
-    let v = await until((x) => x.phase === 'ready' && x.tabFor === sC);
+    along(sA);
+    let v = await until((x) => x.phase === 'ready' && x.tabFor === sA);
     await page.waitForTimeout(2800); // B's late answer arrives now
     v = await hwState();
-    check(v.song === sC && v.hwSong === sC && v.tabFor === sC, `rapid switching: the last song picked is on the highway, not a late answer for the one before (${JSON.stringify({ song: v.song === sC, hw: v.hwSong === sC, tab: v.tabFor === sC })})`);
+    check(v.song === sA && v.hwSong === sA && v.tabFor === sA, `rapid switching: the last song picked is on the highway, not a late answer for the one before (${JSON.stringify({ song: v.song === sA, hw: v.hwSong === sA, tab: v.tabFor === sA })})`);
     tabDelay.clear();
     // a song that fails to open: says so on the highway, nothing old plays, Try again and Back work
     audioFail.add(sA);
@@ -860,16 +861,18 @@ class FakePortMain extends EventEmitter {
     v = await until((x) => x.phase === 'ready' && x.song === sB && x.tabFor === sB);
     check(v.phase === 'ready' && v.tabFor === sB, 'Try again opens it once it works');
     // loading shows on the highway, and leaving the highway mid-load and coming back shows the new song
-    audioDelay.set(sC, 2500);
-    along(sC);
+    along(sA);
+    await until((x) => x.phase === 'ready' && x.tabFor === sA && !x.status);
+    audioDelay.set(sB, 3000);
+    along(sB);
     await page.waitForTimeout(500);
     v = await hwState();
     check(v.phase === 'loading' && /Opening/.test(v.status), `while a song opens the highway says so (“${v.status.slice(0, 50)}”)`);
     await page.keyboard.press('Escape');
     await page.waitForTimeout(400);
     await page.evaluate(async () => (await import('/src/renderer/js/stage.js')).openHighway());
-    v = await until((x) => x.phase === 'ready' && x.tabFor === sC && !x.status);
-    check(v.open && v.song === sC && v.hwSong === sC && v.tabFor === sC && !v.status, 'leaving the highway while a song opens and coming back shows that song, ready');
+    v = await until((x) => x.phase === 'ready' && x.tabFor === sB && !x.status);
+    check(v.open && v.song === sB && v.hwSong === sB && v.tabFor === sB && !v.status, 'leaving the highway while a song opens and coming back shows that song, ready');
     audioDelay.clear();
     // back to the first song for the rest of the run
     along(firstId);
