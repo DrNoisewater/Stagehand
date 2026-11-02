@@ -1138,3 +1138,25 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 .hw-tool-live { color: #ffd2d2 !important; border-color: #ff5d5d88 !important; }
 .hw-tool-live .rec-dot { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; background: #ff4d4d; box-shadow: 0 0 8px #ff4d4d; animation: rec-blink 1s steps(2) infinite; }
 @keyframes rec-blink { 50% { opacity: 0.35; } }
+
+/* Progress 4.0: last song + up next, your songs by mastery */
+.ptop { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); gap: 18px; align-items: stretch; }
+@media (max-width: 1250px) { .ptop { grid-template-columns: 1fr; } }
+.pnext { display: flex; flex-direction: column; gap: 12px; padding: 20px 22px; background: radial-gradient(500px 220px at 100% 0%, rgba(51, 200, 224, 0.12), transparent 70%), var(--card); border-color: rgba(51, 200, 224, 0.25); }
+.pnext h2 { margin: 0; font: 800 20px var(--font); }
+.pnext-row { display: flex; gap: 14px; align-items: center; }
+.pnext-why { margin: 0; color: var(--ink-2); font: 500 13px/1.55 var(--font); }
+.pnext .pspot-actions { margin-top: auto; }
+.pmastery { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.pm-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #ffffff10; }
+.pm-bar i { display: block; height: 100%; }
+.pm-legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.pm-key { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; border: 1px solid #ffffff14; background: #ffffff08; color: var(--ink-2); font: 600 13px var(--font); cursor: pointer; }
+.pm-key b { color: var(--ink); }
+.pm-key:hover { background: #ffffff14; }
+.pm-key .dot { width: 9px; height: 9px; border-radius: 50%; }
+.pm-mastered, .pm-key.pm-mastered .dot { background: #45d07c; }
+.pm-close, .pm-key.pm-close .dot { background: #ffb547; }
+.pm-learning, .pm-key.pm-learning .dot { background: #ff6b6b; }
+.pm-unplayed, .pm-key.pm-unplayed .dot { background: #5a6378; }
+.pm-key.pm-mastered, .pm-key.pm-close, .pm-key.pm-learning, .pm-key.pm-unplayed { background: #ffffff08; }

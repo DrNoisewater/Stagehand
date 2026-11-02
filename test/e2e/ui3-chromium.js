@@ -643,6 +643,10 @@ class FakePortMain extends EventEmitter {
     await shot(`${n}-${name.toLowerCase()}`);
   }
   check(await page.locator('.take').count() >= 1, 'the saved loop is in your takes');
+  await page.locator('.nav-section:has-text("Progress")').click();
+  await page.waitForTimeout(1200);
+  check((await page.locator('.pnext .btn').count()) === 1 && (await page.locator('.pmastery .pm-key').count()) === 4, `Progress suggests what to practise next and shows your songs by mastery (“${((await page.locator('.pnext h2').textContent().catch(() => '')) || '').slice(0, 50)}”)`);
+  await shot('8b-progress-top');
   // Settings › Stems (FLAC only)
   await page.keyboard.press('Control+Comma');
   await page.waitForTimeout(800);
