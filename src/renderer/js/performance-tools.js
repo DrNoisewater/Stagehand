@@ -73,7 +73,7 @@ export function createPerformanceTools({ root, stage, H, rig }) {
   closeBoard.onclick = () => { leaderboard.hidden = true; };
 
   // ------------------------------------------------------ record clip --
-  const clip = createClipRecorder({ rig, engine: eng });
+  const clip = createClipRecorder({ rig, engine: eng, title: () => (H.song && H.song.title) || 'Jam Session', songId: () => (H.song && H.song.id) || null });
   const rec = button('● Record clip', 'Save highway video with the audible song and processed instrument', async () => {
     rec.disabled = true;
     try {

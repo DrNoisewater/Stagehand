@@ -492,18 +492,23 @@ function registerIpc() {
     return source.id;
   });
   handle('clips:prepare',()=>require('./services/video-export').ensureEncoder(tools).then(()=>true));
-  handle('clips:save',async(data)=>{
+  // 3.13: no save box: the video goes straight into your recordings as "SH - <song>.mp4"
+  // (or "SH - Jam Session.mp4"), never over an older one, and shows in Recordings
+  handle('clips:save',async(data,meta={})=>{
     if(!(data instanceof Uint8Array)||data.byteLength>650*1024*1024)throw Error('Clip exceeds the 650 MB limit.');
-    const result=await dialog.showSaveDialog({title:'Export highway take',defaultPath:path.join(D.takes,`Stagehand-${Date.now()}.mp4`),filters:[{name:'MP4 video',extensions:['mp4']}]});
-    if(result.canceled)return null;
-    const file=/\.mp4$/i.test(result.filePath)?result.filePath:result.filePath+'.mp4';
+    const title=String((meta&&meta.title)||'Jam Session');
+    await fsp.mkdir(path.join(D.takes,'Videos'),{recursive:true});
+    const rel=takes.freeName(title,'mp4','Videos');
+    const file=path.join(D.takes,rel);
     const temp=await fsp.mkdtemp(path.join(app.getPath('temp'),'stagehand-video-'));
     const input=path.join(temp,'capture.webm'),output=path.join(temp,'export.mp4');
     try{
       await fsp.writeFile(input,data);
       const video=require('./services/video-export');
       await video.exportMp4(await video.ensureEncoder(tools),input,output);
-      await fsp.copyFile(output,file);return file;
+      await fsp.copyFile(output,file);
+      const take=await takes.addVideo({file:rel,name:path.basename(rel,'.mp4'),songId:(meta&&meta.songId)||null,seconds:Number(meta&&meta.seconds)||0});
+      return {path:file,take};
     }finally{await fsp.rm(temp,{recursive:true,force:true});}
   });
   handle('takes:list' , () => takes.list());

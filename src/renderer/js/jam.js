@@ -211,4 +211,4 @@ export function registerJamControls(cards,refresh){
 }
 let clip=null;
 export const recordControl=h('button.jam-chip',{text:'Record video'});controls.append(recordControl);
-recordControl.onclick=async()=>{const record=recordControl;clip??=createClipRecorder({rig,engine:stage.engine});record.disabled=true;try{if(clip.active){record.textContent='Exporting…';await clip.stop();record.textContent='Record video';}else{await clip.start();record.textContent='Save video';}}catch(e){record.textContent='Record video';toast({title:'Recording',message:e.message,kind:'err'});}finally{record.disabled=false;}};
+recordControl.onclick=async()=>{const record=recordControl;clip??=createClipRecorder({rig,engine:stage.engine,title:()=>'Jam Session'});record.disabled=true;try{if(clip.active){record.textContent='Exporting…';await clip.stop();record.textContent='Record video';}else{await clip.start();record.textContent='Save video';}}catch(e){record.textContent='Record video';toast({title:'Recording',message:e.message,kind:'err'});}finally{record.disabled=false;}};

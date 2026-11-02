@@ -111,7 +111,9 @@ function render() {
   row.append(songs);
 
   // takes
-  const takes = h('section.card.ptakes', { 'aria-label': 'Your takes' }, h('div.card-head', null, h('h2', { text: 'Your takes' })), h('div.np-fine', { text: 'Recordings from the looper and Record take.' }));
+  const allRec = h('button.btn.small.ghost', { type: 'button', text: 'All recordings' });
+  allRec.onclick = () => import('./recordings.js').then((r) => r.openRecordings());
+  const takes = h('section.card.ptakes', { 'aria-label': 'Your takes' }, h('div.card-head', null, h('h2', { text: 'Your takes' }), allRec), h('div.np-fine', { text: 'Recordings from the looper, Record take and video clips.' }));
   if (!P.takes.length) takes.append(h('p.np-fine', { text: 'Nothing recorded yet. Use the looper on Play, or Record take while a song plays.' }));
   for (const t of P.takes.slice(0, 30)) {
     const on = P.playing === t.id;

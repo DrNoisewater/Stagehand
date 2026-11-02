@@ -961,6 +961,19 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(500);
   check(await page.evaluate(() => document.querySelector('.jam').hidden && !document.querySelector('.jam .hw-fluid')), 'Esc leaves Jam and stops the picture');
 
+  // 3.13: Recordings, from the menu: every recording with its date, length and size, playable here
+  await takes.save({ name: 'Integration', seconds: 1, rate: 48000, channels: 1, pcm: new Uint8Array(new Float32Array(48000).fill(0.05).buffer) });
+  await page.locator('.nav-section:has-text("Recordings")').click();
+  await page.waitForSelector('.modal .rec-row', { timeout: 10000 });
+  const rec = await page.evaluate(() => [...document.querySelectorAll('.modal .rec-row')].map((r) => r.textContent));
+  check(rec.some((t) => /SH - Integration|Integration/.test(t) && /0:01/.test(t) && /KB|MB/.test(t)), `Recordings lists takes with length and size (${rec[0] && rec[0].slice(0, 70)})`);
+  await page.locator('.modal .rec-row .round-play').first().click();
+  await page.waitForTimeout(600);
+  check(await page.evaluate(() => !!document.querySelector('.modal .rec-player audio, .modal .rec-player video')), 'a recording plays inside Stagehand');
+  await shot('28-recordings');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+
   // reopening Stagehand on Tones › From my songs (the tab is remembered) must start reading by itself
   await page.evaluate(() => localStorage.setItem('stagehand.tonesTab', 'songs'));
   await page.reload();

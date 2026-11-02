@@ -152,6 +152,8 @@ export function render() {
   top.append(songsSub);
   top.append(section({ page: 'tones', label: 'Tones', iconName: 'tones', gel: 'var(--gel-bass)' }));
   top.append(section({ page: 'progress', label: 'Progress', iconName: 'chart', gel: 'var(--gel-piano)' }));
+  // 3.13: one place for every recording (looper, takes, highway and Jam videos)
+  top.append(section({ page: 'recordings', label: 'Recordings', iconName: 'record', gel: 'var(--gel-drums)', onClick: () => import('./recordings.js').then((r) => r.openRecordings()) }));
   top.append(
     section({
       page: 'discover',
