@@ -169,7 +169,7 @@ class StemService extends EventEmitter {
   request(songIds, { force = false } = {}) {
     for (const id of songIds) {
       const song = this.library.get(id);
-      if (!song) continue;
+      if (!song || song.audioEntry === null) continue; // no song audio inside: nothing to split
       if (this.current && this.current.songId === id) continue;
       if (this.queue.some((j) => j.songId === id)) continue;
       if (!force && this.ready(song)) continue;

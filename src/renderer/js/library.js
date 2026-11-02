@@ -171,12 +171,17 @@ function bestBadge(s) {
   return `<sup class="acc${pct >= 100 ? ' full' : pct >= 90 ? ' high' : ''}" title="Your best accuracy: ${pct}%">${pct}%</sup>`;
 }
 
+/** 4.0.2: the file has no song audio inside, so it can't play. */
+function noAudioBadge(s) {
+  return s.audioEntry === null ? '<sup class="noaudio" title="No song audio in this file: it can’t play">no audio</sup>' : '';
+}
+
 function buildRow(s) {
   const el = h('div.row.cols', { role: 'row', draggable: 'true' });
   el.dataset.id = s.id;
   el.innerHTML = `
     <div><div class="thumb">${thumbHtml(s, 64)}</div></div>
-    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}</div>
+    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}</div>
     <div>${s.artist ? `<span class="go" data-go="artist" title="All songs by ${esc(s.artist)}">${esc(s.artist)}</span>` : ''}</div>
     <div>${s.album ? `<span class="go" data-go="album" title="Everything from ${esc(s.album)}">${esc(s.album)}</span>` : ''}</div>
     <div class="num">${s.year ? `<span class="go" data-go="year" title="Songs from ${s.year}">${s.year}</span>` : ''}</div>
@@ -204,7 +209,7 @@ function buildTile(s) {
     .map(([key, letter, label]) => `<span class="pb pb-${key}" title="${label}">${letter}</span>`)
     .join('');
   el.innerHTML = `<div class="halo"></div><div class="cover gelled"><span class="ini">${esc(initialsOf(s))}</span>${s.art ? `<img src="${esc(api.artUrl(s, 256))}" alt="" loading="lazy" decoding="async" draggable="false">` : ''}<span class="badges">${badges}</span>${ring}<button type="button" class="play" title="Play" data-play>${icon('play')}</button></div>
-    <div class="tt" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}</div><div class="ta">${esc(s.artist)}${s.tuning ? ` · ${esc(s.tuning)}` : ''}</div>`;
+    <div class="tt" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}</div><div class="ta">${esc(s.artist)}${s.tuning ? ` · ${esc(s.tuning)}` : ''}</div>`;
   const img = el.querySelector('img');
   if (img) {
     img.onload = () => el.querySelector('.cover').classList.add('has-img');

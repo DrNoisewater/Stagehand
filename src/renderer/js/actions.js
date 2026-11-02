@@ -27,6 +27,9 @@ export async function playSong(id, opts = {}) {
 export async function playAlong(id) {
   const song = state.songs.get(id);
   if (!song || !stageApi) return;
+  // 4.0.2: a file with no song audio inside used to open the highway over an error you
+  // couldn't see (the player behind it said why), so it looked like everything had stopped
+  if (song.audioEntry === null) return noAudioToast(song);
   const cur = stageApi.current && stageApi.current();
   // the same song carries on, unless it failed to open: then picking it again tries again
   const phase = stageApi.loadInfo ? stageApi.loadInfo().phase : 'ready';
@@ -40,6 +43,15 @@ export async function playAlong(id) {
   const { setPage } = await import('./store.js');
   setPage('now');
   await loading;
+}
+
+/** Says why a song can't play: its file has no song audio inside. */
+export function noAudioToast(song) {
+  toast({
+    title: `${song.title || 'This song'} has no audio inside`,
+    message: 'The file holds the parts but not the song’s audio (some song packs and official DLC files keep it in another file), so it can’t play. Songs › ⋯ › Find duplicate songs shows whether you have another copy with audio.',
+    kind: 'err',
+  });
 }
 
 export function playAdjacent(dir) {
