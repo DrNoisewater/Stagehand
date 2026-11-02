@@ -6,7 +6,14 @@ stub, out, root, ezip, vzip, uzip = sys.argv[1:7]
 APP = ['package.json', 'src', 'engine', 'build', 'native/bin']
 SKIP_DIRS = {'__pycache__', 'node_modules', '.git'}
 tmp = out + '.zip'
-with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as z:
+# 4.0: smaller download: the strongest deflate the installer can unpack (was the fastest),
+# and only the English language file for Electron's own menus and messages (Stagehand
+# itself is in English; Electron falls back to it, the same as electron-builder's
+# electronLanguages option). Licence files stay.
+LEVEL = 9
+def keep(prefix, rel):
+    return not (prefix == 'runtime/' and rel.startswith('locales/') and rel != 'locales/en-US.pak')
+with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED, compresslevel=LEVEL) as z:
     def copy_zip(src, prefix, strip_top=False):
         with zipfile.ZipFile(src) as s:
             names = [n for n in s.namelist() if not n.endswith('/')]
@@ -14,9 +21,12 @@ with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as z:
             top = top[:top.rfind('/') + 1] if '/' in top else ''
             for n in names:
                 rel = n[len(top):]
+                if not keep(prefix, rel):
+                    continue
                 info = zipfile.ZipInfo(prefix + rel, date_time=s.getinfo(n).date_time)
                 info.compress_type = zipfile.ZIP_DEFLATED
-                z.writestr(info, s.read(n), compresslevel=1)
+                info.external_attr = s.getinfo(n).external_attr
+                z.writestr(info, s.read(n), compresslevel=LEVEL)
     copy_zip(ezip, 'runtime/')
     for item in APP:
         p = os.path.join(root, item)

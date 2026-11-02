@@ -737,6 +737,29 @@ static DWORD WINAPI install_thread(void *arg) {
   Part rt = payload_part(&S.pay, "runtime/"), app = payload_part(&S.pay, "app/"), dec = payload_part(&S.pay, "vgmstream/");
   P.total = app.bytes + (S.need_runtime ? rt.bytes : 0) + (S.need_decoder ? dec.bytes : 0);
   uint64_t done = 0;
+  /* 4.0: enough room on the drive? Say so now, not halfway through (the new copy is
+     built next to the old one, plus room for the stem splitter's first download) */
+  {
+    wchar_t at[MAX_PATH];
+    wcsncpy(at, S.dest, MAX_PATH - 1);
+    at[MAX_PATH - 1] = 0;
+    while (!wexists(at)) {
+      wchar_t *cut = wcsrchr(at, L'\\');
+      if (!cut) break;
+      *cut = 0;
+    }
+    ULARGE_INTEGER avail;
+    uint64_t need = P.total + 300ull * 1024 * 1024;
+    if (GetDiskFreeSpaceExW(at, &avail, NULL, NULL) && avail.QuadPart < need) {
+      wchar_t msg[300];
+      _snwprintf(msg, 300, L"Not enough free space: Stagehand needs about %llu MB on this drive and %llu MB are free. Free some space, then press Install again.",
+                 (unsigned long long)(need >> 20), (unsigned long long)(avail.QuadPart >> 20));
+      msg[299] = 0;
+      fail(msg);
+      CoUninitialize();
+      return 0;
+    }
+  }
   wchar_t stage[MAX_PATH], appdir[MAX_PATH], icon[MAX_PATH], uninst[MAX_PATH];
   char uninst8[MAX_PATH * 3];
 
