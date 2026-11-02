@@ -267,6 +267,8 @@ class FakePortMain extends EventEmitter {
   // recordings got every chunk more than once (garbled) when old engine lines kept feeding them
   const rr = await page.evaluate(async () => {
     const { rig } = window.__h;
+    // record these restarts somewhere else: the speaker checks below read the first run's output
+    if (window.__shFakeAudio && window.__shFakeAudio.fakeOut) window.__shFakeAudio = { ...window.__shFakeAudio, fakeOut: window.__shFakeAudio.fakeOut.replace(/\.wav$/, '-restarts.wav') };
     for (let i = 0; i < 2; i++) {
       rig.stop();
       await new Promise((r) => setTimeout(r, 200));
@@ -297,7 +299,8 @@ class FakePortMain extends EventEmitter {
       if (seen.has(k)) dupes++;
       seen.add(k);
     });
-    await new Promise((r) => setTimeout(r, 1500));
+    // (after a restart the engine can take a moment to send sound here: wait for some)
+    for (let i = 0; i < 25 && (chunks < 6 || tapChunks < 6); i++) await new Promise((r) => setTimeout(r, 200));
     h.close();
     rig.removeInputTap(taps);
     // the clip recorder's stream of the mix plays back steadily (fifo-worklet.js)

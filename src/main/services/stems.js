@@ -186,10 +186,13 @@ class StemService extends EventEmitter {
     if (i > 0) this.queue.unshift(this.queue.splice(i, 1)[0]);
     // 3.8: the song you just opened to play goes first, right now: a split of another
     // song that's running is stopped and put back in line right after it
-    if (now && this.queue.length && this.queue[0].songId === songId && this.current && this.current.songId !== songId && this.current.child && !this.current.cancelled) {
+    // 4.0: also while that split is still getting its audio ready (no engine running yet):
+    // it used to carry on regardless, and the song you opened waited for the whole split
+    if (now && this.queue.length && this.queue[0].songId === songId && this.current && this.current.songId !== songId && !this.current.cancelled && !this.current.requeue) {
       this.current.requeue = true;
       this.log(`Stems: ${songId} jumps ahead of ${this.current.songId}`);
-      this.current.child.kill();
+      if (this.current.child) this.current.child.kill();
+      if (this.current.wake) this.current.wake();
     }
   }
 
@@ -200,9 +203,10 @@ class StemService extends EventEmitter {
       this.states.delete(songId);
       this.emit('update', { songId, state: 'none' });
     }
-    if (this.current && this.current.songId === songId && this.current.child) {
-      this.current.cancelled = true;
-      this.current.child.kill();
+    if (this.current && this.current.songId === songId) {
+      this.current.cancelled = true; // (checked before the engine starts, too)
+      if (this.current.child) this.current.child.kill();
+      if (this.current.wake) this.current.wake();
     }
   }
 
@@ -246,8 +250,19 @@ class StemService extends EventEmitter {
       e.code = 'NEED_ENGINE';
       throw e;
     }
+    const stopped = () => {
+      if (job.requeue) throw new Error('Moved back in line');
+      if (job.cancelled) throw new Error('Cancelled');
+    };
     this._set(job.songId, { state: 'running', progress: 0, message: 'Decoding audio' });
-    const info = await this.audio.prepare(song);
+    // don't hold the song you opened up while this one's audio decodes: give way at once
+    // (the decode carries on by itself and is kept for later)
+    const giveWay = new Promise((resolve) => (job.wake = resolve));
+    const decoding = this.audio.prepare(song);
+    decoding.catch(() => {});
+    const info = await Promise.race([decoding, giveWay]);
+    job.wake = null;
+    stopped(); // another song jumped ahead (or this was cancelled) while the audio was being decoded
     const model = this.model();
     const final = path.join(this.dir, info.key, model);
     const work = `${final}.${crypto.randomBytes(3).toString('hex')}.work`;
@@ -272,6 +287,7 @@ class StemService extends EventEmitter {
     await new Promise((resolve, reject) => {
       const child = spawn(python, args, { env: { ...process.env, ...this.tools.engineEnv() }, windowsHide: true });
       job.child = child;
+      if (job.requeue || job.cancelled) child.kill(); // stopped between the last check and now
       // Keep the PC responsive: separation yields to whatever else you're doing.
       try {
         os.setPriority(child.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
@@ -312,6 +328,7 @@ class StemService extends EventEmitter {
       child.on('error', reject);
       child.on('close', (code) => {
         if (job.cancelled) return reject(new Error('Cancelled'));
+        if (job.requeue) return reject(new Error('Moved back in line'));
         if (code === 0 && doneEvent) return resolve();
         const msg = errorEvent ? errorEvent.message : errTail.trim().split('\n').slice(-1)[0] || `Engine exited with code ${code}`;
         this.log(`Stem engine output:\n${errTail}`);

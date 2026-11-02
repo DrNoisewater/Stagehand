@@ -189,6 +189,7 @@ class FakePortMain extends EventEmitter {
   const audioFail = new Set();
   const audioDelay = new Map();
   const tabDelay = new Map();
+  const stemsDelay = new Map();
   const later = (ms) => new Promise((r) => setTimeout(r, ms || 0));
   const API = {
     'clips.source': () => 'test-window',
@@ -236,7 +237,7 @@ class FakePortMain extends EventEmitter {
     'rig.available': () => true,
     // every song has stems in this test (all the same tone, which is fine for the UI)
     'stems.formats': () => library.snapshot().songs.map((x) => ({ songId: x.id, model: 'htdemucs_6s', format: 'wav', bytes: 6 * 48000 * 30 * 4, seconds: 30 })),
-    'stems.status': (id) => (stemHold.has(id) ? { songId: id, state: 'running', progress: 0.4 } : { state: 'ready', model: 'htdemucs_6s', format: 'wav', sampleRate: 48000, frames: 48000 * SECS, stems: ['guitar', 'bass', 'drums', 'vocals', 'piano', 'other'].map((name) => ({ name, url: '/song.wav' })) }),
+    'stems.status': async (id) => (await later(stemsDelay.get(id)), stemHold.has(id) ? { songId: id, state: 'running', progress: 0.4 } : { state: 'ready', model: 'htdemucs_6s', format: 'wav', sampleRate: 48000, frames: 48000 * SECS, stems: ['guitar', 'bass', 'drums', 'vocals', 'piano', 'other'].map((name) => ({ name, url: '/song.wav' })) }),
     'stems.prioritize': () => true,
     'stems.queue': () => ({ items: [] }),
     'engine.status': () => ({ state: 'missing', ok: false }),
@@ -899,6 +900,20 @@ class FakePortMain extends EventEmitter {
     v = await until((x) => x.phase === 'ready' && x.tabFor === sB && !x.status);
     check(v.open && v.song === sB && v.hwSong === sB && v.tabFor === sB && !v.status, 'leaving the highway while a song opens and coming back shows that song, ready');
     audioDelay.clear();
+    // a song still finishing up when you pick the next one must not start the new one playing
+    // (here: the new one waits for its stems, so nothing should play)
+    stemsDelay.set(sA, 2000);
+    stemHold.add(sB);
+    along(sA);
+    await page.waitForTimeout(900); // A has its audio, and is asking about its stems
+    along(sB);
+    v = await until((x) => x.phase === 'ready' && x.song === sB && /Splitting/.test(x.status));
+    await page.waitForTimeout(2500); // A's late answer comes now
+    v = await hwState();
+    check(v.song === sB && /Splitting/.test(v.status) && !v.playing, `an older song finishing late doesn't press play on the new one (${JSON.stringify({ song: v.song === sB, waiting: /Splitting/.test(v.status), playing: v.playing })})`);
+    stemHold.delete(sB);
+    stemsDelay.clear();
+    await page.evaluate((id) => window.__shEmit('stems:update', { songId: id, state: 'ready' }), sB);
     // back to the first song for the rest of the run
     along(firstId);
     await until((x) => x.phase === 'ready' && x.tabFor === firstId);

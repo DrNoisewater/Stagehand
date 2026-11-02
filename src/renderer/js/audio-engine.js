@@ -208,7 +208,14 @@ export class AudioEngine extends EventTarget {
     this.dispatchEvent(new Event('speed'));
   }
 
-  async ensureContext(sampleRate) {
+  /** One at a time: two songs picked quickly must not build two players at once. */
+  ensureContext(sampleRate) {
+    const run = (this._ctxQueue || Promise.resolve()).then(() => this._ensureContext(sampleRate));
+    this._ctxQueue = run.catch(() => {});
+    return run;
+  }
+
+  async _ensureContext(sampleRate) {
     if (this.ctx && this.ctx.sampleRate === sampleRate) return;
     if (this.ctx) {
       try {

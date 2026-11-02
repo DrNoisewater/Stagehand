@@ -824,6 +824,7 @@ export async function load(song, { autoplay = true } = {}) {
     const data = await loadTrackData(info.url);
     if (token !== S.token) return;
     await engine.reset(info.sampleRate, info.frames);
+    if (token !== S.token) return; // another song was picked while the player got ready
     // Master levels are global. Old per-song snapshots must not silence the next song.
     const songLevel = mixer.master ?? engine.master ?? 0.85;
     engine.setMaster(songLevel);
@@ -849,7 +850,10 @@ export async function load(song, { autoplay = true } = {}) {
     emit('stage-loaded');
     if (autoplay) {
       // with stems on the way, start once they're in, so the mix doesn't change under you
-      if (await stemsFirst(song, token)) startWaiting(token);
+      const wait = await stemsFirst(song, token);
+      // (an older song still finishing up must never press play on the new one)
+      if (token !== S.token) return;
+      if (wait) startWaiting(token);
       else await engine.play();
     }
     api.songs

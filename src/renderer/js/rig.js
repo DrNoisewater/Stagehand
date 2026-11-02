@@ -228,7 +228,9 @@ class NativeBackend {
   }
 
   async build(slot, spec) {
-    const p = this._wait((e) => e.ev === 'built' && e.slot === slot, 8000);
+    // a tone with a lot of gear on a busy or older PC can take a few seconds to build:
+    // wait long enough that a slow build isn't reported as a failure (4.0: was 8 s)
+    const p = this._wait((e) => e.ev === 'built' && e.slot === slot, 20000);
     this._cmd({ cmd: 'build', slot, spec });
     const ev = await p;
     return !!ev.ok;
@@ -248,7 +250,7 @@ class NativeBackend {
 
   /** A real amp capture for a slot (before building it); cap null clears it. */
   async nam(slot, cap) {
-    const p = this._wait((e) => e.ev === 'nam' && e.slot === slot, 8000);
+    const p = this._wait((e) => e.ev === 'nam' && e.slot === slot, 20000);
     this._cmd({ cmd: 'nam', slot, path: cap ? cap.path : '', fullRig: cap && cap.fullRig ? 1 : 0, gainRef: cap ? cap.gainRef : 0.5, trim: 0 });
     const ev = await p;
     return { ok: !!ev.ok, error: ev.error || '' };
@@ -1200,12 +1202,16 @@ export class Rig extends EventTarget {
     this.dispatchEvent(new Event('change'));
     let peak = 0;
     const t0 = performance.now();
+    const buf = new Float32Array(8192);
     try {
       while (performance.now() - t0 < seconds * 1000) {
         await wait(50);
         const l = this.levels();
-        // raw input peak, before the Input knob
+        // raw input peak, before the Input knob: the meter, and the input itself
+        // (the meter is read 20 times a second and can miss the very top of a hard strum)
         peak = Math.max(peak, l.inPeak || 0);
+        const raw = this.backend && this.backend.samples(buf);
+        if (raw) for (let i = 0; i < raw.length; i++) if (Math.abs(raw[i]) > peak) peak = Math.abs(raw[i]);
         if (onTick) onTick((performance.now() - t0) / (seconds * 1000), peak);
       }
     } finally {
