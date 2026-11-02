@@ -10,6 +10,7 @@ const approachDepth = (noteTime, chartTime, flow = 1) => (noteTime - chartTime) 
  */
 import { visualTime, sustainIndex, firstSustain, noteEnd } from './highway-timing.js';
 import { api } from './api.js';
+import { vibratoAt } from './performance-math.js';
 import { h, icon, esc, showMenu, toast } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
@@ -1284,7 +1285,7 @@ export function createClassicHighway(stage) {
     const half = open ? 0.5 * (anX1(an) - anX0(an)) - 0.15 : laneW(Math.max(1, nt.f)) * 0.14;
     const L0 = level(nt.s);
     const lw = laneW(Math.max(1, nt.f || an.fret));
-    const steps = Math.max(8, Math.min(120, Math.round((t1 - t0) * 50)));
+    const steps = Math.max(8, Math.min(240, Math.round((t1 - t0) * (nt.tremolo ? 96 : 50))));
     const pts = [];
     for (let k = 0; k <= steps; k++) {
       const time = t0 + ((t1 - t0) * k) / steps;
@@ -1293,11 +1294,16 @@ export function createClassicHighway(stage) {
       // slides ease in and out, like the real glide of the hand
       const e = Math.min(1, Math.max(0, u));
       let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
-      // vibrato ~5.5 shakes a second, tremolo a fast zigzag: in real time, so they read true at any speed
-      if (nt.vibrato && u > 0.06) x += Math.sin((time - tg.t) * Math.PI * 2 * 5.5) * lw * 0.16;
-      // a bend pushes the ribbon across the strings: a full step a string and a half
-      let L = L0 + (bendAt(nt, time) / 2) * 1.5;
-      if (nt.tremolo) L += (((time - tg.t) * 14) % 1 < 0.5 ? 1 : -1) * 0.12;
+      // a bend pushes the ribbon across the strings: a full step a string and a half, and
+      // vibrato is quick little bends (smooth, one side), tremolo a sharp
+      // zigzag across (4.0.6: they must never look alike), in real time so they read true at any speed
+      const age = Math.max(0, time - tg.t);
+      if (nt.tremolo) { const ph = (age * 6) % 1; x += (ph < 0.5 ? ph * 4 - 1 : 3 - ph * 4) * lw * 0.24; }
+      const b = bendAt(nt, time);
+      // vibrato: quick little bends (drawn a half step), leaning a little sideways with each
+      const vb = vibratoAt(nt, time, b);
+      if (vb) x += Math.abs(vb) * 2 * lw * 0.2;
+      const L = L0 + ((b + 2 * vb) / 2) * 1.5;
       pts.push([x, L, zOf(time)]);
     }
     const edge = (side) => pts.map(([x, L, dz]) => {

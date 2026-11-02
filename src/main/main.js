@@ -506,10 +506,13 @@ function registerIpc() {
     const file=path.join(D.takes,rel);
     const temp=await fsp.mkdtemp(path.join(app.getPath('temp'),'stagehand-video-'));
     const input=path.join(temp,'capture.webm'),output=path.join(temp,'export.mp4');
+    // the sound engine's sound, collected beside the video (4.0.6), joined in by the encoder
+    const sound=meta&&meta.audio instanceof Uint8Array&&meta.audio.byteLength>44?path.join(temp,'sound.wav'):null;
     try{
       await fsp.writeFile(input,data);
+      if(sound)await fsp.writeFile(sound,meta.audio);
       const video=require('./services/video-export');
-      await video.exportMp4(await video.ensureEncoder(tools),input,output);
+      await video.exportMp4(await video.ensureEncoder(tools),input,output,sound);
       await fsp.copyFile(output,file);
       const take=await takes.addVideo({file:rel,name:path.basename(rel,'.mp4').replace(/^SH - /,''),songId:(meta&&meta.songId)||null,seconds:Number(meta&&meta.seconds)||0});
       return {path:file,take};

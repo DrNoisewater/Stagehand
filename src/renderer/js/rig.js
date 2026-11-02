@@ -531,6 +531,15 @@ export class Rig extends EventTarget {
     return {rate:ctx.sampleRate,close:()=>{node.port.postMessage({type:'relay',on:false});node.port.onmessage=null;try{b.node.disconnect(node);node.disconnect();silent.disconnect();}catch(_){}}};
   }
 
+  /** The native engine's final mix (song + you + drums, as the speakers get it), straight
+   *  to feed(Float32Array interleaved L/R, rate): no audio player in between, as the looper
+   *  does. Record clip uses it (4.0.6: through a hidden player the clip came out silent). */
+  captureMix(feed){
+    if(!this.on||!this.backend||this.kind!=='native')throw Error('Connect your instrument first.');
+    const b=this.backend;
+    const listener={kind:'mixed',feed};this._monitors??=new Set();this._monitors.add(listener);b._cmd({cmd:'monitor',on:1});
+    return {rate:b.rate,close:()=>{this._monitors.delete(listener);if(!this._monitors.size)b._cmd({cmd:'monitor',on:0});}};
+  }
   async monitorProcessed(){ return this._monitor('processed'); }
   async monitorMix(){ return this._monitor('mixed'); }
   async _monitor(kind){
@@ -1116,14 +1125,15 @@ export class Rig extends EventTarget {
   }
 
   /** The open song's tuning, so "match the song" knows how far to drop. */
-  setSongTuning(offsets, kind = 'guitar') {
+  setSongTuning(offsets, kind = 'guitar', cents = this.songCents || 0) {
     // 3.7: relative to what YOUR instrument is tuned to (tuning.js), not always E Standard:
     // a song that's the same tuning, just lower (E♭/D/C♯ Standard from E, Drop C from Drop D…)
     // can be played with the Drop
     this.songTuning = offsets || [];
     this.songKind = kind;
+    this.songCents = Number(cents) || 0; // the song's reference pitch off A440 (A425 ≈ −60)
     this._syncShift();
-    const p = tuningPlan(this.songTuning, kind);
+    const p = tuningPlan(this.songTuning, kind, undefined, this.songCents);
     this.dropSong = Math.min(12, p.drop || 0);
     if (this.drop.on && this.drop.match) this._sendDrop();
     else this.dispatchEvent(new Event('drop'));

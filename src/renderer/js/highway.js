@@ -11,7 +11,7 @@ import { h, icon, esc, showMenu, toast, instrumentTag } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
-import { bendValue, linkChains, noteTech } from './performance-math.js';
+import { linkChains, noteTech, heldBend, drawnBend, bendStart, vibratoAt, VIBRATO_HZ } from './performance-math.js';
 import { createFluidDriver } from './reactive-bg.js';
 import { createFeatures } from './music-features.js';
 import { createVisuals } from './visuals.js';
@@ -22,7 +22,8 @@ import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShift } from './detect.js';
 import { createRenderer3D, col, mix } from './highway3d.js';
 import { createFluid } from './fluidbg.js';
-import { tuningName, tuningPlan, myTuning, setMyTuning, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
+import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
+import { tuningGuide } from './tuning-check.js';
 import { breakdown, cheer } from './scorecard.js';
 import { state, on } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
@@ -299,9 +300,9 @@ export function createHighway(stage) {
     const d = rig.drop;
     const kind = instrument() === 'bass' ? 'bass' : 'guitar';
     const amt = rig.dropAmount();
-    const songT = H.tab && H.tab.tuning ? tuningName(H.tab.tuning, kind) : '';
+    const songT = H.tab && H.tab.tuning ? `${tuningName(H.tab.tuning, kind)}${refLabel(H.tab.cents) ? ` ${refLabel(H.tab.cents)}` : ''}` : '';
     const mine = myTuning(kind);
-    const plan = H.tab ? tuningPlan(H.tab.tuning, kind, mine) : { same: true };
+    const plan = H.tab ? tuningPlan(H.tab.tuning, kind, mine, H.tab.cents || 0) : { same: true };
     const head = h('div.hw-drop-head', null, h('div', null, h('b', { text: 'Drop' }), h('small', { text: d.on ? (amt ? (amt === 12 ? 'An octave down' : `Down ${amt} semitone${amt === 1 ? '' : 's'}`) : 'Song is in standard') : 'Off' })));
     const sw = h('button.drop-switch', { type: 'button', 'aria-pressed': String(d.on), title: 'The Drop on or off (D)' }, h('span.led'));
     sw.style.setProperty('--gel', '#8c7bff');
@@ -309,8 +310,14 @@ export function createHighway(stage) {
     head.append(sw);
     dropBox.append(head);
     let need = '';
-    if (H.tab) need = plan.same ? `${songT}: your ${kind} is ready` : plan.drop ? `${songT} song, your ${kind} is in ${tuningName(mine, kind)}: Drop −${plan.drop}` : `${songT}: retune ${plan.retune.map((r) => `${r.from}→${r.to}`).join(', ')}`;
+    if (H.tab) need = plan.same ? `${songT}: your ${kind} is ready` : plan.drop ? `${songT} song, your ${kind} is in ${tuningName(mine, kind)}: Drop −${plan.drop}` : plan.retune.length ? `${songT}: retune ${plan.retune.map((r) => `${r.from}→${r.to}`).join(', ')}${plan.ref ? ` (to ${plan.ref})` : ''}` : `${songT}: retune every string a little (to ${plan.ref})`;
     if (need) dropBox.append(h(`div.hw-drop-need${plan.same ? '.ok' : ''}`, { text: need }));
+    // 4.0.6: the string-by-string tuning guide (with a live tuner), any time
+    if (H.tab) {
+      const g = h('button.hw-chip.hw-drop-guide', { type: 'button', text: plan.same ? 'Check my tuning' : 'Tuning guide' });
+      g.onclick = () => tuningGuide({ ...H.tab, type: kind === 'bass' ? 'bass' : H.tab.type }, H.song, stage.engine);
+      dropBox.append(g);
+    }
     if (plan.drop && !(d.on && d.match)) {
       const b = h('button.hw-chip.hw-drop-match', { type: 'button', html: `${icon('check')}<span>Match the song (−${plan.drop})</span>` });
       b.onclick = () => rig.setDrop({ on: true, match: true });
@@ -336,7 +343,7 @@ export function createHighway(stage) {
     if (!list.some((o) => o.join(',') === cur)) sel.append(h('option', { value: cur, text: tuningName(mine, kind), selected: true }));
     sel.onchange = () => {
       setMyTuning(kind, sel.value.split(',').map(Number));
-      if (H.tab) rig.setSongTuning(H.tab.tuning, kind);
+      if (H.tab) rig.setSongTuning(H.tab.tuning, kind, H.tab.cents || 0);
       renderDropBox();
     };
     dropBox.append(h('label.hw-drop-mine-row', null, h('span', { text: `Your ${kind} is in` }), sel));
@@ -1857,7 +1864,8 @@ export function createHighway(stage) {
 
   // ------------------------------------------------------------- notes --
   /** Bend (in half steps) of a note at song time `time`, from its real bend curve. */
-  const bendAt = bendValue;
+  // a held-on note keeps the bend it was left at (4.0.6)
+  const bendAt = heldBend;
   const bendLabel = (b) => ({ 0.5: '¼', 1: '½', 1.5: '¾', 2: 'full', 3: '1½', 4: '2' })[b] || `${b / 2}`;
   const maxBend = (nt) => (nt.bends && nt.bends.length ? Math.max(...nt.bends.map((p) => p.step)) : nt.bend || 0);
   const judged = (tg) => (H.judge && prefs.detect && rig.on ? H.judge.state.get(tg.id) : null);
@@ -1900,8 +1908,10 @@ export function createHighway(stage) {
   /**
    * A note's sustain from t0 to t1 (song times): a flat glowing ribbon at its
    * string's height. Each technique has its own look, so they read at a glance:
-   * a bend climbs (with ↑ and how far), vibrato snakes side to side in a smooth
-   * wave, tremolo picking is cut into quick bright stripes like a ladder.
+   * a bend climbs (with ↑ and how far); vibrato is quick little bends, smooth and
+   * round, the same way (a bent note's bend wobbles: one bend that wobbles, 4.0.6);
+   * tremolo picking is a sharp sideways zigzag with hard corners (as in Rocksmith),
+   * so the two never look alike.
    */
   function buildTrail(nt, tg, t0, t1, an, st) {
     const { alpha, glow } = R3.L;
@@ -1917,22 +1927,36 @@ export function createHighway(stage) {
     const lw = laneW(Math.max(1, nt.f || an.fret));
     const duration = noteEnd(nt, tg) - tg.t;
     const vib = !!nt.vibrato && !open;
-    // vibrato: ~2 waves per world-second of travel, wide enough to see from the back
-    const VIB_HZ = 5.5;
-    const vibAmp = lw * 0.25;
+    const VIB_HZ = VIBRATO_HZ;
+    const trem = !!nt.tremolo && !open;
+    const TREM_HZ = 6; // zigzags per second
     const posAt = (time) => {
       const u = duration > 0 ? (time - tg.t) / duration : 0;
       const e = Math.min(1, Math.max(0, u));
       let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
-      if (vib) x += Math.sin((time - tg.t) * Math.PI * 2 * VIB_HZ) * vibAmp * Math.min(1, Math.max(0, (time - tg.t) / 0.12));
-      const bend = bendAt(nt,time);
+      const age = Math.max(0, time - tg.t);
+      const ease = Math.min(1, age / 0.12);
+      // tremolo: a sideways triangle wave (straight lines, sharp corners)
+      if (trem) {
+        const ph = (age * TREM_HZ) % 1;
+        x += (ph < 0.5 ? ph * 4 - 1 : 3 - ph * 4) * lw * 0.3 * ease;
+      }
+      // vibrato is little bends, smooth and quick: up and back on a straight note, down
+      // from the bend and back on a bent one, the same way the ribbon bends (drawn twice
+      // as big as it sounds, a half step, so it reads from the back; no ↑ label)
+      const hb = heldBend(nt, time);
+      const vb = vibratoAt(nt, time, hb);
+      const bend = hb + 2 * vb;
+      // seen from behind, lifting alone hardly shows: it leans a little sideways with each lift
+      if (vb) x += Math.abs(vb) * 2 * lw * 0.22;
       const direction = L0 > (G.n-1)/2 ? -1 : 1; // push lower strings inward; pull upper strings inward
       const L = L0 + direction * bend * .70;
       return [x, nY(L) - G.gy * 0.12, zOf(time), L];
     };
-    // enough points for the vibrato wave to stay smooth (no stepping)
-    const steps = Math.max(6, Math.min(vib ? 360 : 120, Math.round((t1 - t0) * (vib ? VIB_HZ * 14 : 40))));
-    const bending = maxBend(nt) > 0;
+    // enough points for the vibrato wave to stay round and the tremolo corners sharp
+    const steps = Math.max(6, Math.min(vib || trem ? 400 : 120, Math.round((t1 - t0) * (trem ? TREM_HZ * 16 : vib ? VIB_HZ * 14 : 40))));
+    const b0 = nt.linked ? bendStart(nt) : 0;
+    const bending = maxBend(nt) > 0 || b0 > 0 || vib;
     let prev = null;
     let peak = null;
     for (let k = 0; k <= steps; k++) {
@@ -1945,24 +1969,14 @@ export function createHighway(stage) {
         const c = col(hex, holding ? 0.75 : 0.58, (holding ? 1.3 : 1) + lift * 0.5);
         alpha.quad([prev[0] - half, prev[1], prev[2]], [prev[0] + half, prev[1], prev[2]], [p[0] + half, p[1], p[2]], [p[0] - half, p[1], p[2]], c);
         const ec = missed ? col('#7a7f96', 0.8) : lift > 0.05 ? col('#fff3d6', 0.95, 1.4 + lift) : col(hex, 0.95, holding ? 2.2 : 1.5);
-        for (const side of [-1, 1]) alpha.bar([prev[0] + side * half, prev[1] + 0.002, prev[2]], [p[0] + side * half, p[1] + 0.002, p[2]], vib ? 0.05 : 0.035, ec);
+        for (const side of [-1, 1]) alpha.bar([prev[0] + side * half, prev[1] + 0.002, prev[2]], [p[0] + side * half, p[1] + 0.002, p[2]], trem ? 0.06 : vib ? 0.05 : 0.035, trem && !missed && lift <= 0.05 ? col('#ffffff', 0.95, holding ? 1.8 : 1.3) : ec);
         if (!missed) glow.quad([prev[0] - half * 1.6, prev[1], prev[2]], [prev[0] + half * 1.6, prev[1], prev[2]], [p[0] + half * 1.6, p[1], p[2]], [p[0] - half * 1.6, p[1], p[2]], col(hex, holding ? 0.3 : 0.12));
       }
       prev = p;
     }
-    if (nt.tremolo && !missed) {
-      // tremolo picking: a stripe across the ribbon for every quick pick (fixed spacing in time, so it never shimmers)
-      const RATE = 12;
-      const first = Math.ceil((t0 - tg.t) * RATE);
-      const last = Math.floor((t1 - tg.t) * RATE);
-      for (let k = Math.max(1, first); k <= last; k++) {
-        const p = posAt(tg.t + k / RATE);
-        const w = half * 1.55;
-        glow.bar([p[0] - w, p[1] + 0.004, p[2]], [p[0] + w, p[1] + 0.004, p[2]], 0.11, col('#ffffff', 0.85, holding ? 1.8 : 1.3));
-      }
-    }
-    const mb = maxBend(nt);
-    if(mb>0 && peak){
+    // the ↑ and the riser only where a bend starts, not again on the held-on part
+    const mb = maxBend(nt) > b0 + 0.25 ? maxBend(nt) : 0;
+    if(mb>0 && peak && !b0){
       const p=posAt(Math.max(t0,tg.t));
       alpha.bar([p[0],nY(L0)-G.gy*.12,p[2]],[p[0],p[1],p[2]],.045,col('#fff3d6',.8));
     }
@@ -1982,14 +1996,15 @@ export function createHighway(stage) {
     for (let i = Math.max(0, lower(T, t - 8)); i < T.length && T[i].t <= t; i++) {
       const tg = T[i];
       for (const nt of tg.notes) {
-        if (t > noteEnd(nt, tg) || !(maxBend(nt) > 0)) continue;
+        const held = nt.linked ? bendStart(nt) : 0;
+        if (t > noteEnd(nt, tg) || !(maxBend(nt) > 0 || held > 0)) continue;
         const an = anchorAt(tg.t);
         const L0 = level(nt.s);
         const dir = L0 > (G.n - 1) / 2 ? -1 : 1; // the same way the sustain ribbon bends
         const yAt = (b) => nY(L0 + dir * b * 0.7);
         const x = noteX(nt, an) + laneW(Math.max(1, nt.f || an.fret)) * 0.32;
-        const top = maxBend(nt);
-        const now = bendAt(nt, t);
+        const top = Math.max(maxBend(nt), held);
+        const now = drawnBend(nt, t); // with its vibrato, as the ribbon shows it
         const z = -0.06;
         alpha.bar([x, yAt(0), z], [x, yAt(top), z], 0.07, col('#fff3d6', 0.45));
         // the target: a bar across, gold
@@ -2220,8 +2235,9 @@ export function createHighway(stage) {
     }
     for (const [xs, k] of posts) {
       const x = Number(xs);
-      solid.box(x - 0.035, x + 0.035, -0.2, G.yTop + 0.9, -0.1, -0.03, col('#fff0f8', k, 2.2));
-      glow.up(x - 0.18, x + 0.18, -0.2, G.yTop + 0.95, -0.11, col('#ff5aaa', 0.4 * k, 1.3), col('#ff5aaa', 0.1 * k));
+      // no taller than the frets (4.0.6: taller ones read as pieces sticking out of the neck)
+      solid.box(x - 0.035, x + 0.035, -0.2, G.yTop + 0.32, -0.1, -0.03, col('#fff0f8', k, 2.2));
+      glow.up(x - 0.18, x + 0.18, -0.2, G.yTop + 0.32, -0.11, col('#ff5aaa', 0.4 * k, 1.3), col('#ff5aaa', 0.1 * k));
     }
     // 3. the note flares on the neck: a bright pop, held while you sustain
     for (const h of H.hits) {

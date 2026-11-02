@@ -167,6 +167,31 @@ const srv = http.createServer((req, res) => {
       }
       continue;
     }
+    if (process.env.TCHECK) {
+      // the tuning check card: a Drop D song at A425 on an E Standard guitar, the low string
+      // half way down (heard 100 cents above D), then in tune: it gets a tick
+      await page.evaluate(async () => {
+        const { rig } = await import('/js/rig.js');
+        const { tuningGuide } = await import('/js/tuning-check.js');
+        localStorage.removeItem('stagehand.myTuning');
+        window.__pitch = 3900 - 60 + 100;
+        rig.pitch = () => { const c = window.__pitch; const midi = Math.round(c / 100); return { hz: 440 * 2 ** ((c - 6900) / 1200), midi, cents: c - midi * 100, clarity: 0.97 }; };
+        tuningGuide({ tuning: [-2, 0, 0, 0, 0, 0], cents: -60, type: 'lead' }, { id: 's1', title: 'Scene T' });
+      });
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: path.join(out, 'tcheck-1.png') });
+      const r = await page.evaluate(async () => {
+        window.__pitch = 3800 - 60 + 2;
+        await new Promise((r) => setTimeout(r, 1200));
+        const row = [...document.querySelectorAll('.tcheck-row')].find((x) => x.querySelector('.tcheck-num').textContent === '6');
+        return { done: row.classList.contains('done'), state: row.querySelector('.tcheck-state').textContent, rows: document.querySelectorAll('.tcheck-row').length, ref: (document.querySelector('.tcheck-ref') || {}).textContent };
+      });
+      await page.screenshot({ path: path.join(out, 'tcheck-2.png') });
+      console.log('TCHECK', JSON.stringify(r));
+      if (!r.done || r.rows !== 6 || !/425/.test(r.ref || '')) throw new Error('tuning check card: ' + JSON.stringify(r));
+      console.log('PASS the tuning check card lists every string, the reference pitch, and ticks a string tuned by ear');
+      continue;
+    }
     await page.waitForTimeout(play === 'p' ? 2600 : 2200);
     if (process.env.TUNER) { await page.keyboard.press('u'); await page.waitForTimeout(300); }
     if (process.env.CARD) await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.showCard(); });

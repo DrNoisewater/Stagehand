@@ -33,7 +33,7 @@ export function maxBendOf(note) {
  * @param {Array<{t:number, notes:object[]}>} targets in time order
  */
 export function linkChains(targets) {
-  for (const tg of targets) for (const nt of tg.notes) nt.chain = nt.parent = nt._tech = undefined; // (safe to run again)
+  for (const tg of targets) for (const nt of tg.notes) nt.chain = nt.parent = nt._tech = nt._b0 = undefined; // (safe to run again)
   const open = new Map(); // string -> parent still being held
   for (const tg of targets) {
     for (const nt of tg.notes) {
@@ -80,4 +80,66 @@ export function noteTech(note) {
   const to = last.slideTo !== undefined ? last.slideTo : last.slideUnpitchTo;
   const slide = to === undefined || to === last.f ? null : to > last.f ? 'up' : 'down';
   return { bend, release, pre, vibrato, slide };
+}
+
+/**
+ * The bend a note starts at. A note held on from the one before (linkNext) starts
+ * where that one left off: a bend picked once and then held (often with vibrato on
+ * the held part) stays bent, even when the chart doesn't repeat the bend on it.
+ */
+export function bendStart(note) {
+  if (note._b0 !== undefined) return note._b0;
+  let v = 0;
+  const par = note.parent;
+  if (note.linked && par && par.chain) {
+    const all = [par, ...par.chain];
+    const i = all.indexOf(note);
+    const prev = i > 0 ? all[i - 1] : null;
+    if (prev) v = heldBend(prev, Math.max(prev.t, note.t - 0.001));
+  }
+  note._b0 = v;
+  return v;
+}
+
+/** Like bendValue, but a held-on note carries on from the bend it was left at. */
+export function heldBend(note, time) {
+  const b0 = note.linked && note.parent ? bendStart(note) : 0;
+  const pts = note.bends || [];
+  if (!pts.length) {
+    if (!note.bend) return b0;
+    const k = Math.min(1, Math.max(0, (time - note.t) / Math.max(0.08, (note.sus || 0.3) * 0.3)));
+    return b0 + (note.bend - b0) * k;
+  }
+  const relative = pts[pts.length - 1].t < note.t - 0.05;
+  let t = note.t;
+  let v = b0;
+  for (const p of pts) {
+    const next = relative ? note.t + p.t : p.t;
+    if (time <= next) return next <= t ? p.step : v + (p.step - v) * Math.max(0, (time - t) / (next - t));
+    t = next;
+    v = p.step;
+  }
+  return v;
+}
+
+/**
+ * Vibrato as what it is: the pitch going up and down a little, about 5.5 times a
+ * second, in steps (1 = a half step). On a straight note it bends up to a quarter
+ * step and back; on a bent note it eases back down from the bend and up again, so a
+ * bend with vibrato reads as one bend that wobbles, never as a sideways squiggle.
+ */
+export const VIBRATO_HZ = 5.5;
+export function vibratoAt(note, time, bend) {
+  if (!note.vibrato || note.f === 0) return 0;
+  const age = time - note.t;
+  if (age <= 0) return 0;
+  const k = Math.min(1, age / 0.12); // eases in after the pick
+  const w = (1 - Math.cos(age * Math.PI * 2 * VIBRATO_HZ)) / 2; // 0..1..0
+  return (bend >= 0.75 ? -0.5 : 0.5) * w * k;
+}
+
+/** The pitch bend drawn for a note at a time: its (held) bend plus its vibrato. */
+export function drawnBend(note, time) {
+  const b = heldBend(note, time);
+  return b + vibratoAt(note, time, b);
 }

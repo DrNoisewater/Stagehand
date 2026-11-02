@@ -469,6 +469,19 @@ export async function decodeTo(arrayBuffer, rate, frames) {
   return { L, R };
 }
 
+/** Interleaved 16-bit stereo pieces → WAV bytes (Record clip's sound). */
+export function wavBytes({rate,parts,frames}){
+  const out=new Uint8Array(44+frames*4);
+  const dv=new DataView(out.buffer);
+  const tag=(o,s)=>{for(let i=0;i<s.length;i++)out[o+i]=s.charCodeAt(i);};
+  tag(0,'RIFF');dv.setUint32(4,36+frames*4,true);tag(8,'WAVE');tag(12,'fmt ');
+  dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,2,true);dv.setUint32(24,rate,true);
+  dv.setUint32(28,rate*4,true);dv.setUint16(32,4,true);dv.setUint16(34,16,true);tag(36,'data');dv.setUint32(40,frames*4,true);
+  let o=44;
+  for(const q of parts){out.set(new Uint8Array(q.buffer,q.byteOffset,q.byteLength),o);o+=q.byteLength;}
+  return out;
+}
+
 /** Planar floats → a 16-bit stereo WAV (the layout the player streams). */
 export function wavFrom(L, R, rate) {
   const n = L.length;
