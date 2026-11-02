@@ -4,6 +4,13 @@ Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the p
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
 
+## 3.9.1
+
+User on 3.9.0: some songs "stop everything", e.g. Kryptonite, probably paid DLC Rocksmith downloaded; then "two loading screens for stems at the same time".
+- **No-audio songs:** double-click opened the full-screen highway while `stage.load` failed behind it ("This file has no song audio"). Now `actions.playAlong` toasts (`noAudioToast`) for `audioEntry === null`; stage emits `stage-error` and exposes `loadError()`; highway shows `.hw-error` with Back. List badge `sup.noaudio`. `StemService.request` skips no-audio songs.
+- **Audio finding** (rocksmith.js): fallback to any `.wem`/`.ogg` in the archive; audio embedded in the song bank (`bankMedia`: DIDX/DATA) as `audioEntry` `"<bank>#<mediaId>"`, read by `readAudio`; `audioNote` (`audioDiagnosis`) logged by `AudioService.prepare` when there's no audio. library.js `AUDIO_REV` re-reads files with no audio once. **Unverified on a real official DLC file:** ask for the `Audio: no song audio in …` log line if Kryptonite still fails.
+- **Two stem screens:** `renderStemsCall` hides the player's `.stems-call` while `S.waitPlay` (the floating `.stem-wait` card shows).
+
 ## Start here (3.9.0)
 
 User on 3.8.1: mouse back button should go to the last screen; highway play/pause + time to the top ("all controls at the top"); "played E Standard then E♭, nowhere to drop my tuning: Drop needs to be in the highway settings"; combine the options popup and the Mix pullout into the side pullout, renamed **Master Settings** ("I prefer the pullout to the top button"); a score card at the end of a song with a breakdown, ignorable/click-through; Progress live-updated, bigger, encouraging, "what's good and bad".

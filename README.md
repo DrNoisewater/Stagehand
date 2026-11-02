@@ -79,6 +79,12 @@ If any step fails, the original is untouched. Undo is offered right after saving
 
 If Rocksmith is running it may lock the files; close it and save again.
 
+## 3.9.1
+
+- **Songs with no audio don't freeze anymore:** double-clicking a song whose file has no audio used to open the highway with nothing playing. Now Stagehand says why, the song list marks such songs **no audio**, and the highway shows a **Back to your songs** button if a song can't load.
+- **More official DLC plays:** Stagehand now also finds song audio that's named or stored differently in the file (inside its sound bank, or in the older Ogg format). Songs marked "no audio" are checked again once. If one still has none, the Activity log says what the file holds.
+- **One stems loading screen:** while a song waits for its stems, only the floating progress card shows (there used to be two).
+
 ## 3.9
 
 - **Back button:** your mouse's back button (or Alt+←) goes to the screen you were on before. On the highway or in Jam it leaves them, and it closes an open dialog or menu first.
