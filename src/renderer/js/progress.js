@@ -141,7 +141,7 @@ function spotlight(d) {
   const L = d.last;
   const s = L && state.songs.get(L.songId);
   if (!L || !s) {
-    return h('section.card.pspot.empty', null, h('div.pspot-empty', null, h('span', { html: icon('guitar') }), h('div', null, h('b', { text: 'Play a song with your guitar plugged in' }), h('p', { text: 'Your run shows up here straight away: your score, each section, and what to work on next.' }))));
+    return h('section.card.pspot.vacant', null, h('div.pspot-empty', null, h('span', { html: icon('guitar') }), h('div', null, h('b', { text: 'Play a song with your guitar plugged in' }), h('p', { text: 'Your run shows up here straight away: your score, each section, and what to work on next.' }))));
   }
   const card = h('section.card.pspot', { 'aria-label': 'Your last song' });
   const ring = h(`div.pspot-ring.${band(L.accuracy)}`, { style: { '--deg': `${Math.round(L.accuracy * 360)}deg` } }, h('b', { text: pctOf(L.accuracy) }), h('span', { text: 'accuracy' }));

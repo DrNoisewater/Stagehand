@@ -1,8 +1,15 @@
-# Stagehand handoff (v4.0.7, 2026-11-02): long recordings no longer crash; the window reloads itself after a crash
+# Stagehand handoff (v4.0.8, 2026-11-02): an empty tone key no longer covers the whole window
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.0.8: an empty tone key no longer covers the whole window
+
+User on 4.0.7 (screenshot): "i clicked on Tones, now the whole screen is covered as if its one large button": the window dimmed in the key's colour with "3 Empty" at the middle left.
+- **Cause:** app.css `.empty` is the page-wide "nothing here yet" message (`position: absolute; inset: 0`). The Tones keys (simple view, "Put it on a key"), the slot strip, Jam's slot tiles and Progress's spot card used `.empty` for an empty slot too, so an empty one stretched over the page. It only shows when a key 2–9 is empty (all were filled in the tests). Since 3.13 for the Tones keys.
+- **Fix:** those are `.vacant` now (play.js, tonespage.js, progress.js, v3.css). `test/css-names.test.js` (in npm test) fails if anything but the page message uses `empty` (fails on the old code: 4 places). Checked in the real app (Electron under xvfb) with key 3 emptied: a normal dashed "Empty" key on Tones, a normal empty slot on Jam.
+- **Ask the user:** is Tones fine now with key 3 empty?
 
 ## 4.0.7: long recordings no longer crash; the window reloads itself after a crash
 

@@ -38,7 +38,7 @@ function slotStrip() {
   for (let n = 2; n <= SLOT_COUNT; n++) {
     const t = bySlot(n);
     const here = d && d.mine && d.id && t && t.id === d.id;
-    const tile = h(`button.ss-tile${t ? '' : '.empty'}${here ? '.here' : ''}`, { type: 'button', style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: d ? (here ? `${d.name} is in slot ${n}` : `Put ${d.name} in slot ${n}${t ? ` (replaces ${t.name})` : ''}  ·  Alt+${n}`) : t ? `Slot ${n}: ${t.name}` : `Slot ${n} is empty` });
+    const tile = h(`button.ss-tile${t ? '' : '.vacant'}${here ? '.here' : ''}`, { type: 'button', style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: d ? (here ? `${d.name} is in slot ${n}` : `Put ${d.name} in slot ${n}${t ? ` (replaces ${t.name})` : ''}  ·  Alt+${n}`) : t ? `Slot ${n}: ${t.name}` : `Slot ${n} is empty` });
     tile.append(h('span.ss-n', { text: String(n) }), h('span.ss-name', { text: t ? t.name : '' }), h('span.ss-put', { html: icon('plus') }));
     tile.onclick = () => putInSlot(n);
     tile.ondragover = (e) => {
@@ -621,7 +621,7 @@ function renderSimple(d) {
   for (let n = 2; n <= SLOT_COUNT; n++) {
     const t = bySlot(n);
     const here = d.mine && d.id && t && t.id === d.id;
-    const b = h(`button.ts-key${here ? '.here' : ''}${t ? '' : '.empty'}`, { type: 'button', style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: here ? `${d.name} is on key ${n}` : t ? `Put ${d.name} on key ${n} (instead of ${t.name})` : `Put ${d.name} on key ${n}` });
+    const b = h(`button.ts-key${here ? '.here' : ''}${t ? '' : '.vacant'}`, { type: 'button', style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: here ? `${d.name} is on key ${n}` : t ? `Put ${d.name} on key ${n} (instead of ${t.name})` : `Put ${d.name} on key ${n}` });
     b.append(h('b', { text: String(n) }), h('span', { text: here ? 'This tone' : t ? t.name : 'Empty' }));
     b.onclick = () => !here && putInSlot(n);
     keys.append(b);

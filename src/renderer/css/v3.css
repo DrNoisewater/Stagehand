@@ -154,9 +154,9 @@ input[type='range'].glow-range:disabled { opacity: 0.4; }
 .slot.on .num { background: var(--gel); color: #10131c; box-shadow: 0 0 8px var(--gel); }
 .slot.on .strip { background: var(--gel); box-shadow: 0 0 8px var(--gel); }
 .slot.on .eq { margin-left: auto; height: 14px; }
-.slot.empty { background: transparent; border: 1.5px dashed #2c3552; color: #8a92ad; }
-.slot.empty .num { background: transparent; border: 1px dashed #3a4466; color: #8a92ad; }
-.slot.empty .strip { background: transparent; }
+.slot.vacant { background: transparent; border: 1.5px dashed #2c3552; color: #8a92ad; }
+.slot.vacant .num { background: transparent; border: 1px dashed #3a4466; color: #8a92ad; }
+.slot.vacant .strip { background: transparent; }
 .slot.drop { border-color: var(--tungsten); }
 
 .play-grid { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
@@ -614,8 +614,8 @@ button svg { pointer-events: none; }
 .ss-tile .ss-put { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--gel) 30%, rgba(8, 12, 22, 0.75)); opacity: 0; transition: opacity .12s; }
 .ss-tile .ss-put svg { width: 18px; height: 18px; color: #fff; }
 .ss-tile:hover .ss-put, .ss-tile.drop .ss-put { opacity: 1; }
-.ss-tile.empty { border-style: dashed; background: transparent; }
-.ss-tile.empty .ss-n { color: #59627f; }
+.ss-tile.vacant { border-style: dashed; background: transparent; }
+.ss-tile.vacant .ss-n { color: #59627f; }
 .ss-tile.here { border-color: var(--gel); box-shadow: 0 0 0 1px var(--gel), 0 0 14px color-mix(in srgb, var(--gel) 45%, transparent); }
 .ss-tile.here .ss-put { display: none; }
 .ss-tile.drop { transform: translateY(-2px); border-color: #fff; }
@@ -1027,7 +1027,7 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 .pspot-actions { display: flex; justify-content: flex-end; }
 .pspot-actions .btn { display: inline-flex; align-items: center; gap: 6px; }
 .pspot-actions svg { width: 15px; height: 15px; }
-.pspot.empty { padding: 18px 20px; }
+.pspot.vacant { padding: 18px 20px; }
 .pspot-empty { display: flex; align-items: center; gap: 14px; }
 .pspot-empty > span svg { width: 34px; height: 34px; color: var(--tungsten); }
 .pspot-empty p { margin: 4px 0 0; color: var(--ink-3); }
@@ -1127,8 +1127,8 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 .ts-key { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--gel) 45%, transparent); background: color-mix(in srgb, var(--gel) 10%, #121826); color: var(--ink); text-align: left; cursor: pointer; }
 .ts-key b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--gel); color: #0b0f18; font: 800 15px var(--font); flex: none; }
 .ts-key span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px var(--font); }
-.ts-key.empty { opacity: 0.75; border-style: dashed; }
-.ts-key.empty span { color: var(--ink-3); }
+.ts-key.vacant { opacity: 0.75; border-style: dashed; }
+.ts-key.vacant span { color: var(--ink-3); }
 .ts-key.here { box-shadow: 0 0 0 2px var(--gel); cursor: default; }
 .ts-key:not(.here):hover { background: color-mix(in srgb, var(--gel) 22%, #121826); }
 .te-simple { align-self: flex-start; margin: 10px 0 4px; }
