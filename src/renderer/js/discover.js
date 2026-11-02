@@ -1177,7 +1177,8 @@ function importRow(e) {
 export async function importFiles(paths) {
   try {
     const r = await api.imports.files(paths);
-    if (r) summarize(r);
+    if (Array.isArray(r) && !r.length) toast({ title: 'No songs found there', message: 'Stagehand looks for .psarc files and ZIPs of them.', kind: 'info' });
+    else if (r) summarize(r);
   } catch (err) {
     toast({ title: 'Couldn’t import', message: err.message, kind: 'err' });
   }
@@ -1320,9 +1321,10 @@ window.addEventListener('drop', (e) => {
   dragDepth = 0;
   overlay.hidden = true;
   const paths = [...e.dataTransfer.files].map((f) => window.stagehand.pathFor(f)).filter(Boolean);
-  const songs = paths.filter((p) => /\.(psarc|zip)$/i.test(p));
+  // song files, ZIPs, or folders of them (a folder name has no file ending)
+  const songs = paths.filter((p) => /\.(psarc|zip)$/i.test(p) || !/\.[a-z0-9]{1,5}$/i.test(p));
   if (!songs.length) {
-    toast({ title: 'Nothing to import', message: 'Drop .psarc song files, or ZIPs with songs inside.', kind: 'info' });
+    toast({ title: 'Nothing to import', message: 'Drop .psarc song files, ZIPs with songs inside, or a folder of them.', kind: 'info' });
     return;
   }
   importFiles(songs);

@@ -732,7 +732,29 @@ function registerIpc() {
       if (r.canceled || !r.filePaths.length) return null;
       files = r.filePaths;
     }
-    return importer.importFiles(files, { origin: Array.isArray(paths) ? 'drop' : 'manual' });
+    // 3.13: a dropped folder brings in every song inside it (and its folders, a few levels down)
+    const out = [];
+    const walk = async (p, depth) => {
+      let st;
+      try {
+        st = await fsp.stat(p);
+      } catch (_) {
+        return;
+      }
+      if (st.isDirectory()) {
+        if (depth > 4 || out.length > 5000) return;
+        let names = [];
+        try {
+          names = await fsp.readdir(p);
+        } catch (_) {
+          return;
+        }
+        for (const n of names) if (!n.startsWith('.')) await walk(path.join(p, n), depth + 1);
+      } else if (/\.(psarc|zip)$/i.test(p)) out.push(p);
+    };
+    for (const f of files) await walk(f, 0);
+    if (!out.length) return [];
+    return importer.importFiles(out, { origin: Array.isArray(paths) ? 'drop' : 'manual' });
   });
   handle('import:waiting', (paths) => importer.importWaiting(Array.isArray(paths) ? paths.map(String) : null));
   handle('import:undo', (id) => importer.undo(String(id)));
