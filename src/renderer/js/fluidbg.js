@@ -12,27 +12,56 @@ import { rig } from './rig.js';
 export function createFluid(host, { jam = false } = {}) {
   let frame = null;
   let api = null;
-  return {
+  let born = 0;
+  let broken = false;
+  let tries = 0;
+  const look = () => {
+    if (!api && frame) {
+      try {
+        api = frame.contentWindow.FluidVisuals || null;
+      } catch (_) {
+        api = null;
+      }
+    }
+    return api;
+  };
+  const self = {
     get ready() {
-      return !!(api && api.splats);
+      const a = look();
+      return !!(a && a.splats);
+    },
+    /** True when the picture can't be made here (it was rebuilt a few times and still failed). */
+    get failed() {
+      return tries > 3;
     },
     ensure() {
-      if (frame) return;
+      // 3.13: a picture that never started, or that the graphics card took away, used to
+      // stay black until another background was picked; now it's rebuilt (a few tries)
+      if (frame && (broken || (!self.ready && performance.now() - born > 5000))) {
+        tries++;
+        self.drop(true);
+      }
+      if (frame || self.failed) return;
       let dye = '';
       try {
         dye = localStorage.getItem('stagehand.fluidDye') || ''; // 1024 default; 512/256 for slower graphics
       } catch (_) {}
+      broken = false;
+      born = performance.now();
       frame = h('iframe.hw-fluid', { src: `fluid/fluid.html?embed=1${jam ? '&jam=1' : ''}${dye ? `&dye=${encodeURIComponent(dye)}` : ''}`, tabindex: '-1', 'aria-hidden': 'true', title: '' });
+      const mine = frame;
       frame.addEventListener('load', () => {
+        if (frame !== mine) return;
+        look();
         try {
-          api = frame.contentWindow.FluidVisuals || null;
-        } catch (_) {
-          api = null;
-        }
+          const cv = frame.contentDocument && frame.contentDocument.querySelector('canvas');
+          if (cv) cv.addEventListener('webglcontextlost', () => frame === mine && (broken = true));
+        } catch (_) {}
       });
       host.prepend(frame);
     },
-    drop() {
+    drop(keepTries = false) {
+      if (!keepTries) tries = 0;
       if (!frame) return;
       try {
         api && api.dispose();
@@ -42,13 +71,14 @@ export function createFluid(host, { jam = false } = {}) {
     },
     /** Splashes {x, y (0 = bottom), dx, dy, r, g, b, radius}; mirrored unless told not to. */
     send(list, { mirror = true } = {}) {
-      if (!api || !api.splats || !list.length) return;
+      if (!look() || !api.splats || !list.length) return;
       const out = mirror ? list.concat(list.map((s) => ({ ...s, x: 1 - s.x, dx: -(s.dx || 0) }))) : list;
       try {
         api.splats(out);
       } catch (_) {}
     },
   };
+  return self;
 }
 
 /** A colour from a hue (0–1), full and bright, times k. */

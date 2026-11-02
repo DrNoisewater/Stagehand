@@ -324,6 +324,11 @@ export function createVisuals(host, { highway = false } = {}) {
   let canvas = null;
   let gl = null;
   let failed = false;
+  // 3.13: a lost or failed picture used to stay black until you picked another
+  // background and came back. Now it rebuilds itself (a few tries, a little apart).
+  let lost = false;
+  let tries = 0;
+  let retryAt = 0;
   let W = 0;
   let H = 0;
   let floatOK = false;
@@ -398,7 +403,7 @@ export function createVisuals(host, { highway = false } = {}) {
     gl.bindVertexArray(gl.createVertexArray());
     canvas.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();
-      failed = true;
+      lost = true; // rebuilt on the next frame
     });
   }
 
@@ -568,7 +573,14 @@ export function createVisuals(host, { highway = false } = {}) {
     },
     /** Draws one frame of scene `id` from features F. */
     draw(id, F, now = performance.now()) {
-      if (failed) return false;
+      if (lost) {
+        // the graphics card took the picture away (driver reset, too many pictures open): start a fresh one
+        lost = false;
+        this.reset();
+        tries++;
+        retryAt = now + 500;
+      }
+      if (failed || now < retryAt) return false;
       try {
         if (!gl) init();
         size();
@@ -595,13 +607,31 @@ export function createVisuals(host, { highway = false } = {}) {
         } else if (id === 'strings') pass('strings', STRINGS, F, now, dt);
         else pass('nebula', NEBULA, F, now, dt);
         finish(F, now);
+        if (tries && now > retryAt + 10000) tries = 0; // steady again
         return true;
       } catch (e) {
         console.warn('Visualizer:', e && e.message);
-        this.drop();
-        failed = true; // stays off until the screen is closed and opened again
+        this.reset();
+        // try again a little later; after a few failures give up until the background is changed
+        tries++;
+        retryAt = now + 1500 * tries;
+        if (tries > 4) failed = true;
         return false;
       }
+    },
+    /** Lets go of the picture (it's rebuilt on the next draw). */
+    reset() {
+      if (canvas) canvas.remove();
+      if (gl) {
+        const lose = gl.getExtension('WEBGL_lose_context');
+        if (lose && !gl.isContextLost()) lose.loseContext();
+      }
+      canvas = gl = specTex = waveTex = swarm = null;
+      fb = [];
+      for (const k of Object.keys(progs)) delete progs[k];
+      W = H = 0;
+      last = 0;
+      lastScene = null;
     },
     drop() {
       if (canvas) canvas.remove();
@@ -616,6 +646,9 @@ export function createVisuals(host, { highway = false } = {}) {
       last = 0;
       lastScene = null;
       failed = false;
+      lost = false;
+      tries = 0;
+      retryAt = 0;
     },
   };
 }

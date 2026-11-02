@@ -1519,14 +1519,19 @@ export function createHighway(stage) {
       dropFluid();
       const now = performance.now();
       feat.update(stage.engine, rig, now);
-      visuals.draw(v.scene, feat, now);
+      // if the moving picture can't be drawn right now, the photo shows instead of black
+      if (!visuals.draw(v.scene, feat, now)) R3.setVenue(FALLBACK_VENUE, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
     } else {
       visuals.drop();
-      if (v?.fluid && H.open) driveFluid(t || 0); else dropFluid();
+      if (v?.fluid && H.open) {
+        driveFluid(t || 0);
+        if (fluid.failed || !fluid.ready) R3.setVenue(FALLBACK_VENUE, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
+      } else dropFluid();
     }
   }
 
   // Audio-driven backgrounds follow the audible song bus and processed instrument.
+  const FALLBACK_VENUE = VENUES.find((x) => x.id === 'warehouse' && x.photo) || VENUES.find((x) => x.photo) || null;
   const fluid = createFluid(root);
   const feat = createFeatures(); // one reading of the music shared by Fluid and the scenes
   const visuals = createVisuals(root, { highway: true });

@@ -38,6 +38,21 @@ const srv = http.createServer((req, res) => {
     }
     // software rendering here is slow: keep the glow on for stills (the app turns it off on slow PCs)
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
+    if (process.env.LOSE_CONTEXT) {
+      // the graphics card takes the moving background away: it must come back by itself, not stay black
+      const r = await page.evaluate(async () => {
+        const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+        await wait(1500);
+        const old = document.querySelector('canvas.hw-visual');
+        if (!old) return 'no moving background to test (set VENUE to a scene)';
+        old.getContext('webgl2').getExtension('WEBGL_lose_context').loseContext();
+        await wait(2500);
+        const now = document.querySelector('canvas.hw-visual');
+        return now && now !== old && !now.getContext('webgl2').isContextLost() ? 'ok' : 'still lost';
+      });
+      if (r !== 'ok') throw new Error(`background after a lost picture: ${r}`);
+      console.log('PASS the moving background rebuilds itself after the graphics card drops it');
+    }
     if (process.env.VERIFY) {
       const checks = await page.evaluate(async () => {
         const H = document.querySelector('.highway').__hw;
