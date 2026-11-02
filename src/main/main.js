@@ -507,7 +507,7 @@ function registerIpc() {
       const video=require('./services/video-export');
       await video.exportMp4(await video.ensureEncoder(tools),input,output);
       await fsp.copyFile(output,file);
-      const take=await takes.addVideo({file:rel,name:path.basename(rel,'.mp4'),songId:(meta&&meta.songId)||null,seconds:Number(meta&&meta.seconds)||0});
+      const take=await takes.addVideo({file:rel,name:path.basename(rel,'.mp4').replace(/^SH - /,''),songId:(meta&&meta.songId)||null,seconds:Number(meta&&meta.seconds)||0});
       return {path:file,take};
     }finally{await fsp.rm(temp,{recursive:true,force:true});}
   });

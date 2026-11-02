@@ -34,7 +34,7 @@ export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()
           recorder.onstop=async()=>{try{const blob=new Blob(chunks,{type:mime});clean();
             const seconds=(performance.now()-startedAt)/1000;
             const saved=await api.clips.save(new Uint8Array(await blob.arrayBuffer()),{title:title()||'Jam Session',songId:songId(),seconds});
-            if(saved&&saved.take)toast({title:`Saved “${saved.take.name}”`,message:'In your recordings.',kind:'ok',actions:[{label:'Recordings',onClick:()=>import('./recordings.js').then(r=>r.openRecordings({focus:saved.take.id}))}]});
+            if(saved&&saved.take)toast({title:`Saved “${saved.take.name}”`,message:'In Recordings (the file is “SH - …mp4”).',kind:'ok',actions:[{label:'Recordings',onClick:()=>import('./recordings.js').then(r=>r.openRecordings({focus:saved.take.id}))}]});
             resolve(saved&&saved.path);}catch(e){clean();reject(e);}finally{chunks=[];}};
         });
         // Catch auto-stop failures as well as explicit save failures.

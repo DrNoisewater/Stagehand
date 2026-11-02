@@ -1177,3 +1177,6 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 .find-row { display: flex; gap: 12px; justify-content: space-between; padding: 5px 8px; border-radius: 6px; background: #ffffff06; font: 500 13px var(--font); }
 .find-row .muted, .find-row.muted { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .find-acts { display: flex; justify-content: flex-end; }
+
+/* 4.0: one set of keys at a time on Tones */
+#page-tones.simple .slot-strip { display: none; }

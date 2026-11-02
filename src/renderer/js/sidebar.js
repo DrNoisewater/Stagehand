@@ -55,7 +55,7 @@ function item({ kind, id, label, iconName, count, cls = '', onContext, drop, cur
 /** A top-level section of the menu, with its own gel colour. */
 function section({ page, label, iconName, gel, onClick, sub }) {
   const cur = state.page === page;
-  const b = h(`button.nav-section${sub ? '.has-sub' : ''}`, { type: 'button', 'aria-current': cur ? 'page' : 'false', style: { '--gel': gel } });
+  const b = h(`button.nav-section${sub ? '.has-sub' : ''}`, { type: 'button', 'aria-current': cur ? 'page' : 'false', 'data-page': page, style: { '--gel': gel } });
   b.innerHTML = `${icon(iconName)}<span class="name">${esc(label)}</span>`;
   b.onclick = onClick || (() => setPage(page));
   return b;
@@ -174,8 +174,9 @@ export function render() {
   root.append(top);
   // section highlight follows the page, not the Songs list
   for (const b of top.querySelectorAll('.nav-section')) b.setAttribute('aria-current', 'false');
-  const idx = { play: 0, songs: 1, tones: 2, progress: 3, discover: 4 }[page];
-  const secs = top.querySelectorAll('.nav-section');
+  // (by page name, not position: 4.0 added Recordings, which opens a window, not a page)
+  const secs = [...top.querySelectorAll('.nav-section')];
+  const idx = secs.findIndex((b) => b.dataset.page === page);
   if (secs[idx]) secs[idx].setAttribute('aria-current', 'page');
   if (folded && folded !== page) folded = null;
   if (secs[idx]) secs[idx].classList.toggle('folded', folded === page);

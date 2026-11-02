@@ -388,6 +388,7 @@ function addMenu(e) {
 function renderEditor() {
   editCol.innerHTML = '';
   const d = T.draft;
+  if (!d) root.classList.remove('simple');
   if (!d) {
     const np = rig.tone;
     editCol.append(h('div.tones-empty', null, h('h2', { text: 'Pick a tone' }), h('p', { text: 'Choose one on the left to hear it on your guitar, edit its rig, rename it or put it in a slot.' })));
@@ -431,6 +432,7 @@ function renderEditor() {
     h('div.te-head', null, h('label.te-field.grow', null, h('span', { text: 'Name' }), name), demoButton(d, 'tones:editor', { label: 'Demo riff', cls: 'big' }), saveBtn, more),
     h('div.te-from', null, h('span.te-dirty', { hidden: !T.dirty, text: 'Changed, not saved · ' }), d.mine ? `Your tone${d.from && d.from.song ? `, first saved from ${d.from.song}` : ''}. Changes are live: play while you tweak, then Save.` : d.from && d.from.song ? `From ${d.from.song}. Saving makes your own copy, so the song keeps its tone.` : d.from && d.from.preset ? 'A Stagehand preset. Saving makes your own copy.' : 'Changes are live: play while you tweak, then Save.')
   );
+  root.classList.toggle('simple', !T.advanced);
   if (!T.advanced) return renderSimple(d);
   const done = h('button.btn.small.soft.te-simple', { type: 'button', html: `${icon('chevronLeft')}<span>Done editing</span>` });
   done.onclick = () => setAdvanced(false);
