@@ -102,6 +102,23 @@ class FakePortMain extends EventEmitter {
         }, 40);
       return;
     }
+    // recorded sound (looper, clips) comes as many small pieces: batch them too, in order, none dropped
+    if (msg && (msg.t === 'processed' || msg.t === 'mixed') && msg.d) {
+      const k = msg.t;
+      if (!this.mon) this.mon = {};
+      if (!this.mon[k]) this.mon[k] = [];
+      const b = this.mon[k];
+      for (let i = 0; i < msg.d.length; i++) b.push(msg.d[i]);
+      if (!this.monT)
+        this.monT = setTimeout(() => {
+          this.monT = null;
+          for (const kk of Object.keys(this.mon)) {
+            if (this.mon[kk].length) this._send({ t: kk, d: this.mon[kk] });
+            this.mon[kk] = [];
+          }
+        }, 40);
+      return;
+    }
     // level meters: only the newest matters, keep one in the queue at most
     if (msg && msg.t === 'ev' && msg.ev && msg.ev.ev === 'meters') {
       this.lastMeters = msg;
@@ -168,9 +185,15 @@ class FakePortMain extends EventEmitter {
   await captures.load();
 
   const stemHold = new Set(); // songs whose stems are "still splitting" (for the wait-for-stems check)
+  // song switching checks (3.13): songs whose audio fails to open, and slow answers
+  const audioFail = new Set();
+  const audioDelay = new Map();
+  const tabDelay = new Map();
+  const stemsDelay = new Map();
+  const later = (ms) => new Promise((r) => setTimeout(r, ms || 0));
   const API = {
     'clips.source': () => 'test-window',
-    'clips.save': data => { const f=path.join(outDir,'export-test.webm');fs.writeFileSync(f,Buffer.from(Object.values(data)));return f;},
+    'clips.save': (data, meta) => { const f=path.join(outDir,'export-test.webm');fs.writeFileSync(f,Buffer.from(Object.values(data)));return {path:f,take:{id:'k_0000000000',name:`SH - ${(meta&&meta.title)||'Jam Session'}`}};},
     'cabs.ensure': id => require('../../src/main/services/cabinets').ensureCab(path.join(tmp,'Cabs'),id,async()=>{throw Error('offline test');}),
     'cabs.bytes': id => Array.from(fs.readFileSync(path.join(ROOT,'src/renderer/data/cabs',id+'.wav'))),
     'captures.get': () => captures.state(),
@@ -201,17 +224,25 @@ class FakePortMain extends EventEmitter {
       s.songs = s.songs.map((x) => ({ ...x, hasStems: false }));
       return s;
     },
-    'audio.prepare': () => ({ key: 'song', url: '/song.wav', sampleRate: 48000, channels: 2, frames: 48000 * SECS, duration: SECS, bits: 16 }),
+    'audio.prepare': async (id) => {
+      await later(audioDelay.get(id));
+      if (audioFail.has(id)) throw new Error('Could not decode the song audio: test failure');
+      return { key: 'song', url: '/song.wav', sampleRate: 48000, channels: 2, frames: 48000 * SECS, duration: SECS, bits: 16 };
+    },
     'tab.list': (id) => tabs.list(song(id)),
-    'tab.load': (id, arr) => tabs.load(song(id), arr),
+    'tab.load': async (id, arr) => {
+      await later(tabDelay.get(id));
+      return { ...(await tabs.load(song(id), arr)), _for: id };
+    },
     'rig.available': () => true,
     // every song has stems in this test (all the same tone, which is fine for the UI)
     'stems.formats': () => library.snapshot().songs.map((x) => ({ songId: x.id, model: 'htdemucs_6s', format: 'wav', bytes: 6 * 48000 * 30 * 4, seconds: 30 })),
-    'stems.status': (id) => (stemHold.has(id) ? { songId: id, state: 'running', progress: 0.4 } : { state: 'ready', model: 'htdemucs_6s', format: 'wav', sampleRate: 48000, frames: 48000 * SECS, stems: ['guitar', 'bass', 'drums', 'vocals', 'piano', 'other'].map((name) => ({ name, url: '/song.wav' })) }),
+    'stems.status': async (id) => (await later(stemsDelay.get(id)), stemHold.has(id) ? { songId: id, state: 'running', progress: 0.4 } : { state: 'ready', model: 'htdemucs_6s', format: 'wav', sampleRate: 48000, frames: 48000 * SECS, stems: ['guitar', 'bass', 'drums', 'vocals', 'piano', 'other'].map((name) => ({ name, url: '/song.wav' })) }),
     'stems.prioritize': () => true,
     'stems.queue': () => ({ items: [] }),
     'engine.status': () => ({ state: 'missing', ok: false }),
     'imports.status': () => ({ watching: false, history: [] }),
+    'imports.scanPC': () => ({ places: [], found: [] }),
     'discover.wanted': () => [],
     'discover.recent': () => [],
     // a profile with Rocksmith mastery for the test songs' parts (3.7: shown next to titles)
@@ -296,7 +327,7 @@ class FakePortMain extends EventEmitter {
     window.__deliver = (id, m) => {
       const port = local.get(id);
       if (!port) return;
-      if (m && m.t === 'in' && Array.isArray(m.d)) m = { ...m, d: Float32Array.from(m.d) };
+      if (m && (m.t === 'in' || m.t === 'processed' || m.t === 'mixed') && Array.isArray(m.d)) m = { ...m, d: Float32Array.from(m.d) };
       port.postMessage(m);
     };
     const ns = (name) => {
@@ -392,7 +423,7 @@ class FakePortMain extends EventEmitter {
     await page.evaluate(async()=>{const {state}=await import('./js/store.js');const a=await import('./js/actions.js');await a.playAlong(state.nowPlaying);});
     await page.waitForTimeout(1800);await page.keyboard.press('u');
     check(await page.locator('.hw-mini-tuner').isVisible(),'U opens highway tuner');await page.keyboard.press('u');check(!(await page.locator('.hw-mini-tuner').isVisible()),'U closes highway tuner');
-    await page.getByRole('button',{name:'Score attack',exact:true}).click();await page.waitForTimeout(400);
+    await page.locator('.hw-tools-btn').click();await page.locator('.menu button:has-text("Score attack")').click();await page.waitForTimeout(400);
     check(await page.locator('.attack-hud').isVisible(),'Score attack starts');
     await shot('performance-highway');
     await page.evaluate(()=>{
@@ -406,10 +437,11 @@ class FakePortMain extends EventEmitter {
       };
     });
     await page.evaluate(async()=>{const {engine}=await import('./js/stage.js');engine.seek(0);await engine.play();});
-    await page.getByRole('button',{name:'● Record clip',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('.hw-tools').textContent.includes('■ Save clip'),null,{timeout:10000});
-    await page.waitForTimeout(3500);await page.getByRole('button',{name:'■ Save clip',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('.hw-tools').textContent.includes('● Record clip'),null,{timeout:15000});
+    await page.locator('.hw-tools-btn').click();await page.locator('.menu button:has-text("Record a video clip")').click();
+    await page.waitForFunction(()=>document.querySelector('.hw-tools').textContent.includes('Recording'),null,{timeout:10000});
+    check(await page.locator('.hw-tools .hw-chip:visible').count()<=3,'the highway shows one Tools button (plus what is running), not a row of floating buttons');
+    await page.waitForTimeout(3500);await page.locator('.hw-tool-live').click();
+    await page.waitForFunction(()=>!document.querySelector('.hw-tools').textContent.includes('Recording')&&!document.querySelector('.hw-tools').textContent.includes('Saving'),null,{timeout:15000});
     check(fs.existsSync(path.join(outDir,'export-test.webm')) && fs.statSync(path.join(outDir,'export-test.webm')).size>10000,'WebM export contains encoded video and internal audio');
     const errs=logs.filter(l=>/^pageerror/.test(l));check(!errs.length,'no page errors: '+errs.join(';'));
     await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
@@ -581,6 +613,12 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(2500);
   await page.locator('.tone-item .ti-main').first().click();
   await page.waitForTimeout(800);
+  // 3.13: a picked tone shows the simple view first: what it is, play it, put it on a key
+  check((await page.locator('.tones-edit .ts-keys .ts-key').count()) === 8 && (await page.locator('.tones-edit .knobs3').count()) === 0, 'Tones opens a tone simply: keys 2–9 to put it on, no knobs in the way');
+  await shot('7a-tones-simple');
+  await page.locator('.tones-edit button:has-text("Edit tone")').click();
+  await page.waitForTimeout(500);
+  check((await page.locator('.tones-edit .chain, .tones-edit .knobs3').count()) > 0, 'Edit tone opens the full editor');
   await shot('7b-tones-song');
   await page.locator('.te-save').click();
   await page.waitForTimeout(800);
@@ -607,6 +645,10 @@ class FakePortMain extends EventEmitter {
     await shot(`${n}-${name.toLowerCase()}`);
   }
   check(await page.locator('.take').count() >= 1, 'the saved loop is in your takes');
+  await page.locator('.nav-section:has-text("Progress")').click();
+  await page.waitForTimeout(1200);
+  check((await page.locator('.pnext .btn').count()) === 1 && (await page.locator('.pmastery .pm-key').count()) === 4, `Progress suggests what to practise next and shows your songs by mastery (“${((await page.locator('.pnext h2').textContent().catch(() => '')) || '').slice(0, 50)}”)`);
+  await shot('8b-progress-top');
   // Settings › Stems (FLAC only)
   await page.keyboard.press('Control+Comma');
   await page.waitForTimeout(800);
@@ -782,6 +824,103 @@ class FakePortMain extends EventEmitter {
     started = await page.evaluate(() => document.querySelector('.stem-wait').hidden && !!(window.__stagePlaying && window.__stagePlaying()));
   }
   check(!playingBefore && started, 'and starts by itself once they’re in');
+
+  // ---- 3.13: song switching never leaves the wrong song, a dead spinner, or a silent stall ----
+  {
+    const ids3 = library.snapshot().songs.map((x) => x.id);
+    // (the test library has two songs: A and B)
+    const [sA, sB] = ids3;
+    const hwState = () =>
+      page.evaluate(async () => {
+        const st = await import('/src/renderer/js/stage.js');
+        const info = st.loadInfo();
+        const hw = window.__shHighway;
+        const box = document.querySelector('.hw-status');
+        return { phase: info.phase, song: info.song && info.song.id, err: info.error, hwSong: hw.songId(), tabFor: hw.tab() && hw.tab()._for, status: box && !box.hidden ? box.textContent : '', playing: !!window.__stagePlaying(), open: hw.open() };
+      });
+    const along = (id) => page.evaluate(async (id) => (await import('/src/renderer/js/actions.js')).playAlong(id), id).catch(() => {});
+    const until = async (fn, ms = 10000) => {
+      const t0 = Date.now();
+      let v;
+      while (Date.now() - t0 < ms) {
+        v = await hwState();
+        if (fn(v)) return v;
+        await page.waitForTimeout(200);
+      }
+      return v;
+    };
+    // rapid switching: B's part answers slowly, A is picked straight after: A must win
+    tabDelay.set(sB, 2500);
+    along(sB);
+    await page.waitForTimeout(150);
+    along(sA);
+    let v = await until((x) => x.phase === 'ready' && x.tabFor === sA);
+    await page.waitForTimeout(2800); // B's late answer arrives now
+    v = await hwState();
+    check(v.song === sA && v.hwSong === sA && v.tabFor === sA, `rapid switching: the last song picked is on the highway, not a late answer for the one before (${JSON.stringify({ song: v.song === sA, hw: v.hwSong === sA, tab: v.tabFor === sA })})`);
+    tabDelay.clear();
+    // a song that fails to open: says so on the highway, nothing old plays, Try again and Back work
+    along(sB);
+    await until((x) => x.phase === 'ready' && x.tabFor === sB && !x.status);
+    audioFail.add(sA);
+    along(sA);
+    v = await until((x) => x.phase === 'error');
+    check(v.phase === 'error' && !v.playing && /didn’t open/.test(v.status) && /Try again/.test(v.status) && /Back to/.test(v.status), `a failed song says so on the highway with Try again and Back (“${v.status.slice(0, 90)}”)`);
+    check(v.song === sA && v.hwSong === sA, 'and the highway shows the song that failed, not the one before');
+    await shot('22b-song-failed');
+    // picking the same song again tries again (it used to do nothing)
+    audioFail.delete(sA);
+    along(sA);
+    v = await until((x) => x.phase === 'ready' && x.tabFor === sA && !x.status, 25000); // its stems load too: slow here
+    check(v.phase === 'ready' && v.tabFor === sA && !v.status, `picking the failed song again opens it (${v.phase}${v.status ? `, still showing “${v.status.slice(0, 40)}”` : ''})`);
+    // Try again and Back on the panel
+    audioFail.add(sB);
+    along(sB);
+    v = await until((x) => x.phase === 'error' && x.song === sB);
+    await page.locator('.hw-status button:has-text("Back to")').click();
+    v = await until((x) => x.phase === 'ready' && x.song === sA);
+    check(v.song === sA && v.tabFor === sA, 'Back to the previous song goes back to it');
+    along(sB);
+    v = await until((x) => x.phase === 'error' && x.song === sB);
+    audioFail.delete(sB);
+    await page.locator('.hw-status button:has-text("Try again")').click();
+    v = await until((x) => x.phase === 'ready' && x.song === sB && x.tabFor === sB);
+    check(v.phase === 'ready' && v.tabFor === sB, 'Try again opens it once it works');
+    // loading shows on the highway, and leaving the highway mid-load and coming back shows the new song
+    along(sA);
+    await until((x) => x.phase === 'ready' && x.tabFor === sA && !x.status);
+    audioDelay.set(sB, 3000);
+    along(sB);
+    await page.waitForTimeout(500);
+    v = await hwState();
+    check(v.phase === 'loading' && /Opening/.test(v.status), `while a song opens the highway says so (“${v.status.slice(0, 50)}”)`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+    await page.evaluate(async () => (await import('/src/renderer/js/stage.js')).openHighway());
+    v = await until((x) => x.phase === 'ready' && x.tabFor === sB && !x.status);
+    check(v.open && v.song === sB && v.hwSong === sB && v.tabFor === sB && !v.status, 'leaving the highway while a song opens and coming back shows that song, ready');
+    audioDelay.clear();
+    // a song still finishing up when you pick the next one must not start the new one playing
+    // (here: the new one waits for its stems, so nothing should play)
+    stemsDelay.set(sA, 2000);
+    stemHold.add(sB);
+    along(sA);
+    await page.waitForTimeout(900); // A has its audio, and is asking about its stems
+    along(sB);
+    v = await until((x) => x.phase === 'ready' && x.song === sB && /Splitting/.test(x.status));
+    await page.waitForTimeout(2500); // A's late answer comes now
+    v = await hwState();
+    check(v.song === sB && /Splitting/.test(v.status) && !v.playing, `an older song finishing late doesn't press play on the new one (${JSON.stringify({ song: v.song === sB, waiting: /Splitting/.test(v.status), playing: v.playing })})`);
+    // and it never waits long: after about 15 s it starts with the full mix while the stems are made
+    v = await until((x) => x.playing, 25000);
+    check(v.playing && v.song === sB && !v.status, `a song waiting for slow stems starts with the full mix after a few seconds (${JSON.stringify({ playing: v.playing, status: v.status.slice(0, 30) })})`);
+    stemHold.delete(sB);
+    stemsDelay.clear();
+    await page.evaluate((id) => window.__shEmit('stems:update', { songId: id, state: 'ready' }), sB);
+    // back to the first song for the rest of the run
+    along(firstId);
+    await until((x) => x.phase === 'ready' && x.tabFor === firstId);
+  }
   // 3.7: Tab | Waveform on the highway, and Back goes to your songs
   await page.mouse.move(400, 300);
   await page.mouse.move(420, 320);
@@ -873,6 +1012,19 @@ class FakePortMain extends EventEmitter {
   await page.keyboard.press('Escape');
   await page.waitForTimeout(500);
   check(await page.evaluate(() => document.querySelector('.jam').hidden && !document.querySelector('.jam .hw-fluid')), 'Esc leaves Jam and stops the picture');
+
+  // 3.13: Recordings, from the menu: every recording with its date, length and size, playable here
+  await takes.save({ name: 'Integration', seconds: 1, rate: 48000, channels: 1, pcm: new Uint8Array(new Float32Array(48000).fill(0.05).buffer) });
+  await page.locator('.nav-section:has-text("Recordings")').click();
+  await page.waitForSelector('.modal .rec-row', { timeout: 10000 });
+  const rec = await page.evaluate(() => [...document.querySelectorAll('.modal .rec-row')].map((r) => r.textContent));
+  check(rec.some((t) => /SH - Integration|Integration/.test(t) && /0:01/.test(t) && /KB|MB/.test(t)), `Recordings lists takes with length and size (${rec[0] && rec[0].slice(0, 70)})`);
+  await page.locator('.modal .rec-row .round-play').first().click();
+  await page.waitForTimeout(600);
+  check(await page.evaluate(() => !!document.querySelector('.modal .rec-player audio, .modal .rec-player video')), 'a recording plays inside Stagehand');
+  await shot('28-recordings');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
 
   // reopening Stagehand on Tones › From my songs (the tab is remembered) must start reading by itself
   await page.evaluate(() => localStorage.setItem('stagehand.tonesTab', 'songs'));

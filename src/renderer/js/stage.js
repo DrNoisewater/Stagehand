@@ -741,10 +741,44 @@ function showLoadingState(msg) {
   if (mix) mix.note.textContent = msg;
 }
 
+/**
+ * Where the open song is: 'loading' (decoding, reading), 'ready' (it can play),
+ * 'error' (it couldn't open: S.error says why). Every screen reads this, so none
+ * shows an old song or a spinner that never ends.
+ */
+function setPhase(phase) {
+  S.phase = phase;
+  emit('stage-phase');
+}
+
+export function loadInfo() {
+  return { phase: S.phase || (S.song ? 'ready' : 'none'), song: S.song, error: S.error, prev: S.prevSong, waiting: S.waitPlay ? S.waitStatus || S.status || { state: 'queued' } : null };
+}
+
+/** Open the song again from the start (after it failed). */
+export function retry() {
+  if (S.song) return load(S.song, { autoplay: S.autoplay !== false });
+}
+
+/** Back to the song you had before a new one failed to open. */
+export function backToPrevious() {
+  if (S.prevSong) return load(S.prevSong, { autoplay: false });
+}
+
+/** Stop waiting for the stems and play the full mix now. */
+export function playNow() {
+  stopWaiting();
+  if (S.phase === 'ready' && !engine.playing) engine.play();
+}
+
 export async function load(song, { autoplay = true } = {}) {
   const token = ++S.token;
-  engine.pause();
+  // the old song leaves the player now: it can't keep playing under the new title
+  engine.unloadAll();
   stopWaiting();
+  // the last song that opened fine, to go back to if this one fails
+  if (S.song && S.song.id !== song.id && S.phase === 'ready') S.prevSong = S.song;
+  S.autoplay = autoplay;
   S.song = song;
   const um = song.user && song.user.mix;
   S.mix = { you: um && um.you != null ? um.you : null, song: um && um.song != null ? um.song : null, stems: { ...((um && um.stems) || {}) } };
@@ -759,6 +793,7 @@ export async function load(song, { autoplay = true } = {}) {
   S.status = state.stems.get(song.id) || { state: song.hasStems ? 'ready' : 'none' };
   state.nowPlaying = song.id;
   S.mixPeaks = null;
+  setPhase('loading');
   emit('playing');
   emit('stage-song');
   setHead(song);
@@ -777,6 +812,8 @@ export async function load(song, { autoplay = true } = {}) {
     } catch (err) {
       if (err.code === 'NEED_VGMSTREAM') {
         if (token !== S.token) return;
+        S.error = 'The song audio decoder isn’t installed yet.';
+        setPhase('error');
         return showDecoderPrompt(song, autoplay);
       }
       throw err;
@@ -787,6 +824,7 @@ export async function load(song, { autoplay = true } = {}) {
     const data = await loadTrackData(info.url);
     if (token !== S.token) return;
     await engine.reset(info.sampleRate, info.frames);
+    if (token !== S.token) return; // another song was picked while the player got ready
     // Master levels are global. Old per-song snapshots must not silence the next song.
     const songLevel = mixer.master ?? engine.master ?? 0.85;
     engine.setMaster(songLevel);
@@ -808,10 +846,14 @@ export async function load(song, { autoplay = true } = {}) {
     S.mixPeaks = data.peaks;
     refreshLane(mix);
     playBtn.disabled = false;
+    setPhase('ready');
     emit('stage-loaded');
     if (autoplay) {
       // with stems on the way, start once they're in, so the mix doesn't change under you
-      if (await stemsFirst(song, token)) startWaiting(token);
+      const wait = await stemsFirst(song, token);
+      // (an older song still finishing up must never press play on the new one)
+      if (token !== S.token) return;
+      if (wait) startWaiting(token);
       else await engine.play();
     }
     api.songs
@@ -822,12 +864,25 @@ export async function load(song, { autoplay = true } = {}) {
     await loadStems(token);
   } catch (err) {
     if (token !== S.token) return;
+    stopWaiting();
     S.error = err.message;
+    // once the audio is in, a later hiccup (stems) doesn't make the song unplayable
+    if (S.phase !== 'ready') {
+      engine.unloadAll();
+      setPhase('error');
+    }
     const mix = lanes.get('mix');
     if (mix) {
       mix.lane.classList.remove('scanning');
       mix.note.textContent = '';
-      mix.note.append(h('span.stage-error', { text: `Could not play this song. ${err.message}` }));
+      const again = h('button.btn.small', { type: 'button', text: 'Try again' });
+      again.onclick = () => retry();
+      mix.note.append(h('span.stage-error', { text: `Could not play this song. ${err.message}` }), again);
+      if (S.prevSong) {
+        const back = h('button.btn.small.ghost', { type: 'button', text: `Back to ${S.prevSong.title}` });
+        back.onclick = () => backToPrevious();
+        mix.note.append(back);
+      }
     }
   }
 }
@@ -879,7 +934,8 @@ async function loadStems(token, { switchMode = true } = {}) {
         rec.wave.setPeaks(data.peaks, S.duration);
         refreshLane(rec);
       } catch (err) {
-        lanes.get(n).lane.classList.remove('scanning');
+        if (token !== S.token) return; // another song opened meanwhile: this one's news is old
+        lanes.get(n)?.lane.classList.remove('scanning');
         toast({ title: `Could not load the ${STEM_LABEL[n].toLowerCase()} stem`, message: err.message, kind: 'err' });
       }
     }
@@ -1080,17 +1136,31 @@ async function stemsFirst(song, token) {
   return false; // nothing to wait for (no stem engine yet): play the full mix
 }
 
+// 4.0: never wait long for stems. A split can take minutes on a CPU: after this long
+// the song starts with the full mix and the stems come in when they're ready.
+const WAIT_MAX_MS = 15000;
+
 function startWaiting(token) {
   S.waitPlay = token;
+  clearTimeout(S.waitTimer);
+  S.waitTimer = setTimeout(() => {
+    if (S.waitPlay !== token || token !== S.token) return;
+    stopWaiting();
+    if (S.phase === 'ready' && !engine.playing) engine.play();
+    toast({ title: 'Playing the full mix for now', message: 'The stems are still being made; they come in by themselves when they’re ready.', kind: 'info', timeout: 6000 });
+  }, WAIT_MAX_MS);
   renderWaiting(S.waitStatus || S.status);
   emit('stage-waiting', true);
+  emit('stage-phase');
 }
 
 function stopWaiting() {
+  clearTimeout(S.waitTimer);
   if (!S.waitPlay) return;
   S.waitPlay = 0;
   waitBox.hidden = true;
   emit('stage-waiting', false);
+  emit('stage-phase');
 }
 
 function renderWaiting(st) {
@@ -1098,7 +1168,7 @@ function renderWaiting(st) {
   st = st || { state: 'queued' };
   const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
   const title = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : `Splitting the stems · ${pct}%`;
-  const note = st.state === 'queued' ? 'Another song is being split first.' : st.state === 'ready' ? 'Almost there.' : 'Guitar, bass, drums and the rest, so you can mix them. The song starts by itself.';
+  const note = st.state === 'queued' ? 'Another song is being split first. The song starts with the full mix in a few seconds if it takes long.' : st.state === 'ready' ? 'Almost there.' : 'Guitar, bass, drums and the rest, so you can mix them. The song starts by itself (with the full mix if this takes long).';
   if (!waitBox.firstChild) {
     waitBox.innerHTML = `<div class="read-bar"><div class="rb-top"><span class="eq"><i></i><i></i><i></i><i></i></span><span class="rb-label"></span><span class="rb-count"></span></div><div class="rb-track"><i></i></div><div class="rb-note"></div><div class="sw-row"><span class="sw-song"></span></div></div>`;
     const now = h('button.btn.small', { type: 'button', html: `${icon('play')}<span>Play now with the full mix</span>` });
@@ -1233,8 +1303,10 @@ on('stems-update', (u) => {
       engine.play();
     }
   }
-  if (u.state === 'ready' && !S.stems.length) loadStems(S.token);
+  // (load() may already be loading them: don't load twice)
+  if (u.state === 'ready' && !S.stems.length && !S.loadingStems && S.phase === 'ready') loadStems(S.token);
   else renderStemsCall();
+  emit('stage-phase');
 });
 on('library', () => {
   if (!S.song) return;
@@ -1307,6 +1379,10 @@ export function openHighway() {
       gel: (name) => (GEL[name] || GEL.other)[1],
       label: (name) => STEM_LABEL[name] || name,
       stemStatus: () => S.status,
+      loadInfo: () => loadInfo(),
+      retry: () => retry(),
+      backToPrevious: () => backToPrevious(),
+      playNow: () => playNow(),
       requestStems: () => S.song && actions.requestStems([S.song.id]).then(() => api.stems.prioritize(S.song.id).catch(() => {})),
       goBack: () => setPage('songs'),
       showView: (v) => setStageView(v),

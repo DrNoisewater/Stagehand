@@ -11,7 +11,7 @@ import { createFluidDriver } from './reactive-bg.js';
 import { createFeatures } from './music-features.js';
 import { createVisuals, SCENES } from './visuals.js';
 import { api } from './api.js';
-import { h, icon, esc, isTyping, toast } from './ui.js';
+import { h, icon, esc, isTyping, toast, instrumentTag } from './ui.js';
 import { rig } from './rig.js';
 import { drums } from './drums.js';
 import { createFluid, guitarInk, ambient, hueRGB } from './fluidbg.js';
@@ -69,8 +69,8 @@ back.onclick = () => closeJam();
 drumBtn.onclick = () => (drums.on ? drums.stop() : drums.start());
 
 function renderHud() {
-  const t = rig.tone;
-  tone.innerHTML = `${icon('guitar')}<span>${esc(t ? t.name || 'Tone' : 'Tone')}</span>`;
+  const t = rig.playing;
+  tone.innerHTML = `${icon('guitar')}${instrumentTag(rig)}<span>${esc(t ? t.name || 'Tone' : 'Tone')}</span>`;
   tone.classList.toggle('off', !rig.on || rig.muted);
   tone.title = !rig.on ? 'Plug in your Rocksmith cable' : rig.muted ? 'Your guitar is muted' : 'Your tone (1–9 for your slots)';
   drumBtn.innerHTML = `${icon('drum')}<span>${drums.on ? `${drums.bpm} bpm` : 'Drums'}</span>`;
@@ -86,7 +86,7 @@ export function jamOpen() {
 export function openJam() {
   if (J.open) return;
   J.open = true;
-  setPage('play');controls.prepend(backingControls);controls.append(recordControl);
+  setPage('play');controls.prepend(backingControls);controls.append(recordControl,recordingsControl);
   wasPlaying=stage.engine.playing;
   J.ink = guitarInk();
   J.beat = -1;
@@ -103,7 +103,7 @@ export function openJam() {
 export function closeJam() {
   if (!J.open) return;
   J.open = false;
-  closeDrawer();document.querySelector('.jam-launch-options')?.prepend(backingControls,recordControl);
+  closeDrawer();document.querySelector('.jam-launch-options')?.prepend(backingControls,recordControl,recordingsControl);
 
   cancelAnimationFrame(J.raf);
   fluid.drop();
@@ -211,4 +211,7 @@ export function registerJamControls(cards,refresh){
 }
 let clip=null;
 export const recordControl=h('button.jam-chip',{text:'Record video'});controls.append(recordControl);
-recordControl.onclick=async()=>{const record=recordControl;clip??=createClipRecorder({rig,engine:stage.engine});record.disabled=true;try{if(clip.active){record.textContent='Exporting…';await clip.stop();record.textContent='Record video';}else{await clip.start();record.textContent='Save video';}}catch(e){record.textContent='Record video';toast({title:'Recording',message:e.message,kind:'err'});}finally{record.disabled=false;}};
+// 3.13: your recordings, from Jam and Play too (the same window as the menu's Recordings)
+export const recordingsControl=h('button.jam-chip',{text:'Recordings',title:'Your recordings: play, rename, delete'});controls.append(recordingsControl);
+recordingsControl.onclick=()=>import('./recordings.js').then((r)=>r.openRecordings());
+recordControl.onclick=async()=>{const record=recordControl;clip??=createClipRecorder({rig,engine:stage.engine,title:()=>'Jam Session'});record.disabled=true;try{if(clip.active){record.textContent='Exporting…';await clip.stop();record.textContent='Record video';}else{await clip.start();record.textContent='Save video';}}catch(e){record.textContent='Record video';toast({title:'Recording',message:e.message,kind:'err'});}finally{record.disabled=false;}};

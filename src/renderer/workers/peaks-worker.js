@@ -33,6 +33,16 @@ function wavFrom(L, R, rate) {
 }
 
 self.onmessage = (e) => {
+  // Always answer, even when the audio is broken (a cut-short file): a silent
+  // worker left the song stuck on "Drawing waveform…" for good.
+  try {
+    work(e);
+  } catch (err) {
+    self.postMessage({ id: e.data && e.data.id, error: `The song audio looks damaged (${(err && err.message) || err}).` });
+  }
+};
+
+function work(e) {
   let { id, buffer, dataOffset, frames, channels } = e.data;
   if (e.data.L) {
     buffer = wavFrom(e.data.L, e.data.R, e.data.rate);
@@ -40,6 +50,10 @@ self.onmessage = (e) => {
     frames = e.data.L.length;
     channels = 2;
   }
+  // a header that claims more audio than the file holds: use what's there
+  const have = Math.floor((buffer.byteLength - dataOffset) / (2 * channels));
+  if (!(have > 0)) throw new Error('no audio in the file');
+  if (frames > have) frames = have;
   let pcm;
   if (dataOffset % 2 === 0) {
     pcm = new Int16Array(buffer, dataOffset, frames * channels);
@@ -103,7 +117,7 @@ self.onmessage = (e) => {
   const transfer = [buffer];
   for (const l of levels) transfer.push(l.min.buffer, l.max.buffer, l.rms.buffer);
   self.postMessage(
-    { id, buffer, levels, peak, rms: Math.sqrt(sumAll / Math.max(1, frames * channels)) },
+    { id, buffer, levels, peak, frames, rms: Math.sqrt(sumAll / Math.max(1, frames * channels)) },
     transfer
   );
 };

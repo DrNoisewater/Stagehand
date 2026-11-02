@@ -322,15 +322,21 @@ async function findNext() {
 
 // ------------------------------------------------------------------ rows --
 function statusChip(t, { quietMissing = false } = {}) {
-  if (t.have) return h('span.state.have', { html: `${icon('check')}<span>In library</span>` });
+  if (t.have) return h('span.state.have', { html: `${icon('check')}<span>In your library</span>` });
   if (t.wanted) return h('span.state.want', { html: `${icon('star', 'fill')}<span>Wanted</span>` });
-  return quietMissing ? null : h('span.state.miss', { text: 'Missing' });
+  return quietMissing ? null : h('span.state.miss', { text: 'Not in your library' });
 }
 
 function rowActions(t, item) {
   const box = h('div.acts');
+  // 4.0: say what each button does, in words (the star alone was easy to miss)
   if (t.have && t.songId) {
-    box.append(iconBtn('play', 'Play', () => actions.playSong(t.songId)));
+    const play = btn('Play', { cls: 'small glow-primary', iconName: 'play', title: 'Open it on the highway' });
+    play.addEventListener('click', (e) => {
+      e.stopPropagation();
+      actions.playAlong(t.songId);
+    });
+    box.append(play);
     box.append(
       iconBtn('library', 'Show in library', () => {
         setView({ kind: 'all' });
@@ -339,14 +345,12 @@ function rowActions(t, item) {
     );
   } else {
     const w = wantedFor(item.artist, item.title);
-    box.append(
-      iconBtn(
-        'star',
-        w ? 'Remove from Wanted' : 'Add to Wanted',
-        () => (w ? unwant([w.id]) : want([item])),
-        w ? 'on' : ''
-      )
-    );
+    const wb = btn(w ? 'Wanted' : 'Want it', { cls: w ? 'small soft want-on' : 'small', iconName: w ? 'check' : 'plus', title: w ? 'On your Wanted list: click to take it off' : 'Add it to your Wanted list, to get it later' });
+    wb.addEventListener('click', (e) => {
+      e.stopPropagation();
+      w ? unwant([w.id]) : want([item]);
+    });
+    box.append(wb);
     box.append(iconBtn('external', 'Find on CustomsForge', () => findOnCF(item)));
   }
   return box;
@@ -941,8 +945,9 @@ function howItWorks() {
   const watching = st && st.watch;
   const box = h('div.how');
   const steps = h(
-    'ol.how-steps.cols3',
+    'ol.how-steps.cols4',
     null,
+    h('li', null, h('b', { text: 'Want it' }), h('span', { text: 'In Search or Collection gaps, press Want it on songs you don’t have. They collect here.' })),
     h('li', null, h('b', { text: 'Find' }), h('span', { text: 'Stagehand copies the song and opens CustomsForge. Paste it into the search box.' })),
     h('li', null, h('b', { text: 'Download' }), h('span', { text: 'Get the PC version (_p.psarc) in your browser.' })),
     h('li', null, h('b', { text: 'Play' }), h('span', { text: 'Stagehand moves it into Rocksmith and ticks it off here.' }))
@@ -1000,6 +1005,8 @@ function renderImports(page) {
     page.append(h('div.dv-loading', null, h('div.spin'), h('span', { text: 'Loading…' })));
     return;
   }
+  // 4.0: songs already on this PC, outside the library
+  page.append(findOnPcCard());
   // Settings
   const card = h('section.imp-card');
   const watch = h('input.toggle', { type: 'checkbox', 'aria-label': 'Watch for downloads' });
@@ -1174,10 +1181,52 @@ function importRow(e) {
   return row;
 }
 
+/** "Find songs on this PC": looks in Downloads and the import folder. */
+function findOnPcCard() {
+  const card = h('section.imp-card.find-pc');
+  const res = D.pcScan;
+  const go = btn(res && res.busy ? 'Looking…' : 'Look for songs', { cls: 'small', iconName: 'search', disabled: !!(res && res.busy), onClick: () => scanPC({ show: true }) });
+  card.append(setting('Find songs on this PC', 'Looks in your Downloads folder (and your import folder) for song files (<b>.psarc</b>) that aren’t in your library yet. Songs somewhere else: drop the folder on Stagehand.', [go]));
+  if (res && res.found) {
+    if (!res.found.length) card.append(h('p.np-fine', { text: 'Nothing new found: every song file there is already in your library.' }));
+    else {
+      const list = h('div.find-list');
+      for (const f of res.found.slice(0, 12)) list.append(h('div.find-row', null, h('span', { text: f.name }), h('span.muted', { text: shortPath(f.path) })));
+      if (res.found.length > 12) list.append(h('div.find-row.muted', { text: `…and ${res.found.length - 12} more` }));
+      const add = btn(`Add ${plural(res.found.length, 'song')}`, { cls: 'primary', iconName: 'download', onClick: () => addFound() });
+      card.append(list, h('div.find-acts', null, add));
+    }
+  }
+  return card;
+}
+
+async function scanPC({ show = false } = {}) {
+  D.pcScan = { busy: true };
+  if (show) render();
+  try {
+    const r = await api.imports.scanPC();
+    D.pcScan = { found: r.found || [] };
+  } catch (e) {
+    D.pcScan = null;
+    if (show) toast({ title: 'Couldn’t look for songs', message: e.message, kind: 'err' });
+  }
+  if (show || sub() === 'imports') render();
+  return D.pcScan;
+}
+
+async function addFound() {
+  const paths = ((D.pcScan && D.pcScan.found) || []).map((f) => f.path);
+  if (!paths.length) return;
+  D.pcScan = null;
+  await importFiles(paths);
+  render();
+}
+
 export async function importFiles(paths) {
   try {
     const r = await api.imports.files(paths);
-    if (r) summarize(r);
+    if (Array.isArray(r) && !r.length) toast({ title: 'No songs found there', message: 'Stagehand looks for .psarc files and ZIPs of them.', kind: 'info' });
+    else if (r) summarize(r);
   } catch (err) {
     toast({ title: 'Couldn’t import', message: err.message, kind: 'err' });
   }
@@ -1320,9 +1369,10 @@ window.addEventListener('drop', (e) => {
   dragDepth = 0;
   overlay.hidden = true;
   const paths = [...e.dataTransfer.files].map((f) => window.stagehand.pathFor(f)).filter(Boolean);
-  const songs = paths.filter((p) => /\.(psarc|zip)$/i.test(p));
+  // song files, ZIPs, or folders of them (a folder name has no file ending)
+  const songs = paths.filter((p) => /\.(psarc|zip)$/i.test(p) || !/\.[a-z0-9]{1,5}$/i.test(p));
   if (!songs.length) {
-    toast({ title: 'Nothing to import', message: 'Drop .psarc song files, or ZIPs with songs inside.', kind: 'info' });
+    toast({ title: 'Nothing to import', message: 'Drop .psarc song files, ZIPs with songs inside, or a folder of them.', kind: 'info' });
     return;
   }
   importFiles(songs);
@@ -1337,6 +1387,19 @@ export async function init() {
     api.discover.gaps().catch(() => null),
   ]);
   Object.assign(D, { wanted, imports, recent, gaps });
+  // once a day, quietly look for songs on this PC that aren't in the library, and offer them
+  setTimeout(async () => {
+    let last = 0;
+    try {
+      last = Number(localStorage.getItem('stagehand.pcScanAt')) || 0;
+    } catch (_) {}
+    if (Date.now() - last < 86400000) return;
+    try {
+      localStorage.setItem('stagehand.pcScanAt', String(Date.now()));
+    } catch (_) {}
+    const r = await scanPC();
+    if (r && r.found && r.found.length) toast({ title: `Found ${plural(r.found.length, 'song')} on this PC`, message: 'They aren’t in your library yet.', kind: 'info', timeout: 12000, actions: [{ label: 'Add them', onClick: () => addFound() }, { label: 'Show', onClick: () => open('imports') }] });
+  }, 20000);
   emit('discover-wanted');
   emit('discover-imports');
   if (isDiscover() && sub() === 'artist') loadArtist();

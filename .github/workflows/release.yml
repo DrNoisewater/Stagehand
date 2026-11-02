@@ -1,7 +1,10 @@
 # Makes a Windows release by hand: Actions → Release → Run workflow → enter the version.
 # Checks the version, runs the tests, builds the sound engine, packages the app as
-# Stagehand-v<version>-win-x64.zip, tags the commit v<version> and publishes a
-# GitHub Release with the zip and auto-generated notes.
+# Stagehand-v<version>-win-x64.zip (unzip, run "Install Stagehand.bat"), tags the commit
+# v<version> and publishes a GitHub Release with the zip and auto-generated notes.
+# Then (4.0) a second job builds the installer, Stagehand-Setup-<version>.exe, on Linux
+# with the same scripts as a cloud session (scripts/session-setup.sh, scripts/package.sh)
+# and adds it to the release.
 name: Release
 
 on:
@@ -138,3 +141,32 @@ jobs:
         run: |
           gh release create "v$env:VERSION" "${{ steps.pkg.outputs.zip }}" --verify-tag --generate-notes --title "$env:APP_NAME v$env:VERSION"
           if ($LASTEXITCODE -ne 0) { throw 'Creating the release failed.' }
+
+  setup:
+    # the installer/updater: Stagehand-Setup-<version>.exe, added to the release made above
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      DEPS: ${{ github.workspace }}/../deps
+      SH_LLVM_MINGW: ${{ github.workspace }}/../llvm-mingw
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ inputs.version }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Get the compiler and what the installer carries (Electron, vgmstream, uv)
+        run: bash scripts/session-setup.sh
+
+      - name: Build Stagehand-Setup-${{ inputs.version }}.exe
+        run: |
+          SETUP_DEPS="$DEPS/electron.zip $DEPS/vgmstream.zip $DEPS/uv.zip" sh scripts/package.sh "$RUNNER_TEMP/out"
+          test -s "$RUNNER_TEMP/out/Stagehand-Setup-$VERSION.exe"
+
+      - name: Add it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "v$VERSION" "$RUNNER_TEMP/out/Stagehand-Setup-$VERSION.exe" --clobber

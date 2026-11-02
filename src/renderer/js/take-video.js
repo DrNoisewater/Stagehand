@@ -1,7 +1,9 @@
 import {api} from './api.js';
 import {toast} from './ui.js';
 /** Captures our own window and internal audio; never OS loopback. */
-export function createClipRecorder({rig,engine}){
+/** title(): what the file is called after "SH - " (the song's title, or Jam Session). */
+export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()=>null}){
+  let startedAt=0;
   let recorder=null,video=null,monitor=null,extra=null,dest=null,chunks=[],timer=null,bytes=0,done=null;
   function clean(){clearTimeout(timer);video?.getTracks().forEach(t=>t.stop());extra?.disconnect(dest);monitor?.close();video=monitor=extra=dest=null;recorder=null;}
   return {
@@ -29,13 +31,17 @@ export function createClipRecorder({rig,engine}){
         done=new Promise((resolve,reject)=>{
           recorder.ondataavailable=e=>{if(e.data.size){chunks.push(e.data);bytes+=e.data.size;if(bytes>600*1024*1024&&recorder?.state==='recording')recorder.stop();}};
           recorder.onerror=e=>{clean();reject(Error(e.error?.message||'Video encoder failed.'));};
-          recorder.onstop=async()=>{try{const blob=new Blob(chunks,{type:mime});clean();const path=await api.clips.save(new Uint8Array(await blob.arrayBuffer()));if(path)toast({title:'Highway take exported',message:path,kind:'ok'});resolve(path);}catch(e){clean();reject(e);}finally{chunks=[];}};
+          recorder.onstop=async()=>{try{const blob=new Blob(chunks,{type:mime});clean();
+            const seconds=(performance.now()-startedAt)/1000;
+            const saved=await api.clips.save(new Uint8Array(await blob.arrayBuffer()),{title:title()||'Jam Session',songId:songId(),seconds});
+            if(saved&&saved.take)toast({title:`Saved “${saved.take.name}”`,message:'In Recordings (the file is “SH - …mp4”).',kind:'ok',actions:[{label:'Recordings',onClick:()=>import('./recordings.js').then(r=>r.openRecordings({focus:saved.take.id}))}]});
+            resolve(saved&&saved.path);}catch(e){clean();reject(e);}finally{chunks=[];}};
         });
         // Catch auto-stop failures as well as explicit save failures.
         done.catch(e=>toast({title:'Could not export clip',message:e.message,kind:'err'}));
-        recorder.start(1000);timer=setTimeout(()=>{if(recorder?.state==='recording')recorder.stop();},180000);
+        recorder.start(1000);startedAt=performance.now();timer=setTimeout(()=>{if(recorder?.state==='recording')recorder.stop();},180000);
         video.getVideoTracks()[0].onended=()=>{if(recorder?.state==='recording')recorder.stop();};
-        toast({title:'Recording highway + song + instrument',message:'Up to 3 minutes. Save clip exports an MP4 with both audio sources.',kind:'info'});
+        toast({title:'Recording',message:`Up to 3 minutes. Saved as “SH - ${title()||'Jam Session'}” in your recordings.`,kind:'info'});
       }catch(e){clean();throw e;}
     },
     async stop(){if(recorder?.state==='recording')recorder.stop();return done;}

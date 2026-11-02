@@ -104,7 +104,7 @@ contextBridge.exposeInMainWorld('stagehand', {
   clips: {
     prepare: () => call('clips:prepare'),
     source: () => call('clips:source'),
-    save: (data) => call('clips:save',data),
+    save: (data, meta) => call('clips:save', data, meta),
   },
   takes: {
     list: () => call('takes:list'),
@@ -176,6 +176,7 @@ contextBridge.exposeInMainWorld('stagehand', {
     retryLists: () => call('import:retryLists'),
     clearHistory: () => call('import:clearHistory'),
     pickFolder: (which) => call('import:pickFolder', which),
+    scanPC: () => call('import:scanPC'),
   },
   // Paths of files dropped on the window (for importing songs).
   pathFor: (file) => {

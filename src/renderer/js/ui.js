@@ -315,12 +315,44 @@ export function isTyping() {
   return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable);
 }
 
-export function toneToast(number,name){
- document.querySelector('.tone-toast')?.remove();const el=h('div.tone-toast',{role:'status',text:`Tone ${number} — ${name}`});document.body.append(el);
- setTimeout(()=>{el.classList.add('leaving');setTimeout(()=>el.remove(),250);},2000);
+/**
+ * The tone-key note in the corner. Pass a promise (what the rig answers) and it
+ * says "Loading…" until the engine has really switched, then the result: the
+ * screen never claims a tone change that didn't happen.
+ * @param {number} number the key
+ * @param {string} name the tone's name
+ * @param {Promise<{ok:boolean,tone?:object,standIn?:boolean,error?:string}>} [done]
+ */
+export function toneToast(number,name,done){
+ document.querySelector('.tone-toast')?.remove();
+ const el=h('div.tone-toast',{role:'status',text:`Tone ${number} — ${name}`});document.body.append(el);
+ let timer=null;
+ const leave=(ms)=>{clearTimeout(timer);timer=setTimeout(()=>{el.classList.add('leaving');setTimeout(()=>el.remove(),250);},ms);};
+ if(!done){leave(2000);return;}
+ el.classList.add('pending');el.textContent=`Tone ${number} — loading ${name}…`;
+ Promise.resolve(done).then((r)=>{
+  if(!el.isConnected)return;
+  el.classList.remove('pending');
+  if(r&&r.ok&&r.standIn){el.classList.add('warn');el.textContent=`Tone ${number} — ${name} is a ${r.want==='bass'?'bass':'guitar'} tone. Playing ${r.tone.name} for your ${r.instrument}.`;leave(4500);}
+  else if(r&&r.ok){el.textContent=`Tone ${number} — ${name}`;leave(2000);}
+  else{el.classList.add('bad');el.textContent=`Tone ${number} didn’t change: ${(r&&r.error)||'the sound engine didn’t answer.'}`;leave(5000);}
+ },()=>{el.classList.remove('pending');el.classList.add('bad');el.textContent=`Tone ${number} didn’t change.`;leave(5000);});
 }
 export function holdButton(button,action){
  let timer=null,start=0,held=false;const stop=()=>{clearTimeout(timer);timer=null;};
  button.onpointerdown=e=>{if(e.button!==0)return;stop();held=true;start=performance.now();button.setPointerCapture(e.pointerId);action(1);const repeat=()=>{if(!button.isConnected)return stop();action(performance.now()-start>1600?3:1);timer=setTimeout(repeat,performance.now()-start>1600?65:120);};timer=setTimeout(repeat,380);};
  button.onpointerup=stop;button.onpointercancel=stop;button.onlostpointercapture=stop;button.onclick=e=>{if(e.detail===0||!held)action(1);held=false;};
+}
+
+/**
+ * A small "Guitar" / "Bass" tag for what Stagehand thinks is plugged in, so a wrong
+ * guess is easy to spot. Amber when it plays a stand-in tone for that instrument.
+ * @param {object} rig the rig (rig.js)
+ */
+export function instrumentTag(rig){
+ const inst=rig&&rig.instrument;if(!inst)return '';
+ const label=inst==='bass'?'Bass':'Guitar';
+ const how=rig.instrumentPref==='auto'?'heard from your playing':'set in Settings';
+ const sub=rig.standIn?` · playing ${rig.standIn.name}`:'';
+ return `<span class="inst-tag${rig.standIn?' stand-in':''}" title="${esc(label)} (${how})${esc(sub)}">${label}</span>`;
 }

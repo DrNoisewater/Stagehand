@@ -259,7 +259,42 @@ class Takes {
 
   async list() {
     await this._load();
-    return [...this.list_].sort((a, b) => b.at - a.at);
+    // with each file's size, so the Recordings list can show it
+    return [...this.list_]
+      .sort((a, b) => b.at - a.at)
+      .map((t) => {
+        let bytes = 0;
+        try {
+          bytes = fs.statSync(path.join(this.dir, t.file)).size;
+        } catch (_) {}
+        return { ...t, kind: t.kind || 'audio', bytes };
+      });
+  }
+
+  /**
+   * A free file name like "SH - Song Name.mp4", then "SH - Song Name (2).mp4"…
+   * @param {string} title the song's title, or "Jam Session"
+   * @param {string} ext 'wav' or 'mp4'
+   * @param {string} [sub] a folder inside the recordings folder
+   */
+  freeName(title, ext, sub = '') {
+    const clean = String(title || 'Recording').replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '').slice(0, 80) || 'Recording';
+    const base = `SH - ${clean}`;
+    for (let n = 1; n < 10000; n++) {
+      const name = `${base}${n > 1 ? ` (${n})` : ''}.${ext}`;
+      if (!fs.existsSync(path.join(this.dir, sub, name))) return sub ? `${sub}/${name}` : name;
+    }
+    return `${sub ? `${sub}/` : ''}${base} ${Date.now()}.${ext}`;
+  }
+
+  /** Adds a finished video (already in the recordings folder) to the list. */
+  async addVideo({ file, name, songId = null, seconds = 0 }) {
+    await this._load();
+    const id = `k_${crypto.randomBytes(5).toString('hex')}`;
+    const t = { id, kind: 'video', file, name: String(name || 'Video').slice(0, 120), songId, seconds: Math.round(Number(seconds) * 10) / 10, bpm: null, at: Date.now() };
+    this.list_.push(t);
+    await writeJsonAtomic(this.index, { takes: this.list_ });
+    return t;
   }
 
   /** Saves 16-bit WAV audio sent by the page (mono or stereo Float32 data as an ArrayBuffer/Uint8Array). */
@@ -282,7 +317,7 @@ class Takes {
     b.writeUInt32LE(f.length * 2, 40);
     for (let i = 0; i < f.length; i++) b.writeInt16LE(Math.round(Math.max(-1, Math.min(1, f[i])) * 32767), 44 + i * 2);
     const id = `k_${crypto.randomBytes(5).toString('hex')}`;
-    const file = `${id}.wav`;
+    const file = this.freeName(name || 'Take', 'wav');
     await fs.promises.writeFile(path.join(this.dir, file), b);
     const t = { id, file, name: String(name || 'Take').slice(0, 120), songId, seconds: Math.round(Number(seconds) * 10) / 10, bpm, at: Date.now() };
     this.list_.push(t);

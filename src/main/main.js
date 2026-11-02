@@ -492,18 +492,23 @@ function registerIpc() {
     return source.id;
   });
   handle('clips:prepare',()=>require('./services/video-export').ensureEncoder(tools).then(()=>true));
-  handle('clips:save',async(data)=>{
+  // 3.13: no save box: the video goes straight into your recordings as "SH - <song>.mp4"
+  // (or "SH - Jam Session.mp4"), never over an older one, and shows in Recordings
+  handle('clips:save',async(data,meta={})=>{
     if(!(data instanceof Uint8Array)||data.byteLength>650*1024*1024)throw Error('Clip exceeds the 650 MB limit.');
-    const result=await dialog.showSaveDialog({title:'Export highway take',defaultPath:path.join(D.takes,`Stagehand-${Date.now()}.mp4`),filters:[{name:'MP4 video',extensions:['mp4']}]});
-    if(result.canceled)return null;
-    const file=/\.mp4$/i.test(result.filePath)?result.filePath:result.filePath+'.mp4';
+    const title=String((meta&&meta.title)||'Jam Session');
+    await fsp.mkdir(path.join(D.takes,'Videos'),{recursive:true});
+    const rel=takes.freeName(title,'mp4','Videos');
+    const file=path.join(D.takes,rel);
     const temp=await fsp.mkdtemp(path.join(app.getPath('temp'),'stagehand-video-'));
     const input=path.join(temp,'capture.webm'),output=path.join(temp,'export.mp4');
     try{
       await fsp.writeFile(input,data);
       const video=require('./services/video-export');
       await video.exportMp4(await video.ensureEncoder(tools),input,output);
-      await fsp.copyFile(output,file);return file;
+      await fsp.copyFile(output,file);
+      const take=await takes.addVideo({file:rel,name:path.basename(rel,'.mp4').replace(/^SH - /,''),songId:(meta&&meta.songId)||null,seconds:Number(meta&&meta.seconds)||0});
+      return {path:file,take};
     }finally{await fsp.rm(temp,{recursive:true,force:true});}
   });
   handle('takes:list' , () => takes.list());
@@ -540,6 +545,21 @@ function registerIpc() {
     library.scan(opts || {});
   });
   handle('library:detect', () => detectRocksmith());
+  // 4.0: song files elsewhere on this PC that aren't in your library yet
+  handle('import:scanPC', async () => {
+    // where song files actually land: Downloads, and your import folder if you moved it
+    let downloads = null;
+    try {
+      downloads = app.getPath('downloads');
+    } catch (_) {}
+    const places = [...new Set([downloads, importer.watchDir()].filter(Boolean))];
+    const songs = library.snapshot().songs;
+    const have = new Set(songs.map((x) => String(x.path || '').toLowerCase()));
+    const haveNames = new Set(songs.map((x) => String(x.fileName || path.basename(x.path || '')).toLowerCase()));
+    const { findSongs } = require('./services/songfinder');
+    const found = await findSongs(places, { have, haveNames });
+    return { places, found };
+  });
   handle('library:removeSongs', (ids) => {
     library.removeSongs(ids);
     send('library:reset');
@@ -727,7 +747,29 @@ function registerIpc() {
       if (r.canceled || !r.filePaths.length) return null;
       files = r.filePaths;
     }
-    return importer.importFiles(files, { origin: Array.isArray(paths) ? 'drop' : 'manual' });
+    // 3.13: a dropped folder brings in every song inside it (and its folders, a few levels down)
+    const out = [];
+    const walk = async (p, depth) => {
+      let st;
+      try {
+        st = await fsp.stat(p);
+      } catch (_) {
+        return;
+      }
+      if (st.isDirectory()) {
+        if (depth > 4 || out.length > 5000) return;
+        let names = [];
+        try {
+          names = await fsp.readdir(p);
+        } catch (_) {
+          return;
+        }
+        for (const n of names) if (!n.startsWith('.')) await walk(path.join(p, n), depth + 1);
+      } else if (/\.(psarc|zip)$/i.test(p)) out.push(p);
+    };
+    for (const f of files) await walk(f, 0);
+    if (!out.length) return [];
+    return importer.importFiles(out, { origin: Array.isArray(paths) ? 'drop' : 'manual' });
   });
   handle('import:waiting', (paths) => importer.importWaiting(Array.isArray(paths) ? paths.map(String) : null));
   handle('import:undo', (id) => importer.undo(String(id)));

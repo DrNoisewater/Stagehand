@@ -1,7 +1,7 @@
 import { cabinetFor,prepareCab,cabSamples } from './cabinets.js';
 import { detectPitch, PitchSmoother } from './pitch.js';
 import { tuningPlan, myTuning } from './tuning.js';
-import { InstrumentSense } from './instrument.js';
+import { InstrumentSense, reading } from './instrument.js';
 import { instrumentShift } from './detect.js';
 import { loadGear, toSpec, ampGain, describe } from './gearspec.js';
 import { resolveCapture, caps } from './captures.js';
@@ -128,6 +128,10 @@ class NativeBackend {
 
   _msg(m) {
     if (!m) return;
+    // Sound only from the engine the rig is using now. An older backend (from before a
+    // restart or a device change) must not feed the looper, recorder or taps too: every
+    // chunk would arrive twice, interleaved, and recordings came out garbled.
+    if ((m.t === 'processed' || m.t === 'mixed' || m.t === 'in') && this.rig.backend !== this) return;
     if(m.t==='processed'||m.t==='mixed') {
       for(const listener of this.rig._monitors || []) if(listener.kind===m.t)listener.feed(m.d,this.rate);
       return;
@@ -160,12 +164,12 @@ class NativeBackend {
   }
 
   _cmd(cmd) {
-    this.port.postMessage({ t: 'cmd', cmd });
+    if (this.port) this.port.postMessage({ t: 'cmd', cmd });
   }
 
   _wait(match, ms = 8000) {
     return new Promise((resolve, reject) => {
-      const w = { match, resolve };
+      const w = { match, resolve, reject };
       w.t = setTimeout(() => {
         this.waiters.splice(this.waiters.indexOf(w), 1);
         reject(Object.assign(new Error('The sound engine didn’t answer.'), { code: 'timeout' }));
@@ -204,10 +208,29 @@ class NativeBackend {
   stop() {
     this.running = false;
     if (this.port) this._cmd({ cmd: 'stop' });
+    this.close();
+  }
+
+  /** Lets go of the line to the sound engine (a new start opens a fresh one). */
+  close() {
+    const port = this.port;
+    if (!port) return;
+    this.port = null;
+    port.onmessage = null;
+    // answer anyone still waiting, so nothing hangs on a closed line
+    for (const w of this.waiters.splice(0)) {
+      clearTimeout(w.t);
+      w.reject(Object.assign(new Error('The sound engine was restarted.'), { code: 'closed' }));
+    }
+    try {
+      port.close();
+    } catch (_) {}
   }
 
   async build(slot, spec) {
-    const p = this._wait((e) => e.ev === 'built' && e.slot === slot, 8000);
+    // a tone with a lot of gear on a busy or older PC can take a few seconds to build:
+    // wait long enough that a slow build isn't reported as a failure (4.0: was 8 s)
+    const p = this._wait((e) => e.ev === 'built' && e.slot === slot, 20000);
     this._cmd({ cmd: 'build', slot, spec });
     const ev = await p;
     return !!ev.ok;
@@ -227,7 +250,7 @@ class NativeBackend {
 
   /** A real amp capture for a slot (before building it); cap null clears it. */
   async nam(slot, cap) {
-    const p = this._wait((e) => e.ev === 'nam' && e.slot === slot, 8000);
+    const p = this._wait((e) => e.ev === 'nam' && e.slot === slot, 20000);
     this._cmd({ cmd: 'nam', slot, path: cap ? cap.path : '', fullRig: cap && cap.fullRig ? 1 : 0, gainRef: cap ? cap.gainRef : 0.5, trim: 0 });
     const ev = await p;
     return { ok: !!ev.ok, error: ev.error || '' };
@@ -495,10 +518,18 @@ export class Rig extends EventTarget {
       const listener={kind:'processed',feed};this._monitors??=new Set();this._monitors.add(listener);b._cmd({cmd:'monitor',on:1});
       return {rate:b.rate,close:()=>{this._monitors.delete(listener);if(!this._monitors.size)b._cmd({cmd:'monitor',on:0});}};
     }
-    const ctx=b.ctx,node=ctx.createScriptProcessor(1024,2,2),silent=ctx.createGain();silent.gain.value=0;
-    node.onaudioprocess=e=>{const L=e.inputBuffer.getChannelData(0),R=e.inputBuffer.getChannelData(1),d=new Float32Array(L.length*2);for(let i=0;i<L.length;i++){d[2*i]=L[i];d[2*i+1]=R[i];}feed(d,ctx.sampleRate);};
+    // In-app engine: copy the sound off the audio thread with a worklet. (A ScriptProcessor
+    // runs on the page's thread and drops pieces whenever the highway is busy drawing:
+    // choppy recordings.)
+    const ctx=b.ctx;
+    if(!b._tapModule)b._tapModule=ctx.audioWorklet.addModule(new URL('../worklets/song-tap-worklet.js', import.meta.url));
+    await b._tapModule;
+    if(this.backend!==b)throw Error('The sound engine restarted. Try again.');
+    const node=new AudioWorkletNode(ctx,'stagehand-song-tap',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2],channelCount:2,channelCountMode:'explicit'}),silent=ctx.createGain();silent.gain.value=0;
+    node.port.onmessage=e=>{const m=e.data;if(m&&m.type==='song')feed(m.d,ctx.sampleRate);};
+    node.port.postMessage({type:'relay',on:true});
     b.node.connect(node);node.connect(silent);silent.connect(ctx.destination);
-    return {rate:ctx.sampleRate,close:()=>{b.node.disconnect(node);node.disconnect();silent.disconnect();node.onaudioprocess=null;}};
+    return {rate:ctx.sampleRate,close:()=>{node.port.postMessage({type:'relay',on:false});node.port.onmessage=null;try{b.node.disconnect(node);node.disconnect();silent.disconnect();}catch(_){}}};
   }
 
   async monitorProcessed(){ return this._monitor('processed'); }
@@ -511,15 +542,14 @@ export class Rig extends EventTarget {
     // Silent sink prevents a second audible copy and works with exclusive WASAPI.
     if(ctx.setSinkId)await ctx.setSinkId({type:'none'});
     await ctx.resume();
-    const node=ctx.createGain();let next=0,alive=true;
+    // One continuous stream through a small buffer (fifo-worklet.js). Scheduling each
+    // piece as its own sound left gaps and clicks whenever a piece came in late.
+    await ctx.audioWorklet.addModule(new URL('../worklets/fifo-worklet.js', import.meta.url));
+    const node=new AudioWorkletNode(ctx,'stagehand-fifo',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2],processorOptions:{cushion:0.1}});let alive=true;
     let received;const ready=new Promise(resolve=>received=resolve);
-    const listener={kind,feed(data,rate){
+    const listener={kind,feed(data){
       if(!alive)return;received();
-      const n=data.length/2,buf=ctx.createBuffer(2,n,rate);
-      for(let c=0;c<2;c++){const dst=buf.getChannelData(c);for(let i=0;i<n;i++)dst[i]=data[i*2+c];}
-      const src=ctx.createBufferSource();src.buffer=buf;src.connect(node);
-      if(next<ctx.currentTime||next>ctx.currentTime+.3)next=ctx.currentTime+.04;
-      src.start(next);next+=n/rate;
+      node.port.postMessage({d:data});
     }};
     this._monitors=this._monitors||new Set();this._monitors.add(listener);backend._cmd({cmd:'monitor',on:1});
     let timeout;try{await Promise.race([ready,new Promise((_,reject)=>timeout=setTimeout(()=>reject(Error('Recording audio is unavailable. Reinstall the updated Stagehand audio helper.')),3000))]);}catch(e){alive=false;this._monitors.delete(listener);if(!this._monitors.size)backend._cmd({cmd:'monitor',on:0});await ctx.close();throw e;}finally{clearTimeout(timeout);}
@@ -567,8 +597,9 @@ export class Rig extends EventTarget {
     this.liveTone = { ...tone, gain: ampGain(tone) };
     this.knobs = { ...DEFAULT_KNOBS, input: this.knobs.input, volume: this.knobs.volume };
     this._sendAllParams();
-    this._useTone(this.liveTone);
+    const done = this._useTone(this.liveTone);
     this.dispatchEvent(new Event('change'));
+    return done;
   }
 
   /** Silences the guitar without stopping it (the tuner keeps working). */
@@ -656,6 +687,7 @@ export class Rig extends EventTarget {
     const b = this.backend || ((await this._wantNative()) ? new NativeBackend(this) : new WebBackend(this));
     try {
       const d = await b.devices();
+      if (b !== this.backend && b.close) b.close(); // only asked for the list: don't leave its line open
       const inputs = (d.inputs || []).map((x) => ({ id: x.id, label: x.name, rocksmith: !!x.rocksmith })).sort((a, b2) => b2.rocksmith - a.rocksmith);
       const outputs = (d.outputs || []).map((x) => ({ id: x.id, label: x.name, isDefault: !!x.default }));
       inputs.outputs = outputs;
@@ -837,7 +869,7 @@ export class Rig extends EventTarget {
   /** Keep playing the chosen tone on this instrument (until the other one is plugged in). */
   holdTone() {
     this._holdFor = this.instrument;
-    this._instrumentChanged(false);
+    return this._instrumentChanged(false);
   }
 
   /** The tone that's actually playing: the chosen one, or the stand-in for the other instrument. */
@@ -873,12 +905,28 @@ export class Rig extends EventTarget {
     instrumentShift.st = !inst || inst === part ? 0 : inst === 'guitar' ? 12 : -12;
   }
 
+  /** "That's wrong, it's a guitar (or bass)": put the guess right without leaving "tell by what I play". */
+  correctInstrument(kind) {
+    if (kind !== 'guitar' && kind !== 'bass') return;
+    if (this.instrumentPref !== 'auto') return this.setInstrumentPref(kind);
+    this.sense.instrument = kind;
+    this.sense.reset();
+    this._holdFor = null;
+    this.save();
+    this._instrumentChanged(false);
+  }
+
   _instrumentChanged(sensed) {
     if (this._holdFor && this._holdFor !== this.instrument) this._holdFor = null;
     this._syncShift();
-    if (this.on && this.backend) this._useTone(this._currentTone());
-    this.dispatchEvent(new CustomEvent('instrument', { detail: { instrument: this.instrument, sensed } }));
+    const done = this.on && this.backend ? this._useTone(this._currentTone()) : Promise.resolve(null);
     this.dispatchEvent(new Event('change'));
+    // say what changed only once the engine is playing the new tone (so the note names the right one)
+    const instrument = this.instrument;
+    done.then((result) => {
+      if (this.instrument === instrument) this.dispatchEvent(new CustomEvent('instrument', { detail: { instrument, sensed, result } }));
+    });
+    return done;
   }
 
   /** Listens to the input about 20 times a second to tell a guitar from a bass. */
@@ -896,10 +944,12 @@ export class Rig extends EventTarget {
       let e = 0;
       for (let i = buf.length - 1024; i < buf.length; i++) e += buf[i] * buf[i];
       const level = Math.sqrt(e / 1024);
-      const p = level > 0.006 ? detectPitch(buf, this.sampleRate, { threshold: 0.12 }) : null;
-      const midi = p && p.clarity > 0.85 ? 69 + 12 * Math.log2(p.hz / 440) : null;
-      // your guitar's lowest string as you tune it (a dropped guitar goes lower)
-      if (n++ % 40 === 0) this.sense.lowest = 40 + Math.min(0, ...myTuning('guitar'));
+      // your guitar's lowest string as you tune it, or as the open guitar song is tuned (a dropped guitar goes lower)
+      if (n++ % 40 === 0) {
+        const song = this.songKind !== 'bass' && Array.isArray(this.songTuning) ? this.songTuning.filter(Number.isFinite) : [];
+        this.sense.lowest = 40 + Math.min(0, ...myTuning('guitar'), ...song);
+      }
+      const midi = reading(buf, this.sampleRate, level, this.sense.lowest);
       const was = this.instrument;
       if (this.sense.push(performance.now() / 1000, midi, level) && this.instrumentPref === 'auto' && this.instrument !== was) {
         this.save();
@@ -974,20 +1024,28 @@ export class Rig extends EventTarget {
     return best;
   }
 
+  /**
+   * Plays a tone. Resolves once the engine has actually switched (or failed), with
+   * { ok, tone (what's sounding now), standIn (true when a tone for the other
+   * instrument plays instead), error }. Only then may the screen say it changed.
+   */
   _useTone(tone) {
     // Serialise builds; switching tones is a short crossfade inside the engine.
     // While one is building, only the newest request waits (turning a knob
     // asks many times a second; the in-between ones don't matter).
     this._want = tone;
-    if (this._queued) return this._busy;
+    if (this._queued) return this._run;
     this._queued = true;
-    this._busy = this._busy.then(async () => {
+    const run = this._busy.then(async () => {
       this._queued = false;
-      tone = this._forInstrument(this._want);
-      if (!this.on || !this.backend || !tone) return;
+      const want = this._want;
+      tone = this._forInstrument(want);
+      if (!tone) return { ok: false, tone: null, error: 'No tone to play.' };
+      if (!this.on || !this.backend) return { ok: false, tone, error: 'Your guitar isn’t connected.' };
       const backend = this.backend;
       const slot = await this._slotFor(tone);
-      if (slot < 0 || this.backend !== backend) return;
+      if (this.backend !== backend) return { ok: false, tone, error: 'The sound engine restarted. Try again.' };
+      if (slot < 0) return { ok: false, tone, error: `${tone.name || 'That tone'} couldn’t be built.` };
       const cap = backend.nam ? this.captureFor(tone) : null;
       if ((cap && cap.path) !== (this.capture && this.capture.path)) {
         this.capture = cap;
@@ -1002,8 +1060,17 @@ export class Rig extends EventTarget {
           if (this._prev !== this.active) this._prev = -1;
         }, 120);
       }
-    }).catch((e) => console.warn('rig tone:', e));
-    return this._busy;
+      this.sounding = tone;
+      return { ok: true, tone, standIn: tone !== want, want: want && want.kind === 'bass' ? 'bass' : 'guitar', instrument: this.instrument };
+    }).catch((e) => {
+      console.warn('rig tone:', e);
+      return { ok: false, tone: null, error: (e && e.message) || 'The tone didn’t load.' };
+    });
+    this._busy = this._run = run;
+    run.then((r) => {
+      if (r && !r.ok && this.on) this.dispatchEvent(new CustomEvent('tone-error', { detail: r }));
+    });
+    return run;
   }
 
   /** Builds a song's tones ahead of time so tone changes are instant. */
@@ -1025,9 +1092,9 @@ export class Rig extends EventTarget {
     // The song's own settings, untouched: knobs at their middle (= as the song has them).
     this.knobs = { ...DEFAULT_KNOBS, input: this.knobs.input, volume: this.knobs.volume };
     this._sendAllParams();
-    if (mapped.gear && mapped.gear.length) this._useTone(this.songTone);
-    else this._useTone(this.findTone(mapped.preset) || TONES[1]);
+    const done = mapped.gear && mapped.gear.length ? this._useTone(this.songTone) : this._useTone(this.findTone(mapped.preset) || TONES[1]);
     this.dispatchEvent(new Event('change'));
+    return done;
   }
 
   setTone(id) {
@@ -1043,8 +1110,9 @@ export class Rig extends EventTarget {
     this.knobs = { ...DEFAULT_KNOBS, ...(this.perTone[id] || {}), input: this.knobs.input, volume: this.knobs.volume };
     this.save();
     this._sendAllParams();
-    this._useTone(this.tone);
+    const done = this._useTone(this.tone);
     this.dispatchEvent(new Event('change'));
+    return done;
   }
 
   setKnob(name, v) {
@@ -1134,12 +1202,16 @@ export class Rig extends EventTarget {
     this.dispatchEvent(new Event('change'));
     let peak = 0;
     const t0 = performance.now();
+    const buf = new Float32Array(8192);
     try {
       while (performance.now() - t0 < seconds * 1000) {
         await wait(50);
         const l = this.levels();
-        // raw input peak, before the Input knob
+        // raw input peak, before the Input knob: the meter, and the input itself
+        // (the meter is read 20 times a second and can miss the very top of a hard strum)
         peak = Math.max(peak, l.inPeak || 0);
+        const raw = this.backend && this.backend.samples(buf);
+        if (raw) for (let i = 0; i < raw.length; i++) if (Math.abs(raw[i]) > peak) peak = Math.abs(raw[i]);
         if (onTick) onTick((performance.now() - t0) / (seconds * 1000), peak);
       }
     } finally {

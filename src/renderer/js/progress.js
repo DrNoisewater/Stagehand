@@ -1,6 +1,6 @@
 /** Progress: time playing, streak, songs, accuracy, minutes per day, songs you're working on, and your takes. */
 import { api } from './api.js';
-import { state, on, setPage } from './store.js';
+import { state, on, setPage, setView, accBand } from './store.js';
 import { h, icon, esc, toast, showMenu, confirmDialog } from './ui.js';
 import * as actions from './actions.js';
 import { KIND_LABEL } from './scorecard.js';
@@ -65,8 +65,10 @@ function render() {
     tile('var(--gel-bass)', 'Songs practised', String(d.songs), d.newSongs ? `${d.newSongs} new` : ''),
     tile('var(--gel-piano)', 'Average accuracy', d.accuracy === null ? '–' : `${Math.round(d.accuracy * 100)}%`, d.accuracyChange === null ? '' : `<span class="${d.accuracyChange >= 0 ? 'up' : 'down'}">${d.accuracyChange >= 0 ? '+' : '−'}${Math.abs(Math.round(d.accuracyChange * 100))} points</span>`, accRing)
   );
-  root.append(spotlight(d));
+  // 4.0: your last song and what to practise next side by side, then the numbers
+  root.append(h('div.ptop', null, spotlight(d), upNext(d)));
   root.append(tiles);
+  root.append(mastery());
   const goals=h('div.goal-grid');
   for(const g of d.goals||[]){
     const earned=g.value>=g.target;
@@ -110,49 +112,18 @@ function render() {
   }
   row.append(songs);
 
-  // takes
-  const takes = h('section.card.ptakes', { 'aria-label': 'Your takes' }, h('div.card-head', null, h('h2', { text: 'Your takes' })), h('div.np-fine', { text: 'Recordings from the looper and Record take.' }));
-  if (!P.takes.length) takes.append(h('p.np-fine', { text: 'Nothing recorded yet. Use the looper on Play, or Record take while a song plays.' }));
-  for (const t of P.takes.slice(0, 30)) {
+  // recordings: the newest few; everything is in the Recordings window
+  const allRec = h('button.btn.small.ghost', { type: 'button', text: 'All recordings' });
+  allRec.onclick = () => import('./recordings.js').then((r) => r.openRecordings());
+  const takes = h('section.card.ptakes', { 'aria-label': 'Recordings' }, h('div.card-head', null, h('h2', { text: 'Recordings' }), allRec));
+  if (!P.takes.length) takes.append(h('p.np-fine', { text: 'Nothing recorded yet. Record a clip from the highway’s Tools, or use the looper in Jam.' }));
+  for (const t of P.takes.slice(0, 4)) {
     const on = P.playing === t.id;
-    const play = h('button.round-play.sm', { type: 'button', 'aria-label': on ? 'Stop' : 'Play take', html: icon(on ? 'stop' : 'play') });
-    play.onclick = () => playTake(t);
+    const play = h('button.round-play.sm', { type: 'button', 'aria-label': on ? 'Stop' : 'Play', html: icon(on ? 'stop' : 'play') });
+    play.onclick = () => (t.kind === 'video' ? import('./recordings.js').then((r) => r.openRecordings({ focus: t.id })) : playTake(t));
     const when = new Date(t.at);
-    const meta = `${when.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${t.seconds >= 60 ? `${Math.floor(t.seconds / 60)}:${String(Math.round(t.seconds % 60)).padStart(2, '0')}` : `0:${String(Math.round(t.seconds)).padStart(2, '0')}`}${t.bpm ? ` · ${t.bpm} BPM` : ''}`;
-    const r = h(`div.take${on ? '.on' : ''}`, null, play, h('div.tk-text', null, h('b', { text: t.name }), h('span', { text: meta })));
-    r.oncontextmenu = (e) => {
-      e.preventDefault();
-      showMenu(e.clientX, e.clientY, [
-        {
-          label: 'Rename',
-          icon: 'edit',
-          onClick: async () => {
-            const input = h('input.input', { value: t.name });
-            r.querySelector('.tk-text b').replaceWith(input);
-            input.focus();
-            input.select();
-            const done = async () => {
-              await api.takes.rename(t.id, input.value).catch(() => {});
-              load();
-            };
-            input.onkeydown = (ev) => ev.key === 'Enter' && done();
-            input.onblur = done;
-          },
-        },
-        { label: 'Show in folder', icon: 'folder', onClick: () => state.info && state.info.dirs && state.info.dirs.takes && api.shell.showItem(`${state.info.dirs.takes}${state.info.platform === 'win32' ? '\\' : '/'}${t.file}`) },
-        '-',
-        {
-          label: 'Delete',
-          icon: 'trash',
-          onClick: async () => {
-            if (!(await confirmDialog({ title: `Delete “${t.name}”?`, message: 'The recording is deleted from your PC.', confirm: 'Delete', danger: true }))) return;
-            await api.takes.remove(t.id);
-            load();
-          },
-        },
-      ]);
-    };
-    takes.append(r);
+    const meta = `${t.kind === 'video' ? 'Video · ' : ''}${when.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${Math.floor((t.seconds || 0) / 60)}:${String(Math.round((t.seconds || 0) % 60)).padStart(2, '0')}`;
+    takes.append(h(`div.take${on ? '.on' : ''}`, null, play, h('div.tk-text', null, h('b', { text: t.name }), h('span', { text: meta }))));
   }
   row.append(takes);
   root.append(row);
@@ -211,6 +182,67 @@ function spotlight(d) {
   play.onclick = () => actions.playAlong(s.id);
   card.append(h('div.pspot-actions', null, play));
   return card;
+}
+
+/**
+ * What to practise next, with one button: the weakest section of a song you're
+ * working on (repeat it slowly), else a song that's close to mastered, else a
+ * song you haven't tried yet.
+ */
+function upNext(d) {
+  const card = h('section.card.pnext', { 'aria-label': 'Up next' }, h('div.pspot-eyebrow', { text: 'Up next' }));
+  let pick = null;
+  for (const w of d.working || []) {
+    const s = state.songs.get(w.songId);
+    if (!s) continue;
+    const secs = (w.sections || []).filter((x) => x.acc !== null && x.acc !== undefined);
+    const low = secs.length ? secs.reduce((a, b) => (b.acc < a.acc ? b : a)) : null;
+    if (low && low.acc < 0.9 && (!pick || low.acc < pick.acc)) pick = { s, label: low.label, acc: low.acc, why: 'section' };
+  }
+  if (!pick) {
+    const close = [...state.songs.values()].filter((s) => accBand(s) === 'close').sort((a, b) => (state.best[b.id].best || 0) - (state.best[a.id].best || 0))[0];
+    if (close) pick = { s: close, acc: state.best[close.id].best, why: 'close' };
+  }
+  if (!pick) {
+    const fresh = [...state.songs.values()].filter((s) => accBand(s) === 'unplayed' && s.audioEntry !== null)[0];
+    if (fresh) pick = { s: fresh, why: 'new' };
+  }
+  if (!pick) {
+    card.append(h('h2', { text: 'Pick any song' }), h('p.np-fine', { text: 'Add songs to your library and Stagehand will suggest what to practise.' }));
+    return card;
+  }
+  const title = pick.why === 'section' ? `${pick.label} in ${pick.s.title}` : pick.s.title;
+  const why =
+    pick.why === 'section'
+      ? `Your weakest part right now, at ${pctOf(pick.acc)}. On the highway, hover its name in the section strip and press ⟲ to repeat it; start at 70% speed and speed up as it gets clean.`
+      : pick.why === 'close'
+        ? `You’re at ${pctOf(pick.acc)}: close to mastering it (90%). One or two clean runs could do it.`
+        : 'A song you haven’t played yet. Something new keeps it fun.';
+  const go = h('button.btn.glow-primary', { type: 'button', html: `${icon('play')}<span>${pick.why === 'section' ? 'Practise it' : 'Play it'}</span>` });
+  go.onclick = () => actions.playAlong(pick.s.id);
+  card.append(h('div.pnext-row', null, coverEl(pick.s, 96, 'md'), h('div', null, h('h2', { text: title }), h('div.pspot-sub', { text: pick.s.artist || '' }))), h('p.pnext-why', { text: why }), h('div.pspot-actions', null, go));
+  return card;
+}
+
+/** Your whole library by how well you play it; click a part to see those songs. */
+function mastery() {
+  const all = [...state.songs.values()];
+  const n = { mastered: 0, close: 0, learning: 0, unplayed: 0 };
+  for (const s of all) n[accBand(s)]++;
+  const total = all.length || 1;
+  const NAME = { mastered: 'Mastered (90%+)', close: 'Close (60–89%)', learning: 'Learning', unplayed: 'Not played yet' };
+  const bar = h('div.pm-bar');
+  const legend = h('div.pm-legend');
+  for (const k of ['mastered', 'close', 'learning', 'unplayed']) {
+    if (n[k]) bar.append(h(`i.pm-${k}`, { style: { width: `${(n[k] / total) * 100}%` }, title: `${NAME[k]}: ${n[k]}` }));
+    const b = h(`button.pm-key.pm-${k}`, { type: 'button', title: `Show these songs` }, h('span.dot'), h('span', { text: NAME[k] }), h('b', { text: String(n[k]) }));
+    b.onclick = () => {
+      setView({ kind: 'acc', id: k });
+      setPage('songs');
+    };
+    legend.append(b);
+  }
+  return h('section.card.pmastery', { 'aria-label': 'Your songs' }, h('div.card-head', null, h('h2', { text: 'Your songs' }), h('span.np-fine', { text: `${n.mastered} of ${all.length} mastered` })), bar, legend);
 }
 
 /** Encouragement built from what you actually did. */

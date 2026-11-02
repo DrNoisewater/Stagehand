@@ -5,13 +5,13 @@ import { APPROACH_UNITS, approachDepth, chordSpan, isChordRepeat } from './highw
  * follows speaker time without additional smoothing, notes arrive early and slowly enough to read,
  * and every gem carries a big fret number.
  */
-import { visualTime, sustainIndex, firstSustain, noteEnd } from './highway-timing.js';
+import { visualTime, sustainIndex, firstSustain, noteEnd, matchTiming, attackAgo } from './highway-timing.js';
 import { api } from './api.js';
-import { h, icon, esc, showMenu, toast } from './ui.js';
+import { h, icon, esc, showMenu, toast, instrumentTag } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
-import { bendValue } from './performance-math.js';
+import { bendValue, linkChains, noteTech } from './performance-math.js';
 import { createFluidDriver } from './reactive-bg.js';
 import { createFeatures } from './music-features.js';
 import { createVisuals } from './visuals.js';
@@ -19,12 +19,12 @@ import { createPerformanceTools } from './performance-tools.js';
 import { VENUES, VENUE_ALIAS, venueThumb, createVenue, createFire } from './venues.js';
 import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
-import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './detect.js';
+import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShift } from './detect.js';
 import { createRenderer3D, col, mix } from './highway3d.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, setMyTuning, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { breakdown, cheer } from './scorecard.js';
-import { state } from './store.js';
+import { state, on } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
 
 const STRING = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
@@ -132,7 +132,7 @@ export function createHighway(stage) {
   const mixBtn = h('button.hw-chip', { type: 'button', title: 'Song mix: stem volumes, on and off', html: `${icon('sliders')}<span>Mix</span>` });
   // The song mix docks on the right edge and collapses to a small tab.
   const mixPanel = h('div.hw-mix');
-  const mixTab = h('button.hw-dock-tab', { type: 'button', title: 'Master Settings: mix, Drop and tuning, highway options', 'aria-label': 'Master Settings' });
+  const mixTab = h('button.hw-dock-tab', { type: 'button', title: 'Sound & settings: the mix, Drop and tuning, timing, how the highway looks', 'aria-label': 'Sound and settings' });
   const dock = h('div.hw-dock', null, mixTab, mixPanel);
   let mixOpen = !!prefs.mixOpen;
   // the Mix button doubled the tab on the right edge: the tab opens the mix now
@@ -171,12 +171,16 @@ export function createHighway(stage) {
   }
   bottom.append(speed); // (hidden; the speed chip in the top bar is what you use)
   const msg = h('div.hw-msg', { hidden: true });
+  // what the song is doing when it isn't playing yet: loading, waiting for stems, or failed (with a way out)
+  const statusBox = h('div.hw-status', { hidden: true, role: 'status' });
   const fpsBox = h('div.hw-fps', { hidden: true });
   // lyrics, two lines under the title, the words lighting up as they're sung (as in Rocksmith)
   const lyricsBox = h('div.hw-lyrics', { hidden: true, 'aria-live': 'off' });
-  root.append(glCanvas, canvas, top, sections, bottom, msg, dock, fpsBox, lyricsBox);
+  root.append(glCanvas, canvas, top, sections, bottom, msg, statusBox, dock, fpsBox, lyricsBox);
   document.body.append(root);
   root.__hw = H; // for tests
+  root.__openSync = () => openSync(); // for tests
+  H.openSync = () => openSync();
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
   window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave() };
   const extras = createPerformanceTools({root,top,stage,H,rig});
@@ -283,7 +287,7 @@ export function createHighway(stage) {
   }
   function syncButton() {
     const off = prefs.offsetMs || 0;
-    const sync = h('button.hw-sync', { type: 'button' }, h('span.hw-sync-icon', { html: icon('clock') }), h('span', null, h('b', { text: 'Sync check' }), h('small', { text: off ? `Notes ${Math.abs(off)} ms ${off > 0 ? 'later' : 'earlier'}` : 'Tap along to set the timing' })));
+    const sync = h('button.hw-sync', { type: 'button' }, h('span.hw-sync-icon', { html: icon('clock') }), h('span', null, h('b', { text: 'Timing check' }), h('small', { text: off ? `Notes ${Math.abs(off)} ms ${off > 0 ? 'later' : 'earlier'}` : 'Play a short warm-up to set the timing' })));
     sync.onclick = () => openSync();
     return sync;
   }
@@ -419,7 +423,7 @@ export function createHighway(stage) {
   // song; you tap on each one you hear. The average gap between the clicks
   // and your taps is how late the sound really reaches you, and the notes
   // are shown that much later so they land with the music.
-  const syncBox = h('div.hw-syncbox', { hidden: true, role: 'dialog', 'aria-label': 'Sync check' });
+  const syncBox = h('div.hw-syncbox', { hidden: true, role: 'dialog', 'aria-label': 'Timing check' });
   root.append(syncBox);
   let syncRun = null;
   function openSync() {
@@ -436,16 +440,149 @@ export function createHighway(stage) {
     syncBox.innerHTML = '';
     const go = h('button.btn.primary', { type: 'button', text: 'Start' });
     const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
-    go.onclick = () => syncStart();
+    const tap = h('button.btn.ghost', { type: 'button', text: rig.on ? 'Tap instead' : 'Tap along' });
     cancel.onclick = () => closeSync();
-    syncBox.append(
-      h('div.hw-sync-ring', { html: icon('clock') }),
-      h('h3', { text: 'Sync check' }),
-      h('p', { text: 'You’ll hear 4 clicks to get ready, then 16 more. Tap Space (or click) on every click you hear. Closing your eyes helps.' }),
-      h('div.hw-sync-actions', null, cancel, go)
-    );
-    go.focus();
+    tap.onclick = () => syncStart();
+    if (rig.on) {
+      // 3.13: the timing check is a short song you play, not a tapping test
+      go.onclick = () => syncPlay();
+      syncBox.append(
+        h('div.hw-sync-ring', { html: icon('guitar') }),
+        h('h3', { text: 'Timing check' }),
+        h('p', { text: 'A short warm-up: four clicks count you in, then 16 notes come down the lane. Pick a string as each note reaches the line, the open low string is easiest. Play the way you normally would.' }),
+        h('div.hw-sync-actions', null, cancel, tap, go)
+      );
+      go.focus();
+    } else {
+      syncBox.append(
+        h('div.hw-sync-ring', { html: icon('clock') }),
+        h('h3', { text: 'Timing check' }),
+        h('p', { text: 'Plug in your guitar to play the warm-up. Or tap along instead: you’ll hear 4 clicks to get ready, then 16 more. Tap Space (or click) on every click you hear.' }),
+        h('div.hw-sync-actions', null, cancel, tap)
+      );
+      tap.focus();
+    }
   }
+
+  /** The heard clock of the song player, in its own seconds (what engine.position follows). */
+  function heardClock(ac) {
+    const eng = stage.engine;
+    return () => {
+      const ts = ac.getOutputTimestamp ? ac.getOutputTimestamp() : null;
+      if (ts && ts.contextTime > 0 && ts.performanceTime > 0) return ts.contextTime + Math.max(0, (performance.now() - ts.performanceTime) / 1000) - (eng.extraLatency || 0);
+      return ac.currentTime - (ac.outputLatency || ac.baseLatency || 0) - (eng.extraLatency || 0);
+    };
+  }
+
+  function clickAt(ac, node, T, accent) {
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.frequency.value = accent ? 1760 : 1320;
+    g.gain.setValueAtTime(0, T);
+    g.gain.linearRampToValueAtTime(0.35, T + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.001, T + 0.06);
+    o.connect(g).connect(node);
+    o.start(T);
+    o.stop(T + 0.08);
+    return o;
+  }
+
+  /**
+   * The play-along timing check: notes come down a lane to a line, with a click on
+   * each; what you pick is heard the same way scoring hears it (same detector,
+   * same delay), so the result lines the notes up with how you really play.
+   */
+  async function syncPlay() {
+    const N0 = 4;
+    const N = 16;
+    const gap = 0.75; // 80 bpm: relaxed
+    const LEAD = 1.6; // seconds a note is on screen before the line
+    const { ctx: ac, node } = await stage.engine.extraOut();
+    const heard = heardClock(ac);
+    const t0 = heard() + 1.2;
+    const beats = [];
+    const srcs = [];
+    for (let i = 0; i < N0 + N; i++) {
+      const T = t0 + i * gap;
+      beats.push(T);
+      // scheduled on the context so it's heard at T on the heard clock
+      srcs.push(clickAt(ac, node, ac.currentTime + (T - heard()), i < N0 ? i === 0 : (i - N0) % 4 === 0));
+    }
+    const notes = beats.slice(N0);
+    const played = [];
+    const an = new Analyzer(rig.sampleRate);
+    const on = new OnsetTracker();
+    const buf = new Float32Array(8192);
+    const cv = h('canvas.hw-sync-lane', { width: 400, height: 200 });
+    const g = cv.getContext('2d');
+    const label = h('p', { text: 'Get ready…' });
+    const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
+    cancel.onclick = () => closeSync();
+    syncBox.innerHTML = '';
+    syncBox.append(h('h3', { text: 'Pick on each note' }), cv, label, h('div.hw-sync-actions', null, cancel));
+    let raf = 0;
+    let lastHit = -1;
+    const delay = () => ((rig.latencyMs || 20) / 1000 + 0.03) * 1; // as scoring (speed 1)
+    const end = notes[notes.length - 1] + 0.8;
+    const step = () => {
+      const now = heard();
+      // what you played, timed as scoring times it
+      const b = rig.on ? rig.samples(buf) : null;
+      if (b) {
+        const tp = now - delay();
+        const f = an.frame(b);
+        if (on.update(tp, f) === 'attack') {
+          // the pick itself, not when the detector noticed it (that depends on the screen's speed)
+          const at = tp - attackAgo(b, rig.sampleRate);
+          if (!played.length || at - played[played.length - 1] > 0.12) played.push(at);
+          lastHit = now;
+        }
+      }
+      // the lane
+      const W = cv.width;
+      const Hh = cv.height;
+      const lineY = Hh - 34;
+      g.clearRect(0, 0, W, Hh);
+      g.fillStyle = '#0d1a26';
+      g.fillRect(W / 2 - 60, 0, 120, Hh);
+      g.fillStyle = now - lastHit < 0.15 ? '#ffffff' : '#50e8ff';
+      g.fillRect(W / 2 - 80, lineY - 2, 160, 4);
+      for (let i = 0; i < beats.length; i++) {
+        const dt = beats[i] - now;
+        if (dt > LEAD || dt < -0.3) continue;
+        const y = lineY - (dt / LEAD) * (lineY - 10);
+        if (i < N0) {
+          g.fillStyle = '#9fb0c4';
+          g.font = '800 26px sans-serif';
+          g.textAlign = 'center';
+          g.fillText(String(i + 1), W / 2, y + 9);
+        } else {
+          const near = Math.max(0, 1 - Math.abs(dt) / 0.25);
+          g.fillStyle = dt < -0.05 ? '#5a6078' : `rgb(${Math.round(255 * (0.8 + 0.2 * near))}, ${Math.round(80 + 120 * near)}, ${Math.round(80 + 60 * near)})`;
+          g.fillRect(W / 2 - 40, y - 10, 80, 20);
+        }
+      }
+      const done = notes.filter((T) => T < now).length;
+      label.textContent = now < notes[0] - gap * 0.5 ? 'Get ready…' : `${Math.min(done, N)} of ${N}`;
+      if (now > end) return finish();
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    H.syncPlay = { beats, notes, played }; // tests
+    syncRun = {
+      stop() {
+        cancelAnimationFrame(raf);
+        for (const o of srcs) try { o.stop(); } catch (_) {}
+      },
+    };
+    function finish() {
+      syncRun.stop();
+      syncRun = null;
+      const r = matchTiming(notes, played);
+      syncResult(r.offs, N, { mode: 'play', again: () => syncPlay() });
+    }
+  }
+
   async function syncStart() {
     const N0 = 4;
     const N = 16;
@@ -530,20 +667,22 @@ export function createHighway(stage) {
       syncResult(offs, N);
     }
   }
-  function syncResult(offs, N) {
+  function syncResult(offs, N, { mode = 'tap', again: redo = () => syncStart() } = {}) {
     syncBox.innerHTML = '';
     const again = h('button.btn.ghost', { type: 'button', text: 'Try again' });
-    again.onclick = () => syncStart();
+    again.onclick = () => redo();
     if (offs.length < N / 2) {
       const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
       cancel.onclick = () => closeSync();
-      syncBox.append(h('div.hw-sync-ring', { html: icon('alert') }), h('h3', { text: 'Not enough taps' }), h('p', { text: `Only ${offs.length} of ${N} taps landed near a click. Tap Space on each click you hear.` }), h('div.hw-sync-actions', null, cancel, again));
+      const why = mode === 'play' ? `Only ${offs.length} of ${N} notes were heard near the line. Pick a little harder, one string at a time, as each note arrives.` : `Only ${offs.length} of ${N} taps landed near a click. Tap Space on each click you hear.`;
+      syncBox.append(h('div.hw-sync-ring', { html: icon('alert') }), h('h3', { text: mode === 'play' ? 'Not enough notes heard' : 'Not enough taps' }), h('p', { text: why }), h('div.hw-sync-actions', null, cancel, again));
       return;
     }
     const sorted = [...offs].sort((a, b) => a - b);
     const trim = sorted.slice(Math.floor(sorted.length * 0.2), Math.ceil(sorted.length * 0.8));
-    const ms = Math.round(trim.reduce((a, b) => a + b, 0) / trim.length / 5) * 5;
-    const spread = Math.round(Math.sqrt(trim.reduce((a, b) => a + (b - ms) ** 2, 0) / trim.length));
+    const mean = trim.reduce((a, b) => a + b, 0) / trim.length;
+    const ms = Math.round(mean / 5) * 5;
+    const spread = Math.round(Math.sqrt(trim.reduce((a, b) => a + (b - mean) ** 2, 0) / trim.length));
     const use = Math.max(-300, Math.min(300, ms));
     // your taps as dots around the beat (centre line): see how steady they were
     const strip = h('div.hw-sync-strip', null, h('i.beat'));
@@ -566,11 +705,12 @@ export function createHighway(stage) {
       setPref('offsetMs', 0);
       closeSync();
     };
-    const steady = spread < 25 ? 'Nice and steady.' : spread < 45 ? 'A bit uneven: try again for a surer result.' : 'Quite uneven: try again, tapping just as you hear each click.';
+    const steady = spread < 25 ? 'Nice and steady.' : spread < 45 ? 'A bit uneven: try again for a surer result.' : mode === 'play' ? 'Quite uneven: try again, picking just as each note reaches the line.' : 'Quite uneven: try again, tapping just as you hear each click.';
+    const said = mode === 'play' ? (use === 0 ? 'You play right on the notes: nothing to change.' : `You play ${Math.abs(use)} ms ${use > 0 ? 'after' : 'before'} the notes reach the line. The notes will move to match how you play. ${steady}`) : use === 0 ? 'Your sound and the notes already line up.' : `The sound reaches you ${Math.abs(use)} ms ${use > 0 ? 'later' : 'earlier'} than Stagehand expected. The notes will move to match. ${steady}`;
     syncBox.append(
       h('div.hw-sync-big', { text: `${use > 0 ? '+' : ''}${use} ms` }),
-      h('p', { text: use === 0 ? 'Your sound and the notes already line up.' : `The sound reaches you ${Math.abs(use)} ms ${use > 0 ? 'later' : 'earlier'} than Stagehand expected. The notes will move to match. ${steady}` }),
-      h('div.hw-sync-legend', null, h('span', { text: 'early' }), h('span', { text: 'on the click' }), h('span', { text: 'late' })),
+      h('p', { text: said }),
+      h('div.hw-sync-legend', null, h('span', { text: 'early' }), h('span', { text: mode === 'play' ? 'on the note' : 'on the click' }), h('span', { text: 'late' })),
       strip,
       h('div.hw-sync-actions', null, reset, again, ok)
     );
@@ -659,7 +799,7 @@ export function createHighway(stage) {
     dock.classList.toggle('collapsed', !on);
     mixBtn.setAttribute('aria-pressed', String(on));
     mixTab.setAttribute('aria-expanded', String(on));
-    mixTab.innerHTML = `${icon(on ? 'chevronRight' : 'chevronLeft')}<span>Master Settings</span>`;
+    mixTab.innerHTML = `${icon(on ? 'chevronRight' : 'chevronLeft')}<span>Sound &amp; settings</span>`;
     renderMix();
   }
   mixBtn.onclick = () => setMixOpen(!mixOpen);
@@ -672,7 +812,7 @@ export function createHighway(stage) {
     if (document.activeElement && document.activeElement.classList.contains('stem-vol') && mixPanel.contains(document.activeElement)) return;
     mixPanel.innerHTML = '';
     mixMeters.clear();
-    mixPanel.append(h('div.hw-master-title', null, h('b', { text: 'Master Settings' })), syncButton());
+    mixPanel.append(h('div.hw-master-title', null, h('b', { text: 'Sound & settings' })), syncButton());
     renderMixBody();
     mixPanel.append(h('div.hw-master-sec', { text: 'Tuning' }), dropBox, opts);
     renderDropBox();
@@ -773,6 +913,7 @@ export function createHighway(stage) {
     hideCard();
     resetJudge();
     renderControls();
+    renderStatus();
     loop();
   }
 
@@ -791,14 +932,24 @@ export function createHighway(stage) {
   }
 
   async function loadSong(song, partId) {
+    // Only the newest request may fill the highway: a slow answer for an older song
+    // (or part) must never put its notes under the new song's title.
+    const token = (H.loadToken = (H.loadToken || 0) + 1);
     H.song = song;
     H.tab = null;
-    showMsg('Reading the part…');
+    H.targets = [];
+    H.judge = null;
+    H.lyricLines = [];
+    showMsg(`Reading ${song.title || 'the part'}…`);
     try {
-      H.parts = await api.tab.list(song.id);
+      const parts = await api.tab.list(song.id);
+      if (token !== H.loadToken) return;
+      H.parts = parts;
       const want = partId || pickPart();
       if (!want) throw new Error('This song has no guitar or bass part.');
-      H.tab = await api.tab.load(song.id, want);
+      const tab = await api.tab.load(song.id, want);
+      if (token !== H.loadToken) return;
+      H.tab = tab;
       prefs.part = H.tab.type === 'combo' ? 'lead' : H.tab.type;
       save();
       rig.setSongTuning(H.tab.tuning, instrument());
@@ -812,10 +963,64 @@ export function createHighway(stage) {
       H.toneKey = null;
       applyTone();
     } catch (err) {
-      showMsg(err.message);
+      if (token !== H.loadToken) return;
+      showMsg(`Couldn’t read the part for ${song.title || 'this song'}: ${err.message}`);
     }
     renderControls();
+    renderStatus();
   }
+
+  /** The panel in the middle when the song can't play yet, and why. */
+  function renderStatus() {
+    const info = stage.loadInfo ? stage.loadInfo() : null;
+    if (!H.open || !info || !info.song) {
+      statusBox.hidden = true;
+      return;
+    }
+    const title = esc(info.song.title || 'this song');
+    let html = '';
+    let key = '';
+    if (info.phase === 'loading') {
+      key = `loading:${info.song.id}`;
+      html = `<div class="hw-st-box"><span class="hw-st-spin"></span><b>Opening ${title}…</b><span>Getting the song audio ready.</span></div>`;
+    } else if (info.phase === 'error') {
+      key = `error:${info.song.id}:${info.error}`;
+      html = `<div class="hw-st-box bad"><b>${title} didn’t open</b><span>${esc(info.error || 'Something went wrong.')}</span><div class="hw-st-acts"><button type="button" class="btn small primary" data-act="retry">Try again</button>${info.prev ? `<button type="button" class="btn small ghost" data-act="prev">Back to ${esc(info.prev.title)}</button>` : ''}</div></div>`;
+    } else if (info.waiting) {
+      const st = info.waiting;
+      const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
+      const what = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : `Splitting the stems · ${pct}%`;
+      key = `wait:${info.song.id}:${st.state}`;
+      if (statusBox.dataset.key === key && st.state === 'running') {
+        const b = statusBox.querySelector('b');
+        if (b) b.textContent = what;
+        const bar = statusBox.querySelector('.hw-st-bar > i');
+        if (bar) bar.style.width = `${Math.max(2, pct)}%`;
+        statusBox.hidden = false;
+        return;
+      }
+      html = `<div class="hw-st-box"><b>${what}</b><span>${title} starts by itself: with the stems, or with the full mix in a few seconds if they take long.</span><div class="hw-st-bar"><i style="width:${Math.max(2, pct)}%"></i></div><div class="hw-st-acts"><button type="button" class="btn small" data-act="now">Play now with the full mix</button></div></div>`;
+    }
+    if (!html) {
+      statusBox.hidden = true;
+      statusBox.dataset.key = '';
+      return;
+    }
+    if (statusBox.dataset.key !== key) {
+      statusBox.dataset.key = key;
+      statusBox.innerHTML = html;
+    }
+    statusBox.hidden = false;
+  }
+  statusBox.onclick = (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    if (b.dataset.act === 'retry') stage.retry();
+    else if (b.dataset.act === 'prev') stage.backToPrevious();
+    else if (b.dataset.act === 'now') stage.playNow();
+  };
+  on('stage-phase', () => renderStatus());
+  on('stems-update', () => H.open && renderStatus());
 
   function pickPart() {
     const want = prefs.part || 'lead';
@@ -842,6 +1047,7 @@ export function createHighway(stage) {
       } else if (x.notes.length === 1) prev = null;
     }
     H.sustainEnds = sustainIndex(t);
+    linkChains(t); // a picked note's gem shows the bends and vibrato of the notes held on from it
     return t;
   }
 
@@ -1280,6 +1486,7 @@ export function createHighway(stage) {
     buildNotes(t, a);
     buildLands(t, a);
     buildHits(t, a);
+    buildBendGauge(t);
     drawNeckFront(t, a, f0, f1);
     drawLabels();
     drawHitsFront(t, a, dt);
@@ -1451,14 +1658,19 @@ export function createHighway(stage) {
       dropFluid();
       const now = performance.now();
       feat.update(stage.engine, rig, now);
-      visuals.draw(v.scene, feat, now);
+      // if the moving picture can't be drawn right now, the photo shows instead of black
+      if (!visuals.draw(v.scene, feat, now)) R3.setVenue(FALLBACK_VENUE, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
     } else {
       visuals.drop();
-      if (v?.fluid && H.open) driveFluid(t || 0); else dropFluid();
+      if (v?.fluid && H.open) {
+        driveFluid(t || 0);
+        if (fluid.failed || !fluid.ready) R3.setVenue(FALLBACK_VENUE, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
+      } else dropFluid();
     }
   }
 
   // Audio-driven backgrounds follow the audible song bus and processed instrument.
+  const FALLBACK_VENUE = VENUES.find((x) => x.id === 'warehouse' && x.photo) || VENUES.find((x) => x.photo) || null;
   const fluid = createFluid(root);
   const feat = createFeatures(); // one reading of the music shared by Fluid and the scenes
   const visuals = createVisuals(root, { highway: true });
@@ -1557,11 +1769,14 @@ export function createHighway(stage) {
       const c = laneC(f);
       alpha.up(c - w * 0.3, c + w * 0.3, G.hl - 0.05, G.yTop + 0.05, 0.05, inA ? col('#ffc446', 0.3) : col('#50c8d2', 0.12), inA ? col('#ffc446', 0.14) : col('#50c8d2', 0.05));
     }
-    // fret wires: dark rods standing across the strings, the nut ivory
+    // fret wires: slim metal rods standing across the strings, the nut ivory.
+    // (3.13: they were deep, near-black boxes; seen from the side near the camera
+    // their sides showed as big black slabs beside the highway)
     for (let f = Math.max(0, f0 - 1); f <= Math.min(24, f1 + 1); f++) {
       const x = XF(f);
-      const hw = f === 0 ? 0.04 : 0.026;
-      solid.box(x - hw, x + hw, yb, yt, -0.04, 0.04, f === 0 ? col('#8a8476') : col('#1c1c22'), f === 0 ? col('#c8c0aa') : col('#6e675d'), f === 0 ? col('#5a5548') : col('#101014'));
+      const hw = f === 0 ? 0.04 : 0.024;
+      const dz = f === 0 ? 0.04 : 0.012;
+      solid.box(x - hw, x + hw, yb, yt, -dz, dz, f === 0 ? col('#8a8476') : col('#55555f'), f === 0 ? col('#c8c0aa') : col('#8a8378'), f === 0 ? col('#5a5548') : col('#3c3c46'));
       if (f > 0) solid.up(x - hw * 0.35, x + hw * 0.35, yb, yt, -0.045, col('#6e675d', 1));
     }
     // strings: thin and coloured, a touch thicker toward the low E, with a soft glow
@@ -1755,6 +1970,46 @@ export function createHighway(stage) {
   }
 
   /**
+   * 4.0: while you hold a bend at the neck, a small gauge stands on its string:
+   * a rail up to how far to bend (with the amount), a bright mark where the
+   * chart's bend is right now, and a white mark for how far you've bent (heard
+   * from your guitar), so you can match it.
+   */
+  function buildBendGauge(t) {
+    const { alpha, glow } = R3.L;
+    const T = H.targets;
+    let heard = null;
+    for (let i = Math.max(0, lower(T, t - 8)); i < T.length && T[i].t <= t; i++) {
+      const tg = T[i];
+      for (const nt of tg.notes) {
+        if (t > noteEnd(nt, tg) || !(maxBend(nt) > 0)) continue;
+        const an = anchorAt(tg.t);
+        const L0 = level(nt.s);
+        const dir = L0 > (G.n - 1) / 2 ? -1 : 1; // the same way the sustain ribbon bends
+        const yAt = (b) => nY(L0 + dir * b * 0.7);
+        const x = noteX(nt, an) + laneW(Math.max(1, nt.f || an.fret)) * 0.32;
+        const top = maxBend(nt);
+        const now = bendAt(nt, t);
+        const z = -0.06;
+        alpha.bar([x, yAt(0), z], [x, yAt(top), z], 0.07, col('#fff3d6', 0.45));
+        // the target: a bar across, gold
+        glow.bar([x - 0.18, yAt(top), z], [x + 0.18, yAt(top), z], 0.06, col('#ffc446', 0.95, 1.6));
+        // where the chart is right now
+        glow.bar([x - 0.13, yAt(now), z - 0.002], [x + 0.13, yAt(now), z - 0.002], 0.09, col(STRING[nt.s], 1, 2));
+        // how far you've bent, heard from your guitar
+        if (rig.on && stage.engine.playing) {
+          if (heard === null) {
+            const p = rig.pitch();
+            heard = p ? p.midi + p.cents / 100 : NaN;
+          }
+          const mine = heard - (nt.midi + instrumentShift.st);
+          if (Number.isFinite(mine) && mine > -0.6 && mine < top + 1.5) glow.bar([x - 0.14, yAt(Math.max(0, mine)), z - 0.004], [x + 0.14, yAt(Math.max(0, mine)), z - 0.004], 0.03, col('#ffffff', 0.95, 1.8));
+        }
+      }
+    }
+  }
+
+  /**
    * A note: a glassy block in its string's colour at its string's height in
    * its fret's lane, facing you, with a bright rim; a thin stem down to the
    * floor with its fret number there.
@@ -1806,8 +2061,9 @@ export function createHighway(stage) {
       const p = rim * 1.6;
       for (const [a0, a1, b0, b1] of [[x - hw - p, x + hw + p, y + hh + p * 0.4, y + hh + p], [x - hw - p, x + hw + p, y - hh - p, y - hh - p * 0.4], [x - hw - p, x - hw - p * 0.4, y - hh - p, y + hh + p], [x + hw + p * 0.4, x + hw + p, y - hh - p, y + hh + p]]) glow.up(a0, a1, b0, b1, zf, col('#ffffff', 0.9 * fade, 1.5));
     }
-    if (maxBend(nt) > 0 && !missed) {
-      // a bend: a bright upward chevron on the note's face
+    const tech = nt._tech || (nt._tech = noteTech(nt));
+    if (tech.bend > 0 && !missed) {
+      // a bend (also one coming later on a note held from this one): a bright upward chevron on the note's face
       const cy = y + hh * 0.05;
       const ac = col('#fff3d6', fade, 1.6);
       glow.bar([x - hw * 0.55, cy - hh * 0.35, zf - 0.003], [x, cy + hh * 0.45, zf - 0.003], rim * 0.95, ac, undefined, 'z');
@@ -1828,11 +2084,13 @@ export function createHighway(stage) {
       if (nt.pinchHarmonic) marks.push('PH');
       if (nt.slap) marks.push('S');
       if (nt.pop) marks.push('Pop');
-      if (maxBend(nt) && !(nt.sus > 0.06)) marks.push(`↑${bendLabel(maxBend(nt))}`);
-      if (nt.vibrato) marks.push('~');
+      // every technique shows on the gem, together (a bend with vibrato says both), even
+      // when it happens later on a note held on from this one
+      if (tech.bend) marks.push(`${tech.pre ? 'pre ' : ''}↑${bendLabel(tech.bend)}${tech.release ? '↓' : ''}`);
+      if (tech.vibrato) marks.push('~');
       if (nt.tremolo) marks.push('///');
-      if (nt.slideTo !== undefined && !(nt.sus > 0.06)) marks.push(nt.slideTo > nt.f ? '↗' : '↘');
-      if (marks.length) label(marks.join(' '), x, y + hh + G.gy * 0.35, z, { size: 0.22, min: 10, max: 18, hide: 11, weight: 800, pill: true });
+      if (tech.slide && !(nt.sus > 0.06 && !nt.chain)) marks.push(tech.slide === 'up' ? '↗' : '↘');
+      if (marks.length) label(marks.join(' '), x, y + hh + G.gy * 0.35, z, { size: 0.24, min: 12, max: 20, hide: 11, weight: 800, pill: true });
     }
   }
 
@@ -2135,7 +2393,8 @@ export function createHighway(stage) {
     const mineT = (tonelib.list || []).find((x) => x.id === rig.toneId);
     const cur = rig.mode === 'song' ? songToneAt(stage.engine.position) : null;
     const toneName = rig.mode === 'song' ? `Song tone${cur && cur.name ? ` · ${cur.name}` : ''}` : rig.mode === 'live' && rig.liveTone ? rig.liveTone.name : mineT ? `${mineT.slot ? `${mineT.slot} · ` : ''}${mineT.name}` : (TONES.find((x) => x.id === rig.toneId) || {}).name || 'Tone';
-    toneBtn.innerHTML = `${icon('amp')}<span>${esc(toneName)}</span>${rig.capture ? '<span class="real-badge sm" title="A real amp is playing">REAL</span>' : ''}${icon('chevron')}`;
+    const shown = rig.standIn ? `${rig.standIn.name} (for your ${rig.instrument})` : toneName;
+    toneBtn.innerHTML = `${icon('amp')}${instrumentTag(rig)}<span>${esc(shown)}</span>${rig.capture ? '<span class="real-badge sm" title="A real amp is playing">REAL</span>' : ''}${icon('chevron')}`;
     toneBtn.hidden = !rig.on;
     rigBox.classList.toggle('real', !!rig.capture);
     renderMix();
@@ -2229,7 +2488,16 @@ export function createHighway(stage) {
       return H.open;
     },
     songChanged(song) {
-      if (H.open && song && (!H.song || song.id !== H.song.id)) loadSong(song).then(() => (H.cam.ready = false));
+      if (!song || (H.song && song.id === H.song.id && H.tab)) return;
+      if (H.open) loadSong(song).then(() => (H.cam.ready = false));
+      else {
+        // closed: forget the old song now, so opening the highway always reads the new one
+        H.loadToken = (H.loadToken || 0) + 1;
+        H.song = null;
+        H.tab = null;
+        H.targets = [];
+        H.judge = null;
+      }
     },
     stemsChanged() {
       if (H.open) {

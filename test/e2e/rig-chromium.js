@@ -236,16 +236,15 @@ class FakePortMain extends EventEmitter {
   const rb = await page.evaluate(async () => {
     const { rig } = window.__h;
     const { instrumentShift } = await import('/src/renderer/js/detect.js');
-    const slotBefore = rig.active;
     rig.setSongTuning([0, 0, 0, 0, 0, 0], 'guitar');
     rig.sense.instrument = 'bass';
-    rig._instrumentChanged(true);
-    await rig._busy;
+    const res = await rig._instrumentChanged(true);
+    const why = res && res.error;
     await new Promise((r) => setTimeout(r, 300));
-    const bass = { standIn: rig.standIn && rig.standIn.id, mode: rig.mode, chosen: rig.tone.name, shift: instrumentShift.st, changed: rig.active !== slotBefore, out: rig.levels().output };
-    rig.holdTone();
-    await rig._busy;
-    const held = { standIn: rig.standIn, active: rig.active === slotBefore };
+    // what the engine confirmed it is playing (slot numbers can move as tones are rebuilt)
+    const bass = { standIn: rig.standIn && rig.standIn.id, mode: rig.mode, chosen: rig.tone.name, shift: instrumentShift.st, changed: !!rig.sounding && rig.sounding.id === 'bass-clean', why, out: rig.levels().output };
+    const r = await rig.holdTone();
+    const held = { standIn: rig.standIn, active: !!rig.sounding && rig.sounding.name === 'Lead' && r && r.ok && !r.standIn, why: r && r.error };
     rig.sense.instrument = 'guitar';
     rig._instrumentChanged(true);
     await rig._busy;
@@ -254,7 +253,7 @@ class FakePortMain extends EventEmitter {
   });
   check(rb.bass.standIn === 'bass-clean' && rb.bass.mode === 'song' && rb.bass.chosen === 'Lead' && rb.bass.changed && rb.bass.out > 0.01, `bass heard: Bass clean plays in place of the guitar song tone (${JSON.stringify(rb.bass)})`);
   check(rb.bass.shift === -12, 'bass on a guitar part: scored an octave down');
-  check(rb.held.standIn === null && rb.held.active, '"Keep my tone" goes back to the chosen tone');
+  check(rb.held.standIn === null && rb.held.active, `"Keep my tone" goes back to the chosen tone (${JSON.stringify(rb.held)})`);
   check(rb.back.standIn === null && rb.back.shift === 0 && rb.back.hold === null, 'guitar again: nothing stands in, scoring back to normal');
 
   // calibration
@@ -263,6 +262,69 @@ class FakePortMain extends EventEmitter {
     return rig.calibrate(1.5);
   });
   check(r3 && r3.input > 0 && r3.input < 1, `calibration set the input level (${r3 && r3.peakDb.toFixed(1)} dBFS peak → knob ${r3 && r3.input.toFixed(2)})`);
+
+  // turn the guitar off and on twice (like a cable replug), then record a second:
+  // recordings got every chunk more than once (garbled) when old engine lines kept feeding them
+  const rr = await page.evaluate(async () => {
+    const { rig } = window.__h;
+    // record these restarts somewhere else: the speaker checks below read the first run's output
+    if (window.__shFakeAudio && window.__shFakeAudio.fakeOut) window.__shFakeAudio = { ...window.__shFakeAudio, fakeOut: window.__shFakeAudio.fakeOut.replace(/\.wav$/, '-restarts.wav') };
+    for (let i = 0; i < 2; i++) {
+      rig.stop();
+      await new Promise((r) => setTimeout(r, 200));
+      await rig.start();
+    }
+    // the same chunk arriving twice means two engine lines feed the recorder
+    const seen = new Set();
+    const key = (d) => {
+      let h = 0;
+      for (let i = 0; i < d.length; i++) h = (h * 31 + Math.round(d[i] * 1e6)) | 0;
+      return `${d.length}:${h}`;
+    };
+    let chunks = 0;
+    let dupes = 0;
+    let tapChunks = 0;
+    let tapDupes = 0;
+    const tapSeen = new Set();
+    const taps = (d) => {
+      tapChunks++;
+      const k = key(d);
+      if (tapSeen.has(k)) tapDupes++;
+      tapSeen.add(k);
+    };
+    rig.addInputTap(taps);
+    const h = await rig.captureProcessed((d) => {
+      chunks++;
+      const k = key(d);
+      if (seen.has(k)) dupes++;
+      seen.add(k);
+    });
+    // (after a restart the engine can take a moment to send sound here: wait for some)
+    for (let i = 0; i < 25 && (chunks < 6 || tapChunks < 6); i++) await new Promise((r) => setTimeout(r, 200));
+    h.close();
+    rig.removeInputTap(taps);
+    // the clip recorder's stream of the mix plays back steadily (fifo-worklet.js)
+    const m = await rig.monitorMix();
+    const an = m.ctx.createAnalyser();
+    an.fftSize = 2048;
+    m.node.connect(an);
+    an.connect(m.ctx.destination); // its output goes nowhere (sink "none")
+    const buf = new Float32Array(2048);
+    let mixRms = 0;
+    // the fake device can run slower than real time here: give the cushion time to fill
+    for (let k = 0; k < 40 && mixRms < 0.005; k++) {
+      await new Promise((r) => setTimeout(r, 100));
+      an.getFloatTimeDomainData(buf);
+      let e = 0;
+      for (const x of buf) e += x * x;
+      mixRms = Math.max(mixRms, Math.sqrt(e / buf.length));
+    }
+    m.close();
+    return { kind: rig.kind, chunks, dupes, tapChunks, tapDupes, mixRms };
+  });
+  check(rr.kind === 'native' && rr.chunks > 3 && rr.dupes === 0, `after two restarts the recorder gets each piece of sound once (${rr.dupes} of ${rr.chunks} repeated)`);
+  check(rr.mixRms > 0.005, `the clip recorder hears the mix (${rr.mixRms.toFixed(3)})`);
+  check(rr.tapChunks > 3 && rr.tapDupes === 0, `…and so does the dry guitar tap (${rr.tapDupes} of ${rr.tapChunks} repeated)`);
 
   await page.evaluate(() => window.__h.rig.stop());
   await new Promise((r) => setTimeout(r, 600));

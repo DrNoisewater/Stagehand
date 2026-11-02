@@ -15,7 +15,7 @@ import { realAmpStrip, realBadge, getAllRealAmps, batch } from './realamps.js';
 import { caps, ampOf, packForCurated, resolveCapture } from './captures.js';
 
 const root = document.getElementById('page-tones');
-const T = { tab: (() => { try { return localStorage.getItem('stagehand.tonesTab') || 'mine'; } catch (_) { return 'mine'; } })(), sel: null, draft: null, block: null, dirty: false, filter: '', libLoading: false, liveT: 0, liveTimer: null };
+const T = { tab: (() => { try { return localStorage.getItem('stagehand.tonesTab') || 'mine'; } catch (_) { return 'mine'; } })(), advanced: (() => { try { return localStorage.getItem('stagehand.toneEdit') === '1'; } catch (_) { return false; } })(), sel: null, draft: null, block: null, dirty: false, filter: '', libLoading: false, liveT: 0, liveTimer: null };
 const listCol = h('section.tones-list', { 'aria-label': 'Tone list' });
 const editCol = h('section.tones-edit', { 'aria-label': 'Tone editor' });
 root.append(listCol, editCol);
@@ -388,6 +388,7 @@ function addMenu(e) {
 function renderEditor() {
   editCol.innerHTML = '';
   const d = T.draft;
+  if (!d) root.classList.remove('simple');
   if (!d) {
     const np = rig.tone;
     editCol.append(h('div.tones-empty', null, h('h2', { text: 'Pick a tone' }), h('p', { text: 'Choose one on the left to hear it on your guitar, edit its rig, rename it or put it in a slot.' })));
@@ -431,6 +432,11 @@ function renderEditor() {
     h('div.te-head', null, h('label.te-field.grow', null, h('span', { text: 'Name' }), name), demoButton(d, 'tones:editor', { label: 'Demo riff', cls: 'big' }), saveBtn, more),
     h('div.te-from', null, h('span.te-dirty', { hidden: !T.dirty, text: 'Changed, not saved · ' }), d.mine ? `Your tone${d.from && d.from.song ? `, first saved from ${d.from.song}` : ''}. Changes are live: play while you tweak, then Save.` : d.from && d.from.song ? `From ${d.from.song}. Saving makes your own copy, so the song keeps its tone.` : d.from && d.from.preset ? 'A Stagehand preset. Saving makes your own copy.' : 'Changes are live: play while you tweak, then Save.')
   );
+  root.classList.toggle('simple', !T.advanced);
+  if (!T.advanced) return renderSimple(d);
+  const done = h('button.btn.small.soft.te-simple', { type: 'button', html: `${icon('chevronLeft')}<span>Done editing</span>` });
+  done.onclick = () => setAdvanced(false);
+  editCol.append(done);
   if (!d.gear.length) {
     editCol.append(h('p', { text: 'This tone has no gear yet. Add an amp to start.' }));
   }
@@ -591,6 +597,45 @@ function cabCard(d) {
 }
 
 // --------------------------------------------------------------- render --
+function setAdvanced(on) {
+  T.advanced = !!on;
+  try {
+    localStorage.setItem('stagehand.toneEdit', on ? '1' : '0');
+  } catch (_) {}
+  renderEditor();
+}
+
+/**
+ * 3.13: the simple view. Most of the time you pick a tone, hear it, put it on a
+ * key and play; the amp, cabinet, pedal and knob details are one click away
+ * under Edit tone.
+ */
+function renderSimple(d) {
+  const kind = d.kind === 'bass' ? 'Bass' : 'Guitar';
+  const chain = chainText(d);
+  const edit = h('button.btn.soft', { type: 'button', html: `${icon('edit')}<span>Edit tone</span>` });
+  edit.onclick = () => setAdvanced(true);
+  const use = h('button.btn.soft', { type: 'button', html: `${icon('guitar')}<span>Play with it now</span>` });
+  use.onclick = () => (d.mine && d.id ? useTone(d.id) : rig.setLiveTone({ ...d, fromLabel: d.from && d.from.song ? `Trying a tone from ${d.from.song}` : 'Trying a tone (not saved)', gel: gelOf(d) }));
+  const keys = h('div.ts-keys', { role: 'group', 'aria-label': 'Put it on a key' });
+  for (let n = 2; n <= SLOT_COUNT; n++) {
+    const t = bySlot(n);
+    const here = d.mine && d.id && t && t.id === d.id;
+    const b = h(`button.ts-key${here ? '.here' : ''}${t ? '' : '.empty'}`, { type: 'button', style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: here ? `${d.name} is on key ${n}` : t ? `Put ${d.name} on key ${n} (instead of ${t.name})` : `Put ${d.name} on key ${n}` });
+    b.append(h('b', { text: String(n) }), h('span', { text: here ? 'This tone' : t ? t.name : 'Empty' }));
+    b.onclick = () => !here && putInSlot(n);
+    keys.append(b);
+  }
+  const box = h('div.ts-simple', null,
+    h('div.ts-what', null, h('span.inst-tag', { text: kind }), realBadge(d) || '', h('span.ts-chain', { text: chain || 'No gear yet' })),
+    h('div.ts-actions', null, use, edit),
+    h('h3.ts-h', { text: 'Put it on a key' }),
+    h('p.ts-note', { text: 'Press its number while you play (on the highway or in Jam) to switch. Key 1 always follows the song’s own tones.' }),
+    keys
+  );
+  editCol.append(box);
+}
+
 function render() {
   if (state.page !== 'tones') return;
   renderList();
