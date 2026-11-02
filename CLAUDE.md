@@ -59,7 +59,7 @@ Also documented in HANDOFF.md but not re-run on 2026-11-01:
 ## CI and releases (GitHub Actions, windows-latest)
 
 - `.github/workflows/ci.yml` runs on every pull request: `npm test` (with `PYTHON=python`, because Windows has no `python3`), then compiles `stagehand-audio.exe` from source with llvm-mingw `20251104` and the same flags as `native/build.sh`.
-- `.github/workflows/release.yml` is manual (Actions → Release → Run workflow, version e.g. `3.9.1`). It fails unless the version is `X.Y.Z`, equals `"version"` in `package.json`, and tag `v<version>` doesn't exist yet. It then runs the tests, rebuilds the .exe, zips the `Stagehand-Windows.zip` layout as `Stagehand-v<version>-win-x64.zip`, pushes tag `v<version>`, and creates the GitHub Release with auto-generated notes.
+- `.github/workflows/release.yml` is manual (Actions → Release → Run workflow, version e.g. `3.9.1`). It fails unless the version is `X.Y.Z`, equals `"version"` in `package.json`, and tag `v<version>` doesn't exist yet. It then runs the tests, rebuilds the .exe, zips the `Stagehand-Windows.zip` layout as `Stagehand-v<version>-win-x64.zip`, pushes tag `v<version>`, and creates the GitHub Release with auto-generated notes. A second job (ubuntu, since 4.0) runs `scripts/session-setup.sh` + `scripts/package.sh` with `SETUP_DEPS` and adds `Stagehand-Setup-<version>.exe` to that release.
 - To release, bump `version` in `package.json` (and the HANDOFF heading) in a commit on the default branch, then run the Release workflow on that branch.
 
 ## Conventions
