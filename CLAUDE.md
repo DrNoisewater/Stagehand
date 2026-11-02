@@ -33,7 +33,16 @@ node test/e2e/rig-chromium.js native/build/stagehand-audio-fake <outDir>
 
 # the moving backgrounds on a made-up song, Jam and behind the highway; writes sheet.png
 node test/visuals/shoot.js <outDir> [fluid nebula swarm mandala strings]
+
+# highway stills on made-up charts (scene T = techniques: bends, vibrato, held-on bends)
+PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17.2 T:19.1
+# the play-along timing check with a pretend guitar 80 ms late (expects about +30 ms)
+PLAYCAL=80 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
+# a moving background must rebuild itself after the graphics card drops it
+LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```
+
+Timing in this container: `ui3-chromium.js` takes ~20 min; in `rig-chromium.js` tone builds can take 5–8 s under load, so its "Keep my tone", "bass heard" and "speakers got the song" checks fail now and then (also before 3.13).
 
 Also documented in HANDOFF.md but not re-run on 2026-11-01:
 - `bash scripts/session-setup.sh` fetches llvm-mingw (the Windows cross compiler) and the Setup payload zips, and builds the fake helper.
