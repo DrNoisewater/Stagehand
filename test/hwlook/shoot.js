@@ -38,6 +38,47 @@ const srv = http.createServer((req, res) => {
     }
     // software rendering here is slow: keep the glow on for stills (the app turns it off on slow PCs)
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
+    if (process.env.PLAYCAL) {
+      // the play-along timing check, with a pretend guitar that picks PLAYCAL ms after each note
+      const late = Number(process.env.PLAYCAL) / 1000;
+      const r = await page.evaluate(async (late) => {
+        const { rig } = await import('/js/rig.js');
+        const H = document.querySelector('.highway').__hw;
+        const { ctx: ac } = await window.__stage.engine.extraOut();
+        rig.latencyMs = 0;
+        rig.samples = (buf) => {
+          const sp = H.syncPlay;
+          const ts0 = ac.getOutputTimestamp ? ac.getOutputTimestamp() : null;
+          const now = ts0 && ts0.contextTime > 0 ? ts0.contextTime + (performance.now() - ts0.performanceTime) / 1000 : ac.currentTime;
+          const n = buf.length;
+          buf.fill(0);
+          if (!sp) return buf;
+          for (const T of sp.notes) {
+            const p = T + late;
+            for (let i = 0; i < n; i++) {
+              const ts = now - (n - 1 - i) / 48000;
+              if (ts >= p && ts < p + 0.6) buf[i] += 0.4 * Math.exp(-(ts - p) * 6) * Math.sin(2 * Math.PI * 110 * (ts - p));
+            }
+          }
+          return buf;
+        };
+        rig.on = true;
+        document.querySelector('.highway').__openSync?.();
+        return 'started';
+      }, late);
+      if (r !== 'started') throw new Error(r);
+      await page.waitForFunction(() => document.querySelector('.hw-syncbox .btn.primary'), null, { timeout: 10000 });
+      await page.click('.hw-syncbox .btn.primary');
+      await page.waitForFunction(() => document.querySelector('.hw-sync-big') || /Not enough/.test(document.querySelector('.hw-syncbox').textContent), null, { timeout: 40000 });
+      const out = await page.evaluate(() => ({ big: (document.querySelector('.hw-sync-big') || {}).textContent, text: document.querySelector('.hw-syncbox').textContent, played: document.querySelector('.highway').__hw.syncPlay.played.length }));
+      console.log('PLAYCAL', JSON.stringify(out));
+      // scoring takes (latency 20 ms + 30 ms) off what it hears; this pretend guitar has no latency
+      const got = parseInt(out.big, 10);
+      const want = Number(process.env.PLAYCAL) - 50;
+      if (!(Math.abs(got - want) <= 25)) throw new Error(`timing check measured ${got} ms, expected about ${want}`);
+      console.log(`PASS the play-along timing check measures a guitar ${process.env.PLAYCAL} ms late as ${got} ms (expected ${want} ± 25)`);
+      await page.screenshot({ path: path.join(process.argv[2], 'playcal.png') }).catch(() => {});
+    }
     if (process.env.LOSE_CONTEXT) {
       // the graphics card takes the moving background away: it must come back by itself, not stay black
       const r = await page.evaluate(async () => {

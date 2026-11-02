@@ -5,7 +5,7 @@ import { APPROACH_UNITS, approachDepth, chordSpan, isChordRepeat } from './highw
  * follows speaker time without additional smoothing, notes arrive early and slowly enough to read,
  * and every gem carries a big fret number.
  */
-import { visualTime, sustainIndex, firstSustain, noteEnd } from './highway-timing.js';
+import { visualTime, sustainIndex, firstSustain, noteEnd, matchTiming, attackAgo } from './highway-timing.js';
 import { api } from './api.js';
 import { h, icon, esc, showMenu, toast, instrumentTag } from './ui.js';
 import { rig, TONES } from './rig.js';
@@ -179,6 +179,7 @@ export function createHighway(stage) {
   root.append(glCanvas, canvas, top, sections, bottom, msg, statusBox, dock, fpsBox, lyricsBox);
   document.body.append(root);
   root.__hw = H; // for tests
+  root.__openSync = () => openSync(); // for tests
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
   window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave() };
   const extras = createPerformanceTools({root,top,stage,H,rig});
@@ -285,7 +286,7 @@ export function createHighway(stage) {
   }
   function syncButton() {
     const off = prefs.offsetMs || 0;
-    const sync = h('button.hw-sync', { type: 'button' }, h('span.hw-sync-icon', { html: icon('clock') }), h('span', null, h('b', { text: 'Sync check' }), h('small', { text: off ? `Notes ${Math.abs(off)} ms ${off > 0 ? 'later' : 'earlier'}` : 'Tap along to set the timing' })));
+    const sync = h('button.hw-sync', { type: 'button' }, h('span.hw-sync-icon', { html: icon('clock') }), h('span', null, h('b', { text: 'Timing check' }), h('small', { text: off ? `Notes ${Math.abs(off)} ms ${off > 0 ? 'later' : 'earlier'}` : 'Play a short warm-up to set the timing' })));
     sync.onclick = () => openSync();
     return sync;
   }
@@ -421,7 +422,7 @@ export function createHighway(stage) {
   // song; you tap on each one you hear. The average gap between the clicks
   // and your taps is how late the sound really reaches you, and the notes
   // are shown that much later so they land with the music.
-  const syncBox = h('div.hw-syncbox', { hidden: true, role: 'dialog', 'aria-label': 'Sync check' });
+  const syncBox = h('div.hw-syncbox', { hidden: true, role: 'dialog', 'aria-label': 'Timing check' });
   root.append(syncBox);
   let syncRun = null;
   function openSync() {
@@ -438,16 +439,149 @@ export function createHighway(stage) {
     syncBox.innerHTML = '';
     const go = h('button.btn.primary', { type: 'button', text: 'Start' });
     const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
-    go.onclick = () => syncStart();
+    const tap = h('button.btn.ghost', { type: 'button', text: rig.on ? 'Tap instead' : 'Tap along' });
     cancel.onclick = () => closeSync();
-    syncBox.append(
-      h('div.hw-sync-ring', { html: icon('clock') }),
-      h('h3', { text: 'Sync check' }),
-      h('p', { text: 'You’ll hear 4 clicks to get ready, then 16 more. Tap Space (or click) on every click you hear. Closing your eyes helps.' }),
-      h('div.hw-sync-actions', null, cancel, go)
-    );
-    go.focus();
+    tap.onclick = () => syncStart();
+    if (rig.on) {
+      // 3.13: the timing check is a short song you play, not a tapping test
+      go.onclick = () => syncPlay();
+      syncBox.append(
+        h('div.hw-sync-ring', { html: icon('guitar') }),
+        h('h3', { text: 'Timing check' }),
+        h('p', { text: 'A short warm-up: four clicks count you in, then 16 notes come down the lane. Pick a string as each note reaches the line, the open low string is easiest. Play the way you normally would.' }),
+        h('div.hw-sync-actions', null, cancel, tap, go)
+      );
+      go.focus();
+    } else {
+      syncBox.append(
+        h('div.hw-sync-ring', { html: icon('clock') }),
+        h('h3', { text: 'Timing check' }),
+        h('p', { text: 'Plug in your guitar to play the warm-up. Or tap along instead: you’ll hear 4 clicks to get ready, then 16 more. Tap Space (or click) on every click you hear.' }),
+        h('div.hw-sync-actions', null, cancel, tap)
+      );
+      tap.focus();
+    }
   }
+
+  /** The heard clock of the song player, in its own seconds (what engine.position follows). */
+  function heardClock(ac) {
+    const eng = stage.engine;
+    return () => {
+      const ts = ac.getOutputTimestamp ? ac.getOutputTimestamp() : null;
+      if (ts && ts.contextTime > 0 && ts.performanceTime > 0) return ts.contextTime + Math.max(0, (performance.now() - ts.performanceTime) / 1000) - (eng.extraLatency || 0);
+      return ac.currentTime - (ac.outputLatency || ac.baseLatency || 0) - (eng.extraLatency || 0);
+    };
+  }
+
+  function clickAt(ac, node, T, accent) {
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.frequency.value = accent ? 1760 : 1320;
+    g.gain.setValueAtTime(0, T);
+    g.gain.linearRampToValueAtTime(0.35, T + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.001, T + 0.06);
+    o.connect(g).connect(node);
+    o.start(T);
+    o.stop(T + 0.08);
+    return o;
+  }
+
+  /**
+   * The play-along timing check: notes come down a lane to a line, with a click on
+   * each; what you pick is heard the same way scoring hears it (same detector,
+   * same delay), so the result lines the notes up with how you really play.
+   */
+  async function syncPlay() {
+    const N0 = 4;
+    const N = 16;
+    const gap = 0.75; // 80 bpm: relaxed
+    const LEAD = 1.6; // seconds a note is on screen before the line
+    const { ctx: ac, node } = await stage.engine.extraOut();
+    const heard = heardClock(ac);
+    const t0 = heard() + 1.2;
+    const beats = [];
+    const srcs = [];
+    for (let i = 0; i < N0 + N; i++) {
+      const T = t0 + i * gap;
+      beats.push(T);
+      // scheduled on the context so it's heard at T on the heard clock
+      srcs.push(clickAt(ac, node, ac.currentTime + (T - heard()), i < N0 ? i === 0 : (i - N0) % 4 === 0));
+    }
+    const notes = beats.slice(N0);
+    const played = [];
+    const an = new Analyzer(rig.sampleRate);
+    const on = new OnsetTracker();
+    const buf = new Float32Array(8192);
+    const cv = h('canvas.hw-sync-lane', { width: 400, height: 200 });
+    const g = cv.getContext('2d');
+    const label = h('p', { text: 'Get ready…' });
+    const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
+    cancel.onclick = () => closeSync();
+    syncBox.innerHTML = '';
+    syncBox.append(h('h3', { text: 'Pick on each note' }), cv, label, h('div.hw-sync-actions', null, cancel));
+    let raf = 0;
+    let lastHit = -1;
+    const delay = () => ((rig.latencyMs || 20) / 1000 + 0.03) * 1; // as scoring (speed 1)
+    const end = notes[notes.length - 1] + 0.8;
+    const step = () => {
+      const now = heard();
+      // what you played, timed as scoring times it
+      const b = rig.on ? rig.samples(buf) : null;
+      if (b) {
+        const tp = now - delay();
+        const f = an.frame(b);
+        if (on.update(tp, f) === 'attack') {
+          // the pick itself, not when the detector noticed it (that depends on the screen's speed)
+          const at = tp - attackAgo(b, rig.sampleRate);
+          if (!played.length || at - played[played.length - 1] > 0.12) played.push(at);
+          lastHit = now;
+        }
+      }
+      // the lane
+      const W = cv.width;
+      const Hh = cv.height;
+      const lineY = Hh - 34;
+      g.clearRect(0, 0, W, Hh);
+      g.fillStyle = '#0d1a26';
+      g.fillRect(W / 2 - 60, 0, 120, Hh);
+      g.fillStyle = now - lastHit < 0.15 ? '#ffffff' : '#50e8ff';
+      g.fillRect(W / 2 - 80, lineY - 2, 160, 4);
+      for (let i = 0; i < beats.length; i++) {
+        const dt = beats[i] - now;
+        if (dt > LEAD || dt < -0.3) continue;
+        const y = lineY - (dt / LEAD) * (lineY - 10);
+        if (i < N0) {
+          g.fillStyle = '#9fb0c4';
+          g.font = '800 26px sans-serif';
+          g.textAlign = 'center';
+          g.fillText(String(i + 1), W / 2, y + 9);
+        } else {
+          const near = Math.max(0, 1 - Math.abs(dt) / 0.25);
+          g.fillStyle = dt < -0.05 ? '#5a6078' : `rgb(${Math.round(255 * (0.8 + 0.2 * near))}, ${Math.round(80 + 120 * near)}, ${Math.round(80 + 60 * near)})`;
+          g.fillRect(W / 2 - 40, y - 10, 80, 20);
+        }
+      }
+      const done = notes.filter((T) => T < now).length;
+      label.textContent = now < notes[0] - gap * 0.5 ? 'Get ready…' : `${Math.min(done, N)} of ${N}`;
+      if (now > end) return finish();
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    H.syncPlay = { beats, notes, played }; // tests
+    syncRun = {
+      stop() {
+        cancelAnimationFrame(raf);
+        for (const o of srcs) try { o.stop(); } catch (_) {}
+      },
+    };
+    function finish() {
+      syncRun.stop();
+      syncRun = null;
+      const r = matchTiming(notes, played);
+      syncResult(r.offs, N, { mode: 'play', again: () => syncPlay() });
+    }
+  }
+
   async function syncStart() {
     const N0 = 4;
     const N = 16;
@@ -532,20 +666,22 @@ export function createHighway(stage) {
       syncResult(offs, N);
     }
   }
-  function syncResult(offs, N) {
+  function syncResult(offs, N, { mode = 'tap', again: redo = () => syncStart() } = {}) {
     syncBox.innerHTML = '';
     const again = h('button.btn.ghost', { type: 'button', text: 'Try again' });
-    again.onclick = () => syncStart();
+    again.onclick = () => redo();
     if (offs.length < N / 2) {
       const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
       cancel.onclick = () => closeSync();
-      syncBox.append(h('div.hw-sync-ring', { html: icon('alert') }), h('h3', { text: 'Not enough taps' }), h('p', { text: `Only ${offs.length} of ${N} taps landed near a click. Tap Space on each click you hear.` }), h('div.hw-sync-actions', null, cancel, again));
+      const why = mode === 'play' ? `Only ${offs.length} of ${N} notes were heard near the line. Pick a little harder, one string at a time, as each note arrives.` : `Only ${offs.length} of ${N} taps landed near a click. Tap Space on each click you hear.`;
+      syncBox.append(h('div.hw-sync-ring', { html: icon('alert') }), h('h3', { text: mode === 'play' ? 'Not enough notes heard' : 'Not enough taps' }), h('p', { text: why }), h('div.hw-sync-actions', null, cancel, again));
       return;
     }
     const sorted = [...offs].sort((a, b) => a - b);
     const trim = sorted.slice(Math.floor(sorted.length * 0.2), Math.ceil(sorted.length * 0.8));
-    const ms = Math.round(trim.reduce((a, b) => a + b, 0) / trim.length / 5) * 5;
-    const spread = Math.round(Math.sqrt(trim.reduce((a, b) => a + (b - ms) ** 2, 0) / trim.length));
+    const mean = trim.reduce((a, b) => a + b, 0) / trim.length;
+    const ms = Math.round(mean / 5) * 5;
+    const spread = Math.round(Math.sqrt(trim.reduce((a, b) => a + (b - mean) ** 2, 0) / trim.length));
     const use = Math.max(-300, Math.min(300, ms));
     // your taps as dots around the beat (centre line): see how steady they were
     const strip = h('div.hw-sync-strip', null, h('i.beat'));
@@ -568,11 +704,12 @@ export function createHighway(stage) {
       setPref('offsetMs', 0);
       closeSync();
     };
-    const steady = spread < 25 ? 'Nice and steady.' : spread < 45 ? 'A bit uneven: try again for a surer result.' : 'Quite uneven: try again, tapping just as you hear each click.';
+    const steady = spread < 25 ? 'Nice and steady.' : spread < 45 ? 'A bit uneven: try again for a surer result.' : mode === 'play' ? 'Quite uneven: try again, picking just as each note reaches the line.' : 'Quite uneven: try again, tapping just as you hear each click.';
+    const said = mode === 'play' ? (use === 0 ? 'You play right on the notes: nothing to change.' : `You play ${Math.abs(use)} ms ${use > 0 ? 'after' : 'before'} the notes reach the line. The notes will move to match how you play. ${steady}`) : use === 0 ? 'Your sound and the notes already line up.' : `The sound reaches you ${Math.abs(use)} ms ${use > 0 ? 'later' : 'earlier'} than Stagehand expected. The notes will move to match. ${steady}`;
     syncBox.append(
       h('div.hw-sync-big', { text: `${use > 0 ? '+' : ''}${use} ms` }),
-      h('p', { text: use === 0 ? 'Your sound and the notes already line up.' : `The sound reaches you ${Math.abs(use)} ms ${use > 0 ? 'later' : 'earlier'} than Stagehand expected. The notes will move to match. ${steady}` }),
-      h('div.hw-sync-legend', null, h('span', { text: 'early' }), h('span', { text: 'on the click' }), h('span', { text: 'late' })),
+      h('p', { text: said }),
+      h('div.hw-sync-legend', null, h('span', { text: 'early' }), h('span', { text: mode === 'play' ? 'on the note' : 'on the click' }), h('span', { text: 'late' })),
       strip,
       h('div.hw-sync-actions', null, reset, again, ok)
     );
