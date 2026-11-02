@@ -13,6 +13,7 @@ const { Library, norm } = require('./services/library');
 const { Dupes, findDuplicates } = require('./services/dupes');
 const { Tools } = require('./services/tools');
 const { AudioService } = require('./services/audio');
+const { AudioFinder } = require('./services/audiofind');
 const { StemService, MODELS } = require('./services/stems');
 const { ArtService } = require('./services/art');
 const { Organizer } = require('./services/organize');
@@ -53,6 +54,7 @@ let settings;
 let library;
 let tools;
 let audio;
+let finder;
 let stems;
 let art;
 let organizer;
@@ -860,7 +862,13 @@ app.whenReady().then(async () => {
   };
   tools = new Tools({ toolsDir: D.tools, engineDir: D.engine, settings, fetchImpl, engineScript: ENGINE_SCRIPT });
   tools._log = log;
-  audio = new AudioService({ cacheDir: D.audio, tools, library, settings, log });
+  finder = new AudioFinder({
+    cacheFile: path.join(D.local, 'Cache', 'audio-index.json'),
+    gameDir: () => (rsprofiles ? rsprofiles.gameDir() : null),
+    folders: () => library.data.folders.map((f) => f.path),
+    log,
+  });
+  audio = new AudioService({ cacheDir: D.audio, tools, library, settings, finder, onSong: (s) => send('library:songs', [withStems(s)]), log });
   stems = new StemService({ stemsDir: D.stems, audio, tools, settings, library, engineScript: ENGINE_SCRIPT, log });
   await stems.startup();
   art = new ArtService({ cacheDir: D.art });
@@ -934,7 +942,13 @@ app.whenReady().then(async () => {
     clearTimeout(resetTimer);
     resetTimer = setTimeout(() => send('library:reset'), 60);
   });
-  library.on('scan', (p) => send('scan:progress', p));
+  library.on('scan', (p) => {
+    send('scan:progress', p);
+    // 4.0.3: songs without their own audio (paid DLC): get the audio search ready in the background
+    if (p.state === 'done' && Object.values(library.data.songs).some((s) => !s.audioEntry && !s.audioFrom)) {
+      setTimeout(() => finder.index().catch((err) => log(`Audio search: ${err.message}`)), 3000);
+    }
+  });
   stems.on('update', (p) => send('stems:update', p));
   stems.on('done', (p) => send('stems:done', p));
 

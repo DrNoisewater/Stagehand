@@ -56,7 +56,7 @@ function cmpVer(a, b) {
 /** Why a copy ranks where it does, for the dialog. */
 function facts(s, stemsReady) {
   return {
-    audio: !!s.audioEntry,
+    audio: !!(s.audioEntry || s.audioFrom),
     parts: [...partsOf(s)],
     version: versionOf(s).join('.'),
     dd: /(^|[^a-z])dd([^a-z]|$)/i.test(`${s.fileName || ''} ${s.packageComment || ''}`),

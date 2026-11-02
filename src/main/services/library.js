@@ -12,7 +12,7 @@ const { Psarc } = require('../core/psarc');
 const rocksmith = require('../core/rocksmith');
 const { readJson, writeJsonAtomic } = require('../core/files');
 
-const AUDIO_REV = 1; // 4.0.2: bump to re-read files that had no song audio found
+const AUDIO_REV = 2; // bump to re-read files that had no song audio found (2: 4.0.3 keeps the bank's name)
 const IS_WIN = process.platform === 'win32';
 const norm = (p) => {
   const r = path.resolve(p);
@@ -230,6 +230,8 @@ class Library extends EventEmitter {
         addedAt: prev ? prev.addedAt : orphan ? orphan.addedAt : Math.round(st.birthtimeMs || st.mtimeMs || Date.now()),
         user: prev ? prev.user : orphan ? orphan.user : undefined,
         audioKey: prev && prev.audioEntry === meta.audioEntry && (keepAudio || prev.fileSize === st.size) ? prev.audioKey : orphan ? orphan.audioKey : undefined,
+        // 4.0.3: where the audio was found when the file has none (kept until the file gets its own)
+        audioFrom: !meta.audioEntry && prev && prev.audioFrom ? prev.audioFrom : undefined,
       };
       this.data.songs[id] = rec;
       ids.push(id);
@@ -327,6 +329,15 @@ class Library extends EventEmitter {
     if (!s) return null;
     const u = s.user || {};
     return this.setUser(id, { plays: (u.plays || 0) + 1, lastPlayed: Date.now() });
+  }
+
+  /** 4.0.3: remembers which other file holds this song's audio. */
+  setAudioFrom(id, from) {
+    const s = this.data.songs[id];
+    if (!s) return null;
+    s.audioFrom = from || undefined;
+    this.saveSoon();
+    return s;
   }
 
   setAudioKey(id, key) {

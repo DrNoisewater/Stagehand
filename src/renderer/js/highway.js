@@ -2393,7 +2393,7 @@ export function createHighway(stage) {
     const mineT = (tonelib.list || []).find((x) => x.id === rig.toneId);
     const cur = rig.mode === 'song' ? songToneAt(stage.engine.position) : null;
     const toneName = rig.mode === 'song' ? `Song tone${cur && cur.name ? ` · ${cur.name}` : ''}` : rig.mode === 'live' && rig.liveTone ? rig.liveTone.name : mineT ? `${mineT.slot ? `${mineT.slot} · ` : ''}${mineT.name}` : (TONES.find((x) => x.id === rig.toneId) || {}).name || 'Tone';
-    const shown = rig.standIn ? `${rig.standIn.name} (for your ${rig.instrument})` : toneName;
+    const shown = toneName;
     toneBtn.innerHTML = `${icon('amp')}${instrumentTag(rig)}<span>${esc(shown)}</span>${rig.capture ? '<span class="real-badge sm" title="A real amp is playing">REAL</span>' : ''}${icon('chevron')}`;
     toneBtn.hidden = !rig.on;
     rigBox.classList.toggle('real', !!rig.capture);

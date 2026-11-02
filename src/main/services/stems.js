@@ -169,7 +169,9 @@ class StemService extends EventEmitter {
   request(songIds, { force = false } = {}) {
     for (const id of songIds) {
       const song = this.library.get(id);
-      if (!song || song.audioEntry === null) continue; // no song audio inside: nothing to split
+      if (!song) continue;
+      // no song audio anywhere: nothing to split (official DLC may have it in another file)
+      if (song.audioEntry === null && !song.audioFrom && (song.toolkit || song.author || song.packageVersion)) continue;
       if (this.current && this.current.songId === id) continue;
       if (this.queue.some((j) => j.songId === id)) continue;
       if (!force && this.ready(song)) continue;

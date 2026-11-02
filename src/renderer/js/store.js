@@ -355,3 +355,8 @@ export function setPage(page, { quiet = false } = {}) {
   if (changed) emit('page');
   if (!quiet && changed) emit('view');
 }
+
+/** 4.0.3: official (paid) Rocksmith DLC: custom songs carry a toolkit or author stamp, official files don't. */
+export function isOfficial(s) {
+  return !!s && !s.toolkit && !s.author && !s.packageVersion;
+}

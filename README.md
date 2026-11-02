@@ -187,6 +187,8 @@ Rocksmith audio is Wwise `.wem`. Stagehand decodes it with [vgmstream](https://g
 
 ## What's new
 
+**4.0.3:** paid (official) DLC whose file has no audio inside now plays: Stagehand finds the audio in your Rocksmith folder (songs.psarc, the dlc folder, the Rocksmith 1 import packs) or your library and remembers where it is. Official DLC shows an **Official** tag instead of **no audio**. Stagehand no longer switches between guitar and bass by itself, and never changes your tone: set **Guitar or bass** in Settings (for scoring and the tuner).
+
 **4.0.2:** songs whose file has no audio (some paid DLC) say so instead of seeming to freeze, and the song list marks them **no audio**; Stagehand finds song audio stored differently inside more official DLC files; only one stems progress screen shows at a time.
 
 **3.12:** everything from 3.10 to 3.11.1 (real cabinets, Jam as home, 17 drum styles, a better looper, Score attack, Record clip, tone keys, progress goals, the Drop repair, clearer yellow and orange strings) together with 3.9.1's guitar-or-bass sensing. New moving backgrounds (Nebula, Swarm, Mandala, Strings) replace Aurora, Orbital and Prism, and Fluid reacts much more to the music. Tone match is gone for now. Full notes are on [Releases](https://github.com/DrNoisewater/stagehand/releases).
@@ -205,7 +207,7 @@ Real cabinets paired with real amps; Jam as the home screen with Play over song;
 
 <br>
 
-Stagehand hears whether a guitar or a bass is plugged in and plays a matching tone. Real bass notes score much better, and a bass part played on guitar is scored an octave up.
+Tell Stagehand whether you're playing guitar or bass (Settings › Guitar or bass), for scoring and the tuner; it never switches by itself or changes your tone (4.0.3). Real bass notes score much better, and a bass part played on guitar is scored an octave up.
 
 </details>
 

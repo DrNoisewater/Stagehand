@@ -14,7 +14,9 @@ const { readWavInfo } = require('../core/files');
 const { run } = require('./tools');
 
 class AudioService {
-  constructor({ cacheDir, tools, library, settings, log = () => {} }) {
+  constructor({ cacheDir, tools, library, settings, finder = null, onSong = () => {}, log = () => {} }) {
+    this.finder = finder;
+    this.onSong = onSong;
     this.dir = cacheDir;
     this.tools = tools;
     this.library = library;
@@ -53,21 +55,20 @@ class AudioService {
 
   async prepare(song) {
     if (!song) throw new Error('Song not found');
-    if (!song.audioEntry) {
-      // 4.0.2: say what the file does hold, so a report can tell why
-      this.log(`Audio: no song audio in ${song.path} (${song.title || song.songKey}): ${song.audioNote || 'not described'}`);
-      throw new Error('This file has no song audio');
-    }
     if (song.audioKey && fs.existsSync(this.wavPath(song.audioKey))) {
       this.markInUse(song.audioKey);
       return this._info(song.audioKey);
     }
-    const p = await Psarc.open(song.path);
+    let src = song.audioEntry ? { path: song.path, entry: song.audioEntry } : song.audioFrom || null;
+    if (!src) src = await this._findElsewhere(song);
     let wem;
     try {
-      wem = await readAudio(p, song.audioEntry);
-    } finally {
-      await p.close();
+      wem = await this._read(src);
+    } catch (err) {
+      if (!song.audioFrom) throw err;
+      // the other file moved or changed: look again
+      this.library.setAudioFrom(song.id, null);
+      wem = await this._read((src = await this._findElsewhere(song)));
     }
     const key = crypto.createHash('sha1').update(wem).digest('hex').slice(0, 24);
     this.library.setAudioKey(song.id, key);
@@ -82,6 +83,44 @@ class AudioService {
       this.evictSoon();
     }
     return this._info(key);
+  }
+
+  async _read(src) {
+    const p = await Psarc.open(src.path);
+    try {
+      return await readAudio(p, src.entry);
+    } finally {
+      await p.close();
+    }
+  }
+
+  /**
+   * 4.0.3: the song's file has no audio (some paid DLC): look for it in Rocksmith's own
+   * folder and the library, by the media id its sound bank names.
+   */
+  async _findElsewhere(song) {
+    const official = !song.toolkit && !song.author && !song.packageVersion;
+    let found = null;
+    if (this.finder && song.bankEntry) {
+      let bank = null;
+      try {
+        bank = await this._read({ path: song.path, entry: song.bankEntry });
+      } catch (_) {}
+      found = await this.finder.find(song, bank).catch((err) => (this.log(`Audio search failed: ${err.message}`), null));
+    }
+    if (found) {
+      this.log(`Audio: ${song.title || song.songKey} plays its audio from ${found.path} (${found.entry})`);
+      const s = this.library.setAudioFrom(song.id, found);
+      if (s) this.onSong(s);
+      return found;
+    }
+    // say what the file does hold, so a report can tell why
+    this.log(`Audio: no song audio in ${song.path} (${song.title || song.songKey}): ${song.audioNote || 'not described'}; not found in other files either`);
+    throw new Error(
+      official
+        ? 'This official DLC file has no audio inside, and Stagehand couldn’t find it in your Rocksmith folder. Check that Rocksmith is installed on this PC (Stagehand looks in its folder, including songs.psarc and the dlc folder).'
+        : 'This file has no song audio'
+    );
   }
 
   async _decode(wem, key) {

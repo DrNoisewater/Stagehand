@@ -367,6 +367,8 @@ async function readSongs(psarc) {
       art,
       audioEntry: audio,
       previewEntry: preview,
+      // 4.0.3: the song's sound bank, so its audio can be looked for in other files
+      bankEntry: s._bank ? names.find((n) => n.toLowerCase().endsWith('/' + String(s._bank).toLowerCase())) || null : null,
       platform: wems[0] ? wems[0].platform : null,
       audioNote: audio ? undefined : audioDiagnosis(names),
     });
