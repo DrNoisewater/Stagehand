@@ -23,6 +23,8 @@ typedef struct { uint64_t files, bytes; } Part;
 typedef int (*progress_fn)(void *ctx, uint64_t done_bytes);
 
 int payload_open(Payload *p, const char *self_path_utf8);
+/* A plain .zip file (a downloaded component), read the same way: entries have no prefix. */
+int zipfile_open(Payload *p, const char *zip_path_utf8);
 void payload_close(Payload *p);
 Part payload_part(Payload *p, const char *prefix);
 /* Unpack every entry under `prefix` into dest_dir (UTF-8, no trailing slash), dropping the prefix.

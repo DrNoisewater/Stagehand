@@ -1,16 +1,19 @@
 /*
- * Stagehand Setup: installs Stagehand for the current user, no admin needed.
+ * Stagehand Setup: installs or updates Stagehand for the current user, no admin needed.
  *
- * Everything it needs is inside this one file (the app runtime, Stagehand
- * itself and the song audio decoder), so nothing downloads and nothing can
- * hang on a slow connection. Before installing it checks what you already
- * have and keeps it: an installed app runtime of the same version, the audio
- * decoder, the stem splitter (Python + PyTorch + Demucs) and your library.
+ * 4.0.1: one small file. Stagehand's own files are inside; everything else is
+ * downloaded only when your PC doesn't have it yet (the app runtime, the song
+ * audio decoder, the stem splitter's tools), each checked against its SHA-256.
+ * Downloads retry on their own, carry on from where they stopped (also after
+ * closing Setup and running it again), and are kept until they're installed.
+ * So the first install takes a while; updates only copy Stagehand's own files.
  *
  * The same program without its payload is the uninstaller.
  *   Stagehand-Setup.exe            install or update (window)
  *   Stagehand-Setup.exe /quiet     install with defaults, no window (exit code 0 = ok)
  *   Uninstall Stagehand.exe        remove (window); /quiet removes the program, keeps your data
+ * For tests only: STAGEHAND_SETUP_MIRROR=http://host:port fetches the downloads
+ * from that address (same file names) instead of GitHub.
  */
 #define WIN32_LEAN_AND_MEAN
 #ifndef UNICODE
@@ -32,6 +35,8 @@
 #include <string.h>
 #include <wchar.h>
 #include <math.h>
+#include <winhttp.h>
+#include <bcrypt.h>
 #include "setup_core.h"
 
 #ifndef SH_VERSION
@@ -39,6 +44,24 @@
 #endif
 #ifndef SH_ELECTRON
 #define SH_ELECTRON "44.1.0"
+#endif
+/* what Setup downloads (build-setup.sh fills these in from windows/setup/components.sh) */
+#ifndef SH_E_URL
+#define SH_E_URL ""
+#define SH_E_SHA ""
+#define SH_E_SIZE 0
+#define SH_V_URL ""
+#define SH_V_SHA ""
+#define SH_V_SIZE 0
+#define SH_U_URL ""
+#define SH_U_SHA ""
+#define SH_U_SIZE 0
+#endif
+#ifndef WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY
+#define WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY 4
+#endif
+#ifndef WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3
+#define WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3 0x00002000
 #endif
 #define WSTR2(x) L##x
 #define WSTR(x) WSTR2(x)
@@ -89,6 +112,8 @@ static struct {
   int stems_now;   /* set the stem splitter up during this install */
   int stems_busy, stems_skip, autogo;
   int vcrt_ok;
+  volatile LONG cancel; /* closed while downloading: stop (what's downloaded is kept) */
+  int downloading;      /* nothing installed yet: safe to close */
   char variant[16]; /* PyTorch build: cu128, cu126 or cpu */
   wchar_t gpu[128];
   HANDLE child;     /* the step running now (so Skip can stop it) */
@@ -357,6 +382,54 @@ static void stems_note(void) {
   if (!S.vcrt_ok) set_row(R_VCRT, S.stems_now ? ST_WILL : ST_SKIP, S.stems_now ? L"Will install with the stem splitter (from Microsoft, about 25 MB)" : L"Only needed for the stem splitter");
 }
 
+/* ------------------------------------------- what Setup may download -- */
+typedef struct {
+  const wchar_t *name;  /* for the screen: "Electron 44.1.0" */
+  const char *url;
+  const char *sha;      /* lower-case hex SHA-256 */
+  uint64_t size;
+  const wchar_t *file;  /* name in the Downloads folder (and on a test mirror) */
+} Comp;
+static const Comp C_ELECTRON = {L"Electron " WSTR(SH_ELECTRON), SH_E_URL, SH_E_SHA, SH_E_SIZE, L"electron-v" WSTR(SH_ELECTRON) L"-win32-x64.zip"};
+static const Comp C_DECODER = {L"the song audio decoder", SH_V_URL, SH_V_SHA, SH_V_SIZE, L"vgmstream-win64.zip"};
+static const Comp C_UV = {L"the stem splitter's installer", SH_U_URL, SH_U_SHA, SH_U_SIZE, L"uv-x86_64-pc-windows-msvc.zip"};
+
+static void dl_path(const Comp *c, wchar_t *out) {
+  _snwprintf(out, MAX_PATH, L"%s\\Downloads\\%s", S.local, c->file);
+}
+
+/* SHA-256 of a file, as lower-case hex (Windows' own crypto, no extra code to trust) */
+static int sha256_file(const wchar_t *path, char hex[65]) {
+  BCRYPT_ALG_HANDLE alg = NULL;
+  BCRYPT_HASH_HANDLE hh = NULL;
+  int ok = 0;
+  HANDLE f = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+  if (f == INVALID_HANDLE_VALUE) return 0;
+  if (BCryptOpenAlgorithmProvider(&alg, BCRYPT_SHA256_ALGORITHM, NULL, 0) == 0 && BCryptCreateHash(alg, &hh, NULL, 0, NULL, 0, 0) == 0) {
+    static unsigned char buf[1 << 20];
+    DWORD r = 0;
+    ok = 1;
+    while (ReadFile(f, buf, sizeof buf, &r, NULL) && r) {
+      if (BCryptHashData(hh, buf, r, 0)) { ok = 0; break; }
+    }
+    unsigned char d[32];
+    if (ok && BCryptFinishHash(hh, d, 32, 0) == 0) {
+      for (int i = 0; i < 32; i++) sprintf(hex + i * 2, "%02x", d[i]);
+      hex[64] = 0;
+    } else ok = 0;
+  }
+  if (hh) BCryptDestroyHash(hh);
+  if (alg) BCryptCloseAlgorithmProvider(alg, 0);
+  CloseHandle(f);
+  return ok;
+}
+
+static uint64_t file_size(const wchar_t *path) {
+  WIN32_FILE_ATTRIBUTE_DATA a;
+  if (!GetFileAttributesExW(path, GetFileExInfoStandard, &a)) return 0;
+  return ((uint64_t)a.nFileSizeHigh << 32) | a.nFileSizeLow;
+}
+
 static DWORD WINAPI detect_thread(void *arg) {
   (void)arg;
   wchar_t path[MAX_PATH];
@@ -378,14 +451,16 @@ static DWORD WINAPI detect_thread(void *arg) {
     wchar_t exe[MAX_PATH];
     wjoin(exe, S.dest, L"Stagehand.exe");
     read_text(path, ver, sizeof ver);
-    Part rt = payload_part(&S.pay, "runtime/");
     if (!strcmp(ver, SH_ELECTRON) && wexists(exe)) {
       S.need_runtime = 0;
       set_row(R_RUNTIME, ST_HAVE, L"Already on your PC (Electron %S). Keeping it", ver);
     } else {
       S.need_runtime = 1;
-      if (ver[0]) set_row(R_RUNTIME, ST_WILL, L"Will update Electron %S to " WSTR(SH_ELECTRON) L" (%.0f MB, included)", ver, mb(rt.bytes));
-      else set_row(R_RUNTIME, ST_WILL, L"Will install Electron " WSTR(SH_ELECTRON) L" (%.0f MB, included, no download)", mb(rt.bytes));
+      wchar_t got[MAX_PATH];
+      dl_path(&C_ELECTRON, got);
+      const wchar_t *how = file_size(got) == C_ELECTRON.size ? L"already downloaded" : L"one-time download";
+      if (ver[0]) set_row(R_RUNTIME, ST_WILL, L"Will update Electron %S to " WSTR(SH_ELECTRON) L" (%.0f MB, %s)", ver, mb(C_ELECTRON.size), how);
+      else set_row(R_RUNTIME, ST_WILL, L"Will install Electron " WSTR(SH_ELECTRON) L" (%.0f MB, %s)", mb(C_ELECTRON.size), how);
     }
 
     /* the song audio decoder */
@@ -399,7 +474,7 @@ static DWORD WINAPI detect_thread(void *arg) {
       set_row(R_DECODER, ST_HAVE, L"Found on your PC. Stagehand will use it");
     } else {
       S.need_decoder = 1;
-      set_row(R_DECODER, ST_WILL, L"Will install (included, no download)");
+      set_row(R_DECODER, ST_WILL, L"Will install (%.0f MB download)", mb(C_DECODER.size));
     }
 
     /* your data */
@@ -436,6 +511,155 @@ static DWORD WINAPI detect_thread(void *arg) {
   }
   update();
   return 0;
+}
+
+/* ---------------------------------------------------------- downloads -- */
+static int on_progress(void *ctx, uint64_t done);
+/* One try at fetching url into `part`, carrying on from what's already there.
+   0 = complete, 1 = try again (network), 2 = give up (not found), 3 = cancelled. */
+static int http_try(const wchar_t *url, const wchar_t *part, const Comp *c, int row, wchar_t *why, int whyn) {
+  URL_COMPONENTSW uc;
+  wchar_t host[256], path[2048];
+  memset(&uc, 0, sizeof uc);
+  uc.dwStructSize = sizeof uc;
+  uc.lpszHostName = host;
+  uc.dwHostNameLength = 256;
+  uc.lpszUrlPath = path;
+  uc.dwUrlPathLength = 2048;
+  if (!WinHttpCrackUrl(url, 0, 0, &uc)) { _snwprintf(why, whyn, L"bad address"); return 2; }
+  int rc = 1;
+  HINTERNET ses = WinHttpOpen(L"StagehandSetup/" WSTR(SH_VERSION), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+  if (!ses) ses = WinHttpOpen(L"StagehandSetup/" WSTR(SH_VERSION), WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+  HINTERNET con = NULL, req = NULL;
+  HANDLE out = INVALID_HANDLE_VALUE;
+  if (!ses) { _snwprintf(why, whyn, L"no internet access"); return 1; }
+  DWORD protos = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2 | WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3;
+  if (!WinHttpSetOption(ses, WINHTTP_OPTION_SECURE_PROTOCOLS, &protos, sizeof protos)) {
+    protos = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+    WinHttpSetOption(ses, WINHTTP_OPTION_SECURE_PROTOCOLS, &protos, sizeof protos);
+  }
+  /* resolve, connect, send, and up to 60 s without a byte before it counts as stalled */
+  WinHttpSetTimeouts(ses, 20000, 20000, 30000, 60000);
+  con = WinHttpConnect(ses, host, uc.nPort, 0);
+  if (con) req = WinHttpOpenRequest(con, L"GET", path, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, uc.nScheme == INTERNET_SCHEME_HTTPS ? WINHTTP_FLAG_SECURE : 0);
+  if (!req) { _snwprintf(why, whyn, L"couldn't reach %s", host); goto done; }
+  uint64_t have = file_size(part);
+  if (have > c->size) { DeleteFileW(part); have = 0; }
+  wchar_t range[64] = L"";
+  if (have) _snwprintf(range, 64, L"Range: bytes=%llu-", (unsigned long long)have);
+  if (!WinHttpSendRequest(req, have ? range : WINHTTP_NO_ADDITIONAL_HEADERS, have ? (DWORD)-1L : 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) || !WinHttpReceiveResponse(req, NULL)) {
+    _snwprintf(why, whyn, L"no answer from %s (error %lu)", host, GetLastError());
+    goto done;
+  }
+  DWORD status = 0, sl = sizeof status;
+  WinHttpQueryHeaders(req, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status, &sl, WINHTTP_NO_HEADER_INDEX);
+  if (status == 416 && have == c->size) { rc = 0; goto done; } /* we already have all of it */
+  if (status == 404 || status == 403 || status == 410) { _snwprintf(why, whyn, L"%s isn't there any more (HTTP %lu)", c->file, status); rc = 2; goto done; }
+  if (status != 200 && status != 206) { _snwprintf(why, whyn, L"the server said HTTP %lu", status); goto done; }
+  if (status == 200) have = 0; /* the server sends it all again: start over */
+  out = CreateFileW(part, GENERIC_WRITE, 0, NULL, have ? OPEN_ALWAYS : CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (out == INVALID_HANDLE_VALUE) { _snwprintf(why, whyn, L"couldn't write to the Downloads folder"); rc = 2; goto done; }
+  LARGE_INTEGER pos;
+  pos.QuadPart = (LONGLONG)have;
+  SetFilePointerEx(out, pos, NULL, FILE_BEGIN);
+  SetEndOfFile(out);
+  static unsigned char buf[1 << 16];
+  DWORD t0 = GetTickCount(), lastUi = 0;
+  uint64_t got0 = have;
+  for (;;) {
+    if (S.cancel) { rc = 3; goto done; }
+    DWORD avail = 0, r = 0, w = 0;
+    if (!WinHttpQueryDataAvailable(req, &avail)) { _snwprintf(why, whyn, L"the connection dropped"); goto done; }
+    if (!avail) break;
+    if (!WinHttpReadData(req, buf, avail < sizeof buf ? avail : sizeof buf, &r)) { _snwprintf(why, whyn, L"the connection dropped"); goto done; }
+    if (!r) break;
+    if (!WriteFile(out, buf, r, &w, NULL) || w != r) { _snwprintf(why, whyn, L"couldn't write the download (is the disk full?)"); rc = 2; goto done; }
+    have += r;
+    DWORD now = GetTickCount();
+    if (now - lastUi > 250) {
+      lastUi = now;
+      double secs = (now - t0) / 1000.0, speed = secs > 0.5 ? (have - got0) / secs : 0;
+      set_row(row, ST_BUSY, L"Downloading %s: %.0f of %.0f MB%s%.1f MB/s", c->name, mb(have), mb(c->size), speed > 0 ? L" · " : L"", speed / 1048576.0);
+      EnterCriticalSection(&S.cs);
+      S.rows[row].prog = c->size ? (double)have / (double)c->size : 0;
+      LeaveCriticalSection(&S.cs);
+    }
+  }
+  rc = have == c->size ? 0 : 1;
+  if (rc) _snwprintf(why, whyn, L"the download stopped at %.0f of %.0f MB", mb(have), mb(c->size));
+done:
+  if (out != INVALID_HANDLE_VALUE) CloseHandle(out);
+  if (req) WinHttpCloseHandle(req);
+  if (con) WinHttpCloseHandle(con);
+  WinHttpCloseHandle(ses);
+  return rc;
+}
+
+/* Gets a component into the Downloads folder, checked; reuses one already there.
+   Returns 1 with its path in `out`, or 0 with S.error set. */
+static int fetch(const Comp *c, int row, wchar_t *out) {
+  wchar_t part[MAX_PATH], url[2048], dir[MAX_PATH], why[300] = L"";
+  char hex[65];
+  dl_path(c, out);
+  _snwprintf(part, MAX_PATH, L"%s.part", out);
+  _snwprintf(dir, MAX_PATH, L"%s\\Downloads", S.local);
+  SHCreateDirectoryExW(NULL, dir, NULL);
+  if (!c->url[0] || !c->size) {
+    _snwprintf(S.error, 512, L"This Setup doesn't know where to get %s. Download Stagehand Setup again.", c->name);
+    return 0;
+  }
+  /* already downloaded (an earlier Setup stopped after the download): use it if it checks out */
+  if (file_size(out) == c->size && sha256_file(out, hex) && !strcmp(hex, c->sha)) return 1;
+  DeleteFileW(out);
+  wchar_t mirror[512];
+  if (GetEnvironmentVariableW(L"STAGEHAND_SETUP_MIRROR", mirror, 512)) _snwprintf(url, 2048, L"%s/%s", mirror, c->file);
+  else MultiByteToWideChar(CP_UTF8, 0, c->url, -1, url, 2048);
+  int damaged = 0;
+  for (int attempt = 0; attempt < 6; attempt++) {
+    if (attempt) {
+      /* wait a little longer each time: 2, 4, 8, 15, 15 s */
+      DWORD wait = attempt < 4 ? (1000u << attempt) : 15000;
+      for (DWORD t = wait / 1000; t > 0 && !S.cancel; t--) {
+        set_row(row, ST_BUSY, L"Trying again in %lu s (%s)", t, why);
+        Sleep(1000);
+      }
+    }
+    if (S.cancel) return 0;
+    int rc = http_try(url, part, c, row, why, 300);
+    if (rc == 3) return 0;
+    if (rc == 2) break;
+    if (rc == 1) continue;
+    set_row(row, ST_BUSY, L"Checking %s…", c->name);
+    if (sha256_file(part, hex) && !strcmp(hex, c->sha)) {
+      DeleteFileW(out);
+      if (MoveFileW(part, out)) return 1;
+      _snwprintf(why, 300, L"couldn't keep the download");
+      break;
+    }
+    /* damaged: start this one again from nothing, once */
+    DeleteFileW(part);
+    _snwprintf(why, 300, L"the download was damaged");
+    if (damaged++) break;
+  }
+  _snwprintf(S.error, 512, L"Couldn't download %s: %s. Check your internet connection and run Setup again: it carries on from where it stopped.", c->name, why);
+  return 0;
+}
+
+/* Unpacks a downloaded zip into dest (made fresh). */
+static int unzip_to(const wchar_t *zip, const wchar_t *dest, uint64_t *done) {
+  char z8[MAX_PATH * 3], d8[MAX_PATH * 3], err[600];
+  Payload p;
+  to8(zip, z8, sizeof z8);
+  to8(dest, d8, sizeof d8);
+  if (!zipfile_open(&p, z8)) {
+    _snwprintf(S.error, 512, L"A download couldn't be opened. Run Setup again to fetch it afresh.");
+    DeleteFileW(zip);
+    return 0;
+  }
+  int rc = payload_extract(&p, "", d8, on_progress, NULL, done, err, sizeof err);
+  payload_close(&p);
+  if (rc) MultiByteToWideChar(CP_UTF8, 0, err, -1, S.error, 512);
+  return rc == 0;
 }
 
 /* ---------------------------------------------------------- installing -- */
@@ -667,10 +891,12 @@ static void install_stems(void) {
   _snwprintf(py, MAX_PATH, L"%s\\Scripts\\python.exe", venv);
   _snwprintf(cache, MAX_PATH, L"%s\\uv-cache", eng);
   if (!wexists(uv)) {
+    wchar_t uvzip[MAX_PATH];
     _snwprintf(tmp, MAX_PATH, L"%s\\uv", eng);
     uint64_t d = 0;
-    if (!extract("uv/", tmp, &d)) {
-      set_row(R_STEMS, ST_ERR, L"Couldn't unpack its installer. Set it up later in Stagehand");
+    if (!fetch(&C_UV, R_STEMS, uvzip) || !unzip_to(uvzip, tmp, &d)) {
+      set_row(R_STEMS, ST_ERR, L"Couldn't download its installer (%.80s). Set it up later in Stagehand", S.error);
+      S.error[0] = 0;
       S.stems_busy = 0;
       return;
     }
@@ -722,6 +948,68 @@ static DWORD WINAPI install_thread(void *arg) {
   wcscpy(S.headline, L"Installing…");
   update();
 
+  /* enough room on the drive? Say so now, not halfway through: the downloads, the new
+     copy built next to the old one, and room for the stem splitter's first download */
+  {
+    Part app0 = payload_part(&S.pay, "app/");
+    uint64_t need = app0.bytes + 300ull * 1024 * 1024;
+    if (S.need_runtime) need += C_ELECTRON.size * 7 / 2;
+    if (S.need_decoder) need += C_DECODER.size * 7 / 2;
+    wchar_t at[MAX_PATH];
+    wcsncpy(at, S.local, MAX_PATH - 1);
+    at[MAX_PATH - 1] = 0;
+    while (!wexists(at)) {
+      wchar_t *cut = wcsrchr(at, L'\\');
+      if (!cut) break;
+      *cut = 0;
+    }
+    ULARGE_INTEGER avail;
+    if (GetDiskFreeSpaceExW(at, &avail, NULL, NULL) && avail.QuadPart < need) {
+      wchar_t msg[300];
+      _snwprintf(msg, 300, L"Not enough free space: Stagehand needs about %llu MB on this drive and %llu MB are free. Free some space, then press Install again.",
+                 (unsigned long long)(need >> 20), (unsigned long long)(avail.QuadPart >> 20));
+      msg[299] = 0;
+      fail(msg);
+      CoUninitialize();
+      return 0;
+    }
+  }
+
+  /* 4.0.1: first fetch what this PC doesn't have yet (Stagehand can stay open meanwhile;
+     nothing is changed until everything is here and checked) */
+  wchar_t rt_zip[MAX_PATH] = L"", dec_zip[MAX_PATH] = L"";
+  S.downloading = 1;
+  if (S.need_runtime) {
+    wcscpy(S.headline, L"Downloading the app runtime (one time only)…");
+    update();
+    if (!fetch(&C_ELECTRON, R_RUNTIME, rt_zip)) {
+      S.downloading = 0;
+      set_row(R_RUNTIME, S.cancel ? ST_LATER : ST_ERR, S.cancel ? L"Stopped. What's downloaded is kept for next time" : L"Couldn't download");
+      fail(NULL);
+      CoUninitialize();
+      return 0;
+    }
+    set_row(R_RUNTIME, ST_BUSY, L"Downloaded and checked");
+  }
+  if (S.need_decoder) {
+    if (fetch(&C_DECODER, R_DECODER, dec_zip)) set_row(R_DECODER, ST_BUSY, L"Downloaded and checked");
+    else {
+      /* not essential: Stagehand offers it again when you play a song */
+      S.need_decoder = 0;
+      set_row(R_DECODER, ST_ERR, L"Couldn't download. Stagehand offers it again when you play a song");
+      S.error[0] = 0;
+      if (S.cancel) {
+        S.downloading = 0;
+        fail(NULL);
+        CoUninitialize();
+        return 0;
+      }
+    }
+  }
+  S.downloading = 0;
+  wcscpy(S.headline, L"Installing…");
+  update();
+
   if (running_pid()) {
     wcscpy(S.headline, L"Closing Stagehand…");
     update();
@@ -734,32 +1022,21 @@ static DWORD WINAPI install_thread(void *arg) {
   /* a sound engine left behind by a crash would keep its files locked */
   kill_by_name(L"stagehand-audio.exe");
 
-  Part rt = payload_part(&S.pay, "runtime/"), app = payload_part(&S.pay, "app/"), dec = payload_part(&S.pay, "vgmstream/");
-  P.total = app.bytes + (S.need_runtime ? rt.bytes : 0) + (S.need_decoder ? dec.bytes : 0);
-  uint64_t done = 0;
-  /* 4.0: enough room on the drive? Say so now, not halfway through (the new copy is
-     built next to the old one, plus room for the stem splitter's first download) */
-  {
-    wchar_t at[MAX_PATH];
-    wcsncpy(at, S.dest, MAX_PATH - 1);
-    at[MAX_PATH - 1] = 0;
-    while (!wexists(at)) {
-      wchar_t *cut = wcsrchr(at, L'\\');
-      if (!cut) break;
-      *cut = 0;
-    }
-    ULARGE_INTEGER avail;
-    uint64_t need = P.total + 300ull * 1024 * 1024;
-    if (GetDiskFreeSpaceExW(at, &avail, NULL, NULL) && avail.QuadPart < need) {
-      wchar_t msg[300];
-      _snwprintf(msg, 300, L"Not enough free space: Stagehand needs about %llu MB on this drive and %llu MB are free. Free some space, then press Install again.",
-                 (unsigned long long)(need >> 20), (unsigned long long)(avail.QuadPart >> 20));
-      msg[299] = 0;
-      fail(msg);
-      CoUninitialize();
-      return 0;
-    }
+  Part rt = {0, 0}, app = payload_part(&S.pay, "app/"), dec = {0, 0};
+  if (S.need_runtime) {
+    Payload z;
+    char z8[MAX_PATH * 3];
+    to8(rt_zip, z8, sizeof z8);
+    if (zipfile_open(&z, z8)) rt = payload_part(&z, ""), payload_close(&z);
   }
+  if (S.need_decoder) {
+    Payload z;
+    char z8[MAX_PATH * 3];
+    to8(dec_zip, z8, sizeof z8);
+    if (zipfile_open(&z, z8)) dec = payload_part(&z, ""), payload_close(&z);
+  }
+  P.total = app.bytes + rt.bytes + dec.bytes;
+  uint64_t done = 0;
   wchar_t stage[MAX_PATH], appdir[MAX_PATH], icon[MAX_PATH], uninst[MAX_PATH];
   char uninst8[MAX_PATH * 3];
 
@@ -771,7 +1048,7 @@ static DWORD WINAPI install_thread(void *arg) {
     P.row_base = done;
     P.row_total = rt.bytes;
     set_row(R_RUNTIME, ST_BUSY, L"Unpacking Electron " WSTR(SH_ELECTRON) L"…");
-    if (!extract("runtime/", stage, &done)) {
+    if (!unzip_to(rt_zip, stage, &done)) {
       set_row(R_RUNTIME, ST_ERR, L"Couldn't unpack");
       fail(NULL);
       CoUninitialize();
@@ -786,6 +1063,22 @@ static DWORD WINAPI install_thread(void *arg) {
     }
     wjoin(path, stage, L"resources\\default_app.asar");
     DeleteFileW(path);
+    /* only the English language file for Electron's own menus (Stagehand is in English) */
+    {
+      WIN32_FIND_DATAW fd;
+      wchar_t pat[MAX_PATH];
+      _snwprintf(pat, MAX_PATH, L"%s\\locales\\*.pak", stage);
+      HANDLE fh = FindFirstFileW(pat, &fd);
+      if (fh != INVALID_HANDLE_VALUE) {
+        do {
+          if (_wcsicmp(fd.cFileName, L"en-US.pak")) {
+            _snwprintf(path, MAX_PATH, L"%s\\locales\\%s", stage, fd.cFileName);
+            DeleteFileW(path);
+          }
+        } while (FindNextFileW(fh, &fd));
+        FindClose(fh);
+      }
+    }
     set_row(R_RUNTIME, ST_DONE, L"Installed (Electron " WSTR(SH_ELECTRON) L")");
   } else {
     wcscpy(stage, S.dest);
@@ -847,6 +1140,7 @@ static DWORD WINAPI install_thread(void *arg) {
     wrmtree(path);
     wjoin(uninst, S.dest, L"Uninstall Stagehand.exe");
   }
+  if (S.need_runtime) DeleteFileW(rt_zip); /* installed: the download isn't needed any more */
   set_row(R_APP, ST_DONE, L"Installed (" WSTR(SH_VERSION) L")");
 
   /* the song audio decoder, where Stagehand looks for it */
@@ -856,7 +1150,10 @@ static DWORD WINAPI install_thread(void *arg) {
     P.row_base = done;
     P.row_total = dec.bytes;
     set_row(R_DECODER, ST_BUSY, L"Unpacking…");
-    if (extract("vgmstream/", path, &done)) set_row(R_DECODER, ST_DONE, L"Installed");
+    if (unzip_to(dec_zip, path, &done)) {
+      set_row(R_DECODER, ST_DONE, L"Installed");
+      DeleteFileW(dec_zip);
+    }
     else set_row(R_DECODER, ST_ERR, L"Couldn't install. Stagehand offers it again when you play a song");
   }
 
@@ -893,7 +1190,7 @@ static DWORD WINAPI install_thread(void *arg) {
     reg_set(k, L"QuietUninstallString", cmd);
     reg_dw(k, L"NoModify", 1);
     reg_dw(k, L"NoRepair", 1);
-    reg_dw(k, L"EstimatedSize", (DWORD)((rt.bytes + app.bytes) / 1024));
+    reg_dw(k, L"EstimatedSize", (DWORD)(((rt.bytes ? rt.bytes : 330ull * 1048576) + app.bytes) / 1024));
     RegCloseKey(k);
   }
 
@@ -1259,6 +1556,13 @@ static LRESULT CALLBACK wndproc(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
     else if (wp == VK_ESCAPE && !S.running) DestroyWindow(w);
     return 0;
   case WM_CLOSE:
+    if (S.running && S.downloading) {
+      /* nothing is installed yet: stopping is safe, and what's downloaded is kept */
+      if (MessageBoxW(w, L"Stop downloading? What's downloaded so far is kept: run Setup again and it carries on from there.", L"Stagehand Setup", MB_YESNO | MB_ICONQUESTION) != IDYES) return 0;
+      InterlockedExchange(&S.cancel, 1);
+      DestroyWindow(w);
+      return 0;
+    }
     if (S.running) return 0; /* never leave a half-copied install */
     DestroyWindow(w);
     return 0;

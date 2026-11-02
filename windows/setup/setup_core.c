@@ -252,6 +252,24 @@ int payload_open(Payload *p, const char *self) {
   return 1;
 }
 
+int zipfile_open(Payload *p, const char *path) {
+  memset(p, 0, sizeof *p);
+  p->fh = f_open_read(path);
+  if (!p->fh) return 0;
+  p->zip_ofs = 0;
+  p->zip_size = f_size(p->fh);
+  mz_zip_zero_struct(&p->zip);
+  p->zip.m_pRead = zip_read;
+  p->zip.m_pIO_opaque = p;
+  if (!mz_zip_reader_init(&p->zip, p->zip_size, 0)) {
+    f_close(p->fh);
+    p->fh = NULL;
+    return 0;
+  }
+  p->ok = 1;
+  return 1;
+}
+
 void payload_close(Payload *p) {
   if (p->ok) mz_zip_reader_end(&p->zip);
   f_close(p->fh);

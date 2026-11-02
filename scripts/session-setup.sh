@@ -16,6 +16,7 @@ DEPS=${DEPS:-/home/claude/deps}
 LM=${SH_LLVM_MINGW:-/home/claude/llvm-mingw}
 LMV=${LLVM_MINGW_VERSION:-20251104}
 ELEC=$(node -p "require('$ROOT/package.json').devDependencies.electron.replace(/[^0-9.]/g,'')")
+. "$ROOT/windows/setup/components.sh" # pinned versions of what Setup downloads
 mkdir -p "$DEPS"
 get() { [ -s "$2" ] || { echo "downloading $(basename "$2")"; curl -fsSL -o "$2.part" "$1" && mv "$2.part" "$2"; }; }
 if [ ! -x "$LM/bin/x86_64-w64-mingw32-clang" ]; then
@@ -24,9 +25,9 @@ if [ ! -x "$LM/bin/x86_64-w64-mingw32-clang" ]; then
   tar -xf "$DEPS/llvm-mingw.tar.xz" -C "$DEPS"
   mv "$DEPS/llvm-mingw-$LMV-ucrt-ubuntu-22.04-x86_64" "$LM"
 fi
-get "https://github.com/electron/electron/releases/download/v$ELEC/electron-v$ELEC-win32-x64.zip" "$DEPS/electron.zip" &
-get "https://github.com/vgmstream/vgmstream/releases/latest/download/vgmstream-win64.zip" "$DEPS/vgmstream.zip" &
-get "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip" "$DEPS/uv.zip" &
+get "$(electron_url "$ELEC")" "$DEPS/electron.zip" &
+get "$(vgmstream_url)" "$DEPS/vgmstream.zip" &
+get "$(uv_url)" "$DEPS/uv.zip" &
 # the fake-device audio helper for the UI tests (the shipped .exe is in native/bin; rebuild it
 # with native/build.sh only when native/ changes)
 cd "$ROOT/native" && mkdir -p build
