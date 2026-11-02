@@ -149,7 +149,7 @@ function renderSlots() {
     const t = bySlot(n);
     const gel = SLOT_GELS[n - 1];
     const on = active === n;
-    const b = h(`button.slot${on ? '.on.lit' : ''}${t ? '' : '.empty'}`, { type: 'button', style: { '--gel': t ? gel : '#2c3552' }, title: t ? `${t.name} (key ${n})` : `Empty slot ${n}: click to save the tone you’re playing here` });
+    const b = h(`button.slot${on ? '.on.lit' : ''}${t ? '' : '.vacant'}`, { type: 'button', style: { '--gel': t ? gel : '#2c3552' }, title: t ? `${t.name} (key ${n})` : `Empty slot ${n}: click to save the tone you’re playing here` });
     const top = h('span.sl-top', null, h('span.num', { text: String(n) }));
     if (on && rig.on && !rig.muted) top.append(h('span.eq', { style: { '--gel': gel } }, h('i'), h('i'), h('i')));
     else top.append(h('span.kind', { text: n===1?'Reserved':t ? kindLabel(t) : 'Empty' }));
