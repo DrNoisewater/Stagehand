@@ -1181,12 +1181,12 @@ function importRow(e) {
   return row;
 }
 
-/** "Find songs on this PC": looks in Downloads, Desktop, Documents and Music. */
+/** "Find songs on this PC": looks in Downloads and the import folder. */
 function findOnPcCard() {
   const card = h('section.imp-card.find-pc');
   const res = D.pcScan;
   const go = btn(res && res.busy ? 'Looking…' : 'Look for songs', { cls: 'small', iconName: 'search', disabled: !!(res && res.busy), onClick: () => scanPC({ show: true }) });
-  card.append(setting('Find songs on this PC', 'Looks in your Downloads, Desktop, Documents and Music folders for song files (<b>.psarc</b>) that aren’t in your library yet.', [go]));
+  card.append(setting('Find songs on this PC', 'Looks in your Downloads folder (and your import folder) for song files (<b>.psarc</b>) that aren’t in your library yet. Songs somewhere else: drop the folder on Stagehand.', [go]));
   if (res && res.found) {
     if (!res.found.length) card.append(h('p.np-fine', { text: 'Nothing new found: every song file there is already in your library.' }));
     else {

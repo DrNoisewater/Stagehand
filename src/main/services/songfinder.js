@@ -1,7 +1,7 @@
 'use strict';
 /**
  * Looks for Rocksmith song files on this PC that aren't in your library yet
- * (4.0): Downloads, Desktop, Documents and Music, a few folders deep. Only
+ * (4.0): your Downloads (and your import folder), a few folders deep. Only
  * reads names and sizes; nothing is moved until you choose to add them.
  */
 const fs = require('fs');
