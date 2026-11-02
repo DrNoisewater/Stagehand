@@ -187,6 +187,10 @@ class FakePortMain extends EventEmitter {
   const stemHold = new Set(); // songs whose stems are "still splitting" (for the wait-for-stems check)
   // song switching checks (3.13): songs whose audio fails to open, and slow answers
   const audioFail = new Set();
+  // SH_GETSONGS_ONLY: three wanted songs for Discover › Wanted › Get songs
+  const wantedList = process.env.SH_GETSONGS_ONLY ? [1, 2, 3].map((i) => ({ id: `w${i}`, artist: `Artist ${i}`, title: `Title ${i}`, status: 'wanted', addedAt: i })) : [];
+  const cfCalls = [];
+  const importCfg = [];
   const audioDelay = new Map();
   const tabDelay = new Map();
   const stemsDelay = new Map();
@@ -245,7 +249,9 @@ class FakePortMain extends EventEmitter {
     'engine.status': () => ({ state: 'missing', ok: false }),
     'imports.status': () => ({ watching: false, history: [] }),
     'imports.scanPC': () => ({ places: [], found: [] }),
-    'discover.wanted': () => [],
+    'discover.wanted': () => wantedList,
+    'discover.customsforge': (o) => (cfCalls.push(o || {}), { url: '', copied: (o && o.text) || null }),
+    'imports.configure': (patch) => (importCfg.push(patch || {}), { watching: true, watch: !!(patch && patch.watch), history: [] }),
     'discover.recent': () => [],
     // a profile with Rocksmith mastery for the test songs' parts (3.7: shown next to titles)
     'rocksmith.read': () => {
@@ -363,6 +369,38 @@ class FakePortMain extends EventEmitter {
   await page.goto(`${base}/src/renderer/index.html`);
   await page.waitForTimeout(3500);
   const shot = (n) => process.env.SH_NO_PICS?Promise.resolve():(console.log('SHOT', n), page.screenshot({ path: path.join(outDir, `v3-${n}.png`) }));
+  if (process.env.SH_GETSONGS_ONLY) {
+    // 4.0.4: Get songs: copies one wanted song after another as downloads come in
+    await page.evaluate(async () => {
+      localStorage.setItem('stagehand.cfExplained', '1');
+      const st = await import('./js/store.js');
+      st.setPage('discover');
+      (await import('./js/discover.js')).open('wanted');
+    });
+    await page.waitForTimeout(800);
+    await page.getByRole('button', { name: 'Get songs', exact: true }).click();
+    await page.waitForTimeout(600);
+    check(cfCalls.length === 1 && cfCalls[0].text === 'Artist 1 Title 1' && cfCalls[0].open === true, `first song copied and CustomsForge opened ${JSON.stringify(cfCalls)}`);
+    check(importCfg.some((p) => p.watch === true), 'Watch Downloads turned on');
+    check(/Now: Artist 1 – Title 1/.test(await page.locator('.get-run').innerText()), 'the bar shows the song to get');
+    await shot('getsongs-1');
+    wantedList[0].status = 'found';
+    await page.evaluate(() => window.__shEmit('import:done', { entries: [{ origin: 'picked' }] }));
+    await page.waitForTimeout(800);
+    const last = cfCalls[cfCalls.length - 1];
+    check(last.text === 'Artist 2 Title 2' && last.open === false, `next song copied when the first came in ${JSON.stringify(last)}`);
+    check(/Now: Artist 2 – Title 2/.test(await page.locator('.get-run').innerText()) && /1 in so far/.test(await page.locator('.get-run').innerText()), 'the bar moves on');
+    await page.locator('.get-run').getByRole('button', { name: 'Skip', exact: true }).click();
+    await page.waitForTimeout(500);
+    check(cfCalls[cfCalls.length - 1].text === 'Artist 3 Title 3', 'Skip copies the next one');
+    wantedList[2].status = 'found';
+    await page.evaluate(() => window.__shEmit('import:done', { entries: [{ origin: 'picked' }] }));
+    await page.waitForTimeout(800);
+    check(!(await page.locator('.get-run').count()), 'the run ends when nothing is left');
+    check(await page.getByText('All done').count() > 0, 'says it is done');
+    await shot('getsongs-done');
+    await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
+  }
   if (process.env.SH_LISTPOS_ONLY) {
     // 4.0.4: opening a song and coming back keeps your place in the list
     await page.evaluate(async () => (await import('./js/store.js')).setPage('songs'));

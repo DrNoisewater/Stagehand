@@ -30,6 +30,7 @@ const D = {
   sel: new Map(), // key -> {artist,title,album,year}
   missingOnly: localStorage.getItem('stagehand.missingOnly') === '1',
   cfOpened: false,
+  run: null, // 4.0.4: Get songs: { current, done, skipped: Set, total }
 };
 state.discover = D;
 
@@ -228,6 +229,7 @@ async function want(items) {
 async function unwant(ids) {
   D.wanted = await api.discover.removeWanted(ids);
   emit('discover-wanted');
+  if (D.run && D.run.current && ids.includes(D.run.current.id)) await runNext();
   render();
 }
 
@@ -318,6 +320,116 @@ async function findNext() {
   // The least recently searched song comes up next.
   const next = left.slice().sort((a, b) => (seen[keyOf(a.artist, a.title)] || 0) - (seen[keyOf(b.artist, b.title)] || 0))[0];
   await findOnCF(next, { open: !D.cfOpened });
+}
+
+// ------------------------------------------------------------- get songs --
+// 4.0.4: one song after another. Stagehand turns on Watch Downloads, opens CustomsForge
+// once and copies the first song; each time a download ticks it off, the next one is
+// copied and a Windows notice says so. The user only searches (Ctrl+V) and downloads.
+function runLeft() {
+  const skipped = D.run ? D.run.skipped : new Set();
+  const seen = searchedMap();
+  return D.wanted
+    .filter((w) => w.status === 'wanted' && !skipped.has(w.id))
+    .sort((a, b) => (seen[keyOf(a.artist, a.title)] || 0) - (seen[keyOf(b.artist, b.title)] || 0) || (a.addedAt || 0) - (b.addedAt || 0));
+}
+
+function notify(title, body) {
+  try {
+    if (document.hasFocus() || typeof Notification === 'undefined') return;
+    if (Notification.permission === 'granted') new Notification(title, { body, silent: false });
+    else if (Notification.permission !== 'denied') Notification.requestPermission().then((p) => p === 'granted' && new Notification(title, { body }));
+  } catch (_) {}
+}
+
+async function runCopy(item, { open: openSite = false } = {}) {
+  const text = `${item.artist} ${item.title}`.trim();
+  await api.discover.customsforge({ text, open: openSite });
+  if (openSite) D.cfOpened = true;
+  markSearched(item);
+}
+
+export async function startRun() {
+  const left = runLeft();
+  if (!left.length) return;
+  if (!(await explainCustomsForge())) return;
+  if (!D.imports || !D.imports.watch) {
+    try {
+      D.imports = await api.imports.configure({ watch: true });
+      emit('discover-imports');
+    } catch (_) {}
+  }
+  D.run = { current: left[0], done: 0, skipped: new Set(), total: left.length };
+  await runCopy(left[0], { open: true });
+  emit('discover-run');
+  if (sub() === 'wanted') render();
+  toast({ title: 'Getting your songs', message: `“${left[0].artist} ${left[0].title}” is copied. In CustomsForge, click the search box, press Ctrl+V and download the PC version. Stagehand copies the next song when it arrives.`, kind: 'info', timeout: 10000 });
+}
+
+export function stopRun() {
+  if (!D.run) return;
+  D.run = null;
+  emit('discover-run');
+  if (sub() === 'wanted') render();
+}
+
+async function runNext({ skip = false } = {}) {
+  const run = D.run;
+  if (!run) return;
+  if (skip && run.current) run.skipped.add(run.current.id);
+  const next = runLeft()[0];
+  if (!next) {
+    const done = run.done;
+    D.run = null;
+    emit('discover-run');
+    if (sub() === 'wanted') render();
+    const msg = done ? `${plural(done, 'song')} came in.` : 'Nothing left to get.';
+    toast({ title: 'All done', message: msg, kind: 'success' });
+    notify('Stagehand: all done', msg);
+    return;
+  }
+  run.current = next;
+  await runCopy(next);
+  emit('discover-run');
+  if (sub() === 'wanted') render();
+}
+
+/** After an import: when the song we're on came in, move on to the next. */
+async function runAfterImport() {
+  const run = D.run;
+  if (!run || !run.current) return;
+  const now = D.wanted.find((w) => w.id === run.current.id);
+  if (now && now.status === 'wanted') return;
+  if (!now) return runNext(); // taken off the list
+  run.done++;
+  const got = run.current;
+  await runNext();
+  if (D.run && D.run.current) {
+    const c = D.run.current;
+    notify(`Got “${got.title}”`, `Next: ${c.artist} – ${c.title}. It’s copied: click CustomsForge’s search box and press Ctrl+V.`);
+  }
+}
+
+function runBar() {
+  const run = D.run;
+  if (!run) return null;
+  const c = run.current;
+  const left = runLeft().length;
+  const bar = h('div.get-run', { role: 'status' });
+  bar.append(
+    h('span.status-dot.on'),
+    h(
+      'div.get-run-text',
+      null,
+      h('b', { text: c ? `Now: ${c.artist} – ${c.title}` : 'Getting songs' }),
+      h('span', { text: `Copied: click CustomsForge’s search box, press Ctrl+V, download the PC version. ${run.done} in so far, ${plural(left, 'song')} to go.` })
+    ),
+    btn('Copy again', { cls: 'small ghost', iconName: 'copy', onClick: () => c && runCopy(c) }),
+    btn('Open CustomsForge', { cls: 'small ghost', iconName: 'external', onClick: () => c && runCopy(c, { open: true }) }),
+    btn('Skip', { cls: 'small', title: 'Can’t find this one: go to the next', onClick: () => runNext({ skip: true }) }),
+    btn('Stop', { cls: 'small ghost', onClick: () => stopRun() })
+  );
+  return bar;
 }
 
 // ------------------------------------------------------------------ rows --
@@ -858,9 +970,10 @@ function renderWanted(page) {
   const left = D.wanted.filter((w) => w.status === 'wanted');
   const found = D.wanted.filter((w) => w.status === 'found');
   const tools = [
-    btn('Find next on CustomsForge', { cls: 'primary', iconName: 'external', disabled: !left.length, onClick: () => findNext(), title: 'Copies the next song and opens CustomsForge in your browser' }),
+    D.run ? null : btn('Get songs', { cls: 'primary', iconName: 'download', disabled: !left.length, onClick: () => startRun(), title: 'One after another: Stagehand copies each song for CustomsForge’s search and imports what you download' }),
+    btn('Find next', { cls: 'ghost', iconName: 'external', disabled: !left.length, onClick: () => findNext(), title: 'Copies the next song and opens CustomsForge in your browser' }),
     btn('Copy list', { cls: 'ghost', iconName: 'copy', disabled: !left.length, onClick: () => copyList(left) }),
-  ];
+  ].filter(Boolean);
   if (found.length) {
     tools.push(
       btn('Clear found', {
@@ -875,7 +988,9 @@ function renderWanted(page) {
   }
   const subText = D.wanted.length ? `${plural(left.length, 'song')} to find${found.length ? ` · ${found.length} found` : ''}` : 'Songs you want to get, collected from Search and Collection gaps.';
   page.append(head('Wanted', subText, tools, { kicker: 'Discover' }));
-  page.append(howItWorks());
+  const bar = runBar();
+  if (bar) page.append(bar);
+  else page.append(howItWorks());
   if (!D.wanted.length) {
     page.append(
       emptyBox('Nothing wanted yet', 'Search for an artist, or open <b>Collection gaps</b>, tick the songs you don’t have and choose <b>Add to Wanted</b>.', [
@@ -1330,6 +1445,7 @@ api.on('import:update', (st) => {
 api.on('import:done', async ({ entries, gameRunning }) => {
   D.wanted = await api.discover.wanted().catch(() => D.wanted);
   emit('discover-wanted');
+  await runAfterImport().catch(() => {});
   const auto = entries.every((e) => e.origin === 'download');
   // Picked or dropped files already get a toast from importFiles().
   if (auto) summarize(entries, { gameRunning, auto });

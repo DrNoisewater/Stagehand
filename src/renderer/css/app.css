@@ -3171,6 +3171,29 @@ ol.how-steps li b {
   background: var(--ok);
   box-shadow: 0 0 0 3px rgba(107, 212, 154, 0.15);
 }
+/* 4.0.4: Get songs, one after another */
+.get-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--rule-soft);
+  background: var(--deck-2);
+}
+.get-run-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.get-run-text span {
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
 .want-group {
   margin-top: 18px;
 }
