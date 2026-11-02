@@ -998,7 +998,9 @@ function renderStemsCall() {
     const rec = lanes.get(n);
     if (rec) rec.lane.classList.toggle('scanning', busy || (!!S.loadingStems && !S.stems.includes(n)));
   }
-  if (S.stems.length || st.state === 'ready') {
+  // 4.0.2: while the song waits for its stems, the floating progress card says it all;
+  // showing this box under it as well put two loading screens on the screen at once
+  if (S.stems.length || st.state === 'ready' || S.waitPlay) {
     stemsCall.hidden = true;
     return;
   }
@@ -1152,6 +1154,7 @@ function startWaiting(token) {
   renderWaiting(S.waitStatus || S.status);
   emit('stage-waiting', true);
   emit('stage-phase');
+  renderStemsCall();
 }
 
 function stopWaiting() {
@@ -1161,6 +1164,7 @@ function stopWaiting() {
   waitBox.hidden = true;
   emit('stage-waiting', false);
   emit('stage-phase');
+  renderStemsCall();
 }
 
 function renderWaiting(st) {
