@@ -853,6 +853,8 @@ class FakePortMain extends EventEmitter {
     check(v.song === sA && v.hwSong === sA && v.tabFor === sA, `rapid switching: the last song picked is on the highway, not a late answer for the one before (${JSON.stringify({ song: v.song === sA, hw: v.hwSong === sA, tab: v.tabFor === sA })})`);
     tabDelay.clear();
     // a song that fails to open: says so on the highway, nothing old plays, Try again and Back work
+    along(sB);
+    await until((x) => x.phase === 'ready' && x.tabFor === sB && !x.status);
     audioFail.add(sA);
     along(sA);
     v = await until((x) => x.phase === 'error');
