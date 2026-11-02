@@ -19,7 +19,7 @@ import { createRenderer3D, col, mix } from './highway3d.js';
 import { createFluid, guitarInk, ambient, hueRGB } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, setMyTuning, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { breakdown, cheer } from './scorecard.js';
-import { state } from './store.js';
+import { state, on } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
 
 const STRING = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
@@ -166,10 +166,12 @@ export function createHighway(stage) {
   }
   bottom.append(speed); // (hidden; the speed chip in the top bar is what you use)
   const msg = h('div.hw-msg', { hidden: true });
+  // 3.9.1: the song couldn't load (no audio inside, decoder failed): say so, with a way out
+  const errBox = h('div.hw-error', { hidden: true, role: 'alert' });
   const fpsBox = h('div.hw-fps', { hidden: true });
   // lyrics, two lines under the title, the words lighting up as they're sung (as in Rocksmith)
   const lyricsBox = h('div.hw-lyrics', { hidden: true, 'aria-live': 'off' });
-  root.append(glCanvas, canvas, top, sections, bottom, msg, dock, fpsBox, lyricsBox);
+  root.append(glCanvas, canvas, top, sections, bottom, msg, errBox, dock, fpsBox, lyricsBox);
   document.body.append(root);
   root.__hw = H; // for tests
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
@@ -767,6 +769,8 @@ export function createHighway(stage) {
     document.getElementById('app').classList.add('under-highway');
     api.app.fullscreen(true).catch(() => {});
     H.cam.ready = false;
+    const failed = stage.loadError && stage.loadError();
+    showError(failed && failed.id === song.id ? failed : null);
     if (!H.song || H.song.id !== song.id || !H.tab) await loadSong(song);
     else applyPlayAlong();
     resize();
@@ -821,6 +825,19 @@ export function createHighway(stage) {
     const p = H.parts.find((x) => x.type === want && !x.bonus) || H.parts.find((x) => x.type === want) || (want === 'lead' ? H.parts.find((x) => x.type === 'combo') : null) || H.parts[0];
     return p && p.id;
   }
+
+  function showError(e) {
+    errBox.hidden = !e;
+    errBox.textContent = '';
+    if (!e) return;
+    const backBtn = h('button.btn', { type: 'button', text: 'Back to your songs' });
+    backBtn.onclick = () => leave();
+    errBox.append(h('div.hw-error-box', null, h('div.hw-error-title', { text: 'This song can’t play' }), h('p', { text: e.message }), backBtn));
+    backBtn.focus();
+  }
+  on('stage-error', (e) => {
+    if (H.open && H.song && e && e.id === H.song.id) showError(e);
+  });
 
   function showMsg(text) {
     msg.hidden = !text;
@@ -2334,7 +2351,10 @@ export function createHighway(stage) {
       return H.open;
     },
     songChanged(song) {
-      if (H.open && song && (!H.song || song.id !== H.song.id)) loadSong(song).then(() => (H.cam.ready = false));
+      if (H.open && song && (!H.song || song.id !== H.song.id)) {
+        showError(null);
+        loadSong(song).then(() => (H.cam.ready = false));
+      }
     },
     stemsChanged() {
       if (H.open) {

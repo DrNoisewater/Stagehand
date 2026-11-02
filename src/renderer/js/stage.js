@@ -821,6 +821,7 @@ export async function load(song, { autoplay = true } = {}) {
   } catch (err) {
     if (token !== S.token) return;
     S.error = err.message;
+    emit('stage-error', { id: song.id, message: err.message });
     const mix = lanes.get('mix');
     if (mix) {
       mix.lane.classList.remove('scanning');
@@ -1305,6 +1306,7 @@ export function openHighway() {
       gel: (name) => (GEL[name] || GEL.other)[1],
       label: (name) => STEM_LABEL[name] || name,
       stemStatus: () => S.status,
+      loadError: () => (S.song && S.error ? { id: S.song.id, message: S.error } : null),
       requestStems: () => S.song && actions.requestStems([S.song.id]).then(() => api.stems.prioritize(S.song.id).catch(() => {})),
       goBack: () => setPage('songs'),
       showView: (v) => setStageView(v),

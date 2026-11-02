@@ -4259,3 +4259,9 @@ ol.how-steps li b {
 @media (prefers-reduced-motion: reduce) {
   .hw-top, .hw-bottom, .hw-dock { transition: none; }
 }
+
+/* 3.9.1: a song that can't load says why on the highway */
+.hw-error { position: absolute; inset: 0; display: grid; place-items: center; z-index: 6; background: rgba(6, 8, 14, 0.55); }
+.hw-error-box { max-width: 460px; margin: 0 16px; padding: 22px 26px; border-radius: 14px; background: var(--panel, #161a24); border: 1px solid rgba(255, 120, 120, 0.35); text-align: center; }
+.hw-error-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.hw-error-box p { color: var(--ink-2); margin: 0 0 16px; line-height: 1.45; }
