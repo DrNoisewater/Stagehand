@@ -40,13 +40,23 @@ function computePeaks(buffer, wav) {
       const w = peaksWaiting.get(e.data.id);
       if (w) {
         peaksWaiting.delete(e.data.id);
-        w(e.data);
+        if (e.data.error) w.reject(new Error(e.data.error));
+        else w.resolve(e.data);
       }
+    };
+    // the worker itself failed (out of memory…): every song waiting on it gets an answer
+    peaksWorker.onerror = (e) => {
+      e.preventDefault?.();
+      const err = new Error(`Couldn’t read the audio${e.message ? ` (${e.message})` : ''}.`);
+      for (const w of peaksWaiting.values()) w.reject(err);
+      peaksWaiting.clear();
+      peaksWorker.terminate();
+      peaksWorker = null;
     };
   }
   const id = ++peaksSeq;
-  return new Promise((resolve) => {
-    peaksWaiting.set(id, resolve);
+  return new Promise((resolve, reject) => {
+    peaksWaiting.set(id, { resolve, reject });
     if (wav.L) peaksWorker.postMessage({ id, L: wav.L, R: wav.R, rate: wav.rate }, [wav.L.buffer, wav.R.buffer]);
     else peaksWorker.postMessage({ id, buffer, dataOffset: wav.dataOffset, frames: wav.frames, channels: wav.channels }, [buffer]);
   });
@@ -70,6 +80,7 @@ export async function loadTrackData(url, signal, { rate, frames } = {}) {
   } else {
     wav = parseWav(buffer);
     out = await computePeaks(buffer, wav);
+    if (out.frames && out.frames < wav.frames) wav.frames = out.frames; // cut-short file: play what's there
   }
   return {
     buffer: out.buffer,
@@ -314,6 +325,22 @@ export class AudioEngine extends EventTarget {
       [buffer]
     );
     this._applyGains();
+  }
+
+  /** Empties the player (a new song is on its way, or it failed): nothing old can play. */
+  unloadAll() {
+    this.pause();
+    if (this.node) {
+      this.node.port.postMessage({ type: 'unload' });
+      this.node.port.postMessage({ type: 'seek', frame: 0 });
+    }
+    this.frames = 0;
+    this.pausedFrame = 0;
+    this.reports = [];
+    for (const t of this.tracks) {
+      t.loaded = false;
+      t.name = null;
+    }
   }
 
   unloadStems() {

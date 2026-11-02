@@ -28,7 +28,9 @@ export async function playAlong(id) {
   const song = state.songs.get(id);
   if (!song || !stageApi) return;
   const cur = stageApi.current && stageApi.current();
-  const same = cur && cur.id === id;
+  // the same song carries on, unless it failed to open: then picking it again tries again
+  const phase = stageApi.loadInfo ? stageApi.loadInfo().phase : 'ready';
+  const same = cur && cur.id === id && phase !== 'error';
   // a new song starts loading (it becomes the current song straight away);
   // the same song just carries on from where it is
   const loading = same ? null : stageApi.load(song, { autoplay: true });

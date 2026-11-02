@@ -405,14 +405,20 @@ export function createClassicHighway(stage) {
   }
 
   async function loadSong(song, partId) {
+    // only the newest request fills the highway (an older song's late answer is dropped)
+    const token = (H.loadToken = (H.loadToken || 0) + 1);
     H.song = song;
     H.tab = null;
     showMsg('Reading the part…');
     try {
-      H.parts = await api.tab.list(song.id);
+      const parts = await api.tab.list(song.id);
+      if (token !== H.loadToken) return;
+      H.parts = parts;
       const want = partId || pickPart();
       if (!want) throw new Error('This song has no guitar or bass part.');
-      H.tab = await api.tab.load(song.id, want);
+      const tab = await api.tab.load(song.id, want);
+      if (token !== H.loadToken) return;
+      H.tab = tab;
       prefs.part = H.tab.type === 'combo' ? 'lead' : H.tab.type;
       save();
       H.targets = buildTargets(H.tab);
@@ -422,6 +428,7 @@ export function createClassicHighway(stage) {
       H.toneKey = null;
       applyTone();
     } catch (err) {
+      if (token !== H.loadToken) return;
       showMsg(err.message);
     }
     renderControls();
@@ -1949,7 +1956,13 @@ export function createClassicHighway(stage) {
       return H.open;
     },
     songChanged(song) {
-      if (H.open && song && (!H.song || song.id !== H.song.id)) loadSong(song).then(() => (H.cam.ready = false));
+      if (!song || (H.song && song.id === H.song.id && H.tab)) return;
+      if (H.open) loadSong(song).then(() => (H.cam.ready = false));
+      else {
+        H.loadToken = (H.loadToken || 0) + 1; // closed: opening it later reads the new song
+        H.song = null;
+        H.tab = null;
+      }
     },
     stemsChanged() {
       if (H.open) {

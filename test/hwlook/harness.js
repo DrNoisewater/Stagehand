@@ -49,6 +49,13 @@ function songT() {
     mk(t + 1.4, 2, 7, 1.2, { vibrato: true });
     mk(t + 2.8, 4, 5, 1.0, { tremolo: true });
   }
+  // 3.13: a bend with vibrato on one note; a picked note with vibrato held into a bend (linkNext);
+  // a short bend with no sustain; a bend and release
+  mk(18, 2, 7, 1.4, { vibrato: true, bend: 3, bends: [{ t: 18.2, step: 3 }, { t: 19.4, step: 3 }] });
+  mk(19.8, 1, 8, 0.5, { vibrato: true, linkNext: true });
+  mk(20.3, 1, 8, 1.0, { linked: true, bend: 2, bends: [{ t: 20.4, step: 2 }, { t: 21.3, step: 2 }] });
+  mk(21.8, 3, 7, 0, { bend: 1, bends: [{ t: 21.85, step: 1 }] });
+  mk(22.4, 2, 8, 1.2, { bend: 2, bends: [{ t: 22.6, step: 2 }, { t: 23.0, step: 2 }, { t: 23.4, step: 0 }] });
   return { strings: 6, notes, chordEvents: [], anchors, beats, chords: [], sections: [{ name: 'riff', start: 2, end: 20 }], type: 'lead', tuningName: 'E Standard', length: 60, handShapes: [] };
 }
 function songC() {

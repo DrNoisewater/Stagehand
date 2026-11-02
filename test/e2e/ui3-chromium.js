@@ -168,6 +168,11 @@ class FakePortMain extends EventEmitter {
   await captures.load();
 
   const stemHold = new Set(); // songs whose stems are "still splitting" (for the wait-for-stems check)
+  // song switching checks (3.13): songs whose audio fails to open, and slow answers
+  const audioFail = new Set();
+  const audioDelay = new Map();
+  const tabDelay = new Map();
+  const later = (ms) => new Promise((r) => setTimeout(r, ms || 0));
   const API = {
     'clips.source': () => 'test-window',
     'clips.save': data => { const f=path.join(outDir,'export-test.webm');fs.writeFileSync(f,Buffer.from(Object.values(data)));return f;},
@@ -201,9 +206,16 @@ class FakePortMain extends EventEmitter {
       s.songs = s.songs.map((x) => ({ ...x, hasStems: false }));
       return s;
     },
-    'audio.prepare': () => ({ key: 'song', url: '/song.wav', sampleRate: 48000, channels: 2, frames: 48000 * SECS, duration: SECS, bits: 16 }),
+    'audio.prepare': async (id) => {
+      await later(audioDelay.get(id));
+      if (audioFail.has(id)) throw new Error('Could not decode the song audio: test failure');
+      return { key: 'song', url: '/song.wav', sampleRate: 48000, channels: 2, frames: 48000 * SECS, duration: SECS, bits: 16 };
+    },
     'tab.list': (id) => tabs.list(song(id)),
-    'tab.load': (id, arr) => tabs.load(song(id), arr),
+    'tab.load': async (id, arr) => {
+      await later(tabDelay.get(id));
+      return { ...(await tabs.load(song(id), arr)), _for: id };
+    },
     'rig.available': () => true,
     // every song has stems in this test (all the same tone, which is fine for the UI)
     'stems.formats': () => library.snapshot().songs.map((x) => ({ songId: x.id, model: 'htdemucs_6s', format: 'wav', bytes: 6 * 48000 * 30 * 4, seconds: 30 })),
@@ -782,6 +794,81 @@ class FakePortMain extends EventEmitter {
     started = await page.evaluate(() => document.querySelector('.stem-wait').hidden && !!(window.__stagePlaying && window.__stagePlaying()));
   }
   check(!playingBefore && started, 'and starts by itself once they’re in');
+
+  // ---- 3.13: song switching never leaves the wrong song, a dead spinner, or a silent stall ----
+  {
+    const ids3 = library.snapshot().songs.map((x) => x.id);
+    const [sA, sB, sC] = ids3;
+    const hwState = () =>
+      page.evaluate(async () => {
+        const st = await import('/src/renderer/js/stage.js');
+        const info = st.loadInfo();
+        const hw = window.__shHighway;
+        const box = document.querySelector('.hw-status');
+        return { phase: info.phase, song: info.song && info.song.id, err: info.error, hwSong: hw.songId(), tabFor: hw.tab() && hw.tab()._for, status: box && !box.hidden ? box.textContent : '', playing: !!window.__stagePlaying(), open: hw.open() };
+      });
+    const along = (id) => page.evaluate(async (id) => (await import('/src/renderer/js/actions.js')).playAlong(id), id).catch(() => {});
+    const until = async (fn, ms = 10000) => {
+      const t0 = Date.now();
+      let v;
+      while (Date.now() - t0 < ms) {
+        v = await hwState();
+        if (fn(v)) return v;
+        await page.waitForTimeout(200);
+      }
+      return v;
+    };
+    // rapid switching: B's part answers slowly, C is picked straight after: C must win
+    tabDelay.set(sB, 2500);
+    along(sB);
+    await page.waitForTimeout(150);
+    along(sC);
+    let v = await until((x) => x.phase === 'ready' && x.tabFor === sC);
+    await page.waitForTimeout(2800); // B's late answer arrives now
+    v = await hwState();
+    check(v.song === sC && v.hwSong === sC && v.tabFor === sC, `rapid switching: the last song picked is on the highway, not a late answer for the one before (${JSON.stringify({ song: v.song === sC, hw: v.hwSong === sC, tab: v.tabFor === sC })})`);
+    tabDelay.clear();
+    // a song that fails to open: says so on the highway, nothing old plays, Try again and Back work
+    audioFail.add(sA);
+    along(sA);
+    v = await until((x) => x.phase === 'error');
+    check(v.phase === 'error' && !v.playing && /didn’t open/.test(v.status) && /Try again/.test(v.status) && /Back to/.test(v.status), `a failed song says so on the highway with Try again and Back (“${v.status.slice(0, 90)}”)`);
+    check(v.song === sA && v.hwSong === sA, 'and the highway shows the song that failed, not the one before');
+    await shot('22b-song-failed');
+    // picking the same song again tries again (it used to do nothing)
+    audioFail.delete(sA);
+    along(sA);
+    v = await until((x) => x.phase === 'ready' && x.tabFor === sA && !x.status);
+    check(v.phase === 'ready' && v.tabFor === sA && !v.status, `picking the failed song again opens it (${v.phase})`);
+    // Try again and Back on the panel
+    audioFail.add(sB);
+    along(sB);
+    v = await until((x) => x.phase === 'error' && x.song === sB);
+    await page.locator('.hw-status button:has-text("Back to")').click();
+    v = await until((x) => x.phase === 'ready' && x.song === sA);
+    check(v.song === sA && v.tabFor === sA, 'Back to the previous song goes back to it');
+    along(sB);
+    v = await until((x) => x.phase === 'error' && x.song === sB);
+    audioFail.delete(sB);
+    await page.locator('.hw-status button:has-text("Try again")').click();
+    v = await until((x) => x.phase === 'ready' && x.song === sB && x.tabFor === sB);
+    check(v.phase === 'ready' && v.tabFor === sB, 'Try again opens it once it works');
+    // loading shows on the highway, and leaving the highway mid-load and coming back shows the new song
+    audioDelay.set(sC, 2500);
+    along(sC);
+    await page.waitForTimeout(500);
+    v = await hwState();
+    check(v.phase === 'loading' && /Opening/.test(v.status), `while a song opens the highway says so (“${v.status.slice(0, 50)}”)`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+    await page.evaluate(async () => (await import('/src/renderer/js/stage.js')).openHighway());
+    v = await until((x) => x.phase === 'ready' && x.tabFor === sC && !x.status);
+    check(v.open && v.song === sC && v.hwSong === sC && v.tabFor === sC && !v.status, 'leaving the highway while a song opens and coming back shows that song, ready');
+    audioDelay.clear();
+    // back to the first song for the rest of the run
+    along(firstId);
+    await until((x) => x.phase === 'ready' && x.tabFor === firstId);
+  }
   // 3.7: Tab | Waveform on the highway, and Back goes to your songs
   await page.mouse.move(400, 300);
   await page.mouse.move(420, 320);

@@ -4122,6 +4122,16 @@ ol.how-steps li b {
   z-index: 1;
   pointer-events: none;
 }
+.hw-status { position: absolute; inset: 0; display: grid; place-items: center; z-index: 4; pointer-events: none; }
+.hw-status[hidden] { display: none; }
+.hw-st-box { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: min(520px, 90vw); padding: 22px 28px; border-radius: 16px; background: #111824e8; border: 1px solid #33c8e044; box-shadow: 0 20px 60px #0008; text-align: center; color: var(--ink-2); font-size: 14px; }
+.hw-st-box b { font-size: 18px; color: var(--ink); }
+.hw-st-box.bad { border-color: #ff5d5d66; }
+.hw-st-acts { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; justify-content: center; }
+.hw-st-bar { width: 260px; height: 6px; border-radius: 3px; background: #ffffff14; overflow: hidden; }
+.hw-st-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #33c8e0, #ffb547); transition: width 0.4s; }
+.hw-st-spin { width: 22px; height: 22px; border-radius: 50%; border: 3px solid #33c8e033; border-top-color: #33c8e0; animation: hw-spin 0.9s linear infinite; }
+@keyframes hw-spin { to { transform: rotate(360deg); } }
 .menu { z-index: 300; }
 .toasts, .toast-stack { z-index: 300; }
 .hw-chip[hidden] { display: none; }
