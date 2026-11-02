@@ -2220,8 +2220,9 @@ export function createHighway(stage) {
     }
     for (const [xs, k] of posts) {
       const x = Number(xs);
-      solid.box(x - 0.035, x + 0.035, -0.2, G.yTop + 0.9, -0.1, -0.03, col('#fff0f8', k, 2.2));
-      glow.up(x - 0.18, x + 0.18, -0.2, G.yTop + 0.95, -0.11, col('#ff5aaa', 0.4 * k, 1.3), col('#ff5aaa', 0.1 * k));
+      // no taller than the frets (4.0.6: taller ones read as pieces sticking out of the neck)
+      solid.box(x - 0.035, x + 0.035, -0.2, G.yTop + 0.32, -0.1, -0.03, col('#fff0f8', k, 2.2));
+      glow.up(x - 0.18, x + 0.18, -0.2, G.yTop + 0.32, -0.11, col('#ff5aaa', 0.4 * k, 1.3), col('#ff5aaa', 0.1 * k));
     }
     // 3. the note flares on the neck: a bright pop, held while you sustain
     for (const h of H.hits) {

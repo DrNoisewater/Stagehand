@@ -37,7 +37,9 @@ void main() {
   if (vZ < 0.0) f *= clamp(1.0 + vZ / zPast, 0.0, 1.0);
   float a = vC.a * f;
   if (a < 0.003) discard;
-  gl_FragColor = additive > 0.5 ? vec4(vC.rgb * a, 1.0) : vec4(vC.rgb, a);
+  // glow adds light only: alpha 0, so on a see-through highway (Nebula, Fluid)
+  // it brightens the moving background instead of covering it with a dark slab
+  gl_FragColor = additive > 0.5 ? vec4(vC.rgb * a, 0.0) : vec4(vC.rgb, a);
 }`;
 
 // ------------------------------------------------------------ colours --

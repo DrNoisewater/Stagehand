@@ -144,7 +144,7 @@ class FakePortMain extends EventEmitter {
     window.__deliver = (id, m) => {
       const port = local.get(id);
       if (!port) return;
-      if (m && m.t === 'in' && Array.isArray(m.d)) m = { ...m, d: Float32Array.from(m.d) };
+      if (m && (m.t === 'in' || m.t === 'processed' || m.t === 'mixed') && Array.isArray(m.d)) m = { ...m, d: Float32Array.from(m.d) };
       port.postMessage(m);
     };
     window.stagehand = {
@@ -315,10 +315,44 @@ class FakePortMain extends EventEmitter {
       mixRms = Math.max(mixRms, Math.sqrt(e / buf.length));
     }
     m.close();
-    return { kind: rig.kind, chunks, dupes, tapChunks, tapDupes, mixRms };
+    // Record clip itself: the mix goes only into a recorder (as take-video.js does, nothing
+    // else attached), the file is read back, and it must have sound in it
+    const clipRms = await (async () => {
+      const m2 = await rig.monitorMix();
+      const dest = m2.ctx.createMediaStreamDestination();
+      m2.node.connect(dest);
+      const rec = new MediaRecorder(dest.stream, { mimeType: 'audio/webm;codecs=opus' });
+      const parts = [];
+      rec.ondataavailable = (e) => e.data.size && parts.push(e.data);
+      const stopped = new Promise((r) => (rec.onstop = r));
+      rec.start(250);
+      await new Promise((r) => setTimeout(r, 3000));
+      rec.stop();
+      await stopped;
+      m2.close();
+      const ac = new OfflineAudioContext(1, 48000, 48000);
+      const ab = await ac.decodeAudioData(await new Blob(parts).arrayBuffer());
+      const d = ab.getChannelData(0);
+      let e = 0;
+      for (const x of d) e += x * x;
+      return Math.sqrt(e / Math.max(1, d.length));
+    })().catch((e) => -1);
+    // what Record clip collects now (4.0.6): the mix straight from the engine, no audio player
+    let frames = 0;
+    const cm = rig.captureMix((d) => (frames += d.length >> 1));
+    const t0 = performance.now();
+    await new Promise((r) => setTimeout(r, 3000));
+    cm.close();
+    const mixSecs = frames / cm.rate;
+    const wallSecs = (performance.now() - t0) / 1000;
+    return { kind: rig.kind, chunks, dupes, tapChunks, tapDupes, mixRms, clipRms, mixSecs, wallSecs };
   });
   check(rr.kind === 'native' && rr.chunks > 3 && rr.dupes === 0, `after two restarts the recorder gets each piece of sound once (${rr.dupes} of ${rr.chunks} repeated)`);
   check(rr.mixRms > 0.005, `the clip recorder hears the mix (${rr.mixRms.toFixed(3)})`);
+  // (this test's stand-in line to the page is slow, one piece per page call: only a part of
+  // the sound gets through here; the engine itself sends all of it)
+  check(rr.mixSecs > 0.05, `Record clip collects the engine's sound straight from it (${rr.mixSecs.toFixed(2)} s arrived in ${rr.wallSecs.toFixed(2)} s here)`);
+  check(rr.clipRms > 0.005, `a recorded clip has the sound in it (${rr.clipRms.toFixed(3)})`);
   check(rr.tapChunks > 3 && rr.tapDupes === 0, `…and so does the dry guitar tap (${rr.tapDupes} of ${rr.tapChunks} repeated)`);
 
   await page.evaluate(() => window.__h.rig.stop());

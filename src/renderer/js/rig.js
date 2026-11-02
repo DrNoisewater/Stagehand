@@ -531,6 +531,15 @@ export class Rig extends EventTarget {
     return {rate:ctx.sampleRate,close:()=>{node.port.postMessage({type:'relay',on:false});node.port.onmessage=null;try{b.node.disconnect(node);node.disconnect();silent.disconnect();}catch(_){}}};
   }
 
+  /** The native engine's final mix (song + you + drums, as the speakers get it), straight
+   *  to feed(Float32Array interleaved L/R, rate): no audio player in between, as the looper
+   *  does. Record clip uses it (4.0.6: through a hidden player the clip came out silent). */
+  captureMix(feed){
+    if(!this.on||!this.backend||this.kind!=='native')throw Error('Connect your instrument first.');
+    const b=this.backend;
+    const listener={kind:'mixed',feed};this._monitors??=new Set();this._monitors.add(listener);b._cmd({cmd:'monitor',on:1});
+    return {rate:b.rate,close:()=>{this._monitors.delete(listener);if(!this._monitors.size)b._cmd({cmd:'monitor',on:0});}};
+  }
   async monitorProcessed(){ return this._monitor('processed'); }
   async monitorMix(){ return this._monitor('mixed'); }
   async _monitor(kind){

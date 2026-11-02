@@ -197,7 +197,7 @@ class FakePortMain extends EventEmitter {
   const later = (ms) => new Promise((r) => setTimeout(r, ms || 0));
   const API = {
     'clips.source': () => 'test-window',
-    'clips.save': (data, meta) => { const f=path.join(outDir,'export-test.webm');fs.writeFileSync(f,Buffer.from(Object.values(data)));return {path:f,take:{id:'k_0000000000',name:`SH - ${(meta&&meta.title)||'Jam Session'}`}};},
+    'clips.save': (data, meta) => { const f=path.join(outDir,'export-test.webm');fs.writeFileSync(f,Buffer.from(Object.values(data)));if(meta&&meta.audio)fs.writeFileSync(path.join(outDir,'export-test.wav'),Buffer.from(Object.values(meta.audio)));return {path:f,take:{id:'k_0000000000',name:`SH - ${(meta&&meta.title)||'Jam Session'}`}};},
     'cabs.ensure': id => require('../../src/main/services/cabinets').ensureCab(path.join(tmp,'Cabs'),id,async()=>{throw Error('offline test');}),
     'cabs.bytes': id => Array.from(fs.readFileSync(path.join(ROOT,'src/renderer/data/cabs',id+'.wav'))),
     'captures.get': () => captures.state(),
@@ -506,7 +506,13 @@ class FakePortMain extends EventEmitter {
     check(await page.locator('.hw-tools .hw-chip:visible').count()<=3,'the highway shows one Tools button (plus what is running), not a row of floating buttons');
     await page.waitForTimeout(3500);await page.locator('.hw-tool-live').click();
     await page.waitForFunction(()=>!document.querySelector('.hw-tools').textContent.includes('Recording')&&!document.querySelector('.hw-tools').textContent.includes('Saving'),null,{timeout:15000});
-    check(fs.existsSync(path.join(outDir,'export-test.webm')) && fs.statSync(path.join(outDir,'export-test.webm')).size>10000,'WebM export contains encoded video and internal audio');
+    check(fs.existsSync(path.join(outDir,'export-test.webm')) && fs.statSync(path.join(outDir,'export-test.webm')).size>10000,'WebM export contains encoded video');
+    {
+      // the sound engine's sound comes with it (4.0.6), and it isn't silence
+      const w=path.join(outDir,'export-test.wav');let rms=0,secs=0;
+      if(fs.existsSync(w)){const b=fs.readFileSync(w);const n=(b.length-44)>>1;let e=0;for(let i=0;i<n;i++)e+=(b.readInt16LE(44+2*i)/32768)**2;rms=Math.sqrt(e/Math.max(1,n));secs=n/2/b.readUInt32LE(24);}
+      check(rms>0.003&&secs>0.3,`the clip has the engine's sound (${secs.toFixed(1)} s, rms ${rms.toFixed(3)})`);
+    }
     const errs=logs.filter(l=>/^pageerror/.test(l));check(!errs.length,'no page errors: '+errs.join(';'));
     await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
   }

@@ -17,10 +17,15 @@ async function ensureEncoder(tools){
  await fs.writeFile(exe+'.part',gunzipSync(compressed));await fs.rename(exe+'.part',exe);await fs.unlink(zip);return exe;})().finally(()=>preparing=null);
  return preparing;
 }
-async function exportMp4(exe,input,output){
- const common=['-hide_banner','-loglevel','error','-y','-i',input,'-map','0:v:0','-map','0:a:0','-vf',"scale='min(1920,iw)':-2:force_original_aspect_ratio=decrease,format=yuv420p"];
- const end=['-c:a','aac','-b:a','256k','-movflags','+faststart',output];
+/** audio: a WAV of the engine's sound to put under the video (native engine), else the
+ *  capture's own sound track. */
+function exportArgs(input,output,audio){
+ const ins=audio?['-i',input,'-i',audio,'-map','0:v:0','-map','1:a:0']:['-i',input,'-map','0:v:0','-map','0:a:0?'];
+ return {common:['-hide_banner','-loglevel','error','-y',...ins,'-vf',"scale='min(1920,iw)':-2:force_original_aspect_ratio=decrease,format=yuv420p"],end:['-c:a','aac','-b:a','256k','-movflags','+faststart',output]};
+}
+async function exportMp4(exe,input,output,audio){
+ const {common,end}=exportArgs(input,output,audio);
  try{await run(exe,[...common,'-c:v','h264_nvenc','-preset','p4','-cq','18','-b:v','16M',...end]);return 'NVIDIA';}
  catch{await run(exe,[...common,'-c:v','libx264','-preset','fast','-crf','18',...end]);return 'CPU';}
 }
-module.exports={ensureEncoder,exportMp4};
+module.exports={ensureEncoder,exportMp4,exportArgs};
