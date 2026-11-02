@@ -68,6 +68,7 @@ export const practice = new (class extends EventTarget {
     this.judge = null;
     emit('practice');
     if (!song) return;
+    api.app.activity(`Playing ${song.title}`).catch(() => {});
     try {
       const parts = await api.tab.list(song.id);
       if (this.song !== song) return;

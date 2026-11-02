@@ -174,6 +174,20 @@ class RigAudio extends EventEmitter {
     port.start();
   }
 
+  /** The page died (4.0.7): let go of its lines and the devices, so the reloaded page starts fresh. */
+  pageGone() {
+    for (const e of [...this.ports]) {
+      this.ports.delete(e);
+      try {
+        e.port.close();
+      } catch (_) {}
+    }
+    if (this.child) {
+      this.send({ cmd: 'monitor', on: 0 });
+      this.send({ cmd: 'stop' });
+    }
+  }
+
   quit() {
     if (!this.child) return;
     try {

@@ -7,7 +7,7 @@ import * as stage from './stage.js';
 import * as dialogs from './dialogs.js';
 import * as actions from './actions.js';
 import * as discover from './discover.js';
-import { isTyping, topModal, debounce, toast } from './ui.js';
+import { isTyping, topModal, debounce, toast, modal, h } from './ui.js';
 import './shell.js';
 import './play.js';
 import './practice.js';
@@ -156,9 +156,35 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ----------------------------------------------------------------- boot --
+/** 4.0.7: the window stopped and Stagehand brought it back: say what happened, and what was saved. */
+function crashNotice(n) {
+  if (!n) return;
+  const body = h('div');
+  body.append(h('p', { text: `Stagehand’s window stopped because ${n.words}${n.activity ? `, while: ${n.activity}` : ''}. It has been reloaded, so you can carry on.` }));
+  const recs = h('div');
+  const showRec = (r) => {
+    recs.innerHTML = '';
+    for (const x of n.recordings || []) {
+      recs.append(h('p', { text: x.saving ? `Saving the recording of ${x.title} as far as it got…` : x.name ? `The recording was saved as far as it got: “${x.name}”, in Recordings.` : x.error ? `The recording couldn’t be saved: ${x.error}` : 'The recording had nothing in it yet.' }));
+    }
+  };
+  showRec();
+  body.append(recs);
+  body.append(h('p', { text: 'If it keeps happening, the Activity log (Settings) has the details.' }));
+  const ok = h('button.btn.primary', { type: 'button', text: 'OK' });
+  const m = modal({ title: 'Stagehand had to reload', body, footer: [ok] });
+  ok.onclick = () => m.close();
+  api.on('app:recovered', (r) => {
+    const x = (n.recordings || []).find((y) => y.title === r.title && y.saving);
+    if (x) Object.assign(x, r);
+    showRec();
+  });
+}
+
 async function boot() {
   [state.info, state.settings] = await Promise.all([api.app.info(), api.settings.get()]);
   emit('settings');
+  api.app.crashNote().then(crashNotice).catch(() => {});
   api.on('library:reset', debounce(() => loadLibrary(), 120));
   api.on('library:songs', (songs) => upsertSongs(songs));
   api.on('scan:progress', (p) => {

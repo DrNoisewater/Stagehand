@@ -40,6 +40,9 @@ PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17.2 T:19.1
 PLAYCAL=80 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
 # the tuning check card (every string, A425, a string ticked by a pretend guitar); writes tcheck-1/2.png
 TCHECK=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
+# the real app in Electron: crash the window mid-recording; it must reload with a note and save the clip
+# (electron 44 installed outside the project, e.g. npm install electron@44 in a scratch folder)
+ELECTRON=<electron> xvfb-run -a node test/e2e/crash-electron.js <outDir>
 # a moving background must rebuild itself after the graphics card drops it
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```

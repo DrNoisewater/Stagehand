@@ -13,6 +13,7 @@ const { Library, norm } = require('./services/library');
 const { Dupes, findDuplicates } = require('./services/dupes');
 const { Tools } = require('./services/tools');
 const { AudioService } = require('./services/audio');
+const { ClipSessions } = require('./services/clip-sessions');
 const { AudioFinder } = require('./services/audiofind');
 const { StemService, MODELS } = require('./services/stems');
 const { ArtService } = require('./services/art');
@@ -73,6 +74,10 @@ let stats;
 let takes;
 let captures;
 const logLines = [];
+let clipSessions = null;
+let activity = '';
+let crashNote = null;
+const crashTimes = [];
 
 function log(line) {
   const entry = `[${new Date().toISOString()}] ${line}`;
@@ -370,6 +375,38 @@ function createWindow() {
   win.on('move', saveBounds);
   win.on('closed', () => (win = null));
 
+  // 4.0.7: if the page dies (out of memory, a crash), bring it back by itself and say
+  // what happened; a recording that was running is saved as far as it got
+  win.webContents.on('render-process-gone', (_e, details) => {
+    const reason = (details && details.reason) || 'crashed';
+    if (reason === 'clean-exit') return;
+    const words = { oom: 'it ran out of memory', crashed: 'it crashed', 'abnormal-exit': 'it stopped unexpectedly', killed: 'it was closed by Windows', 'launch-failed': 'it couldn’t start', 'integrity-failure': 'it failed a safety check' }[reason] || 'it stopped';
+    log(`The window stopped (${reason}, exit code ${details && details.exitCode}). Doing: ${activity || 'nothing in particular'}`);
+    if (rigAudio) rigAudio.pageGone();
+    const note = { at: Date.now(), reason, words, activity, recordings: [] };
+    crashNote = note;
+    const doing = activity;
+    activity = '';
+    for (const s of clipSessions ? clipSessions.active() : []) {
+      note.recordings.push({ title: s.title, saving: true });
+      const entry = note.recordings[note.recordings.length - 1];
+      clipSessions.close(s.id)
+        .then((c) => (c.vbytes ? saveClip({ ...c, title: `${c.title} (saved after a crash)` }).finally(() => clipSessions.remove(c.dir)) : clipSessions.remove(c.dir).then(() => null)))
+        .then((r) => { entry.saving = false; entry.name = r && r.take ? r.take.name : null; log(r ? `Saved the recording that was running: ${entry.name}` : 'The recording that was running had nothing in it yet.'); send('app:recovered', { ...entry }); })
+        .catch((err) => { entry.saving = false; entry.error = err.message; log(`Couldn’t save the recording that was running: ${err.message}`); send('app:recovered', { ...entry }); });
+    }
+    const now = Date.now();
+    crashTimes.push(now);
+    while (crashTimes.length && now - crashTimes[0] > 120000) crashTimes.shift();
+    if (crashTimes.length >= 3) {
+      // the third time in two minutes: don't loop, ask
+      dialog.showMessageBox(win, { type: 'error', title: 'Stagehand', message: 'Stagehand’s window keeps stopping.', detail: `This time ${words}${doing ? `, while: ${doing}` : ''}. Reload it, or close Stagehand and open it again.`, buttons: ['Reload', 'Close Stagehand'], defaultId: 0 })
+        .then((r) => { if (!win || win.isDestroyed()) return; if (r.response === 0) win.loadURL('stagehand://app/index.html'); else win.close(); });
+      return;
+    }
+    setTimeout(() => { if (win && !win.isDestroyed()) win.loadURL('stagehand://app/index.html'); }, 600);
+  });
+
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };
@@ -441,6 +478,19 @@ function openTone3000(url, redirect) {
 }
 
 // ------------------------------------------------------------------ IPC --
+/** A recorded clip (capture + optional WAV of the engine's sound) → an MP4 in your recordings. */
+async function saveClip({ input, sound, title, songId, seconds }) {
+  await fsp.mkdir(path.join(D.takes,'Videos'),{recursive:true});
+  const rel=takes.freeName(String(title||'Jam Session'),'mp4','Videos');
+  const file=path.join(D.takes,rel);
+  const output=path.join(path.dirname(input),'export.mp4');
+  const video=require('./services/video-export');
+  await video.exportMp4(await video.ensureEncoder(tools),input,output,sound||null);
+  await fsp.copyFile(output,file);
+  const take=await takes.addVideo({file:rel,name:path.basename(rel,'.mp4').replace(/^SH - /,''),songId:songId||null,seconds:Number(seconds)||0});
+  return {path:file,take};
+}
+
 function registerIpc() {
   // Native guitar rig: the page asks for a port, we hand one end to the helper relay.
   ipcMain.on('rig:connect', (e, kind) => {
@@ -500,24 +550,30 @@ function registerIpc() {
   // (or "SH - Jam Session.mp4"), never over an older one, and shows in Recordings
   handle('clips:save',async(data,meta={})=>{
     if(!(data instanceof Uint8Array)||data.byteLength>650*1024*1024)throw Error('Clip exceeds the 650 MB limit.');
-    const title=String((meta&&meta.title)||'Jam Session');
-    await fsp.mkdir(path.join(D.takes,'Videos'),{recursive:true});
-    const rel=takes.freeName(title,'mp4','Videos');
-    const file=path.join(D.takes,rel);
     const temp=await fsp.mkdtemp(path.join(app.getPath('temp'),'stagehand-video-'));
-    const input=path.join(temp,'capture.webm'),output=path.join(temp,'export.mp4');
+    const input=path.join(temp,'capture.webm');
     // the sound engine's sound, collected beside the video (4.0.6), joined in by the encoder
     const sound=meta&&meta.audio instanceof Uint8Array&&meta.audio.byteLength>44?path.join(temp,'sound.wav'):null;
     try{
       await fsp.writeFile(input,data);
       if(sound)await fsp.writeFile(sound,meta.audio);
-      const video=require('./services/video-export');
-      await video.exportMp4(await video.ensureEncoder(tools),input,output,sound);
-      await fsp.copyFile(output,file);
-      const take=await takes.addVideo({file:rel,name:path.basename(rel,'.mp4').replace(/^SH - /,''),songId:(meta&&meta.songId)||null,seconds:Number(meta&&meta.seconds)||0});
-      return {path:file,take};
+      return await saveClip({input,sound,title:meta&&meta.title,songId:meta&&meta.songId,seconds:meta&&meta.seconds});
     }finally{await fsp.rm(temp,{recursive:true,force:true});}
   });
+  // 4.0.7: Record clip writes to disk while it records (clip-sessions.js)
+  handle('clips:begin',(meta)=>clipSessions.begin(meta));
+  handle('clips:chunk',(id,kind,data)=>clipSessions.chunk(id,kind,data));
+  handle('clips:finish',async(id,meta={})=>{
+    const s=await clipSessions.close(id);
+    try{
+      if(!s.vbytes)throw Error('Nothing was recorded.');
+      return await saveClip({...s,seconds:Number(meta.seconds)||s.seconds});
+    }finally{await clipSessions.remove(s.dir);}
+  });
+  handle('clips:cancel',(id)=>clipSessions.remove(id));
+  // 4.0.7: what you were doing, for the note after a crash ("Recording a video of …")
+  handle('app:activity',(t)=>{activity=String(t||'').slice(0,200);});
+  handle('app:crashNote',()=>{const n=crashNote;crashNote=null;return n;});
   handle('takes:list' , () => takes.list());
   handle('takes:save', (t) => takes.save(t));
   handle('takes:remove', (id) => takes.remove(id));
@@ -885,6 +941,7 @@ app.whenReady().then(async () => {
   stats = new Stats(path.join(D.roaming, 'stats.json'));
   await stats.load();
   takes = new Takes(D.takes);
+  clipSessions = new ClipSessions({ tempRoot: app.getPath('temp') });
   captures = new Captures({
     dir: D.captures,
     fetchImpl: (url, opts) => net.fetch(url, opts).catch(() => fetch(url, opts)),
