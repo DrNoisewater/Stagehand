@@ -187,6 +187,8 @@ Rocksmith audio is Wwise `.wem`. Stagehand decodes it with [vgmstream](https://g
 
 ## What's new
 
+**4.0.2:** songs whose file has no audio (some paid DLC) say so instead of seeming to freeze, and the song list marks them **no audio**; Stagehand finds song audio stored differently inside more official DLC files; only one stems progress screen shows at a time.
+
 **3.12:** everything from 3.10 to 3.11.1 (real cabinets, Jam as home, 17 drum styles, a better looper, Score attack, Record clip, tone keys, progress goals, the Drop repair, clearer yellow and orange strings) together with 3.9.1's guitar-or-bass sensing. New moving backgrounds (Nebula, Swarm, Mandala, Strings) replace Aurora, Orbital and Prism, and Fluid reacts much more to the music. Tone match is gone for now. Full notes are on [Releases](https://github.com/DrNoisewater/stagehand/releases).
 
 <details>

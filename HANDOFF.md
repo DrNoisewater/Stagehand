@@ -1,8 +1,15 @@
-# Stagehand handoff (v4.0.1, 2026-11-02): one small Setup that downloads only what's missing
+# Stagehand handoff (v4.0.2, 2026-11-02): no-audio songs, official DLC audio, one stems screen
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.0.2: no-audio songs, official DLC audio, one stems screen
+
+User: some songs "stop everything", e.g. Kryptonite, "paid DLC that Rocksmith downloaded"; then "sometimes there's 2 loading screens for stems, on the screen at the same time".
+- **No-audio songs:** `actions.playAlong` shows `noAudioToast` for `audioEntry === null` instead of opening the highway; list/tile badge `sup.noaudio`; `StemService.request` skips them.
+- **Audio finding** (rocksmith.js): when there's no `audio/<platform>/<id>.wem`, any `.wem`/`.ogg` in the archive; audio embedded in the song's Wwise bank (`bankMedia`: DIDX/DATA) as `audioEntry` `"<bank>#<mediaId>"`, read by `readAudio` (audio.js); real Ogg is written as `.ogg` for vgmstream. `audioNote` (`audioDiagnosis`) is logged by `AudioService.prepare` as `Audio: no song audio in …`. library.js `AUDIO_REV` re-reads files with no audio once. Test: core.test.js bank parsing. **Unverified on a real official DLC file:** if Kryptonite still has no audio, ask for that log line.
+- **Two stem screens:** on the highway, `.stem-wait` (floating card) is hidden since `.hw-status` shows the same progress; in the player, `renderStemsCall` hides `.stems-call` while `S.waitPlay`.
 
 ## 4.0.1: one small, smart Setup
 

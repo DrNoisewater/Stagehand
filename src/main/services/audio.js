@@ -9,6 +9,7 @@ const fsp = fs.promises;
 const path = require('path');
 const crypto = require('crypto');
 const { Psarc } = require('../core/psarc');
+const { readAudio } = require('../core/rocksmith');
 const { readWavInfo } = require('../core/files');
 const { run } = require('./tools');
 
@@ -52,7 +53,11 @@ class AudioService {
 
   async prepare(song) {
     if (!song) throw new Error('Song not found');
-    if (!song.audioEntry) throw new Error('This file has no song audio');
+    if (!song.audioEntry) {
+      // 4.0.2: say what the file does hold, so a report can tell why
+      this.log(`Audio: no song audio in ${song.path} (${song.title || song.songKey}): ${song.audioNote || 'not described'}`);
+      throw new Error('This file has no song audio');
+    }
     if (song.audioKey && fs.existsSync(this.wavPath(song.audioKey))) {
       this.markInUse(song.audioKey);
       return this._info(song.audioKey);
@@ -60,7 +65,7 @@ class AudioService {
     const p = await Psarc.open(song.path);
     let wem;
     try {
-      wem = await p.read(song.audioEntry);
+      wem = await readAudio(p, song.audioEntry);
     } finally {
       await p.close();
     }
@@ -88,7 +93,9 @@ class AudioService {
     }
     await fsp.mkdir(this.dir, { recursive: true });
     const tag = crypto.randomBytes(3).toString('hex');
-    const wemPath = path.join(this.dir, `${key}.${tag}.wem`);
+    // real Ogg audio needs its own extension for the decoder to recognise it
+    const ext = wem.length >= 4 && wem.toString('latin1', 0, 4) === 'OggS' ? 'ogg' : 'wem';
+    const wemPath = path.join(this.dir, `${key}.${tag}.${ext}`);
     const tmpWav = path.join(this.dir, `${key}.${tag}.tmp.wav`);
     await fsp.writeFile(wemPath, wem);
     try {
