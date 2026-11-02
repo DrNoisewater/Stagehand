@@ -351,6 +351,6 @@ export function holdButton(button,action){
 export function instrumentTag(rig){
  const inst=rig&&rig.instrument;if(!inst)return '';
  const label=inst==='bass'?'Bass':'Guitar';
- const how=rig.instrumentPref==='auto'?'heard from your playing':'set in Settings';
+ const how='set in Settings';
  return `<span class="inst-tag" title="${esc(label)} (${how})">${label}</span>`;
 }

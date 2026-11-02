@@ -464,9 +464,10 @@ export class Rig extends EventTarget {
     this.toneId = saved.toneId || 'crunch';
     this.knobs = { ...DEFAULT_KNOBS, ...(saved.knobs || {}) };
     this.perTone = saved.perTone || {};
-    // Guitar or bass: 'auto' works it out from what you play (instrument.js), for scoring
-    // and the tuner. 4.0.3: it never changes your tone (the stand-in tone is gone)
-    this.instrumentPref = ['guitar', 'bass'].includes(saved.instrument) ? saved.instrument : 'auto';
+    // Guitar or bass, for scoring and the tuner. 4.0.3: you set it (Settings › Guitar or bass);
+    // Stagehand no longer works it out by itself or changes your tone. Someone who had it
+    // on "tell by what I play" keeps what it last heard.
+    this.instrumentPref = ['guitar', 'bass'].includes(saved.instrument) ? saved.instrument : saved.sensed === 'bass' ? 'bass' : 'guitar';
     this.sense = new InstrumentSense({ instrument: saved.sensed === 'bass' || saved.sensed === 'guitar' ? saved.sensed : null });
     this.standIn = null; // 4.0.3: always null (kept so older callers read "no stand-in")
     // Drop: a pitch drop on your guitar, like a DigiTech Drop pedal (not part of any tone)
@@ -771,8 +772,7 @@ export class Rig extends EventTarget {
       this.active = -1;
       this._sendAllParams();
       await this._useTone(this._currentTone());
-      this._listen(true);
-      this.save();
+      this.save(); // 4.0.3: no listening for guitar-or-bass any more
     }
     this.dispatchEvent(new Event('change'));
     return this.on;
@@ -853,12 +853,12 @@ export class Rig extends EventTarget {
   // ------------------------------------------------------- guitar or bass --
   /** What's plugged in: 'guitar', 'bass', or null (not known yet). */
   get instrument() {
-    return this.instrumentPref === 'auto' ? this.sense.instrument : this.instrumentPref;
+    return this.instrumentPref;
   }
 
   /** 'auto' (works it out), 'guitar' or 'bass'. */
   setInstrumentPref(v) {
-    this.instrumentPref = ['guitar', 'bass'].includes(v) ? v : 'auto';
+    this.instrumentPref = v === 'bass' ? 'bass' : 'guitar';
     this.save();
     this._instrumentChanged(false);
   }
@@ -878,11 +878,7 @@ export class Rig extends EventTarget {
   /** "That's wrong, it's a guitar (or bass)": put the guess right without leaving "tell by what I play". */
   correctInstrument(kind) {
     if (kind !== 'guitar' && kind !== 'bass') return;
-    if (this.instrumentPref !== 'auto') return this.setInstrumentPref(kind);
-    this.sense.instrument = kind;
-    this.sense.reset();
-    this.save();
-    this._instrumentChanged(false);
+    return this.setInstrumentPref(kind);
   }
 
   _instrumentChanged(sensed) {

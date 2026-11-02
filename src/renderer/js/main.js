@@ -198,15 +198,6 @@ async function boot() {
     state.engine = await api.engine.status();
     emit('engine');
   });
-  // Picked up a bass (or back to guitar): say so (scoring follows it; the tone never changes),
-  // and let you put a wrong guess right in one click.
-  rig.addEventListener('instrument', (e) => {
-    if (!e.detail.sensed) return;
-    const inst = e.detail.instrument;
-    const what = inst === 'bass' ? 'Bass' : 'Guitar';
-    const other = inst === 'bass' ? 'guitar' : 'bass';
-    toast({ title: `${what} heard`, kind: 'info', timeout: 5000, actions: [{ label: `No, it’s a ${other}`, onClick: () => rig.correctInstrument(other) }] });
-  });
   // A tone the engine couldn't play (a song's tone change mid-song…): say so, not silently.
   let lastToneErr = 0;
   rig.addEventListener('tone-error', (e) => {
