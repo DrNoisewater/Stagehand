@@ -119,16 +119,33 @@ document.addEventListener(
 // ------------------------------------------------------------- the list --
 function itemsFor(tab) {
   if (tab === 'mine') {
-    return [...tonelib.list].sort((a, b) => (a.slot || 99) - (b.slot || 99) || a.name.localeCompare(b.name)).map((t) => ({ key: `mine:${t.id}`, tone: t, name: t.name, sub: t.slot ? `${kindLabel(t)} · ${chainText(t)}` : chainText(t), slot: t.slot, gel: gelOf(t), mine: true }));
+    return uniqueKeys([...tonelib.list].sort((a, b) => (a.slot || 99) - (b.slot || 99) || a.name.localeCompare(b.name)).map((t) => ({ key: `mine:${t.id}`, tone: t, name: t.name, sub: t.slot ? `${kindLabel(t)} · ${chainText(t)}` : chainText(t), slot: t.slot, gel: gelOf(t), mine: true })));
   }
   if (tab === 'presets') return TONES.map((t) => ({ key: `preset:${t.id}`, tone: { ...t, from: { preset: t.id } }, name: t.name, sub: t.desc, gel: t.kind === 'bass' ? '#8c7bff' : '#ffb547' }));
   const out = [];
   for (const g of tonelib.library || []) {
+    // 4.0.9: a song can use one tone for its guitar part and its bass part: it's listed
+    // twice (guitar and bass). Each needs its own key (with the same key, both lit up and
+    // clicking one picked the other), and the bass one says so
+    const names = new Map();
+    for (const t of g.tones) names.set(t.name, (names.get(t.name) || 0) + 1);
     for (const t of g.tones) {
-      out.push({ key: `song:${g.songId}:${t.key}`, group: `${g.title}${g.artist ? ` · ${g.artist}` : ''}`, tone: { ...t, name: `${g.title} · ${t.name}`, from: { songId: g.songId, toneKey: t.key, song: `${g.title}${g.artist ? ` (${g.artist})` : ''}` } }, name: t.name, sub: chainText(t), gel: t.kind === 'bass' ? '#8c7bff' : '#ff6b3d' });
+      const twin = names.get(t.name) > 1;
+      out.push({ key: `song:${g.songId}:${t.kind || 'guitar'}:${t.key}`, group: `${g.title}${g.artist ? ` · ${g.artist}` : ''}`, tone: { ...t, name: `${g.title} · ${t.name}`, from: { songId: g.songId, toneKey: t.key, song: `${g.title}${g.artist ? ` (${g.artist})` : ''}` } }, name: t.name, sub: `${twin ? (t.kind === 'bass' ? 'Bass · ' : 'Guitar · ') : ''}${chainText(t)}`, gel: t.kind === 'bass' ? '#8c7bff' : '#ff6b3d' });
     }
   }
-  return out;
+  return uniqueKeys(out);
+}
+
+/** Every row its own key, whatever the files hold (two rows with one key light up together). */
+export function uniqueKeys(items) {
+  const seen = new Map();
+  for (const it of items) {
+    const n = seen.get(it.key) || 0;
+    seen.set(it.key, n + 1);
+    if (n) it.key = `${it.key}#${n + 1}`;
+  }
+  return items;
 }
 
 function renderList() {

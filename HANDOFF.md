@@ -1,8 +1,16 @@
-# Stagehand handoff (v4.0.8, 2026-11-02): an empty tone key no longer covers the whole window
+# Stagehand handoff (v4.0.9, 2026-11-02): Tones: a tone used for guitar and bass no longer lights up twice
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.0.9: Tones: a tone used for guitar and bass no longer lights up twice
+
+User on 4.0.8 (screenshots of Tones › From my songs, Avenged Sevenfold songs: two "AlmostEasy Distorsion" rows lit, one orange, one purple; the same for "distortion" in Unholy Confessions): "having issues going between tones, it's not clicking, selecting two sometimes … this is falling apart".
+- **Cause:** a song's tone used in both its guitar and bass parts is listed twice (services/tones.js keeps guitar and bass copies apart), but the page keyed rows by song + tone key only (`song:<id>:<key>`): both rows matched the selection, and clicking either selected that one key. Since the From my songs list existed.
+- **Fix** (tonespage.js `itemsFor`): the key has the kind too (`song:<id>:<kind>:<key>`), `uniqueKeys` makes any leftover clash unique (also on My tones), and rows with the same name in one song say "Guitar · " / "Bass · ".
+- **Checked in the real app:** `ELECTRON=<electron 44> xvfb-run -a node test/e2e/tones-electron.js <out>`: a made-up song with one tone for guitar and bass: each click picks that row only (old code: both rows every time), the twins say Guitar/Bass; and an empty key 3 is key sized (4.0.8).
+- **Ask the user:** does moving between tones feel right now? Anything else on Tones acting up?
 
 ## 4.0.8: an empty tone key no longer covers the whole window
 
