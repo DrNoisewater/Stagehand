@@ -106,7 +106,7 @@
 :host([skippable]){cursor:pointer}
 .stage{position:absolute;inset:0;display:grid;place-items:center}
 svg{display:block;width:min(78%,82vmin);height:auto;max-height:86%;overflow:visible}
-${`.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:nw-draw var(--d,1.2s) cubic-bezier(.65,0,.35,1) var(--t,0s) both}
+${`.draw{stroke-dasharray:1 2;stroke-dashoffset:1.01;animation:nw-draw var(--d,1.2s) cubic-bezier(.65,0,.35,1) var(--t,0s) both}
 @keyframes nw-draw{to{stroke-dashoffset:0}}
 .panel{opacity:0;animation:nw-fade 1.4s ease-out .3s both}
 @keyframes nw-fade{to{opacity:1}}
