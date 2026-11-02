@@ -22,7 +22,8 @@ import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShift } from './detect.js';
 import { createRenderer3D, col, mix } from './highway3d.js';
 import { createFluid } from './fluidbg.js';
-import { tuningName, tuningPlan, myTuning, setMyTuning, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
+import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
+import { tuningGuide } from './tuning-check.js';
 import { breakdown, cheer } from './scorecard.js';
 import { state, on } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
@@ -299,9 +300,9 @@ export function createHighway(stage) {
     const d = rig.drop;
     const kind = instrument() === 'bass' ? 'bass' : 'guitar';
     const amt = rig.dropAmount();
-    const songT = H.tab && H.tab.tuning ? tuningName(H.tab.tuning, kind) : '';
+    const songT = H.tab && H.tab.tuning ? `${tuningName(H.tab.tuning, kind)}${refLabel(H.tab.cents) ? ` ${refLabel(H.tab.cents)}` : ''}` : '';
     const mine = myTuning(kind);
-    const plan = H.tab ? tuningPlan(H.tab.tuning, kind, mine) : { same: true };
+    const plan = H.tab ? tuningPlan(H.tab.tuning, kind, mine, H.tab.cents || 0) : { same: true };
     const head = h('div.hw-drop-head', null, h('div', null, h('b', { text: 'Drop' }), h('small', { text: d.on ? (amt ? (amt === 12 ? 'An octave down' : `Down ${amt} semitone${amt === 1 ? '' : 's'}`) : 'Song is in standard') : 'Off' })));
     const sw = h('button.drop-switch', { type: 'button', 'aria-pressed': String(d.on), title: 'The Drop on or off (D)' }, h('span.led'));
     sw.style.setProperty('--gel', '#8c7bff');
@@ -309,8 +310,14 @@ export function createHighway(stage) {
     head.append(sw);
     dropBox.append(head);
     let need = '';
-    if (H.tab) need = plan.same ? `${songT}: your ${kind} is ready` : plan.drop ? `${songT} song, your ${kind} is in ${tuningName(mine, kind)}: Drop −${plan.drop}` : `${songT}: retune ${plan.retune.map((r) => `${r.from}→${r.to}`).join(', ')}`;
+    if (H.tab) need = plan.same ? `${songT}: your ${kind} is ready` : plan.drop ? `${songT} song, your ${kind} is in ${tuningName(mine, kind)}: Drop −${plan.drop}` : plan.retune.length ? `${songT}: retune ${plan.retune.map((r) => `${r.from}→${r.to}`).join(', ')}${plan.ref ? ` (to ${plan.ref})` : ''}` : `${songT}: retune every string a little (to ${plan.ref})`;
     if (need) dropBox.append(h(`div.hw-drop-need${plan.same ? '.ok' : ''}`, { text: need }));
+    // 4.0.6: the string-by-string tuning guide (with a live tuner), any time
+    if (H.tab) {
+      const g = h('button.hw-chip.hw-drop-guide', { type: 'button', text: plan.same ? 'Check my tuning' : 'Tuning guide' });
+      g.onclick = () => tuningGuide({ ...H.tab, type: kind === 'bass' ? 'bass' : H.tab.type }, H.song, stage.engine);
+      dropBox.append(g);
+    }
     if (plan.drop && !(d.on && d.match)) {
       const b = h('button.hw-chip.hw-drop-match', { type: 'button', html: `${icon('check')}<span>Match the song (−${plan.drop})</span>` });
       b.onclick = () => rig.setDrop({ on: true, match: true });
@@ -336,7 +343,7 @@ export function createHighway(stage) {
     if (!list.some((o) => o.join(',') === cur)) sel.append(h('option', { value: cur, text: tuningName(mine, kind), selected: true }));
     sel.onchange = () => {
       setMyTuning(kind, sel.value.split(',').map(Number));
-      if (H.tab) rig.setSongTuning(H.tab.tuning, kind);
+      if (H.tab) rig.setSongTuning(H.tab.tuning, kind, H.tab.cents || 0);
       renderDropBox();
     };
     dropBox.append(h('label.hw-drop-mine-row', null, h('span', { text: `Your ${kind} is in` }), sel));

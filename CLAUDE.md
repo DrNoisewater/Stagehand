@@ -38,6 +38,8 @@ node test/visuals/shoot.js <outDir> [fluid nebula swarm mandala strings]
 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17.2 T:19.1
 # the play-along timing check with a pretend guitar 80 ms late (expects about +30 ms)
 PLAYCAL=80 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
+# the tuning check card (every string, A425, a string ticked by a pretend guitar); writes tcheck-1/2.png
+TCHECK=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
 # a moving background must rebuild itself after the graphics card drops it
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```

@@ -15,5 +15,26 @@ ok(t.tuningPlan([-4, -2, -2, -2, -2, -2]).drop === 2, 'in Drop D, a Drop C song 
 ok(t.tuningPlan([-2, 0, 0, 0, 0, 0]).same, 'and a Drop D song just plays');
 ok(t.tuningPlan(S(0)).retune[0].up, 'back to E Standard: tune the low string up');
 ok(t.tuningPlan([-2, -2, -2, -2], 'bass').drop === 2, 'bass is remembered separately');
+// 4.0.6: the reference pitch (songs at A425…), every string listed, which string you plucked
+t.setMyTuning('guitar', S(0));
+ok(t.tuningPlan(S(0), 'guitar', S(0), -60, 0).ref === 'A425', 'E Standard A425 song on an A440 guitar: tune to A425');
+ok(t.tuningPlan(S(0), 'guitar', S(0), -60, 0).retune.length === 6, '…every string moves a little');
+ok(t.tuningPlan(S(0), 'guitar', S(0), -3, 0).same, 'a few cents off is close enough');
+ok(t.tuningPlan(S(-2), 'guitar', S(0), -60, 0).drop === undefined, 'the Drop can’t move by cents: retune');
+t.setMyTuning('guitar', S(0), -60, 'Song A');
+ok(t.myCents('guitar') === -60 && t.myTuningFrom('guitar') === 'Song A', 'remembers the reference pitch and the song');
+ok(t.tuningPlan(S(0), 'guitar', S(0), -60).same, 'next A425 song just plays');
+ok(t.tuningPlan(S(0), 'guitar', S(0), 0).ref === 'A440', 'and an A440 song asks to go back up');
+t.setMyTuning('guitar', S(0));
+const pl = t.tuningPlan([-2, 0, 0, 0, 0, 0]);
+ok(pl.strings.length === 6 && pl.strings[0].num === 6 && pl.strings[0].semis === -2 && !pl.strings[0].keep && pl.strings[1].keep, 'Drop D: string 6 down a whole step, the rest stay');
+ok(t.howFar(-2) === 'a whole step down' && t.howFar(1) === 'a semitone up' && t.howFar(-0.6) === 'a little down (60 cents)', 'says how far in words');
+// pluck the low string still at E (4000 cents) while going to D (3800): it's string 6, 200 cents high
+const w = t.whichString(4000, pl.strings);
+ok(w && w.string.num === 6 && Math.round(w.off) === 200, 'a plucked low E is string 6, a whole step too high');
+const w2 = t.whichString(5500 + 3, pl.strings);
+ok(w2 && w2.string.num === 3 && Math.abs(w2.off - 3) < 1e-9, 'a plucked G is string 3, 3 cents sharp');
+const w3 = t.whichString(4000 + 1200, pl.strings);
+ok(w3 && w3.string.num === 6, 'an octave reading on the low string still finds it');
 if (bad) process.exit(1);
 console.log('all ok');

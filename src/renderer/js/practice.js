@@ -10,48 +10,11 @@ import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './dete
 import * as stage from './stage.js';
 import { toast } from './ui.js';
 import { breakdown, compact } from './scorecard.js';
-import { tuningPlan, tuningName, myTuning, setMyTuning, dropAlways, setDropAlways } from './tuning.js';
+import { setMyTuning } from './tuning.js';
+import { checkTuning } from './tuning-check.js';
 
-/**
- * 3.7: when a song needs a different tuning from the one your instrument is in,
- * say so before you play: the Drop in one click (or always), or which strings
- * to retune. Each situation is offered once; answering it updates what Stagehand
- * knows, so the next song in the same tuning just plays.
- */
-let lastAsk = '';
-function suggestTuning(tab, kind) {
-  const mine = myTuning(kind);
-  const p = tuningPlan(tab.tuning, kind, mine);
-  if (p.same) return;
-  const songName = tuningName(tab.tuning, kind);
-  const myName = tuningName(mine, kind);
-  const what = kind === 'bass' ? 'bass' : 'guitar';
-  const key = `${kind}|${(tab.tuning || []).join(',')}|${mine.join(',')}`;
-  const retuned = { label: 'I retuned', onClick: () => { setMyTuning(kind, tab.tuning); rig.setSongTuning(tab.tuning, kind); if (rig.drop.on && rig.drop.match) rig.setDrop({ on: false }); toast({ title: `Your ${what}: ${songName}`, kind: 'ok', timeout: 2000 }); } };
-  if (p.drop) {
-    const on = () => rig.setDrop({ on: true, match: true });
-    if (rig.drop.on && rig.drop.match) return toast({ title: `Drop −${p.drop} for ${songName}`, message: `Your ${what} stays in ${myName}.`, kind: 'info', timeout: 2500 });
-    if (dropAlways()) {
-      on();
-      return toast({ title: `Drop −${p.drop} for ${songName}`, message: `Your ${what} stays in ${myName}.`, kind: 'info', timeout: 2500 });
-    }
-    if (key === lastAsk) return;
-    lastAsk = key;
-    return toast({
-      title: `${songName} song, your ${what} is in ${myName}`,
-      message: `The Drop can lower you ${p.drop} semitone${p.drop === 1 ? '' : 's'}: no retuning.`,
-      kind: 'info',
-      timeout: 12000,
-      actions: [{ label: `Drop −${p.drop}`, onClick: on }, { label: 'Always', onClick: () => (setDropAlways(true), on()) }, retuned],
-    });
-  }
-  if (key === lastAsk) return;
-  lastAsk = key;
-  const n = kind === 'bass' ? 4 : 6;
-  const steps = p.retune.map((r) => `${n + 1 - r.string}: ${r.from} ${r.up ? '↑' : '↓'} ${r.to}`).join('  ·  ');
-  toast({ title: `Retune for ${songName}`, message: `From ${myName}. String ${steps}`, kind: 'info', timeout: 14000, actions: [retuned] });
-}
-
+// 4.0.6: the tuning check is a card with every string (tuning-check.js); it replaced
+// the 3.7 notes in the corner.
 const PREF_KEY = 'stagehand.tab';
 function partPref() {
   try {
@@ -124,8 +87,8 @@ export const practice = new (class extends EventTarget {
     this.flush();
     this.tab = tab;
     const kind = tab.type === 'bass' ? 'bass' : 'guitar';
-    rig.setSongTuning(tab.tuning, kind);
-    suggestTuning(tab, kind);
+    rig.setSongTuning(tab.tuning, kind, tab.cents || 0);
+    checkTuning(tab, song, { engine: stage.engine });
     tuneShift.st = rig.dropAmount();
     this.targets = targetsFromTab(tab);
     this.resetJudge();
@@ -224,7 +187,7 @@ export const practice = new (class extends EventTarget {
       this.flush();
       const src = this._source();
       const j = src.judge;
-      this.session = { songId: this.song.id, part: src.part, secs: 0, at: Date.now(), judge: j, hits0: j ? j.hits : 0, judged0: j ? j.judged : 0, tuning: this.tab ? this.tab.tuning : null, kind: this.kind, tab: src.tab, targets: src.targets, pos0: stage.engine.position - 0.5 };
+      this.session = { songId: this.song.id, part: src.part, secs: 0, at: Date.now(), judge: j, hits0: j ? j.hits : 0, judged0: j ? j.judged : 0, tuning: this.tab ? this.tab.tuning : null, cents: this.tab ? this.tab.cents || 0 : 0, title: this.song ? this.song.title : null, kind: this.kind, tab: src.tab, targets: src.targets, pos0: stage.engine.position - 0.5 };
     }
   }
 
@@ -250,7 +213,7 @@ export const practice = new (class extends EventTarget {
       if (j && (notes < 0 || hit < 0)) (hit = j.hits), (notes = j.judged); // the score was reset (seek back): count what's there
       const accuracy = notes > 0 ? hit / notes : null;
       // played it well with the Drop off: that's how your instrument is tuned now
-      if (accuracy !== null && accuracy >= 0.6 && notes >= 30 && !rig.dropAmount() && s.tuning) setMyTuning(s.kind, s.tuning);
+      if (accuracy !== null && accuracy >= 0.6 && notes >= 30 && !rig.dropAmount() && s.tuning) setMyTuning(s.kind, s.tuning, s.cents || 0, s.title);
       // the breakdown (sections, kinds of notes, longest streak) of what was played in this session
       const detail = j && s.targets ? compact(breakdown(s.tab, s.targets, j, { from: s.pos0 })) : {};
       api.stats.log({ songId: s.songId, part: s.part, seconds: s.secs, accuracy, notes, hit, speed: stage.engine.speed, at: s.at, ...detail }).then(() => emit('stats')).catch(() => {});
