@@ -870,8 +870,8 @@ class FakePortMain extends EventEmitter {
     // picking the same song again tries again (it used to do nothing)
     audioFail.delete(sA);
     along(sA);
-    v = await until((x) => x.phase === 'ready' && x.tabFor === sA && !x.status);
-    check(v.phase === 'ready' && v.tabFor === sA && !v.status, `picking the failed song again opens it (${v.phase})`);
+    v = await until((x) => x.phase === 'ready' && x.tabFor === sA && !x.status, 25000); // its stems load too: slow here
+    check(v.phase === 'ready' && v.tabFor === sA && !v.status, `picking the failed song again opens it (${v.phase}${v.status ? `, still showing “${v.status.slice(0, 40)}”` : ''})`);
     // Try again and Back on the panel
     audioFail.add(sB);
     along(sB);
