@@ -10,6 +10,7 @@ const approachDepth = (noteTime, chartTime, flow = 1) => (noteTime - chartTime) 
  */
 import { visualTime, sustainIndex, firstSustain, noteEnd } from './highway-timing.js';
 import { api } from './api.js';
+import { vibratoAt } from './performance-math.js';
 import { h, icon, esc, showMenu, toast } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
@@ -1293,10 +1294,10 @@ export function createClassicHighway(stage) {
       // slides ease in and out, like the real glide of the hand
       const e = Math.min(1, Math.max(0, u));
       let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
-      // vibrato ~5.5 shakes a second, tremolo a fast zigzag: in real time, so they read true at any speed
-      if (nt.vibrato && u > 0.06) x += Math.sin((time - tg.t) * Math.PI * 2 * 5.5) * lw * 0.16;
-      // a bend pushes the ribbon across the strings: a full step a string and a half
-      let L = L0 + (bendAt(nt, time) / 2) * 1.5;
+      // a bend pushes the ribbon across the strings: a full step a string and a half.
+      // Vibrato is the bend going up and down a little (4.0.6: no sideways squiggle);
+      // tremolo a fast zigzag, in real time so it reads true at any speed
+      let L = L0 + ((bendAt(nt, time) + vibratoAt(nt, time, bendAt(nt, time))) / 2) * 1.5;
       if (nt.tremolo) L += (((time - tg.t) * 14) % 1 < 0.5 ? 1 : -1) * 0.12;
       pts.push([x, L, zOf(time)]);
     }

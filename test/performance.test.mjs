@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {createRequire} from 'node:module';
-import {bendValue,scoreHit,linkChains,noteTech} from '../src/renderer/js/performance-math.js';
+import {bendValue,scoreHit,linkChains,noteTech,heldBend,drawnBend,vibratoAt} from '../src/renderer/js/performance-math.js';
 const require=createRequire(import.meta.url);
 const {Stats}=require('../src/main/services/stats.js');
 const {ensureCab}=require('../src/main/services/cabinets.js');
@@ -18,6 +18,29 @@ assert.deepEqual(noteTech(v1),{bend:3,release:false,pre:false,vibrato:true,slide
 const par={t:20,s:1,f:13,sus:0.5,vibrato:true,linkNext:true},kid={t:20.5,s:1,f:13,sus:1,linked:true,bends:[{t:20.6,step:2},{t:21.2,step:0}]};
 const tgs=[{t:20,notes:[par]},{t:20.5,notes:[kid]}];linkChains(tgs);linkChains(tgs);
 assert.equal(par.chain.length,1);assert.deepEqual(noteTech(par),{bend:2,release:true,pre:false,vibrato:true,slide:null});
+// 4.0.6: a bend picked once, then held on with vibrato and no bend of its own in the chart:
+// the held part stays bent and wobbles under the bend (down a quarter step and back), the
+// same every time it comes round; a straight note's vibrato goes up a quarter step and back
+{
+  const up={t:30,s:2,f:14,sus:0.5,linkNext:true,bends:[{t:30,step:0},{t:30.3,step:2}]};
+  const held={t:30.5,s:2,f:14,sus:1,linked:true,vibrato:true};
+  const ts=[{t:30,notes:[up]},{t:30.5,notes:[held]}];linkChains(ts);
+  assert.equal(heldBend(held,30.6),2,'held part keeps the bend');
+  const ys=[];for(let k=0;k<=100;k++)ys.push(drawnBend(held,30.5+k/100));
+  assert.ok(Math.max(...ys)<=2+1e-9&&Math.min(...ys)>=1.5-1e-9,'wobbles between the bend and a quarter step under it');
+  assert.ok(Math.min(...ys)<1.6,'it really wobbles');
+  // the bent and the held part join up: no drop at the join
+  assert.ok(Math.abs(heldBend(up,30.5)-drawnBend(held,30.5))<1e-9);
+  // played again later: the same
+  const up2={...up,t:40,bends:[{t:40,step:0},{t:40.3,step:2}]},held2={...held,t:40.5};
+  const ts2=[{t:40,notes:[up2]},{t:40.5,notes:[held2]}];linkChains(ts2);
+  assert.equal(drawnBend(held2,40.6),drawnBend(held,30.6));
+  // a straight note: up to a quarter step and back, never below
+  const plain={t:50,s:3,f:7,sus:1,vibrato:true};
+  const ps=[];for(let k=0;k<=100;k++)ps.push(drawnBend(plain,50+k/100));
+  assert.ok(Math.min(...ps)>=0&&Math.max(...ps)<=0.5+1e-9&&Math.max(...ps)>0.45);
+  assert.equal(vibratoAt({...plain,f:0},50.2,0),0,'open strings have no vibrato drawn');
+}
 assert.equal(noteTech({t:1,s:0,f:7,bends:[{t:1,step:2},{t:1.5,step:0}]}).pre,true);
 let r={combo:0,multiplier:1,points:0,bestCombo:0};for(let i=0;i<40;i++)scoreHit(r,true);assert.equal(r.multiplier,4);const before=r.points;scoreHit(r,false);assert.equal(r.points,before);assert.equal(r.multiplier,1);assert.equal(r.combo,0);
 

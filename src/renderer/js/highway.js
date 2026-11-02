@@ -11,7 +11,7 @@ import { h, icon, esc, showMenu, toast, instrumentTag } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
-import { bendValue, linkChains, noteTech } from './performance-math.js';
+import { linkChains, noteTech, heldBend, drawnBend, bendStart, VIBRATO_HZ } from './performance-math.js';
 import { createFluidDriver } from './reactive-bg.js';
 import { createFeatures } from './music-features.js';
 import { createVisuals } from './visuals.js';
@@ -1857,7 +1857,8 @@ export function createHighway(stage) {
 
   // ------------------------------------------------------------- notes --
   /** Bend (in half steps) of a note at song time `time`, from its real bend curve. */
-  const bendAt = bendValue;
+  // a held-on note keeps the bend it was left at (4.0.6)
+  const bendAt = heldBend;
   const bendLabel = (b) => ({ 0.5: '¼', 1: '½', 1.5: '¾', 2: 'full', 3: '1½', 4: '2' })[b] || `${b / 2}`;
   const maxBend = (nt) => (nt.bends && nt.bends.length ? Math.max(...nt.bends.map((p) => p.step)) : nt.bend || 0);
   const judged = (tg) => (H.judge && prefs.detect && rig.on ? H.judge.state.get(tg.id) : null);
@@ -1900,8 +1901,9 @@ export function createHighway(stage) {
   /**
    * A note's sustain from t0 to t1 (song times): a flat glowing ribbon at its
    * string's height. Each technique has its own look, so they read at a glance:
-   * a bend climbs (with ↑ and how far), vibrato snakes side to side in a smooth
-   * wave, tremolo picking is cut into quick bright stripes like a ladder.
+   * a bend climbs (with ↑ and how far), vibrato makes it go up and down a little
+   * (a bent note eases down from the bend and back: one bend that wobbles, 4.0.6),
+   * tremolo picking is cut into quick bright stripes like a ladder.
    */
   function buildTrail(nt, tg, t0, t1, an, st) {
     const { alpha, glow } = R3.L;
@@ -1917,22 +1919,20 @@ export function createHighway(stage) {
     const lw = laneW(Math.max(1, nt.f || an.fret));
     const duration = noteEnd(nt, tg) - tg.t;
     const vib = !!nt.vibrato && !open;
-    // vibrato: ~2 waves per world-second of travel, wide enough to see from the back
-    const VIB_HZ = 5.5;
-    const vibAmp = lw * 0.25;
+    const VIB_HZ = VIBRATO_HZ;
     const posAt = (time) => {
       const u = duration > 0 ? (time - tg.t) / duration : 0;
       const e = Math.min(1, Math.max(0, u));
-      let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
-      if (vib) x += Math.sin((time - tg.t) * Math.PI * 2 * VIB_HZ) * vibAmp * Math.min(1, Math.max(0, (time - tg.t) / 0.12));
-      const bend = bendAt(nt,time);
+      const x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
+      const bend = drawnBend(nt, time);
       const direction = L0 > (G.n-1)/2 ? -1 : 1; // push lower strings inward; pull upper strings inward
       const L = L0 + direction * bend * .70;
       return [x, nY(L) - G.gy * 0.12, zOf(time), L];
     };
     // enough points for the vibrato wave to stay smooth (no stepping)
     const steps = Math.max(6, Math.min(vib ? 360 : 120, Math.round((t1 - t0) * (vib ? VIB_HZ * 14 : 40))));
-    const bending = maxBend(nt) > 0;
+    const b0 = nt.linked ? bendStart(nt) : 0;
+    const bending = maxBend(nt) > 0 || b0 > 0 || vib;
     let prev = null;
     let peak = null;
     for (let k = 0; k <= steps; k++) {
@@ -1961,8 +1961,9 @@ export function createHighway(stage) {
         glow.bar([p[0] - w, p[1] + 0.004, p[2]], [p[0] + w, p[1] + 0.004, p[2]], 0.11, col('#ffffff', 0.85, holding ? 1.8 : 1.3));
       }
     }
-    const mb = maxBend(nt);
-    if(mb>0 && peak){
+    // the ↑ and the riser only where a bend starts, not again on the held-on part
+    const mb = maxBend(nt) > b0 + 0.25 ? maxBend(nt) : 0;
+    if(mb>0 && peak && !b0){
       const p=posAt(Math.max(t0,tg.t));
       alpha.bar([p[0],nY(L0)-G.gy*.12,p[2]],[p[0],p[1],p[2]],.045,col('#fff3d6',.8));
     }
@@ -1982,14 +1983,15 @@ export function createHighway(stage) {
     for (let i = Math.max(0, lower(T, t - 8)); i < T.length && T[i].t <= t; i++) {
       const tg = T[i];
       for (const nt of tg.notes) {
-        if (t > noteEnd(nt, tg) || !(maxBend(nt) > 0)) continue;
+        const held = nt.linked ? bendStart(nt) : 0;
+        if (t > noteEnd(nt, tg) || !(maxBend(nt) > 0 || held > 0)) continue;
         const an = anchorAt(tg.t);
         const L0 = level(nt.s);
         const dir = L0 > (G.n - 1) / 2 ? -1 : 1; // the same way the sustain ribbon bends
         const yAt = (b) => nY(L0 + dir * b * 0.7);
         const x = noteX(nt, an) + laneW(Math.max(1, nt.f || an.fret)) * 0.32;
-        const top = maxBend(nt);
-        const now = bendAt(nt, t);
+        const top = Math.max(maxBend(nt), held);
+        const now = drawnBend(nt, t); // with its vibrato, as the ribbon shows it
         const z = -0.06;
         alpha.bar([x, yAt(0), z], [x, yAt(top), z], 0.07, col('#fff3d6', 0.45));
         // the target: a bar across, gold

@@ -56,6 +56,11 @@ function songT() {
   mk(20.3, 1, 8, 1.0, { linked: true, bend: 2, bends: [{ t: 20.4, step: 2 }, { t: 21.3, step: 2 }] });
   mk(21.8, 3, 7, 0, { bend: 1, bends: [{ t: 21.85, step: 1 }] });
   mk(22.4, 2, 8, 1.2, { bend: 2, bends: [{ t: 22.6, step: 2 }, { t: 23.0, step: 2 }, { t: 23.4, step: 0 }] });
+  // 4.0.6: bend up, then held on with vibrato and no bend of its own (must stay bent and wobble), twice
+  for (const t0 of [24.5, 27]) {
+    mk(t0, 2, 9, 0.6, { linkNext: true, bend: 2, bends: [{ t: t0, step: 0 }, { t: t0 + 0.3, step: 2 }] });
+    mk(t0 + 0.6, 2, 9, 1.4, { linked: true, vibrato: true });
+  }
   return { strings: 6, notes, chordEvents: [], anchors, beats, chords: [], sections: [{ name: 'riff', start: 2, end: 20 }], type: 'lead', tuningName: 'E Standard', length: 60, handShapes: [] };
 }
 function songC() {
