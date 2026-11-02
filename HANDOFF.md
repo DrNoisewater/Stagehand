@@ -1,8 +1,19 @@
-# Stagehand handoff (v3.13.0, 2026-11-02): reliability pass: guitar/bass, tone keys, recordings, song switching, bends, timing check
+# Stagehand handoff (v4.0.0, 2026-11-02): the refinement list finished: Tools menu, bend gauge, Progress, Discover, songs on this PC
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.0.0: the rest of the refinement list
+
+User: "finish the remaining tasks for a major update". On top of 3.13 (below):
+- **Highway Tools menu** (`performance-tools.js`): Tuner (U), Score attack, Record clip, Recordings and Timing check are in one **Tools** menu in place of three floating buttons; while a clip records or a score attack runs, one chip shows it (recording time) and stops it.
+- **Bend gauge** (`buildBendGauge` in highway.js): while a bend note is held at the neck, a rail on its string to how far to bend (gold bar), a bar in the string's colour where the chart's bend is now, and a white bar for how far you've bent, heard from your guitar (`rig.pitch()` against the note's pitch, with the guitar-on-bass octave). Not tried with a real bend yet.
+- **Progress**: **Up next** beside your last song (your weakest section of a song you're working on, with how to loop it slowly; else a song close to mastered; else one not played yet), **Your songs** (mastered / close / learning / not played yet; click to list them), and a short Recordings card in place of the takes list.
+- **Discover**: every song says In your library / Wanted / Not in your library, with worded buttons: **Play** (opens the highway) or **Want it** / **Wanted**; the how-it-works strip starts with Want it.
+- **Songs on this PC** (`services/songfinder.js`, IPC `import:scanPC`): Downloads, Desktop, Documents and Music, four folders deep, for .psarc files not in the library (by path or file name). Discover › Imports › Find songs on this PC; once a day a note offers to add any found (imported the usual way, so duplicates are still caught).
+- Tests: `test/songfinder.test.js` (in npm test); ui3 checks Progress (Up next, Your songs) and, with `SH_PERFORMANCE=1`, the Tools menu and the recording chip.
+- **Ask the user:** is the Tools menu easy to reach mid-song? Does the bend gauge help (and does the white "your bend" bar follow a real bend)? Is Up next a good suggestion? Is Discover clearer now? Did the PC search find their songs, and is once a day too often?
 
 ## 3.13.0: reliability first
 
@@ -44,7 +55,7 @@ User asked for a "final refinement" pass: accuracy, playability, simplicity; fix
 
 **Ask the user (real guitar and bass):** power chords and drop-tuned riffs: does it ever flip to bass now? Does the Guitar/Bass tag look right? Do tone keys always change the sound, and does the note match? Looper and Record take after unplugging/replugging: clean now? Record clip: clean sound? Kryptonite and the 311 song back and forth: any stall, any old song? WMGGW bend + vibrato note: readable? Were the black slabs the fret sides? Try the Timing check: does the result feel right and repeat? Backgrounds: still any black? Tones: is the simple view what they wanted?
 
-**Not done yet (next):** Progress redesign (§8), Discover/Wanted simplification (§9), the wider navigation review and floating controls (§11: Tuner/Score attack/Record clip still float on the highway), a live bend gauge, background folder discovery for imports. Rocksmith research was from memory, not online.
+**Not done in 3.13:** done in 4.0 (above). Rocksmith research was from memory, not online.
 
 ## 3.12.0: one copy again
 
