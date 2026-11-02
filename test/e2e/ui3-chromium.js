@@ -102,6 +102,23 @@ class FakePortMain extends EventEmitter {
         }, 40);
       return;
     }
+    // recorded sound (looper, clips) comes as many small pieces: batch them too, in order, none dropped
+    if (msg && (msg.t === 'processed' || msg.t === 'mixed') && msg.d) {
+      const k = msg.t;
+      if (!this.mon) this.mon = {};
+      if (!this.mon[k]) this.mon[k] = [];
+      const b = this.mon[k];
+      for (let i = 0; i < msg.d.length; i++) b.push(msg.d[i]);
+      if (!this.monT)
+        this.monT = setTimeout(() => {
+          this.monT = null;
+          for (const kk of Object.keys(this.mon)) {
+            if (this.mon[kk].length) this._send({ t: kk, d: this.mon[kk] });
+            this.mon[kk] = [];
+          }
+        }, 40);
+      return;
+    }
     // level meters: only the newest matters, keep one in the queue at most
     if (msg && msg.t === 'ev' && msg.ev && msg.ev.ev === 'meters') {
       this.lastMeters = msg;
@@ -308,7 +325,7 @@ class FakePortMain extends EventEmitter {
     window.__deliver = (id, m) => {
       const port = local.get(id);
       if (!port) return;
-      if (m && m.t === 'in' && Array.isArray(m.d)) m = { ...m, d: Float32Array.from(m.d) };
+      if (m && (m.t === 'in' || m.t === 'processed' || m.t === 'mixed') && Array.isArray(m.d)) m = { ...m, d: Float32Array.from(m.d) };
       port.postMessage(m);
     };
     const ns = (name) => {
