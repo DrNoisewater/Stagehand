@@ -26,6 +26,7 @@ const EVENTS = new Set(['nav:back',
   'rocksmith:changed',
   'captures:change',
   'tones:progress',
+  'app:recovered',
 ]);
 
 contextBridge.exposeInMainWorld('stagehand', {
@@ -34,6 +35,8 @@ contextBridge.exposeInMainWorld('stagehand', {
     log: () => call('app:log'),
     titleBar: (colors) => call('win:titlebar', colors),
     fullscreen: (on) => call('win:fullscreen', on),
+    activity: (text) => call('app:activity', text),
+    crashNote: () => call('app:crashNote'),
   },
   library: {
     get: () => call('library:get'),
@@ -105,6 +108,10 @@ contextBridge.exposeInMainWorld('stagehand', {
     prepare: () => call('clips:prepare'),
     source: () => call('clips:source'),
     save: (data, meta) => call('clips:save', data, meta),
+    begin: (meta) => call('clips:begin', meta),
+    chunk: (id, kind, data) => call('clips:chunk', id, kind, data),
+    finish: (id, meta) => call('clips:finish', id, meta),
+    cancel: (id) => call('clips:cancel', id),
   },
   takes: {
     list: () => call('takes:list'),

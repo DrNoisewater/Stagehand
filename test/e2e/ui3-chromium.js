@@ -195,8 +195,14 @@ class FakePortMain extends EventEmitter {
   const tabDelay = new Map();
   const stemsDelay = new Map();
   const later = (ms) => new Promise((r) => setTimeout(r, ms || 0));
+  const clipSessions = new (require('../../src/main/services/clip-sessions').ClipSessions)({ tempRoot: os.tmpdir() });
   const API = {
     'clips.source': () => 'test-window',
+    // 4.0.7: written to disk while it records (the real clip-sessions.js); the save copies the pieces out
+    'clips.begin': (meta) => clipSessions.begin(meta),
+    'clips.chunk': (id, kind, data) => clipSessions.chunk(id, kind, Uint8Array.from(Object.values(data || {}))),
+    'clips.finish': async (id, meta) => { const c = await clipSessions.close(id); const f = path.join(outDir, 'export-test.webm'); fs.copyFileSync(c.input, f); if (c.sound) fs.copyFileSync(c.sound, path.join(outDir, 'export-test.wav')); await clipSessions.remove(c.dir); return { path: f, take: { id: 'k_0000000000', name: `SH - ${c.title}` } }; },
+    'clips.cancel': (id) => clipSessions.remove(id),
     'clips.save': (data, meta) => { const f=path.join(outDir,'export-test.webm');fs.writeFileSync(f,Buffer.from(Object.values(data)));if(meta&&meta.audio)fs.writeFileSync(path.join(outDir,'export-test.wav'),Buffer.from(Object.values(meta.audio)));return {path:f,take:{id:'k_0000000000',name:`SH - ${(meta&&meta.title)||'Jam Session'}`}};},
     'cabs.ensure': id => require('../../src/main/services/cabinets').ensureCab(path.join(tmp,'Cabs'),id,async()=>{throw Error('offline test');}),
     'cabs.bytes': id => Array.from(fs.readFileSync(path.join(ROOT,'src/renderer/data/cabs',id+'.wav'))),
