@@ -11,7 +11,7 @@ import { createFluidDriver } from './reactive-bg.js';
 import { createFeatures } from './music-features.js';
 import { createVisuals, SCENES } from './visuals.js';
 import { api } from './api.js';
-import { h, icon, esc, isTyping, toast } from './ui.js';
+import { h, icon, esc, isTyping, toast, instrumentTag } from './ui.js';
 import { rig } from './rig.js';
 import { drums } from './drums.js';
 import { createFluid, guitarInk, ambient, hueRGB } from './fluidbg.js';
@@ -69,8 +69,8 @@ back.onclick = () => closeJam();
 drumBtn.onclick = () => (drums.on ? drums.stop() : drums.start());
 
 function renderHud() {
-  const t = rig.tone;
-  tone.innerHTML = `${icon('guitar')}<span>${esc(t ? t.name || 'Tone' : 'Tone')}</span>`;
+  const t = rig.playing;
+  tone.innerHTML = `${icon('guitar')}${instrumentTag(rig)}<span>${esc(t ? t.name || 'Tone' : 'Tone')}</span>`;
   tone.classList.toggle('off', !rig.on || rig.muted);
   tone.title = !rig.on ? 'Plug in your Rocksmith cable' : rig.muted ? 'Your guitar is muted' : 'Your tone (1–9 for your slots)';
   drumBtn.innerHTML = `${icon('drum')}<span>${drums.on ? `${drums.bpm} bpm` : 'Drums'}</span>`;

@@ -7,7 +7,7 @@ import { APPROACH_UNITS, approachDepth, chordSpan, isChordRepeat } from './highw
  */
 import { visualTime, sustainIndex, firstSustain, noteEnd } from './highway-timing.js';
 import { api } from './api.js';
-import { h, icon, esc, showMenu, toast } from './ui.js';
+import { h, icon, esc, showMenu, toast, instrumentTag } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
@@ -2135,7 +2135,8 @@ export function createHighway(stage) {
     const mineT = (tonelib.list || []).find((x) => x.id === rig.toneId);
     const cur = rig.mode === 'song' ? songToneAt(stage.engine.position) : null;
     const toneName = rig.mode === 'song' ? `Song tone${cur && cur.name ? ` · ${cur.name}` : ''}` : rig.mode === 'live' && rig.liveTone ? rig.liveTone.name : mineT ? `${mineT.slot ? `${mineT.slot} · ` : ''}${mineT.name}` : (TONES.find((x) => x.id === rig.toneId) || {}).name || 'Tone';
-    toneBtn.innerHTML = `${icon('amp')}<span>${esc(toneName)}</span>${rig.capture ? '<span class="real-badge sm" title="A real amp is playing">REAL</span>' : ''}${icon('chevron')}`;
+    const shown = rig.standIn ? `${rig.standIn.name} (for your ${rig.instrument})` : toneName;
+    toneBtn.innerHTML = `${icon('amp')}${instrumentTag(rig)}<span>${esc(shown)}</span>${rig.capture ? '<span class="real-badge sm" title="A real amp is playing">REAL</span>' : ''}${icon('chevron')}`;
     toneBtn.hidden = !rig.on;
     rigBox.classList.toggle('real', !!rig.capture);
     renderMix();

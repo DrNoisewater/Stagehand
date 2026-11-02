@@ -68,3 +68,79 @@ test('one-off glitches (a single low reading) are ignored', () => {
   for (let i = 0; i < 40; i++, t += 0.05) s.push(t, i % 13 === 0 ? 30 : 52, 0.05);
   assert.strictEqual(s.instrument, 'guitar');
 });
+
+// ---- power chords are not bass notes (3.13) ----
+import { realLow, reading } from '../src/renderer/js/instrument.js';
+import { detectPitch } from '../src/renderer/js/pitch.js';
+
+const SR = 48000;
+const hz = (m) => 440 * 2 ** ((m - 69) / 12);
+/** Notes (MIDI) with given partial strengths, 4096 samples, plus a little noise. */
+function sound(notes, partial, n = 4096) {
+  const b = new Float32Array(n);
+  let seed = 7;
+  for (const m of notes) {
+    const f = hz(m);
+    for (let h = 1; h <= 14; h++) {
+      const a = partial(h);
+      for (let i = 0; i < n; i++) b[i] += a * Math.sin((2 * Math.PI * f * h * i) / SR + h * 1.3);
+    }
+  }
+  for (let i = 0; i < n; i++) b[i] += ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 0.004;
+  return b;
+}
+const guitar = (h) => (0.3 / h) * Math.exp(-h * 0.15);
+
+test('a power chord reads an octave low, and realLow catches it', () => {
+  for (const root of [36, 38, 40, 41, 43, 45, 47]) {
+    for (const chord of [[root, root + 7], [root, root + 7, root + 12]]) {
+      const b = sound(chord, guitar);
+      const p = detectPitch(b, SR, { threshold: 0.12 });
+      const m = 69 + 12 * Math.log2(p.hz / 440);
+      assert.ok(Math.abs(m - (root - 12)) < 0.5, `the reader hears ${m.toFixed(1)} for ${chord}`);
+      assert.strictEqual(realLow(b, SR, p.hz), false, `power chord ${chord} taken for a low note`);
+    }
+  }
+});
+
+test('real bass notes pass realLow, even with a weak fundamental', () => {
+  const bass = (h) => 1 / (h * h);
+  const thin = (h) => (h === 1 ? 0.12 : 1 / (h * h)); // pickup/cable loses most of the lowest partial
+  for (const m of [23, 28, 31, 33, 35, 36]) {
+    for (const shape of [bass, thin]) {
+      const b = sound([m], shape);
+      assert.strictEqual(realLow(b, SR, hz(m)), true, `bass note ${m} rejected`);
+    }
+  }
+});
+
+test('a strummed power-chord riff stays a guitar, start to finish', () => {
+  const s = new InstrumentSense({ instrument: 'guitar', lowest: 38 }); // guitar in Drop D
+  const changes = [];
+  let t = 0;
+  for (let i = 0; i < 24; i++) {
+    const root = [40, 43, 45, 41, 38][i % 5];
+    const b = sound([root, root + 7, root + 12], guitar);
+    for (let k = 0; k < 8; k++, t += 0.05) {
+      const r = s.push(t, reading(b, SR, 0.1, 38), 0.1);
+      if (r) changes.push(r);
+    }
+    const r = s.push((t += 0.05), null, 0.002);
+    if (r) changes.push(r);
+  }
+  assert.deepStrictEqual(changes, []);
+  // and a real bass is still heard as one
+  const b2 = new InstrumentSense({ instrument: 'guitar' });
+  for (let i = 0; i < 6; i++) {
+    const b = sound([[28, 31, 33][i % 3]], (h) => 1 / (h * h));
+    for (let k = 0; k < 8; k++, t += 0.05) b2.push(t, reading(b, SR, 0.1, 40), 0.1);
+    b2.push((t += 0.05), null, 0.002);
+  }
+  assert.strictEqual(b2.instrument, 'bass');
+});
+
+test('one stray low reading does not flip a guitar to bass', () => {
+  const s = new InstrumentSense({ instrument: 'guitar' });
+  const { changes } = play(s, [40, 28, 43, 45, 31, 47, 50]);
+  assert.deepStrictEqual(changes, []);
+});

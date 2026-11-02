@@ -145,13 +145,24 @@ export function nowPlayingTone() {
 }
 
 export function useSlot(n) {
-  if(n===1){rig.autoSong=true;rig.dispatchEvent(new Event('song-auto'));emit('tones');toneToast(1,'Automatic Song Tone');return true;}
+  if (n === 1) {
+    rig.autoSong = true;
+    // song-auto.js answers with what the engine did (or why it couldn't follow a song)
+    let done = null;
+    rig.dispatchEvent(new CustomEvent('song-auto', { detail: { reply: (p) => (done = p) } }));
+    emit('tones');
+    toneToast(1, 'the song’s own tones', done || Promise.resolve({ ok: false, error: 'open a song first: key 1 follows its tones.' }));
+    return true;
+  }
   const t = bySlot(n);
-  if(!t){toneToast(n,'No Tone Assigned');return false;}
+  if (!t) {
+    toneToast(n, 'No Tone Assigned');
+    return false;
+  }
   try {
     localStorage.setItem('stagehand.slot', String(n));
   } catch (_) {}
-  rig.setTone(t.id);toneToast(n,t.name);
+  toneToast(n, t.name, rig.setTone(t.id));
   emit('tones');
   return true;
 }

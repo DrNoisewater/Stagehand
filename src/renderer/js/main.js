@@ -198,20 +198,31 @@ async function boot() {
     state.engine = await api.engine.status();
     emit('engine');
   });
-  // Picked up a bass (or back to guitar): say what tone is playing now, and let you keep yours.
+  // Picked up a bass (or back to guitar): say what tone is playing now, let you keep yours,
+  // and let you put a wrong guess right in one click.
   rig.addEventListener('instrument', (e) => {
     if (!e.detail.sensed) return;
-    const what = e.detail.instrument === 'bass' ? 'Bass' : 'Guitar';
+    const inst = e.detail.instrument;
+    const what = inst === 'bass' ? 'Bass' : 'Guitar';
+    const other = inst === 'bass' ? 'guitar' : 'bass';
     const chosen = rig.tone;
+    const wrong = { label: `No, it’s a ${other}`, onClick: () => rig.correctInstrument(other) };
     if (rig.standIn) {
       toast({
-        title: `${what} plugged in: playing ${rig.standIn.name}`,
+        title: `${what} heard: playing ${rig.standIn.name}`,
         message: `${chosen ? `${chosen.name} is a ${chosen.kind === 'bass' ? 'bass' : 'guitar'} tone. ` : ''}Your tone comes back when you switch back.`,
         kind: 'info',
-        timeout: 7000,
-        actions: [{ label: `Keep ${chosen ? chosen.name : 'my tone'}`, onClick: () => rig.holdTone() }],
+        timeout: 9000,
+        actions: [{ label: `Keep ${chosen ? chosen.name : 'my tone'}`, onClick: () => rig.holdTone() }, wrong],
       });
-    } else toast({ title: `${what} plugged in`, kind: 'info', timeout: 2500 });
+    } else toast({ title: `${what} heard`, kind: 'info', timeout: 5000, actions: [wrong] });
+  });
+  // A tone the engine couldn't play (a song's tone change mid-song, a stand-in…): say so, not silently.
+  let lastToneErr = 0;
+  rig.addEventListener('tone-error', (e) => {
+    if (document.querySelector('.tone-toast') || Date.now() - lastToneErr < 10000) return; // the key note already says it
+    lastToneErr = Date.now();
+    toast({ title: 'Tone didn’t change', message: e.detail.error || 'The sound engine didn’t answer.', kind: 'err', timeout: 6000 });
   });
   // Your guitar just works: start it now, and again whenever the cable shows up.
   loadTones()
