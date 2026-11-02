@@ -30,7 +30,7 @@ User asked for a "final refinement" pass: accuracy, playability, simplicity; fix
 
 **Timing check** (replaces the tapping Sync check; tapping stays as "Tap instead"): Sound & settings › Timing check: four clicks, then 16 notes down a lane at 80 bpm; you pick along; picks are heard as scoring hears them (same detector, same delay) and placed by the attack inside the buffer (`attackAgo`), so a slow screen doesn't skew it; result + Use / Try again / Reset. `matchTiming`/`attackAgo` in highway-timing.js; `test/calibration.test.mjs`; `PLAYCAL=<ms> node test/hwlook/shoot.js <out> T:3` runs it with a pretend guitar (measured within ±10 ms in software rendering).
 
-**Recordings**: videos are `SH - <song>.mp4` / `SH - Jam Session.mp4` in `<takes>/Videos`, never overwriting (no save box any more); takes are `SH - <name>.wav`. **Recordings** in the menu (also Progress › All recordings and the "Saved" note): date, length, size, play inside Stagehand, rename, delete, show in folder, open the folder (`js/recordings.js`, `Takes.freeName/addVideo`, `clips:save(data, {title, songId, seconds})`). `test/recordings.test.js`.
+**Recordings**: videos are `SH - <song>.mp4` / `SH - Jam Session.mp4` in `<takes>/Videos`, never overwriting (no save box any more); takes are `SH - <name>.wav`. **Recordings** in the menu (also a Recordings button next to Record video on Jam/Play, Progress › All recordings, and the "Saved" note): date, length, size, play inside Stagehand, rename, delete, show in folder, open the folder (`js/recordings.js`, `Takes.freeName/addVideo`, `clips:save(data, {title, songId, seconds})`). `test/recordings.test.js`.
 
 **Moving backgrounds black until switching away and back**: a scene's picture lost by the graphics card (driver reset, too many pictures open) set `failed` for good. `visuals.js` now rebuilds (a few tries, spaced out); the Fluid frame is rebuilt if it never starts or loses its picture; the highway shows the photo instead of black meanwhile. `LOSE_CONTEXT=1 VENUE=nebula node test/hwlook/shoot.js <out> T:17:p` (fails on the old code).
 
@@ -44,7 +44,7 @@ User asked for a "final refinement" pass: accuracy, playability, simplicity; fix
 
 **Ask the user (real guitar and bass):** power chords and drop-tuned riffs: does it ever flip to bass now? Does the Guitar/Bass tag look right? Do tone keys always change the sound, and does the note match? Looper and Record take after unplugging/replugging: clean now? Record clip: clean sound? Kryptonite and the 311 song back and forth: any stall, any old song? WMGGW bend + vibrato note: readable? Were the black slabs the fret sides? Try the Timing check: does the result feel right and repeat? Backgrounds: still any black? Tones: is the simple view what they wanted?
 
-**Not done yet (next):** Progress redesign (§8), Discover/Wanted simplification (§9), the wider navigation review and floating controls (§11: Tuner/Score attack/Record clip still float on the highway), a live bend gauge, a recording list on Jam itself, background folder discovery for imports. Rocksmith research was from memory, not online.
+**Not done yet (next):** Progress redesign (§8), Discover/Wanted simplification (§9), the wider navigation review and floating controls (§11: Tuner/Score attack/Record clip still float on the highway), a live bend gauge, background folder discovery for imports. Rocksmith research was from memory, not online.
 
 ## 3.12.0: one copy again
 

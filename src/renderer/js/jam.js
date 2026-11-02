@@ -86,7 +86,7 @@ export function jamOpen() {
 export function openJam() {
   if (J.open) return;
   J.open = true;
-  setPage('play');controls.prepend(backingControls);controls.append(recordControl);
+  setPage('play');controls.prepend(backingControls);controls.append(recordControl,recordingsControl);
   wasPlaying=stage.engine.playing;
   J.ink = guitarInk();
   J.beat = -1;
@@ -103,7 +103,7 @@ export function openJam() {
 export function closeJam() {
   if (!J.open) return;
   J.open = false;
-  closeDrawer();document.querySelector('.jam-launch-options')?.prepend(backingControls,recordControl);
+  closeDrawer();document.querySelector('.jam-launch-options')?.prepend(backingControls,recordControl,recordingsControl);
 
   cancelAnimationFrame(J.raf);
   fluid.drop();
@@ -211,4 +211,7 @@ export function registerJamControls(cards,refresh){
 }
 let clip=null;
 export const recordControl=h('button.jam-chip',{text:'Record video'});controls.append(recordControl);
+// 3.13: your recordings, from Jam and Play too (the same window as the menu's Recordings)
+export const recordingsControl=h('button.jam-chip',{text:'Recordings',title:'Your recordings: play, rename, delete'});controls.append(recordingsControl);
+recordingsControl.onclick=()=>import('./recordings.js').then((r)=>r.openRecordings());
 recordControl.onclick=async()=>{const record=recordControl;clip??=createClipRecorder({rig,engine:stage.engine,title:()=>'Jam Session'});record.disabled=true;try{if(clip.active){record.textContent='Exporting…';await clip.stop();record.textContent='Record video';}else{await clip.start();record.textContent='Save video';}}catch(e){record.textContent='Record video';toast({title:'Recording',message:e.message,kind:'err'});}finally{record.disabled=false;}};
