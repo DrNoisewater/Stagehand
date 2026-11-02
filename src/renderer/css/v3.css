@@ -1097,7 +1097,6 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 
 /* what's plugged in, on the tone chips (3.13) */
 .inst-tag{display:inline-flex;align-items:center;height:16px;padding:0 6px;margin:0 6px 0 2px;border-radius:5px;background:#33c8e022;color:#8fe6f5;font:700 9.5px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;flex:none}
-.inst-tag.stand-in{background:#ffb54726;color:#ffce7d}
 
 /* the play-along timing check's lane (3.13) */
 .hw-sync-lane { display: block; width: 100%; max-width: 400px; height: auto; margin: 6px auto 10px; border-radius: 12px; background: #070b12; }

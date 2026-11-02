@@ -187,7 +187,7 @@ Rocksmith audio is Wwise `.wem`. Stagehand decodes it with [vgmstream](https://g
 
 ## What's new
 
-**4.0.3:** paid (official) DLC whose file has no audio inside now plays: Stagehand finds the audio in your Rocksmith folder (songs.psarc, the dlc folder, the Rocksmith 1 import packs) or your library and remembers where it is. Official DLC shows an **Official** tag instead of **no audio**.
+**4.0.3:** paid (official) DLC whose file has no audio inside now plays: Stagehand finds the audio in your Rocksmith folder (songs.psarc, the dlc folder, the Rocksmith 1 import packs) or your library and remembers where it is. Official DLC shows an **Official** tag instead of **no audio**. Playing a bass (or a guitar) no longer switches your tone to a basic one: the tone you picked always stays, and only scoring and the tuner follow the instrument.
 
 **4.0.2:** songs whose file has no audio (some paid DLC) say so instead of seeming to freeze, and the song list marks them **no audio**; Stagehand finds song audio stored differently inside more official DLC files; only one stems progress screen shows at a time.
 
@@ -207,7 +207,7 @@ Real cabinets paired with real amps; Jam as the home screen with Play over song;
 
 <br>
 
-Stagehand hears whether a guitar or a bass is plugged in and plays a matching tone. Real bass notes score much better, and a bass part played on guitar is scored an octave up.
+Stagehand hears whether a guitar or a bass is plugged in, for scoring and the tuner; your tone stays the one you picked (4.0.3). Real bass notes score much better, and a bass part played on guitar is scored an octave up.
 
 </details>
 

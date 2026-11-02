@@ -333,8 +333,7 @@ export function toneToast(number,name,done){
  Promise.resolve(done).then((r)=>{
   if(!el.isConnected)return;
   el.classList.remove('pending');
-  if(r&&r.ok&&r.standIn){el.classList.add('warn');el.textContent=`Tone ${number} — ${name} is a ${r.want==='bass'?'bass':'guitar'} tone. Playing ${r.tone.name} for your ${r.instrument}.`;leave(4500);}
-  else if(r&&r.ok){el.textContent=`Tone ${number} — ${name}`;leave(2000);}
+  if(r&&r.ok){el.textContent=`Tone ${number} — ${name}`;leave(2000);}
   else{el.classList.add('bad');el.textContent=`Tone ${number} didn’t change: ${(r&&r.error)||'the sound engine didn’t answer.'}`;leave(5000);}
  },()=>{el.classList.remove('pending');el.classList.add('bad');el.textContent=`Tone ${number} didn’t change.`;leave(5000);});
 }
@@ -346,13 +345,12 @@ export function holdButton(button,action){
 
 /**
  * A small "Guitar" / "Bass" tag for what Stagehand thinks is plugged in, so a wrong
- * guess is easy to spot. Amber when it plays a stand-in tone for that instrument.
+ * guess is easy to spot.
  * @param {object} rig the rig (rig.js)
  */
 export function instrumentTag(rig){
  const inst=rig&&rig.instrument;if(!inst)return '';
  const label=inst==='bass'?'Bass':'Guitar';
  const how=rig.instrumentPref==='auto'?'heard from your playing':'set in Settings';
- const sub=rig.standIn?` · playing ${rig.standIn.name}`:'';
- return `<span class="inst-tag${rig.standIn?' stand-in':''}" title="${esc(label)} (${how})${esc(sub)}">${label}</span>`;
+ return `<span class="inst-tag" title="${esc(label)} (${how})">${label}</span>`;
 }

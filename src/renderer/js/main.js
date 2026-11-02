@@ -198,26 +198,16 @@ async function boot() {
     state.engine = await api.engine.status();
     emit('engine');
   });
-  // Picked up a bass (or back to guitar): say what tone is playing now, let you keep yours,
+  // Picked up a bass (or back to guitar): say so (scoring follows it; the tone never changes),
   // and let you put a wrong guess right in one click.
   rig.addEventListener('instrument', (e) => {
     if (!e.detail.sensed) return;
     const inst = e.detail.instrument;
     const what = inst === 'bass' ? 'Bass' : 'Guitar';
     const other = inst === 'bass' ? 'guitar' : 'bass';
-    const chosen = rig.tone;
-    const wrong = { label: `No, it’s a ${other}`, onClick: () => rig.correctInstrument(other) };
-    if (rig.standIn) {
-      toast({
-        title: `${what} heard: playing ${rig.standIn.name}`,
-        message: `${chosen ? `${chosen.name} is a ${chosen.kind === 'bass' ? 'bass' : 'guitar'} tone. ` : ''}Your tone comes back when you switch back.`,
-        kind: 'info',
-        timeout: 9000,
-        actions: [{ label: `Keep ${chosen ? chosen.name : 'my tone'}`, onClick: () => rig.holdTone() }, wrong],
-      });
-    } else toast({ title: `${what} heard`, kind: 'info', timeout: 5000, actions: [wrong] });
+    toast({ title: `${what} heard`, kind: 'info', timeout: 5000, actions: [{ label: `No, it’s a ${other}`, onClick: () => rig.correctInstrument(other) }] });
   });
-  // A tone the engine couldn't play (a song's tone change mid-song, a stand-in…): say so, not silently.
+  // A tone the engine couldn't play (a song's tone change mid-song…): say so, not silently.
   let lastToneErr = 0;
   rig.addEventListener('tone-error', (e) => {
     if (document.querySelector('.tone-toast') || Date.now() - lastToneErr < 10000) return; // the key note already says it

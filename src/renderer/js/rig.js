@@ -464,13 +464,11 @@ export class Rig extends EventTarget {
     this.toneId = saved.toneId || 'crunch';
     this.knobs = { ...DEFAULT_KNOBS, ...(saved.knobs || {}) };
     this.perTone = saved.perTone || {};
-    // Guitar or bass: 'auto' works it out from what you play (instrument.js) and
-    // plays a tone for that instrument whenever the chosen one is for the other
+    // Guitar or bass: 'auto' works it out from what you play (instrument.js), for scoring
+    // and the tuner. 4.0.3: it never changes your tone (the stand-in tone is gone)
     this.instrumentPref = ['guitar', 'bass'].includes(saved.instrument) ? saved.instrument : 'auto';
-    this.lastByKind = saved.lastByKind || {}; // the last tone you picked for each instrument
     this.sense = new InstrumentSense({ instrument: saved.sensed === 'bass' || saved.sensed === 'guitar' ? saved.sensed : null });
-    this.standIn = null; // the tone playing instead of the chosen one (wrong instrument), or null
-    this._holdFor = null; // "keep my tone": no stand-in while this instrument stays plugged in
+    this.standIn = null; // 4.0.3: always null (kept so older callers read "no stand-in")
     // Drop: a pitch drop on your guitar, like a DigiTech Drop pedal (not part of any tone)
     const d = load('stagehand.drop', {});
     this.drop = { on: !!d.on, st: Math.max(1, Math.min(12, Number(d.st) || 1)), match: !!d.match };
@@ -661,7 +659,7 @@ export class Rig extends EventTarget {
     try {
       localStorage.setItem(
         'stagehand.rig',
-        JSON.stringify({ deviceId: this.deviceId, outputId: this.outputId, engine: this.engineChoice, exclusive: this.exclusive, buffer: this.buffer, toneId: this.toneId, knobs: this.knobs, perTone: this.perTone, muted: this.muted, instrument: this.instrumentPref, sensed: this.sense.instrument, lastByKind: this.lastByKind })
+        JSON.stringify({ deviceId: this.deviceId, outputId: this.outputId, engine: this.engineChoice, exclusive: this.exclusive, buffer: this.buffer, toneId: this.toneId, knobs: this.knobs, perTone: this.perTone, muted: this.muted, instrument: this.instrumentPref, sensed: this.sense.instrument })
       );
     } catch (_) {}
   }
@@ -861,41 +859,13 @@ export class Rig extends EventTarget {
   /** 'auto' (works it out), 'guitar' or 'bass'. */
   setInstrumentPref(v) {
     this.instrumentPref = ['guitar', 'bass'].includes(v) ? v : 'auto';
-    this._holdFor = null;
     this.save();
     this._instrumentChanged(false);
   }
 
-  /** Keep playing the chosen tone on this instrument (until the other one is plugged in). */
-  holdTone() {
-    this._holdFor = this.instrument;
-    return this._instrumentChanged(false);
-  }
-
-  /** The tone that's actually playing: the chosen one, or the stand-in for the other instrument. */
+  /** The tone that's playing: always the one you chose. */
   get playing() {
-    return this.standIn || this.tone;
-  }
-
-  _forInstrument(tone) {
-    const inst = this.instrument;
-    let use = null;
-    if (tone && inst && inst !== this._holdFor && (tone.kind === 'bass' ? 'bass' : 'guitar') !== inst) use = this._standInFor(inst);
-    if ((use && use.id) !== (this.standIn && this.standIn.id)) {
-      this.standIn = use;
-      setTimeout(() => this.dispatchEvent(new Event('change')), 0);
-    }
-    return use || tone;
-  }
-
-  /** A tone for `kind`: the last one you picked for it, else your lowest slot of that kind, else the preset. */
-  _standInFor(kind) {
-    const isKind = (t) => t && (t.kind === 'bass' ? 'bass' : 'guitar') === kind;
-    const last = this.findTone(this.lastByKind[kind]);
-    if (isKind(last)) return last;
-    const slot = this.custom.filter((t) => isKind(t) && t.slot).sort((a, b) => a.slot - b.slot)[0];
-    if (slot) return slot;
-    return this.findTone(kind === 'bass' ? 'bass-clean' : 'crunch');
+    return this.tone;
   }
 
   _syncShift() {
@@ -911,22 +881,16 @@ export class Rig extends EventTarget {
     if (this.instrumentPref !== 'auto') return this.setInstrumentPref(kind);
     this.sense.instrument = kind;
     this.sense.reset();
-    this._holdFor = null;
     this.save();
     this._instrumentChanged(false);
   }
 
   _instrumentChanged(sensed) {
-    if (this._holdFor && this._holdFor !== this.instrument) this._holdFor = null;
+    // 4.0.3: only scoring and the tuner follow the instrument; the tone stays as you chose it
     this._syncShift();
-    const done = this.on && this.backend ? this._useTone(this._currentTone()) : Promise.resolve(null);
     this.dispatchEvent(new Event('change'));
-    // say what changed only once the engine is playing the new tone (so the note names the right one)
-    const instrument = this.instrument;
-    done.then((result) => {
-      if (this.instrument === instrument) this.dispatchEvent(new CustomEvent('instrument', { detail: { instrument, sensed, result } }));
-    });
-    return done;
+    this.dispatchEvent(new CustomEvent('instrument', { detail: { instrument: this.instrument, sensed, result: null } }));
+    return Promise.resolve(null);
   }
 
   /** Listens to the input about 20 times a second to tell a guitar from a bass. */
@@ -1026,8 +990,7 @@ export class Rig extends EventTarget {
 
   /**
    * Plays a tone. Resolves once the engine has actually switched (or failed), with
-   * { ok, tone (what's sounding now), standIn (true when a tone for the other
-   * instrument plays instead), error }. Only then may the screen say it changed.
+   * { ok, tone (what's sounding now), error }. Only then may the screen say it changed.
    */
   _useTone(tone) {
     // Serialise builds; switching tones is a short crossfade inside the engine.
@@ -1039,7 +1002,7 @@ export class Rig extends EventTarget {
     const run = this._busy.then(async () => {
       this._queued = false;
       const want = this._want;
-      tone = this._forInstrument(want);
+      tone = want;
       if (!tone) return { ok: false, tone: null, error: 'No tone to play.' };
       if (!this.on || !this.backend) return { ok: false, tone, error: 'Your guitar isn’t connected.' };
       const backend = this.backend;
@@ -1061,7 +1024,7 @@ export class Rig extends EventTarget {
         }, 120);
       }
       this.sounding = tone;
-      return { ok: true, tone, standIn: tone !== want, want: want && want.kind === 'bass' ? 'bass' : 'guitar', instrument: this.instrument };
+      return { ok: true, tone, standIn: false, want: want && want.kind === 'bass' ? 'bass' : 'guitar', instrument: this.instrument };
     }).catch((e) => {
       console.warn('rig tone:', e);
       return { ok: false, tone: null, error: (e && e.message) || 'The tone didn’t load.' };
@@ -1105,8 +1068,6 @@ export class Rig extends EventTarget {
     this.songTone = null;
     this.liveTone = null;
     this.toneId = id;
-    const picked = this.findTone(id);
-    if (picked) this.lastByKind[picked.kind === 'bass' ? 'bass' : 'guitar'] = id;
     this.knobs = { ...DEFAULT_KNOBS, ...(this.perTone[id] || {}), input: this.knobs.input, volume: this.knobs.volume };
     this.save();
     this._sendAllParams();
