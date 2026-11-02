@@ -11,7 +11,7 @@ import { h, icon, esc, showMenu, toast, instrumentTag } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
-import { linkChains, noteTech, heldBend, drawnBend, bendStart, VIBRATO_HZ } from './performance-math.js';
+import { linkChains, noteTech, heldBend, drawnBend, bendStart, vibratoAt, VIBRATO_HZ } from './performance-math.js';
 import { createFluidDriver } from './reactive-bg.js';
 import { createFeatures } from './music-features.js';
 import { createVisuals } from './visuals.js';
@@ -1908,9 +1908,10 @@ export function createHighway(stage) {
   /**
    * A note's sustain from t0 to t1 (song times): a flat glowing ribbon at its
    * string's height. Each technique has its own look, so they read at a glance:
-   * a bend climbs (with ↑ and how far), vibrato makes it go up and down a little
-   * (a bent note eases down from the bend and back: one bend that wobbles, 4.0.6),
-   * tremolo picking is cut into quick bright stripes like a ladder.
+   * a bend climbs (with ↑ and how far); vibrato is a smooth, rounded wave (and a
+   * bent note's bend wobbles with it: one bend that wobbles, 4.0.6); tremolo picking
+   * is a sharp zigzag with hard corners, wider and quicker (as in Rocksmith), so the
+   * two never look alike.
    */
   function buildTrail(nt, tg, t0, t1, an, st) {
     const { alpha, glow } = R3.L;
@@ -1927,17 +1928,28 @@ export function createHighway(stage) {
     const duration = noteEnd(nt, tg) - tg.t;
     const vib = !!nt.vibrato && !open;
     const VIB_HZ = VIBRATO_HZ;
+    const trem = !!nt.tremolo && !open;
+    const TREM_HZ = 6; // zigzags per second
     const posAt = (time) => {
       const u = duration > 0 ? (time - tg.t) / duration : 0;
       const e = Math.min(1, Math.max(0, u));
-      const x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
-      const bend = drawnBend(nt, time);
+      let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
+      const age = Math.max(0, time - tg.t);
+      const ease = Math.min(1, age / 0.12);
+      // tremolo: a triangle wave (straight lines, sharp corners); vibrato: a sine (round)
+      if (trem) {
+        const ph = (age * TREM_HZ) % 1;
+        x += (ph < 0.5 ? ph * 4 - 1 : 3 - ph * 4) * lw * 0.3 * ease;
+      } else if (vib) x += Math.sin(age * Math.PI * 2 * VIB_HZ) * lw * 0.13 * ease;
+      // a bent note's vibrato wobbles the bend; a straight note's stays flat (its round wave says it)
+      const hb = heldBend(nt, time);
+      const bend = hb >= 0.25 ? hb + vibratoAt(nt, time, hb) : hb;
       const direction = L0 > (G.n-1)/2 ? -1 : 1; // push lower strings inward; pull upper strings inward
       const L = L0 + direction * bend * .70;
       return [x, nY(L) - G.gy * 0.12, zOf(time), L];
     };
-    // enough points for the vibrato wave to stay smooth (no stepping)
-    const steps = Math.max(6, Math.min(vib ? 360 : 120, Math.round((t1 - t0) * (vib ? VIB_HZ * 14 : 40))));
+    // enough points for the vibrato wave to stay round and the tremolo corners sharp
+    const steps = Math.max(6, Math.min(vib || trem ? 400 : 120, Math.round((t1 - t0) * (trem ? TREM_HZ * 16 : vib ? VIB_HZ * 14 : 40))));
     const b0 = nt.linked ? bendStart(nt) : 0;
     const bending = maxBend(nt) > 0 || b0 > 0 || vib;
     let prev = null;
@@ -1952,21 +1964,10 @@ export function createHighway(stage) {
         const c = col(hex, holding ? 0.75 : 0.58, (holding ? 1.3 : 1) + lift * 0.5);
         alpha.quad([prev[0] - half, prev[1], prev[2]], [prev[0] + half, prev[1], prev[2]], [p[0] + half, p[1], p[2]], [p[0] - half, p[1], p[2]], c);
         const ec = missed ? col('#7a7f96', 0.8) : lift > 0.05 ? col('#fff3d6', 0.95, 1.4 + lift) : col(hex, 0.95, holding ? 2.2 : 1.5);
-        for (const side of [-1, 1]) alpha.bar([prev[0] + side * half, prev[1] + 0.002, prev[2]], [p[0] + side * half, p[1] + 0.002, p[2]], vib ? 0.05 : 0.035, ec);
+        for (const side of [-1, 1]) alpha.bar([prev[0] + side * half, prev[1] + 0.002, prev[2]], [p[0] + side * half, p[1] + 0.002, p[2]], trem ? 0.06 : vib ? 0.05 : 0.035, trem && !missed && lift <= 0.05 ? col('#ffffff', 0.95, holding ? 1.8 : 1.3) : ec);
         if (!missed) glow.quad([prev[0] - half * 1.6, prev[1], prev[2]], [prev[0] + half * 1.6, prev[1], prev[2]], [p[0] + half * 1.6, p[1], p[2]], [p[0] - half * 1.6, p[1], p[2]], col(hex, holding ? 0.3 : 0.12));
       }
       prev = p;
-    }
-    if (nt.tremolo && !missed) {
-      // tremolo picking: a stripe across the ribbon for every quick pick (fixed spacing in time, so it never shimmers)
-      const RATE = 12;
-      const first = Math.ceil((t0 - tg.t) * RATE);
-      const last = Math.floor((t1 - tg.t) * RATE);
-      for (let k = Math.max(1, first); k <= last; k++) {
-        const p = posAt(tg.t + k / RATE);
-        const w = half * 1.55;
-        glow.bar([p[0] - w, p[1] + 0.004, p[2]], [p[0] + w, p[1] + 0.004, p[2]], 0.11, col('#ffffff', 0.85, holding ? 1.8 : 1.3));
-      }
     }
     // the ↑ and the riser only where a bend starts, not again on the held-on part
     const mb = maxBend(nt) > b0 + 0.25 ? maxBend(nt) : 0;

@@ -1285,7 +1285,7 @@ export function createClassicHighway(stage) {
     const half = open ? 0.5 * (anX1(an) - anX0(an)) - 0.15 : laneW(Math.max(1, nt.f)) * 0.14;
     const L0 = level(nt.s);
     const lw = laneW(Math.max(1, nt.f || an.fret));
-    const steps = Math.max(8, Math.min(120, Math.round((t1 - t0) * 50)));
+    const steps = Math.max(8, Math.min(240, Math.round((t1 - t0) * (nt.tremolo ? 96 : 50))));
     const pts = [];
     for (let k = 0; k <= steps; k++) {
       const time = t0 + ((t1 - t0) * k) / steps;
@@ -1294,11 +1294,14 @@ export function createClassicHighway(stage) {
       // slides ease in and out, like the real glide of the hand
       const e = Math.min(1, Math.max(0, u));
       let x = x0 + (x1 - x0) * (e * e * (3 - 2 * e));
-      // a bend pushes the ribbon across the strings: a full step a string and a half.
-      // Vibrato is the bend going up and down a little (4.0.6: no sideways squiggle);
-      // tremolo a fast zigzag, in real time so it reads true at any speed
-      let L = L0 + ((bendAt(nt, time) + vibratoAt(nt, time, bendAt(nt, time))) / 2) * 1.5;
-      if (nt.tremolo) L += (((time - tg.t) * 14) % 1 < 0.5 ? 1 : -1) * 0.12;
+      // a bend pushes the ribbon across the strings: a full step a string and a half, and
+      // a bent note's vibrato wobbles the bend. Vibrato is a smooth wave, tremolo a sharp
+      // zigzag (4.0.6: they must never look alike), in real time so they read true at any speed
+      const age = Math.max(0, time - tg.t);
+      if (nt.tremolo) { const ph = (age * 6) % 1; x += (ph < 0.5 ? ph * 4 - 1 : 3 - ph * 4) * lw * 0.24; }
+      else if (nt.vibrato && u > 0.06) x += Math.sin(age * Math.PI * 2 * 5.5) * lw * 0.12;
+      const b = bendAt(nt, time);
+      const L = L0 + ((b + (b > 0 ? vibratoAt(nt, time, b) : 0)) / 2) * 1.5;
       pts.push([x, L, zOf(time)]);
     }
     const edge = (side) => pts.map(([x, L, dz]) => {
