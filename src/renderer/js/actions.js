@@ -1,6 +1,6 @@
 /** User actions shared by the library, inspector, stage and menus. */
 import { api } from './api.js';
-import { state, emit, bump, upsertSongs, loadLibrary, setSelection, setView, visibleSongs, rsListIds, rsListCount, RS_STOCK_LISTS, RS_MAX_LISTS, rsListLabel, rsStockLabel, rsListKeys, rsHas } from './store.js';
+import { isOfficial, state, emit, bump, upsertSongs, loadLibrary, setSelection, setView, visibleSongs, rsListIds, rsListCount, RS_STOCK_LISTS, RS_MAX_LISTS, rsListLabel, rsStockLabel, rsListKeys, rsHas } from './store.js';
 import { showMenu, toast, confirmDialog } from './ui.js';
 import { newSetlist } from './sidebar.js';
 
@@ -28,8 +28,8 @@ export async function playAlong(id) {
   const song = state.songs.get(id);
   if (!song || !stageApi) return;
   // 4.0.2: a file with no song audio inside used to open the highway over an error you
-  // couldn't see (the player behind it said why), so it looked like everything had stopped
-  if (song.audioEntry === null) return noAudioToast(song);
+  // couldn't see; 4.0.3: official DLC looks for its audio in Rocksmith's folder instead
+  if (song.audioEntry === null && !song.audioFrom && !isOfficial(song)) return noAudioToast(song);
   const cur = stageApi.current && stageApi.current();
   // the same song carries on, unless it failed to open: then picking it again tries again
   const phase = stageApi.loadInfo ? stageApi.loadInfo().phase : 'ready';

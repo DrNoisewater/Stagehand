@@ -1182,3 +1182,4 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 /* 4.0: one set of keys at a time on Tones */
 #page-tones.simple .slot-strip { display: none; }
 sup.noaudio { flex: none; font-size: 9.5px; font-weight: 700; line-height: 1; padding: 2px 4px; margin-top: -3px; margin-left: 4px; border-radius: 6px; color: #ff9b9b; background: rgba(255, 110, 110, 0.13); }
+sup.official { flex: none; font-size: 9.5px; font-weight: 700; line-height: 1; padding: 2px 4px; margin-top: -3px; margin-left: 4px; border-radius: 6px; color: #9fd3ff; background: rgba(90, 170, 255, 0.14); letter-spacing: 0.01em; }

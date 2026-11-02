@@ -1,8 +1,16 @@
-# Stagehand handoff (v4.0.2, 2026-11-02): no-audio songs, official DLC audio, one stems screen
+# Stagehand handoff (v4.0.3, 2026-11-02): paid DLC audio from the Rocksmith folder, Official tag
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.0.3: paid DLC audio from the Rocksmith folder, Official tag
+
+User on 4.0.2: "quite a few of these songs with no audio … paid DLC that I did pay for. Can we pull the files from where Rocksmith keeps them? … instead of a no audio tag, an official DLC tag."
+- **Audio search** (`services/audiofind.js` `AudioFinder`): indexes the numbered `.wem`/`.ogg` (≥ 400 KB, i.e. full songs) in every .psarc under the Rocksmith folder (`rsprofiles.gameDir()`: songs.psarc, dlc/, RS1 packs) and the library folders, cached in `%LOCALAPPDATA%\Stagehand\Cache\audio-index.json` by path/size/mtime. `find(song, bank)` = largest wem whose id appears (LE) in the song's bank, never the song's own file. Built in the background after a scan when any song has no audio.
+- `AudioService.prepare`: no `audioEntry` → `audioFrom` or `_findElsewhere` (reads `bankEntry`, new in readSongs; `AUDIO_REV` 2 re-reads no-audio files to get it) → `library.setAudioFrom` + `library:songs` to the page. Log: `Audio: <song> plays its audio from …` or `… not found in other files either`. A stale `audioFrom` is searched again.
+- **Official** (`store.isOfficial`: no toolkit, author or package version): `sup.official` tag in the list/tiles instead of `no audio`; double-click tries official songs (no toast); stems and dupes count `audioFrom` as audio. Test: `test/audiofind.test.js` (in npm test).
+- **Unverified on the user's PC:** whether the audio really is in their Rocksmith folder. If not found, the log line says so: ask where Rocksmith is installed and whether those songs play in Rocksmith itself.
 
 ## 4.0.2: no-audio songs, official DLC audio, one stems screen
 

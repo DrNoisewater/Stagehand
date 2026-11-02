@@ -1,6 +1,6 @@
 /** Centre pane: the song table (virtualised) and the cover grid. */
 import { api } from './api.js';
-import { state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, setView, accBand, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel } from './store.js';
+import { isOfficial, state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, setView, accBand, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel } from './store.js';
 import { h, icon, esc, fmtDuration, debounce } from './ui.js';
 import * as actions from './actions.js';
 import { addFolder } from './sidebar.js';
@@ -171,9 +171,10 @@ function bestBadge(s) {
   return `<sup class="acc${pct >= 100 ? ' full' : pct >= 90 ? ' high' : ''}" title="Your best accuracy: ${pct}%">${pct}%</sup>`;
 }
 
-/** 4.0.2: the file has no song audio inside, so it can't play. */
+/** 4.0.3: official (paid) DLC gets its own tag; a custom song with no audio says so. */
 function noAudioBadge(s) {
-  return s.audioEntry === null ? '<sup class="noaudio" title="No song audio in this file: it can’t play">no audio</sup>' : '';
+  if (isOfficial(s)) return '<sup class="official" title="Official Rocksmith DLC">Official</sup>';
+  return s.audioEntry === null && !s.audioFrom ? '<sup class="noaudio" title="No song audio in this file: it can’t play">no audio</sup>' : '';
 }
 
 function buildRow(s) {
