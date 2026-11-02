@@ -77,3 +77,47 @@ jobs:
           & "$lm\llvm-strip.exe" build/stagehand-audio.exe
           if ($LASTEXITCODE -ne 0) { throw 'llvm-strip failed.' }
           Get-Item build/stagehand-audio.exe | Format-List Name, Length
+
+  # 4.0.1: build the small Setup and run it for real on Windows (install, update, cut-off
+  # downloads, uninstall): windows/setup/test-windows.ps1
+  setup-build:
+    runs-on: ubuntu-latest
+    env:
+      DEPS: ${{ github.workspace }}/../deps
+      SH_LLVM_MINGW: ${{ github.workspace }}/../llvm-mingw
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Get the compiler and the pinned downloads
+        run: bash scripts/session-setup.sh
+      - name: Build Setup
+        run: |
+          SETUP_DEPS="$DEPS/electron.zip $DEPS/vgmstream.zip $DEPS/uv.zip" sh scripts/package.sh "$RUNNER_TEMP/out"
+          ls -la "$RUNNER_TEMP/out"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: setup
+          path: ${{ runner.temp }}/out/Stagehand-Setup-*.exe
+          if-no-files-found: error
+
+  setup-test:
+    needs: setup-build
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: setup
+          path: ${{ runner.temp }}/setup
+      - name: Install, update, cut-off downloads, uninstall
+        run: |
+          $exe = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'setup') -Filter 'Stagehand-Setup-*.exe' | Select-Object -First 1
+          pwsh windows/setup/test-windows.ps1 -Setup $exe.FullName

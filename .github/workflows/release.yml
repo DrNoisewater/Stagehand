@@ -1,10 +1,10 @@
-# Makes a Windows release by hand: Actions → Release → Run workflow → enter the version.
-# Checks the version, runs the tests, builds the sound engine, packages the app as
-# Stagehand-v<version>-win-x64.zip (unzip, run "Install Stagehand.bat"), tags the commit
-# v<version> and publishes a GitHub Release with the zip and auto-generated notes.
-# Then (4.0) a second job builds the installer, Stagehand-Setup-<version>.exe, on Linux
-# with the same scripts as a cloud session (scripts/session-setup.sh, scripts/package.sh)
-# and adds it to the release.
+# Makes a release by hand: Actions → Release → Run workflow → enter the version.
+# 4.0.1: one download per release, Stagehand-Setup-<version>.exe (a few MB): it installs
+# or updates Stagehand and downloads only what the PC doesn't have yet.
+#   1. (Windows) checks the version, runs the tests, builds the sound engine.
+#   2. (Linux) builds Setup around that engine with the same scripts as a cloud session
+#      (scripts/session-setup.sh, scripts/package.sh), then tags v<version> and publishes
+#      the release with Setup and short notes. Nothing is tagged unless Setup built.
 name: Release
 
 on:
@@ -107,43 +107,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'llvm-strip failed.' }
           Get-Item bin/stagehand-audio.exe | Format-List Name, Length
 
-      - name: Package the zip
-        id: pkg
-        # Same layout as Stagehand-Windows.zip from scripts/package.sh: unzip, run "Install Stagehand.bat".
-        run: |
-          $name = "$env:APP_NAME-v$env:VERSION-win-x64"
-          $stage = Join-Path $env:RUNNER_TEMP 'pkg'
-          $top = Join-Path $stage $name
-          $app = Join-Path $top 'app'
-          New-Item -ItemType Directory -Force (Join-Path $app 'native') | Out-Null
-          Copy-Item src, engine, build, package.json -Destination $app -Recurse
-          Copy-Item native/bin -Destination (Join-Path $app 'native') -Recurse
-          Copy-Item windows/install.ps1, windows/uninstall.ps1, 'windows/Install Stagehand.bat', 'windows/Uninstall Stagehand.bat', README.md -Destination $top
-          Get-ChildItem $stage -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
-          foreach ($f in 'Install Stagehand.bat', 'install.ps1', 'app/package.json', 'app/src/main/main.js', 'app/engine/stagehand_stems.py', 'app/native/bin/stagehand-audio.exe', 'app/src/renderer/worklets/rig-dsp.wasm') {
-            if (-not (Test-Path (Join-Path $top $f))) { throw "The package is missing $f." }
-          }
-          $zip = Join-Path $env:RUNNER_TEMP "$name.zip"
-          Compress-Archive -Path $top -DestinationPath $zip -CompressionLevel Optimal
-          $mb = [math]::Round((Get-Item $zip).Length / 1MB, 1)
-          Write-Host "Built $name.zip ($mb MB)"
-          "zip=$zip" >> $env:GITHUB_OUTPUT
-
-      - name: Tag v${{ inputs.version }}
-        run: |
-          git tag "v$env:VERSION" $env:GITHUB_SHA
-          git push origin "refs/tags/v$env:VERSION"
-          if ($LASTEXITCODE -ne 0) { throw "Couldn't push the tag v$env:VERSION (someone may have just released it)." }
-
-      - name: Publish the GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "v$env:VERSION" "${{ steps.pkg.outputs.zip }}" --verify-tag --generate-notes --title "$env:APP_NAME v$env:VERSION"
-          if ($LASTEXITCODE -ne 0) { throw 'Creating the release failed.' }
+      - name: Hand the sound engine to the Setup job
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-exe
+          path: native/bin/stagehand-audio.exe
+          if-no-files-found: error
 
   setup:
-    # the installer/updater: Stagehand-Setup-<version>.exe, added to the release made above
+    # Stagehand-Setup-<version>.exe, then the tag and the release
     needs: release
     runs-on: ubuntu-latest
     env:
@@ -151,22 +123,42 @@ jobs:
       SH_LLVM_MINGW: ${{ github.workspace }}/../llvm-mingw
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: v${{ inputs.version }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Get the compiler and what the installer carries (Electron, vgmstream, uv)
+      - name: The sound engine built and tested on Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: audio-exe
+          path: native/bin
+
+      - name: Get the compiler and the pinned downloads (to measure their SHA-256)
         run: bash scripts/session-setup.sh
 
       - name: Build Stagehand-Setup-${{ inputs.version }}.exe
         run: |
           SETUP_DEPS="$DEPS/electron.zip $DEPS/vgmstream.zip $DEPS/uv.zip" sh scripts/package.sh "$RUNNER_TEMP/out"
           test -s "$RUNNER_TEMP/out/Stagehand-Setup-$VERSION.exe"
+          ls -la "$RUNNER_TEMP/out/Stagehand-Setup-$VERSION.exe"
 
-      - name: Add it to the release
+      - name: Tag v${{ inputs.version }}
+        run: |
+          git tag "v$VERSION" "$GITHUB_SHA"
+          git push origin "refs/tags/v$VERSION"
+
+      - name: Publish the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "v$VERSION" "$RUNNER_TEMP/out/Stagehand-Setup-$VERSION.exe" --clobber
+        run: |
+          cat > "$RUNNER_TEMP/notes.md" <<EOF
+          **Download Stagehand-Setup-$VERSION.exe below and run it.** It installs Stagehand, or updates the one you have.
+
+          - The first install downloads what your PC doesn't have yet (the app runtime, about 150 MB, and the song audio decoder), so it takes a few minutes. Updates only copy Stagehand's own files: a few seconds.
+          - If the connection drops, Setup tries again by itself; if you close it, run it again and it carries on where it stopped.
+          - Windows may say it doesn't know the publisher: click **More info**, then **Run anyway**.
+          - To remove Stagehand: Start menu › Uninstall Stagehand (tick the box to also delete your library data, for a fresh start).
+
+          EOF
+          gh release create "v$VERSION" "$RUNNER_TEMP/out/Stagehand-Setup-$VERSION.exe" --verify-tag --title "$APP_NAME v$VERSION" --notes-file "$RUNNER_TEMP/notes.md" --generate-notes
