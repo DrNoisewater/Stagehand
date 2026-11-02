@@ -1,8 +1,16 @@
-# Stagehand handoff (v4.0.4, 2026-11-02): Get songs one after another, Official tag only on real DLC, list keeps its place
+# Stagehand handoff (v4.0.5, 2026-11-02): Official mark checks the file itself and is quieter
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.0.5: Official mark checks the file itself, and is quieter
+
+User on 4.0.4 (screenshot): "Almost every song still has the official tag. It's distracting." In the screenshot 5 of 24 songs had it (99 Red Balloons, 2 Minutes to Midnight, Bleed It Out, 3AM, 5 Minutes Alone), all on the official list; the user wasn't sure whether they bought them. They chose "a quieter mark".
+- **Stricter check** (`services/officiallist.js` `isOfficial`): on the list AND the file shows none of the signs of a custom song: a creator stamp, chart `.xml` files under `songs/arr/` (other than showlights; the old toolkit keeps them, official files don't), or the toolkit's stand-in Steam id `248750` (Cherub Rock's, the default in the toolkit and DLC Builder; only Cherub Rock itself may have it). `rocksmith.js` now reads `appId` (appid.appid) and `chartXml` per song. library.js re-reads unstamped files that don't have `appId` yet (once), and a song not read for the signs yet gets no mark. Both test files (toolkit and DLC Builder) carry 248750: `test/officiallist.test.js` checks they never count as official.
+- **Quieter mark** (library.js `noAudioBadge`, v3.css `span.official`): a small dim circled tick after the title; "Official Rocksmith DLC" shows on hover. The blue "Official" word is gone.
+- **Not verified on a real official DLC file:** that official files have their own Steam id and no chart .xml. If a song the user bought loses its mark, ask for the file name and check its appid.appid and file list.
+- **Ask the user:** are the marks now only on songs they bought? Is the mark quiet enough?
 
 ## 4.0.4: Get songs, Official tag only on real DLC, list keeps its place, splash dot
 

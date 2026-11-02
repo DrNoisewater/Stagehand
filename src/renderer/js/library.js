@@ -173,7 +173,8 @@ function bestBadge(s) {
 
 /** 4.0.3: official (paid) DLC gets its own tag; a custom song with no audio says so. */
 function noAudioBadge(s) {
-  if (isOfficial(s)) return '<sup class="official" title="Official Rocksmith DLC">Official</sup>';
+  // 4.0.4: a small dim seal, not a word: it was too loud next to every title
+  if (isOfficial(s)) return '<span class="official" title="Official Rocksmith DLC" aria-label="Official Rocksmith DLC"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6"/><path d="M3.9 6.1l1.4 1.4 2.8-2.9"/></svg></span>';
   return s.audioEntry === null && !s.audioFrom ? '<sup class="noaudio" title="No song audio in this file: it can’t play">no audio</sup>' : '';
 }
 

@@ -227,7 +227,7 @@ class FakePortMain extends EventEmitter {
       const s = library.snapshot();
       s.songs = s.songs.map((x) => ({ ...x, hasStems: false }));
       // SH_LISTPOS_ONLY: a long list, so there's somewhere to scroll to
-      if (process.env.SH_LISTPOS_ONLY) s.songs = s.songs.concat(Array.from({ length: 300 }, (_, i) => ({ ...s.songs[i % s.songs.length], id: `pad${i}`, title: `Padding ${String(i).padStart(3, '0')}` })));
+      if (process.env.SH_LISTPOS_ONLY) s.songs = s.songs.concat(Array.from({ length: 300 }, (_, i) => ({ ...s.songs[i % s.songs.length], id: `pad${i}`, title: `Padding ${String(i).padStart(3, '0')}`, official: i % 4 === 1 })));
       return s;
     },
     'audio.prepare': async (id) => {
@@ -407,6 +407,7 @@ class FakePortMain extends EventEmitter {
     await page.waitForTimeout(400);
     await page.evaluate(() => { document.querySelector('.scroller').scrollTop = 4000; });
     await page.waitForTimeout(300);
+    await shot('listpos-list');
     const row = page.locator('.scroller .row').filter({ hasText: 'Padding' }).nth(3).getByText(/^Padding \d+$/);
     await row.click();
     await page.waitForTimeout(200);

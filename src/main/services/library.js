@@ -144,6 +144,8 @@ class Library extends EventEmitter {
         const rec = this.data.files[np];
         if (full || !rec || rec.size !== st.size || rec.mtimeMs !== st.mtimeMs) todo.push({ np, p, st });
         // 4.0.2: files read before Stagehand could find audio stored differently get one more look
+        // 4.0.4: files with no creator stamp read before Stagehand noted the custom-song signs
+        else if ((rec.songIds || []).some((id) => { const x = this.data.songs[id]; return x && x.appId === undefined && !x.toolkit && !x.author && !x.packageVersion; })) todo.push({ np, p, st });
         else if ((rec.audioRev || 0) < AUDIO_REV && (rec.songIds || []).some((id) => this.data.songs[id] && !this.data.songs[id].audioEntry)) todo.push({ np, p, st });
       }
 

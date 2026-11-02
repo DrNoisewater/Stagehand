@@ -6,7 +6,8 @@ const { songs } = require('../scripts/official-songs');
 
 const list = new OfficialList();
 assert.ok(list.count > 1400, `the built-in list has the DLC songs (${list.count})`);
-const off = (artist, title, extra = {}) => list.isOfficial({ artist, title, ...extra });
+// an official file: its own Steam id, no chart .xml files, no creator stamp
+const off = (artist, title, extra = {}) => list.isOfficial({ artist, title, appId: '248845', chartXml: false, ...extra });
 
 assert.ok(off('3 Doors Down', 'Kryptonite'));
 assert.ok(off('Jimi Hendrix Experience', 'Purple Haze'), 'without "The"');
@@ -22,7 +23,29 @@ assert.ok(!off('Tool', 'Schism'));
 assert.ok(!off('Radiohead', 'Paranoid Android'), 'artist has DLC, song does not');
 assert.ok(!off('Some Band', 'Creep'), 'title is DLC, artist is not');
 assert.ok(!list.isOfficial(null));
+assert.ok(!off('3 Doors Down', 'Kryptonite', { appId: '248750' }), 'the toolkit’s stand-in Steam id means custom');
+assert.ok(!off('3 Doors Down', 'Kryptonite', { appId: '' }), 'no Steam id: custom');
+assert.ok(!off('3 Doors Down', 'Kryptonite', { chartXml: true }), 'chart .xml files inside mean custom');
+assert.ok(!off('3 Doors Down', 'Kryptonite', { appId: undefined, chartXml: undefined }), 'not read for the signs yet: no tag');
+assert.ok(off('The Smashing Pumpkins', 'Cherub Rock', { appId: '248750' }), 'Cherub Rock really has that id');
 console.log('  ok  custom songs are not');
+
+// the signs are read from real files
+(async () => {
+  const { Psarc } = require('../src/main/core/psarc');
+  const { readSongs } = require('../src/main/core/rocksmith');
+  for (const f of ['integration_p.psarc', 'legacy_p.psarc']) {
+    const p = await Psarc.open(require('path').join(__dirname, 'fixtures', f));
+    const [song] = await readSongs(p);
+    assert.strictEqual(song.appId, '248750', f);
+    assert.ok(!list.isOfficial({ ...song, toolkit: '', author: '', packageVersion: '', artist: '3 Doors Down', title: 'Kryptonite' }), `${f} counts as custom even without its stamp`);
+    if (p.close) await p.close();
+  }
+  console.log('  ok  custom files carry the signs');
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 
 assert.strictEqual(norm('The Black Keys'), 'blackkeys');
 assert.strictEqual(norm('Santana feat. Rob Thomas'), 'santana');
