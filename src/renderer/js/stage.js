@@ -1167,11 +1167,19 @@ function stopWaiting() {
   renderStemsCall();
 }
 
+/** Before the split itself shows a percentage: what it's doing (reading the song, starting up). */
+export function stemsStep(st) {
+  const m = String((st && st.message) || '');
+  if (/decod/i.test(m)) return 'Reading the song for the stems…';
+  if (/start/i.test(m)) return 'Starting the stem splitter…';
+  return 'Splitting the stems…';
+}
+
 function renderWaiting(st) {
   if (!S.waitPlay) return;
   st = st || { state: 'queued' };
   const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
-  const title = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : `Splitting the stems · ${pct}%`;
+  const title = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : pct ? `Splitting the stems · ${pct}%` : stemsStep(st);
   const note = st.state === 'queued' ? 'Another song is being split first. The song starts with the full mix in a few seconds if it takes long.' : st.state === 'ready' ? 'Almost there.' : 'Guitar, bass, drums and the rest, so you can mix them. The song starts by itself (with the full mix if this takes long).';
   if (!waitBox.firstChild) {
     waitBox.innerHTML = `<div class="read-bar"><div class="rb-top"><span class="eq"><i></i><i></i><i></i><i></i></span><span class="rb-label"></span><span class="rb-count"></span></div><div class="rb-track"><i></i></div><div class="rb-note"></div><div class="sw-row"><span class="sw-song"></span></div></div>`;
@@ -1299,6 +1307,9 @@ tabViewBtn.onclick = () => setStageView('tab');
 on('stems-update', (u) => {
   if (!S.song || u.songId !== S.song.id) return;
   S.status = u;
+  // 4.0.9: the highway's panel reads waitStatus: keep it current (it stayed at its
+  // first 0% while the split went on)
+  if (S.waitPlay) S.waitStatus = u;
   if (S.waitPlay) {
     if (u.state === 'running' || u.state === 'queued' || u.state === 'ready') renderWaiting(u);
     else {
@@ -1384,6 +1395,7 @@ export function openHighway() {
       label: (name) => STEM_LABEL[name] || name,
       stemStatus: () => S.status,
       loadInfo: () => loadInfo(),
+      stemsStep: (st) => stemsStep(st),
       retry: () => retry(),
       backToPrevious: () => backToPrevious(),
       playNow: () => playNow(),

@@ -134,7 +134,8 @@ const PART = { lead: 'Lead', rhythm: 'Rhythm', bass: 'Bass' };
 const band = (a) => (a >= 0.9 ? 'g' : a >= 0.7 ? 'y' : a >= 0.5 ? 'o' : 'r');
 const pctOf = (a) => `${Math.round(a * 100)}%`;
 // bars from 40 % up, so the differences that matter show
-const barH = (a) => Math.max(6, Math.min(100, Math.round(((a - 0.4) / 0.6) * 100)));
+// 4.0.9: as tall as the accuracy (below 40% used to look empty)
+const barH = (a) => Math.max(4, Math.min(100, Math.round(a * 100)));
 
 /** Your most recent run, big: score, change, sections, what went well and what to work on. */
 function spotlight(d) {
