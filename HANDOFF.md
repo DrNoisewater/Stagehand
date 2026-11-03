@@ -13,7 +13,7 @@ User on 4.1.0: "shouldn't we just go ahead and plan for any weird things like th
 - **Proxies:** main.js reaches the meeting points through Chromium's network stack (Windows proxy settings) first, Node's as a fallback.
 - **Dropped connection mid-video:** `get` takes `from`; the Recordings window reconnects up to 4 times and carries on ("Connection dropped, reconnecting… (33% so far)"). Tests: friends-chromium (cut at 1.4 MB, resumed, whole), recordings-friends-chromium (host drops at ~33%, the window recovers, all 6.4 MB arrive).
 - **Clearer "didn't answer":** says it needs to be open with Sharing on, on 4.1 or newer, with their current code. Every message now carries a version number (`v: 1`).
-- **Still open:** strict networks that block direct connections need a TURN relay server (asked the user).
+- **Strict networks** that block direct connections would need a TURN relay server. Asked the user (free Metered account, Cloudflare, or leave it): **leave it for now**; add one only if they or their friends hit "Couldn’t connect directly".
 
 ## 4.1.0: Friends: watch each other's videos with a code
 
