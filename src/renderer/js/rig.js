@@ -514,8 +514,8 @@ export class Rig extends EventTarget {
     if(!this.on||!this.backend)throw Error('Connect your instrument first.');
     const b=this.backend;
     if(this.kind==='native'){
-      const listener={kind:'processed',feed};this._monitors??=new Set();this._monitors.add(listener);b._cmd({cmd:'monitor',on:1});
-      return {rate:b.rate,close:()=>{this._monitors.delete(listener);if(!this._monitors.size)b._cmd({cmd:'monitor',on:0});}};
+      const listener={kind:'processed',feed};this._monitors??=new Set();this._monitors.add(listener);this.monitorOn();
+      return {rate:b.rate,close:()=>{this._monitors.delete(listener);this._monitorOffIfIdle();}};
     }
     // In-app engine: copy the sound off the audio thread with a worklet. (A ScriptProcessor
     // runs on the page's thread and drops pieces whenever the highway is busy drawing:
@@ -537,8 +537,20 @@ export class Rig extends EventTarget {
   captureMix(feed){
     if(!this.on||!this.backend||this.kind!=='native')throw Error('Connect your instrument first.');
     const b=this.backend;
-    const listener={kind:'mixed',feed};this._monitors??=new Set();this._monitors.add(listener);b._cmd({cmd:'monitor',on:1});
-    return {rate:b.rate,close:()=>{this._monitors.delete(listener);if(!this._monitors.size)b._cmd({cmd:'monitor',on:0});}};
+    const listener={kind:'mixed',feed};this._monitors??=new Set();this._monitors.add(listener);this.monitorOn();
+    return {rate:b.rate,close:()=>{this._monitors.delete(listener);this._monitorOffIfIdle();}};
+  }
+  /** 4.1.2: tells the sound engine in use now to send its sound to the looper or recorder.
+   *  Called again whenever the engine (re)starts while one is listening: a restarted
+   *  engine (cable bumped, sleep, a device change) used to stop sending, and the rest of
+   *  a recording came out silent. Safe to call any time. */
+  monitorOn(){
+    const b=this.backend;
+    if(this.kind==='native'&&b&&b.port&&this._monitors&&this._monitors.size)b._cmd({cmd:'monitor',on:1});
+  }
+  _monitorOffIfIdle(){
+    const b=this.backend;
+    if(this.kind==='native'&&b&&b.port&&!(this._monitors&&this._monitors.size))b._cmd({cmd:'monitor',on:0});
   }
   async monitorProcessed(){ return this._monitor('processed'); }
   async monitorMix(){ return this._monitor('mixed'); }
@@ -780,6 +792,7 @@ export class Rig extends EventTarget {
       this._namSlots.clear();
       this.active = -1;
       this._sendAllParams();
+      this.monitorOn(); // 4.1.2: a recording or loop running across a restart keeps its sound
       await this._useTone(this._currentTone());
       this.save(); // 4.0.3: no listening for guitar-or-bass any more
     }
