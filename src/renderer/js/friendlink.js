@@ -7,7 +7,8 @@
  *
  * What travels is your shared recordings (videos of the highway and Jam).
  * On the channel (JSON text, plus binary chunks of a file):
- *   friend → host  {op:'list', r}   {op:'get', r, id, part: 'video'|'thumb'}   {op:'cancel', r}
+ *   friend → host  {op:'list', r}   {op:'get', r, id, part: 'video'|'thumb', from}   {op:'cancel', r}
+ *                  (`from`: carry on a download that was cut off, from that byte)
  *   host → friend  {op:'hello', name}        {op:'list', r, name, recordings}
  *                  {op:'file', r, id, part, size} + chunks + {op:'end', r}
  *                  {op:'error', r, message}
@@ -114,9 +115,9 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
             send({ op: 'list', r, name: l.name || '', recordings: l.recordings });
           } else if (m.op === 'get' && typeof m.id === 'string') {
             const part = m.part === 'thumb' ? 'thumb' : 'video';
-            let off = 0;
-            let first = await api.friends.hostRead(m.id, part, 0, SLICE); // main refuses what isn't shared
-            send({ op: 'file', r, id: m.id, part, size: first.size });
+            let off = Math.max(0, Math.floor(Number(m.from) || 0));
+            let first = await api.friends.hostRead(m.id, part, off, SLICE); // main refuses what isn't shared
+            send({ op: 'file', r, id: m.id, part, size: first.size, from: Math.min(off, first.size) });
             for (;;) {
               const bytes = first.bytes instanceof Uint8Array ? first.bytes : new Uint8Array(first.bytes);
               await sendBytes(dc, bytes);
@@ -219,7 +220,7 @@ export async function connectTo(api, friendId, { iceServers = ICE, timeout = 200
     onclose: null,
     closed: false,
     list: () => ask({ op: 'list' }),
-    get: (id, { part = 'video', onChunk = null, onProgress = null } = {}) => ask({ op: 'get', id, part }, { onChunk, onProgress }),
+    get: (id, { part = 'video', from = 0, onChunk = null, onProgress = null } = {}) => ask({ op: 'get', id, part, from }, { onChunk, onProgress }),
     /** Stops the file coming in now (it resolves with what came, `cancelled: true`). */
     cancel() {
       if (file && dc.readyState === 'open') dc.send(JSON.stringify({ op: 'cancel', r: file.r }));
@@ -256,13 +257,13 @@ export async function connectTo(api, friendId, { iceServers = ICE, timeout = 200
       if (file.onChunk) file.onChunk(new Uint8Array(e.data));
       else file.parts.push(e.data);
       file.got += e.data.byteLength;
-      if (file.got > file.size || file.got > MAX_FILE) {
+      if (file.from + file.got > file.size || file.got > MAX_FILE) {
         const w = wait.get(file.r);
         file = null;
         if (w) w.reject(new Error('The take came through wrong'));
         return;
       }
-      if (file.onProgress) file.onProgress(file.got / Math.max(1, file.size));
+      if (file.onProgress) file.onProgress((file.from + file.got) / Math.max(1, file.size));
       return;
     }
     let m;
@@ -279,7 +280,8 @@ export async function connectTo(api, friendId, { iceServers = ICE, timeout = 200
     const w = wait.get(m.r);
     if (!w) return;
     if (m.op === 'file') {
-      file = { r: m.r, parts: [], got: 0, size: Math.min(Number(m.size) || 0, MAX_FILE), onChunk: w.onChunk || null, onProgress: w.onProgress || null };
+      const size = Math.min(Number(m.size) || 0, MAX_FILE);
+      file = { r: m.r, parts: [], got: 0, size, from: Math.max(0, Math.min(size, Number(m.from) || 0)), onChunk: w.onChunk || null, onProgress: w.onProgress || null };
       return;
     }
     wait.delete(m.r);
@@ -293,9 +295,9 @@ export async function connectTo(api, friendId, { iceServers = ICE, timeout = 200
         out.set(new Uint8Array(p), o);
         o += p.byteLength;
       }
-      const size = file.size;
+      const { size, from } = file;
       file = null;
-      w.resolve({ bytes: out, size, cancelled: !!m.cancelled });
+      w.resolve({ bytes: out, size, from, cancelled: !!m.cancelled });
     } else if (m.op === 'error') {
       file = null;
       w.reject(new Error(m.message || 'Something went wrong'));

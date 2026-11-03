@@ -51,8 +51,8 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
 <body><div id="app"></div><div id="overlays"></div>
 <script type="module">
 import * as R from '/src/renderer/js/recordings.js';
-import { F } from '/src/renderer/js/friends.js';
-window.R = R; window.F = F; window.ready = true;
+import { F, host } from '/src/renderer/js/friends.js';
+window.R = R; window.F = F; window.host = host; window.ready = true;
 </script></body></html>`;
 
 function site() {
@@ -101,8 +101,9 @@ async function stagehand(browser, name, relay, url) {
       const list = st.sharing ? takes.filter((t) => t.kind === 'video' && friends.isShared(t.id)) : [];
       return { name: st.name, recordings: list.map((t) => ({ id: t.id, name: t.name, seconds: t.seconds, size: t.bytes, at: t.at })) };
     },
-    'friends.hostRead': (id, part, offset, length) => {
+    'friends.hostRead': async (id, part, offset, length) => {
       const t = takes.find((x) => x.id === id);
+      if (t && t.slow) await new Promise((r) => setTimeout(r, t.slow));
       if (!t || t.kind !== 'video' || !friends.isShared(id)) throw Object.assign(new Error('That video isn’t shared'), { code: 'NOT_SHARED' });
       return { size: t.data.length, b64: t.data.subarray(offset, offset + length).toString('base64') };
     },
@@ -234,6 +235,22 @@ async function stagehand(browser, name, relay, url) {
     });
     check(v.w === 640 && v.h === 360, `Bo’s video plays (${v.w}×${v.h}, ${v.t.toFixed(1)} s in, “${v.title}”)`);
     await B.page.screenshot({ path: path.join(outDir, 'rec-6-friend-watching.png') });
+
+    // a long video, and the connection drops partway: it reconnects and carries on
+    const long = Buffer.concat([vid, require('crypto').randomBytes(6 * 1024 * 1024)]);
+    A.takes.push({ id: 'k_dddddddddd', kind: 'video', name: 'Long take', file: 'Videos/SH - Long take.mp4', seconds: 300, at: now, bytes: long.length, data: long, slow: 250 });
+    await A.friends.setShared('k_dddddddddd', true);
+    await B.page.locator('.fr-view .btn:has-text("Check again")').click();
+    await B.page.waitForSelector('.fr-view .rec-row:has-text("Long take")');
+    await B.page.locator('.fr-view .rec-row:has-text("Long take") .round-play').click();
+    await B.page.waitForFunction(() => /Getting it… ([3-9]\d)%/.test(document.querySelector('.fr-view .rec-row')?.parentElement.textContent || ''), null, { timeout: 30000 });
+    await A.page.evaluate(() => [...window.host.peers.values()].forEach((pc) => pc.close()));
+    await B.page.waitForFunction(() => /reconnecting/.test(document.querySelector('.fr-view').textContent), null, { timeout: 15000 });
+    check(true, 'a dropped connection shows “reconnecting”');
+    await B.page.screenshot({ path: path.join(outDir, 'rec-6b-reconnecting.png') });
+    await B.page.waitForFunction(() => /Long take/.test(document.querySelector('.rec-ptitle')?.textContent || ''), null, { timeout: 60000 });
+    const blobSize = await B.page.evaluate(async () => (await (await fetch(document.querySelector('.rec-player video').src)).blob()).size);
+    check(blobSize === long.length, `after reconnecting the whole video arrives (${blobSize} of ${long.length} bytes)`);
 
     // Alex turns sharing off: Bo can't get in any more
     await A.friends.setSharing(false);

@@ -1010,7 +1010,8 @@ app.whenReady().then(async () => {
     log,
   });
   await captures.load().catch((e) => log(`Captures failed to load: ${e.message}`));
-  friends = new Friends({ file: path.join(D.roaming, 'friends.json'), fetchImpl: (url, opts) => fetch(url, opts), safeStorage, log });
+  // Chromium's network stack first: it uses Windows' proxy settings (work and school networks); Node's as a fallback
+  friends = new Friends({ file: path.join(D.roaming, 'friends.json'), fetchImpl: (url, opts) => net.fetch(url, opts).catch((err) => (opts && opts.signal && opts.signal.aborted ? Promise.reject(err) : fetch(url, opts))), safeStorage, log });
   await friends.load().catch((e) => log(`Friends failed to load: ${e.message}`));
   friends.on('change', (st) => send('friends:change', st));
   friends.on('offer', (o) => send('friends:offer', o));

@@ -4,6 +4,17 @@ Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the p
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
 
+## 4.1.1 (in progress): Friends, ready for the odd things real networks do
+
+User on 4.1.0: "shouldn't we just go ahead and plan for any weird things like that to happen". Done (no accounts needed):
+- **Clocks:** messages were refused when the sender's clock was more than 2 minutes off. Now only the relay's own clock is used, to skip old offers it hands back after a reconnect; repeats are caught by each message's one-time number. Test: a PC 3 hours off connects.
+- **Meeting points:** a list (`relays`, default ntfy.sh + ntfy.envs.net, **ntfy.envs.net not checked from here: no internet in the cloud session**); the host listens on all; a friend posts the offer through every one that's up and takes the first answer; the host answers through the one the offer came by and answers each offer only once. ⋯ › Meeting points takes several, comma-separated; empty restores the standard ones. Old `relay` settings carry over.
+- **Sleep / dropped Wi-Fi:** a listening stream with no data for 90 s (ntfy sends keepalives) is reopened.
+- **Proxies:** main.js reaches the meeting points through Chromium's network stack (Windows proxy settings) first, Node's as a fallback.
+- **Dropped connection mid-video:** `get` takes `from`; the Recordings window reconnects up to 4 times and carries on ("Connection dropped, reconnecting… (33% so far)"). Tests: friends-chromium (cut at 1.4 MB, resumed, whole), recordings-friends-chromium (host drops at ~33%, the window recovers, all 6.4 MB arrive).
+- **Clearer "didn't answer":** says it needs to be open with Sharing on, on 4.1 or newer, with their current code. Every message now carries a version number (`v: 1`).
+- **Still open:** strict networks that block direct connections need a TURN relay server (asked the user).
+
 ## 4.1.0: Friends: watch each other's videos with a code
 
 User: "a small way to add a friend or use a code … see the recordings of that friend … all securely over the internet". Then: "only for viewing the recordings, not listening to the songs. Not the looper stuff. Only recorded highway and jam videos", and "this should be on recordings menu not progress; the recording screen or menu would need an overhaul". (A first attempt was built on a stale 3.9 copy and thrown away; nothing of it shipped.)

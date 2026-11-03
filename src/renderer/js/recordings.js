@@ -260,14 +260,14 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
           },
         },
         {
-          label: 'Relay server',
+          label: 'Meeting points',
           icon: 'globe',
           onClick: () =>
             askText({
-              title: 'Relay server',
-              label: 'Where Stagehands meet before they connect directly',
+              title: 'Meeting points',
+              label: 'Where Stagehands find each other before they connect directly',
               value: st.relay,
-              hint: 'Any ntfy server. Messages through it are sealed with your code; your videos go straight between the two PCs. You and your friends need the same one.',
+              hint: 'Any ntfy servers, separated by commas; all are tried at once. Messages through them are sealed with your code; your videos go straight between the two PCs. You and your friends need at least one in common. Leave it empty for the standard ones.',
               check: (x) => api.friends.setRelay(x).then(() => null, (err) => err.message),
             }),
         },
@@ -375,13 +375,7 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
       if (!R.friend || R.friend.id !== f.id || !m.el.isConnected) return link.close();
       R.link = link;
       R.linkFor = f.id;
-      link.onclose = () => {
-        if (R.link !== link) return;
-        R.link = null;
-        R.loading = null;
-        R.err = Object.assign(new Error(`The connection to ${f.name} closed.`), { code: 'CLOSED' });
-        if (R.tab === 'friends') renderFriends();
-      };
+      watchClose(link, f);
       if (link.name && f.name === 'Friend') api.friends.rename(f.id, link.name).catch(() => {});
       R.list = await link.list();
     } catch (err) {
@@ -426,41 +420,89 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
       const playing = R.playing === key;
       const btn = h(`button.round-play.sm${busy ? '.loading' : ''}`, { type: 'button', 'aria-label': busy ? 'Stop getting it' : playing ? 'Stop' : `Watch ${v.name}`, html: icon(busy || playing ? 'stop' : 'play'), style: busy ? { '--p': `${Math.round(busy.p * 360)}deg` } : null });
       btn.onclick = () => (busy ? R.link && R.link.cancel() : playing ? (stop(), renderFriends()) : watch(f, v));
-      const meta = busy ? `Getting it… ${Math.round(busy.p * 100)}%` : [fetched.has(key) ? 'Ready' : null, fmtWhen(v.at), v.seconds ? fmtLen(v.seconds) : null, v.size ? fmtBytes(v.size) : null].filter(Boolean).join(' · ');
+      const meta = busy ? (busy.retry ? `Connection dropped, reconnecting… (${Math.round(busy.p * 100)}% so far)` : `Getting it… ${Math.round(busy.p * 100)}%`) : [fetched.has(key) ? 'Ready' : null, fmtWhen(v.at), v.seconds ? fmtLen(v.seconds) : null, v.size ? fmtBytes(v.size) : null].filter(Boolean).join(' · ');
       list.append(h(`div.rec-row.video${playing ? '.on' : ''}`, { 'data-key': key }, btn, h('span.rec-kind', { html: icon('video') }), h('div.rec-text', null, h('b', { text: v.name }), h('span', { text: meta }))));
     }
     box.append(list);
     return box;
   }
 
+  /** When the connection drops: mid-download the download reconnects by itself; otherwise say so. */
+  function watchClose(link, f) {
+    link.onclose = () => {
+      if (R.link !== link) return;
+      R.link = null;
+      if (R.loading) return;
+      R.err = Object.assign(new Error(`The connection to ${f.name} closed.`), { code: 'CLOSED' });
+      if (R.tab === 'friends') renderFriends();
+    };
+  }
+
+  /**
+   * Gets a friend's video and plays it. If the connection drops partway it
+   * reconnects and carries on from where it stopped (a few tries).
+   */
   async function watch(f, v) {
     const key = `${f.id}:${v.id}`;
     if (fetched.has(key)) return show('video', fetched.get(key), v.name, `${f.name}’s video`, key), renderFriends();
     if (!R.link || (R.loading && R.loading.key !== key)) return;
-    R.loading = { key, p: 0 };
+    R.loading = { key, p: 0, retry: 0 };
     renderFriends();
+    const parts = [];
+    let have = 0;
     let last = 0;
+    let size = v.size || 0;
     try {
-      const got = await R.link.get(v.id, {
-        onProgress: (p) => {
-          if (!R.loading || R.loading.key !== key) return;
-          R.loading.p = p;
-          if (p - last > 0.01) {
-            last = p;
-            if (R.tab === 'friends') renderFriends();
+      for (let tries = 0; ; tries++) {
+        try {
+          if (!R.link) {
+            R.loading.retry = tries;
+            renderFriends();
+            await new Promise((r) => setTimeout(r, Math.min(8000, 1000 * 2 ** (tries - 1))));
+            if (!m.el.isConnected || !R.loading || R.loading.key !== key) return;
+            const link = await connectTo(api, f.id);
+            R.link = link;
+            watchClose(link, f);
           }
-        },
-      });
-      R.loading = null;
-      if (got.cancelled) return renderFriends();
-      const url = URL.createObjectURL(new Blob([got.bytes], { type: 'video/mp4' }));
+          const got = await R.link.get(v.id, {
+            from: have,
+            onChunk: (c) => {
+              parts.push(c);
+              have += c.byteLength;
+            },
+            onProgress: (p) => {
+              if (!R.loading || R.loading.key !== key) return;
+              R.loading.p = p;
+              R.loading.retry = 0;
+              if (p - last > 0.01) {
+                last = p;
+                if (R.tab === 'friends') renderFriends();
+              }
+            },
+          });
+          size = got.size;
+          if (got.cancelled) return;
+          if (have < size) throw Object.assign(new Error('The video stopped coming'), { code: 'CLOSED' });
+          break;
+        } catch (err) {
+          // a dropped connection (or one that couldn't be made again yet): try again, up to 4 times
+          const dropped = err.code === 'CLOSED' || err.code === 'DIRECT' || err.code === 'RELAY' || (R.link && R.link.closed);
+          if (!dropped || tries >= 4 || !m.el.isConnected) throw err;
+          if (R.link && R.link.closed) R.link = null;
+          if (err.code === 'CLOSED') R.link = null;
+        }
+      }
+      const url = URL.createObjectURL(new Blob(parts, { type: 'video/mp4' }));
       remember(key, url);
+      R.loading = null;
       if (m.el.isConnected) show('video', url, v.name, `${f.name}’s video`, key);
     } catch (err) {
-      R.loading = null;
-      toast({ title: 'Couldn’t get that video', message: err.message, kind: 'err' });
+      toast({ title: 'Couldn’t get that video', message: err.code === 'OFFLINE' ? `${f.name}’s Stagehand stopped answering. You got ${Math.round((have / Math.max(1, size)) * 100)}% of it; try again when they’re back.` : err.message, kind: 'err' });
+    } finally {
+      if (R.loading && R.loading.key === key) R.loading = null;
+      if (!R.link && R.friend && R.friend.id === f.id && !R.err) R.err = Object.assign(new Error(`The connection to ${f.name} closed.`), { code: 'CLOSED' });
+      if (R.tab === 'friends') renderFriends();
     }
-    if (R.tab === 'friends') renderFriends();
   }
 
   const onFriends = () => {

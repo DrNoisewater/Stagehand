@@ -29,7 +29,7 @@ api.on('friends:change', (st) => {
   emit('friends');
 });
 
-startHost(api, {
+export const host = startHost(api, {
   onPeers: (n) => {
     const was = F.peers;
     F.peers = n;
