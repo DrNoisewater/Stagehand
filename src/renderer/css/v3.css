@@ -1207,3 +1207,65 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .tcheck-always { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); cursor: pointer; }
 .hw-drop-guide { margin-top: 6px; }
 @media (max-width: 560px) { .tcheck-row { grid-template-columns: 24px 36px 18px 36px 1fr; } .tcheck-meter { grid-column: 1 / -1; } }
+
+/* Recordings, Mine and Friends tabs (4.1): friends watch the videos you share (js/recordings.js, js/friends.js) */
+.rec-window { --fr: var(--gel-bass); }
+.modal-backdrop.over-rec { z-index: 330; }
+.rec-tabs { align-self: flex-start; }
+.rec-tabs button svg { width: 15px; height: 15px; }
+.rec-tabs button[aria-pressed='true'] { background: color-mix(in srgb, var(--gel) 20%, transparent); color: var(--ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gel) 55%, transparent); }
+.rec-panel { display: flex; flex-direction: column; gap: 10px; min-height: 120px; }
+.rec-ptitle { display: flex; align-items: baseline; gap: 8px; }
+.rec-ptitle span { color: var(--ink-3); font-size: 12px; }
+.rec-kind { flex: none; display: grid; place-items: center; width: 22px; color: #5d6683; }
+.rec-kind svg { width: 16px; height: 16px; }
+.rec-row.video .rec-kind { color: #33c8e0; }
+.rec-row.shared { border-color: color-mix(in srgb, var(--fr) 35%, transparent); }
+.rec-sharing { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: #ffffff06; border: 1px dashed #2a3352; font-size: 13px; color: var(--ink-2); }
+.rec-sharing.on { border: 1px solid color-mix(in srgb, var(--fr) 50%, transparent); background: color-mix(in srgb, var(--fr) 9%, transparent); }
+.rec-share-ic { display: grid; place-items: center; color: var(--fr); }
+.rec-share-ic svg { width: 18px; height: 18px; }
+.tk-share { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid transparent; background: transparent; color: #5d6683; display: grid; place-items: center; }
+.tk-share svg { width: 16px; height: 16px; }
+.tk-share:hover { color: #c9cfe2; background: #1a2136; }
+.tk-share.on { color: var(--fr); background: color-mix(in srgb, var(--fr) 14%, transparent); border-color: color-mix(in srgb, var(--fr) 45%, transparent); box-shadow: 0 0 8px -2px var(--fr); }
+.tk-share.paused { color: color-mix(in srgb, var(--fr) 55%, #5d6683); border-color: #263052; border-style: dashed; }
+.fr-mecard { display: flex; flex-direction: column; gap: 6px; }
+.fr-me { display: flex; align-items: flex-end; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #0f1420; border: 1px solid #1f2740; transition: border-color .2s, box-shadow .2s; }
+.fr-me.on { border-color: color-mix(in srgb, var(--fr) 60%, transparent); box-shadow: 0 0 14px -4px color-mix(in srgb, var(--fr) 55%, transparent); }
+.fr-code-wrap { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fr-label { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: #8a92ad; }
+.fr-code { display: flex; align-items: center; gap: 4px; }
+.fr-code code { font: 650 17px/1.2 ui-monospace, 'Cascadia Mono', Consolas, monospace; letter-spacing: .06em; color: #e8ecf8; user-select: all; white-space: nowrap; }
+.fr-share { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #a3aac2; cursor: pointer; white-space: nowrap; }
+.fr-me.on .fr-share span { color: var(--fr); font-weight: 650; }
+.fr-say { display: flex; align-items: center; gap: 7px; }
+.fr-dot { flex: none; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--gel-bass); box-shadow: 0 0 6px var(--gel-bass); }
+.fr-dot.live { animation: frPulse 1.4s ease-in-out infinite; }
+@keyframes frPulse { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--gel-bass) 25%, transparent), 0 0 10px var(--gel-bass); } }
+.fr-friends { display: flex; flex-wrap: wrap; gap: 8px; }
+.fr-friend { display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 5px; border-radius: 999px; border: 1px solid #263052; background: #0f1420; color: #e8ecf8; font-size: 13px; max-width: 100%; }
+.fr-friend:hover, .fr-friend.sel { border-color: var(--fr); box-shadow: 0 0 10px -3px var(--fr); }
+.fr-friend.sel { background: color-mix(in srgb, var(--fr) 14%, #0f1420); }
+.fr-friend.add { border-style: dashed; color: #a3aac2; }
+.fr-av { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 12px; background: color-mix(in srgb, var(--fr) 28%, #1a2136); color: #fff; }
+.fr-av svg { width: 14px; height: 14px; }
+.fr-friend.add .fr-av { background: #1a2136; }
+.fr-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fr-tip { margin: 4px 0 0; }
+.fr-view { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; border-top: 1px solid #1f2740; }
+.fr-state { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 16px 10px 6px; }
+.fr-state b { font-size: 15px; }
+.fr-state p { margin: 0 0 6px; color: #8a92ad; font-size: 13px; max-width: 420px; }
+.fr-orb { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--fr) 18%, #141a2a); color: var(--fr); box-shadow: 0 0 0 1px color-mix(in srgb, var(--fr) 40%, transparent); }
+.fr-orb svg { width: 26px; height: 26px; }
+.fr-orb.pulse { animation: frPulse 1.4s ease-in-out infinite; }
+.fr-state.off .fr-orb { --fr: #8a92ad; }
+.fr-state.bad .fr-orb { --fr: #ff5d6c; }
+.fr-live { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--fr); font-weight: 600; }
+.fr-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--fr); box-shadow: 0 0 6px var(--fr); }
+.round-play.loading { background: conic-gradient(#ffb547 var(--p, 0deg), #3a3220 0); }
+.fr-ask { display: flex; flex-direction: column; gap: 8px; min-width: min(420px, 80vw); }
+.fr-ask .fr-label { text-transform: none; letter-spacing: 0; font-size: 13px; color: #c9cfe2; }
+.fr-input { font: 600 15px ui-monospace, 'Cascadia Mono', Consolas, monospace; letter-spacing: .04em; }
+.fr-err { min-height: 16px; color: #ff7b87; font-size: 12.5px; }
