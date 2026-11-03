@@ -384,7 +384,8 @@ export function createHighway(stage) {
     if (b.sections.length) {
       const bars = h('div.hw-card-bars');
       for (const s of b.sections) {
-        const bar = h(`button.hw-card-bar.${bandCls(s.acc)}`, { type: 'button', title: `${s.label}: ${Math.round(s.acc * 100)}% (${s.hit}/${s.notes}). Click to repeat it.` }, h('i', { style: { height: `${Math.max(6, Math.min(100, Math.round(((s.acc - 0.4) / 0.6) * 100)))}%` } }));
+        const bar = h(`button.hw-card-bar.${bandCls(s.acc)}`, { type: 'button', title: `${s.label}: ${Math.round(s.acc * 100)}% (${s.hit}/${s.notes}). Click to repeat it.` }, h('i', { style: { height: `${Math.max(4, Math.min(100, Math.round(s.acc * 100)))}%` } }));
+        // 4.0.9: as tall as the accuracy (29% looked empty when 40% and below were drawn as nothing)
         bar.style.flexGrow = String(Math.max(0.5, s.end - s.start));
         bar.onclick = () => repeat(s);
         bars.append(bar);
@@ -996,7 +997,7 @@ export function createHighway(stage) {
     } else if (info.waiting) {
       const st = info.waiting;
       const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
-      const what = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : `Splitting the stems · ${pct}%`;
+      const what = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : pct ? `Splitting the stems · ${pct}%` : stage.stemsStep ? stage.stemsStep(st) : 'Splitting the stems…';
       key = `wait:${info.song.id}:${st.state}`;
       if (statusBox.dataset.key === key && st.state === 'running') {
         const b = statusBox.querySelector('b');

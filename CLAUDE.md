@@ -43,6 +43,8 @@ TCHECK=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
 # the real app in Electron: crash the window mid-recording; it must reload with a note and save the clip
 # (electron 44 installed outside the project, e.g. npm install electron@44 in a scratch folder)
 ELECTRON=<electron> xvfb-run -a node test/e2e/crash-electron.js <outDir>
+# Tones in the real app: one tone used for guitar and bass (each row picks itself), an empty key
+ELECTRON=<electron> xvfb-run -a node test/e2e/tones-electron.js <outDir>
 # a moving background must rebuild itself after the graphics card drops it
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```

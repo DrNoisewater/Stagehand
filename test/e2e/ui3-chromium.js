@@ -891,6 +891,11 @@ class FakePortMain extends EventEmitter {
   check(w1.hw, 'double-clicking a song opens it on the highway');
   check(w1.card && /Splitting the stems · 40%/.test(w1.text), `it waits for the stems with progress: “${w1.text.slice(0, 60)}”`);
   await shot('22-waiting-for-stems');
+  // 4.0.9: the highway's panel follows the split (it stayed at the first percentage)
+  await page.evaluate((id) => window.__shEmit('stems:update', { songId: id, state: 'running', progress: 0.72 }), firstId);
+  await page.waitForTimeout(500);
+  const moved = await page.evaluate(() => (document.querySelector('.hw-status:not([hidden])') || {}).textContent || '');
+  check(/72%/.test(moved), `the highway's stems panel moves with the split: “${moved.slice(0, 50)}”`);
   const playingBefore = await page.evaluate(() => window.__stagePlaying && window.__stagePlaying());
   stemHold.delete(firstId);
   await page.evaluate((id) => window.__shEmit('stems:update', { songId: id, state: 'ready' }), firstId);
