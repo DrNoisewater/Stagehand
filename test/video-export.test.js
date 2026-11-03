@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { exportMp4, exportArgs } = require('../src/main/services/video-export');
+const { exportMp4, exportArgs, soundLevel } = require('../src/main/services/video-export');
 
 // the arguments, without running anything
 {
@@ -46,9 +46,20 @@ if (!has) {
   const rms = Math.sqrt(e / (pcm.length / 2));
   assert.ok(rms > 0.1, 'sound in the MP4 (rms ' + rms.toFixed(3) + ')');
   console.log(`ok   video + engine sound make one MP4 with sound (rms ${rms.toFixed(3)})`);
+  // the check the app runs on every saved video (4.1.2)
+  const loud = await soundLevel('ffmpeg', out);
+  assert.ok(loud.hasSound && loud.peakDb > -20, 'saved video reads as having sound: ' + JSON.stringify(loud));
   // without the WAV and without a sound track it still exports (video only)
   await exportMp4('ffmpeg', webm, out, null);
   console.log('ok   a capture without sound still exports');
+  const none = await soundLevel('ffmpeg', out);
+  assert.ok(!none.hasSound && none.peakDb === null, 'video without a sound track reads as no sound: ' + JSON.stringify(none));
+  // a sound track of pure silence also counts as no sound
+  fs.writeFileSync(wav, wavBytes({ rate, parts: [new Int16Array(rate * 2 * 2)], frames: rate * 2 }));
+  await exportMp4('ffmpeg', webm, out, wav);
+  const quiet = await soundLevel('ffmpeg', out);
+  assert.ok(!quiet.hasSound, 'a silent sound track reads as no sound: ' + JSON.stringify(quiet));
+  console.log(`ok   the sound check: ${loud.peakDb} dB has sound; no track and silence don't`);
   fs.rmSync(tmp, { recursive: true, force: true });
 })().catch((e) => {
   console.error('FAIL', e.message);

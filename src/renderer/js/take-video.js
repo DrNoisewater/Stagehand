@@ -66,11 +66,14 @@ export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()
             // the last piece of video arrives just before this: let it go out, then the sound
             await pieces;flushSound();await send;
             const native=!!pcm;const id=session;session=null;clean();pcm=null;
-            if(native&&!soundBytes)toast({title:'No sound reached the recording',message:'The video is saved without sound. Try turning the guitar off and on again before the next one.',kind:'err',timeout:8000});
+            if(native&&!soundBytes)console.warn('clip: no sound from the engine');
             const seconds=(performance.now()-startedAt)/1000;
             toast({title:'Saving the video…',message:`${fmt(seconds)} long.`,kind:'info',timeout:3000});
             const saved=await api.clips.finish(id,{seconds});
-            if(saved&&saved.take)toast({title:`Saved “${saved.take.name}”`,message:'In Recordings (the file is “SH - …mp4”).',kind:'ok',actions:[{label:'Recordings',onClick:()=>import('./recordings.js').then(r=>r.openRecordings({focus:saved.take.id}))}]});
+            const open=saved&&saved.take?[{label:'Recordings',onClick:()=>import('./recordings.js').then(r=>r.openRecordings({focus:saved.take.id}))}]:[];
+            // 4.1.2: the app checks the saved file's sound; say so plainly when it has none
+            if(saved&&saved.take&&saved.hasSound===false)toast({title:`Saved “${saved.take.name}”, but it has no sound`,message:'The picture is there, but the sound didn’t reach the recording. The Activity log (Settings) says what happened.',kind:'err',timeout:12000,actions:open});
+            else if(saved&&saved.take)toast({title:`Saved “${saved.take.name}”`,message:'In Recordings (the file is “SH - …mp4”).',kind:'ok',actions:open});
             resolve(saved&&saved.path);}catch(e){clean();reject(e);}};
         });
         // Catch auto-stop failures as well as explicit save failures.

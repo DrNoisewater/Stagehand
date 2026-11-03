@@ -329,6 +329,13 @@ async function serve(req) {
     headers.set('Content-Type', 'image/png');
     return new Response(res.body, { status: 200, headers });
   }
+  if (u.host === 'take') {
+    // 4.1.2: the Recordings window sends a recording's sound into the sound engine,
+    // which a browser only allows when the file says the app's own page may read it
+    const headers = new Headers(res.headers);
+    headers.set('Access-Control-Allow-Origin', 'stagehand://app');
+    return new Response(res.body, { status: res.status, headers });
+  }
   return res;
 }
 
@@ -487,10 +494,16 @@ async function saveClip({ input, sound, title, songId, seconds }) {
   const file=path.join(D.takes,rel);
   const output=path.join(path.dirname(input),'export.mp4');
   const video=require('./services/video-export');
-  await video.exportMp4(await video.ensureEncoder(tools),input,output,sound||null);
+  const exe=await video.ensureEncoder(tools);
+  await video.exportMp4(exe,input,output,sound||null);
+  // 4.1.2: check the saved video's sound and log it, so "no sound" can be told apart
+  // from "sound that couldn't be heard" (the cause the last few times)
+  const level=await video.soundLevel(exe,output);
+  const soundBytes=sound?(await fsp.stat(sound).catch(()=>({size:0}))).size:0;
+  log(`Video saved: ${rel}, ${Math.round(Number(seconds)||0)} s; engine sound ${soundBytes?`${Math.round(soundBytes/1024)} KB`:'none'}; loudest ${level.peakDb===null?'no sound track':`${level.peakDb} dB`}`);
   await fsp.copyFile(output,file);
   const take=await takes.addVideo({file:rel,name:path.basename(rel,'.mp4').replace(/^SH - /,''),songId:songId||null,seconds:Number(seconds)||0});
-  return {path:file,take};
+  return {path:file,take,hasSound:level.hasSound,peakDb:level.peakDb};
 }
 
 function registerIpc() {
