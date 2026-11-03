@@ -28,4 +28,13 @@ async function exportMp4(exe,input,output,audio){
  try{await run(exe,[...common,'-c:v','h264_nvenc','-preset','p4','-cq','18','-b:v','16M',...end]);return 'NVIDIA';}
  catch{await run(exe,[...common,'-c:v','libx264','-preset','fast','-crf','18',...end]);return 'CPU';}
 }
-module.exports={ensureEncoder,exportMp4,exportArgs};
+/** 4.1.2: how loud the saved video's sound is, so a silent video is never a surprise.
+ *  → { hasSound, peakDb } (peakDb -91 means digital silence; null when unreadable). */
+function soundLevel(exe,file){return new Promise(resolve=>{
+ const p=spawn(exe,['-hide_banner','-nostats','-i',file,'-map','0:a:0?','-af','volumedetect','-f','null','-'],{windowsHide:true});
+ let err='';p.stdout.resume();p.stderr.on('data',d=>err=(err+d).slice(-20000));
+ p.on('error',()=>resolve({hasSound:false,peakDb:null}));
+ p.on('close',()=>{const m=/max_volume:\s*(-?[\d.]+|-inf) dB/.exec(err);const hasStream=/Stream #\d+:\d+[^\n]*Audio:/.test(err);
+  const peakDb=m?(m[1]==='-inf'?-91:Number(m[1])):null;resolve({hasSound:hasStream&&peakDb!==null&&peakDb>-60,peakDb:hasStream?peakDb:null});});
+});}
+module.exports={ensureEncoder,exportMp4,exportArgs,soundLevel};

@@ -170,6 +170,8 @@ export function render() {
   );
   const discoverSub = h('div.nav-sub');
   top.append(discoverSub);
+  // 4.1.2: a walk-through for people new to Rocksmith songs (opens a window, not a page)
+  top.append(section({ page: 'guide', label: 'Getting started', iconName: 'info', gel: 'var(--gel-other)', onClick: () => import('./guide.js').then((g) => g.openGuide()) }));
 
   root.append(top);
   // section highlight follows the page, not the Songs list

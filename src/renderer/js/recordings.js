@@ -93,13 +93,17 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
 
   // ------------------------------------------------------------ player --
   let media = null;
+  let route = null; // the player's sound, sent into the sound engine like the song
   function stop() {
     if (media) {
       media.pause();
       media.removeAttribute('src');
       media.load();
     }
-    media = null;
+    try {
+      route?.disconnect();
+    } catch (_) {}
+    media = route = null;
     R.playing = null;
     player.hidden = true;
     player.innerHTML = '';
@@ -108,8 +112,24 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
   function show(kind, src, title, sub, key) {
     stop();
     R.playing = key;
-    media = h(kind === 'video' ? 'video' : 'audio', { src, controls: true, autoplay: true });
+    // 4.1.2: the sound plays through the same output as the song, looper and takes.
+    // Played the ordinary way, it went to Windows' default speakers, and while the
+    // sound engine has the speakers to itself (fastest mode) that sound was shut out:
+    // videos seemed to have no sound although the files had it.
+    media = h(kind === 'video' ? 'video' : 'audio', { src, controls: true, crossOrigin: 'anonymous' });
     media.onerror = () => toast({ title: 'Couldn’t play this recording', message: 'The file may have been moved or deleted.', kind: 'err' });
+    const el = media;
+    import('./stage.js')
+      .then(async ({ engine }) => {
+        const { ctx, node } = await engine.extraOut();
+        if (media !== el) return;
+        route = ctx.createMediaElementSource(el);
+        route.connect(node);
+      })
+      .catch((e) => console.warn('recordings: playing through the default output', e))
+      .finally(() => {
+        if (media === el) el.play().catch(() => {});
+      });
     player.append(h('div.rec-ptitle', null, h('b', { text: title }), sub ? h('span', { text: sub }) : null), media);
     player.hidden = false;
     for (const r of panel.querySelectorAll('.rec-row')) r.classList.toggle('on', r.dataset.key === key);
