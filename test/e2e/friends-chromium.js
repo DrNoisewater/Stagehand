@@ -166,10 +166,23 @@ async function stagehand(browser, name, relayUrl, siteUrl) {
       let cut = null;
       const p2 = link.get(list[0].id, { onProgress: (p) => p > 0.2 && !cut && ((cut = p), link.cancel()) });
       const g2 = await p2;
+      // the connection drops at ~40%: connect again and carry on from there
+      const pieces = [];
+      let have = 0;
+      let link2 = await window.L.connectTo(window.api, id, { iceServers: [] });
+      await link2.get(list[0].id, { onChunk: (c) => (pieces.push(c), (have += c.byteLength), have > 1.4e6 && link2.close()) }).catch(() => {});
+      const droppedAt = have;
+      link2 = await window.L.connectTo(window.api, id, { iceServers: [] });
+      const rest = await link2.get(list[0].id, { from: have, onChunk: (c) => (pieces.push(c), (have += c.byteLength)) });
+      link2.close();
+      const joined = new Uint8Array(have);
+      let o = 0;
+      for (const p of pieces) joined.set(p, o), (o += p.byteLength);
+      const resumed = { droppedAt, from: rest.from, total: have, size: rest.size, digest: Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', joined))).map((b) => b.toString(16).padStart(2, '0')).join('') };
       const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', f.bytes))).map((b) => b.toString(16).padStart(2, '0')).join('');
       const peers = 0;
       link.close();
-      return { ms, name: link.name, list, size: f.bytes.byteLength, progress, refused, digest, cancelled: g2.cancelled, partial: g2.bytes.byteLength, peers };
+      return { ms, name: link.name, list, size: f.bytes.byteLength, progress, refused, digest, cancelled: g2.cancelled, partial: g2.bytes.byteLength, peers, resumed };
     }, fr.id);
     console.log(`     connected in ${got.ms} ms; ${got.size} bytes`);
     check(got.name === 'Alex', `Bo sees who it is (“${got.name}”)`);
@@ -178,6 +191,8 @@ async function stagehand(browser, name, relayUrl, siteUrl) {
     check(got.progress === 1, 'progress reaches 100%');
     check(got.refused.every((x) => /isn’t shared/.test(x)), `an unshared video and an audio take are refused (${got.refused.join(' / ')})`);
     check(got.cancelled && got.partial < big.length, `stopping part way works (${got.partial} of ${big.length} bytes)`);
+    const want = require('crypto').createHash('sha256').update(big).digest('hex');
+    check(got.resumed.droppedAt < big.length && got.resumed.from === got.resumed.droppedAt && got.resumed.digest === want, `a download cut off at ${got.resumed.droppedAt} bytes carries on from there and arrives whole`);
     check(relay.posts.every((p) => p.startsWith('sh1.') && !/a=fingerprint|candidate|Riff/.test(p)), 'the relay only saw sealed messages');
 
     // Alex turns sharing off: Bo can't connect

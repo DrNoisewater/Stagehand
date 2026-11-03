@@ -9,7 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const http = require('http');
-const { Friends, normCode, validCode, prettyCode, derive, seal, open, newCode } = require('../src/main/services/friends');
+const { Friends, Subscription, normCode, validCode, prettyCode, derive, seal, open, newCode, relayList } = require('../src/main/services/friends');
 
 let failed = 0;
 const tests = [];
@@ -20,6 +20,7 @@ function fakeNtfy() {
   const subs = new Map();
   const posts = [];
   let n = 0;
+  let gets = 0;
   const server = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x');
     const parts = u.pathname.split('/').filter(Boolean);
@@ -35,6 +36,7 @@ function fakeNtfy() {
       return;
     }
     if (req.method === 'GET' && parts.length === 2 && parts[1] === 'json') {
+      gets++;
       res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
       res.write(`${JSON.stringify({ id: 'o', event: 'open', topic: parts[0] })}\n`);
       if (!subs.has(parts[0])) subs.set(parts[0], new Set());
@@ -44,7 +46,10 @@ function fakeNtfy() {
     }
     res.writeHead(404).end();
   });
-  return new Promise((r) => server.listen(0, '127.0.0.1', () => r({ server, url: `http://127.0.0.1:${server.address().port}`, posts, subs })));
+  const inject = (topic, ev) => {
+    for (const s of subs.get(topic) || []) s.write(`${JSON.stringify(ev)}\n`);
+  };
+  return new Promise((r) => server.listen(0, '127.0.0.1', () => r({ server, url: `http://127.0.0.1:${server.address().port}`, posts, subs, inject, gets: () => gets })));
 }
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sh-friends-'));
@@ -166,6 +171,103 @@ test('connect: nobody home → OFFLINE; no relay → RELAY', async () => {
   } finally {
     relay.server.closeAllConnections();
     relay.server.close();
+  }
+});
+
+const stopAll = (...relays) => relays.forEach((r) => (r.server.closeAllConnections(), r.server.close()));
+
+test('meeting points: a list is cleaned up; one being down doesn’t matter', async () => {
+  assert.deepStrictEqual(relayList('https://a.example/, http://b.example ;nonsense https://a.example'), ['https://a.example', 'http://b.example']);
+  const good = await fakeNtfy();
+  try {
+    const both = `http://127.0.0.1:9, ${good.url}`;
+    const host = await make('mp-host', both);
+    const guest = await make('mp-guest', both);
+    assert.deepStrictEqual(host.state().relays, ['http://127.0.0.1:9', good.url]);
+    await host.setSharing(true);
+    await host.host.subs[1].ready;
+    host.on('offer', (o) => host.answer(o.conn, 'ANSWER'));
+    const fr = await guest.addFriend(host.state().code, 'Host');
+    assert.strictEqual(await guest.connect(fr.id, 'OFFER'), 'ANSWER');
+    await host.setRelay('');
+    assert.deepStrictEqual(host.state().relays, ['https://ntfy.sh', 'https://ntfy.envs.net'], 'empty puts the standard ones back');
+    host.close();
+  } finally {
+    stopAll(good);
+  }
+});
+
+test('meeting points: the same offer through two relays is answered once', async () => {
+  const r1 = await fakeNtfy();
+  const r2 = await fakeNtfy();
+  try {
+    const host = await make('two-host', `${r1.url}, ${r2.url}`);
+    const guest = await make('two-guest', `${r1.url}, ${r2.url}`);
+    await host.setSharing(true);
+    await Promise.all(host.host.subs.map((x) => x.ready));
+    let offers = 0;
+    host.on('offer', (o) => (offers++, host.answer(o.conn, 'A')));
+    const fr = await guest.addFriend(host.state().code, 'Host');
+    assert.strictEqual(await guest.connect(fr.id, 'O'), 'A');
+    await new Promise((r) => setTimeout(r, 200));
+    assert.strictEqual(offers, 1);
+    assert.strictEqual(r1.posts.length + r2.posts.length, 3, 'offer through both, answer back through one');
+    host.close();
+  } finally {
+    stopAll(r1, r2);
+  }
+});
+
+test('clocks: a PC whose clock is hours off still connects', async () => {
+  const relay = await fakeNtfy();
+  const real = Date.now;
+  try {
+    const host = await make('clk-host', relay.url);
+    const guest = await make('clk-guest', relay.url);
+    await host.setSharing(true);
+    await host.host.subs[0].ready;
+    host.on('offer', (o) => host.answer(o.conn, 'ANSWER'));
+    const fr = await guest.addFriend(host.state().code, 'Host');
+    Date.now = () => real() + 3 * 3600 * 1000; // the friend's PC thinks it's 3 hours later
+    assert.strictEqual(await guest.connect(fr.id, 'OFFER'), 'ANSWER');
+    host.close();
+  } finally {
+    Date.now = real;
+    stopAll(relay);
+  }
+});
+
+test('reconnects: old offers the relay hands back are skipped', async () => {
+  const relay = await fakeNtfy();
+  try {
+    const host = await make('old-host', relay.url);
+    await host.setSharing(true);
+    await host.host.subs[0].ready;
+    const { topic, key } = derive(host.state().code);
+    let got = 0;
+    host.on('offer', () => got++);
+    const now = Math.floor(Date.now() / 1000);
+    const msg = (c) => seal(key, topic, { t: 'offer', conn: c, sdp: 'x', n: c, ts: Date.now() });
+    relay.inject(topic, { id: 'a', event: 'message', time: now, message: msg('fresh') });
+    relay.inject(topic, { id: 'b', event: 'message', time: now - 600, message: msg('stale') });
+    await new Promise((r) => setTimeout(r, 200));
+    assert.strictEqual(got, 1);
+    host.close();
+  } finally {
+    stopAll(relay);
+  }
+});
+
+test('reconnects: a stream that goes quiet (sleep, dropped Wi-Fi) is reopened', async () => {
+  const relay = await fakeNtfy();
+  try {
+    const sub = new Subscription({ relay: relay.url, topic: 'quiet', fetchImpl: fetch, onMessage: () => {}, idle: 300 });
+    await sub.ready;
+    await new Promise((r) => setTimeout(r, 1900));
+    sub.close();
+    assert.ok(relay.gets() >= 2, `reopened (${relay.gets()} connections)`);
+  } finally {
+    stopAll(relay);
   }
 });
 
