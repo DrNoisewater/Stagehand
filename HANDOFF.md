@@ -1,10 +1,10 @@
-# Stagehand handoff (v4.1.0, 2026-11-03): friends watch each other's highway and Jam videos with a code
+# Stagehand handoff (v4.1.1, 2026-11-03): Friends cope with wrong clocks, a meeting point down, sleep, proxies and dropped downloads
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
 
-## 4.1.1 (in progress): Friends, ready for the odd things real networks do
+## 4.1.1: Friends, ready for the odd things real networks do
 
 User on 4.1.0: "shouldn't we just go ahead and plan for any weird things like that to happen". Done (no accounts needed):
 - **Clocks:** messages were refused when the sender's clock was more than 2 minutes off. Now only the relay's own clock is used, to skip old offers it hands back after a reconnect; repeats are caught by each message's one-time number. Test: a PC 3 hours off connects.
