@@ -902,6 +902,22 @@ function registerIpc() {
   handle('import:undo', (id) => importer.undo(String(id)));
   handle('import:retryLists', () => importer.flushLists());
   handle('import:clearHistory', () => importer.clearHistory());
+  // 4.1.2 Getting started: ready for songs in one go. Without Rocksmith (or a folder
+  // already chosen), new songs had nowhere to go: make "Stagehand Songs" in Music, use
+  // it as a library folder and as where new songs go, and watch Downloads.
+  handle('guide:readySongs', async () => {
+    let made = null;
+    if (!(await importer.target())) {
+      let base;
+      try { base = app.getPath('music'); } catch (_) { base = app.getPath('documents'); }
+      made = path.join(base, 'Stagehand Songs');
+      await fsp.mkdir(made, { recursive: true });
+      await library.addFolder(made);
+      await importer.configure({ target: made });
+    }
+    const st = await importer.configure({ watch: true });
+    return { ...st, made };
+  });
   handle('import:pickFolder', async (which) => {
     const r = await dialog.showOpenDialog(win, {
       title: which === 'target' ? 'Where should imported songs go?' : 'Which folder do your downloads go to?',

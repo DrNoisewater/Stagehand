@@ -1,8 +1,17 @@
-# Stagehand handoff (v4.1.2, 2026-11-03): recorded videos play their sound through the engine; every saved video is checked for sound
+# Stagehand handoff (v4.1.2, 2026-11-03): recorded videos play their sound through the engine; Getting started for people new to Rocksmith
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.1.2 (also): Getting started, for people who have never played Rocksmith
+
+User: "add a getting started spot. Somebody who I give this program to but doesn't know how Customs Forge works or how the files work there needs a small tutorial if they choose to follow. I have a few people … that have never even played Rocksmith."
+- **What:** `js/guide.js`, a window with 7 steps (Welcome · Your guitar (live: cable found or not) · What a song file is (.psarc, CDLC, CustomsForge account, Ignition, PC `_p` vs Mac `_m`, ZIPs dragged on the window; Open CustomsForge) · Get ready for songs (live; **Set it up for me**) · Download your first song (live: turns green when a song arrives; Look in Downloads now) · Tune up and play (open a song, tuning, U tuner, reading the highway: the six string colours from `highway.js STRING`, frets, chords, tails, bends; Go to Songs) · More to try (Jam, Stems, Tones, Recordings, Progress)).
+- **Where:** menu › **Getting started** (`sidebar.js`); offered once by itself on a fresh install with no songs (`main.js boot` → `offerGuide`), with "Not now"; closing it sets `settings.ui.guideSeen`.
+- **Set it up for me** (`guide:readySongs` in main.js, `api.imports.readySongs`): without Rocksmith (or a chosen folder), new songs had nowhere to go ("Stagehand doesn’t know where to put songs yet"). It makes `Music/Stagehand Songs`, adds it as a library folder and as where new songs go, and turns on watching Downloads (it was off by default).
+- **Test:** `ELECTRON=<electron 44> xvfb-run -a node test/e2e/guide-electron.js <out>` (the real app, fresh home: offered by itself, all 7 steps, the songs folder made and Downloads watched, a song arriving turns it green, Done, the menu reopens it, not offered on the next start; shots `gs-*.png`). All passed.
+- **Ask the user:** have one of the new people try it cold: where did they get stuck? Is anything on CustomsForge different from how the guide describes it (account, download button, file sites)? Should the guide say which cable to buy (with a link)?
 
 ## 4.1.2: recorded videos' sound, fixed for good (the seventh report)
 
