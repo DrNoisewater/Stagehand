@@ -48,6 +48,8 @@ const ICONS = {
   sparkle: '<path d="M12 3.5l1.8 5 5 1.8-5 1.8-1.8 5-1.8-5-5-1.8 5-1.8z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
   setlist: '<path d="M4 6h10M4 11h10M4 16h6"/><path d="M17 9v8.5"/><circle cx="15" cy="17.5" r="2"/><path d="M17 9l3-1"/>',
   tuning: '<path d="M6 3.5v17M10 3.5v17M14 3.5v17M18 3.5v17"/><circle cx="6" cy="8" r="1.6"/><circle cx="14" cy="14" r="1.6"/>',
+  people: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="16.5" cy="9.5" r="2.5"/><path d="M15.5 14.2A4.8 4.8 0 0 1 21 19"/>',
+  video: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5l5-3v9l-5-3z"/>',
   person: '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5a7 7 0 0 1 14 0"/>',
   copy: '<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6.5A1.5 1.5 0 0 0 14.5 5h-8A1.5 1.5 0 0 0 5 6.5v8A1.5 1.5 0 0 0 6.5 16H8"/>',
   wand: '<path d="M5 19l10-10M14 6l1-2 1 2 2 1-2 1-1 2-1-2-2-1z"/>',

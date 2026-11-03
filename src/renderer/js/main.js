@@ -14,6 +14,7 @@ import './practice.js';
 import './nowpanel.js';
 import './tonespage.js';
 import './progress.js';
+import './friends.js';
 import './stemformat.js';
 import { rig } from './rig.js';
 import { loadTones, useSlot } from './tonelib.js';

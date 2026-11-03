@@ -30,6 +30,7 @@ const { RigAudio } = require('./services/rigaudio');
 const { ToneStore, ToneIndex } = require('./services/tones');
 const { Stats, Takes } = require('./services/stats');
 const { Captures } = require('./services/captures');
+const { Friends } = require('./services/friends');
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'stagehand', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true, codeCache: true } },
@@ -73,6 +74,7 @@ let toneIndex;
 let stats;
 let takes;
 let captures;
+let friends;
 const logLines = [];
 let clipSessions = null;
 let activity = '';
@@ -576,7 +578,56 @@ function registerIpc() {
   handle('app:crashNote',()=>{const n=crashNote;crashNote=null;return n;});
   handle('takes:list' , () => takes.list());
   handle('takes:save', (t) => takes.save(t));
-  handle('takes:remove', (id) => takes.remove(id));
+  handle('takes:remove', async (id) => {
+    const r = await takes.remove(id);
+    if (friends) await friends.setShared(id, false);
+    return r;
+  });
+  // Friends (4.1): friends watch the highway and Jam videos you share, with a code.
+  // Only videos (never audio takes or songs); the page makes the direct connection (js/friendlink.js).
+  const sharedVideo = async (id) => {
+    const t = (await takes.list()).find((x) => x.id === String(id));
+    return t && t.kind === 'video' && friends.isShared(t.id) ? t : null;
+  };
+  handle('friends:get', async () => {
+    await friends.prune((await takes.list()).filter((t) => t.kind === 'video').map((t) => t.id));
+    return friends.state();
+  });
+  handle('friends:setSharing', (on) => friends.setSharing(on));
+  handle('friends:setName', (name) => friends.setName(name));
+  handle('friends:setRelay', (url) => friends.setRelay(url));
+  handle('friends:newCode', () => friends.newCode());
+  handle('friends:add', (code, name) => friends.addFriend(code, name));
+  handle('friends:rename', (id, name) => friends.renameFriend(id, name));
+  handle('friends:remove', (id) => friends.removeFriend(id));
+  handle('friends:share', async (id, on) => {
+    const t = (await takes.list()).find((x) => x.id === String(id));
+    if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can be shared with friends'), { code: 'NOT_VIDEO' });
+    return friends.setShared(String(id), on);
+  });
+  handle('friends:connect', (friendId, sdp) => friends.connect(friendId, sdp));
+  handle('friends:answer', (conn, sdp) => friends.answer(conn, sdp));
+  // what a connected friend may see and fetch: shared videos only, only while sharing is on
+  handle('friends:hostList', async () => {
+    const st = friends.state();
+    const list = st.sharing ? (await takes.list()).filter((t) => t.kind === 'video' && friends.isShared(t.id)) : [];
+    return { name: st.name, recordings: list.map((t) => ({ id: t.id, name: t.name, seconds: t.seconds, size: t.bytes, at: t.at })) };
+  });
+  handle('friends:hostRead', async (id, part, offset, length) => {
+    const t = await sharedVideo(id);
+    if (!t || part !== 'video') throw Object.assign(new Error('That video isn’t shared'), { code: 'NOT_SHARED' });
+    const fh = await fsp.open(takes.pathOf(t.id), 'r');
+    try {
+      const { size } = await fh.stat();
+      const start = Math.max(0, Math.min(size, Number(offset) || 0));
+      const n = Math.max(0, Math.min(size - start, Number(length) || 0, 4 << 20));
+      const bytes = Buffer.alloc(n);
+      if (n) await fh.read(bytes, 0, n, start);
+      return { size, bytes };
+    } finally {
+      await fh.close();
+    }
+  });
   handle('takes:rename', (id, name) => takes.rename(id, name));
   handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, packaged: app.isPackaged, dirs: D, models: MODELS }));
   handle('app:log', () => logLines.slice(-200));
@@ -959,6 +1010,10 @@ app.whenReady().then(async () => {
     log,
   });
   await captures.load().catch((e) => log(`Captures failed to load: ${e.message}`));
+  friends = new Friends({ file: path.join(D.roaming, 'friends.json'), fetchImpl: (url, opts) => fetch(url, opts), safeStorage, log });
+  await friends.load().catch((e) => log(`Friends failed to load: ${e.message}`));
+  friends.on('change', (st) => send('friends:change', st));
+  friends.on('offer', (o) => send('friends:offer', o));
   captures.on('change', (st) => send('captures:change', st));
   organizer = new Organizer({ library, logFile: path.join(D.roaming, 'organize-log.json') });
   rsprofiles = new RsProfiles({ settings, backupDir: D.profileBackups, log, libraryFolders: () => library.data.folders.map((f) => f.path) });
@@ -1035,6 +1090,7 @@ app.on('before-quit', async (e) => {
   try {
     library.close();
     if (rigAudio) rigAudio.quit();
+    if (friends) friends.close();
     importer.stop();
     discover.cancelGaps();
     for (const j of [stems.current]) if (j && j.child) j.child.kill();
