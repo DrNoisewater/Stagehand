@@ -2,6 +2,13 @@
 
 Windows desktop app (Electron 44) for Rocksmith 2014 `.psarc` songs: library, player, stem mixer, and a live guitar/bass rig with note detection. **Read `HANDOFF.md` first**: it has the history, the design decisions, and who the user is (a guitar and bass player, not a programmer: write to them in plain words with no code talk).
 
+## Start from the latest version (always)
+
+A session once started from a copy several versions old (3.9 while GitHub had 4.0.9) and rebuilt video recording, which already existed. So:
+- `.claude/hooks/session-start.sh` runs at every session start: it fetches GitHub and brings the checkout up to the latest `main` when that's safe, or prints a WARNING saying how far behind it is. Read that line before doing anything.
+- Before building a feature, check it doesn't exist already: `git fetch origin main`, compare `package.json`'s version with `origin/main`'s, and search the code (`git grep`) for it. If the user says something already exists and you can't find it, you are on an old copy: fetch first, never rebuild it.
+- New work branches start from `origin/main` (`git checkout -B <branch> origin/main`).
+
 ## Layout
 
 - `src/main/`: Electron main process (CommonJS): `core/` (PSARC, SNG, saves, tones) and `services/` (library, stems, audio relay).
