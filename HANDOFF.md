@@ -37,6 +37,7 @@ User: "an automatic update feature where, from the main screen, you can automati
   - **Setup** (`windows/setup/setup.c`, new `/update` = `/go` + `reopen`) closes Stagehand if needed, updates (a few seconds), shows "updated" for 1.5 s, opens Stagehand and closes itself. Older Setups are cleared.
   - **Off Windows:** it shows the release page instead.
   - **Note:** people on 4.1.3 or older have to install 4.1.4 by hand once; from then on it updates itself.
+  - **The repository must stay public** for this (and for friends to download Setup): GitHub hides a private repository's releases from the unauthenticated check, which then says "GitHub answered 404". It was private until 2026-11-04. The user made it public after weighing it (their worry was being visible for reading .psarc files; the alternative was a separate public "Stagehand-Downloads" repository with only the Setups, pushed by the release workflow with a token). Updating 4.1.4 → 4.1.5 with the button then worked for the user.
 - **Friend actions:**
   - The picked friend now has a bar with their name, **their code**, and **Rename / Change code / Remove** (`friendBar`; the right-click menu stays, with the same actions).
   - **Fixed for every window:** a question box opened from a higher window (e.g. "Remove Alex?" from Recordings, z-index 330) opened behind it (base modals are 40). `ui.js modal()` now puts each new box above the highest one open.
