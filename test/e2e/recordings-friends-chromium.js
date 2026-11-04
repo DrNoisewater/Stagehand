@@ -205,7 +205,7 @@ async function stagehand(browser, name, relay, url) {
     await A.page.locator('.rec-tabs button:has-text("Friends")').click();
     await A.page.waitForSelector('.fr-code code');
     const made = await A.page.locator('.fr-code code').textContent();
-    check(/^[a-z]+-\d{3}$/.test(made), `Friends shows Alex’s code, easy to say (${made})`);
+    check(/^[a-z]+-[a-z]+$/.test(made), `Friends shows Alex’s code, easy to say (${made})`);
     await A.page.waitForSelector('.fr-status.ok', { timeout: 15000 }).catch(() => {});
     check(/Ready\. Friends with your code can connect now/.test(await A.page.locator('.fr-status').textContent()), `Alex is told plainly they’re ready: “${await A.page.locator('.fr-status').textContent()}”`);
     // the ⋯ menu opens in front of the window (it opened behind it)
@@ -236,7 +236,7 @@ async function stagehand(browser, name, relay, url) {
     await B.page.evaluate(() => window.R.openRecordings({ tab: 'friends' }));
     await B.page.waitForSelector('.fr-friend.add');
     await B.page.locator('.fr-friend.add').click();
-    check((await B.page.locator('.over-rec input').getAttribute('placeholder')) === 'e.g. tiger-427', 'the box shows an example word code, nothing to format');
+    check((await B.page.locator('.over-rec input').getAttribute('placeholder')) === 'e.g. happy-tiger', 'the box shows an example word code, nothing to format');
     await B.page.locator('.over-rec input').fill('alex rocks');
     await B.page.locator('.over-rec button:has-text("Next")').click();
     check(/at least 6|Ask your friend/.test(await B.page.locator('.over-rec .fr-err').textContent()) === false, 'a short phrase over 6 letters is fine');
@@ -328,6 +328,30 @@ async function stagehand(browser, name, relay, url) {
     const blobSize = await B.page.evaluate(async () => (await (await fetch(document.querySelector('.rec-player video').src)).blob()).size);
     check(blobSize === long.length, `after reconnecting the whole video arrives (${blobSize} of ${long.length} bytes)`);
 
+    // 4.1.5, as it happened for real: Bo's copy of Alex's code has one letter wrong; Alex writes to Bo.
+    // Bo gets "No answer", and Stagehand spots that the message came from a near-miss code: one click fixes it.
+    const alexId = B.friends.state().friends[0].id;
+    await B.friends.setFriendCode(alexId, 'alex-rocks-oat');
+    const boId = A.friends.state().friends.find((f) => f.name === 'Bo').id;
+    await A.friends.sendMessage(boId, 'Did you get my code right?');
+    await B.page.waitForTimeout(800);
+    await B.page.evaluate(() => document.querySelector('.modal header .icon-btn').click());
+    await B.page.evaluate(() => window.R.openRecordings({ tab: 'friends' }));
+    await B.page.waitForSelector('.fr-friend.stranger', { timeout: 5000 }).catch(() => {});
+    check((await B.page.locator('.fr-friend.stranger').count()) === 1, 'Alex’s message shows as someone new on Bo’s side (the code Bo has is wrong)');
+    await B.page.locator('.fr-friend.stranger').click();
+    check(/Is this Alex\?/.test(await B.page.locator('.fr-view').textContent()), 'opening it asks: “Is this Alex?” (a near-miss of the code Bo typed)');
+    await B.page.screenshot({ path: path.join(outDir, 'rec-6c-is-this-alex.png') });
+    await B.page.locator('.fr-friend:not(.add):not(.stranger)').click();
+    await B.page.waitForSelector('.fr-state.off', { timeout: 40000 });
+    const found = await B.page.locator('.fr-state').textContent();
+    check(/Found it/.test(found) && /Alex Rocks Out/.test(found) && /alex-rocks-oat/.test(found), '“No answer from Alex” now says “Found it”, with both codes side by side');
+    await B.page.screenshot({ path: path.join(outDir, 'rec-6d-found-it.png') });
+    await B.page.locator('.fr-found .btn:has-text("Use")').click();
+    await B.page.waitForSelector('.fr-live', { timeout: 40000 }).catch(() => {});
+    check(/The code is right/.test((await B.page.locator('.fr-live').textContent().catch(() => '')) || ''), 'one click on “Use …” fixes the code and connects');
+    check((await B.page.locator('.fr-friend.stranger').count()) === 0 && /Did you get my code right\?/.test(await B.page.locator('.fr-msgs').textContent()), 'and Alex’s message moves into Alex’s chat');
+
     // Alex turns sharing off: Bo can't get in any more
     await A.friends.setSharing(false);
     await B.page.evaluate(() => document.querySelector('.modal header .icon-btn').click());
@@ -338,7 +362,7 @@ async function stagehand(browser, name, relay, url) {
     await B.page.screenshot({ path: path.join(outDir, 'rec-7-friend-away.png') });
 
     // the friend you picked: Rename, Change code and Remove in plain sight; "Remove Alex?" in front
-    check((await B.page.locator('.fr-bar').count()) === 1 && /Their code: alex-rocks-out/.test(await B.page.locator('.fr-bar').textContent()), 'the picked friend shows their name, their code, and Rename / Change code / Remove');
+    check((await B.page.locator('.fr-bar').count()) === 1 && /Their code: Alex Rocks Out/.test(await B.page.locator('.fr-bar').textContent()), 'the picked friend shows their name, their code, and Rename / Change code / Remove');
     await B.page.locator('.fr-bar .btn:has-text("Remove")').click();
     await B.page.waitForTimeout(400);
     const inFront = await B.page.evaluate(() => {

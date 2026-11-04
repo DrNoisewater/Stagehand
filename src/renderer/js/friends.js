@@ -41,6 +41,9 @@ export const host = startHost(api, {
 });
 loadFriends();
 
+// 4.1.5: a friend changed their code and their Stagehand told yours: it's updated already
+api.on('friends:moved', (m) => toast({ title: `${m.name} changed their code`, message: `Updated by itself to “${m.code}”. Nothing to do.`, kind: 'info', timeout: 6000 }));
+
 // 4.1.3: a message from a friend (or someone with your code): say so, unless it's already on screen
 api.on('friends:message', (m) => {
   const id = m.friendId || m.key;

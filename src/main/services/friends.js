@@ -55,17 +55,19 @@ function validCode(s) {
 /** Why a typed code won't do, in plain words (null if it's fine). */
 function codeProblem(s) {
   const c = normCode(s);
-  if (c.length < MIN_CODE) return `A code needs at least ${MIN_CODE} letters or numbers, like tiger-427.`;
+  if (c.length < MIN_CODE) return `A code needs at least ${MIN_CODE} letters or numbers, like happy-tiger.`;
   if (c.length > MAX_CODE) return 'That code is too long. Keep it to a few words.';
   return null;
 }
 
-// 4.1.3: as simple as it can be while staying hard to stumble on: one word and a number,
-// e.g. "tiger-427" (about 50,000 of them; or choose your own word or phrase)
-const WORDS = ['amber', 'banjo', 'bass', 'blue', 'chord', 'cobra', 'comet', 'drum', 'eagle', 'echo', 'falcon', 'fret', 'fuzz', 'gold', 'groove', 'guitar', 'harp', 'jade', 'jazz', 'lion', 'lucky', 'lunar', 'maple', 'melody', 'neon', 'otter', 'panda', 'pearl', 'piano', 'pick', 'pixel', 'polar', 'rhythm', 'riff', 'river', 'rocket', 'ruby', 'silver', 'solo', 'sonic', 'storm', 'string', 'sunny', 'tempo', 'tiger', 'tune', 'velvet', 'violet', 'wolf', 'zebra'];
+// 4.1.6: two plain words, no numbers ("happy-tiger"): easy to say and to type, nothing
+// to mix up (a swapped digit in "dominos2496" was what stopped two friends connecting).
+// About 3,000 of them; or choose your own word or phrase.
+const ADJ = ['amber', 'blue', 'bold', 'brave', 'bright', 'calm', 'cosmic', 'crimson', 'electric', 'fuzzy', 'gentle', 'golden', 'happy', 'iron', 'jolly', 'loud', 'lucky', 'lunar', 'mellow', 'mighty', 'neon', 'proud', 'quick', 'quiet', 'rapid', 'royal', 'rusty', 'silver', 'smooth', 'sonic', 'sunny', 'swift', 'velvet', 'warm', 'wild', 'witty', 'cool', 'funky', 'shiny', 'misty', 'stormy', 'wise', 'groovy', 'cosy', 'lively', 'snowy', 'tiny', 'giant', 'polar', 'purple', 'green', 'red', 'pink', 'easy'];
+const NOUN = ['amp', 'banjo', 'bass', 'bear', 'chord', 'cobra', 'comet', 'drum', 'eagle', 'echo', 'falcon', 'fox', 'fret', 'groove', 'guitar', 'harp', 'hawk', 'lion', 'melody', 'moose', 'moon', 'otter', 'owl', 'panda', 'piano', 'pick', 'puma', 'raven', 'rhythm', 'riff', 'river', 'robin', 'rocket', 'shark', 'solo', 'star', 'storm', 'string', 'tempo', 'tiger', 'tuba', 'tune', 'whale', 'wolf', 'zebra', 'koala', 'llama', 'mango', 'cactus', 'canyon', 'island', 'meadow', 'galaxy', 'volcano'];
 function newCode() {
-  const b = crypto.randomBytes(4);
-  return `${WORDS[b[0] % WORDS.length]}-${100 + (b.readUInt16LE(2) % 900)}`;
+  const b = crypto.randomBytes(2);
+  return `${ADJ[b[0] % ADJ.length]}-${NOUN[b[1] % NOUN.length]}`;
 }
 
 /** How a code is shown: an old 16-character code in groups of four, a phrase as typed. */
@@ -217,8 +219,9 @@ class Friends extends EventEmitter {
    * @param {Function} o.fetchImpl fetch (streaming bodies)
    * @param {object} [o.safeStorage] Electron safeStorage, to keep codes encrypted on disk
    */
-  constructor({ file, fetchImpl, safeStorage, log }) {
+  constructor({ file, fetchImpl, safeStorage, log, fallbackName = '' }) {
     super();
+    this.fallbackName = String(fallbackName || '').slice(0, 40); // 4.1.5: your Windows name until you set one
     this.file = file;
     this.fetch = fetchImpl || fetch;
     this.log = log || (() => {});
@@ -282,6 +285,7 @@ class Friends extends EventEmitter {
     return {
       code: prettyCode(d.code),
       name: d.name,
+      shownName: this.shownName(),
       sharing: d.sharing,
       listening: !!(this.host && this.host.subs.some((x) => x.isReady)),
       relay: d.relays.join(', '),
@@ -294,6 +298,11 @@ class Friends extends EventEmitter {
         return { key: w, name: last.name || 'Someone', code: last.reply || w, messages: d.chats.filter((c) => c.with === w).map(chatOut) };
       }),
     };
+  }
+
+  /** The name friends see: the one you set, else your Windows user name (not "Someone"). */
+  shownName() {
+    return this.data.name || this.fallbackName || '';
   }
 
   _changed() {
@@ -324,19 +333,47 @@ class Friends extends EventEmitter {
 
   /** A fresh code: everyone with the old one loses access. */
   async newCode() {
-    return this.setCode(newCode());
+    // a made-up code is for cutting people off: friends are NOT told it
+    return this.setCode(newCode(), { tell: false });
   }
 
   /** 4.1.3: your own word or phrase. Everyone with the old one loses access. */
-  async setCode(text) {
+  async setCode(text, { tell = true } = {}) {
     const t = String(text || '').trim().replace(/\s+/g, ' ');
     const bad = codeProblem(t);
     if (bad) throw Object.assign(new Error(bad), { code: 'BAD_CODE', field: 'code' });
     if (this.data.friends.some((f) => sameCode(f.code, t))) throw Object.assign(new Error('That’s one of your friends’ codes. Pick your own.'), { code: 'FRIEND_CODE', field: 'code' });
+    const old = this.data.code;
+    if (sameCode(old, t)) {
+      this.data.code = t; // only the way it's written changed
+      return this._changed();
+    }
     this.data.code = t;
     this._stopListening();
     this._listen();
+    // 4.1.5: tell the friends in your list, so their copy of your code updates by itself
+    // (a changed code used to leave them with "No answer" until you sent them the new one)
+    if (tell) for (const f of this.data.friends) this._tellNewCode(f, old, t);
     return this._changed();
+  }
+
+  _tellNewCode(f, old, code) {
+    const { topic, key } = derive(f.code);
+    this._publish(this.data.relays, topic, key, { t: 'moved', old, reply: code, from: this.shownName() }).then(
+      () => this.log(`Friends: told ${f.name} the new code`),
+      (err) => this.log(`Friends: couldn't tell ${f.name} the new code: ${err.message}`)
+    );
+  }
+
+  /** A friend changed their code and told us: update our copy (only for someone already in the list). */
+  _moved(m) {
+    if (typeof m.old !== 'string' || typeof m.reply !== 'string' || !validCode(m.reply)) return;
+    const f = this.data.friends.find((x) => sameCode(x.code, m.old));
+    if (!f || sameCode(f.code, m.reply)) return;
+    f.code = String(m.reply).slice(0, 80);
+    this.log(`Friends: ${f.name} changed their code; updated`);
+    this.emit('moved', { friendId: f.id, name: f.name, code: prettyCode(f.code) });
+    this._changed().catch(() => {});
   }
 
   _checkFriendCode(code, exceptId = null) {
@@ -423,6 +460,7 @@ class Friends extends EventEmitter {
           const m = this._accept(key, topic, text);
           if (!m) return;
           if (m.t === 'msg' || m.t === 'ack') return this._chatIn(m);
+          if (m.t === 'moved') return this._moved(m);
           // old offers (from before a reconnect or a restart) are stale: skip them
           if (time && newest - time > MAX_AGE) return;
           if (!this.data.sharing) return; // videos only while sharing is on
@@ -508,7 +546,7 @@ class Friends extends EventEmitter {
     await this._changed();
     const { topic, key } = derive(code);
     try {
-      await this._publish(this.data.relays, topic, key, { t: 'msg', id: msg.id, from: this.data.name || '', reply: this.data.code, text: t });
+      await this._publish(this.data.relays, topic, key, { t: 'msg', id: msg.id, from: this.shownName(), reply: this.data.code, text: t });
       if (msg.state === 'sending') msg.state = 'sent';
       this.log(`Friends: message to ${f ? f.name : 'a friend'} reached the meeting point`);
     } catch (err) {

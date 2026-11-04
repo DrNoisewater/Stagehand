@@ -1381,3 +1381,8 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .fr-who code { font: 600 12px var(--font); color: #c9cfe2; }
 .fr-bar .btn.danger { color: #ff7b87; }
 .fr-bar .btn svg { width: 14px; height: 14px; }
+/* 4.1.5: a near-miss code, found from a message */
+.fr-found { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 10px 14px; margin: 0 0 10px; border-radius: 10px; background: #10221a; border: 1px solid #2c6b48; color: #d9f7e4; font-size: 13px; max-width: 460px; }
+.fr-found b { color: #a8e8c0; }
+.fr-found code, .fr-state code { font: 650 13px var(--font); color: #ffe3b0; background: #221b10; padding: 1px 6px; border-radius: 5px; }
+.fr-found .fr-acts { justify-content: flex-start; }

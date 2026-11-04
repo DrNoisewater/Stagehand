@@ -22,12 +22,19 @@ const MAX_FILE = 4 * 1024 * 1024 * 1024;
 const SLICE = 1 << 20; // read from disk a megabyte at a time
 
 /**
- * Waits until the connection details (ICE candidates) are gathered. Gathering
- * often never says "complete" (an unreachable STUN server, idle interfaces), so
- * it also stops shortly after the candidates go quiet: soon once the public
- * address (srflx) is known, later while still hoping for it. At most `ms`.
+ * Waits until the connection details (ICE candidates: every address this PC can be
+ * reached at) are gathered. Gathering often never says "complete" (an unreachable
+ * STUN server, idle interfaces), so it also stops once the candidates have been
+ * quiet for a while. At most `ms`.
+ *
+ * 4.1.6: it used to stop half a second after the first outside address. A PC with
+ * several network adapters (Wi-Fi and Ethernet, a VPN, the virtual adapters some
+ * programs add) can find a useless one first, and its answer then lacked the one
+ * that works: friends got "answered, but your PCs couldn't connect" one way only.
+ * Now it waits until every adapter has been asked (or the candidates go quiet for
+ * 1.5 s after an outside address was found).
  */
-function gathered(pc, ms = 5000) {
+function gathered(pc, ms = 6000) {
   if (pc.iceGatheringState === 'complete') return Promise.resolve();
   const servers = (pc.getConfiguration().iceServers || []).length > 0;
   return new Promise((res) => {
@@ -48,7 +55,7 @@ function gathered(pc, ms = 5000) {
       if (!e.candidate) return done();
       if (/ typ (srflx|relay)/.test(e.candidate.candidate)) pub = true;
       clearTimeout(quiet);
-      quiet = setTimeout(done, pub ? 500 : servers ? 2500 : 400);
+      quiet = setTimeout(done, pub ? 1500 : servers ? 3000 : 400);
     }
     pc.addEventListener('icegatheringstatechange', state);
     pc.addEventListener('icecandidate', cand);

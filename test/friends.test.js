@@ -69,7 +69,7 @@ async function make(name, relay) {
 
 test('codes: a word or phrase, typed loosely; old 16-character codes still work', () => {
   const c = newCode();
-  assert.ok(/^[a-z]+-\d{3}$/.test(c), `an easy made-up code, one word and a number: ${c}`);
+  assert.ok(/^[a-z]+-[a-z]+$/.test(c), `an easy made-up code, two plain words: ${c}`);
   assert.ok(validCode(c), c);
   // capitals, spaces and dashes don't matter
   assert.ok(sameCode('Amber Tiger 42', 'amber-tiger-42') && sameCode('AMBERTIGER42', ' amber  tiger-42 '));
@@ -86,7 +86,7 @@ test('codes: a word or phrase, typed loosely; old 16-character codes still work'
   assert.strictEqual(normCode('oooo-iiii-llll-1111'), '0000111111111111');
   assert.strictEqual(prettyCode('  Amber  tiger 42 '), 'Amber tiger 42', 'a phrase shows as typed');
   const seen = new Set(Array.from({ length: 200 }, newCode));
-  assert.ok(seen.size >= 190, `made-up codes rarely repeat (${seen.size} of 200 different)`);
+  assert.ok(seen.size >= 180, `made-up codes rarely repeat (${seen.size} of 200 different)`);
 });
 
 test('derive: same code, same topic and key; different code, different', () => {
@@ -196,6 +196,49 @@ test('messages: through the meeting point, sent → delivered, to someone not in
     assert.strictEqual(bo.state().friends.find((f) => f.id === nobody.id).messages[0].state, 'sent', 'a wrong code: sent, never delivered');
     alex2.close();
     bo.close();
+  } finally {
+    relay.server.closeAllConnections();
+    relay.server.close();
+  }
+});
+
+test('a changed code reaches your friends by itself; a made-up one (to cut people off) does not', async () => {
+  const relay = await fakeNtfy();
+  const until = async (fn, ms = 4000) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < ms) {
+      if (await fn()) return true;
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    return false;
+  };
+  try {
+    const jake = new Friends({ file: path.join(tmp, 'c-jake.json'), fetchImpl: fetch, fallbackName: 'Jake' });
+    await jake.load();
+    await jake.setRelay(relay.url);
+    const ian = await make('c-ian', relay.url);
+    await jake.setCode('dominos 2496');
+    await ian.setCode('ian plays bass');
+    await jake.addFriend('ian plays bass', 'Ian');
+    await ian.addFriend('dominos-2496', 'Jake');
+    await until(() => jake.state().listening && ian.state().listening);
+    assert.strictEqual(jake.state().shownName, 'Jake', 'no name set: friends see the Windows name, not “Someone”');
+    // Jake changes his code: Ian's copy follows
+    await jake.setCode('jake rocks 77');
+    assert.ok(await until(() => ian.state().friends[0].code === 'jake rocks 77'), 'Ian’s copy of Jake’s code updates by itself');
+    // Ian's Stagehand closed when Jake changes it again: it updates when Ian opens it
+    ian.close();
+    await jake.setCode('jake rocks 78');
+    await new Promise((r) => setTimeout(r, 300));
+    const ian2 = new Friends({ file: path.join(tmp, 'c-ian.json'), fetchImpl: fetch });
+    await ian2.load();
+    assert.ok(await until(() => ian2.state().friends[0].code === 'jake rocks 78'), 'and when Ian’s Stagehand was closed, it updates on opening');
+    // a made-up code is for cutting people off: nobody is told
+    await jake.newCode();
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(ian2.state().friends[0].code, 'jake rocks 78', '“Make up a new code” tells nobody');
+    jake.close();
+    ian2.close();
   } finally {
     relay.server.closeAllConnections();
     relay.server.close();
