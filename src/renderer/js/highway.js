@@ -25,6 +25,7 @@ import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { tuningGuide } from './tuning-check.js';
 import { breakdown, cheer } from './scorecard.js';
+import { StruggleWatch, nearestPick } from './struggle.js';
 import { state, on } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
 
@@ -282,6 +283,7 @@ export function createHighway(stage) {
         toggle('Chord names', prefs.chordNames !== false, () => setPref('chordNames', prefs.chordNames === false)),
         toggle('Fire on a streak', prefs.fx, () => setPref('fx', !prefs.fx)),
         toggle('Score card at the end', prefs.scoreCard !== false, () => setPref('scoreCard', prefs.scoreCard === false)),
+        toggle('Offer help when notes aren’t counting', !prefs.struggleOff, () => setPref('struggleOff', !prefs.struggleOff)),
         toggle('Frame rate', !!prefs.showFps, () => setPref('showFps', !prefs.showFps))
       )
     );
@@ -405,6 +407,15 @@ export function createHighway(stage) {
       for (const k of b.kinds) kinds.append(h(`span.${bandCls(k.acc)}`, { title: `${k.hit}/${k.notes}` }, `${k.label} `, h('b', { text: `${Math.round(k.acc * 100)}%` })));
       card.append(kinds);
     }
+    // 4.1.6: the timing check, where people look after a run that went badly
+    if (!prefs.syncChecked || b.acc < 0.6) {
+      const tc = h('button.hw-chip', { type: 'button', html: `${icon('clock')}<span>Timing check</span>` });
+      tc.onclick = () => {
+        hideCard();
+        openSync();
+      };
+      card.append(h('div.hw-card-notes', null, h('div.work', null, h('span', { html: icon('clock') }), h('span', { text: prefs.syncChecked ? 'Notes you played on time not counting? Run the timing check again.' : 'Haven’t done the timing check yet? 30 seconds, once, and notes you hit on time count.' }), tc)));
+    }
     const again = h('button.hw-chip.hw-card-again', { type: 'button', html: `${icon('play')}<span>Play again</span>` });
     again.onclick = () => {
       hideCard();
@@ -434,20 +445,55 @@ export function createHighway(stage) {
   const syncBox = h('div.hw-syncbox', { hidden: true, role: 'dialog', 'aria-label': 'Timing check' });
   root.append(syncBox);
   let syncRun = null;
-  function openSync() {
+  let syncHold = 0;
+  function openSync({ first = false } = {}) {
     if (stage.engine.playing) stage.toggle();
     syncBox.hidden = false;
-    syncIntro();
+    syncIntro({ first });
+    // the song may start a moment later (it was still loading): keep it paused while this is open
+    clearInterval(syncHold);
+    syncHold = setInterval(() => {
+      if (syncBox.hidden) return clearInterval(syncHold);
+      if (stage.engine.playing) stage.toggle();
+    }, 200);
+  }
+  // 4.1.6: people don't know the timing check exists: the first time you open the
+  // highway with your guitar plugged in, it introduces itself (twice at most, never once done)
+  let syncAskedNow = false; // once each time Stagehand is opened, not song after song
+  function maybeFirstSync() {
+    if (syncAskedNow || prefs.syncChecked || (prefs.syncAsked || 0) >= 2 || !rig.on || !(prefs.detect !== false)) return;
+    if (prefs.offsetMs) return setPref('syncChecked', true); // done before 4.1.6
+    syncAskedNow = true;
+    setPref('syncAsked', (prefs.syncAsked || 0) + 1);
+    openSync({ first: true });
   }
   function closeSync() {
     if (syncRun) syncRun.stop();
     syncRun = null;
     syncBox.hidden = true;
+    clearInterval(syncHold);
   }
-  function syncIntro() {
+  function syncIntro({ first = false } = {}) {
     syncBox.innerHTML = '';
     const go = h('button.btn.primary', { type: 'button', text: 'Start' });
-    const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
+    const cancel = h('button.btn.ghost', { type: 'button', text: first ? 'Not now' : 'Cancel' });
+    if (first && rig.on) {
+      go.onclick = () => syncPlay();
+      cancel.onclick = () => {
+        closeSync();
+        toast({ title: 'Any time you like', message: 'The timing check is under Tools › Timing check on the highway.', kind: 'info', timeout: 6000 });
+      };
+      syncBox.append(
+        h('div.hw-sync-ring', { html: icon('clock') }),
+        h('h3', { text: 'First, a 30-second timing check' }),
+        h('p', { text: 'Every PC plays sound a little late, some more than others. This lines Stagehand up with your PC and how you play, so notes you hit on time count as hits. You only do it once.' }),
+        h('p', { text: 'Four clicks count you in, then 16 notes come down the lane. Pick the open low string as each one reaches the line.' }),
+        h('p.fine', { text: 'Later: Tools › Timing check, any time.' }),
+        h('div.hw-sync-actions', null, cancel, go)
+      );
+      go.focus();
+      return;
+    }
     const tap = h('button.btn.ghost', { type: 'button', text: rig.on ? 'Tap instead' : 'Tap along' });
     cancel.onclick = () => closeSync();
     tap.onclick = () => syncStart();
@@ -900,8 +946,65 @@ export function createHighway(stage) {
 
   function setPref(k, v) {
     prefs[k] = v;
+    if (k === 'offsetMs') prefs.syncChecked = true; // 4.1.6: you've done a timing check
     save();
     if (k === 'detect') resetJudge();
+  }
+
+  // ------------------------------------------------- 4.1.6: need a hand? --
+  // Missing lots of notes while clearly playing along: offer the timing check
+  // (or the tuning check). Once per song each time you open it; sooner the
+  // first time through a song; never while you've said not to.
+  const offered = new Set();
+  function newWatch() {
+    const first = !H.prevBest || H.prevBest.best === undefined;
+    H.watch = new StruggleWatch({ first, checked: !!prefs.syncChecked });
+    if (H.song && offered.has(H.song.id)) H.watch.said = true;
+  }
+  function watchNote(e, tg) {
+    if (!H.watch || prefs.struggleOff || !stage.engine.playing) return;
+    const st = H.judge && H.judge.state.get(e.id);
+    const near = nearestPick(H.judge && H.judge.onsets, tg.t);
+    H.watch.add({ hit: e.hit, tried: e.hit || near !== null, offset: st && st.offset !== null && st.offset !== undefined ? st.offset : near });
+    if (!syncBox.hidden) return;
+    const v = H.watch.verdict();
+    if (v) offerHelp(v);
+  }
+  function offerHelp(v) {
+    if (H.song) offered.add(H.song.id);
+    const kind = instrument() === 'bass' ? 'bass' : 'guitar';
+    const timing = { label: 'Timing check', onClick: () => openSync() };
+    const tune = { label: 'Check my tuning', onClick: () => H.tab && tuningGuide({ ...H.tab, type: kind === 'bass' ? 'bass' : H.tab.type }, H.song, stage.engine) };
+    const never = { label: 'Don’t ask again', onClick: () => setPref('struggleOff', true) };
+    // the other calibration: strum hard for 4 seconds and Stagehand sets your input level
+    const level = {
+      label: 'Set input level',
+      onClick: async () => {
+        if (stage.engine.playing) stage.toggle();
+        toast({ title: 'Strum hard for 4 seconds', message: 'As hard as you play. Stagehand sets your input level.', kind: 'info', timeout: 4500 });
+        const r = await rig.calibrate(4).catch(() => null);
+        toast(r ? { title: 'Input level set', message: `Your hardest strum peaked at ${Math.round(r.peakDb)} dB. Press Space to carry on.`, kind: 'ok' } : { title: 'Didn’t hear anything', message: 'Check the cable is plugged in, then try again and strum hard.', kind: 'info' });
+      },
+    };
+    const way = v.ms > 0 ? 'late' : 'early';
+    if (v.why === 'timing')
+      toast({
+        title: 'Lots of notes slipping by?',
+        message: Math.abs(v.ms) >= 55
+          ? `We can hear you playing, but your notes land about ${Math.abs(v.ms)} ms ${way}. A 30-second timing check lines the highway up with how you play (and your PC’s sound delay).`
+          : 'We can hear you playing, but many notes aren’t counting. A 30-second timing check lines the highway up with how you play (and your PC’s sound delay). Setting your input level helps too.',
+        kind: 'info',
+        timeout: 20000,
+        actions: [timing, level, never],
+      });
+    else
+      toast({
+        title: 'Notes not counting?',
+        message: `We can hear you playing, but many notes don’t sound like the ones on the highway. Check your ${kind} is in tune for this song, and set your input level (a quiet signal misses notes).`,
+        kind: 'info',
+        timeout: 20000,
+        actions: [tune, level, never],
+      });
   }
 
   // ------------------------------------------------------------ opening --
@@ -918,11 +1021,13 @@ export function createHighway(stage) {
     H.clock = stage.engine.position;
     H.last = performance.now();
     H.prevBest = H.song && state.best ? { ...(state.best[H.song.id] || {}) } : null;
+    newWatch();
     hideCard();
     resetJudge();
     renderControls();
     renderStatus();
     loop();
+    setTimeout(() => H.open && H.tab && maybeFirstSync(), 700);
   }
 
   function close() {
@@ -1250,6 +1355,7 @@ export function createHighway(stage) {
           H.judge.next = lower(H.targets, raw - H.judge.early);
           H.judge.events = []; H.judge.frames = []; H.judge.onsets = [];
         }
+        if (H.watch) H.watch.reset();
         H.landNext = lower(H.targets, raw);
         H.lands = []; H.hits = []; H.bursts = []; H.misses = [];
         sparks.length = 0;
@@ -2175,6 +2281,7 @@ export function createHighway(stage) {
     extras.judged(e);
     const tg = H.targets[e.id];
     if (!tg) return;
+    watchNote(e, tg);
     if (e.hit) for (const n of tg.notes) if (!n.mute) feat.note(n.s, n.f, true);
     const now = performance.now();
     const st = H.judge && H.judge.state.get(e.id);

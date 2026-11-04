@@ -7,6 +7,7 @@ import * as stage from './stage.js';
 import * as dialogs from './dialogs.js';
 import * as actions from './actions.js';
 import * as discover from './discover.js';
+import * as searchbox from './searchbox.js';
 import { isTyping, topModal, debounce, toast, modal, h } from './ui.js';
 import './shell.js';
 import './play.js';
@@ -64,44 +65,7 @@ api.app
 
 actions.register({ stage, inspector, dialogs });
 
-const search = document.getElementById('search');
-const inDiscover = () => state.page === 'discover' && state.view.kind === 'discover';
-search.addEventListener('input', () => {
-  // In Discover the same box searches MusicBrainz instead of the library.
-  if (inDiscover()) return discover.setQuery(search.value);
-  // 3.8: typing anywhere else shows your songs straight away, filtered as you type
-  state.search = search.value;
-  if (search.value && state.page !== 'songs') {
-    if (state.view.kind === 'discover') setView({ kind: 'all' });
-    else setPage('songs');
-  }
-  bump();
-  emit('search');
-});
-search.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    if (search.value) {
-      search.value = '';
-      search.dispatchEvent(new Event('input'));
-    } else search.blur();
-    e.stopPropagation();
-  } else if (inDiscover() && e.key === 'Enter') {
-    discover.setQuery(search.value, { now: true });
-    e.preventDefault();
-  } else if (!inDiscover() && (e.key === 'ArrowDown' || e.key === 'Enter')) {
-    library.focusList();
-    e.preventDefault();
-  }
-});
-function syncSearchBox() {
-  const d = inDiscover();
-  search.closest('.search').classList.toggle('online', d);
-  search.placeholder = d ? 'Search MusicBrainz for any artist or song' : 'Search songs, tones, artists';
-  search.setAttribute('aria-label', d ? 'Search MusicBrainz' : 'Search your library');
-  const want = d ? state.discover.query : state.search;
-  if (search.value !== want) search.value = want;
-}
-on('view', syncSearchBox);
+// 4.1.6: the search box (suggestions, Tab to finish, recent searches) lives in searchbox.js
 document.getElementById('btn-settings').onclick = () => dialogs.settings();
 
 on('reveal', (id) => library.revealSong(id));
@@ -116,8 +80,7 @@ document.addEventListener('keydown', (e) => {
   }
   const ctrl = e.ctrlKey || e.metaKey;
   if (ctrl && e.key.toLowerCase() === 'f') {
-    search.focus();
-    search.select();
+    searchbox.focus();
     e.preventDefault();
     return;
   }
@@ -243,7 +206,7 @@ async function boot() {
   import('./guide.js').then((g) => g.offerGuide()).catch((err) => console.warn('Getting started failed', err));
   loadRocksmith();
   loadBest();
-  syncSearchBox();
+  searchbox.sync();
   discover.init().catch((err) => console.warn('Discover failed to start', err));
   // Pick up changes made in the game while Stagehand was in the background.
   let lastRsCheck = 0;
