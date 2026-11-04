@@ -610,6 +610,9 @@ function registerIpc() {
   handle('friends:setName', (name) => friends.setName(name));
   handle('friends:setRelay', (url) => friends.setRelay(url));
   handle('friends:newCode', () => friends.newCode());
+  handle('friends:setCode', (code) => friends.setCode(code));
+  handle('friends:setFriendCode', (id, code) => friends.setFriendCode(id, code));
+  handle('friends:send', (to, text) => friends.sendMessage(to, text));
   handle('friends:add', (code, name) => friends.addFriend(code, name));
   handle('friends:rename', (id, name) => friends.renameFriend(id, name));
   handle('friends:remove', (id) => friends.removeFriend(id));
@@ -618,7 +621,8 @@ function registerIpc() {
     if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can be shared with friends'), { code: 'NOT_VIDEO' });
     return friends.setShared(String(id), on);
   });
-  handle('friends:connect', (friendId, sdp) => friends.connect(friendId, sdp));
+  // 4.1.3: the window shows each step of connecting (reaching the meeting point, asking them)
+  handle('friends:connect', (friendId, sdp) => friends.connect(friendId, sdp, { onStage: (stage) => send('friends:progress', { friendId, stage }) }));
   handle('friends:answer', (conn, sdp) => friends.answer(conn, sdp));
   // what a connected friend may see and fetch: shared videos only, only while sharing is on
   handle('friends:hostList', async () => {
@@ -1044,6 +1048,7 @@ app.whenReady().then(async () => {
   await friends.load().catch((e) => log(`Friends failed to load: ${e.message}`));
   friends.on('change', (st) => send('friends:change', st));
   friends.on('offer', (o) => send('friends:offer', o));
+  friends.on('message', (m) => send('friends:message', m));
   captures.on('change', (st) => send('captures:change', st));
   organizer = new Organizer({ library, logFile: path.join(D.roaming, 'organize-log.json') });
   rsprofiles = new RsProfiles({ settings, backupDir: D.profileBackups, log, libraryFolders: () => library.data.folders.map((f) => f.path) });

@@ -28,6 +28,8 @@ const EVENTS = new Set(['nav:back',
   'tones:progress',
   'friends:change',
   'friends:offer',
+  'friends:progress',
+  'friends:message',
   'app:recovered',
 ]);
 
@@ -127,6 +129,9 @@ contextBridge.exposeInMainWorld('stagehand', {
     setName: (name) => call('friends:setName', name),
     setRelay: (url) => call('friends:setRelay', url),
     newCode: () => call('friends:newCode'),
+    setCode: (code) => call('friends:setCode', code),
+    setFriendCode: (id, code) => call('friends:setFriendCode', id, code),
+    send: (to, text) => call('friends:send', to, text),
     add: (code, name) => call('friends:add', code, name),
     rename: (id, name) => call('friends:rename', id, name),
     remove: (id) => call('friends:remove', id),

@@ -9,7 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const http = require('http');
-const { Friends, Subscription, normCode, validCode, prettyCode, derive, seal, open, newCode, relayList } = require('../src/main/services/friends');
+const { Friends, Subscription, normCode, validCode, codeProblem, sameCode, prettyCode, derive, seal, open, newCode, relayList } = require('../src/main/services/friends');
 
 let failed = 0;
 const tests = [];
@@ -38,7 +38,14 @@ function fakeNtfy() {
     if (req.method === 'GET' && parts.length === 2 && parts[1] === 'json') {
       gets++;
       res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
-      res.write(`${JSON.stringify({ id: 'o', event: 'open', topic: parts[0] })}\n`);
+      res.write(`${JSON.stringify({ id: 'o', event: 'open', time: Math.floor(Date.now() / 1000), topic: parts[0] })}\n`);
+      // ?since=: what the relay kept (an id: after that one; '12h' or 'all': everything here)
+      const since = u.searchParams.get('since');
+      if (since) {
+        const mine = posts.filter((p) => p.topic === parts[0]);
+        const at = mine.findIndex((p) => p.id === since);
+        for (const p of at >= 0 ? mine.slice(at + 1) : /^m\d+$/.test(since) ? [] : mine) res.write(`${JSON.stringify(p)}\n`);
+      }
       if (!subs.has(parts[0])) subs.set(parts[0], new Set());
       subs.get(parts[0]).add(res);
       req.on('close', () => subs.get(parts[0]).delete(res));
@@ -60,16 +67,26 @@ async function make(name, relay) {
   return f;
 }
 
-test('codes: 16 characters, typed loosely', () => {
+test('codes: a word or phrase, typed loosely; old 16-character codes still work', () => {
   const c = newCode();
+  assert.ok(/^[a-z]+-\d{3}$/.test(c), `an easy made-up code, one word and a number: ${c}`);
   assert.ok(validCode(c), c);
-  assert.strictEqual(prettyCode(c).length, 19);
-  assert.strictEqual(normCode(` ${prettyCode(c).toLowerCase()} `), c);
+  // capitals, spaces and dashes don't matter
+  assert.ok(sameCode('Amber Tiger 42', 'amber-tiger-42') && sameCode('AMBERTIGER42', ' amber  tiger-42 '));
+  assert.strictEqual(derive('Amber Tiger 42').topic, derive('amber-tiger-42').topic);
+  assert.ok(!sameCode('amber-tiger-42', 'amber-tiger-43'));
+  // a phrase of your own
+  assert.ok(validCode('ians guitar room'));
+  assert.ok(!validCode('abc'), 'too short');
+  assert.match(codeProblem('abc'), /at least 6/);
+  assert.strictEqual(codeProblem('jake-plays-bass'), null);
+  // old codes: shown in fours, and typed any old way still the same code (same topic as before)
+  assert.strictEqual(prettyCode('ABCDEFGHJKMNPQRS'), 'ABCD-EFGH-JKMN-PQRS');
+  assert.strictEqual(normCode(' abcd efgh-jkmn-pqrs '), 'ABCDEFGHJKMNPQRS');
   assert.strictEqual(normCode('oooo-iiii-llll-1111'), '0000111111111111');
-  assert.ok(!validCode('ABCD-EFGH'));
-  assert.ok(!validCode('ABCD-EFGH-JKMN-PQR!'));
+  assert.strictEqual(prettyCode('  Amber  tiger 42 '), 'Amber tiger 42', 'a phrase shows as typed');
   const seen = new Set(Array.from({ length: 200 }, newCode));
-  assert.strictEqual(seen.size, 200);
+  assert.ok(seen.size >= 190, `made-up codes rarely repeat (${seen.size} of 200 different)`);
 });
 
 test('derive: same code, same topic and key; different code, different', () => {
@@ -95,7 +112,7 @@ test('seal/open: round trip; wrong key, other topic or tampering → null', () =
   assert.strictEqual(open(key, topic, 'hello'), null);
 });
 
-test('state: own code kept across loads, friend codes never shown to the page', async () => {
+test('state: own code kept across loads; friend codes shown, so you can check them', async () => {
   const file = path.join(tmp, 'keep.json');
   const a = new Friends({ file });
   await a.load();
@@ -105,11 +122,84 @@ test('state: own code kept across loads, friend codes never shown to the page', 
   await b.load();
   assert.strictEqual(b.state().code, code);
   assert.deepStrictEqual(b.state().friends.map((x) => x.name), ['Sam']);
-  assert.ok(!('code' in b.state().friends[0]));
+  assert.strictEqual(b.state().friends[0].code, f.code);
   await assert.rejects(b.addFriend(code, 'me'), /your own code/);
-  await assert.rejects(b.addFriend('nope', 'x'), /16 letters/);
+  await assert.rejects(b.addFriend(code.toUpperCase().replace(/-/g, ' '), 'me'), /your own code/, 'typed differently, still your own');
+  await assert.rejects(b.addFriend('nope', 'x'), /at least 6/);
+  // your own phrase
+  await b.setCode('Jake Plays Bass');
+  assert.strictEqual(b.state().code, 'Jake Plays Bass');
+  await assert.rejects(b.setCode('ab'), /at least 6/);
+  await assert.rejects(b.setCode(f.code), /friends’ codes/);
+  // fix a friend's code
+  const fixed = await b.setFriendCode(f.id, 'sams-new-code');
+  assert.strictEqual(fixed.code, 'sams-new-code');
+  const c = new Friends({ file });
+  await c.load();
+  assert.strictEqual(c.state().code, 'Jake Plays Bass', 'kept across loads');
+  assert.strictEqual(c.state().friends[0].code, 'sams-new-code');
   await b.removeFriend(f.id);
   assert.strictEqual(b.state().friends.length, 0);
+});
+
+test('messages: through the meeting point, sent → delivered, to someone not in your list, while closed', async () => {
+  const relay = await fakeNtfy();
+  const until = async (fn, ms = 4000) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < ms) {
+      if (await fn()) return true;
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    return false;
+  };
+  try {
+    const alex = await make('m-alex', relay.url);
+    const bo = await make('m-bo', relay.url);
+    await alex.setName('Alex');
+    await bo.setName('Bo');
+    await alex.setCode('Alex Rocks Out');
+    await until(() => alex.state().listening && bo.state().listening);
+    // sharing is off: messages still work (they don't need it)
+    assert.ok(!alex.state().sharing);
+    const fa = await bo.addFriend('alex-rocks-out', 'Alex');
+    const out = await bo.sendMessage(fa.id, 'Testing, can you hear me?');
+    assert.ok(['sent', 'delivered'].includes(out.state), 'a meeting point took it');
+    assert.ok(await until(() => bo.state().friends[0].messages[0].state === 'delivered'), 'Bo sees “Delivered”: Alex’s Stagehand got it');
+    // Bo isn't in Alex's list: the message shows, with Bo's name, ready to add back
+    const st = alex.state();
+    assert.strictEqual(st.strangers.length, 1);
+    assert.strictEqual(st.strangers[0].name, 'Bo');
+    assert.strictEqual(st.strangers[0].messages[0].text, 'Testing, can you hear me?');
+    const fb = await alex.addFriend(st.strangers[0].code, 'Bo');
+    assert.strictEqual(alex.state().strangers.length, 0, 'added: no longer a stranger');
+    assert.strictEqual(alex.state().friends[0].messages.length, 1, 'the message moved to Bo’s thread');
+    // Alex answers
+    await alex.sendMessage(fb.id, 'Loud and clear');
+    assert.ok(await until(() => bo.state().friends[0].messages.some((m) => m.dir === 'in' && m.text === 'Loud and clear')), 'Bo gets the answer');
+    assert.ok(await until(() => alex.state().friends[0].messages.find((m) => m.dir === 'out').state === 'delivered'), 'Alex sees “Delivered”');
+    // Alex's Stagehand closed: the message waits at the meeting point and arrives when it opens
+    alex.close();
+    await bo.sendMessage(fa.id, 'Sent while you were away');
+    await new Promise((r) => setTimeout(r, 300));
+    assert.notStrictEqual(bo.state().friends[0].messages.pop().state, 'delivered', 'not delivered while closed');
+    const alex2 = new Friends({ file: path.join(tmp, 'm-alex.json'), fetchImpl: fetch });
+    await alex2.load();
+    assert.ok(await until(() => alex2.state().friends[0].messages.some((m) => m.text === 'Sent while you were away')), 'arrives when Alex opens Stagehand');
+    assert.ok(await until(() => bo.state().friends[0].messages.pop().state === 'delivered'), 'and Bo then sees “Delivered”');
+    const count = alex2.state().friends[0].messages.length;
+    await new Promise((r) => setTimeout(r, 300));
+    assert.strictEqual(alex2.state().friends[0].messages.length, count, 'no message twice');
+    // a wrong code: it reaches the meeting point but nobody gets it
+    const nobody = await bo.addFriend('nobody-has-this-code', 'Nobody');
+    await bo.sendMessage(nobody.id, 'hello?');
+    await new Promise((r) => setTimeout(r, 400));
+    assert.strictEqual(bo.state().friends.find((f) => f.id === nobody.id).messages[0].state, 'sent', 'a wrong code: sent, never delivered');
+    alex2.close();
+    bo.close();
+  } finally {
+    relay.server.closeAllConnections();
+    relay.server.close();
+  }
 });
 
 test('sharing: a take counts as shared only while sharing is on', async () => {

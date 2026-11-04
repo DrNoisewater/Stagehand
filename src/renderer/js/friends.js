@@ -12,7 +12,7 @@ import { emit } from './store.js';
 import { toast } from './ui.js';
 import { startHost } from './friendlink.js';
 
-export const F = { st: null, peers: 0 };
+export const F = { st: null, peers: 0, watching: [] }; // watching: names of friends watching now (4.1.3)
 
 export async function loadFriends() {
   try {
@@ -30,14 +30,29 @@ api.on('friends:change', (st) => {
 });
 
 export const host = startHost(api, {
-  onPeers: (n) => {
-    const was = F.peers;
+  onPeers: (n, names = []) => {
+    const was = F.watching;
     F.peers = n;
-    if (n > was) toast({ title: 'A friend is watching', message: 'They’re looking at the videos you share.', kind: 'info', timeout: 3500 });
+    F.watching = names;
+    const fresh = names.filter((x) => !was.includes(x));
+    if (fresh.length) toast({ title: `${fresh[0]} is watching`, message: 'They connected with your code and can see the videos you share.', kind: 'info', timeout: 4000 });
     emit('friends');
   },
 });
 loadFriends();
+
+// 4.1.3: a message from a friend (or someone with your code): say so, unless it's already on screen
+api.on('friends:message', (m) => {
+  const id = m.friendId || m.key;
+  if (document.querySelector(`.fr-type[data-for="${CSS.escape(id)}"]`)) return;
+  toast({
+    title: `Message from ${m.name}`,
+    message: m.text.length > 140 ? `${m.text.slice(0, 140)}…` : m.text,
+    kind: 'info',
+    timeout: 8000,
+    actions: [{ label: 'Open', onClick: () => import('./recordings.js').then((r) => r.openRecordings({ tab: 'friends', friend: id })) }],
+  });
+});
 
 export const isShared = (id) => !!(F.st && F.st.shared.includes(id));
 
