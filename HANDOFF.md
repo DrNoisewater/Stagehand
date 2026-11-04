@@ -1,8 +1,26 @@
-# Stagehand handoff (v4.1.4, 2026-11-04): updates from inside Stagehand; friend actions in plain sight
+# Stagehand handoff (v4.1.5, 2026-11-04): Friends fix mistyped and changed codes by themselves
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.1.5: Friends fix mistyped and changed codes by themselves
+
+User on 4.1.4, with photos: their friend still couldn't connect. Jake → Ian worked ("Connected… The code is right", messages Delivered); Ian → Jake said "No answer from Jake" (code "dominos2496"), and Ian had a "Someone (new)" chip. Then: "I also changed my code, and so did he: does that affect anything?"
+- **Diagnosis:** Jake's message (it carries his real code) landed under "Someone (new)" on Ian's side, so the code Ian had for Jake didn't match: a typo and/or Jake's change of code. (Fix told to the user: Ian adds "Someone (new)" as a friend, which uses the exact code, or both re-send codes.)
+- **Near-miss codes** (`recordings.js` `nearMiss`/`lookalikeOf`/`friendFor`, edit distance ≤ 2 on the tidied code, or the same name):
+  - "No answer from X" shows **Found it: the code is a little different**, with both codes side by side and **Use "…"**.
+  - The "(new)" screen asks **Is this X?** with **Yes: use this code for X**.
+  - Either way the code is fixed (`setFriendCode`), it connects, and the messages move into X's chat.
+- **A changed code reaches friends by itself** (`setCode` → `_tellNewCode` → `{t:'moved', old, reply}` sealed to each friend in your list; `_moved` updates only a friend whose stored code matches `old`). It works when their Stagehand was closed (12 h replay), and shows a note "X changed their code. Updated by itself".
+  - "Make up a new code for me" (for cutting people off) tells nobody (`newCode` → `tell: false`).
+  - A change only in how the code is written isn't a change.
+- **Names:** with no name set, friends see your Windows user name (`fallbackName` from `os.userInfo()`, skipping generic ones like "User"), not "Someone" (`shownName` in state, messages, `hostList`, the visitor's `hi`).
+- **Tests:**
+  - `test/friends.test.js` adds the code change reaching a friend, also after they were closed; a made-up code tells nobody; the Windows name.
+  - `recordings-friends-chromium.js` adds the real-life case: Bo has Alex's code one letter off; Alex writes; "Is this Alex?" and "Found it" offer the right code; one click connects and the message moves into Alex's chat. All passed.
+  - npm test passes. The full two-person run wasn't repeated after the code-change addition (the user stopped it).
+- **Ask the user:** after both update, does a code change reach the other side by itself? Does "Found it" show if a code is mistyped?
 
 ## 4.1.4: update from inside Stagehand; friend actions in plain sight
 

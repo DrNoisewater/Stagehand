@@ -383,6 +383,12 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
         toast({ title: 'Couldn’t add them', message: err.message, kind: 'err' });
       }
     };
+    const mine = friendFor(st, x);
+    if (mine) {
+      const use = h('button.btn.primary', { type: 'button', text: `Yes: use this code for ${mine.name}` });
+      use.onclick = () => useCode(mine, x.code);
+      return h('div.fr-view', null, h('div.fr-state.off', null, h('span.fr-orb', { html: icon('person') }), h('b', { text: `Is this ${mine.name}?` }), h('p', null, `${fr.name} wrote from the code `, h('code', { text: x.code }), `. The code you typed for ${mine.name} is `, h('code', { text: mine.code }), ', which is nearly the same: probably a typo.'), h('div.fr-acts', null, use, add)));
+    }
     return h('div.fr-view', null, h('div.fr-state.off', null, h('span.fr-orb', { html: icon('person') }), h('b', { text: `${fr.name} wrote to you` }), h('p', { text: `${fr.name} has your code but isn’t in your list. Add them to watch the videos they share; you can answer here either way.` }), h('div.fr-acts', null, add)));
   }
 
@@ -409,7 +415,7 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
           label: 'Make up a new code for me',
           icon: 'refresh',
           onClick: async () => {
-            if (!(await confirmDialog({ title: 'Make a new code?', message: 'Everyone with your old code loses access. Send the new one to the friends you want.', confirm: 'New code', danger: true }))) return;
+            if (!(await confirmDialog({ title: 'Make a new code?', message: 'Everyone with your old code loses access, and nobody is told the new one: send it to the friends you want. (To change your code and keep your friends, use Change instead.)', confirm: 'New code', danger: true }))) return;
             await api.friends.newCode();
             toast({ title: 'New code made', message: 'Your old code no longer works.', kind: 'ok' });
           },
@@ -459,10 +465,10 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
       value: st.code,
       placeholder: 'e.g. tiger-427',
       confirm: 'Use this code',
-      hint: 'Capitals, spaces and dashes don’t matter. Anyone who knows it can watch what you share, so pick something only your friends would guess. Friends with your old code will need the new one.',
+      hint: 'Capitals, spaces and dashes don’t matter. Anyone who knows it can watch what you share, so pick something only your friends would guess. The friends in your list are told the new code by their Stagehand (within 12 hours, even if theirs is closed).',
       check: (x) => (x.trim() === st.code ? null : api.friends.setCode(x).then(() => null, (err) => err.message)),
     });
-    if (v !== null && v.trim() !== st.code) toast({ title: 'Code changed', message: `Your code is now “${F.st ? F.st.code : v}”. Send it to your friends.`, kind: 'ok', actions: [{ label: 'Copy', onClick: () => copyCode() }] });
+    if (v !== null && v.trim() !== st.code) toast({ title: 'Code changed', message: `Your code is now “${F.st ? F.st.code : v}”. Your friends’ Stagehands are told it.`, kind: 'ok', actions: [{ label: 'Copy', onClick: () => copyCode() }] });
   }
 
   function friendsRow(st) {
@@ -510,6 +516,46 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
     if (other) return `That’s ${other.name}’s code: they’re already in your list.`;
     return null;
   };
+  // 4.1.5: a mistyped code is the usual reason for "No answer". Someone who wrote to you sends
+  // their real code; if it's a near miss of the one you typed for a friend (or the same name),
+  // that's almost certainly them: offer to use it.
+  const editDist = (a, b) => {
+    const d = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      let prev = d[0];
+      d[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const t = d[j];
+        d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prev = t;
+      }
+    }
+    return d[b.length];
+  };
+  const nearMiss = (codeA, nameA, codeB, nameB) => {
+    const a = tidy(codeA);
+    const b = tidy(codeB);
+    if (!a || !b || a === b) return false;
+    return editDist(a, b) <= 2 || (!!nameA && !!nameB && nameA.trim().toLowerCase() === nameB.trim().toLowerCase());
+  };
+  /** someone who wrote to you who is probably friend f (with the right code) */
+  const lookalikeOf = (st, f) => (st.strangers || []).find((x) => nearMiss(x.code, x.name, f.code, f.name)) || null;
+  /** the friend a stranger probably is (you typed their code a little wrong) */
+  const friendFor = (st, x) => st.friends.find((f) => nearMiss(x.code, x.name, f.code, f.name)) || null;
+  async function useCode(f, code) {
+    try {
+      await api.friends.setFriendCode(f.id, code);
+      await loadFriends();
+      const nf = (F.st && F.st.friends.find((y) => y.id === f.id)) || f;
+      hangUp();
+      R.friend = null;
+      R.err = null;
+      toast({ title: `${f.name}’s code fixed`, message: `It’s “${code}” now. Connecting…`, kind: 'ok' });
+      pick(nf);
+    } catch (err) {
+      toast({ title: 'Couldn’t change the code', message: err.message, kind: 'err' });
+    }
+  }
   const CODE_HINT = 'The word or phrase your friend sees under “Your code” in their Recordings › Friends. Capitals, spaces and dashes don’t matter.';
 
   async function addFriend() {
@@ -569,7 +615,7 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
     try {
       // 4.1.3: one quiet second try when the internet side or the direct line hiccups
       // (not when nobody answered: that needs you or your friend to change something)
-      const go = () => connectTo(api, f.id, { name: (F.st && F.st.name) || '', onStage });
+      const go = () => connectTo(api, f.id, { name: (F.st && (F.st.shownName || F.st.name)) || '', onStage });
       const link = await go()
         .catch((err) => {
           if (err.code !== 'DIRECT' && err.code !== 'RELAY') throw err;
@@ -598,6 +644,7 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
     if (R.tab === 'friends') renderFriends();
   }
 
+  const st0 = () => F.st || { friends: [], strangers: [] };
   function friendView() {
     const f = R.friend;
     const box = h('div.fr-view');
@@ -620,6 +667,12 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
             h('li', null, h('div', null, h('b', { text: 'Is the code right?' }), h('span', null, 'You have ', h('code', { text: f.code || '' }), `. It must match what ${f.name} sees under “Your code”.`)))
           ));
         acts = [again(), fix];
+        const look = lookalikeOf(st0(), f);
+        if (look) {
+          const use = btn(`Use “${look.code}”`, () => useCode(f, look.code), true);
+          body.prepend(h('div.fr-found', null, h('b', { text: 'Found it: the code is a little different' }), h('span', null, `A message from ${look.name} came from the code `, h('code', { text: look.code }), ', and you have ', h('code', { text: f.code || '' }), ` for ${f.name}. That’s almost certainly them.`), h('div.fr-acts', null, use)));
+          acts = [again()];
+        }
       } else if (code === 'RELAY') {
         title = 'Can’t reach the internet meeting point';
         body = h('p', { text: 'Stagehand couldn’t get online to look for your friend. Check your internet connection, then try again.' });

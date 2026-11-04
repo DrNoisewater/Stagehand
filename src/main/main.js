@@ -629,7 +629,7 @@ function registerIpc() {
   handle('friends:hostList', async () => {
     const st = friends.state();
     const list = st.sharing ? (await takes.list()).filter((t) => t.kind === 'video' && friends.isShared(t.id)) : [];
-    return { name: st.name, recordings: list.map((t) => ({ id: t.id, name: t.name, seconds: t.seconds, size: t.bytes, at: t.at })) };
+    return { name: st.shownName, recordings: list.map((t) => ({ id: t.id, name: t.name, seconds: t.seconds, size: t.bytes, at: t.at })) };
   });
   handle('friends:hostRead', async (id, part, offset, length) => {
     const t = await sharedVideo(id);
@@ -1064,11 +1064,21 @@ app.whenReady().then(async () => {
   });
   await captures.load().catch((e) => log(`Captures failed to load: ${e.message}`));
   // Chromium's network stack first: it uses Windows' proxy settings (work and school networks); Node's as a fallback
-  friends = new Friends({ file: path.join(D.roaming, 'friends.json'), fetchImpl: (url, opts) => net.fetch(url, opts).catch((err) => (opts && opts.signal && opts.signal.aborted ? Promise.reject(err) : fetch(url, opts))), safeStorage, log });
+  // 4.1.5: until you set a name, friends see your Windows user name ("Jake"), not "Someone"
+  const winName = (() => {
+    try {
+      const u = String(require('os').userInfo().username || '').replace(/[._-]+/g, ' ').trim();
+      return /^(user|admin|administrator|owner|pc)$/i.test(u) ? '' : u.replace(/^\w/, (c) => c.toUpperCase());
+    } catch (_) {
+      return '';
+    }
+  })();
+  friends = new Friends({ fallbackName: winName, file: path.join(D.roaming, 'friends.json'), fetchImpl: (url, opts) => net.fetch(url, opts).catch((err) => (opts && opts.signal && opts.signal.aborted ? Promise.reject(err) : fetch(url, opts))), safeStorage, log });
   await friends.load().catch((e) => log(`Friends failed to load: ${e.message}`));
   friends.on('change', (st) => send('friends:change', st));
   friends.on('offer', (o) => send('friends:offer', o));
   friends.on('message', (m) => send('friends:message', m));
+  friends.on('moved', (m) => send('friends:moved', m));
   // 4.1.4: updates from GitHub releases: checked a little after start and every 6 hours
   const { Updates } = require('./services/updates');
   // (tests only: STAGEHAND_UPDATES_API points at a pretend GitHub; STAGEHAND_UPDATES_MARK records the Setup run instead of running it)
