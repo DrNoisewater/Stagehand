@@ -906,7 +906,7 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(500);
   const moved = await page.evaluate(() => (document.querySelector('.hw-status:not([hidden])') || {}).textContent || '');
   check(/72%/.test(moved), `the highway's stems panel moves with the split: “${moved.slice(0, 50)}”`);
-  const playingBefore = await page.evaluate(() => window.__stagePlaying && window.__stagePlaying());
+  const playingBefore2 = await page.evaluate(() => window.__stagePlaying && window.__stagePlaying());
   stemHold.delete(firstId);
   await page.evaluate((id) => window.__shEmit('stems:update', { songId: id, state: 'ready' }), firstId);
   let started = false;
@@ -914,7 +914,7 @@ class FakePortMain extends EventEmitter {
     await page.waitForTimeout(250);
     started = await page.evaluate(() => document.querySelector('.stem-wait').hidden && !!(window.__stagePlaying && window.__stagePlaying()));
   }
-  check(!playingBefore && started, 'and starts by itself once they’re in');
+  check(!playingBefore2 && started, 'and starts by itself once they’re in');
 
   // ---- 3.13: song switching never leaves the wrong song, a dead spinner, or a silent stall ----
   {
