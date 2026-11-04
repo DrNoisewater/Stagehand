@@ -1,5 +1,6 @@
 /** App state, derived song lists and a tiny event bus. */
 import { api } from './api.js';
+import { normText, matchSong } from './searchmatch.js';
 
 export const bus = new EventTarget();
 export const emit = (type, detail) => bus.dispatchEvent(new CustomEvent(type, { detail }));
@@ -24,6 +25,7 @@ export const state = {
   // Stagehand 3: which section is showing. Always opens on Play.
   page: 'play',
   search: '',
+  searchAll: true, // 3.10: a search looks through every song; false = only the list you were on
   parts: new Set(saved.parts || []),
   sort: saved.sort || { key: 'artist', dir: 1 },
   layout: saved.layout || 'list',
@@ -147,13 +149,13 @@ export function viewTitle(v = state.view) {
 }
 
 let memo = { version: -1, key: '', list: [] };
+let searchStats = { q: '', matches: 0, hiddenByParts: 0 };
+/** What the last visibleSongs() found for the search: matches, and how many the part filters hid. */
+export const lastSearch = () => searchStats;
 
-/** The songs shown in the library for the current view, search and sort. */
-export function visibleSongs() {
-  const key = JSON.stringify([state.view, state.search, [...state.parts], state.sort]);
-  if (memo.version === state.version && memo.key === key) return memo.list;
+/** The songs a view holds, before the search and part filters. */
+function viewBase(v) {
   let list = [...state.songs.values()];
-  const v = state.view;
   let keepOrder = false;
   if (v.kind === 'favorites') list = list.filter((s) => s.user && s.user.fav);
   else if (v.kind === 'recent') {
@@ -180,17 +182,47 @@ export function visibleSongs() {
     const root = v.id.toLowerCase();
     list = list.filter((s) => s.path.toLowerCase().startsWith(root));
   }
-  if (state.parts.size) list = list.filter((s) => [...state.parts].every((p) => hasPart(s, p)));
-  const q = state.search.trim().toLowerCase();
+  return { list, keepOrder };
+}
+
+/** Is this song in the list you're on (search aside)? */
+export function viewHas(id, v = state.view) {
+  const s = state.songs.get(id);
+  if (!s) return false;
+  if (v.kind === 'all') return true;
+  return viewBase(v).list.includes(s) && (!state.parts.size || [...state.parts].every((p) => hasPart(s, p)));
+}
+
+/** The songs shown in the library for the current view, search and sort. */
+export function visibleSongs() {
+  const key = JSON.stringify([state.view, state.search, state.searchAll, [...state.parts], state.sort, state.userSorted]);
+  if (memo.version === state.version && memo.key === key) return memo.list;
+  const v = state.view;
+  let { list, keepOrder } = viewBase(v);
+  const q = normText(state.search);
+  let scores = null;
+  searchStats = { q, matches: 0, hiddenByParts: 0 };
   if (q) {
-    const terms = q.split(/\s+/);
-    list = list.filter((s) => {
-      const hay = `${s.title} ${s.artist} ${s.album} ${s.year || ''} ${s.author} ${s.tuning || ''} ${s.fileName}`.toLowerCase();
-      return terms.every((t) => hay.includes(t));
-    });
+    // 3.10: search the whole library unless you narrowed it to the list you were on
+    if (state.searchAll && v.kind !== 'all') {
+      list = [...state.songs.values()];
+      keepOrder = false;
+    }
+    const terms = q.split(' ');
+    scores = new Map();
+    for (const s of list) {
+      const sc = matchSong(s, terms, q);
+      if (sc > 0) scores.set(s, sc);
+    }
+    list = list.filter((s) => scores.has(s));
+    searchStats.matches = list.length;
   }
+  if (state.parts.size) list = list.filter((s) => [...state.parts].every((p) => hasPart(s, p)));
+  if (q) searchStats.hiddenByParts = searchStats.matches - list.length;
   const { key: sk, dir } = state.sort;
-  if (v.kind === 'recent' && !state.userSorted) list.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+  // best matches first while searching, unless you clicked a column
+  if (scores && !state.userSorted) list.sort((a, b) => scores.get(b) - scores.get(a) || compare(a, b, sk, dir));
+  else if (v.kind === 'recent' && !state.userSorted) list.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
   else if (v.kind === 'played' && !state.userSorted) list.sort((a, b) => (b.user.lastPlayed || 0) - (a.user.lastPlayed || 0));
   else if (!keepOrder || state.userSorted) list.sort((a, b) => compare(a, b, sk, dir));
   memo = { version: state.version, key, list };
@@ -303,12 +335,28 @@ export function setSelection(ids, { anchor, focus } = {}) {
 // 3.9: where you've been, for the mouse's back button (and Alt+←)
 const trail = [];
 let goingBack = false;
-const here = () => ({ page: state.page, view: state.view });
+const here = () => ({ page: state.page, view: state.view, search: state.search, searchAll: state.searchAll });
+const same = (a, b) => a && b && a.page === b.page && JSON.stringify(a.view) === JSON.stringify(b.view) && (a.search || '') === (b.search || '');
+
+/** 3.10: going somewhere else drops the search, so it can't quietly hide what you went to find (Back brings it back). */
+function dropSearch() {
+  if (!state.search) return;
+  state.search = '';
+  state.searchAll = true;
+  bump();
+  emit('search');
+}
+export function clearSearch() {
+  if (!state.search) return;
+  state.search = '';
+  state.searchAll = true;
+  bump();
+  emit('search');
+}
 function remember() {
   if (goingBack) return;
   const cur = here();
-  const last = trail[trail.length - 1];
-  if (last && last.page === cur.page && JSON.stringify(last.view) === JSON.stringify(cur.view)) return;
+  if (same(trail[trail.length - 1], cur)) return;
   trail.push(cur);
   if (trail.length > 60) trail.shift();
 }
@@ -316,10 +364,17 @@ function remember() {
 export function goBack() {
   const cur = here();
   let to = trail.pop();
-  while (to && to.page === cur.page && JSON.stringify(to.view) === JSON.stringify(cur.view)) to = trail.pop();
+  while (to && same(to, cur)) to = trail.pop();
   if (!to) return false;
   goingBack = true;
   try {
+    const searchChanged = (to.search || '') !== state.search;
+    state.search = to.search || '';
+    state.searchAll = to.searchAll !== false;
+    if (searchChanged) {
+      bump();
+      emit('search');
+    }
     if (JSON.stringify(to.view) !== JSON.stringify(state.view) && (to.page === 'songs' || to.page === 'discover')) setView(to.view);
     else state.view = to.view;
     setPage(to.page);
@@ -329,8 +384,12 @@ export function goBack() {
   return true;
 }
 
-export function setView(view) {
+export function setView(view, { keepSearch = false } = {}) {
   if (JSON.stringify(view) !== JSON.stringify(state.view) || state.page !== (view.kind === 'discover' ? 'discover' : 'songs')) remember();
+  if (!keepSearch && !goingBack) {
+    state.search = '';
+    state.searchAll = true;
+  }
   state.view = view;
   const was = goingBack;
   goingBack = true; // (setPage below mustn't remember the half-changed state)
@@ -346,11 +405,13 @@ export function setView(view) {
 }
 
 /** play | songs | discover | tones | progress | now (the song you're practising). */
-export function setPage(page, { quiet = false } = {}) {
+export function setPage(page, { quiet = false, keepSearch = false } = {}) {
   if (page !== 'now' && state.page !== 'now') state.lastPage = state.page;
   if (page === 'now' && state.page !== 'now') state.backPage = state.page;
   const changed = state.page !== page;
   if (changed) remember();
+  // playing a song from your results and coming back keeps them; going to another page doesn't
+  if (changed && !keepSearch && !goingBack && page !== 'now' && state.page !== 'now') dropSearch();
   state.page = page;
   if (changed) emit('page');
   if (!quiet && changed) emit('view');

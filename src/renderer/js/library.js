@@ -1,6 +1,6 @@
 /** Centre pane: the song table (virtualised) and the cover grid. */
 import { api } from './api.js';
-import { isOfficial, state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, setView, accBand, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel } from './store.js';
+import { isOfficial, state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, setView, accBand, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel, lastSearch, clearSearch, viewHas } from './store.js';
 import { h, icon, esc, fmtDuration, debounce } from './ui.js';
 import * as actions from './actions.js';
 import { addFolder } from './sidebar.js';
@@ -32,6 +32,8 @@ const PARTS = [
 // ------------------------------------------------------------ skeleton --
 const head = h('div.lib-head');
 const titleEl = h('div.lib-title', null, h('h1'), h('div.sub'));
+const qline = h('div.lib-q', { hidden: true }); // 3.10: what the search is doing, and a way out
+titleEl.append(qline);
 const tools = h('div.lib-tools');
 const partFilter = h('div.part-filter', { role: 'group', 'aria-label': 'Show songs with these parts' });
 for (const [key, , label] of PARTS) {
@@ -39,12 +41,21 @@ for (const [key, , label] of PARTS) {
   chip.onclick = () => {
     if (state.parts.has(key)) state.parts.delete(key);
     else state.parts.add(key);
-    chip.setAttribute('aria-pressed', String(state.parts.has(key)));
+    syncPartChips();
     persistUi();
     bump();
     render();
   };
   partFilter.append(chip);
+}
+function syncPartChips() {
+  partFilter.querySelectorAll('.chip').forEach((c, i) => c.setAttribute('aria-pressed', String(state.parts.has(PARTS[i][0]))));
+}
+function clearParts() {
+  state.parts.clear();
+  syncPartChips();
+  persistUi();
+  bump();
 }
 const layoutSeg = h('div.gseg', { role: 'group', 'aria-label': 'Layout' });
 const listBtn = h('button', { type: 'button', title: 'List', html: `${icon('list')}<span>List</span>` });
@@ -376,12 +387,8 @@ function renderEmpty() {
     box.innerHTML = `<h2>No songs match</h2><p>Nothing in ${esc(viewTitle())} fits your search and part filters.</p>`;
     const clear = h('button.btn', { type: 'button', text: 'Clear search and filters' });
     clear.onclick = () => {
-      state.search = '';
-      document.getElementById('search').value = '';
-      state.parts.clear();
-      partFilter.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
-      persistUi();
-      bump();
+      clearParts();
+      clearSearch();
       render();
     };
     const q = state.search.trim();
@@ -419,7 +426,8 @@ function emptyHint() {
 
 export function render() {
   list = visibleSongs();
-  titleEl.querySelector('h1').textContent = viewTitle();
+  const q = state.search.trim();
+  titleEl.querySelector('h1').textContent = q ? `“${q}”` : viewTitle();
   const total = list.length;
   const mins = Math.round(list.reduce((n, s) => n + (s.length || 0), 0) / 60);
   const hours = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
@@ -430,6 +438,7 @@ export function render() {
     sub = `${sub} in ${who}’s ${rsStockLabel(state.view.id)}${missing ? `. ${missing} more ${missing === 1 ? 'isn’t' : 'aren’t'} in your folders and ${missing === 1 ? 'stays' : 'stay'} in the list.` : ''}`;
   }
   titleEl.querySelector('.sub').textContent = sub;
+  renderSearchLine();
   listBtn.setAttribute('aria-pressed', String(state.layout === 'list'));
   gridBtn.setAttribute('aria-pressed', String(state.layout === 'grid'));
   thead.hidden = state.layout !== 'list';
@@ -437,6 +446,45 @@ export function render() {
   gridEl.hidden = state.layout !== 'grid';
   renderWindow();
   renderEmpty();
+}
+
+/** 3.10: while you search: where it's looking (everywhere / just this list), part filters hiding matches, Clear. */
+function renderSearchLine() {
+  const q = state.search.trim();
+  qline.hidden = !q;
+  titleEl.classList.toggle('searching', !!q);
+  qline.innerHTML = '';
+  if (!q) return;
+  const narrow = state.view.kind !== 'all';
+  if (narrow) {
+    const seg = h('div.gseg.q-scope', { role: 'group', 'aria-label': 'Search in' });
+    const all = h('button', { type: 'button', text: 'All songs', 'aria-pressed': String(state.searchAll) });
+    const here = h('button', { type: 'button', text: `Only ${viewTitle()}`, 'aria-pressed': String(!state.searchAll) });
+    all.onclick = () => setScope(true);
+    here.onclick = () => setScope(false);
+    seg.append(all, here);
+    qline.append(h('span.q-in', { text: 'Searching' }), seg);
+  } else qline.append(h('span.q-in', { text: 'Searching all songs' }));
+  const st = lastSearch();
+  if (st.hiddenByParts > 0) {
+    const names = PARTS.filter(([k]) => state.parts.has(k)).map(([, , l]) => l).join(' + ');
+    const show = h('button.q-link', { type: 'button', text: `${st.hiddenByParts} more without the ${names} filter` });
+    show.onclick = () => {
+      clearParts();
+      render();
+    };
+    qline.append(show);
+  }
+  const x = h('button.q-clear', { type: 'button', title: 'Clear the search (Esc)', html: `${icon('x')}<span>Clear search</span>` });
+  x.onclick = () => clearSearch();
+  qline.append(x);
+}
+
+function setScope(all) {
+  state.searchAll = all;
+  bump();
+  scroller.scrollTop = 0;
+  render();
 }
 
 function rebuild() {
@@ -481,7 +529,7 @@ function follow(go, id) {
     if (go.dataset.part) {
       if (state.parts.has(go.dataset.part)) state.parts.delete(go.dataset.part);
       else state.parts.add(go.dataset.part);
-      for (const c of partFilter.querySelectorAll('.chip')) c.setAttribute('aria-pressed', String(state.parts.has(PARTS[[...partFilter.children].indexOf(c)][0])));
+      syncPartChips();
       persistUi();
       bump();
       render();
@@ -594,9 +642,13 @@ function ensureVisible(idx) {
   }
 }
 
-export function revealSong(id) {
+export function revealSong(id, { center = false } = {}) {
   const idx = list.findIndex((s) => s.id === id);
-  if (idx >= 0) ensureVisible(idx);
+  if (idx < 0) return;
+  if (center && state.layout === 'list') {
+    scroller.scrollTop = Math.max(0, idx * ROW_H - (scroller.clientHeight - ROW_H) / 2);
+    renderWindow();
+  } else ensureVisible(idx);
 }
 
 scroller.addEventListener('keydown', (e) => {
@@ -622,8 +674,28 @@ scroller.addEventListener('keydown', (e) => {
   e.preventDefault();
 });
 
-export function focusList() {
+/** Into the list from the search box; `first` picks the top result (keeps a selection that's already showing). */
+export function focusList({ first = false } = {}) {
   scroller.focus();
+  if (first && list.length && !list.some((s) => s.id === state.focus && state.selection.has(s.id))) {
+    setSelection([list[0].id], { anchor: list[0].id, focus: list[0].id });
+    ensureVisible(0);
+  }
+  refreshDecorations();
+}
+
+/** Show one song, selected, in the list you're on (All songs if this list or its part filters leave it out). */
+export function showSong(id) {
+  const s = state.songs.get(id);
+  if (!s) return;
+  if (state.parts.size && ![...state.parts].every((p) => hasPart(s, p))) clearParts();
+  if (state.page !== 'songs' || !viewHas(id)) setView({ kind: 'all' });
+  else if (state.search) clearSearch();
+  setSelection([id], { anchor: id, focus: id });
+  render();
+  revealSong(id, { center: true });
+  scroller.focus();
+  refreshDecorations();
 }
 
 const ro = new ResizeObserver(debounce(() => renderWindow(), 16));
@@ -669,6 +741,8 @@ on('search', () => {
   scroller.scrollTop = 0;
   savedTop.delete(viewKey());
   render();
+  // 3.10: search cleared: back where the song you picked is, not the top of the list
+  if (!state.search && state.focus && state.selection.has(state.focus)) revealSong(state.focus, { center: true });
 });
 
 buildHead();

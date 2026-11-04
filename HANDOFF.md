@@ -296,6 +296,14 @@ User plugged in a bass for the first time: "tone and note detection a little off
 - **Scoring across instruments** (`instrumentShift` in detect.js, set by `rig._syncShift` from instrument vs `songKind`): a guitar on a bass part also matches +12, a bass on a guitar part −12 (notes and chords). Tuner strings follow `rig.instrument`.
 - Tests: `test/instrument.test.mjs` (in `npm test`), two new cases in `detect.test.mjs`, stand-in checks in `test/e2e/rig-chromium.js`. Not tried with a real bass yet: ask whether the switch happens quickly, whether it ever flips mid-song, and whether bass scoring feels right now.
 - The "static": guitar amps cut 60–170 Hz first, are voiced and gain-staged for a guitar's level, and gate for a guitar's noise, so a hotter, lower bass turns into fizz. Nothing broken in the engine; the stand-in tone is the fix.
+## Search (after 3.9.0, not packaged yet)
+
+User on 3.9.0: "the search bar needs autocomplete"; "you click on something else and the search stays in the bar, filtering out what you wanted"; "the list needs to behave smarter"; "times where I click it and the whole thing has a yellow outline".
+- **Yellow outline:** v3.css's global `:focus-visible` outlined the whole `.scroller` after any key press. Now `.scroller:focus-visible { outline: 0 }`; the focused row shows a tungsten bar on its left.
+- **Matching** (`js/searchmatch.js`, pure, `test/searchmatch.test.mjs` in npm test): `normText` (no accents or punctuation, & = and, ♭ = b, ♯/# = sharp), run-together names ("acdc"), typos (edit distance 1, or 2 for 7+ letters), ranked: whole title or artist first, then word starts. While searching the list sorts by relevance unless you click a column.
+- **Search looks through all songs** from any list; the header shows “query”, a Searching **All songs | Only <list>** switch, "N more without the Lead filter" when part filters hide matches, and **Clear search**.
+- **Stale search:** `setView`/`setPage` clear the search when you go somewhere else (`keepSearch` when the box itself moves you; playing a song ('now') keeps it); the Back trail stores the search, so Back restores it. When a search clears, the list scrolls to the selected song.
+- **Autocomplete** (`js/searchbox.js`, took over the box from main.js): a dropdown with Songs / Artists / Albums / Tunings / Year / Setlists (best group first), "Show all N matching songs" and "Find on MusicBrainz"; ↑/↓, Enter, Esc (closes the list, then clears); faint completion that Tab or → finishes; recent searches when the box is empty (`stagehand.recentSearches`). Picking a song clears the search and selects it in your list (`library.showSong`); picking a name opens its list. No suggestions in Discover.
 
 ## Start here (3.9.0)
 
