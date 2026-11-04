@@ -1,8 +1,37 @@
-# Stagehand handoff (v4.1.2, 2026-11-03): recorded videos play their sound through the engine; Getting started for people new to Rocksmith
+# Stagehand handoff (v4.1.3, 2026-11-04): Friends made simple: word codes, plain status, messages
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.1.3: Friends made simple: word codes, plain status at every step, messages
+
+User on 4.1.2 (screenshots of the Add a friend box with "ABCD-EFGH-JKMN-PQRS" and the Friends tab): "It is not clear if you have to input the dashes … Do we also need to have such complex codes? It should just be a word or phrase … it also needs to very clearly show what is going on: Is it connected? Did the people put in the right code? … you click on your friends, and it shows behind the screen." Then: tested with a friend and "had some connectivity issues … it really needs to just be simple, robust, and elegant", "be able to send a message in the same screen … kind of like a text message", "can the codes be even simpler?"
+- **Codes** (`services/friends.js`): any word or phrase, at least 6 letters/numbers; capitals, spaces, dashes and punctuation don't matter (`normCode` keeps only A–Z/0–9, look-alikes mapped as before, so **old 16-character codes keep working**, same topic and key). Made-up codes are one word and a number (`tiger-427`, ~50,000). **Change** next to your code (or ⋯ › Change my code) sets your own phrase (`setCode`); a friend's code can be fixed (`setFriendCode`; right-click › Change their code, or "Fix their code"). The page now gets friends' codes (to show what you typed). An existing old code stays until you press Change.
+- **Status, plainly** (`recordings.js`):
+  - Your card says one of: video sharing off (messages still work) / getting ready (meeting point) / **Ready. Friends with your code can connect now.** / **Bo is connected and watching now** (the visitor now says its name: `{op:'hi'}`, ignored by older hosts).
+  - Connecting shows the steps (meeting point ✓ → asking their Stagehand → connecting the PCs directly; `friends:progress` from `connect({onStage})`).
+  - Outcomes:
+    - **No answer from Alex**: are they open with Sharing on? Is the code right ("You have *alex rocks*")? Try again / Fix their code.
+    - Can't reach the meeting point.
+    - **Alex answered (the code is right) but your PCs couldn't connect**.
+    - **Connected to Alex. The code is right.**
+  - Each friend's chip gets a dot: green, red or amber.
+- **Robustness:** two more STUN servers (Google stun1, Twilio); one quiet retry when the meeting point or the direct line fails (not on "no answer"); the visitor ignores pieces arriving after it closed a connection (friends-chromium's resume check failed ~half the time after the extra `hi`; 5/5 now). Still no TURN server (the user's call): two very strict networks can't connect directly, and the screen now says that's what happened.
+- **Messages** (`sendMessage`, `_chatIn`): through the meeting points, sealed with the friend's code, so they work even when videos can't connect (a quick test of code + internet).
+  - Each message carries your name and code, so the other side can answer and send a receipt: Sending… → Sent → **Delivered**. A wrong code stays "Sent"; after 30 s it explains why.
+  - Stagehand now always listens on its own topic (offers are only answered while sharing). It subscribes with `since=12h`, so messages sent while it was closed arrive when it opens; offers older than 2 min by the relay's clock (now also from the `open` event) are skipped; messages are deduplicated by id.
+  - Kept in friends.json (last 300). Someone with your code who isn't in your list shows as "Bo (new)" with **Add Bo as a friend**.
+  - Unread counts on chips (remembered on this PC). A toast "Message from Bo" opens the right chat (`openRecordings({tab:'friends', friend})`).
+- **Menus in front:** `.menu` and toasts at z-index 400 (the Recordings window is 320/330; menus were 300, so they opened behind it).
+- **Tests:** `test/friends.test.js` (codes, setCode/setFriendCode, messages: delivered, stranger, added back, answer, offline then delivered on open, no duplicates, wrong code stays "Sent"; its fake ntfy now replays `since`); `node test/e2e/recordings-friends-chromium.js <out>` (two pages:
+  1. Alex changes the code to "Alex Rocks Out"; Bo types a wrong one: steps shown, then "No answer from Alex" with the typed code and a red dot; a message stays "Sent".
+  2. Bo fixes the code: connected, the code is right, green dot; Alex sees "Bo is connected and watching now".
+  3. Bo messages: Delivered, and Alex gets a toast and a "Bo (new)" chip. Alex adds Bo and answers, Delivered.
+  4. Videos play and resume; the ⋯ menu is in front.
+
+  All passed). `friends-chromium.js` 5/5.
+- **Ask the user:** both of you update, then try again. If it doesn't connect, which message did you see? Does a message say Delivered? Are the codes simple enough now? Should old codes be swapped for a word code automatically?
 
 ## 4.1.2 (also): Getting started, for people who have never played Rocksmith
 

@@ -7,14 +7,16 @@
  *
  * What travels is your shared recordings (videos of the highway and Jam).
  * On the channel (JSON text, plus binary chunks of a file):
- *   friend → host  {op:'list', r}   {op:'get', r, id, part: 'video'|'thumb', from}   {op:'cancel', r}
+ *   friend → host  {op:'hi', name} (4.1.3: who's watching; older hosts ignore it)
+ *                  {op:'list', r}   {op:'get', r, id, part: 'video'|'thumb', from}   {op:'cancel', r}
  *                  (`from`: carry on a download that was cut off, from that byte)
  *   host → friend  {op:'hello', name}        {op:'list', r, name, recordings}
  *                  {op:'file', r, id, part, size} + chunks + {op:'end', r}
  *                  {op:'error', r, message}
  */
 
-export const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+// how each PC learns its address on the internet (4.1.3: more of them, so one being down or blocked doesn't matter)
+export const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478', 'stun:global.stun.twilio.com:3478'] }];
 const CHUNK = 64 * 1024;
 const MAX_FILE = 4 * 1024 * 1024 * 1024;
 const SLICE = 1 << 20; // read from disk a megabyte at a time
@@ -74,9 +76,10 @@ async function sendBytes(dc, bytes) {
  */
 export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
   const peers = new Map();
-  const changed = () => onPeers && onPeers(peers.size);
+  const names = new Map(); // conn -> the friend's name, once they say it
+  const changed = () => onPeers && onPeers(peers.size, [...names.values()].filter(Boolean));
 
-  function serve(dc, kill) {
+  function serve(dc, kill, conn) {
     let busy = Promise.resolve();
     const cancelled = new Set();
     let idle;
@@ -103,6 +106,11 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
       }
       poke();
       const r = Number(m.r) || 0;
+      if (m.op === 'hi') {
+        names.set(conn, String(m.name || 'A friend').slice(0, 40));
+        changed();
+        return;
+      }
       if (m.op === 'cancel') {
         cancelled.add(r);
         return;
@@ -145,6 +153,7 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
     const kill = () => {
       if (!peers.has(conn)) return;
       peers.delete(conn);
+      names.delete(conn);
       if (stopIdle) stopIdle();
       try {
         pc.close();
@@ -160,7 +169,7 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
     };
     pc.ondatachannel = (e) => {
       if (e.channel.label !== 'recordings') return;
-      stopIdle = serve(e.channel, kill);
+      stopIdle = serve(e.channel, kill, conn);
     };
     try {
       await pc.setRemoteDescription({ type: 'offer', sdp });
@@ -178,6 +187,7 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
       off && off();
       for (const pc of peers.values()) pc.close();
       peers.clear();
+      names.clear();
       changed();
     },
   };
@@ -191,7 +201,7 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
  * and `bytes` comes back empty.
  * Errors carry `code`: OFFLINE (no answer), RELAY, DIRECT (couldn't connect directly).
  */
-export async function connectTo(api, friendId, { iceServers = ICE, timeout = 20000 } = {}) {
+export async function connectTo(api, friendId, { iceServers = ICE, timeout = 20000, name = '', onStage = null } = {}) {
   const pc = new RTCPeerConnection({ iceServers });
   const dc = pc.createDataChannel('recordings', { ordered: true });
   dc.binaryType = 'arraybuffer';
@@ -205,6 +215,8 @@ export async function connectTo(api, friendId, { iceServers = ICE, timeout = 200
     await pc.setLocalDescription(await pc.createOffer());
     await gathered(pc);
     const answer = await api.friends.connect(friendId, pc.localDescription.sdp);
+    // they answered, so the code is right: now the direct line between the two PCs
+    if (onStage) onStage('direct');
     await pc.setRemoteDescription({ type: 'answer', sdp: answer });
   } catch (err) {
     fail(err);
@@ -252,6 +264,7 @@ export async function connectTo(api, friendId, { iceServers = ICE, timeout = 200
     return p;
   }
   dc.onmessage = (e) => {
+    if (link.closed) return; // pieces still on their way after closing: not ours any more
     if (typeof e.data !== 'string') {
       if (!file) return;
       if (file.onChunk) file.onChunk(new Uint8Array(e.data));
@@ -317,6 +330,10 @@ export async function connectTo(api, friendId, { iceServers = ICE, timeout = 200
       res();
     };
   }).catch(fail);
+  // say who's watching (4.1.3)
+  try {
+    dc.send(JSON.stringify({ op: 'hi', name: String(name || '') }));
+  } catch (_) {}
   // the host says its name first; don't wait long for it
   await Promise.race([helloP, new Promise((res) => setTimeout(res, 1500))]);
   return link;

@@ -2,9 +2,9 @@
 /**
  * Friends (3.10): share your takes with friends over the internet, with a code.
  *
- * Your friend code is a secret: 16 letters/digits (80 random bits). Anyone you
- * give it to can listen to the takes you've marked shared, while your Stagehand
- * is open. "New code" stops every old code working.
+ * Your friend code is a word or phrase (4.1.3; it was 16 random letters before,
+ * which still work). Anyone you give it to can watch the videos you've marked
+ * shared, while your Stagehand is open. Changing it stops the old one working.
  *
  * How it connects, with no Stagehand server:
  *   - The two apps talk directly (WebRTC data channel, encrypted with DTLS), set
@@ -24,41 +24,58 @@ const zlib = require('zlib');
 const { EventEmitter } = require('events');
 const { readJson, writeJsonAtomic } = require('../core/files');
 
-const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'; // Crockford base32: no I, L, O, U
-const CODE_LEN = 16;
 const DEFAULT_RELAY = 'https://ntfy.sh';
 // Where Stagehands meet: every one is tried at once, so one being down or busy doesn't matter.
 const DEFAULT_RELAYS = [DEFAULT_RELAY, 'https://ntfy.envs.net'];
 const MAX_MSG = 3800;
 const PROTOCOL = 1; // in every message, so a later Stagehand can tell an older one apart // ntfy keeps messages up to 4096 bytes inline
+const MAX_TEXT = 500; // characters in a message
+const MAX_CHATS = 300; // messages kept, all friends together
 const MAX_AGE = 2 * 60; // seconds, by the relay's clock (never the PCs': theirs can be off)
 
-/** Tidies a typed code: upper case, no spaces or dashes, look-alike letters mapped. */
+/** Tidies a typed code: upper case, only letters and numbers, look-alike letters mapped.
+ *  So "Tiger 427", "tiger-427" and "TIGER427" are the same code. */
 function normCode(s) {
   return String(s || '')
     .toUpperCase()
-    .replace(/[\s\-_.]/g, '')
+    .replace(/[^0-9A-Z]/g, '')
     .replace(/O/g, '0')
     .replace(/[IL]/g, '1')
     .replace(/U/g, 'V');
 }
 
+const MIN_CODE = 6; // letters and numbers
+const MAX_CODE = 60;
+/** 4.1.3: a code is any word or phrase with at least 6 letters or numbers (the old
+ *  16-character codes still work: they're phrases too). */
 function validCode(s) {
   const c = normCode(s);
-  return c.length === CODE_LEN && [...c].every((ch) => ALPHABET.includes(ch));
+  return c.length >= MIN_CODE && c.length <= MAX_CODE;
+}
+/** Why a typed code won't do, in plain words (null if it's fine). */
+function codeProblem(s) {
+  const c = normCode(s);
+  if (c.length < MIN_CODE) return `A code needs at least ${MIN_CODE} letters or numbers, like tiger-427.`;
+  if (c.length > MAX_CODE) return 'That code is too long. Keep it to a few words.';
+  return null;
 }
 
+// 4.1.3: as simple as it can be while staying hard to stumble on: one word and a number,
+// e.g. "tiger-427" (about 50,000 of them; or choose your own word or phrase)
+const WORDS = ['amber', 'banjo', 'bass', 'blue', 'chord', 'cobra', 'comet', 'drum', 'eagle', 'echo', 'falcon', 'fret', 'fuzz', 'gold', 'groove', 'guitar', 'harp', 'jade', 'jazz', 'lion', 'lucky', 'lunar', 'maple', 'melody', 'neon', 'otter', 'panda', 'pearl', 'piano', 'pick', 'pixel', 'polar', 'rhythm', 'riff', 'river', 'rocket', 'ruby', 'silver', 'solo', 'sonic', 'storm', 'string', 'sunny', 'tempo', 'tiger', 'tune', 'velvet', 'violet', 'wolf', 'zebra'];
 function newCode() {
-  const b = crypto.randomBytes(CODE_LEN);
-  let s = '';
-  for (let i = 0; i < CODE_LEN; i++) s += ALPHABET[b[i] & 31];
-  return s;
+  const b = crypto.randomBytes(4);
+  return `${WORDS[b[0] % WORDS.length]}-${100 + (b.readUInt16LE(2) % 900)}`;
 }
 
-/** "ABCD-EFGH-JKMN-PQRS" */
+/** How a code is shown: an old 16-character code in groups of four, a phrase as typed. */
 function prettyCode(c) {
-  return normCode(c).replace(/(.{4})(?=.)/g, '$1-');
+  const t = String(c || '').trim().replace(/\s+/g, ' ');
+  if (/^[0-9A-Z]{16}$/.test(t)) return t.replace(/(.{4})(?=.)/g, '$1-');
+  return t;
 }
+const sameCode = (a, b) => normCode(a) === normCode(b);
+const chatOut = (c) => ({ id: c.id, dir: c.dir, name: c.name || '', text: c.text, at: c.at, state: c.state || null, error: c.error || null });
 
 /** Relay topic and message key for a code. */
 function derive(code) {
@@ -102,10 +119,10 @@ function open(key, topic, text) {
  * keepalives stopping and is reopened.
  */
 class Subscription {
-  constructor({ relay, topic, fetchImpl, onMessage, log, retry = true, idle = 90000 }) {
-    Object.assign(this, { relay, topic, fetchImpl, onMessage, log, retry, idle });
+  constructor({ relay, topic, fetchImpl, onMessage, onOpen = null, log, retry = true, idle = 90000, since = null }) {
+    Object.assign(this, { relay, topic, fetchImpl, onMessage, onOpen, log, retry, idle });
     this.closed = false;
-    this.since = null;
+    this.since = since; // 4.1.3: '12h' on start, to get messages sent while Stagehand was closed
     this.ctl = null;
     this.isReady = false;
     this.ready = new Promise((res, rej) => {
@@ -146,7 +163,10 @@ class Subscription {
             } catch (_) {
               continue;
             }
-            if (ev.event === 'open') this._ready();
+            if (ev.event === 'open') {
+              if (this.onOpen) this.onOpen(Number(ev.time) || 0);
+              this._ready();
+            }
             else if (ev.event === 'message') {
               if (ev.id) this.since = ev.id;
               try {
@@ -204,7 +224,7 @@ class Friends extends EventEmitter {
     this.log = log || (() => {});
     this.safe = safeStorage && safeStorage.isEncryptionAvailable && safeStorage.isEncryptionAvailable() ? safeStorage : null;
     this.data = null;
-    this.host = null; // subscription to our own topic while sharing
+    this.host = null; // subscription to our own topic (always on since 4.1.3: messages)
     this.seen = new Map(); // nonce -> time, against replays
     this.offers = []; // times of recent offers, to rate limit
   }
@@ -226,17 +246,20 @@ class Friends extends EventEmitter {
     const d = (await readJson(this.file, null)) || {};
     const me = this._show(d.code);
     this.data = {
-      code: me && validCode(me) ? normCode(me) : newCode(),
+      code: me && validCode(me) ? me : newCode(),
       name: typeof d.name === 'string' ? d.name : '',
       sharing: !!d.sharing,
       relays: relayList(d.relays).length ? relayList(d.relays) : relayList(d.relay).length && d.relay !== DEFAULT_RELAY ? relayList(d.relay) : [...DEFAULT_RELAYS],
       shared: Array.isArray(d.shared) ? d.shared.filter((x) => typeof x === 'string') : [],
+      // 4.1.3: messages, newest last: { id, with (their code, tidied), name, dir 'in'|'out', text, at, state }
+      chats: (Array.isArray(d.chats) ? d.chats : []).filter((c) => c && typeof c.id === 'string' && typeof c.text === 'string').slice(-MAX_CHATS),
       friends: (Array.isArray(d.friends) ? d.friends : [])
         .map((f) => ({ id: String(f.id || ''), name: String(f.name || 'Friend'), code: this._show(f.code), addedAt: Number(f.addedAt) || Date.now() }))
         .filter((f) => f.id && f.code && validCode(f.code)),
     };
     if (!d.code) await this.save();
-    if (this.data.sharing) this._listen();
+    // 4.1.3: always listening (messages come any time); videos only while sharing is on
+    this._listen();
     return this;
   }
 
@@ -249,10 +272,11 @@ class Friends extends EventEmitter {
       relays: d.relays,
       shared: d.shared,
       friends: d.friends.map((f) => ({ id: f.id, name: f.name, code: this._hide(f.code), addedAt: f.addedAt })),
+      chats: d.chats.slice(-MAX_CHATS),
     });
   }
 
-  /** What the page shows. Friends' codes stay in here. */
+  /** What the page shows. 4.1.3: friends' codes too, so you can check you typed theirs right. */
   state() {
     const d = this.data;
     return {
@@ -263,7 +287,12 @@ class Friends extends EventEmitter {
       relay: d.relays.join(', '),
       relays: [...d.relays],
       shared: [...d.shared],
-      friends: d.friends.map((f) => ({ id: f.id, name: f.name, addedAt: f.addedAt })),
+      friends: d.friends.map((f) => ({ id: f.id, name: f.name, code: prettyCode(f.code), addedAt: f.addedAt, messages: d.chats.filter((c) => c.with === normCode(f.code)).map(chatOut) })),
+      // messages from people not in your list (they have your code): add them back with one click
+      strangers: [...new Set(d.chats.filter((c) => c.dir === 'in' && !d.friends.some((f) => normCode(f.code) === c.with)).map((c) => c.with))].map((w) => {
+        const last = d.chats.filter((c) => c.with === w && c.dir === 'in').pop();
+        return { key: w, name: last.name || 'Someone', code: last.reply || w, messages: d.chats.filter((c) => c.with === w).map(chatOut) };
+      }),
     };
   }
 
@@ -273,9 +302,7 @@ class Friends extends EventEmitter {
   }
 
   async setSharing(on) {
-    this.data.sharing = !!on;
-    if (on) this._listen();
-    else this._stopListening();
+    this.data.sharing = !!on; // still listening for messages either way (4.1.3)
     return this._changed();
   }
 
@@ -290,36 +317,58 @@ class Friends extends EventEmitter {
     const list = relayList(raw);
     if (raw && !list.length) throw Object.assign(new Error('That doesn’t look like a web address'), { code: 'BAD_RELAY' });
     this.data.relays = list.length ? list : [...DEFAULT_RELAYS];
-    if (this.host) {
-      this._stopListening();
-      this._listen();
-    }
+    this._stopListening();
+    this._listen();
     return this._changed();
   }
 
   /** A fresh code: everyone with the old one loses access. */
   async newCode() {
-    this.data.code = newCode();
-    if (this.host) {
-      this._stopListening();
-      this._listen();
-    }
+    return this.setCode(newCode());
+  }
+
+  /** 4.1.3: your own word or phrase. Everyone with the old one loses access. */
+  async setCode(text) {
+    const t = String(text || '').trim().replace(/\s+/g, ' ');
+    const bad = codeProblem(t);
+    if (bad) throw Object.assign(new Error(bad), { code: 'BAD_CODE', field: 'code' });
+    if (this.data.friends.some((f) => sameCode(f.code, t))) throw Object.assign(new Error('That’s one of your friends’ codes. Pick your own.'), { code: 'FRIEND_CODE', field: 'code' });
+    this.data.code = t;
+    this._stopListening();
+    this._listen();
     return this._changed();
   }
 
+  _checkFriendCode(code, exceptId = null) {
+    const bad = codeProblem(code);
+    if (bad) throw Object.assign(new Error(bad), { code: 'BAD_CODE', field: 'code' });
+    if (sameCode(code, this.data.code)) throw Object.assign(new Error('That’s your own code. Ask your friend for theirs.'), { code: 'OWN_CODE', field: 'code' });
+    const other = this.data.friends.find((x) => x.id !== exceptId && sameCode(x.code, code));
+    return other || null;
+  }
+
   async addFriend(code, name) {
-    if (!validCode(code)) throw Object.assign(new Error('A friend code has 16 letters and numbers, like ABCD-EFGH-JKMN-PQRS'), { code: 'BAD_CODE', field: 'code' });
-    const c = normCode(code);
-    if (c === this.data.code) throw Object.assign(new Error('That’s your own code. Ask your friend for theirs.'), { code: 'OWN_CODE', field: 'code' });
-    let f = this.data.friends.find((x) => x.code === c);
+    const t = String(code || '').trim().replace(/\s+/g, ' ');
+    let f = this._checkFriendCode(t);
     if (f) {
       if (name) f.name = String(name).trim().slice(0, 40) || f.name;
     } else {
-      f = { id: `f_${crypto.randomBytes(5).toString('hex')}`, name: String(name || '').trim().slice(0, 40) || 'Friend', code: c, addedAt: Date.now() };
+      f = { id: `f_${crypto.randomBytes(5).toString('hex')}`, name: String(name || '').trim().slice(0, 40) || 'Friend', code: t, addedAt: Date.now() };
       this.data.friends.push(f);
     }
     await this._changed();
-    return { id: f.id, name: f.name, addedAt: f.addedAt };
+    return { id: f.id, name: f.name, code: prettyCode(f.code), addedAt: f.addedAt };
+  }
+
+  /** 4.1.3: fix a friend's code (a typo, or they changed theirs). */
+  async setFriendCode(id, code) {
+    const f = this.data.friends.find((x) => x.id === id);
+    if (!f) throw Object.assign(new Error('That friend isn’t in your list any more'), { code: 'NO_FRIEND' });
+    const t = String(code || '').trim().replace(/\s+/g, ' ');
+    if (this._checkFriendCode(t, id)) throw Object.assign(new Error('Another friend already has that code.'), { code: 'DUP_CODE', field: 'code' });
+    f.code = t;
+    await this._changed();
+    return { id: f.id, name: f.name, code: prettyCode(f.code), addedAt: f.addedAt };
   }
 
   async renameFriend(id, name) {
@@ -367,12 +416,17 @@ class Friends extends EventEmitter {
         topic,
         fetchImpl: this.fetch,
         log: this.log,
+        since: '12h', // messages sent while Stagehand was closed (the relay keeps them about 12 hours)
+        onOpen: (time) => (newest = Math.max(newest, time)),
         onMessage: (text, time) => {
-          // after a reconnect the relay may hand back a few older messages: skip stale offers
           newest = Math.max(newest, time);
-          if (time && newest - time > MAX_AGE) return;
           const m = this._accept(key, topic, text);
-          if (!m || m.t !== 'offer' || typeof m.sdp !== 'string' || typeof m.conn !== 'string') return;
+          if (!m) return;
+          if (m.t === 'msg' || m.t === 'ack') return this._chatIn(m);
+          // old offers (from before a reconnect or a restart) are stale: skip them
+          if (time && newest - time > MAX_AGE) return;
+          if (!this.data.sharing) return; // videos only while sharing is on
+          if (m.t !== 'offer' || typeof m.sdp !== 'string' || typeof m.conn !== 'string') return;
           const conn = m.conn.slice(0, 40);
           if (host.via.has(conn)) return; // the same offer through a second relay
           const now = Date.now();
@@ -425,7 +479,7 @@ class Friends extends EventEmitter {
   /** The page's answer to an offer we passed it. */
   async answer(conn, sdp) {
     const host = this.host;
-    if (!host) throw Object.assign(new Error('Sharing is off'), { code: 'NOT_SHARING' });
+    if (!host || !this.data.sharing) throw Object.assign(new Error('Sharing is off'), { code: 'NOT_SHARING' });
     const via = host.via.get(String(conn));
     // back through the relay the offer came by (the others as a fallback)
     await this._publish(via ? [via] : this.data.relays, host.topic, host.key, { t: 'answer', conn: String(conn), sdp: String(sdp) }).catch((err) => {
@@ -435,18 +489,80 @@ class Friends extends EventEmitter {
     return true;
   }
 
+  // ------------------------------------------------------------- messages --
+  /**
+   * 4.1.3: a short message to a friend, through the meeting points (sealed with their
+   * code, like the connection setup), so it works even when a direct connection
+   * between the PCs can't be made. It carries your name and your code, so they can
+   * answer and their Stagehand can say it arrived. States: sending → sent (a meeting
+   * point took it) → delivered (their Stagehand got it), or failed.
+   */
+  async sendMessage(to, text) {
+    const t = String(text || '').trim().slice(0, MAX_TEXT);
+    if (!t) throw Object.assign(new Error('Type a message first'), { code: 'EMPTY' });
+    const f = this.data.friends.find((x) => x.id === to);
+    const code = f ? f.code : (this.data.chats.find((c) => c.with === to && c.reply) || {}).reply;
+    if (!code) throw Object.assign(new Error('That friend isn’t in your list any more'), { code: 'NO_FRIEND' });
+    const msg = { id: crypto.randomBytes(8).toString('base64url'), with: normCode(code), dir: 'out', text: t, at: Date.now(), state: 'sending' };
+    this._addChat(msg);
+    await this._changed();
+    const { topic, key } = derive(code);
+    try {
+      await this._publish(this.data.relays, topic, key, { t: 'msg', id: msg.id, from: this.data.name || '', reply: this.data.code, text: t });
+      if (msg.state === 'sending') msg.state = 'sent';
+      this.log(`Friends: message to ${f ? f.name : 'a friend'} reached the meeting point`);
+    } catch (err) {
+      msg.state = 'failed';
+      msg.error = err.message;
+      this.log(`Friends: message to ${f ? f.name : 'a friend'} not sent: ${err.message}`);
+    }
+    await this._changed();
+    return chatOut(msg);
+  }
+
+  /** A message or a receipt arrived on our topic. */
+  _chatIn(m) {
+    if (m.t === 'ack') {
+      const c = this.data.chats.find((x) => x.id === m.id && x.dir === 'out');
+      if (c && c.state !== 'delivered') {
+        c.state = 'delivered';
+        this._changed().catch(() => {});
+      }
+      return;
+    }
+    if (typeof m.id !== 'string' || typeof m.text !== 'string' || typeof m.reply !== 'string' || !validCode(m.reply)) return;
+    const reply = m.reply.slice(0, 80);
+    // a receipt back, so they see "Delivered" (also when we already had it: their first receipt may have been lost)
+    const { topic, key } = derive(reply);
+    this._publish(this.data.relays, topic, key, { t: 'ack', id: m.id }).catch(() => {});
+    if (this.data.chats.some((x) => x.id === m.id)) return; // already have it (sent again after a restart)
+    const f = this.data.friends.find((x) => sameCode(x.code, reply));
+    const c = { id: m.id.slice(0, 40), with: normCode(reply), reply, name: String(m.from || '').slice(0, 40) || (f ? f.name : 'Someone'), dir: 'in', text: m.text.slice(0, MAX_TEXT), at: Date.now() };
+    this._addChat(c);
+    this.log(`Friends: message from ${f ? f.name : c.name}`);
+    this.emit('message', { friendId: f ? f.id : null, key: c.with, name: f ? f.name : c.name, text: c.text });
+    this._changed().catch(() => {});
+  }
+
+  _addChat(c) {
+    this.data.chats.push(c);
+    if (this.data.chats.length > MAX_CHATS) this.data.chats.splice(0, this.data.chats.length - MAX_CHATS);
+  }
+
   // ------------------------------------------------------------- visiting --
   /**
    * Sends our offer to a friend's Stagehand and waits for its answer.
    * Resolves the answer SDP; rejects with code OFFLINE if nothing comes back.
    */
-  async connect(friendId, sdp, { timeout = 20000 } = {}) {
+  async connect(friendId, sdp, { timeout = 20000, onStage = null } = {}) {
+    const stage = (x) => onStage && onStage(x);
     const f = this.data.friends.find((x) => x.id === friendId);
     if (!f) throw Object.assign(new Error('That friend isn’t in your list any more'), { code: 'NO_FRIEND' });
     const { topic, key } = derive(f.code);
     const conn = crypto.randomBytes(9).toString('base64url');
     let done;
     const got = new Promise((res) => (done = res));
+    stage('relay');
     const subs = this.data.relays.map(
       (relay) =>
         new Subscription({
@@ -472,13 +588,14 @@ class Friends extends EventEmitter {
       await Promise.race([Promise.allSettled(subs.map((x) => x.ready)), new Promise((res) => setTimeout(res, 1500))]);
       const ready = subs.filter((x) => x.isReady).map((x) => x.relay);
       await this._publish(ready, topic, key, { t: 'offer', conn, sdp: String(sdp) });
+      stage('asking'); // the meeting point has our call: now it's up to their Stagehand
       return await Promise.race([
         got,
         new Promise((_, rej) => {
           timer = setTimeout(
             () =>
               rej(
-                Object.assign(new Error(`${f.name}’s Stagehand didn’t answer. It needs to be open with Sharing on, on Stagehand 4.1 or newer, and you need their current code (making a new code stops the old one).`), {
+                Object.assign(new Error(`No answer from ${f.name}. Either their Stagehand isn’t open with Sharing on, or the code isn’t theirs.`), {
                   code: 'OFFLINE',
                 })
               ),
@@ -497,4 +614,4 @@ class Friends extends EventEmitter {
   }
 }
 
-module.exports = { Friends, Subscription, normCode, validCode, prettyCode, derive, seal, open, newCode, relayList, DEFAULT_RELAY, DEFAULT_RELAYS };
+module.exports = { Friends, Subscription, normCode, validCode, codeProblem, sameCode, prettyCode, derive, seal, open, newCode, relayList, DEFAULT_RELAY, DEFAULT_RELAYS };

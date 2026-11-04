@@ -26,6 +26,30 @@ const fileOf = (t) => `${dir()}${sep()}${String(t.file).replace(/\//g, sep())}`;
 
 // friends' videos already fetched this session (so watching again is instant)
 const fetched = new Map(); // `${friendId}:${id}` -> blob URL
+// how each friend's last connection went this session: 'ok', 'bad' or 'wait' (a dot on their chip)
+const friendStatus = new Map();
+// messages read per friend (kept on this PC), for the little count on their chip
+const seenChat = new Map(
+  (() => {
+    try {
+      return Object.entries(JSON.parse(localStorage.getItem('stagehand.chatSeen') || '{}'));
+    } catch (_) {
+      return [];
+    }
+  })()
+);
+function markSeen(id, n) {
+  if (seenChat.get(id) === n) return;
+  seenChat.set(id, n);
+  try {
+    localStorage.setItem('stagehand.chatSeen', JSON.stringify(Object.fromEntries(seenChat)));
+  } catch (_) {}
+}
+function unread(id, msgs) {
+  const n = (msgs || []).filter((x) => x.dir === 'in').length - (seenChat.get(id) ?? 0);
+  return n > 0 ? h('span.fr-unread', { text: String(n), title: `${n} new message${n === 1 ? '' : 's'}` }) : null;
+}
+
 function remember(key, url) {
   fetched.set(key, url);
   while (fetched.size > 4) {
@@ -69,8 +93,8 @@ function askText({ title, label, value = '', placeholder = '', confirm = 'Save',
  * Opens the Recordings window. `focus`: a recording id to show first (just saved).
  * `tab`: 'mine' (default) or 'friends'.
  */
-export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
-  const R = { tab, friend: null, link: null, linkFor: null, list: null, err: null, loading: null, playing: null };
+export async function openRecordings({ focus = null, tab = 'mine', friend = null } = {}) {
+  const R = { tab, friend: null, link: null, linkFor: null, list: null, err: null, loading: null, playing: null, stage: null, status: friendStatus };
   const tabs = h('div.gseg.rec-tabs', { role: 'tablist', 'aria-label': 'Recordings', style: { '--gel': 'var(--gel-drums)' } });
   const player = h('div.rec-player', { hidden: true });
   const panel = h('div.rec-panel');
@@ -249,15 +273,99 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
       panel.append(h('p.np-fine', { text: 'Getting your friend code…' }));
       return;
     }
+    if (R.friend) markSeen(R.friend.id, thread(st, R.friend).filter((x) => x.dir === 'in').length);
     panel.append(meCard(st), friendsRow(st));
-    if (R.friend) panel.append(friendView());
-    else panel.append(h('p.np-fine.fr-tip', { text: st.friends.length ? 'Pick a friend to watch the videos they share.' : 'Add a friend with their code to watch the videos they share. Give them your code so they can watch yours.' }));
+    if (R.friend && R.friend.stranger) panel.append(strangerView(st), chatView(st));
+    else if (R.friend) panel.append(friendView(), chatView(st));
+    else panel.append(h('p.np-fine.fr-tip', { text: st.friends.length ? 'Pick a friend to watch the videos they share and send them a message.' : 'Add a friend with their code to watch the videos they share. Give them your code so they can watch yours.' }));
+  }
+
+  // ---------------------------------------------------------- messages --
+  // 4.1.3: messages go through the internet meeting point, so they work even when
+  // the videos can't connect: a quick way to test that the code and the internet work.
+  const thread = (st, fr) => {
+    if (!fr) return [];
+    const x = fr.stranger ? st.strangers.find((y) => y.key === fr.id) : st.friends.find((y) => y.id === fr.id);
+    return (x && x.messages) || [];
+  };
+  const fmtTime = (at) => new Date(at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  let draft = null; // the message box, kept across redraws so typing isn't lost
+  function chatView(st) {
+    const fr = R.friend;
+    const msgs = thread(st, fr);
+    const list = h('div.fr-msgs');
+    if (!msgs.length) list.append(h('p.fr-msgs-empty', { text: `Say hi to ${fr.name}. Messages go through the internet meeting point, so they work even when videos can’t connect: if yours says “Delivered”, the code and the internet are fine.` }));
+    for (const x of msgs) {
+      let state = null;
+      if (x.dir === 'out') {
+        const old = Date.now() - x.at > 30000;
+        if (x.state === 'delivered') state = h('span.fr-st.ok', { text: 'Delivered' });
+        else if (x.state === 'failed') {
+          const retry = h('button.fr-link', { type: 'button', text: 'Send again' });
+          retry.onclick = () => sendText(x.text);
+          state = h('span.fr-st.bad', null, `Not sent: ${x.error || 'no internet'}. `, retry);
+        } else if (x.state === 'sending') state = h('span.fr-st', { text: 'Sending…' });
+        else state = h(`span.fr-st${old ? '.warn' : ''}`, { text: old ? `Sent, not delivered yet: ${fr.name}’s Stagehand hasn’t picked it up (it’s closed, or the code is wrong). It waits up to 12 hours.` : 'Sent' });
+      }
+      list.append(h(`div.fr-msg.${x.dir}`, null, h('div.fr-bubble', { text: x.text }), h('div.fr-meta', null, h('span', { text: fmtTime(x.at) }), state)));
+    }
+    if (!draft || draft.dataset.for !== fr.id) {
+      draft = h('textarea.input.fr-type', { rows: 1, maxlength: 500, placeholder: `Message ${fr.name}`, 'aria-label': `Message ${fr.name}`, dataset: { for: fr.id } });
+      draft.onkeydown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendText(draft.value);
+        }
+      };
+    }
+    const hadFocus = document.activeElement === draft;
+    const send = h('button.btn.primary', { type: 'button', text: 'Send' });
+    send.onclick = () => sendText(draft.value);
+    const box = h('div.fr-chat', null, h('div.fr-chat-head', null, h('b', { text: 'Messages' })), list, h('div.fr-compose', null, draft, send));
+    requestAnimationFrame(() => {
+      list.scrollTop = list.scrollHeight;
+      if (hadFocus) draft.focus();
+    });
+    return box;
+  }
+  async function sendText(text) {
+    const fr = R.friend;
+    const t = String(text || '').trim();
+    if (!fr || !t) return;
+    if (draft && draft.value.trim() === t) draft.value = '';
+    try {
+      await api.friends.send(fr.id, t);
+    } catch (err) {
+      toast({ title: 'Couldn’t send it', message: err.message, kind: 'err' });
+    }
+    if (draft) draft.focus();
+  }
+  /** Someone with your code wrote, but isn't in your list: add them back in one go. */
+  function strangerView(st) {
+    const fr = R.friend;
+    const x = st.strangers.find((y) => y.key === fr.id);
+    const add = h('button.btn.primary', { type: 'button', text: `Add ${fr.name} as a friend` });
+    add.onclick = async () => {
+      const name = await askText({ title: 'Add a friend', label: 'What do you call them?', value: fr.name, confirm: 'Add' });
+      if (name === null) return;
+      try {
+        const f = await api.friends.add(x.code, name);
+        await loadFriends();
+        R.friend = null;
+        pick(f);
+      } catch (err) {
+        toast({ title: 'Couldn’t add them', message: err.message, kind: 'err' });
+      }
+    };
+    return h('div.fr-view', null, h('div.fr-state.off', null, h('span.fr-orb', { html: icon('person') }), h('b', { text: `${fr.name} wrote to you` }), h('p', { text: `${fr.name} has your code but isn’t in your list. Add them to watch the videos they share; you can answer here either way.` }), h('div.fr-acts', null, add)));
   }
 
   function meCard(st) {
     const sw = h('button.switch', { type: 'button', 'aria-pressed': String(st.sharing), 'aria-label': 'Share my videos', style: { '--gel': 'var(--gel-bass)' } });
     sw.onclick = () => api.friends.setSharing(!st.sharing).catch((err) => toast({ title: 'Couldn’t change sharing', message: err.message, kind: 'err' }));
     const copy = h('button.icon-btn', { type: 'button', title: 'Copy your code', 'aria-label': 'Copy your code', html: icon('copy'), onclick: copyCode });
+    const change = h('button.btn.small.ghost', { type: 'button', text: 'Change', title: 'Choose your own word or phrase' });
+    change.onclick = changeMyCode;
     const more = h('button.icon-btn', { type: 'button', title: 'More', 'aria-label': 'Friends options', html: icon('more') });
     more.onclick = (e) => {
       const r = e.currentTarget.getBoundingClientRect();
@@ -270,8 +378,9 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
             if (v !== null) await api.friends.setName(v);
           },
         },
+        { label: 'Change my code', icon: 'edit', onClick: changeMyCode },
         {
-          label: 'New code',
+          label: 'Make up a new code for me',
           icon: 'refresh',
           onClick: async () => {
             if (!(await confirmDialog({ title: 'Make a new code?', message: 'Everyone with your old code loses access. Send the new one to the friends you want.', confirm: 'New code', danger: true }))) return;
@@ -293,29 +402,48 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
         },
       ]);
     };
+    // 4.1.3: one plain line that says exactly where things stand
     const shared = st.shared.length;
-    const say = st.sharing
-      ? F.peers
-        ? `${F.peers === 1 ? 'A friend is' : `${F.peers} friends are`} watching now. ${shared} video${shared === 1 ? '' : 's'} shared.`
-        : shared
-          ? `${shared} video${shared === 1 ? '' : 's'} shared. Friends with your code can watch while Stagehand is open.`
-          : 'Nothing shared yet: on the Mine tab, press the share button on a video.'
-      : 'Turn sharing on, then press the share button on a video in Mine. Friends with your code can watch it.';
+    const vids = `${shared} video${shared === 1 ? '' : 's'} shared`;
+    const who = F.watching.length ? F.watching.join(' and ') : F.peers ? (F.peers === 1 ? 'A friend' : `${F.peers} friends`) : '';
+    const [cls, say] = !st.sharing
+      ? ['off', 'Video sharing is off: friends can still message you, but can’t watch your videos until you turn it on.']
+      : !st.listening
+        ? ['wait', 'Getting ready: connecting to the internet meeting point… If this doesn’t turn green, check your internet.']
+        : who
+          ? ['live', `${who} ${F.watching.length > 1 || F.peers > 1 ? 'are' : 'is'} connected and watching now. ${vids}.`]
+          : ['ok', `Ready. Friends with your code can connect now. ${shared ? vids + '.' : 'Nothing shared yet: on the Mine tab, press the share button on a video.'}`];
     return h('div.fr-mecard', null,
       h(`div.fr-me${st.sharing ? '.on' : ''}`, null,
-        h('div.fr-code-wrap', null, h('span.fr-label', { text: 'Your code' }), h('div.fr-code', null, h('code', { text: st.code }), copy)),
+        h('div.fr-code-wrap', null, h('span.fr-label', { text: 'Your code' }), h('div.fr-code', null, h('code', { text: st.code }), copy, change)),
         h('span.grow'),
         h('label.fr-share', null, h('span', { text: st.sharing ? 'Sharing' : 'Not sharing' }), sw),
         more
       ),
-      h('div.np-fine.fr-say', null, st.sharing ? h(`span.fr-dot${F.peers ? '.live' : ''}`) : null, say)
+      h(`div.fr-status.${cls}`, null, h('i'), h('span', { text: say }))
     );
+  }
+
+  async function changeMyCode() {
+    const st = F.st;
+    if (!st) return;
+    const v = await askText({
+      title: 'Your code',
+      label: 'A word or phrase your friends type to watch your videos',
+      value: st.code,
+      placeholder: 'e.g. tiger-427',
+      confirm: 'Use this code',
+      hint: 'Capitals, spaces and dashes don’t matter. Anyone who knows it can watch what you share, so pick something only your friends would guess. Friends with your old code will need the new one.',
+      check: (x) => (x.trim() === st.code ? null : api.friends.setCode(x).then(() => null, (err) => err.message)),
+    });
+    if (v !== null && v.trim() !== st.code) toast({ title: 'Code changed', message: `Your code is now “${F.st ? F.st.code : v}”. Send it to your friends.`, kind: 'ok', actions: [{ label: 'Copy', onClick: () => copyCode() }] });
   }
 
   function friendsRow(st) {
     const list = h('div.fr-friends');
     for (const f of st.friends) {
-      const chip = h(`button.fr-friend${R.friend && R.friend.id === f.id ? '.sel' : ''}`, { type: 'button', title: `Watch ${f.name}’s videos` }, h('span.fr-av', { text: (f.name || '?').trim().slice(0, 1).toUpperCase() }), h('span.fr-name', { text: f.name }));
+      const stt = R.status.get(f.id) || '';
+      const chip = h(`button.fr-friend${R.friend && R.friend.id === f.id ? '.sel' : ''}${stt ? '.' + stt : ''}`, { type: 'button', title: `Watch ${f.name}’s videos (code: ${f.code})` }, h('span.fr-av', { text: (f.name || '?').trim().slice(0, 1).toUpperCase() }), h('span.fr-name', { text: f.name }), stt ? h('i.fr-chipdot') : null, unread(f.id, f.messages));
       chip.onclick = () => pick(f);
       chip.oncontextmenu = (e) => {
         e.preventDefault();
@@ -329,6 +457,7 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
               if (v !== null) await api.friends.rename(f.id, v);
             },
           },
+          { label: 'Change their code', icon: 'edit', onClick: () => fixCode(f) },
           '-',
           {
             label: 'Remove',
@@ -343,29 +472,39 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
       };
       list.append(chip);
     }
+    for (const x of st.strangers || []) {
+      const chip = h(`button.fr-friend.stranger${R.friend && R.friend.id === x.key ? '.sel' : ''}`, { type: 'button', title: `${x.name} wrote to you` }, h('span.fr-av', { text: (x.name || '?').trim().slice(0, 1).toUpperCase() }), h('span.fr-name', { text: `${x.name} (new)` }), unread(x.key, x.messages));
+      chip.onclick = () => {
+        hangUp();
+        R.err = null;
+        R.list = null;
+        R.friend = { id: x.key, name: x.name, code: x.code, stranger: true };
+        renderFriends();
+      };
+      list.append(chip);
+    }
     const add = h('button.fr-friend.add', { type: 'button', title: 'Add a friend with their code' }, h('span.fr-av', { html: icon('plus') }), h('span.fr-name', { text: 'Add a friend' }));
     add.onclick = addFriend;
     list.append(add);
     return list;
   }
 
+  // 4.1.3: codes are a word or phrase; capitals, spaces and dashes don't matter
+  const tidy = (v) => String(v || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+  const codeCheck = (v, exceptId = null) => {
+    const c = tidy(v);
+    if (c.length < 6) return 'A code has at least 6 letters or numbers. Ask your friend to read you theirs.';
+    if (F.st && tidy(F.st.code) === c) return 'That’s your own code. Ask your friend for theirs.';
+    const other = F.st && F.st.friends.find((x) => x.id !== exceptId && tidy(x.code) === c);
+    if (other) return `That’s ${other.name}’s code: they’re already in your list.`;
+    return null;
+  };
+  const CODE_HINT = 'The word or phrase your friend sees under “Your code” in their Recordings › Friends. Capitals, spaces and dashes don’t matter.';
+
   async function addFriend() {
-    const code = await askText({
-      title: 'Add a friend',
-      label: 'Their friend code',
-      placeholder: 'ABCD-EFGH-JKMN-PQRS',
-      confirm: 'Next',
-      mono: true,
-      hint: 'Your friend finds it in Recordings › Friends.',
-      check: (v) => {
-        const c = v.toUpperCase().replace(/[^0-9A-Z]/g, '');
-        if (c.length !== 16) return 'A friend code has 16 letters and numbers.';
-        if (F.st && c === F.st.code.replace(/-/g, '')) return 'That’s your own code. Ask your friend for theirs.';
-        return null;
-      },
-    });
+    const code = await askText({ title: 'Add a friend', label: 'Their code', placeholder: 'e.g. tiger-427', confirm: 'Next', hint: CODE_HINT, check: (v) => codeCheck(v) });
     if (code === null) return;
-    const name = await askText({ title: 'Add a friend', label: 'What do you call them?', placeholder: 'Friend', confirm: 'Add friend' });
+    const name = await askText({ title: 'Add a friend', label: 'What do you call them?', placeholder: 'Friend', confirm: 'Add and connect' });
     if (name === null) return;
     try {
       const f = await api.friends.add(code, name);
@@ -374,6 +513,24 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
     } catch (err) {
       toast({ title: 'Couldn’t add that code', message: err.message, kind: 'err' });
     }
+  }
+
+  /** Fix a friend's code (a typo, or they changed it), then try again. */
+  async function fixCode(f) {
+    const v = await askText({
+      title: `${f.name}’s code`,
+      label: `The code you have for ${f.name}`,
+      value: f.code || '',
+      confirm: 'Save and connect',
+      hint: CODE_HINT,
+      check: (x) => codeCheck(x, f.id) || api.friends.setFriendCode(f.id, x).then(() => null, (err) => err.message),
+    });
+    if (v === null) return;
+    await loadFriends();
+    const nf = (F.st && F.st.friends.find((x) => x.id === f.id)) || f;
+    hangUp();
+    R.friend = null;
+    pick(nf);
   }
 
   function hangUp() {
@@ -389,18 +546,43 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
     R.list = null;
     R.err = null;
     R.loading = null;
+    R.stage = 'start';
+    R.status.set(f.id, 'wait');
     renderFriends();
+    const onStage = (stage) => {
+      if (!R.friend || R.friend.id !== f.id || R.list) return;
+      R.stage = stage;
+      if (R.tab === 'friends') renderFriends();
+    };
+    const offStage = api.on('friends:progress', (p) => p && p.friendId === f.id && onStage(p.stage));
     try {
-      const link = await connectTo(api, f.id);
+      // 4.1.3: one quiet second try when the internet side or the direct line hiccups
+      // (not when nobody answered: that needs you or your friend to change something)
+      const go = () => connectTo(api, f.id, { name: (F.st && F.st.name) || '', onStage });
+      const link = await go()
+        .catch((err) => {
+          if (err.code !== 'DIRECT' && err.code !== 'RELAY') throw err;
+          if (!R.friend || R.friend.id !== f.id) throw err;
+          R.stage = 'relay';
+          R.retrying = true;
+          if (R.tab === 'friends') renderFriends();
+          return go();
+        })
+        .finally(() => {
+          R.retrying = false;
+          offStage && offStage();
+        });
       if (!R.friend || R.friend.id !== f.id || !m.el.isConnected) return link.close();
       R.link = link;
       R.linkFor = f.id;
       watchClose(link, f);
       if (link.name && f.name === 'Friend') api.friends.rename(f.id, link.name).catch(() => {});
       R.list = await link.list();
+      R.status.set(f.id, 'ok');
     } catch (err) {
       if (!R.friend || R.friend.id !== f.id) return;
       R.err = err;
+      R.status.set(f.id, 'bad');
     }
     if (R.tab === 'friends') renderFriends();
   }
@@ -408,15 +590,52 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
   function friendView() {
     const f = R.friend;
     const box = h('div.fr-view');
+    const btn = (text, onClick, primary = false) => {
+      const b = h(`button.btn${primary ? '.primary' : ''}`, { type: 'button', text });
+      b.onclick = onClick;
+      return b;
+    };
+    const again = () => btn('Try again', () => ((R.err = null), hangUp(), pick(f)), true);
     if (R.err) {
-      const off = R.err.code === 'OFFLINE';
-      const again = h('button.btn.primary', { type: 'button', text: 'Try again' });
-      again.onclick = () => ((R.err = null), hangUp(), pick(f));
-      box.append(h(`div.fr-state.${off ? 'off' : 'bad'}`, null, h('span.fr-orb', { html: icon(off ? 'person' : 'alert') }), h('b', { text: off ? `${f.name} isn’t around` : 'Couldn’t connect' }), h('p', { text: R.err.message }), again));
+      const code = R.err.code;
+      const fix = btn('Fix their code', () => fixCode(f));
+      let title, body, acts;
+      if (code === 'OFFLINE') {
+        title = `No answer from ${f.name}`;
+        body = h('div', null,
+          h('p', { text: `Nobody answered to the code you have for ${f.name}. Check these two things:` }),
+          h('ol.fr-checks', null,
+            h('li', null, h('div', null, h('b', { text: `Is ${f.name}’s Stagehand open, with Sharing on?` }), h('span', { text: 'They see “Ready. Friends with your code can connect now.” at the top of their Friends tab.' }))),
+            h('li', null, h('div', null, h('b', { text: 'Is the code right?' }), h('span', null, 'You have ', h('code', { text: f.code || '' }), `. It must match what ${f.name} sees under “Your code”.`)))
+          ));
+        acts = [again(), fix];
+      } else if (code === 'RELAY') {
+        title = 'Can’t reach the internet meeting point';
+        body = h('p', { text: 'Stagehand couldn’t get online to look for your friend. Check your internet connection, then try again.' });
+        acts = [again()];
+      } else if (code === 'DIRECT') {
+        title = `${f.name} answered, but your PCs couldn’t connect`;
+        body = h('p', { text: `The code is right: ${f.name}’s Stagehand answered. But the direct line between your two PCs didn’t open. A strict network (work, school, some mobile hotspots) can block it. Try again, or try from another network.` });
+        acts = [again()];
+      } else {
+        title = code === 'CLOSED' ? `The connection to ${f.name} closed` : 'Couldn’t connect';
+        body = h('p', { text: code === 'CLOSED' ? `${f.name}’s Stagehand may have closed, or turned Sharing off.` : R.err.message });
+        acts = [again()];
+      }
+      box.append(h(`div.fr-state.${code === 'OFFLINE' ? 'off' : 'bad'}`, null, h('span.fr-orb', { html: icon(code === 'OFFLINE' ? 'person' : 'alert') }), h('b', { text: title }), body, h('div.fr-acts', null, ...acts)));
       return box;
     }
     if (!R.list) {
-      box.append(h('div.fr-state.wait', null, h('span.fr-orb.pulse', { html: icon('people') }), h('b', { text: `Connecting to ${f.name}…` }), h('p', { text: 'Their Stagehand needs to be open, with sharing on.' })));
+      // each step of connecting, so you can see how far it got
+      const order = ['relay', 'asking', 'direct'];
+      const at = Math.max(0, order.indexOf(R.stage));
+      const steps = [
+        ['Reaching the internet meeting point', ''],
+        [`Asking ${f.name}’s Stagehand`, 'It answers if it’s open with Sharing on, and the code is right. Up to 20 seconds.'],
+        ['Connecting your two PCs directly', `${f.name} answered: the code is right.`],
+      ];
+      box.append(h('div.fr-state.wait', null, h('span.fr-orb.pulse', { html: icon('people') }), h('b', { text: R.retrying ? `Trying once more to connect to ${f.name}…` : `Connecting to ${f.name}…` }),
+        h('ol.fr-steps', null, ...steps.map(([t, sub], i) => h(`li.${i < at ? 'done' : i === at ? 'now' : 'todo'}`, null, h('i', { html: i < at ? icon('check') : '' }), h('div', null, h('b', { text: t }), sub && i <= at ? h('span', { text: sub }) : null))))));
       return box;
     }
     const refresh = h('button.btn.small.ghost', { type: 'button', html: `${icon('refresh')}<span>Check again</span>` });
@@ -428,7 +647,7 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
       }
       renderFriends();
     };
-    box.append(h('div.fr-live', null, h('i'), h('span.grow', { text: `Connected to ${(R.link && R.link.name) || f.name}` }), refresh));
+    box.append(h('div.fr-live', null, h('i'), h('span.grow', null, h('b', { text: `Connected to ${(R.link && R.link.name) || f.name}.` }), ' The code is right.'), refresh));
     if (!R.list.length) {
       box.append(h('p.np-fine', { text: `${f.name} hasn’t shared any videos yet.` }));
       return box;
@@ -535,5 +754,11 @@ export async function openRecordings({ focus = null, tab = 'mine' } = {}) {
     bus.removeEventListener('friends', onFriends);
   }
   await render();
+  if (friend && F.st) {
+    const f = F.st.friends.find((x) => x.id === friend);
+    const x = !f && (F.st.strangers || []).find((y) => y.key === friend);
+    if (f) pick(f);
+    else if (x) ((R.friend = { id: x.key, name: x.name, code: x.code, stranger: true }), renderFriends());
+  }
   return m;
 }
