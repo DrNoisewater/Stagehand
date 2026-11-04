@@ -445,16 +445,25 @@ export function createHighway(stage) {
   const syncBox = h('div.hw-syncbox', { hidden: true, role: 'dialog', 'aria-label': 'Timing check' });
   root.append(syncBox);
   let syncRun = null;
+  let syncHold = 0;
   function openSync({ first = false } = {}) {
     if (stage.engine.playing) stage.toggle();
     syncBox.hidden = false;
     syncIntro({ first });
+    // the song may start a moment later (it was still loading): keep it paused while this is open
+    clearInterval(syncHold);
+    syncHold = setInterval(() => {
+      if (syncBox.hidden) return clearInterval(syncHold);
+      if (stage.engine.playing) stage.toggle();
+    }, 200);
   }
   // 4.1.6: people don't know the timing check exists: the first time you open the
   // highway with your guitar plugged in, it introduces itself (twice at most, never once done)
+  let syncAskedNow = false; // once each time Stagehand is opened, not song after song
   function maybeFirstSync() {
-    if (prefs.syncChecked || (prefs.syncAsked || 0) >= 2 || !rig.on || !(prefs.detect !== false)) return;
+    if (syncAskedNow || prefs.syncChecked || (prefs.syncAsked || 0) >= 2 || !rig.on || !(prefs.detect !== false)) return;
     if (prefs.offsetMs) return setPref('syncChecked', true); // done before 4.1.6
+    syncAskedNow = true;
     setPref('syncAsked', (prefs.syncAsked || 0) + 1);
     openSync({ first: true });
   }
@@ -462,6 +471,7 @@ export function createHighway(stage) {
     if (syncRun) syncRun.stop();
     syncRun = null;
     syncBox.hidden = true;
+    clearInterval(syncHold);
   }
   function syncIntro({ first = false } = {}) {
     syncBox.innerHTML = '';
