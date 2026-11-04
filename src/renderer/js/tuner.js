@@ -1,14 +1,25 @@
-/** The tuner card (Play page): note, needle, cents, and a button per string. */
+/**
+ * The tuner card (Jam page, and U on the highway): note, needle, cents, and a
+ * button per string. 4.1.6: by default it follows the tuning you want to be in:
+ * the open song's (less whatever the Drop is doing for you), or with no song,
+ * the tuning Stagehand knows your instrument is in. Picking a tuning by hand
+ * lasts until the next song.
+ */
 import { h, icon } from './ui.js';
 import { rig, TUNINGS, noteName } from './rig.js';
+import { myTuning, myCents, tuningName } from './tuning.js';
 
 const STRING_COLORS = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 
 function load() {
   try {
-    return { tuning: 'e-std', ref: 440, ...(JSON.parse(localStorage.getItem('stagehand.tuner3') || '{}') || {}) };
+    const p = { tuning: 'auto', ref: 440, ...(JSON.parse(localStorage.getItem('stagehand.tuner3') || '{}') || {}) };
+    // 4.1.6: a tuning picked by hand used to stick forever (Drop D after you'd gone back to E Standard)
+    if (!p.v416) p.tuning = 'auto';
+    p.v416 = 1;
+    return p;
   } catch (_) {
-    return { tuning: 'e-std', ref: 440 };
+    return { tuning: 'auto', ref: 440, v416: 1 };
   }
 }
 
@@ -40,13 +51,33 @@ export function createTuner() {
     return (rig.instrument || (rig.tone && rig.tone.kind)) === 'bass';
   }
 
+  /** What "Follow the song" means right now: { offs, cents, name, from }. */
+  function wanted() {
+    const kind = bass() ? 'bass' : 'guitar';
+    const n = kind === 'bass' ? 4 : 6;
+    const song = Array.isArray(rig.songTuning) && rig.songTuning.length ? rig.songTuning : null;
+    if (song) {
+      // with the Drop on, the pedal lowers your sound; your strings stay that much higher
+      const drop = (rig.drop && rig.drop.on && rig.dropAmount ? rig.dropAmount() : 0) || 0;
+      const offs = Array.from({ length: n }, (_, i) => (Math.round(Number(song[i]) || 0) + Math.round(drop)));
+      const cents = Number(rig.songCents) || 0;
+      return { offs, cents, name: tuningName(offs, kind), from: drop ? `the song, with the Drop −${Math.round(drop)}` : 'the song' };
+    }
+    return { offs: myTuning(kind), cents: myCents(kind), name: tuningName(myTuning(kind), kind), from: 'your guitar' };
+  }
+
   function targets() {
-    const refCents = 1200 * Math.log2(Number(prefs.ref || 440) / 440);
+    let refCents = 1200 * Math.log2(Number(prefs.ref || 440) / 440);
     if (prefs.tuning === 'chromatic') return { chromatic: true, refCents, list: [] };
-    const t = TUNINGS.find((x) => x.id === prefs.tuning) || TUNINGS[0];
+    let o;
+    if (prefs.tuning === 'auto') {
+      const w = wanted();
+      o = w.offs;
+      if (Math.abs(w.cents) >= 8 && Number(prefs.ref || 440) === 440) refCents = w.cents; // the song's own reference (A425…)
+    } else o = (TUNINGS.find((x) => x.id === prefs.tuning) || TUNINGS[0]).o;
     const base = bass() ? [28, 33, 38, 43] : [40, 45, 50, 55, 59, 64];
     const list = base.map((m, i) => {
-      const midi = m + t.o[i];
+      const midi = m + (o[i] || 0);
       const c = midi * 100 + refCents;
       return { midi, cents: c, name: noteName(midi), hz: 440 * Math.pow(2, (c - 6900) / 1200) };
     });
@@ -55,6 +86,9 @@ export function createTuner() {
 
   function build() {
     tuneSel.innerHTML = '';
+    const w = wanted();
+    tuneSel.append(h('option', { value: 'auto', text: `${w.name} (${w.from})` }));
+    tuneSel.title = `Follows ${w.from}. Pick another tuning for now; the next song sets it back.`;
     tuneSel.append(h('option', { value: 'chromatic', text: 'Chromatic' }));
     for (const t of TUNINGS) tuneSel.append(h('option', { value: t.id, text: t.name }));
     tuneSel.value = prefs.tuning;
@@ -154,17 +188,36 @@ export function createTuner() {
   }
 
   let lastKind = null;
-  rig.addEventListener('change', () => {
+  let lastWant = '';
+  const refresh = () => {
     const k = bass();
-    if (k !== lastKind) {
+    const sig = JSON.stringify([rig.songTuning || null, rig.songCents || 0]);
+    const w = wanted();
+    const want = JSON.stringify([w.offs, w.cents, w.from]);
+    // a new song: back to following it
+    if (sig !== refresh.sig) {
+      refresh.sig = sig;
+      if (prefs.tuning !== 'auto' && prefs.tuning !== 'chromatic') {
+        prefs.tuning = 'auto';
+        T.lock = null;
+        save();
+      }
+    }
+    if (k !== lastKind || want !== lastWant) {
       lastKind = k;
+      lastWant = want;
       build();
     }
-  });
+  };
+  refresh.sig = JSON.stringify([rig.songTuning || null, rig.songCents || 0]);
+  rig.addEventListener('change', refresh);
+  rig.addEventListener('drop', refresh);
+  window.addEventListener('storage', refresh);
   build();
   return {
     el,
     show() {
+      refresh(); // what you're tuned to may have changed while it was hidden
       T.visible = true;
       if (!T.raf) T.raf = requestAnimationFrame(loop);
     },

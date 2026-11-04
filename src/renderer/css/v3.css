@@ -1386,7 +1386,7 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .fr-found b { color: #a8e8c0; }
 .fr-found code, .fr-state code { font: 650 13px var(--font); color: #ffe3b0; background: #221b10; padding: 1px 6px; border-radius: 5px; }
 .fr-found .fr-acts { justify-content: flex-start; }
-/* ------------------------------------------------ 3.10: smarter search -- */
+/* ------------------------------------------------ 4.1.6: smarter search -- */
 /* the song list never wears a focus box: the focused row shows where you are */
 .scroller:focus, .scroller:focus-visible { outline: 0; }
 .scroller:focus .row.focus { box-shadow: inset 3px 0 0 var(--tungsten); }
@@ -1426,3 +1426,21 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .lib-q .q-clear { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--rule); background: transparent; color: var(--ink-2); font-size: 12px; }
 .lib-q .q-clear:hover { color: var(--ink); border-color: var(--riser-2); }
 .lib-q .q-clear svg { width: 12px; height: 12px; }
+
+/* 4.1.6 Getting started: groups, step count, Show me, the keys */
+.gs-group { margin: 12px 10px 4px; color: var(--ink-3); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.gs-group:first-child { margin-top: 0; }
+.gs-steps { overflow-y: auto; max-height: min(70vh, 640px); }
+.gs-body { overflow-y: auto; max-height: min(70vh, 640px); padding-right: 6px; }
+.gs-count { margin-bottom: 4px; color: var(--ink-3); font-size: 11.5px; letter-spacing: 0.02em; }
+.gs-show { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule-soft); }
+.gs-keys { list-style: none; margin: 0 0 14px; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; }
+.gs-keys li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-2); }
+.gs-keys kbd { flex: none; min-width: 74px; text-align: center; font-size: 11.5px; padding: 3px 6px; color: var(--ink); background: var(--deck-2); }
+.gs-ring { position: fixed; z-index: 1200; pointer-events: none; border-radius: 12px; border: 2px solid var(--tungsten); box-shadow: 0 0 0 4000px rgba(5, 8, 16, 0.45), 0 0 24px rgba(255, 181, 71, 0.55); animation: gs-pulse 1.6s ease-in-out infinite; transition: left 0.2s, top 0.2s, width 0.2s, height 0.2s; }
+.gs-ring[hidden] { display: none; }
+@keyframes gs-pulse { 50% { box-shadow: 0 0 0 4000px rgba(5, 8, 16, 0.45), 0 0 6px rgba(255, 181, 71, 0.25); } }
+.gs-tip { position: fixed; z-index: 1201; padding: 14px 16px; border-radius: 12px; background: #1a2134; border: 1px solid var(--tungsten-line); box-shadow: 0 18px 48px -10px rgba(0, 0, 0, 0.75); }
+.gs-tip b { display: block; margin-bottom: 4px; font-size: 14px; color: var(--ink); }
+.gs-tip p { margin: 0 0 12px; color: var(--ink-2); font-size: 13px; line-height: 1.5; }
+.gs-tip-actions { display: flex; justify-content: flex-end; gap: 8px; }

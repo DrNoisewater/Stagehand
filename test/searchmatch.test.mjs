@@ -1,4 +1,4 @@
-// 3.10: the search box's matching, ranking and suggestions.
+// 4.1.6: the search box's matching, ranking and suggestions.
 const m = await import('../src/renderer/js/searchmatch.js');
 let bad = 0;
 const ok = (c, msg) => { console.log(c ? 'ok  ' : 'FAIL', msg); if (!c) bad++; };

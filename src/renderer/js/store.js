@@ -25,7 +25,7 @@ export const state = {
   // Stagehand 3: which section is showing. Always opens on Play.
   page: 'play',
   search: '',
-  searchAll: true, // 3.10: a search looks through every song; false = only the list you were on
+  searchAll: true, // 4.1.6: a search looks through every song; false = only the list you were on
   parts: new Set(saved.parts || []),
   sort: saved.sort || { key: 'artist', dir: 1 },
   layout: saved.layout || 'list',
@@ -203,7 +203,7 @@ export function visibleSongs() {
   let scores = null;
   searchStats = { q, matches: 0, hiddenByParts: 0 };
   if (q) {
-    // 3.10: search the whole library unless you narrowed it to the list you were on
+    // 4.1.6: search the whole library unless you narrowed it to the list you were on
     if (state.searchAll && v.kind !== 'all') {
       list = [...state.songs.values()];
       keepOrder = false;
@@ -338,7 +338,7 @@ let goingBack = false;
 const here = () => ({ page: state.page, view: state.view, search: state.search, searchAll: state.searchAll });
 const same = (a, b) => a && b && a.page === b.page && JSON.stringify(a.view) === JSON.stringify(b.view) && (a.search || '') === (b.search || '');
 
-/** 3.10: going somewhere else drops the search, so it can't quietly hide what you went to find (Back brings it back). */
+/** 4.1.6: going somewhere else drops the search, so it can't quietly hide what you went to find (Back brings it back). */
 function dropSearch() {
   if (!state.search) return;
   state.search = '';

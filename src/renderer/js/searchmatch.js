@@ -1,5 +1,5 @@
 /**
- * 3.10: how the search box matches songs. Pure (no DOM), shared by the song
+ * 4.1.6: how the search box matches songs. Pure (no DOM), shared by the song
  * list (store.js) and the suggestions under the box (searchbox.js).
  * Forgiving: accents, punctuation and "&" don't matter, run-together names
  * ("acdc") and small typos ("metalica") still find the song, and results are

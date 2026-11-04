@@ -32,7 +32,7 @@ const PARTS = [
 // ------------------------------------------------------------ skeleton --
 const head = h('div.lib-head');
 const titleEl = h('div.lib-title', null, h('h1'), h('div.sub'));
-const qline = h('div.lib-q', { hidden: true }); // 3.10: what the search is doing, and a way out
+const qline = h('div.lib-q', { hidden: true }); // 4.1.6: what the search is doing, and a way out
 titleEl.append(qline);
 const tools = h('div.lib-tools');
 const partFilter = h('div.part-filter', { role: 'group', 'aria-label': 'Show songs with these parts' });
@@ -448,7 +448,7 @@ export function render() {
   renderEmpty();
 }
 
-/** 3.10: while you search: where it's looking (everywhere / just this list), part filters hiding matches, Clear. */
+/** 4.1.6: while you search: where it's looking (everywhere / just this list), part filters hiding matches, Clear. */
 function renderSearchLine() {
   const q = state.search.trim();
   qline.hidden = !q;
@@ -741,7 +741,7 @@ on('search', () => {
   scroller.scrollTop = 0;
   savedTop.delete(viewKey());
   render();
-  // 3.10: search cleared: back where the song you picked is, not the top of the list
+  // 4.1.6: search cleared: back where the song you picked is, not the top of the list
   if (!state.search && state.focus && state.selection.has(state.focus)) revealSong(state.focus, { center: true });
 });
 

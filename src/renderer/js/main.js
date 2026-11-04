@@ -65,7 +65,7 @@ api.app
 
 actions.register({ stage, inspector, dialogs });
 
-// 3.10: the search box (suggestions, Tab to finish, recent searches) lives in searchbox.js
+// 4.1.6: the search box (suggestions, Tab to finish, recent searches) lives in searchbox.js
 document.getElementById('btn-settings').onclick = () => dialogs.settings();
 
 on('reveal', (id) => library.revealSong(id));

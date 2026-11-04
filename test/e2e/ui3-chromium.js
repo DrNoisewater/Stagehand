@@ -1119,6 +1119,62 @@ class FakePortMain extends EventEmitter {
   }
   check(appeared, 'opening Tones on From my songs reads your songs by itself (no click needed)');
 
+  // 4.1.6: the tuner follows the song you open (a hand-picked tuning lasts until the next song)
+  await page.locator('.nav-section[data-page="play"]').click();
+  await page.waitForTimeout(600);
+  const tunerSays = () => page.evaluate(() => { const s = document.querySelector('#page-play .tuner3 select'); return s ? s.options[s.selectedIndex].text + ' | ' + [...document.querySelectorAll('#page-play .tuner3 .tn-strings button')].map((b) => b.textContent).join(' ') : ''; });
+  await page.evaluate(async () => (await import('/src/renderer/js/rig.js')).rig.setSongTuning([-2, 0, 0, 0, 0, 0], 'guitar', 0));
+  await page.waitForTimeout(300);
+  const t1 = await tunerSays();
+  check(/^Drop D \(the song\) \| D A D G B E/.test(t1), `the tuner follows a Drop D song: “${t1}”`);
+  await page.selectOption('#page-play .tuner3 select', 'drop-c');
+  await page.evaluate(async () => (await import('/src/renderer/js/rig.js')).rig.setSongTuning([0, 0, 0, 0, 0, 0], 'guitar', 0));
+  await page.waitForTimeout(300);
+  const t2 = await tunerSays();
+  check(/^E Standard \(the song\) \| E A D G B E/.test(t2), `back to an E Standard song, the tuner goes with it: “${t2}”`);
+
+  // 4.1.6: search suggestions, Tab to finish, a picked song clears the search; going elsewhere clears it too
+  await page.locator('.nav-section[data-page="songs"]').first().click();
+  await page.waitForTimeout(500);
+  await page.keyboard.press('Control+f');
+  await page.keyboard.type('integ');
+  await page.waitForTimeout(400);
+  check((await page.locator('.search-pop .sp-item[data-kind="artist"]').count()) >= 1, 'search suggests the artist as you type');
+  await page.keyboard.press('Tab');
+  check((await page.inputValue('#search')) === 'integration', 'Tab finishes the name');
+  await page.locator('.nav-item:has-text("Favorites")').first().click();
+  await page.waitForTimeout(400);
+  check((await page.inputValue('#search')) === '', 'going to another list clears the search');
+  await page.keyboard.press('Alt+ArrowLeft');
+  await page.waitForTimeout(400);
+  check((await page.inputValue('#search')) === 'integration', 'Back brings the search back');
+  await page.locator('#search').click();
+  await page.waitForTimeout(300);
+  await page.locator('.search-pop .sp-item[data-kind="song"]').first().click();
+  await page.waitForTimeout(500);
+  check((await page.inputValue('#search')) === '' && (await page.locator('.row.sel').count()) === 1, 'picking a suggested song clears the search and selects it');
+  await page.keyboard.press('ArrowDown');
+  check((await page.evaluate(() => getComputedStyle(document.querySelector('.scroller')).outlineStyle)) === 'none', 'the song list has no outline box when you use the keys');
+
+  // 4.1.6: Getting started: the tour of every section, Show me and back
+  await page.locator('.nav-section[data-page="guide"]').click();
+  await page.waitForTimeout(600);
+  const pages = await page.locator('.gs-step span').allTextContents();
+  check(['Tune up', 'The highway', 'Stems: mute any part', 'Songs', 'Jam', 'Tones', 'Progress', 'Recordings & Friends', 'Discover'].every((t) => pages.includes(t)), `Getting started covers every section: ${pages.join(' / ')}`);
+  await shot('40-guide-welcome');
+  await page.locator('.gs-step:has-text("Stems")').click();
+  await page.waitForTimeout(250);
+  await shot('41-guide-stems');
+  await page.locator('.gs-show button').click();
+  await page.waitForTimeout(900);
+  check((await page.locator('.gs-ring:not([hidden])').count()) === 1 && /stems/i.test((await page.locator('.gs-tip').textContent()) || ''), 'Show me rings the Split stems button');
+  await shot('42-guide-showme');
+  await page.locator('.gs-tip button:has-text("Back to the guide")').click();
+  await page.waitForTimeout(500);
+  check(/Stems/.test((await page.locator('.gs-step.on span').textContent()) || ''), 'and Back to the guide returns to the same page');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+
   const errs = logs.filter((l) => /^(pageerror)/.test(l) || (/^error/.test(l) && !/404|Failed to load resource|favicon/.test(l)));
   check(errs.length === 0, `no page errors${errs.length ? `: ${errs.slice(0, 4).join(' | ')}` : ''}`);
   fs.writeFileSync(path.join(outDir, 'ui-chromium.log'), logs.join('\n'));

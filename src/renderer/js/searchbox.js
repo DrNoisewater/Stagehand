@@ -1,5 +1,5 @@
 /**
- * 3.10: the titlebar search box. Suggestions as you type (songs, artists,
+ * 4.1.6: the titlebar search box. Suggestions as you type (songs, artists,
  * albums, tunings, years, setlists; best group first), the rest of the best
  * match shown faintly for Tab to finish, recent searches when the box is empty.
  * In Discover the same box searches MusicBrainz and shows no suggestions.

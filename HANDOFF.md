@@ -1,8 +1,28 @@
-# Stagehand handoff (v4.1.5, 2026-11-04): Friends fix mistyped and changed codes by themselves
+# Stagehand handoff (v4.1.6, 2026-11-04): a tuner that follows the song, help when notes aren't counting, a full Getting started tour, smarter search
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.1.6: tuner follows the song, offer the timing check, Getting started tour, smarter search
+
+**Note:** this session started from a stale 3.9 copy (the session-start hook wasn't in that copy). The search work was first built on 3.9 and then rebased onto 4.1.5; the user noticed ("are you using the wrong version again"). Check `package.json` against `origin/main` first.
+
+User on 4.1.5:
+- "The tuner needs to switch to the tuning you want to be in. I played in Drop D, switched to E Standard, and the tuner still showed Drop D though I was correctly tuned in standard."
+- "If somebody is missing a lot of notes but you can tell they're trying, offer them to calibrate. They might not notice they can. Especially on the first playthrough."
+- "Getting started needs to show you every possible thing you need to get going and the features of each section: that you can pull stems, mute parts of the track, etc. User friendly." (Getting started already existed, from 4.1.2.)
+- Earlier the same day: search needs autocomplete; a search left in the box keeps filtering after you click elsewhere; the list should be smarter; the whole list got a yellow outline.
+
+What changed:
+- **Tuner** (`tuner.js`): new default **“<tuning> (the song)”**: the open song's tuning (`rig.songTuning`, `rig.songCents`) plus whatever the Drop is lowering (strings stay that much higher); with no song, your instrument's tuning (`tuning.js` `myTuning`), labelled “(your guitar)”. A tuning picked by hand lasts until the song changes. Old saved picks reset once (`v416` in `stagehand.tuner3`). Listens to rig `drop`/`change`, refreshes on show.
+- **Offer help** (`struggle.js`, `test/struggle.test.mjs`; hooked in `highway.js` `newWatch`/`watchNote`/`offerHelp`): over the last 22 judged notes (14 the first time through a song: no best yet), ≥ 55 % missed (45 % first time, 65 % after a timing check) and ≥ 60 % of the misses had a pick within −0.4/+0.3 s of the note → a toast: “Lots of notes slipping by?” (with how many ms early/late when the picks lean one way) offering **Timing check**, **Set input level** (rig.calibrate, 4 s strum), Don't ask again; after a timing check, on-time misses suggest **Check my tuning** + input level instead. Once per song per open; never mid-seek. Master Settings switch “Offer help when notes aren't counting” (`prefs.struggleOff`); `prefs.syncChecked` set when the timing check result is used.
+- **Getting started** (`guide.js`): 15 pages in three groups (Get set up / Play a song / Around Stagehand): the old setup pages; **Tune up** (tuner follows the song, Drop, tuning guide, timing check, input level); **The highway** (strings, top bar, sections, Tools, Master Settings, score card); **Stems: mute any part** (split, wait, M/S per lane, Shift+1–6, highway mix); **Songs**, **Jam**, **Tones**, **Progress**, **Recordings & Friends**, **Discover**; **Keys and you're set**. Tour pages have **Show me**: closes the guide, goes there, rings the control (`.gs-ring`) with a note and **Back to the guide** / **Next step**. Welcome has “I'm set up: show me around”. People who saw the old guide get one toast “New: a tour of Stagehand” (`settings.ui.guideVersion = 2`).
+- **Search** (`searchmatch.js` + `test/searchmatch.test.mjs`, `searchbox.js`, store/library): suggestions under the box (songs, artists, albums, tunings, year, setlists; best group first), Tab/→ finishes the faint completion, ↑/↓/Enter, Esc closes then clears, recent searches when empty. Matching ignores accents/punctuation (♭ = b, ♯/# = sharp), handles run-together names and typos, ranks by relevance. Searches all songs with an All songs | Only <list> switch, Clear search, and “N more without the Lead filter”. Going to another list or page clears the search (Back restores it; playing a song keeps it). Picking a song clears the search and selects it (`library.showSong`).
+- **Yellow outline:** v3.css's global `:focus-visible` boxed the whole song list after a key press; now only the focused row shows a bar.
+- ui3-chromium.js checks the tuner, search and the guide (shots 40–42).
+
+Ask the user: does the help offer come at the right moment (too soon, too late) on their PC; is the tuner right after switching songs and with the Drop on; does the tour read well for their friends.
 
 ## 4.1.5: Friends fix mistyped and changed codes by themselves
 
@@ -296,15 +316,6 @@ User plugged in a bass for the first time: "tone and note detection a little off
 - **Scoring across instruments** (`instrumentShift` in detect.js, set by `rig._syncShift` from instrument vs `songKind`): a guitar on a bass part also matches +12, a bass on a guitar part −12 (notes and chords). Tuner strings follow `rig.instrument`.
 - Tests: `test/instrument.test.mjs` (in `npm test`), two new cases in `detect.test.mjs`, stand-in checks in `test/e2e/rig-chromium.js`. Not tried with a real bass yet: ask whether the switch happens quickly, whether it ever flips mid-song, and whether bass scoring feels right now.
 - The "static": guitar amps cut 60–170 Hz first, are voiced and gain-staged for a guitar's level, and gate for a guitar's noise, so a hotter, lower bass turns into fizz. Nothing broken in the engine; the stand-in tone is the fix.
-## Search (after 3.9.0, not packaged yet)
-
-User on 3.9.0: "the search bar needs autocomplete"; "you click on something else and the search stays in the bar, filtering out what you wanted"; "the list needs to behave smarter"; "times where I click it and the whole thing has a yellow outline".
-- **Yellow outline:** v3.css's global `:focus-visible` outlined the whole `.scroller` after any key press. Now `.scroller:focus-visible { outline: 0 }`; the focused row shows a tungsten bar on its left.
-- **Matching** (`js/searchmatch.js`, pure, `test/searchmatch.test.mjs` in npm test): `normText` (no accents or punctuation, & = and, ♭ = b, ♯/# = sharp), run-together names ("acdc"), typos (edit distance 1, or 2 for 7+ letters), ranked: whole title or artist first, then word starts. While searching the list sorts by relevance unless you click a column.
-- **Search looks through all songs** from any list; the header shows “query”, a Searching **All songs | Only <list>** switch, "N more without the Lead filter" when part filters hide matches, and **Clear search**.
-- **Stale search:** `setView`/`setPage` clear the search when you go somewhere else (`keepSearch` when the box itself moves you; playing a song ('now') keeps it); the Back trail stores the search, so Back restores it. When a search clears, the list scrolls to the selected song.
-- **Autocomplete** (`js/searchbox.js`, took over the box from main.js): a dropdown with Songs / Artists / Albums / Tunings / Year / Setlists (best group first), "Show all N matching songs" and "Find on MusicBrainz"; ↑/↓, Enter, Esc (closes the list, then clears); faint completion that Tab or → finishes; recent searches when the box is empty (`stagehand.recentSearches`). Picking a song clears the search and selects it in your list (`library.showSong`); picking a name opens its list. No suggestions in Discover.
-
 ## Start here (3.9.0)
 
 User on 3.8.1: mouse back button should go to the last screen; highway play/pause + time to the top ("all controls at the top"); "played E Standard then E♭, nowhere to drop my tuning: Drop needs to be in the highway settings"; combine the options popup and the Mix pullout into the side pullout, renamed **Master Settings** ("I prefer the pullout to the top button"); a score card at the end of a song with a breakdown, ignorable/click-through; Progress live-updated, bigger, encouraging, "what's good and bad".
