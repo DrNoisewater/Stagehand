@@ -407,6 +407,15 @@ export function createHighway(stage) {
       for (const k of b.kinds) kinds.append(h(`span.${bandCls(k.acc)}`, { title: `${k.hit}/${k.notes}` }, `${k.label} `, h('b', { text: `${Math.round(k.acc * 100)}%` })));
       card.append(kinds);
     }
+    // 4.1.6: the timing check, where people look after a run that went badly
+    if (!prefs.syncChecked || b.acc < 0.6) {
+      const tc = h('button.hw-chip', { type: 'button', html: `${icon('clock')}<span>Timing check</span>` });
+      tc.onclick = () => {
+        hideCard();
+        openSync();
+      };
+      card.append(h('div.hw-card-notes', null, h('div.work', null, h('span', { html: icon('clock') }), h('span', { text: prefs.syncChecked ? 'Notes you played on time not counting? Run the timing check again.' : 'Haven’t done the timing check yet? 30 seconds, once, and notes you hit on time count.' }), tc)));
+    }
     const again = h('button.hw-chip.hw-card-again', { type: 'button', html: `${icon('play')}<span>Play again</span>` });
     again.onclick = () => {
       hideCard();
@@ -436,20 +445,45 @@ export function createHighway(stage) {
   const syncBox = h('div.hw-syncbox', { hidden: true, role: 'dialog', 'aria-label': 'Timing check' });
   root.append(syncBox);
   let syncRun = null;
-  function openSync() {
+  function openSync({ first = false } = {}) {
     if (stage.engine.playing) stage.toggle();
     syncBox.hidden = false;
-    syncIntro();
+    syncIntro({ first });
+  }
+  // 4.1.6: people don't know the timing check exists: the first time you open the
+  // highway with your guitar plugged in, it introduces itself (twice at most, never once done)
+  function maybeFirstSync() {
+    if (prefs.syncChecked || (prefs.syncAsked || 0) >= 2 || !rig.on || !(prefs.detect !== false)) return;
+    if (prefs.offsetMs) return setPref('syncChecked', true); // done before 4.1.6
+    setPref('syncAsked', (prefs.syncAsked || 0) + 1);
+    openSync({ first: true });
   }
   function closeSync() {
     if (syncRun) syncRun.stop();
     syncRun = null;
     syncBox.hidden = true;
   }
-  function syncIntro() {
+  function syncIntro({ first = false } = {}) {
     syncBox.innerHTML = '';
     const go = h('button.btn.primary', { type: 'button', text: 'Start' });
-    const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
+    const cancel = h('button.btn.ghost', { type: 'button', text: first ? 'Not now' : 'Cancel' });
+    if (first && rig.on) {
+      go.onclick = () => syncPlay();
+      cancel.onclick = () => {
+        closeSync();
+        toast({ title: 'Any time you like', message: 'The timing check is under Tools › Timing check on the highway.', kind: 'info', timeout: 6000 });
+      };
+      syncBox.append(
+        h('div.hw-sync-ring', { html: icon('clock') }),
+        h('h3', { text: 'First, a 30-second timing check' }),
+        h('p', { text: 'Every PC plays sound a little late, some more than others. This lines Stagehand up with your PC and how you play, so notes you hit on time count as hits. You only do it once.' }),
+        h('p', { text: 'Four clicks count you in, then 16 notes come down the lane. Pick the open low string as each one reaches the line.' }),
+        h('p.fine', { text: 'Later: Tools › Timing check, any time.' }),
+        h('div.hw-sync-actions', null, cancel, go)
+      );
+      go.focus();
+      return;
+    }
     const tap = h('button.btn.ghost', { type: 'button', text: rig.on ? 'Tap instead' : 'Tap along' });
     cancel.onclick = () => closeSync();
     tap.onclick = () => syncStart();
@@ -983,6 +1017,7 @@ export function createHighway(stage) {
     renderControls();
     renderStatus();
     loop();
+    setTimeout(() => H.open && H.tab && maybeFirstSync(), 700);
   }
 
   function close() {

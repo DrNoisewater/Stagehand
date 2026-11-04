@@ -632,8 +632,18 @@ class FakePortMain extends EventEmitter {
   await page.locator('.np-views button:has-text("Waveform")').click();
   await page.waitForTimeout(1500);
   await shot('6-now-wave');
+  const playingBefore = await page.evaluate(async () => (await import('/src/renderer/js/stage.js')).engine.playing);
   await page.keyboard.press('h');
   await page.waitForTimeout(2500);
+  // 4.1.6: the first time on the highway with a guitar, the timing check introduces itself
+  const firstSync = await page.locator('.hw-syncbox:not([hidden]) h3').textContent().catch(() => '');
+  check(/timing check/i.test(firstSync || ''), `the first highway visit offers the timing check: “${firstSync}”`);
+  await shot('6a-highway-first-sync');
+  await page.locator('.hw-syncbox button:has-text("Not now")').click().catch(() => {});
+  await page.waitForTimeout(300);
+  check(await page.locator('.hw-syncbox').isHidden(), 'Not now closes it');
+  if (playingBefore && !(await page.evaluate(async () => (await import('/src/renderer/js/stage.js')).engine.playing))) await page.keyboard.press('Space');
+  await page.waitForTimeout(1000);
   await shot('6b-highway');
   await page.waitForTimeout(3000);
   await shot('6c-highway');

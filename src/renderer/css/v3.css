@@ -1444,3 +1444,4 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .gs-tip b { display: block; margin-bottom: 4px; font-size: 14px; color: var(--ink); }
 .gs-tip p { margin: 0 0 12px; color: var(--ink-2); font-size: 13px; line-height: 1.5; }
 .gs-tip-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.hw-syncbox p.fine { color: var(--ink-3); font-size: 12px; margin-top: -4px; }
