@@ -20,7 +20,12 @@ User on 4.1.4, with photos: their friend still couldn't connect. Jake → Ian wo
   - `test/friends.test.js` adds the code change reaching a friend, also after they were closed; a made-up code tells nobody; the Windows name.
   - `recordings-friends-chromium.js` adds the real-life case: Bo has Alex's code one letter off; Alex writes; "Is this Alex?" and "Found it" offer the right code; one click connects and the message moves into Alex's chat. All passed.
   - npm test passes. The full two-person run wasn't repeated after the code-change addition (the user stopped it).
-- **Ask the user:** after both update, does a code change reach the other side by itself? Does "Found it" show if a code is mistyped?
+- **Then** (user, with a photo of "Jake answered, but your PCs couldn't connect" on Ian's PC, while Jake → Ian worked): "By default, the code just needs to be easier", "I don't want it to tell me if it works or not. I just want it to work."
+  - **Codes:** made-up codes are now two plain words (`happy-tiger`, ~2,900; no digits to swap: the real typo was 2496 → 2469).
+  - **One-way DIRECT failure:** `friendlink.js gathered()` stopped half a second after the first outside (srflx) address. On a PC with several adapters (VPN, Hyper-V and other virtual adapters, Wi-Fi + Ethernet) the answer could miss the address that works. Now it waits for gathering to complete, or 1.5 s of quiet after an outside address (at most 6 s). **The likely cause, not proven** (no real networks here).
+  - A "Test my connection" button was started and dropped: the user wants it to work, not to be told.
+  - **Pending the user's decision: a relay fallback** (TURN, or an encrypted HTTPS relay) for networks where a direct line can't open. It needs a third-party service; testing a no-account public relay from the cloud session was refused by the sandbox.
+- **Ask the user:** after both update, does Ian → Jake connect now? Which relay option (if any)?
 
 ## 4.1.4: update from inside Stagehand; friend actions in plain sight
 

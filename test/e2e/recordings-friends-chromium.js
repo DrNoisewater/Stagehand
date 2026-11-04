@@ -205,7 +205,7 @@ async function stagehand(browser, name, relay, url) {
     await A.page.locator('.rec-tabs button:has-text("Friends")').click();
     await A.page.waitForSelector('.fr-code code');
     const made = await A.page.locator('.fr-code code').textContent();
-    check(/^[a-z]+-\d{3}$/.test(made), `Friends shows Alex’s code, easy to say (${made})`);
+    check(/^[a-z]+-[a-z]+$/.test(made), `Friends shows Alex’s code, easy to say (${made})`);
     await A.page.waitForSelector('.fr-status.ok', { timeout: 15000 }).catch(() => {});
     check(/Ready\. Friends with your code can connect now/.test(await A.page.locator('.fr-status').textContent()), `Alex is told plainly they’re ready: “${await A.page.locator('.fr-status').textContent()}”`);
     // the ⋯ menu opens in front of the window (it opened behind it)
@@ -236,7 +236,7 @@ async function stagehand(browser, name, relay, url) {
     await B.page.evaluate(() => window.R.openRecordings({ tab: 'friends' }));
     await B.page.waitForSelector('.fr-friend.add');
     await B.page.locator('.fr-friend.add').click();
-    check((await B.page.locator('.over-rec input').getAttribute('placeholder')) === 'e.g. tiger-427', 'the box shows an example word code, nothing to format');
+    check((await B.page.locator('.over-rec input').getAttribute('placeholder')) === 'e.g. happy-tiger', 'the box shows an example word code, nothing to format');
     await B.page.locator('.over-rec input').fill('alex rocks');
     await B.page.locator('.over-rec button:has-text("Next")').click();
     check(/at least 6|Ask your friend/.test(await B.page.locator('.over-rec .fr-err').textContent()) === false, 'a short phrase over 6 letters is fine');

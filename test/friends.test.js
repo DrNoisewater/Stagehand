@@ -69,7 +69,7 @@ async function make(name, relay) {
 
 test('codes: a word or phrase, typed loosely; old 16-character codes still work', () => {
   const c = newCode();
-  assert.ok(/^[a-z]+-\d{3}$/.test(c), `an easy made-up code, one word and a number: ${c}`);
+  assert.ok(/^[a-z]+-[a-z]+$/.test(c), `an easy made-up code, two plain words: ${c}`);
   assert.ok(validCode(c), c);
   // capitals, spaces and dashes don't matter
   assert.ok(sameCode('Amber Tiger 42', 'amber-tiger-42') && sameCode('AMBERTIGER42', ' amber  tiger-42 '));
@@ -86,7 +86,7 @@ test('codes: a word or phrase, typed loosely; old 16-character codes still work'
   assert.strictEqual(normCode('oooo-iiii-llll-1111'), '0000111111111111');
   assert.strictEqual(prettyCode('  Amber  tiger 42 '), 'Amber tiger 42', 'a phrase shows as typed');
   const seen = new Set(Array.from({ length: 200 }, newCode));
-  assert.ok(seen.size >= 190, `made-up codes rarely repeat (${seen.size} of 200 different)`);
+  assert.ok(seen.size >= 180, `made-up codes rarely repeat (${seen.size} of 200 different)`);
 });
 
 test('derive: same code, same topic and key; different code, different', () => {

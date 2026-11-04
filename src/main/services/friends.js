@@ -55,17 +55,19 @@ function validCode(s) {
 /** Why a typed code won't do, in plain words (null if it's fine). */
 function codeProblem(s) {
   const c = normCode(s);
-  if (c.length < MIN_CODE) return `A code needs at least ${MIN_CODE} letters or numbers, like tiger-427.`;
+  if (c.length < MIN_CODE) return `A code needs at least ${MIN_CODE} letters or numbers, like happy-tiger.`;
   if (c.length > MAX_CODE) return 'That code is too long. Keep it to a few words.';
   return null;
 }
 
-// 4.1.3: as simple as it can be while staying hard to stumble on: one word and a number,
-// e.g. "tiger-427" (about 50,000 of them; or choose your own word or phrase)
-const WORDS = ['amber', 'banjo', 'bass', 'blue', 'chord', 'cobra', 'comet', 'drum', 'eagle', 'echo', 'falcon', 'fret', 'fuzz', 'gold', 'groove', 'guitar', 'harp', 'jade', 'jazz', 'lion', 'lucky', 'lunar', 'maple', 'melody', 'neon', 'otter', 'panda', 'pearl', 'piano', 'pick', 'pixel', 'polar', 'rhythm', 'riff', 'river', 'rocket', 'ruby', 'silver', 'solo', 'sonic', 'storm', 'string', 'sunny', 'tempo', 'tiger', 'tune', 'velvet', 'violet', 'wolf', 'zebra'];
+// 4.1.6: two plain words, no numbers ("happy-tiger"): easy to say and to type, nothing
+// to mix up (a swapped digit in "dominos2496" was what stopped two friends connecting).
+// About 3,000 of them; or choose your own word or phrase.
+const ADJ = ['amber', 'blue', 'bold', 'brave', 'bright', 'calm', 'cosmic', 'crimson', 'electric', 'fuzzy', 'gentle', 'golden', 'happy', 'iron', 'jolly', 'loud', 'lucky', 'lunar', 'mellow', 'mighty', 'neon', 'proud', 'quick', 'quiet', 'rapid', 'royal', 'rusty', 'silver', 'smooth', 'sonic', 'sunny', 'swift', 'velvet', 'warm', 'wild', 'witty', 'cool', 'funky', 'shiny', 'misty', 'stormy', 'wise', 'groovy', 'cosy', 'lively', 'snowy', 'tiny', 'giant', 'polar', 'purple', 'green', 'red', 'pink', 'easy'];
+const NOUN = ['amp', 'banjo', 'bass', 'bear', 'chord', 'cobra', 'comet', 'drum', 'eagle', 'echo', 'falcon', 'fox', 'fret', 'groove', 'guitar', 'harp', 'hawk', 'lion', 'melody', 'moose', 'moon', 'otter', 'owl', 'panda', 'piano', 'pick', 'puma', 'raven', 'rhythm', 'riff', 'river', 'robin', 'rocket', 'shark', 'solo', 'star', 'storm', 'string', 'tempo', 'tiger', 'tuba', 'tune', 'whale', 'wolf', 'zebra', 'koala', 'llama', 'mango', 'cactus', 'canyon', 'island', 'meadow', 'galaxy', 'volcano'];
 function newCode() {
-  const b = crypto.randomBytes(4);
-  return `${WORDS[b[0] % WORDS.length]}-${100 + (b.readUInt16LE(2) % 900)}`;
+  const b = crypto.randomBytes(2);
+  return `${ADJ[b[0] % ADJ.length]}-${NOUN[b[1] % NOUN.length]}`;
 }
 
 /** How a code is shown: an old 16-character code in groups of four, a phrase as typed. */

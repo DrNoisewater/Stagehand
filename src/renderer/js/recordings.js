@@ -463,7 +463,7 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
       title: 'Your code',
       label: 'A word or phrase your friends type to watch your videos',
       value: st.code,
-      placeholder: 'e.g. tiger-427',
+      placeholder: 'e.g. happy-tiger',
       confirm: 'Use this code',
       hint: 'Capitals, spaces and dashes don’t matter. Anyone who knows it can watch what you share, so pick something only your friends would guess. The friends in your list are told the new code by their Stagehand (within 12 hours, even if theirs is closed).',
       check: (x) => (x.trim() === st.code ? null : api.friends.setCode(x).then(() => null, (err) => err.message)),
@@ -559,7 +559,7 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
   const CODE_HINT = 'The word or phrase your friend sees under “Your code” in their Recordings › Friends. Capitals, spaces and dashes don’t matter.';
 
   async function addFriend() {
-    const code = await askText({ title: 'Add a friend', label: 'Their code', placeholder: 'e.g. tiger-427', confirm: 'Next', hint: CODE_HINT, check: (v) => codeCheck(v) });
+    const code = await askText({ title: 'Add a friend', label: 'Their code', placeholder: 'e.g. happy-tiger', confirm: 'Next', hint: CODE_HINT, check: (v) => codeCheck(v) });
     if (code === null) return;
     const name = await askText({ title: 'Add a friend', label: 'What do you call them?', placeholder: 'Friend', confirm: 'Add and connect' });
     if (name === null) return;
