@@ -545,6 +545,7 @@ const PANES = {
     el.append(
       h('div.about-brand', null, h('img', { src: 'splash/logo-256.png', alt: 'Noisewater Labs', title: 'Noisewater Labs', width: '44', height: '44' }), h('div', { style: { lineHeight: '1.5' } }, h('div', { style: { fontSize: '20px', fontWeight: '750', fontStretch: '118%', color: 'var(--ink)' }, text: 'Stagehand' }), h('div', { text: `Version ${state.info.version} · Noisewater Labs` })))
     );
+    el.append(...(await (await import('./updates.js')).aboutRows(setting, toggleCtl, saveSettings)));
     el.append(setting('Audio decoder', vg.path ? esc(vg.path) : 'Not installed yet. It installs the first time you play a song.', h('span', { class: `status-pill ${vg.path ? 'ok' : 'warn'}`, text: vg.path ? 'Installed' : 'Missing' })));
     el.append(setting('Credits', 'Audio decoding by vgmstream. Stem separation by Demucs (Meta AI). Artist and album data from MusicBrainz; album covers from the Cover Art Archive. Interface set in Archivo by Omnibus-Type.'));
     const logBtn = h('button.btn.small', { type: 'button', text: 'Show log' });

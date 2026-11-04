@@ -45,6 +45,26 @@ Check ($r.secs -lt 60) "second run is quick: $($r.secs) s"
 Check ((Get-Item (Join-Path $prog 'Stagehand.exe')).LastWriteTimeUtc -eq $before) 'the runtime is kept, not downloaded again'
 Check (Installed-Ok) 'still installed'
 
+# 2b. the update Stagehand starts by itself (4.1.4): Stagehand is open; Setup /update closes it,
+#     updates, and opens it again, with no clicks
+$app = Start-Process -FilePath (Join-Path $prog 'Stagehand.exe') -PassThru
+Start-Sleep 8
+Check (-not $app.HasExited) 'Stagehand is open before the update'
+$t = [Diagnostics.Stopwatch]::StartNew()
+$up = Start-Process -FilePath $Setup -ArgumentList @('/update') -PassThru
+if (-not $up.WaitForExit(180000)) { Stop-Process -Id $up.Id -Force; Write-Host 'Setup /update did not finish in 3 minutes' }
+$t.Stop()
+Check ($app.HasExited) "Setup closed the open Stagehand ($([math]::Round($t.Elapsed.TotalSeconds, 1)) s for the whole update)"
+Check (Installed-Ok) 'still installed after the update'
+$again = $null
+for ($i = 0; $i -lt 30 -and -not $again; $i++) {
+  $again = Get-Process -Name Stagehand -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($prog, [StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
+  if (-not $again) { Start-Sleep 1 }
+}
+Check ($null -ne $again) 'Stagehand opened again by itself after the update'
+Get-Process -Name Stagehand, stagehand-audio -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep 2
+
 # 3. a fresh PC whose downloads keep getting cut off halfway: Setup must carry on
 & (Join-Path $prog 'Uninstall Stagehand.exe') /quiet
 for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $prog 'Stagehand.exe')); $i++) { Start-Sleep 1 }

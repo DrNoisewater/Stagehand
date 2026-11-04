@@ -234,7 +234,12 @@ export function modal({ title, body, footer, wide = false, onClose, dismissable 
   backdrop.addEventListener('mousedown', (e) => {
     if (e.target === backdrop && dismissable) close();
   });
+  // 4.1.4: a new box always opens in front of the ones already open (a "Remove Alex?"
+  // question used to open behind the Recordings window, which sits higher)
+  let top = 0;
+  for (const b of document.querySelectorAll('.modal-backdrop')) top = Math.max(top, parseInt(getComputedStyle(b).zIndex, 10) || 0);
   document.getElementById('overlays').append(backdrop);
+  if (top && (parseInt(getComputedStyle(backdrop).zIndex, 10) || 0) <= top) backdrop.style.zIndex = String(top + 1);
   const api = { el: box, body: bodyEl, footer: footEl, close, dismissable };
   modalStack.push(api);
   setTimeout(() => {

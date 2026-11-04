@@ -9,6 +9,7 @@ import { state, on, setView, setPage, loadLibrary, emit, rsListIds, rsListLabel,
 const storeFns = { accBand };
 import { h, icon, esc, showMenu, confirmDialog, toast } from './ui.js';
 import { counts as discoverCounts } from './discover.js';
+import { updateLabel, openUpdate } from './updates.js';
 
 const side = document.getElementById('sidebar');
 const root = h('div.nav-scroll');
@@ -133,6 +134,13 @@ export function render() {
   root.innerHTML = '';
   const page = state.page === 'now' ? state.backPage || 'songs' : state.page;
   const top = h('div.nav-sections');
+  // 4.1.4: a newer Stagehand is out: one button at the top of the menu updates it
+  const upd = updateLabel();
+  if (upd) {
+    const b = h('button.nav-update', { type: 'button', title: 'Update Stagehand (a few seconds)', html: `${icon('download')}<span>${upd}</span>` });
+    b.onclick = () => openUpdate();
+    top.append(b);
+  }
   top.append(section({ page: 'play', label: 'Jam', iconName: 'guitar', gel: 'var(--gel-guitar)' }));
   top.append(
     section({
@@ -397,6 +405,7 @@ export async function addFolder(p) {
 }
 
 on('library', render);
+on('updates', render);
 on('view', render);
 on('page', render);
 on('discover-wanted', render);

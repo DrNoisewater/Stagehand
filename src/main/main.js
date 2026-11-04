@@ -75,6 +75,7 @@ let stats;
 let takes;
 let captures;
 let friends;
+let updates; // 4.1.4: newer Stagehand from GitHub releases
 const logLines = [];
 let clipSessions = null;
 let activity = '';
@@ -646,6 +647,25 @@ function registerIpc() {
     }
   });
   handle('takes:rename', (id, name) => takes.rename(id, name));
+  // 4.1.4: updates: check, download (with progress), install (Setup /update closes and reopens Stagehand)
+  handle('updates:state', () => (updates ? updates.state() : null));
+  handle('updates:check', () => updates.check());
+  handle('updates:download', async () => {
+    let last = 0;
+    const file = await updates.download((p, got, total) => {
+      if (p - last < 0.01 && p < 1) return;
+      last = p;
+      send('updates:progress', { p, got, total });
+    });
+    return { ready: true, file: path.basename(file) };
+  });
+  handle('updates:install', async () => {
+    const file = await updates.download();
+    updates.install(file);
+    // Setup waits for Stagehand to close; close now (it opens the new version afterwards)
+    setTimeout(() => app.quit(), 700);
+    return true;
+  });
   handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, packaged: app.isPackaged, dirs: D, models: MODELS }));
   handle('app:log', () => logLines.slice(-200));
   handle('win:fullscreen', (on) => {
@@ -1049,6 +1069,25 @@ app.whenReady().then(async () => {
   friends.on('change', (st) => send('friends:change', st));
   friends.on('offer', (o) => send('friends:offer', o));
   friends.on('message', (m) => send('friends:message', m));
+  // 4.1.4: updates from GitHub releases: checked a little after start and every 6 hours
+  const { Updates } = require('./services/updates');
+  // (tests only: STAGEHAND_UPDATES_API points at a pretend GitHub; STAGEHAND_UPDATES_MARK records the Setup run instead of running it)
+  const testApi = process.env.STAGEHAND_UPDATES_API;
+  const testMark = process.env.STAGEHAND_UPDATES_MARK;
+  updates = new Updates({
+    current: app.getVersion(),
+    dir: path.join(D.local, 'Updates'),
+    fetchImpl: (url, opts) => {
+      const u = testApi ? url.replace('https://api.github.com', testApi) : url;
+      return net.fetch(u, opts).catch(() => fetch(u, opts));
+    },
+    log,
+    ...(testMark ? { platform: 'win32', spawnImpl: (file, args) => (fs.writeFileSync(testMark, JSON.stringify({ file, args })), { unref() {} }) } : {}),
+  });
+  updates.on('change', (st) => send('updates:change', st));
+  const autoCheck = () => settings.get().updates.check !== false && updates.check().then(() => updates.tidy());
+  setTimeout(autoCheck, 8000);
+  setInterval(autoCheck, 6 * 3600 * 1000).unref();
   captures.on('change', (st) => send('captures:change', st));
   organizer = new Organizer({ library, logFile: path.join(D.roaming, 'organize-log.json') });
   rsprofiles = new RsProfiles({ settings, backupDir: D.profileBackups, log, libraryFolders: () => library.data.folders.map((f) => f.path) });
