@@ -237,6 +237,8 @@ async function boot() {
     .catch((err) => console.warn('Tones failed to load', err))
     .finally(() => rig.autoStart().catch((err) => console.warn('Guitar failed to start', err)));
   await loadLibrary();
+  // 4.1.4: newer Stagehand on GitHub: a button in the menu, and a note once
+  import('./updates.js').then((u) => u.initUpdates()).catch((err) => console.warn('Updates failed to start', err));
   // 4.1.2: a fresh install with no songs is offered Getting started (once; "Not now" is fine)
   import('./guide.js').then((g) => g.offerGuide()).catch((err) => console.warn('Getting started failed', err));
   loadRocksmith();

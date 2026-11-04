@@ -336,6 +336,25 @@ async function stagehand(browser, name, relay, url) {
     await B.page.waitForSelector('.fr-state.off, .fr-state.bad', { timeout: 30000 });
     check((await B.page.locator('.fr-state.off').count()) === 1 && /Sharing on\?/.test(await B.page.locator('.fr-state').textContent()), 'with sharing off, Bo is told nobody answered and what to check');
     await B.page.screenshot({ path: path.join(outDir, 'rec-7-friend-away.png') });
+
+    // the friend you picked: Rename, Change code and Remove in plain sight; "Remove Alex?" in front
+    check((await B.page.locator('.fr-bar').count()) === 1 && /Their code: alex-rocks-out/.test(await B.page.locator('.fr-bar').textContent()), 'the picked friend shows their name, their code, and Rename / Change code / Remove');
+    await B.page.locator('.fr-bar .btn:has-text("Remove")').click();
+    await B.page.waitForTimeout(400);
+    const inFront = await B.page.evaluate(() => {
+      const mods = [...document.querySelectorAll('.modal')];
+      const ask = mods.find((x) => /Remove Alex\?/.test(x.textContent));
+      if (!ask) return 'no question';
+      const btn = [...ask.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Remove');
+      const r = btn.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return top && ask.contains(top) ? 'front' : `behind (${top && top.className})`;
+    });
+    check(inFront === 'front', `“Remove Alex?” opens in front of the Recordings window (${inFront})`);
+    await B.page.screenshot({ path: path.join(outDir, 'rec-8-remove.png') });
+    await B.page.evaluate(() => [...[...document.querySelectorAll('.modal')].find((x) => /Remove Alex\?/.test(x.textContent)).querySelectorAll('button')].find((b) => b.textContent.trim() === 'Remove').click());
+    await B.page.waitForFunction(() => !document.querySelector('.fr-friend:not(.add):not(.stranger)'), null, { timeout: 5000 }).catch(() => {});
+    check((await B.page.locator('.fr-friend:not(.add):not(.stranger)').count()) === 0 && B.friends.state().friends.length === 0, 'Remove takes Alex off the list');
   } finally {
     await browser.close();
     relay.server.closeAllConnections();

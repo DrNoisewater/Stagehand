@@ -13,6 +13,7 @@ const DEFAULTS = {
   backups: { enabled: true, keep: 5 },
   cache: { audioLimitGB: 4 },
   window: { bounds: null, maximized: false },
+  updates: { check: true }, // 4.1.4: look for a newer Stagehand on GitHub
   ui: {},
 };
 

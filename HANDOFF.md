@@ -1,8 +1,29 @@
-# Stagehand handoff (v4.1.3, 2026-11-04): Friends made simple: word codes, plain status, messages
+# Stagehand handoff (v4.1.4, 2026-11-04): updates from inside Stagehand; friend actions in plain sight
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.1.4: update from inside Stagehand; friend actions in plain sight
+
+User: "an automatic update feature where, from the main screen, you can automatically pull the update from our GitHub releases … and install and update". And: "the remove button for a friend also seems to be behind a menu. we need this to be cleaner."
+- **Updates** (`src/main/services/updates.js`, `src/renderer/js/updates.js`):
+  - **Checking:** about 8 s after start and every 6 hours (Settings › About › Updates: Check now, and an on/off switch, `settings.updates.check`), Stagehand asks `api.github.com/repos/DrNoisewater/Stagehand/releases/latest`.
+  - **When there's a newer version:** "Update to X" at the top of the menu (`sidebar.js .nav-update`) and a note once per version. The update window shows what's new (the "What's Changed" lines of the release notes, without "Stagehand X.Y.Z:" and links, **so PR titles are what users read**).
+  - **Update now:** downloads `Stagehand-Setup-X.exe` into `%LOCALAPPDATA%/Stagehand/Updates` with progress, checked against GitHub's size and `sha256` digest (a damaged one is thrown away; a good one is reused). It then starts it detached with **`/update`** and quits.
+  - **Setup** (`windows/setup/setup.c`, new `/update` = `/go` + `reopen`) closes Stagehand if needed, updates (a few seconds), shows "updated" for 1.5 s, opens Stagehand and closes itself. Older Setups are cleared.
+  - **Off Windows:** it shows the release page instead.
+  - **Note:** people on 4.1.3 or older have to install 4.1.4 by hand once; from then on it updates itself.
+- **Friend actions:**
+  - The picked friend now has a bar with their name, **their code**, and **Rename / Change code / Remove** (`friendBar`; the right-click menu stays, with the same actions).
+  - **Fixed for every window:** a question box opened from a higher window (e.g. "Remove Alex?" from Recordings, z-index 330) opened behind it (base modals are 40). `ui.js modal()` now puts each new box above the highest one open.
+- **Tests:**
+  - `test/updates.test.js` (in npm test; a pretend GitHub: found, damaged download thrown away, reuse, `/update` detached, Windows only, no internet, tidy).
+  - `ELECTRON=<electron 44> xvfb-run -a node test/e2e/update-electron.js <out>` (the real app with `STAGEHAND_UPDATES_API` = a pretend GitHub offering 9.9.9 and `STAGEHAND_UPDATES_MARK` to record the Setup run: menu button, note, what's new, progress bar, Setup started with `/update`, file whole, Stagehand closes; all passed).
+  - `recordings-friends-chromium.js` adds the friend bar, "Remove Alex?" in front (checked with elementFromPoint) and the removal; all passed.
+  - Setup compiles with llvm-mingw 20251104, no warnings.
+  - CI's `windows/setup/test-windows.ps1` gains step 2b: Stagehand open → `Setup /update` closes it, updates, and **Stagehand opens again by itself** (real Windows; not run here).
+- **Ask the user:** install 4.1.4 by hand once. When 4.1.5 comes out: does the button show up, and does Update now close Stagehand and bring it back on the new version within a few seconds? Was any Windows warning shown?
 
 ## 4.1.3: Friends made simple: word codes, plain status at every step, messages
 

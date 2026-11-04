@@ -276,8 +276,34 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
     if (R.friend) markSeen(R.friend.id, thread(st, R.friend).filter((x) => x.dir === 'in').length);
     panel.append(meCard(st), friendsRow(st));
     if (R.friend && R.friend.stranger) panel.append(strangerView(st), chatView(st));
-    else if (R.friend) panel.append(friendView(), chatView(st));
+    else if (R.friend) panel.append(friendBar(st), friendView(), chatView(st));
     else panel.append(h('p.np-fine.fr-tip', { text: st.friends.length ? 'Pick a friend to watch the videos they share and send them a message.' : 'Add a friend with their code to watch the videos they share. Give them your code so they can watch yours.' }));
+  }
+
+  /** 4.1.4: the friend you picked, with what you can do, in plain sight (was a right-click menu). */
+  function friendBar(st) {
+    const f = st.friends.find((x) => x.id === R.friend.id) || R.friend;
+    const b = (text, ic, onClick, cls = '') => {
+      const x = h(`button.btn.small.ghost${cls}`, { type: 'button', html: `${icon(ic)}<span>${text}</span>` });
+      x.onclick = onClick;
+      return x;
+    };
+    return h('div.fr-bar', null,
+      h('span.fr-av', { text: (f.name || '?').trim().slice(0, 1).toUpperCase() }),
+      h('div.fr-who', null, h('b', { text: f.name }), h('span', null, 'Their code: ', h('code', { text: f.code || '' }))),
+      h('span.grow'),
+      b('Rename', 'edit', () => renameFriend(f)),
+      b('Change code', 'edit', () => fixCode(f)),
+      b('Remove', 'trash', () => removeFriend(f), '.danger'));
+  }
+  async function renameFriend(f) {
+    const v = await askText({ title: 'Rename friend', label: 'Name', value: f.name });
+    if (v !== null) await api.friends.rename(f.id, v);
+  }
+  async function removeFriend(f) {
+    if (!(await confirmDialog({ title: `Remove ${f.name}?`, message: 'You can add them again with their code. Your messages with them are kept.', confirm: 'Remove', danger: true }))) return;
+    if (R.friend && R.friend.id === f.id) (hangUp(), (R.friend = null));
+    await api.friends.remove(f.id);
   }
 
   // ---------------------------------------------------------- messages --
@@ -449,25 +475,10 @@ export async function openRecordings({ focus = null, tab = 'mine', friend = null
         e.preventDefault();
         showMenu(e.clientX, e.clientY, [
           { label: 'Watch their videos', icon: 'play', onClick: () => pick(f) },
-          {
-            label: 'Rename',
-            icon: 'edit',
-            onClick: async () => {
-              const v = await askText({ title: 'Rename friend', label: 'Name', value: f.name });
-              if (v !== null) await api.friends.rename(f.id, v);
-            },
-          },
+          { label: 'Rename', icon: 'edit', onClick: () => renameFriend(f) },
           { label: 'Change their code', icon: 'edit', onClick: () => fixCode(f) },
           '-',
-          {
-            label: 'Remove',
-            icon: 'trash',
-            onClick: async () => {
-              if (!(await confirmDialog({ title: `Remove ${f.name}?`, message: 'You can add them again with their code.', confirm: 'Remove', danger: true }))) return;
-              if (R.friend && R.friend.id === f.id) (hangUp(), (R.friend = null));
-              await api.friends.remove(f.id);
-            },
-          },
+          { label: 'Remove', icon: 'trash', danger: true, onClick: () => removeFriend(f) },
         ]);
       };
       list.append(chip);

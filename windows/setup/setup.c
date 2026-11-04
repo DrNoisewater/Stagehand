@@ -11,6 +11,8 @@
  * The same program without its payload is the uninstaller.
  *   Stagehand-Setup.exe            install or update (window)
  *   Stagehand-Setup.exe /quiet     install with defaults, no window (exit code 0 = ok)
+ *   Stagehand-Setup.exe /update    what Stagehand's own updater runs (4.1.4): starts by itself,
+ *                                  closes Stagehand, updates, then opens Stagehand again
  *   Uninstall Stagehand.exe        remove (window); /quiet removes the program, keeps your data
  * For tests only: STAGEHAND_SETUP_MIRROR=http://host:port fetches the downloads
  * from that address (same file names) instead of GitHub.
@@ -110,7 +112,7 @@ static struct {
   int del_data;  /* uninstall: also delete your data */
   int stems_found; /* 0 none, 1 Stagehand's own, 2 a Python on this PC */
   int stems_now;   /* set the stem splitter up during this install */
-  int stems_busy, stems_skip, autogo;
+  int stems_busy, stems_skip, autogo, reopen;
   int vcrt_ok;
   volatile LONG cancel; /* closed while downloading: stop (what's downloaded is kept) */
   int downloading;      /* nothing installed yet: safe to close */
@@ -1499,12 +1501,20 @@ static LRESULT CALLBACK wndproc(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
     if (S.finished && S.running) {
       S.running = 0;
       KillTimer(w, 1);
+      /* updated from inside Stagehand: show "updated" for a moment, then open it again */
+      if (S.finished == 1 && S.reopen && !S.uninstall) SetTimer(w, 2, 1500, NULL);
     }
     if (!S.checked || S.running) SetTimer(w, 1, 33, NULL);
     else KillTimer(w, 1);
     InvalidateRect(w, NULL, FALSE);
     return 0;
   case WM_TIMER:
+    if (wp == 2) {
+      KillTimer(w, 2);
+      launch_app();
+      DestroyWindow(w);
+      return 0;
+    }
     S.anim++;
     InvalidateRect(w, NULL, FALSE);
     return 0;
@@ -1642,6 +1652,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show) {
   S.quiet = wcsstr(cmd, L"/quiet") || wcsstr(cmd, L"/S") != NULL;
   int quiet_stems = wcsstr(cmd, L"/stems") != NULL;
   S.autogo = wcsstr(cmd, L"/go") != NULL;
+  S.reopen = wcsstr(cmd, L"/update") != NULL;
+  if (S.reopen) S.autogo = 1;
   int from_temp = wcsstr(cmd, L"/temp") != NULL;
   S.has_payload = payload_open(&S.pay, S.self8);
   const wchar_t *base = wcsrchr(S.self, L'\\');

@@ -30,6 +30,8 @@ const EVENTS = new Set(['nav:back',
   'friends:offer',
   'friends:progress',
   'friends:message',
+  'updates:change',
+  'updates:progress',
   'app:recovered',
 ]);
 
@@ -122,6 +124,12 @@ contextBridge.exposeInMainWorld('stagehand', {
     save: (take) => call('takes:save', take),
     remove: (id) => call('takes:remove', id),
     rename: (id, name) => call('takes:rename', id, name),
+  },
+  updates: {
+    state: () => call('updates:state'),
+    check: () => call('updates:check'),
+    download: () => call('updates:download'),
+    install: () => call('updates:install'),
   },
   friends: {
     get: () => call('friends:get'),
