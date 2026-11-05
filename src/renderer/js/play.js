@@ -138,7 +138,10 @@ function renderHead() {
   const jam = h('button.btn.soft.jam-open', { type: 'button', title: 'Open the music visualizer (J)', html: `${icon('sparkle')}<span>Jam</span>` });
   jam.onclick = () => openJam();
   jam.querySelector('span').textContent='Open visualizer';jam.classList.remove('soft');jam.classList.add('glow-primary');
-  headHost.append(text,jam,calib,edit);
+  // 4.1.7: make a new tone step by step, hearing each choice as you play
+  const create = h('button.btn.soft', { type: 'button', html: `${icon('plus')}<span>Create tone</span>`, title: 'Make a new tone step by step, hearing each choice as you play' });
+  create.onclick = () => import('./tonewizard.js').then((w) => w.openToneWizard());
+  headHost.append(text,jam,calib,create,edit);
 }
 
 // ---------------------------------------------------------------- slots --

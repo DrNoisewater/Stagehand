@@ -842,6 +842,15 @@ export function createHighway(stage) {
     }
     items.push({ heading: true, label: 'Presets' });
     for (const t of [...TONES.filter((x) => x.kind === kind), ...TONES.filter((x) => x.kind !== kind)]) items.push({ label: t.name, hint: on(t.id), onClick: () => chooseTone(t.id) });
+    // 4.1.7: make a new one without leaving the song (it pauses while you build it)
+    items.push('-', {
+      label: 'Create a tone…',
+      icon: 'plus',
+      onClick: () => {
+        if (stage.engine.playing) stage.toggle();
+        import('./tonewizard.js').then((w) => w.openToneWizard({ kind }));
+      },
+    });
     showMenu(r.right, r.bottom + 6, items, { align: 'right' });
   };
 
@@ -955,14 +964,15 @@ export function createHighway(stage) {
   // Missing lots of notes while clearly playing along: offer the timing check
   // (or the tuning check). Once per song each time you open it; sooner the
   // first time through a song; never while you've said not to.
-  const offered = new Set();
+  // 4.1.7 (user: "that happens too often"): at most once per app start, then not for 3 days
+  let helpShownNow = false;
+  const HELP_REST_MS = 3 * 24 * 3600 * 1000;
+  const helpResting = () => helpShownNow || syncAskedNow || (prefs.helpAt && Date.now() - prefs.helpAt < HELP_REST_MS);
   function newWatch() {
-    const first = !H.prevBest || H.prevBest.best === undefined;
-    H.watch = new StruggleWatch({ first, checked: !!prefs.syncChecked });
-    if (H.song && offered.has(H.song.id)) H.watch.said = true;
+    H.watch = new StruggleWatch({ checked: !!prefs.syncChecked });
   }
   function watchNote(e, tg) {
-    if (!H.watch || prefs.struggleOff || !stage.engine.playing) return;
+    if (!H.watch || prefs.struggleOff || !stage.engine.playing || helpResting()) return;
     const st = H.judge && H.judge.state.get(e.id);
     const near = nearestPick(H.judge && H.judge.onsets, tg.t);
     H.watch.add({ hit: e.hit, tried: e.hit || near !== null, offset: st && st.offset !== null && st.offset !== undefined ? st.offset : near });
@@ -971,7 +981,8 @@ export function createHighway(stage) {
     if (v) offerHelp(v);
   }
   function offerHelp(v) {
-    if (H.song) offered.add(H.song.id);
+    helpShownNow = true;
+    setPref('helpAt', Date.now());
     const kind = instrument() === 'bass' ? 'bass' : 'guitar';
     const timing = { label: 'Timing check', onClick: () => openSync() };
     const tune = { label: 'Check my tuning', onClick: () => H.tab && tuningGuide({ ...H.tab, type: kind === 'bass' ? 'bass' : H.tab.type }, H.song, stage.engine) };
@@ -989,20 +1000,18 @@ export function createHighway(stage) {
     const way = v.ms > 0 ? 'late' : 'early';
     if (v.why === 'timing')
       toast({
-        title: 'Lots of notes slipping by?',
-        message: Math.abs(v.ms) >= 55
-          ? `We can hear you playing, but your notes land about ${Math.abs(v.ms)} ms ${way}. A 30-second timing check lines the highway up with how you play (and your PC’s sound delay).`
-          : 'We can hear you playing, but many notes aren’t counting. A 30-second timing check lines the highway up with how you play (and your PC’s sound delay). Setting your input level helps too.',
+        title: 'Notes not counting?',
+        message: Math.abs(v.ms) >= 55 ? `You’re playing about ${Math.abs(v.ms)} ms ${way}. A 30-second timing check fixes that.` : 'A 30-second timing check, or setting your input level, usually fixes it.',
         kind: 'info',
-        timeout: 20000,
+        timeout: 15000,
         actions: [timing, level, never],
       });
     else
       toast({
         title: 'Notes not counting?',
-        message: `We can hear you playing, but many notes don’t sound like the ones on the highway. Check your ${kind} is in tune for this song, and set your input level (a quiet signal misses notes).`,
+        message: `Check your ${kind} is in tune for this song, or set your input level.`,
         kind: 'info',
-        timeout: 20000,
+        timeout: 15000,
         actions: [tune, level, never],
       });
   }

@@ -62,7 +62,9 @@ class ToneStore {
     const ir = typeof tone.ir === 'string' && tone.ir ? tone.ir.slice(0, 1000) : null;
     // real amp: a capture pack id, 'off' (the modelled amp), or null (Stagehand's choice)
     const capture = typeof tone.capture === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(tone.capture) ? tone.capture : null;
-    Object.assign(t, { name, kind: tone.kind === 'bass' ? 'bass' : 'guitar', gear, slot, from: tone.from || t.from || null, ir, autoCab: tone.autoCab !== false, capture, updatedAt: now });
+    // 4.1.7: one of Stagehand's cabinet files, picked in Create tone (null: matched to the amp)
+    const cabId = typeof tone.cabId === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(tone.cabId) ? tone.cabId : null;
+    Object.assign(t, { name, kind: tone.kind === 'bass' ? 'bass' : 'guitar', gear, slot, from: tone.from || t.from || null, ir, autoCab: tone.autoCab !== false, capture, cabId, updatedAt: now });
     if (slot !== null) for (const o of this.data.tones) if (o !== t && o.slot === slot) o.slot = null;
     this.saveSoon();
     return t;

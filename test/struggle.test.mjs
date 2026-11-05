@@ -1,21 +1,22 @@
-// 4.1.6: offering the timing check when you're playing along but missing lots of notes.
+// 4.1.6/4.1.7: offering the timing check when you're playing along but missing lots of notes (and not too often).
 const m = await import('../src/renderer/js/struggle.js');
 let bad = 0;
 const ok = (c, msg) => { console.log(c ? 'ok  ' : 'FAIL', msg); if (!c) bad++; };
 const run = (opts, notes) => { const w = new m.StruggleWatch(opts); let v = null; for (const n of notes) { w.add(n); v = v || w.verdict(); } return v; };
 const rep = (n, f) => Array.from({ length: n }, (_, i) => f(i));
 ok(m.nearestPick([{ t: 9.5 }, { t: 10.12 }, { t: 11 }], 10) === 120 && m.nearestPick([{ t: 11 }], 10) === null, 'finds your nearest pick to a note');
-const late = rep(30, (i) => (i % 4 === 0 ? { hit: true, tried: true, offset: 140 } : { hit: false, tried: true, offset: 150 }));
+const late = rep(40, (i) => (i % 4 === 0 ? { hit: true, tried: true, offset: 140 } : { hit: false, tried: true, offset: 150 }));
 const v = run({}, late);
 ok(v && v.why === 'timing' && v.ms >= 100, `playing along but late: offers the timing check (${JSON.stringify(v)})`);
-ok(!run({}, rep(30, (i) => ({ hit: i % 5 !== 0, tried: true, offset: 10 }))), 'playing well: says nothing');
-ok(!run({}, rep(30, () => ({ hit: false, tried: false }))), 'not playing at all (a break, just watching): says nothing');
-const half = rep(16, (i) => ({ hit: i % 2 === 0, tried: true, offset: i % 2 ? 90 : 60 }));
-ok(!run({}, half), 'half the notes on a song you know: not yet');
-ok(run({ first: true }, half), 'the first time through: it speaks up sooner');
-ok(!run({ checked: true }, rep(30, (i) => ({ hit: i % 5 < 2, tried: true, offset: 0 }))), 'after a timing check, 60 % missed on time: not again');
-const v2 = run({ checked: true }, rep(30, (i) => ({ hit: i % 5 === 0, tried: true, offset: 5 })));
-ok(v2 && v2.why === 'notes', `after a timing check, on time but the notes are wrong: suggests tuning (${v2 && v2.why})`);
+ok(!run({}, late.slice(0, 20)), 'not after only 20 notes');
+ok(!run({}, rep(40, (i) => ({ hit: i % 5 !== 0, tried: true, offset: 10 }))), 'playing well: says nothing');
+ok(!run({}, rep(40, () => ({ hit: false, tried: false }))), 'not playing at all (a break, just watching): says nothing');
+ok(!run({}, rep(40, (i) => ({ hit: i % 2 === 0, tried: true, offset: 70 }))), 'missing half: says nothing (that’s just a hard song)');
+const hardBit = [...rep(20, () => ({ hit: false, tried: true, offset: 20 })), ...rep(10, () => ({ hit: true, tried: true, offset: 10 }))];
+ok(!run({}, hardBit), 'one hard passage, then fine again: says nothing');
+ok(!run({ checked: true }, rep(40, (i) => ({ hit: i % 3 === 0, tried: true, offset: 0 }))), 'after a timing check, two in three missed: not again');
+const v2 = run({ checked: true }, rep(40, (i) => ({ hit: i % 6 === 0, tried: true, offset: 5 })));
+ok(v2 && v2.why === 'notes', `after a timing check, on time but nearly all wrong: suggests tuning (${v2 && v2.why})`);
 const w = new m.StruggleWatch({});
 late.forEach((n) => w.add(n));
 ok(w.verdict() && !w.verdict(), 'only says it once');

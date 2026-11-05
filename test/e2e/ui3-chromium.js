@@ -717,7 +717,10 @@ class FakePortMain extends EventEmitter {
   await page.locator('.nav-section:has-text("Jam")').click();
   await page.waitForTimeout(800);
   await page.locator('.looper3 .btn.rec').click();
-  await page.waitForTimeout(4000);
+  // 4.1.7: starting a recording takes 3–6 s on a slow test machine (the sound engine starts capturing);
+  // wait until it says Recording, then record 3 s (a fixed 4 s wait passed or failed by luck)
+  for (let i = 0; i < 60 && !/Recording/.test((await page.locator('.looper3 .lp-status').textContent().catch(() => '')) || ''); i++) await page.waitForTimeout(250);
+  await page.waitForTimeout(3000);
   await page.locator('.looper3 .btn.rec').click();
   for (let i = 0; i < 40 && !/Looping/.test((await page.locator('.looper3 .lp-status').textContent().catch(() => '')) || ''); i++) await page.waitForTimeout(250);
   check(/Looping/.test((await page.locator('.looper3 .lp-status').textContent().catch(() => '')) || ''), `looper records and loops: “${await page.locator('.looper3 .lp-status').textContent().catch(() => '')}”`);
@@ -906,7 +909,7 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(500);
   const moved = await page.evaluate(() => (document.querySelector('.hw-status:not([hidden])') || {}).textContent || '');
   check(/72%/.test(moved), `the highway's stems panel moves with the split: “${moved.slice(0, 50)}”`);
-  const playingBefore = await page.evaluate(() => window.__stagePlaying && window.__stagePlaying());
+  const playingBefore2 = await page.evaluate(() => window.__stagePlaying && window.__stagePlaying());
   stemHold.delete(firstId);
   await page.evaluate((id) => window.__shEmit('stems:update', { songId: id, state: 'ready' }), firstId);
   let started = false;
@@ -914,7 +917,7 @@ class FakePortMain extends EventEmitter {
     await page.waitForTimeout(250);
     started = await page.evaluate(() => document.querySelector('.stem-wait').hidden && !!(window.__stagePlaying && window.__stagePlaying()));
   }
-  check(!playingBefore && started, 'and starts by itself once they’re in');
+  check(!playingBefore2 && started, 'and starts by itself once they’re in');
 
   // ---- 3.13: song switching never leaves the wrong song, a dead spinner, or a silent stall ----
   {
@@ -1184,6 +1187,37 @@ class FakePortMain extends EventEmitter {
   check(/Stems/.test((await page.locator('.gs-step.on span').textContent()) || ''), 'and Back to the guide returns to the same page');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
+
+  // 4.1.7: Create tone, step by step, live on the guitar; saves on a key
+  await page.locator('.nav-section[data-page="play"]').click();
+  await page.waitForTimeout(600);
+  await page.locator('#page-play button:has-text("Create tone")').click();
+  await page.waitForTimeout(800);
+  check((await page.locator('.tw-modal .tw-live').count()) === 1, 'Create tone opens with your guitar live');
+  await page.locator('.tw-card:has-text("Guitar")').click();
+  await page.waitForTimeout(400);
+  await page.locator('.tw-card:has-text("Metal")').click();
+  await page.waitForTimeout(500);
+  const heard = await page.evaluate(async () => { const { rig } = await import('/src/renderer/js/rig.js'); return rig.mode + ' ' + (rig.liveTone ? rig.liveTone.gear.map((g) => g.key).join('>') : ''); });
+  check(/^live .*Amp_CA100/.test(heard), `picking Metal plays it straight away (${heard})`);
+  await page.locator('.tw-modal footer button:has-text("Next")').click();
+  await page.waitForTimeout(400);
+  check((await page.locator('.tw-card .gear-art.amp').count()) >= 10, 'every real guitar amp is offered, with a picture');
+  await shot('43-create-tone-amps');
+  await page.locator('.tw-modal footer button:has-text("Next")').click();
+  await page.locator('.tw-card:has-text("4×12 slant")').click();
+  await page.locator('.tw-modal footer button:has-text("Next")').click();
+  await page.locator('.tw-modal footer button:has-text("Next")').click();
+  await page.waitForTimeout(400);
+  await page.locator('.tw-name').fill('Test metal');
+  await page.locator('.tw-key').nth(3).click();
+  await page.locator('.tw-modal footer button:has-text("Save tone")').click();
+  await page.waitForTimeout(800);
+  const made = await page.evaluate(async () => { const { tonelib } = await import('/src/renderer/js/tonelib.js'); const t = tonelib.list.find((x) => x.name === 'Test metal'); return t ? `${t.slot} ${t.cabId}` : ''; });
+  check(made === '5 4x12_slant', `the new tone is saved on key 5 with its cabinet (${made})`);
+  await page.locator('.tw-modal footer button:has-text("Done")').click();
+  await page.waitForTimeout(400);
+  check((await page.locator('#page-play .bk-art .gear-art').count()) >= 2, 'the rig shows pictures of its gear');
 
   const errs = logs.filter((l) => /^(pageerror)/.test(l) || (/^error/.test(l) && !/404|Failed to load resource|favicon/.test(l)));
   check(errs.length === 0, `no page errors${errs.length ? `: ${errs.slice(0, 4).join(' | ')}` : ''}`);

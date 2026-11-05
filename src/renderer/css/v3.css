@@ -1445,3 +1445,87 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .gs-tip p { margin: 0 0 12px; color: var(--ink-2); font-size: 13px; line-height: 1.5; }
 .gs-tip-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .hw-syncbox p.fine { color: var(--ink-3); font-size: 12px; margin-top: -4px; }
+
+/* 4.1.7: a toast's buttons sit on their own row under the text */
+.toast .act-row { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.toast .act-row .btn { white-space: nowrap; }
+.toast .act-row .btn:first-child { background: var(--tungsten-soft); border-color: var(--tungsten-line); color: var(--ink); }
+.toasts { width: min(400px, calc(100vw - 36px)); }
+
+/* 4.1.7 Create tone */
+.tones-titlebar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tw { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 22px; min-height: 440px; }
+.tw-steps { display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--rule-soft); padding-right: 14px; }
+.tw-main { display: flex; flex-direction: column; min-width: 0; }
+.tw-body { overflow-y: auto; max-height: min(62vh, 600px); padding-right: 6px; }
+.tw-body h3 { margin: 0 0 10px; font-size: 18px; }
+.tw-body h4 { margin: 18px 0 8px; font-size: 14px; }
+.tw-body p { margin: 0 0 12px; color: var(--ink-2); line-height: 1.55; font-size: 13.5px; }
+.tw-body p.fine { color: var(--ink-3); font-size: 12px; margin-top: 12px; }
+.tw-live { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 9px 12px; border-radius: 10px; background: rgba(69, 208, 124, 0.08); border: 1px solid rgba(69, 208, 124, 0.25); color: var(--ink); font-size: 13px; }
+.tw-live.off { background: var(--deck-2); border-color: var(--rule-soft); color: var(--ink-3); }
+.tw-live-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #45d07c; box-shadow: 0 0 10px #45d07c; }
+.tw-live.off .tw-live-dot { background: #8a8f9c; box-shadow: none; }
+.tw-live > span:nth-child(2) { flex: 1; min-width: 0; }
+.tw-meter { flex: none; width: 120px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.tw-meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #45d07c, #ffcf3a 80%, #ff4b55); transition: width 0.08s; }
+.tw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.tw-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tw-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--rule); background: var(--deck-2); color: var(--ink-2); font: inherit; text-align: left; cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.08s; }
+.tw-card:hover { border-color: var(--riser-2); color: var(--ink); }
+.tw-card:active { transform: scale(0.985); }
+.tw-card b { color: var(--ink); font-size: 14.5px; font-weight: 650; }
+.tw-card > span { font-size: 12.5px; line-height: 1.4; }
+.tw-card small { color: var(--ink-3); font-size: 11.5px; }
+.tw-card.on { border-color: var(--tungsten); background: var(--tungsten-soft); box-shadow: 0 0 0 1px var(--tungsten-line), 0 0 18px rgba(255, 181, 71, 0.15); }
+.tw-grid.two .tw-card { padding: 22px 18px; }
+.tw-grid.two .tw-card b { font-size: 18px; }
+.tw-tag { margin-top: 4px; padding: 2px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); }
+.tw-tag.real { color: #111 !important; background: var(--tungsten-hi); font-weight: 700; letter-spacing: 0.03em; }
+.tw-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 4px; }
+.tw-foot .tw-tag { margin-top: 0; }
+.tw-get { white-space: nowrap; flex: none; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--tungsten-line); color: var(--tungsten-hi); font-size: 12px; font-weight: 600; }
+.tw-get:hover { background: var(--tungsten-soft); }
+.tw-amphead { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; background: var(--deck-2); color: var(--ink-2); font-size: 13px; }
+.tw-amphead > span:first-child { flex: 1; min-width: 220px; }
+.tw-amphead .ok { display: inline-flex; align-items: center; gap: 6px; color: #45d07c; }
+.tw-amphead .ok svg { width: 15px; height: 15px; }
+.tw-knobs { display: flex; flex-wrap: wrap; gap: 18px 26px; padding: 8px 4px 4px; }
+.tw-knobs .rknob { transform: scale(1.15); transform-origin: top center; margin-bottom: 8px; }
+.tw-fx { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.tw-switch { display: grid; grid-template-columns: 14px minmax(0, 1fr); column-gap: 10px; align-items: center; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--rule); background: var(--deck-2); color: var(--ink-3); font: inherit; text-align: left; cursor: pointer; }
+.tw-switch .led { grid-row: span 2; width: 10px; height: 10px; border-radius: 50%; background: #3a4260; }
+.tw-switch b { color: var(--ink-2); font-size: 13.5px; font-weight: 600; }
+.tw-switch span { font-size: 12px; }
+.tw-switch.on { border-color: var(--tungsten-line); background: var(--tungsten-soft); }
+.tw-switch.on .led { background: var(--tungsten); box-shadow: 0 0 10px var(--tungsten); }
+.tw-switch.on b { color: var(--ink); }
+.tw-name { width: 100%; max-width: 420px; height: 38px; font-size: 15px; }
+.tw-keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.tw-key { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--rule); background: var(--deck-2); color: var(--ink-3); font: inherit; font-size: 11.5px; text-align: left; cursor: pointer; }
+.tw-key b { color: var(--gel, var(--ink)); font-size: 17px; }
+.tw-key span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.tw-key.on { border-color: var(--gel, var(--tungsten)); background: color-mix(in srgb, var(--gel, var(--tungsten)) 14%, transparent); color: var(--ink-2); }
+@media (max-width: 760px) { .tw { grid-template-columns: 1fr; } .tw-steps { flex-direction: row; overflow-x: auto; border-right: 0; padding-right: 0; } .tw-steps .gs-step span { display: none; } }
+
+/* 4.1.7 gear pictures (Stagehand's own drawings) */
+/* no CSS filter here: a drop-shadow on these redrew every frame (the rig's cables animate) and took the Jam page from 8 to 2 frames a second without a graphics card */
+.gear-art { display: block; width: 100%; height: 100%; }
+.bk-art { display: flex; align-items: flex-end; justify-content: center; height: 54px; margin: -2px 0 6px; pointer-events: none; }
+.bk-art .gear-art { width: auto; max-width: 100%; height: 100%; }
+.block.bypass .bk-art { opacity: 0.3; }
+.tw-card.has-art { padding-top: 10px; }
+.tw-art { display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 84px; margin-bottom: 8px; border-radius: 9px; background: radial-gradient(ellipse at 50% 85%, rgba(255, 181, 71, 0.08), transparent 70%); }
+.tw-art .gear-art { width: auto; height: 100%; max-width: 92%; }
+.tw-card.on .tw-art { background: radial-gradient(ellipse at 50% 85%, rgba(255, 181, 71, 0.22), transparent 70%); }
+.tw-switch { grid-template-columns: 34px 14px minmax(0, 1fr); }
+.tw-switch .tw-pedal { grid-row: span 2; width: 30px; height: 46px; }
+.tw-switch:not(.on) .tw-pedal { opacity: 0.45; }
+.tw-rig { display: flex; align-items: flex-end; gap: 6px; padding: 14px 14px 10px; margin: 0 0 14px; border-radius: 12px; background: radial-gradient(ellipse at 50% 100%, rgba(255, 181, 71, 0.1), transparent 70%), var(--deck-2); overflow-x: auto; }
+.tw-rig-item { flex: none; height: 74px; display: flex; align-items: flex-end; }
+.tw-rig-item.pre, .tw-rig-item.post { height: 56px; }
+.tw-rig-item.rack { height: 30px; }
+.tw-rig-item .gear-art { width: auto; height: 100%; }
+.tw-cable { flex: none; align-self: center; width: 16px; height: 3px; margin-bottom: 4px; border-radius: 2px; background: #2a2d36; }
+/* 4.1.7: with a window open, toasts go to the bottom left, clear of its buttons (they covered Next); body.modal-open is set by ui.js modal() (a :has() selector here was costly) */
+body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw - 36px)); }
