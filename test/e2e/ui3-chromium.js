@@ -717,7 +717,10 @@ class FakePortMain extends EventEmitter {
   await page.locator('.nav-section:has-text("Jam")').click();
   await page.waitForTimeout(800);
   await page.locator('.looper3 .btn.rec').click();
-  await page.waitForTimeout(4000);
+  // 4.1.7: starting a recording takes 3–6 s on a slow test machine (the sound engine starts capturing);
+  // wait until it says Recording, then record 3 s (a fixed 4 s wait passed or failed by luck)
+  for (let i = 0; i < 60 && !/Recording/.test((await page.locator('.looper3 .lp-status').textContent().catch(() => '')) || ''); i++) await page.waitForTimeout(250);
+  await page.waitForTimeout(3000);
   await page.locator('.looper3 .btn.rec').click();
   for (let i = 0; i < 40 && !/Looping/.test((await page.locator('.looper3 .lp-status').textContent().catch(() => '')) || ''); i++) await page.waitForTimeout(250);
   check(/Looping/.test((await page.locator('.looper3 .lp-status').textContent().catch(() => '')) || ''), `looper records and loops: “${await page.locator('.looper3 .lp-status').textContent().catch(() => '')}”`);
