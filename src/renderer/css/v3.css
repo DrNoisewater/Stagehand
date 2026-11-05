@@ -1529,3 +1529,8 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .tw-cable { flex: none; align-self: center; width: 16px; height: 3px; margin-bottom: 4px; border-radius: 2px; background: #2a2d36; }
 /* 4.1.7: with a window open, toasts go to the bottom left, clear of its buttons (they covered Next); body.modal-open is set by ui.js modal() (a :has() selector here was costly) */
 body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw - 36px)); }
+/* 4.1.8: Get real amp is a clear full-width button along the bottom of the amp card */
+.tw-foot { flex-direction: column; align-items: stretch; gap: 8px; }
+.tw-foot .tw-tag { align-self: flex-start; }
+.tw-get { display: block; width: 100%; box-sizing: border-box; text-align: center; padding: 6px 10px; border-radius: 8px; background: var(--tungsten); border-color: var(--tungsten); color: var(--tungsten-ink, #2a1c05); font-weight: 700; font-size: 12.5px; }
+.tw-get:hover { background: var(--tungsten-hi); }

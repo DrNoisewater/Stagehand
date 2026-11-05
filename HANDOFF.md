@@ -1,8 +1,12 @@
-# Stagehand handoff (v4.1.7, 2026-11-05): Create tone (a live, step-by-step wizard with every real amp and cabinet), gear pictures, a quieter help offer
+# Stagehand handoff (v4.1.8, 2026-11-05): Get real amp is a clear button in Create tone
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.1.8: Get real amp, a clear button
+
+User: “the Get real amp button needs fixing” (its pill wrapped and squeezed beside “Modelled”). Now a full-width button along the bottom of each amp card in Create tone (“⬇ Get real amp (free)”, `.tw-foot`/`.tw-get` in v3.css).
 
 ## 4.1.7: the help offer, less often; toast buttons on their own row
 
