@@ -283,8 +283,10 @@ export function toast({ title, message = '', kind = 'ok', actions = [], timeout 
   const el = h(`div.toast.${kind}`, { role: kind === 'err' ? 'alert' : 'status' });
   el.innerHTML = `${icon(ic)}<div class="msg"><b>${esc(title)}</b>${message ? `<span>${esc(message)}</span>` : ''}</div>`;
   const act = h('div.act');
+  // 4.1.7: buttons get their own row under the text (beside it, they squeezed the text into a thin column)
+  const row = actions.length ? h('div.act-row') : null;
   for (const a of actions) {
-    act.append(
+    row.append(
       h('button.btn.small.ghost', {
         type: 'button',
         text: a.label,
@@ -297,6 +299,10 @@ export function toast({ title, message = '', kind = 'ok', actions = [], timeout 
   }
   act.append(h('button.icon-btn', { type: 'button', title: 'Dismiss', html: icon('x'), style: { width: '24px', height: '24px' }, onclick: () => remove() }));
   el.append(act);
+  if (row) {
+    el.classList.add('has-actions');
+    el.append(row);
+  }
   toastRoot.append(el);
   while (toastRoot.children.length > 3) toastRoot.firstElementChild.remove();
   let t = setTimeout(() => remove(), kind === 'err' ? timeout * 2 : timeout);

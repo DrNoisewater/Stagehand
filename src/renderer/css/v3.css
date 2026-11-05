@@ -1445,3 +1445,9 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .gs-tip p { margin: 0 0 12px; color: var(--ink-2); font-size: 13px; line-height: 1.5; }
 .gs-tip-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .hw-syncbox p.fine { color: var(--ink-3); font-size: 12px; margin-top: -4px; }
+
+/* 4.1.7: a toast's buttons sit on their own row under the text */
+.toast .act-row { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.toast .act-row .btn { white-space: nowrap; }
+.toast .act-row .btn:first-child { background: var(--tungsten-soft); border-color: var(--tungsten-line); color: var(--ink); }
+.toasts { width: min(400px, calc(100vw - 36px)); }

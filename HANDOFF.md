@@ -1,8 +1,17 @@
-# Stagehand handoff (v4.1.6, 2026-11-04): a tuner that follows the song, help when notes aren't counting, a full Getting started tour, smarter search
+# Stagehand handoff (v4.1.7, 2026-11-05): the “notes not counting?” offer comes far less often, and toasts with buttons read properly
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.1.7: the help offer, less often; toast buttons on their own row
+
+User on 4.1.6: “We added a notification if you miss a few notes. It'll ask you if you want to calibrate. I think that happens too often. And the text is in one giant column; that menu looks awful.”
+- **Less often** (`struggle.js`, `highway.js` `helpResting`): the watch now needs 30 judged notes (40 after a timing check), ≥ 60 % missed (75 % after a timing check), ≥ 70 % of misses played near the note, and the last third of the run mostly missed too (one hard passage doesn't count). No more “sooner on a song's first time”. The highway shows it **at most once per app start**, then **not for 3 days** (`prefs.helpAt`), and not in a session where the first-visit timing check prompt was shown. Master Settings switch and “Don't ask again” unchanged.
+- **Layout** (`ui.js` `toast`, v3.css): a toast's buttons now sit on a row under the text (`.act-row`, first button highlighted); beside the text they squeezed it into a thin column in the 360 px toast. Toasts are 400 px wide. Applies to every toast with buttons (the retune suggestion too). Shorter wording: “Notes not counting? You're playing about 150 ms late. A 30-second timing check fixes that.”
+- Fixed a mistake from 4.1.6: `ui3-chromium.js` declared `playingBefore` twice (a syntax error, so the whole UI test couldn't run); the second is now `playingBefore2` (found by another session, branch ccr-fdf6edf9-igyqc2).
+
+Ask the user: does the offer now come rarely enough, and still when it's actually needed.
 
 ## 4.1.6: tuner follows the song, offer the timing check, Getting started tour, smarter search
 
