@@ -274,7 +274,7 @@ export async function openToneWizard({ kind = null } = {}) {
   const rigRow = () => {
     const t = buildTone(W);
     const row = h('div.tw-rig', { 'aria-label': 'Your rig' });
-    const order = { pre: 0, amp: 1, cab: 2, post: 3, rack: 4 };
+    const order = { pre: 0, amp: 1, post: 2, cab: 3, rack: 4 }; // the order the sound goes through them
     const gear = [...t.gear].sort((a, b) => order[a.slot] - order[b.slot] || a.order - b.order);
     gear.forEach((g, i) => {
       const art = g.slot === 'cab' ? cabArt(W.ir ? g.key : W.cab !== 'auto' ? W.cab : g.key) : gearArt(g);

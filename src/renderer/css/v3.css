@@ -1526,3 +1526,5 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .tw-rig-item.rack { height: 30px; }
 .tw-rig-item .gear-art { width: auto; height: 100%; }
 .tw-cable { flex: none; align-self: center; width: 16px; height: 3px; margin-bottom: 4px; border-radius: 2px; background: #2a2d36; }
+/* 4.1.7: with a window open, toasts go to the bottom left, clear of its buttons (they covered Next) */
+body:has(#overlays .modal-backdrop) .toasts { right: auto; left: 18px; width: min(320px, calc(100vw - 36px)); }
