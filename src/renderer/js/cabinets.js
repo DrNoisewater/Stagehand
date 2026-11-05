@@ -1,6 +1,8 @@
 const bridge=()=>import('./api.js').then(m=>m.api);
 export function cabinetFor(tone,capture){
   if(capture?.fullRig||tone.autoCab===false)return null;
+  // 4.1.7: a cabinet picked in Create tone
+  if(tone.cabId)return tone.cabId;
   const amp=tone.gear?.find(g=>g.slot==='amp')?.key||'';
   if(tone.kind==='bass'||/^Bass_/i.test(amp)){
     const cab=tone.gear?.find(g=>g.slot==='cab')?.key||'';

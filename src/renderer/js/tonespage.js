@@ -150,7 +150,10 @@ export function uniqueKeys(items) {
 
 function renderList() {
   listCol.innerHTML = '';
-  listCol.append(h('h1.page-title', { text: 'Tones' }));
+  // 4.1.7: Create tone, right by the title
+  const create = h('button.btn.primary.tw-create', { type: 'button', html: `${icon('plus')}<span>Create tone</span>`, title: 'Make a new tone step by step, hearing each choice as you play' });
+  create.onclick = () => import('./tonewizard.js').then((w) => w.openToneWizard());
+  listCol.append(h('div.tones-titlebar', null, h('h1.page-title', { text: 'Tones' }), create));
   const tabs = h('div.gseg.tones-tabs', { role: 'tablist', style: { '--gel': 'var(--gel-bass)' } });
   for (const [id, label] of [['mine', 'My tones'], ['songs', 'From my songs'], ['presets', 'Presets']]) {
     const b = h('button', { type: 'button', role: 'tab', 'aria-pressed': String(T.tab === id), text: label });

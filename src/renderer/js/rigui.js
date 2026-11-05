@@ -2,6 +2,7 @@
  * Shared pieces for the rig on the Play and Tones pages: rotary knobs, the
  * signal chain of gear blocks, and tone demos (a riff played through a tone).
  */
+import { gearArt } from './gearart.js';
 import { h, esc, icon, toast } from './ui.js';
 import { rig } from './rig.js';
 import { engine } from './stage.js';
@@ -96,6 +97,8 @@ export function chainEl(tone, { selected = -1, onPick, onAdd, sub } = {}) {
     const real = g.slot === 'amp' && !g.bypass && resolveCapture(tone);
     b.innerHTML = `<span class="bk-top"><span class="bk-kind">${esc(kind)}</span>${real ? `<span class="real-badge sm" title="${esc(`Real amp: ${real.pack.title}`)}">REAL</span>` : ''}<span class="led"></span></span><span class="bk-name">${esc(shortGearName(g.key))}</span>${sub ? `<span class="bk-sub">${esc(sub(g) || '')}</span>` : ''}`;
     if (real) b.classList.add('real');
+    // 4.1.7: a picture of the piece (Stagehand's own drawing)
+    b.prepend(h('span.bk-art', { html: gearArt(g), 'aria-hidden': 'true' }));
     b.onclick = () => onPick && onPick(i, g);
     if (i === selected) b.classList.add('lit');
     const link = h('div.link', null, b);

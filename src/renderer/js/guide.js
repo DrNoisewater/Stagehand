@@ -375,7 +375,7 @@ const PAGES = [
   },
   {
     title: 'Tones',
-    show: { title: 'Tones', at: '.tones-tabs', go: () => setPage('tones'), tip: 'My tones are yours; From my songs has every tone used in your songs; Presets are ready-made sounds.' },
+    show: { title: 'Create tone', at: ['.tw-create', '.tones-tabs'], go: () => setPage('tones'), tip: 'Create tone walks you through making your own sound, live as you play. Below it: My tones, From my songs (every tone in your songs) and Presets.' },
     draw: () =>
       h(
         'div',
@@ -383,8 +383,9 @@ const PAGES = [
         p('Every amp sound you can use. Play your instrument while browsing and you hear each one live.'),
         steps(
           ['My tones, From my songs, Presets', 'The three tabs. Songs bring their own tones; Stagehand switches to the song’s tone as you play (unless you pick one).'],
-          ['Edit and save', 'Change any knob, rename it, put it in a slot (1–9).'],
-          ['Real amps', 'Some tones can use recordings of real amps (from TONE3000, free account): Get all fetches the ones your songs use.']
+          ['Create tone', 'The easiest way to make your own: pick guitar or bass, a starting sound, the amp, the cabinet, turn the knobs and save it to a key. You hear every choice live as you play. On the Tones and Jam pages, and in the highway’s tone menu.'],
+          ['Edit and save', 'Change any knob, rename it, put it in a slot (2–9).'],
+          ['Real amps', 'Recordings of real amps (from TONE3000, free account). Create tone can get every one of them, whatever songs you have; From my songs › Get all gets the ones your songs use.']
         )
       ),
   },

@@ -1185,6 +1185,37 @@ class FakePortMain extends EventEmitter {
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
 
+  // 4.1.7: Create tone, step by step, live on the guitar; saves on a key
+  await page.locator('.nav-section[data-page="play"]').click();
+  await page.waitForTimeout(600);
+  await page.locator('#page-play button:has-text("Create tone")').click();
+  await page.waitForTimeout(800);
+  check((await page.locator('.tw-modal .tw-live').count()) === 1, 'Create tone opens with your guitar live');
+  await page.locator('.tw-card:has-text("Guitar")').click();
+  await page.waitForTimeout(400);
+  await page.locator('.tw-card:has-text("Metal")').click();
+  await page.waitForTimeout(500);
+  const heard = await page.evaluate(async () => { const { rig } = await import('/src/renderer/js/rig.js'); return rig.mode + ' ' + (rig.liveTone ? rig.liveTone.gear.map((g) => g.key).join('>') : ''); });
+  check(/^live .*Amp_CA100/.test(heard), `picking Metal plays it straight away (${heard})`);
+  await page.locator('.tw-modal footer button:has-text("Next")').click();
+  await page.waitForTimeout(400);
+  check((await page.locator('.tw-card .gear-art.amp').count()) >= 10, 'every real guitar amp is offered, with a picture');
+  await shot('43-create-tone-amps');
+  await page.locator('.tw-modal footer button:has-text("Next")').click();
+  await page.locator('.tw-card:has-text("4×12 slant")').click();
+  await page.locator('.tw-modal footer button:has-text("Next")').click();
+  await page.locator('.tw-modal footer button:has-text("Next")').click();
+  await page.waitForTimeout(400);
+  await page.locator('.tw-name').fill('Test metal');
+  await page.locator('.tw-key').nth(3).click();
+  await page.locator('.tw-modal footer button:has-text("Save tone")').click();
+  await page.waitForTimeout(800);
+  const made = await page.evaluate(async () => { const { tonelib } = await import('/src/renderer/js/tonelib.js'); const t = tonelib.list.find((x) => x.name === 'Test metal'); return t ? `${t.slot} ${t.cabId}` : ''; });
+  check(made === '5 4x12_slant', `the new tone is saved on key 5 with its cabinet (${made})`);
+  await page.locator('.tw-modal footer button:has-text("Done")').click();
+  await page.waitForTimeout(400);
+  check((await page.locator('#page-play .bk-art .gear-art').count()) >= 2, 'the rig shows pictures of its gear');
+
   const errs = logs.filter((l) => /^(pageerror)/.test(l) || (/^error/.test(l) && !/404|Failed to load resource|favicon/.test(l)));
   check(errs.length === 0, `no page errors${errs.length ? `: ${errs.slice(0, 4).join(' | ')}` : ''}`);
   fs.writeFileSync(path.join(outDir, 'ui-chromium.log'), logs.join('\n'));

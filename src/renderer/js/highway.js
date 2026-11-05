@@ -842,6 +842,15 @@ export function createHighway(stage) {
     }
     items.push({ heading: true, label: 'Presets' });
     for (const t of [...TONES.filter((x) => x.kind === kind), ...TONES.filter((x) => x.kind !== kind)]) items.push({ label: t.name, hint: on(t.id), onClick: () => chooseTone(t.id) });
+    // 4.1.7: make a new one without leaving the song (it pauses while you build it)
+    items.push('-', {
+      label: 'Create a tone…',
+      icon: 'plus',
+      onClick: () => {
+        if (stage.engine.playing) stage.toggle();
+        import('./tonewizard.js').then((w) => w.openToneWizard({ kind }));
+      },
+    });
     showMenu(r.right, r.bottom + 6, items, { align: 'right' });
   };
 

@@ -1,4 +1,4 @@
-# Stagehand handoff (v4.1.7, 2026-11-05): the “notes not counting?” offer comes far less often, and toasts with buttons read properly
+# Stagehand handoff (v4.1.7, 2026-11-05): Create tone (a live, step-by-step wizard with every real amp and cabinet), gear pictures, a quieter help offer
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
@@ -11,7 +11,14 @@ User on 4.1.6: “We added a notification if you miss a few notes. It'll ask you
 - **Layout** (`ui.js` `toast`, v3.css): a toast's buttons now sit on a row under the text (`.act-row`, first button highlighted); beside the text they squeezed it into a thin column in the 360 px toast. Toasts are 400 px wide. Applies to every toast with buttons (the retune suggestion too). Shorter wording: “Notes not counting? You're playing about 150 ms late. A 30-second timing check fixes that.”
 - Fixed a mistake from 4.1.6: `ui3-chromium.js` declared `playingBefore` twice (a syntax error, so the whole UI test couldn't run); the second is now `playingBefore2` (found by another session, branch ccr-fdf6edf9-igyqc2).
 
-Ask the user: does the offer now come rarely enough, and still when it's actually needed.
+**Create tone** (`tonewizard.js`; user: “What about somebody who doesn't have very many songs? They'd only be able to pull a few tones out. It should have all the neural networks and cabinet files and a very easy setup wizard for a new tone, tied to the player through the entire workflow with a Create tone button.”):
+- Six steps, guitar live throughout (`rig.setLiveTone` on every change, a live input meter; leaving without saving goes back to the tone you had): Guitar or bass (from what's plugged in) → Starting sound (`STYLES`: 9 guitar, 4 bass; each an amp, knob positions and effects) → Amp (`AMPS`: every curated real amp, 10 guitar + 4 bass, whatever your songs use; “Get every real amp (n)” = `getAllRealAmps` over the missing ones, or Get the real amp per card; modelled until got) → Cabinet (`CABS`: every cabinet file in data/cabs/manifest.json, or “Matched to the amp”, or your own IR) → Dial it in (Gain/Bass/Mid/Treble mapped onto that amp's own knobs, Reverb = Studio Plate mix; effects: gate, drive, fuzz, chorus, echo; bass drive) → Name and key (2–9, or none) → Save (`saveTone`, plays it).
+- Tones now store `cabId` (tones.js), and `cabinetFor` uses it first (cabinets.js).
+- **Create tone buttons:** Jam page header, Tones page title, the highway's tone menu (“Create a tone…”, pauses the song), and the guide's Tones page (Show me rings it).
+- **Gear pictures** (`gearart.js`, `test/gearart.test.mjs`; user: “other apps have images for each of the pedals, cabinets and amps”): Stagehand's own SVG drawings, no makers' photos or logos: amps as heads or combos with their real number of knobs and a family look (`ampLook`), cabinets with their speaker layout (1×12…8×10, slanted 4×12), stompboxes coloured by effect type, rack units. All 613 pieces of gear get one. Shown in Create tone (styles, amps, cabinets, effects, “your rig” row) and on every block of the rig chain (Jam page and the tone editor).
+- ui3-chromium.js checks Create tone end to end (shot 43).
+
+Ask the user: does Create tone feel easy; do the pictures look good enough (they are drawings, not photos; real product photos would need the makers' permission); after “Get every real amp”, did all of them download (TONE3000 asks you to confirm each one).
 
 ## 4.1.6: tuner follows the song, offer the timing check, Getting started tour, smarter search
 
