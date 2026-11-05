@@ -1509,17 +1509,18 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 @media (max-width: 760px) { .tw { grid-template-columns: 1fr; } .tw-steps { flex-direction: row; overflow-x: auto; border-right: 0; padding-right: 0; } .tw-steps .gs-step span { display: none; } }
 
 /* 4.1.7 gear pictures (Stagehand's own drawings) */
-.gear-art { display: block; width: 100%; height: 100%; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45)); }
+/* no CSS filter here: a drop-shadow on these redrew every frame (the rig's cables animate) and took the Jam page from 8 to 2 frames a second without a graphics card */
+.gear-art { display: block; width: 100%; height: 100%; }
 .bk-art { display: flex; align-items: flex-end; justify-content: center; height: 54px; margin: -2px 0 6px; pointer-events: none; }
 .bk-art .gear-art { width: auto; max-width: 100%; height: 100%; }
-.block.bypass .bk-art { opacity: 0.35; filter: grayscale(1); }
+.block.bypass .bk-art { opacity: 0.3; }
 .tw-card.has-art { padding-top: 10px; }
 .tw-art { display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 84px; margin-bottom: 8px; border-radius: 9px; background: radial-gradient(ellipse at 50% 85%, rgba(255, 181, 71, 0.08), transparent 70%); }
 .tw-art .gear-art { width: auto; height: 100%; max-width: 92%; }
 .tw-card.on .tw-art { background: radial-gradient(ellipse at 50% 85%, rgba(255, 181, 71, 0.22), transparent 70%); }
 .tw-switch { grid-template-columns: 34px 14px minmax(0, 1fr); }
 .tw-switch .tw-pedal { grid-row: span 2; width: 30px; height: 46px; }
-.tw-switch:not(.on) .tw-pedal { opacity: 0.5; filter: saturate(0.4); }
+.tw-switch:not(.on) .tw-pedal { opacity: 0.45; }
 .tw-rig { display: flex; align-items: flex-end; gap: 6px; padding: 14px 14px 10px; margin: 0 0 14px; border-radius: 12px; background: radial-gradient(ellipse at 50% 100%, rgba(255, 181, 71, 0.1), transparent 70%), var(--deck-2); overflow-x: auto; }
 .tw-rig-item { flex: none; height: 74px; display: flex; align-items: flex-end; }
 .tw-rig-item.pre, .tw-rig-item.post { height: 56px; }

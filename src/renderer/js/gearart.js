@@ -65,6 +65,7 @@ export function ampArt(key, { knobs = null } = {}) {
   const knobCap = L.silver ? '#6d717a' : 'rgba(255,255,255,.55)';
   if (combo) {
     return `<svg viewBox="0 0 120 92" class="gear-art amp" aria-hidden="true"><defs>${cloth}</defs>
+      <rect x="6" y="84" width="108" height="8" rx="4" fill="rgba(0,0,0,.35)"/>
       <rect x="2" y="6" width="116" height="84" rx="7" fill="${L.tolex}"/>
       <path d="M48 6v-3.5a2 2 0 0 1 2-2h20a2 2 0 0 1 2 2V6" fill="none" stroke="${L.trim}" stroke-width="2"/>
       <rect x="8" y="12" width="104" height="18" rx="2" fill="${L.panel}"/>
@@ -74,6 +75,7 @@ export function ampArt(key, { knobs = null } = {}) {
     </svg>`;
   }
   return `<svg viewBox="0 0 120 64" class="gear-art amp head" aria-hidden="true"><defs>${cloth}</defs>
+    <rect x="6" y="57" width="108" height="7" rx="3.5" fill="rgba(0,0,0,.35)"/>
     <rect x="2" y="8" width="116" height="54" rx="6" fill="${L.tolex}"/>
     <path d="M46 8v-4a2 2 0 0 1 2-2h24a2 2 0 0 1 2 2v4" fill="none" stroke="${L.trim}" stroke-width="2"/>
     <rect x="7" y="13" width="106" height="20" rx="2" fill="url(#${id})" stroke="${L.trim}" stroke-width="1"/>
