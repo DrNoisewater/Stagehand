@@ -1484,7 +1484,7 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .tw-tag.real { color: #111 !important; background: var(--tungsten-hi); font-weight: 700; letter-spacing: 0.03em; }
 .tw-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 4px; }
 .tw-foot .tw-tag { margin-top: 0; }
-.tw-get { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--tungsten-line); color: var(--tungsten-hi); font-size: 12px; font-weight: 600; }
+.tw-get { white-space: nowrap; flex: none; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--tungsten-line); color: var(--tungsten-hi); font-size: 12px; font-weight: 600; }
 .tw-get:hover { background: var(--tungsten-soft); }
 .tw-amphead { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; background: var(--deck-2); color: var(--ink-2); font-size: 13px; }
 .tw-amphead > span:first-child { flex: 1; min-width: 220px; }
@@ -1527,5 +1527,5 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .tw-rig-item.rack { height: 30px; }
 .tw-rig-item .gear-art { width: auto; height: 100%; }
 .tw-cable { flex: none; align-self: center; width: 16px; height: 3px; margin-bottom: 4px; border-radius: 2px; background: #2a2d36; }
-/* 4.1.7: with a window open, toasts go to the bottom left, clear of its buttons (they covered Next) */
-body:has(#overlays .modal-backdrop) .toasts { right: auto; left: 18px; width: min(320px, calc(100vw - 36px)); }
+/* 4.1.7: with a window open, toasts go to the bottom left, clear of its buttons (they covered Next); body.modal-open is set by ui.js modal() (a :has() selector here was costly) */
+body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw - 36px)); }

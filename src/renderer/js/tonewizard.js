@@ -357,7 +357,7 @@ export async function openToneWizard({ kind = null } = {}) {
           draw();
         }, ampArt(a.key));
         if (!have && realAmpsOn() && caps.st.map.packs[a.pack]) {
-          const get = h('span.tw-get', { role: 'button', tabindex: '0', text: 'Get the real amp' });
+          const get = h('span.tw-get', { role: 'button', tabindex: '0', text: 'Get real amp', title: 'Download the recording of the real amp (free, TONE3000)' });
           get.onclick = async (e) => {
             e.stopPropagation();
             W.amp = a.pack;

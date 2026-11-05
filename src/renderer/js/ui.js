@@ -214,6 +214,7 @@ export function modal({ title, body, footer, wide = false, onClose, dismissable 
     backdrop.remove();
     const i = modalStack.indexOf(api);
     if (i >= 0) modalStack.splice(i, 1);
+    document.body.classList.toggle('modal-open', modalStack.length > 0); // 4.1.7: toasts move clear of the window's buttons
     onClose && onClose();
   };
   const head = h('header', null, h('h2', { text: title }));
@@ -242,6 +243,7 @@ export function modal({ title, body, footer, wide = false, onClose, dismissable 
   if (top && (parseInt(getComputedStyle(backdrop).zIndex, 10) || 0) <= top) backdrop.style.zIndex = String(top + 1);
   const api = { el: box, body: bodyEl, footer: footEl, close, dismissable };
   modalStack.push(api);
+  document.body.classList.add('modal-open');
   setTimeout(() => {
     const f = box.querySelector('[autofocus], input, select, .btn.primary');
     if (f) f.focus();
