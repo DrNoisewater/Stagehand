@@ -81,4 +81,5 @@ Also documented in HANDOFF.md but not re-run on 2026-11-01:
 
 - Don't add npm dependencies to the app: everything is vendored or plain JS/C.
 - Comments and UI text are plain, short sentences. User-facing text never mentions code.
+- `README.md` is for players (it also ships inside the Windows zip): what Stagehand does, how to install it, short and plain. No file formats, internals or test details there; those go in this file or `HANDOFF.md`. What's new is one line per release.
 - Keep `HANDOFF.md` up to date with each change: what the user asked for, what changed, where it lives, and what to ask them next.

@@ -18,20 +18,16 @@ A note highway, tab and live amp tones through the Rocksmith cable. Split any so
 
 ## Install
 
-1. Download **`Stagehand-v<version>-win-x64.zip`** from the [latest release](https://github.com/DrNoisewater/stagehand/releases/latest).
-2. Unzip it.
-3. Double-click **Install Stagehand.bat**.
-
-No admin rights needed. The first install downloads the app runtime (about 150 MB). Stagehand then opens, with shortcuts in the Start menu and on your desktop.
+1. Download **`Stagehand-Setup-<version>.exe`** from the [latest release](https://github.com/DrNoisewater/stagehand/releases/latest).
+2. Run it. No admin rights needed. The first install takes a few minutes.
+3. Add your Rocksmith `dlc` folder when Stagehand opens. Your songs stay where they are.
 
 > [!NOTE]
-> Windows may say *"Windows protected your PC"* because the installer isn't signed. Click **More info → Run anyway**.
+> If Windows says *"Windows protected your PC"*, click **More info → Run anyway**. The installer isn't signed.
 
-**First launch.** Add your Rocksmith `dlc` folder. Stagehand offers it by itself if it finds your Steam install. Your songs stay where they are; nothing is copied.
+**Updating:** run the newer Setup. Your library, settings, stems and tones are kept.
 
-**Updating.** Download the newer zip and run **Install Stagehand.bat** again. Only the app files are swapped. Your library, settings, stems, tones and stem splitter stay.
-
-**Removing.** Use **Settings → Apps → Stagehand**, or **Uninstall Stagehand** in the Start menu. Your library data is kept unless you choose to delete it, and your `.psarc` files are never touched.
+**Removing:** Start menu → **Uninstall Stagehand**. Your `.psarc` files are never touched.
 
 ---
 
@@ -41,57 +37,59 @@ No admin rights needed. The first install downloads the app runtime (about 150 M
 
 Plug in the Rocksmith cable and your guitar is live straight away, no song needed.
 
-- **Tones on keys 1–9.** **1** always follows the song's own tone (and its tone changes); **2–9** are your saved tones. Press a number anywhere to switch. The rig shows as a chain of pedals, amp, cabinet and rack. Click any piece to turn its knobs.
-- **Guitar or bass, automatically (3.9.1).** Stagehand hears which one is plugged in. If your tone is for the other instrument, it plays one that suits what you're holding, and your own tone comes back when you switch back. A bass part played on guitar is scored an octave up.
-- **Tuner, Drop and calibration.** A precise tuner, plus **Set input level**. The **Drop** works like a DigiTech Drop: lower your instrument 1–7 semitones or an octave, or match the song, so you can play E♭/D/C♯ songs without retuning. Press **D** anywhere.
-- **Moving backgrounds** behind the highway or full screen in Jam: **Fluid**, **Nebula**, **Swarm**, **Mandala** and **Strings**. They move with the song's bass, beats and highs, flash with the notes on the highway in their string colours, and follow what you play.
-- **Jam is home.** Rig, tuner, Drop, drums and looper on one screen. **Play over song** lets you improvise with a song's stems, your own part muted. **Open visualizer** (**J**) goes full screen with Fluid.
-- **Drums** with 17 styles (Rock, Shuffle, Metal, Funk, Reggae, Jazz ride, Bossa, Drum & bass and more, 40–240 BPM, Tap; hold **+**/**−** to change tempo fast) and a **Looper** that records exactly what you hear and locks to the bar.
+- **Tones on keys 1–9.** **1** follows the song's own tone; **2–9** are your saved tones. Click any pedal, amp or cabinet to turn its knobs.
+- **Guitar or bass:** choose which you're playing in **Settings › Guitar or bass**. A bass part played on guitar is scored an octave up.
+- **Tuner, Drop and input level.** The **Drop** lowers your instrument up to 7 semitones or an octave, so you can play E♭, D or C♯ songs without retuning. Press **D** anywhere.
+- **Jam** is the home screen: rig, tuner, Drop, drums and looper in one place. **Play over song** lets you improvise over a song with your part muted.
+- **Drums** in 17 styles (40–240 BPM, or tap the tempo) and a **Looper** that stays in time with the bar.
+- **Moving backgrounds** (Fluid, Nebula, Swarm, Mandala, Strings) that react to the song and your playing. Press **J** for full screen.
 
 ### 🎵 Play along
 
 Double-click a song, or press **Play along**.
 
-- **Note highway.** A 3D Rocksmith-style highway, measured off real gameplay and drawn by your graphics card at full frame rate. It has a camera that follows your hand positions, a look for each technique (bends, slides, vibrato, tremolo), lyrics, chord names, and venues to play in.
+- **Note highway.** A smooth 3D Rocksmith-style highway, with lyrics, chord names, and a camera that follows your hands.
 - **Tab and Waveform views** of the same song (**T** switches).
 - **Scoring** as you play, with streaks, early/late feedback and a **score card** at the end: each section, what went best, and what to work on.
 - **Riff repeater** with a speed trainer that starts at 60% and adds 5% after each clean pass.
 - **Mix panel:** your level, the song, and every stem with a slider. **Take my part out** removes your part from the song.
 - **Tone** follows the song's own tone changes, or pick any tone.
-- **Score attack:** a full-speed run with a ×4 multiplier and your ten best runs per song. **Record clip** saves a video (MP4) of the highway with the song and your guitar. **U** opens a small tuner without stopping the song.
+- **Score attack:** a full-speed run with a ×4 multiplier and a top-ten list per song.
+- **Record clip** saves a video of you playing along. **U** opens a quick tuner without stopping the song.
 
 ### 🔊 Tones and real amps
 
-- **My tones, From my songs, Presets.** ▶ plays a demo riff through any tone. Rename tones, give them slots, edit the chain, pick the cab, mic and mic position, or load your own cab IR.
-- **Real cabinets.** **Download amp + cab** pairs each real amp with a recorded cabinet: four guitar cabinets come with Stagehand, five bass cabinets download the first time you need them.
-- **Real amps.** Tones can play through **captures of the real amps** ([Neural Amp Modeler](https://github.com/sdatkinson/NeuralAmpModelerCore)) instead of the modelled ones. 57 of Rocksmith's 60 amps are matched to a real one, many at several gain settings. Press **Get the real amp** on any amp, or **Get all**. They come from [TONE3000](https://www.tone3000.com) after a one-time setup in **Settings › Real amps**.
-- **Presets on real amps:** Clean (Fender Deluxe), Chime (Vox AC30), Crunch (Marshall Plexi), Overdrive (JCM800), Lead (Peavey 5150), Metal (Mesa Rectifier), Fuzz (Orange), Bass clean (Ampeg SVT) and Bass grit (Orange AD200).
+- **My tones, From my songs, Presets.** ▶ plays a demo riff through any tone. Edit the pedals, amp, cabinet and mic, or load your own cabinet file (IR).
+- **Real amps.** Play your tones through recordings of real amps instead of simulated ones. Almost every Rocksmith amp has a real match. Press **Get the real amp**, or **Get all** for every amp your songs use. Set it up once in **Settings › Real amps** (a free [TONE3000](https://www.tone3000.com) account).
+- **Real cabinets** to go with them: **Download amp + cab**.
+- **Presets** built on classic amps: Fender Deluxe, Vox AC30, Marshall Plexi, JCM800, Peavey 5150, Mesa Rectifier, Orange, and Ampeg SVT for bass.
 
 ### 🥁 Stems
 
-- **One click splits a song** into guitar, bass, drums, vocals, keys and other with [Demucs](https://github.com/facebookresearch/demucs), running on your PC.
-- Each stem gets its own lane and waveform, with volume, mute and solo. All stems play in perfect sync, and your mix is remembered per song.
-- **Store them your way:** lossless FLAC (about half the size of WAV) or Opus (about a sixth to a tenth). **Compare formats…** lets you hear the difference, and **Shrink my stems** converts the ones you already have.
+- **One click splits a song** into guitar, bass, drums, vocals, keys and other, on your own PC.
+- Each one gets its own volume, mute and solo. Your mix is remembered for each song.
+- Stems take a lot of space. **Settings › Stems** can store them smaller, and **Compare formats** lets you hear the difference.
 
 ### 📚 Library
 
-- Every song with its title, artist, album, year, tuning, parts and length. Search, sort, filter by part, and switch between list and album tiles.
-- **Your best** score on every song, plus favourites, ratings, play history and **setlists**. **Bring over Rocksmith lists** copies your old in-game lists in one click.
+- Search, sort and filter your songs, as a list or as album covers.
+- **Your best** score on every song, plus favourites, ratings and **setlists**. **Bring over Rocksmith lists** copies your in-game lists.
 - **Find duplicate songs** keeps the best copy and moves the rest to backups, with Undo.
-- **Edit details** and **Rename files** safely. See *How saving works* under [Good to know](#good-to-know).
+- **Edit details** and **Rename files** safely: your original is always backed up first.
 
 ### 🔎 Discover
 
-- Search any artist or song on [MusicBrainz](https://musicbrainz.org) and see which album tracks you're missing.
-- **Collection gaps** ranks your artists by how much you're missing. Keep a **Wanted** list.
-- **Watch for downloads** checks every finished `.psarc` download and moves it into Rocksmith's `dlc` folder.
-
-> [!NOTE]
-> CustomsForge's rules don't allow apps to search or download from Ignition, so Stagehand never does. **Find** copies the search and opens the site in your browser, and Stagehand picks the file up once you've downloaded it.
+- Search any artist and see which of their album songs you're missing.
+- Keep a **Wanted** list. **Find** opens CustomsForge with the search ready to paste.
+- **Watch for downloads** moves new songs from your Downloads folder into Rocksmith's `dlc` folder for you.
 
 ### 📈 Progress
 
-Time played, day streak, accuracy over time, the songs you're working on, highlights (what got better, your strongest and weakest techniques), and **your takes** to listen back to.
+Time played, day streak, accuracy over time, goals, what's improving, and **your recordings** to look back on.
+
+### 👥 Friends
+
+Share your highway and Jam videos with friends. Swap codes in **Recordings › Friends**, and they can watch the videos you choose to share.
 
 ---
 
@@ -128,43 +126,27 @@ Time played, day streak, accuracy over time, the songs you're working on, highli
 
 <br>
 
-The first time you split a song, Stagehand offers a one-click setup. It downloads [uv](https://github.com/astral-sh/uv), a private Python 3.12, PyTorch and Demucs into `%LOCALAPPDATA%\Stagehand\Engine`. It never touches any Python you already have.
+The first time you split a song, Stagehand offers to install the stem splitter. It won't touch any Python you already have.
 
 | Your PC | Download | Time per song |
 | --- | --- | --- |
-| NVIDIA GPU, GTX 10 series or newer | about 3 GB | well under a minute |
-| AMD, Intel or no graphics card | about 1 GB | a few minutes |
+| NVIDIA graphics card (GTX 10 series or newer) | about 3 GB | under a minute |
+| Anything else | about 1 GB | a few minutes |
 
-**Is my GPU being used?** **Settings → Stems** shows where splitting runs. If you have an NVIDIA card but it says CPU, Stagehand explains why and offers the fix (**Switch to GPU**, or **Get NVIDIA driver**). If the GPU fails partway through, that song finishes on the CPU.
+**Slow with an NVIDIA card?** **Settings → Stems** shows whether your graphics card is being used, and offers a fix if it isn't.
 
-**Running cooler.** Splitting runs at low priority. **Settings → Stems → CPU load** limits it to half or a quarter of your cores.
-
-Stems are cached by the song's audio, so editing or renaming a file keeps them.
+**PC getting hot?** Lower **CPU load** in **Settings → Stems**.
 
 </details>
 
 <details>
-<summary><b>How saving works</b></summary>
+<summary><b>Is editing my songs safe?</b></summary>
 
 <br>
 
-Rocksmith stores song names in the arrangement manifests (`.json`), the header file (`.hsan`), and sometimes the arrangement `.xml` files inside the archive. When you save:
+Yes. Stagehand only changes the details you edit, checks the new file before using it, and backs up your original first. If anything goes wrong, the original is left alone.
 
-1. Only those text values change. Every other byte of those files stays identical.
-2. A new archive is written next to the original. Every file you didn't edit is copied exactly as it was stored.
-3. The new archive is read back, and every file is checked against a hash of what it should contain.
-4. The original is backed up to Stagehand's own folder, then the new file replaces it in one step.
-
-If any step fails, the original is untouched. Undo is offered right after saving, and right-click → *Restore a backup…* lists older versions. If Rocksmith is running it may lock the files; close it and save again.
-
-</details>
-
-<details>
-<summary><b>Audio decoding</b></summary>
-
-<br>
-
-Rocksmith audio is Wwise `.wem`. Stagehand decodes it with [vgmstream](https://github.com/vgmstream/vgmstream), which it installs with one click the first time you play a song (or point it at your own `vgmstream-cli.exe`).
+**Undo** appears right after saving, and right-click → **Restore a backup…** brings back older versions. If Rocksmith is open it may lock the files: close it and save again.
 
 </details>
 
@@ -175,8 +157,8 @@ Rocksmith audio is Wwise `.wem`. Stagehand decodes it with [vgmstream](https://g
 
 | What | Where |
 | --- | --- |
-| Library, setlists, settings, Wanted list, real amp captures | `%APPDATA%\Stagehand` |
-| Decoded audio, album art, stems, backups, caches, stem engine | `%LOCALAPPDATA%\Stagehand` |
+| Library, setlists, settings, real amps | `%APPDATA%\Stagehand` |
+| Stems, album art, backups | `%LOCALAPPDATA%\Stagehand` |
 | The app itself | `%LOCALAPPDATA%\Programs\Stagehand` |
 
 **Settings → Storage** shows sizes and clears caches.
@@ -187,72 +169,13 @@ Rocksmith audio is Wwise `.wem`. Stagehand decodes it with [vgmstream](https://g
 
 ## What's new
 
-**4.1.1:** watching friends' videos copes with the odd things real networks do: a PC whose clock is wrong, the meeting point being down (a second one is tried at the same time), a PC waking from sleep or a dropped Wi-Fi (it reconnects by itself), work and school networks with a proxy, and a connection that drops partway through a video (it carries on from where it stopped). When a friend's Stagehand doesn't answer, it says what to check.
+- **4.1:** watch your friends' highway and Jam videos. Swap codes in **Recordings › Friends**. Only videos you choose to share can be seen, and only while your Stagehand is open. 4.1.1 makes connecting more reliable.
+- **4.0.3:** official DLC plays, even when its audio is stored elsewhere in your Rocksmith folder.
+- **3.12:** real cabinets, Jam as the home screen, 17 drum styles, Score attack, Record clip, progress goals and new moving backgrounds.
+- **3.9:** a score card after each song, Master Settings on the highway, and the mouse back button.
+- **3.8:** Jam, smart tuning and Find duplicate songs.
 
-**4.1:** **watch your friends' videos.** Recordings now has two tabs. **Mine** is your recordings as before; each highway or Jam video has a **share** button (two people), and it lights up when the video is shared. **Friends** shows **your code** (like `JAJ5-XAM5-TMFE-KAR2`) and a **Sharing** switch. Send your code to a friend: they press **Add a friend**, type it in, and can watch the videos you share, from their own Stagehand, anywhere. Click a friend to see their shared videos, then ▶ to fetch one and watch it in the window. Only videos can be shared (never audio takes, the looper, or your songs), and only while your Stagehand is open with Sharing on. A dot on the Friends tab pulses while a friend is watching. The two PCs connect directly and everything between them is encrypted; a public relay (ntfy.sh) only passes on one sealed hello each way, locked with your code. Anyone with your code can watch what you share, so give it only to friends; **⋯ › New code** stops the old one working. Some work, school or mobile networks block direct connections; then it says it couldn't connect.
-
-**4.0.3:** paid (official) DLC whose file has no audio inside now plays: Stagehand finds the audio in your Rocksmith folder (songs.psarc, the dlc folder, the Rocksmith 1 import packs) or your library and remembers where it is. Official DLC shows an **Official** tag instead of **no audio**. Stagehand no longer switches between guitar and bass by itself, and never changes your tone: set **Guitar or bass** in Settings (for scoring and the tuner).
-
-**4.0.2:** songs whose file has no audio (some paid DLC) say so instead of seeming to freeze, and the song list marks them **no audio**; Stagehand finds song audio stored differently inside more official DLC files; only one stems progress screen shows at a time.
-
-**3.12:** everything from 3.10 to 3.11.1 (real cabinets, Jam as home, 17 drum styles, a better looper, Score attack, Record clip, tone keys, progress goals, the Drop repair, clearer yellow and orange strings) together with 3.9.1's guitar-or-bass sensing. New moving backgrounds (Nebula, Swarm, Mandala, Strings) replace Aurora, Orbital and Prism, and Fluid reacts much more to the music. Tone match is gone for now. Full notes are on [Releases](https://github.com/DrNoisewater/stagehand/releases).
-
-<details>
-<summary><b>3.10 to 3.11.1</b></summary>
-
-<br>
-
-Real cabinets paired with real amps; Jam as the home screen with Play over song; 17 drum styles; the looper records the processed guitar; Score attack; Record clip (MP4); tone keys (1 follows the song); Progress goals (five songs at 95 %, a seven-day streak, a perfect section); bends drawn along the chart's curve; U for a quick tuner; the Drop no longer jumps in level. Built outside GitHub and brought in with 3.12.
-
-</details>
-
-<details>
-<summary><b>3.9.1</b></summary>
-
-<br>
-
-Tell Stagehand whether you're playing guitar or bass (Settings › Guitar or bass), for scoring and the tuner; it never switches by itself or changes your tone (4.0.3). Real bass notes score much better, and a bass part played on guitar is scored an octave up.
-
-</details>
-
-<details>
-<summary><b>3.9</b></summary>
-
-<br>
-
-- **Back button:** your mouse's back button (or <kbd>Alt</kbd>+<kbd>←</kbd>) goes to the screen you were on before.
-- **Highway controls at the top:** play/pause, time and practice speed sit next to the song's name.
-- **Master Settings:** the pullout on the highway's right edge has everything: Sync check, the mix, the Drop and your tuning, and the highway options.
-- **Score card** at the end of a song: accuracy, each section, what went best and what to work on. It never blocks; switch it off in Master Settings.
-- **Progress:** your last song up top, with highlights that update live.
-
-</details>
-
-<details>
-<summary><b>3.8 and 3.8.1</b></summary>
-
-<br>
-
-- **Jam** (**J**): full screen, no song, a fluid picture that follows your playing.
-- **Fluid venue** on the highway.
-- **Smart tuning:** Stagehand knows what your guitar and bass are tuned to. It offers the Drop for songs in the same tuning but lower, or tells you which strings to retune.
-- **Find duplicate songs.**
-- **Search from anywhere**, and a bigger song list where you can click an artist, album, year, tuning or part to filter by it.
-- A song you open always goes ahead of a stem split that's already running.
-
-</details>
-
-<details>
-<summary><b>Earlier</b></summary>
-
-<br>
-
-- **3.7:** a look for each technique on the highway, linked notes as one note, setlists replace editing Rocksmith's own lists.
-- **3.6:** a true 3D highway drawn by the graphics card, venue pictures, Sync check, lyrics and chord names.
-- **3.3:** highway layout and camera rebuilt from real Rocksmith gameplay.
-- **3.2:** real amp captures from TONE3000.
-
-</details>
+Full notes for every version are on [Releases](https://github.com/DrNoisewater/stagehand/releases).
 
 ---
 
