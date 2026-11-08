@@ -285,7 +285,7 @@ const PAGES = [
         null,
         p('Each song is made for a tuning: most are E Standard, some are Drop D, E♭ Standard and so on. Stagehand remembers what your instrument is tuned to and tells you before you play when a song needs something else.'),
         steps(
-          ['The tuner follows the song', 'Open the tuner from the Tuner button in the menu, or press U on any page (it floats over what you’re doing), and it’s already set to the tuning the song needs. Play one open string at a time; the string lights up and the needle shows how close you are. Pick another tuning in its menu if you like; the next song sets it back.'],
+          ['The tuner follows the song', 'Open the tuner (on the Jam page, or press U on the highway or in the tab view) and it’s already set to the tuning the song needs. Play one open string at a time; the string lights up and the needle shows how close you are. Pick another tuning in its menu if you like; the next song sets it back.'],
           ['Or let the Drop do it', 'When a song is the same tuning, just lower (E♭ or D Standard, Drop C from Drop D), the Drop lowers your sound for you: no retuning. Click “Match the song” in Master Settings, or turn on Match on the Jam page and it follows every song.'],
           ['String by string', 'For a different tuning (E Standard to Drop D, say), the tuning guide lists which strings to change and listens as you go: Master Settings › Tuning guide.']
         ),
@@ -312,8 +312,8 @@ const PAGES = [
           ['Play, time and speed', 'Space plays and pauses. The speed chip slows the song down (try 70 % on something new) without changing its pitch. ← and → skip 5 seconds.'],
           ['Sections', 'The strip of sections (Intro, Verse, Chorus…): click one to jump there, or its ⟲ to repeat it until you’ve got it. L repeats the section you’re in.'],
           ['Tab, Highway, Waveform', 'Switch views any time; T shows the tab.'],
-          ['Tools', 'The tuner (U, the same as the Tuner button in the menu), Score attack (a full run for points), Record a video clip, and the Timing check.'],
-          ['Master Settings', 'The pull-out tab on the side: the mix (turn the song, the guitar or any stem up and down), the Drop and tuning, look-ahead, lyrics, chord names, the score card and more.']
+          ['Tools', 'The tuner (U), Score attack (a full run for points), Record a video clip, and the Timing check.'],
+          ['Master Settings', 'The pull-out tab on the side: the mix (turn the song, the guitar or any stem up and down), the Drop and tuning, lyrics, chord names, the score card and more.']
         ),
         p('At the end you get a score card: how each section went and what to practise. Click a section to repeat it. Back (or Esc, or your mouse’s back button) returns to your songs.'),
       ),
@@ -442,7 +442,7 @@ const PAGES = [
             ['← →', 'Back / forward 5 s (Shift: 15 s)'],
             ['H', 'Open the highway'],
             ['T', 'Tab view'],
-            ['U', 'Tuner, on any page'],
+            ['U', 'Tuner on the highway and in the tab view'],
             ['L', 'Repeat this section'],
             ['D', 'The Drop on or off'],
             ['M', 'Full song or your stems mix'],

@@ -7,6 +7,7 @@ import { api } from './api.js';
 import { h, icon, esc, showMenu, toast } from './ui.js';
 import { rig, TONES, TUNINGS, openStrings, noteName } from './rig.js';
 import { describe } from './gearspec.js';
+import { createTuner } from './tuner.js';
 
 const STRING_COLORS = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 const GUITAR_NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
@@ -122,6 +123,26 @@ export function createTabView(host, stage) {
   const foot = h('div.tab-foot');
   host.append(bar, sectionsBar, main, foot);
 
+  // 4.2: the tuner here too (the same small one as on the highway): the menu, or U
+  const tuner = createTuner();
+  tuner.el.classList.add('hw-mini-tuner', 'tab-mini-tuner');
+  tuner.el.hidden = true;
+  main.append(tuner.el);
+  const toggleTuner = () => {
+    tuner.el.hidden = !tuner.el.hidden;
+    if (tuner.el.hidden) tuner.hide();
+    else tuner.show();
+  };
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() !== 'u' || e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
+    const shown = (el) => !!el && el.isConnected && (el.checkVisibility ? el.checkVisibility() : el.getClientRects().length > 0);
+    if (!shown(host)) return; // the tab view isn't showing
+    if (shown(document.querySelector('.highway'))) return; // the highway has its own tuner on U
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault();
+    toggleTuner();
+  });
   zOut.onclick = () => zoom(-1);
   zIn.onclick = () => zoom(1);
   optBtn.onclick = (e) => {
@@ -131,6 +152,8 @@ export function createTabView(host, stage) {
       r.right,
       r.bottom + 4,
       [
+        { label: tuner.el.hidden ? 'Tuner' : 'Hide the tuner', icon: 'tuning', hint: 'U', onClick: toggleTuner },
+        '-',
         { heading: true, label: 'Strings' },
         { label: 'Low E on top', icon: 'tuning', hint: check(prefs.lowTop), onClick: () => setPref('lowTop', true) },
         { label: 'High e on top (standard tab)', icon: 'tuning', hint: check(!prefs.lowTop), onClick: () => setPref('lowTop', false) },
