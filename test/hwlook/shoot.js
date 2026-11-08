@@ -175,21 +175,47 @@ const srv = http.createServer((req, res) => {
         const { tuningGuide } = await import('/js/tuning-check.js');
         localStorage.removeItem('stagehand.myTuning');
         window.__pitch = 3900 - 60 + 100;
-        rig.pitch = () => { const c = window.__pitch; const midi = Math.round(c / 100); return { hz: 440 * 2 ** ((c - 6900) / 1200), midi, cents: c - midi * 100, clarity: 0.97 }; };
+        rig.pitch = () => { const c = window.__pitch; if (c == null) return null; const midi = Math.round(c / 100); return { hz: 440 * 2 ** ((c - 6900) / 1200), midi, cents: c - midi * 100, clarity: 0.97 }; };
         tuningGuide({ tuning: [-2, 0, 0, 0, 0, 0], cents: -60, type: 'lead' }, { id: 's1', title: 'Scene T' });
       });
-      await page.waitForTimeout(600);
+      await page.waitForTimeout(900);
       await page.screenshot({ path: path.join(out, 'tcheck-1.png') });
+      // string 6 right, string 5 four cents off (must NOT tick), string 4 right, then string 6 played
+      // again 9 cents out (loses its tick), then right again (ticks again)
       const r = await page.evaluate(async () => {
-        window.__pitch = 3800 - 60 + 2;
-        await new Promise((r) => setTimeout(r, 1200));
-        const row = [...document.querySelectorAll('.tcheck-row')].find((x) => x.querySelector('.tcheck-num').textContent === '6');
-        return { done: row.classList.contains('done'), state: row.querySelector('.tcheck-state').textContent, rows: document.querySelectorAll('.tcheck-row').length, ref: (document.querySelector('.tcheck-ref') || {}).textContent };
+        const wait = (ms) => new Promise((x) => setTimeout(x, ms));
+        const get = (n) => [...document.querySelectorAll('.tcheck-row')].find((x) => x.querySelector('.tcheck-num').textContent === String(n));
+        const play = async (n, midi, off, ms) => { window.__pitch = null; await wait(350); window.__pitch = midi * 100 - 60 + off; await wait(ms); return get(n); };
+        const out = {};
+        let row = await play(6, 38, 2, 1700);
+        out.six = row.classList.contains('done'); out.sixState0 = row.querySelector('.tcheck-state').textContent;
+        row = await play(5, 45, 4, 1700);
+        out.fiveTicked = row.classList.contains('done');
+        out.fiveState = row.querySelector('.tcheck-state').textContent;
+        out.fiveCents = row.querySelector('.tcheck-cents').textContent;
+        row = await play(4, 50, -1, 1700);
+        out.four = row.classList.contains('done');
+        row = await play(6, 38, 9, 1400);
+        out.sixSlipped = !row.classList.contains('done');
+        out.sixState = row.querySelector('.tcheck-state').textContent;
+        out.centre = get(1) && getComputedStyle(get(1).querySelector('.tcheck-meter')).backgroundImage.includes('gradient');
+        out.rows = document.querySelectorAll('.tcheck-row').length;
+        out.ref = (document.querySelector('.tcheck-ref') || {}).textContent;
+        window.__shot = true;
+        return out;
       });
       await page.screenshot({ path: path.join(out, 'tcheck-2.png') });
-      console.log('TCHECK', JSON.stringify(r));
+      const r2 = await page.evaluate(async () => {
+        const row = [...document.querySelectorAll('.tcheck-row')].find((x) => x.querySelector('.tcheck-num').textContent === '6');
+        window.__pitch = null; await new Promise((x) => setTimeout(x, 350));
+        window.__pitch = 3800 - 60 + 1;
+        await new Promise((x) => setTimeout(x, 1700));
+        return row.classList.contains('done');
+      });
+      r.done = r.six && /Slipped/.test(r.sixState) && !r.fiveTicked && r.four && r.sixSlipped && r.centre && r2;
+      console.log('TCHECK', JSON.stringify({ ...r, retickedAfterSlip: r2 }));
       if (!r.done || r.rows !== 6 || !/425/.test(r.ref || '')) throw new Error('tuning check card: ' + JSON.stringify(r));
-      console.log('PASS the tuning check card lists every string, the reference pitch, and ticks a string tuned by ear');
+      console.log('PASS the tuning check card: a centre line on every string, 3 cents to tick, 4 cents off does not tick, a ticked string played out loses its tick');
       continue;
     }
     await page.waitForTimeout(play === 'p' ? 2600 : 2200);

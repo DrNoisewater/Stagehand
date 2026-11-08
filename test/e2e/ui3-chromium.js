@@ -431,6 +431,41 @@ class FakePortMain extends EventEmitter {
     await shot('listpos');
     await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
   }
+  if (process.env.SH_TUNER_FLOAT) {
+    // 4.1.9: the Tuner in the menu and U open a floating tuner on any page; never two on the highway
+    const vis = () => page.locator('.tn-float').isVisible();
+    await page.evaluate(async () => (await import('./js/store.js')).setPage('tones'));
+    await page.waitForTimeout(400);
+    check(await page.locator('.nav-section:has-text("Tuner")').count() === 1, 'Tuner is in the menu');
+    check(!(await vis()), 'tuner window starts closed');
+    await page.locator('.nav-section:has-text("Tuner")').click();
+    await page.waitForTimeout(400);
+    check(await vis(), 'the Tuner menu entry opens the tuner window on the Tones page');
+    await page.evaluate(() => document.querySelectorAll('.toasts, .toast-stack').forEach((x) => (x.style.display = 'none')));
+    await shot('tuner-float-tones');
+    await page.keyboard.press('u');
+    check(!(await vis()), 'U closes it');
+    await page.keyboard.press('u');
+    check(await vis(), 'U opens it on any page');
+    await page.keyboard.press('u');
+    await page.evaluate(async () => (await import('./js/store.js')).setPage('songs'));
+    await page.waitForTimeout(300);
+    await page.locator('#search, .searchbox input, input[type=search]').first().focus();
+    await page.keyboard.type('u');
+    check(!(await vis()), 'typing u in a text box does not open the tuner');
+    await page.evaluate(() => document.activeElement.blur());
+    await page.keyboard.press('u');
+    check(await vis(), 'on the Songs page too');
+    await shot('tuner-float-songs');
+    await page.evaluate(async () => { const { state } = await import('./js/store.js'); const a = await import('./js/actions.js'); await a.playAlong([...state.songs.values()][0].id).catch(() => {}); });
+    await page.waitForTimeout(1500);
+    check(!(await vis()), 'opening the highway closes the floating tuner');
+    await page.keyboard.press('u');
+    await page.waitForTimeout(300);
+    check((await page.locator('.hw-mini-tuner').isVisible()) && !(await vis()), 'on the highway U opens the highway tuner only');
+    await shot('tuner-float-highway');
+    await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
+  }
   if(process.env.SH_PICTURES311){
     await shot('311-jam');
     await page.getByRole('button',{name:'Open visualizer',exact:true}).click();
