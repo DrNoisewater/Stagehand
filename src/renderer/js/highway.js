@@ -2042,45 +2042,47 @@ export function createHighway(stage) {
       solid.box(x - 0.03, x + 0.03, -0.2, G.yTop + 0.32, -0.1, -0.03, col('#fff6ee', Math.min(1, k * 1.1), 1 + 1.2 * k));
       glow.up(x - 0.16, x + 0.16, -0.2, G.yTop + 0.32, -0.105, col('#ff7a9a', 0.32 * k, 1.2), col('#ff9a6a', 0.12 * k));
     }
-    // the chord's box at the neck (as in Rocksmith): a rectangle as wide as the chord's hand
-    // position and as tall as the neck, from under the bottom string to above the top one,
-    // with thick glowing cyan edges and bright corners, lit faintly inside
+    // the chord's box at the neck (as in Rocksmith): a rectangle as wide as the chord's frame,
+    // from under the bottom string to just above the top one. Thin neon lines with a soft
+    // glow (4.2.1c, user: "a little closer, and soften it"): cyan along the top and bottom,
+    // pink-white posts for the sides, small bright top corners, hardly lit inside.
     if (frame) {
       const [xa, xb] = frame.box;
       const k = frame.k;
       const hot = frame.flash;
-      const y0 = -0.2;
-      const y1 = G.yTop + 0.38;
+      const y0 = Math.max(-0.2, nY(0) - G.gy * 0.7);
+      const y1 = nY(G.n - 1) + G.gy * 0.6;
       const z = -0.06;
-      const w = 0.05 + 0.02 * hot;
-      const edge = mix(RAIL, '#ffffff', 0.12 * hot, Math.min(1, 0.3 + k), 0.9 + 0.9 * k);
-      // the four edges, solid so they read even where the glow is faint
-      solid.box(xa - w, xa + w, y0, y1 + w, z - w, z + w, edge);
-      solid.box(xb - w, xb + w, y0, y1 + w, z - w, z + w, edge);
-      solid.box(xa - w, xb + w, y1 - w, y1 + w, z - w, z + w, edge);
-      solid.box(xa - w, xb + w, y0 - w, y0 + w, z - w, z + w, edge);
-      // a soft halo fading outward from each edge, wider and brighter as it lands
-      const R = 0.2 + 0.14 * hot;
-      const gc = railCol(Math.min(0.55, 0.22 * k + 0.25 * hot), 1.2);
+      const zg = z - 0.004;
+      const lit = Math.min(1, 0.55 * k + 0.35 * hot);
       const g0 = railCol(0);
-      const zg = z - 0.005;
-      for (const x of [xa, xb]) {
-        glow.quad([x - R, y0, zg], [x, y0, zg], [x, y1, zg], [x - R, y1, zg], g0, gc, gc, g0);
-        glow.quad([x, y0, zg], [x + R, y0, zg], [x + R, y1, zg], [x, y1, zg], gc, g0, g0, gc);
-      }
+      // top and bottom: a thin bright core and a soft glow fading away from it
+      const core = mix(RAIL, '#ffffff', 0.08 + 0.15 * hot, Math.min(1, 0.3 + lit), 0.9 + 0.5 * lit);
+      const th = 0.028; // line half-width
+      const R = 0.2 + 0.08 * hot;
+      const gc = railCol(0.3 * lit, 1.1);
       for (const y of [y0, y1]) {
-        glow.quad([xa, y - R, zg], [xb, y - R, zg], [xb, y, zg], [xa, y, zg], g0, g0, gc, gc);
-        glow.quad([xa, y, zg], [xb, y, zg], [xb, y + R, zg], [xa, y + R, zg], gc, gc, g0, g0);
+        glow.up(xa - th, xb + th, y - th, y + th, zg - 0.002, core);
+        glow.quad([xa - R * 0.4, y - R, zg], [xb + R * 0.4, y - R, zg], [xb + R * 0.4, y, zg], [xa - R * 0.4, y, zg], g0, g0, gc, gc);
+        glow.quad([xa - R * 0.4, y, zg], [xb + R * 0.4, y, zg], [xb + R * 0.4, y + R, zg], [xa - R * 0.4, y + R, zg], gc, gc, g0, g0);
       }
-      // brighter top corners, a soft spot on each
-      const cR = 0.16 + 0.1 * hot;
-      const cc = mix(RAIL, '#ffffff', 0.35, Math.min(0.8, 0.2 * k + 0.45 * hot), 1.5);
+      // the sides: pink-white posts with a soft pink glow, cyan where they meet the top
+      const pc = col('#ffe6f2', Math.min(1, 0.25 + lit), 0.9 + 0.5 * lit);
+      const pg = col('#ff6ec4', 0.28 * lit, 1.1);
+      const p0 = col('#ff6ec4', 0);
+      const Rs = 0.16 + 0.06 * hot;
       for (const x of [xa, xb]) {
-        glow.quad([x - cR, y1, zg - 0.003], [x + cR, y1, zg - 0.003], [x + cR, y1 + cR, zg - 0.003], [x - cR, y1 + cR, zg - 0.003], cc, cc, g0, g0);
+        glow.up(x - th, x + th, y0, y1, zg - 0.002, pc);
+        glow.quad([x - Rs, y0, zg], [x, y0, zg], [x, y1, zg], [x - Rs, y1, zg], p0, pg, pg, p0);
+        glow.quad([x, y0, zg], [x + Rs, y0, zg], [x + Rs, y1, zg], [x, y1, zg], pg, p0, p0, pg);
+        // a small bright corner where the side meets the top
+        const cR = 0.11 + 0.05 * hot;
+        const cc = mix(RAIL, '#ffffff', 0.4, Math.min(0.9, 0.35 * lit + 0.3 * hot), 1.4);
         glow.quad([x - cR, y1 - cR, zg - 0.003], [x + cR, y1 - cR, zg - 0.003], [x + cR, y1, zg - 0.003], [x - cR, y1, zg - 0.003], g0, g0, cc, cc);
+        glow.quad([x - cR, y1, zg - 0.003], [x + cR, y1, zg - 0.003], [x + cR, y1 + cR, zg - 0.003], [x - cR, y1 + cR, zg - 0.003], cc, cc, g0, g0);
       }
-      // faintly lit inside, more as the chord lands
-      alpha.up(xa, xb, y0, y1, z + 0.02, railCol(0.04 + 0.05 * k + 0.08 * hot), railCol(0.02 + 0.03 * k + 0.05 * hot));
+      // only a breath of light inside, a little more as it lands
+      alpha.up(xa, xb, y0, y1, z + 0.02, railCol(0.015 + 0.04 * hot), railCol(0.01 + 0.02 * hot));
     }
   }
 
@@ -2414,6 +2416,13 @@ export function createHighway(stage) {
     const accent = tg.notes.some((x) => x.accent);
     const ec = missed ? col('#6e748c', 0.9) : railCol(1, 0.85 + 2 * flare);
     const w = 0.04;
+    // 4.2.1c: at the neck the box there takes over; drawing this frame too showed a second,
+    // smaller box inside it. Its notes still land.
+    if (z < G.zs * 0.03 && !missed && !flare) {
+      if (tg.repeat) return;
+      for (const nt of tg.notes) buildGem(nt, z, an, missed, tg.kind === 'mute', true, [xa, xb], flare);
+      return;
+    }
     // smoked glass inside, the top face, and a dimmer back frame for depth
     alpha.up(xa, xb, 0, yT, z, missed ? col('#3a3e4c', 0.3) : col('#0b2a36', 0.42), missed ? col('#3a3e4c', 0.3) : col('#103a48', 0.42));
     alpha.flat(xa, xb, z, z + DZ, yT, missed ? col('#5a6078', 0.25) : col('#0e3646', 0.6));
