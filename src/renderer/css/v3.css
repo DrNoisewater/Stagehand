@@ -1534,3 +1534,47 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .tw-foot .tw-tag { align-self: flex-start; }
 .tw-get { display: block; width: 100%; box-sizing: border-box; text-align: center; padding: 6px 10px; border-radius: 8px; background: var(--tungsten); border-color: var(--tungsten); color: var(--tungsten-ink, #2a1c05); font-weight: 700; font-size: 12.5px; }
 .tw-get:hover { background: var(--tungsten-hi); }
+
+/* 4.1.9 Create tone: the pedal board (pedals, the amp, pedals after it) */
+.pb-chain { display: flex; align-items: stretch; gap: 8px; padding: 12px; border-radius: 12px; background: radial-gradient(ellipse at 50% 100%, rgba(255, 181, 71, 0.08), transparent 70%), var(--deck-2); overflow-x: auto; }
+.pb-end { flex: none; align-self: center; writing-mode: vertical-rl; transform: rotate(180deg); color: var(--ink-3); font-size: 11.5px; letter-spacing: 0.04em; }
+.pb-pedal { flex: none; width: 172px; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; border: 1px solid var(--rule); background: var(--deck-1, #141927); }
+.pb-pedal.off { opacity: 0.55; }
+.pb-top { display: flex; gap: 8px; align-items: flex-start; }
+.pb-art { flex: none; width: 34px; height: 52px; }
+.pb-art .gear-art { width: 100%; height: 100%; }
+.pb-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pb-name b { color: var(--ink); font-size: 13px; }
+.pb-name span { color: var(--ink-3); font-size: 11px; line-height: 1.35; }
+.pb-knobs { display: flex; flex-wrap: wrap; gap: 6px 10px; justify-content: center; }
+.pb-knobs .rknob { transform: scale(0.88); transform-origin: top center; margin-bottom: -6px; }
+.pb-tools { display: flex; align-items: center; gap: 4px; margin-top: auto; }
+.pb-led { width: 26px; height: 22px; border-radius: 6px; border: 1px solid var(--rule); background: transparent; position: relative; cursor: pointer; }
+.pb-led::after { content: ''; position: absolute; inset: 0; margin: auto; width: 9px; height: 9px; border-radius: 50%; background: #3a4260; }
+.pb-led[aria-pressed='true']::after { background: #ff4b55; box-shadow: 0 0 9px #ff4b55; }
+.pb-move { width: 26px; height: 22px; border-radius: 6px; border: 1px solid var(--rule); background: transparent; color: var(--ink-2); font-size: 15px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.pb-move:hover { color: var(--ink); border-color: var(--riser-2); }
+.pb-move .i { width: 13px; height: 13px; }
+.pb-del:hover { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.5); }
+.pb-amp { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 92px; color: var(--ink-3); font-size: 11px; }
+.pb-amp-art { width: 86px; height: 62px; display: flex; align-items: flex-end; justify-content: center; }
+.pb-amp-art .gear-art { width: auto; height: 100%; max-width: 100%; }
+.pb-add { flex: none; align-self: center; display: inline-flex; flex-direction: column; align-items: center; gap: 6px; width: 96px; padding: 16px 8px; border-radius: 10px; border: 1px dashed var(--tungsten-line); background: transparent; color: var(--tungsten-hi); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.pb-add:hover, .pb-add[aria-expanded='true'] { background: var(--tungsten-soft); }
+.pb-add .i { width: 18px; height: 18px; }
+.pb .fine { color: var(--ink-3); font-size: 12px; margin: 8px 0 0; }
+.pb-pick { margin-top: 10px; padding: 4px 12px 12px; border-radius: 12px; border: 1px solid var(--rule-soft); background: var(--deck-2); }
+.pb-pick h5 { margin: 12px 0 6px; font-size: 12px; color: var(--ink-3); font-weight: 600; letter-spacing: 0.02em; }
+.pb-pick-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+.pb-choice { display: grid; grid-template-columns: 30px minmax(0, 1fr); grid-template-rows: auto auto auto; column-gap: 10px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--rule); background: transparent; color: var(--ink-3); font: inherit; text-align: left; cursor: pointer; }
+.pb-choice:hover { border-color: var(--tungsten-line); background: var(--tungsten-soft); }
+.pb-choice .pb-art { grid-row: span 3; width: 30px; height: 46px; }
+.pb-choice b { color: var(--ink); font-size: 13px; }
+.pb-choice span { font-size: 11.5px; line-height: 1.35; }
+.pb-choice small { font-size: 10.5px; color: var(--ink-3); opacity: 0.8; }
+/* the noise gate switch */
+.gate-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.gate-ctl .gate-name { color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.gate-ctl .gate-what { flex-basis: 100%; color: var(--ink-3); font-size: 12px; }
+.gate-ctl.compact .gate-name { font-weight: 500; font-size: 12px; color: var(--ink-3); }
+.gate-ctl.compact .seg button { height: 22px; padding: 0 8px; font-size: 12px; }

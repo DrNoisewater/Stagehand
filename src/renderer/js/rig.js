@@ -72,6 +72,8 @@ export const TUNINGS = [
 
 const DEFAULT_KNOBS = { input: 0.5, bass: 0.5, mid: 0.5, treble: 0.5, fx: 0.5, volume: 0.7 };
 const NOTE = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+// the engine's gate setting: 0 = auto, + = stronger (dB), -30 or lower = off
+export const GATE_MODES = { auto: 0, strong: 8, off: -40 };
 export const P = { input: 0, volume: 1, gain: 2, bass: 3, mid: 4, treble: 5, fx: 6, gate: 7, bypass: 8, drop: 9, room: 10 };
 const SLOTS = 8;
 
@@ -474,6 +476,9 @@ export class Rig extends EventTarget {
     const d = load('stagehand.drop', {});
     this.drop = { on: !!d.on, st: Math.max(1, Math.min(12, Number(d.st) || 1)), match: !!d.match };
     this.room = Number.isFinite(Number(d.room)) && d.room !== undefined ? Number(d.room) : 0.5;
+    // Noise gate in front of every tone (yours, the song's, imported): auto | strong | off
+    const gate = load('stagehand.gate', 'auto');
+    this.gate = Object.hasOwn(GATE_MODES, gate) ? gate : 'auto';
     this.dropSong = 0; // semitones the open song is tuned down (for "match the song")
     this.on = false;
     this.mode = 'preset';
@@ -1158,10 +1163,22 @@ export class Rig extends EventTarget {
     this.setDrop({});
   }
 
+  /** The noise gate: 'auto' (follows your guitar's own hum and hiss), 'strong' or 'off'. */
+  setGate(mode) {
+    if (!Object.hasOwn(GATE_MODES, mode)) return;
+    this.gate = mode;
+    try {
+      localStorage.setItem('stagehand.gate', JSON.stringify(mode));
+    } catch (_) {}
+    this._sendDrop();
+    this.dispatchEvent(new Event('gate'));
+  }
+
   _sendDrop() {
     if (this.backend) {
       this.backend.param(P.drop, this.dropAmount());
       this.backend.param(P.room, this.room);
+      this.backend.param(P.gate, GATE_MODES[this.gate] ?? 0);
     }
     this.dispatchEvent(new Event('drop'));
   }

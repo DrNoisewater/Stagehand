@@ -7,8 +7,9 @@
  *   3. The amp: every real amp (NAM captures from TONE3000), not only the ones
  *      your songs use, with "Get every real amp" in one go
  *   4. The cabinet: every cabinet file Stagehand has, or your own
- *   5. Dial it in: gain, bass, mid, treble, effects
- *   6. Name it and put it on a key
+ *   5. Pedals (4.1.9): add, remove, move and tweak them, and the noise gate
+ *   6. Dial it in: gain, bass, mid, treble, reverb
+ *   7. Name it and put it on a key
  *
  * User: "What about somebody who doesn't have very many songs? They'd only be
  * able to pull a few tones out. It should have all the neural networks and
@@ -18,147 +19,22 @@
 import { api } from './api.js';
 import { h, icon, esc, modal, toast } from './ui.js';
 import { rig } from './rig.js';
-import { loadGear, gearInfo } from './gearspec.js';
+import { loadGear } from './gearspec.js';
 import { caps, loadCaptures, realAmpsOn, setRealAmps, packForCurated, resolveCapture } from './captures.js';
 import { getRealAmp, getAllRealAmps, batch } from './realamps.js';
 import { saveTone, useTone, bySlot, freeSlot, SLOT_COUNT, SLOT_GELS } from './tonelib.js';
 import { rotaryKnob } from './rigui.js';
 import { ampArt, cabArt, pedalArt, gearArt } from './gearart.js';
 
-const G = (slot, key, knobs = {}, order = 0) => ({ slot, key, knobs, order });
+import { AMPS, STYLES, CABS, PEDALS, ampKnob, buildTone, styleOf, fromStyle, freshChoices } from './tonerecipes.js';
+import { pedalBoard, gateControl } from './pedalboard.js';
 
-/** Every real amp, with the Rocksmith amp it plays as and a matching modelled cabinet. */
-export const AMPS = {
-  guitar: [
-    { pack: 'deluxe', key: 'Amp_TW22', cab: 'Cab_TW112C_57_Cone', name: 'Fender Deluxe Reverb', what: 'Sparkling clean' },
-    { pack: 'tweed', key: 'Amp_GibsonGA79', cab: 'Cab_TW112C_57_Cone', name: 'Fender Tweed Deluxe', what: 'Warm, breaks up early' },
-    { pack: 'ac30', key: 'Amp_AT120', cab: 'Cab_AT1121C_57_Cone', name: 'Vox AC30', what: 'Jangly, chimey' },
-    { pack: 'jtm45', key: 'Amp_MarshallJTM45', cab: 'Cab_Marshall1960a_57_Cone', name: 'Marshall JTM45', what: 'Bluesy, round' },
-    { pack: 'plexi', key: 'Amp_MarshallPlexi', cab: 'Cab_Marshall1960AX_57_Cone', name: 'Marshall Plexi', what: 'Classic rock' },
-    { pack: 'jcm800', key: 'Amp_MarshallJCM800', cab: 'Cab_Marshall1960AX_57_Cone', name: 'Marshall JCM800', what: 'Hard rock, punk' },
-    { pack: 'jvm', key: 'Amp_MarshallJVM410H', cab: 'Cab_Marshall1960AX_57_Cone', name: 'Marshall JVM410H', what: 'Modern rock' },
-    { pack: 'rockerverb', key: 'Amp_OrangeAD50', cab: 'Cab_OrangePPC412_57_Cone', name: 'Orange Rockerverb', what: 'Thick, stoner, grunge' },
-    { pack: '5150', key: 'Amp_HG180', cab: 'Cab_HG212C_57_Cone', name: 'Peavey 5150', what: 'High gain, lead' },
-    { pack: 'rectifier', key: 'Amp_CA100', cab: 'Cab_CA412C_57_Cone', name: 'Mesa Dual Rectifier', what: 'Tight, heavy metal' },
-  ],
-  bass: [
-    { pack: 'svt', key: 'Bass_Amp_BT600B', cab: 'Bass_Cab_AT810BC_57_Cone', name: 'Ampeg SVT', what: 'The classic: round, deep' },
-    { pack: 'eden', key: 'Bass_Amp_EdenWT800', cab: 'Bass_Cab_EdenD410XST_57_Cone', name: 'Eden WT', what: 'Clear, punchy, modern' },
-    { pack: 'ad200', key: 'Bass_Amp_OrangeAD200B', cab: 'Bass_Cab_OrangeOBC810_57_Cone', name: 'Orange AD200', what: 'Growl, rock' },
-    { pack: 'gk800', key: 'Bass_Amp_CH600B', cab: 'Bass_Cab_CH410BC_57_Cone', name: 'Gallien-Krueger 800RB', what: 'Bright, slap, funk' },
-  ],
-};
+export { AMPS, STYLES, CABS, PEDALS, buildTone };
 
-/** Starting sounds: an amp, where the knobs sit (0–1) and which effects are on. */
-export const STYLES = {
-  guitar: [
-    { id: 'clean', name: 'Clean', what: 'Pop, funk, soul, arpeggios', amp: 'deluxe', gain: 0.3, bass: 0.45, mid: 0.55, treble: 0.62, fx: { chorus: true }, reverb: 0.35 },
-    { id: 'jangle', name: 'Jangly', what: 'Indie, Britpop, strummed chords', amp: 'ac30', gain: 0.35, bass: 0.45, mid: 0.55, treble: 0.6, fx: {}, reverb: 0.3 },
-    { id: 'blues', name: 'Blues', what: 'Just breaking up when you dig in', amp: 'jtm45', gain: 0.55, bass: 0.5, mid: 0.6, treble: 0.55, fx: {}, reverb: 0.25 },
-    { id: 'classic', name: 'Classic rock', what: 'AC/DC, Zeppelin, Hendrix', amp: 'plexi', gain: 0.65, bass: 0.5, mid: 0.6, treble: 0.55, fx: {}, reverb: 0.15 },
-    { id: 'hard', name: 'Hard rock', what: 'Guns N’ Roses, punk, 80s', amp: 'jcm800', gain: 0.75, bass: 0.5, mid: 0.6, treble: 0.6, fx: { drive: true }, reverb: 0.1 },
-    { id: 'modern', name: 'Modern rock', what: 'Foo Fighters, Muse, alt rock', amp: 'jvm', gain: 0.7, bass: 0.55, mid: 0.55, treble: 0.58, fx: {}, reverb: 0.12 },
-    { id: 'grunge', name: 'Grunge & stoner', what: 'Nirvana, Black Sabbath, fuzz', amp: 'rockerverb', gain: 0.5, bass: 0.6, mid: 0.55, treble: 0.5, fx: { fuzz: true }, reverb: 0.1 },
-    { id: 'metal', name: 'Metal', what: 'Metallica, Slipknot, tight riffs', amp: 'rectifier', gain: 0.8, bass: 0.55, mid: 0.45, treble: 0.62, fx: { gate: true, drive: true }, reverb: 0 },
-    { id: 'lead', name: 'Lead', what: 'Solos: long sustain, a little echo', amp: '5150', gain: 0.85, bass: 0.5, mid: 0.6, treble: 0.55, fx: { delay: true }, reverb: 0.3 },
-  ],
-  bass: [
-    { id: 'round', name: 'Round & clean', what: 'Motown, pop, anything', amp: 'svt', gain: 0.2, bass: 0.6, mid: 0.5, treble: 0.45, fx: {}, reverb: 0 },
-    { id: 'punch', name: 'Punchy', what: 'Clear notes that cut through', amp: 'eden', gain: 0.35, bass: 0.55, mid: 0.6, treble: 0.55, fx: {}, reverb: 0 },
-    { id: 'growl', name: 'Growl', what: 'Rock, punk, a bit of dirt', amp: 'ad200', gain: 0.5, bass: 0.6, mid: 0.6, treble: 0.5, fx: { drive: true }, reverb: 0 },
-    { id: 'slap', name: 'Bright & slap', what: 'Funk, slap, metal bass', amp: 'gk800', gain: 0.3, bass: 0.55, mid: 0.45, treble: 0.65, fx: {}, reverb: 0 },
-  ],
-};
+const fresh = (kind) => freshChoices(kind, freeSlot());
+const applyStyle = (W, s) => Object.assign(W, fromStyle(W.kind, s));
 
-/** Stagehand's cabinet files (data/cabs/manifest.json), by kind. 'auto' = matched to the amp. */
-export const CABS = {
-  guitar: [
-    ['auto', 'Matched to the amp', 'Stagehand picks the cabinet that amp usually plays through'],
-    ['1x12_open', '1×12 open-back', 'Airy and open: cleans, blues'],
-    ['2x12_closed', '2×12 closed-back', 'Focused: jangle, crunch'],
-    ['4x12_slant', '4×12 slant', 'Big and bright: classic rock'],
-    ['4x12_straight', '4×12 straight', 'Deep and tight: hard rock, metal'],
-  ],
-  bass: [
-    ['auto', 'Matched to the amp', 'Stagehand picks the cabinet that amp usually plays through'],
-    ['bass-810', 'Ampeg SVT 8×10', 'Huge and deep'],
-    ['bass-410', 'EBS 4×10', 'Punchy and clear'],
-    ['bass-115', 'Ampeg B15 1×15', 'Warm, old-school thump'],
-    ['bass-215', 'Sunn 2×15', 'Big, loose and loud'],
-    ['bass-orange', 'Orange 8×10', 'Grind and growl'],
-  ],
-};
-
-const FX = {
-  guitar: [
-    ['gate', 'Noise gate', 'Quiet between notes (high gain)'],
-    ['drive', 'Drive pedal', 'More push into the amp'],
-    ['fuzz', 'Fuzz', 'Thick, woolly'],
-    ['chorus', 'Chorus', 'Shimmer and width'],
-    ['delay', 'Echo', 'A soft repeat'],
-  ],
-  bass: [['drive', 'Bass drive', 'Grit, blended with your clean sound']],
-};
-
-/** Knob spec ([name, key, min, max, def]) on an amp for gain / bass / mid / treble. */
-function ampKnob(key, what) {
-  const k = (gearInfo(key) && gearInfo(key).k) || [];
-  if (what === 'gain') return k.find(([n]) => /gain|pre ?amp|loudness|^vol|volume/i.test(n)) || null;
-  const re = { bass: /^bass$/i, mid: /^mid(dle)?$/i, treble: /^treble$/i }[what];
-  return k.find(([n]) => re.test(n)) || null;
-}
-const at = (spec, t) => (spec ? Math.round((spec[2] + (spec[3] - spec[2]) * t) * 10) / 10 : null);
-
-/** The tone the wizard's choices make (what you hear, and what gets saved). */
-export function buildTone(W) {
-  const amp = AMPS[W.kind].find((a) => a.pack === W.amp) || AMPS[W.kind][0];
-  const knobs = {};
-  for (const what of ['gain', 'bass', 'mid', 'treble']) {
-    const spec = ampKnob(amp.key, what);
-    if (spec) knobs[spec[1]] = at(spec, W[what]);
-  }
-  const gear = [];
-  let o = 0;
-  const fx = W.fx || {};
-  if (W.kind === 'bass') {
-    if (fx.drive) gear.push(G('pre', 'Bass_Pedal_BassOverdrive', { Gain: 35, Tone: 45, Blend: 45 }, o++));
-  } else {
-    if (fx.gate) gear.push(G('pre', 'Pedal_NoiseGate', { Threshold: -62, Rate: 85 }, o++));
-    if (fx.fuzz) gear.push(G('pre', 'Pedal_BuzzOne', { Gain: 70, Tone: 40 }, o++));
-    if (fx.drive) gear.push(G('pre', 'Pedal_SuperDrive', { Gain: 12, Tone: 58 }, o++));
-  }
-  gear.push(G('amp', amp.key, knobs, o++));
-  gear.push(G('cab', amp.cab, {}, o++));
-  if (W.kind !== 'bass') {
-    if (fx.chorus) gear.push(G('post', 'Pedal_Chorus20', { Rate: 0.8, Depth: 35, Mix: 30 }, o++));
-    if (fx.delay) gear.push(G('post', 'Pedal_AnalogueDelay', { Time: 380, Feedback: 25, Mix: 22 }, o++));
-  }
-  if (W.reverb > 0.02) gear.push(G('rack', 'Rack_StudioPlate', { Decay: 45, Diffusion: 80, Mix: Math.round(5 + W.reverb * 55), Tone: 55 }, o++));
-  return {
-    name: W.name || 'My tone',
-    kind: W.kind,
-    gear,
-    cabId: W.cab && W.cab !== 'auto' ? W.cab : null,
-    ir: W.ir || null,
-    autoCab: true,
-    capture: null,
-  };
-}
-
-function styleOf(kind, id) {
-  return STYLES[kind].find((s) => s.id === id) || STYLES[kind][0];
-}
-
-function fresh(kind) {
-  const s = STYLES[kind][0];
-  return { kind, style: s.id, amp: s.amp, gain: s.gain, bass: s.bass, mid: s.mid, treble: s.treble, fx: { ...s.fx }, reverb: s.reverb, cab: 'auto', ir: null, name: '', slot: freeSlot() };
-}
-
-function applyStyle(W, s) {
-  Object.assign(W, { style: s.id, amp: s.amp, gain: s.gain, bass: s.bass, mid: s.mid, treble: s.treble, fx: { ...s.fx }, reverb: s.reverb });
-}
-
-const STEPS = ['Guitar or bass', 'Starting sound', 'Amp', 'Cabinet', 'Dial it in', 'Name and save'];
+const STEPS = ['Guitar or bass', 'Starting sound', 'Amp', 'Cabinet', 'Pedals', 'Dial it in', 'Name and save'];
 
 let open = null;
 
@@ -263,7 +139,7 @@ export async function openToneWizard({ kind = null } = {}) {
     next.textContent = saved ? 'Done' : at === STEPS.length - 1 ? 'Save tone' : 'Next';
   }
 
-  const STEP_TITLE = ['Guitar or bass?', 'Pick a starting sound', 'Pick an amp', 'Pick a cabinet', 'Dial it in', 'Name it and put it on a key'];
+  const STEP_TITLE = ['Guitar or bass?', 'Pick a starting sound', 'Pick an amp', 'Pick a cabinet', 'Your pedals', 'Dial it in', 'Name it and put it on a key'];
   const card = (on, title, what, extra, onClick, art = '') => {
     const b = h(`button.tw-card${on ? '.on' : ''}${art ? '.has-art' : ''}`, { type: 'button', 'aria-pressed': String(!!on) }, art ? h('div.tw-art', { html: art }) : null, h('b', { text: title }), what ? h('span', { text: what }) : null, extra || null);
     b.onclick = onClick;
@@ -310,7 +186,7 @@ export async function openToneWizard({ kind = null } = {}) {
       for (const s of STYLES[W.kind]) {
         const a = AMPS[W.kind].find((x) => x.pack === s.amp);
         grid.append(
-          card(W.style === s.id, s.name, s.what, h('small', { text: a ? a.name : '' }), () => {
+          card(W.style === s.id, s.name, s.what, h('small', { text: [a ? a.name : '', ...[...s.pre, ...s.post].map((x) => (PEDALS[W.kind].find((q) => q.key === x.key) || {}).name)].filter(Boolean).join(' · ') }), () => {
             applyStyle(W, s);
             hear();
             draw();
@@ -405,7 +281,26 @@ export async function openToneWizard({ kind = null } = {}) {
       box.append(grid, h('p.fine', { text: 'Free cabinet files: TONE3000 has thousands (search “IR”). Download a .wav, then pick it here.' }));
       return box;
     },
-    // 5 dial it in
+    // 5 pedals
+    () => {
+      const box = h('div');
+      const amp = AMPS[W.kind].find((x) => x.pack === W.amp) || AMPS[W.kind][0];
+      box.append(p('Your sound goes left to right: from your ' + W.kind + ', through the pedals, the amp, and the pedals after it. Add a pedal, turn its knobs while you play, and move it with the arrows.'));
+      box.append(
+        pedalBoard({
+          kind: W.kind,
+          board: W.board,
+          ampKey: amp.key,
+          onChange: (b) => {
+            W.board = b;
+            hear();
+          },
+        })
+      );
+      box.append(h('h4', { text: 'Noise gate' }), p('Stagehand’s own gate sits in front of every tone you play, songs’ tones too. It keeps high-gain tones quiet between notes.'), gateControl());
+      return box;
+    },
+    // 6 dial it in
     () => {
       const box = h('div');
       box.append(rigRow(), p('Turn the knobs while you play (drag up and down, or use the arrow keys).'));
@@ -435,24 +330,10 @@ export async function openToneWizard({ kind = null } = {}) {
           })
         );
       }
-      box.append(knobs, h('h4', { text: 'Effects' }));
-      const fx = h('div.tw-fx');
-      const PEDAL_KEY = { gate: 'Pedal_NoiseGate', drive: W.kind === 'bass' ? 'Bass_Pedal_BassOverdrive' : 'Pedal_SuperDrive', fuzz: 'Pedal_BuzzOne', chorus: 'Pedal_Chorus20', delay: 'Pedal_AnalogueDelay' };
-      for (const [id, name, what] of FX[W.kind]) {
-        const b = h(`button.tw-switch${W.fx[id] ? '.on' : ''}`, { type: 'button', 'aria-pressed': String(!!W.fx[id]) }, h('div.tw-pedal', { html: pedalArt(PEDAL_KEY[id]) }), h('i.led'), h('b', { text: name }), h('span', { text: what }));
-        b.onclick = () => {
-          W.fx[id] = !W.fx[id];
-          if (id === 'fuzz' && W.fx.fuzz) W.fx.drive = false;
-          if (id === 'drive' && W.fx.drive) W.fx.fuzz = false;
-          hear();
-          draw();
-        };
-        fx.append(b);
-      }
-      box.append(fx);
+      box.append(knobs);
       return box;
     },
-    // 6 name and save
+    // 7 name and save
     () => {
       const box = h('div');
       if (saved) {
@@ -481,7 +362,8 @@ export async function openToneWizard({ kind = null } = {}) {
       const name = h('input.input.tw-name', { type: 'text', value: W.name, maxlength: '60', 'aria-label': 'Tone name', spellcheck: 'false' });
       name.oninput = () => (W.name = name.value);
       box.append(rigRow(), h('label.te-field', null, h('span', { text: 'Name' }), name));
-      box.append(h('p.fine', { text: `${a ? a.name : ''}${W.ir ? ' · your own cabinet' : W.cab !== 'auto' ? ` · ${(CABS[W.kind].find((c) => c[0] === W.cab) || [])[1] || ''}` : ''}${Object.keys(W.fx).filter((k) => W.fx[k]).length ? ` · ${FX[W.kind].filter(([id]) => W.fx[id]).map(([, n]) => n.toLowerCase()).join(', ')}` : ''}${W.reverb > 0.02 ? ' · reverb' : ''}` }));
+      const pedals = (W.board || []).filter((x) => !x.off).map((x) => (PEDALS[W.kind].find((q) => q.key === x.key) || {}).name).filter(Boolean);
+      box.append(h('p.fine', { text: `${a ? a.name : ''}${W.ir ? ' · your own cabinet' : W.cab !== 'auto' ? ` · ${(CABS[W.kind].find((c) => c[0] === W.cab) || [])[1] || ''}` : ''}${pedals.length ? ` · ${pedals.join(', ').toLowerCase()}` : ''}${W.reverb > 0.02 ? ' · reverb' : ''}` }));
       box.append(h('h4', { text: 'Put it on a key' }), p('Keys 2–9 switch tones while you play (key 1 is the song’s own tone).'));
       const keys = h('div.tw-keys');
       for (let n = 2; n <= SLOT_COUNT; n++) {
