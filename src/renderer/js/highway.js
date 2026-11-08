@@ -28,6 +28,7 @@ import { breakdown, cheer } from './scorecard.js';
 import { StruggleWatch, nearestPick } from './struggle.js';
 import { state, on } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
+import { openToneMenu } from './tonemenu.js';
 
 const STRING = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 const STRING_DARK = ['#7a1d27', '#7a5e12', '#164e80', '#7a4515', '#1c6a3c', '#55307f'];
@@ -806,53 +807,15 @@ export function createHighway(stage) {
     else rig.setTone(id);
     renderControls();
   }
-  toneBtn.onclick = () => {
-    const r = toneBtn.getBoundingClientRect();
-    const c = (on) => (on ? '✓' : '');
-    const song = rig.mode === 'song';
-    const kind = H.tab && H.tab.type === 'bass' ? 'bass' : 'guitar';
-    const items = [];
-    // what your amp is: the real one (a capture) or Stagehand's model, and the real one to get
-    const cap = rig.capture;
-    const sug = !cap && rig.tone ? suggestionFor(rig.tone) : null;
-    if (cap) {
-      const lbl = modelLabel(cap);
-      items.push({ heading: true, label: `REAL amp · ${cap.pack.title}${lbl ? ` · ${lbl}` : ''}` }, '-');
-    } else if (sug) {
-      items.push({ heading: true, label: 'Modelled amp' }, { label: `Get the real ${sug.def.title}`, icon: 'download', onClick: () => getRealAmp(sug.key, null) }, '-');
-    }
-    if (H.tab && H.tab.songTones) {
-      const cur = songToneAt(stage.engine.position);
-      items.push({ heading: true, label: 'This song' }, { label: `Song tone${cur ? ` (${cur.name})` : ''}`, hint: c(song || followsSong()), onClick: () => chooseTone('song') }, '-');
-    }
-    const on = (id) => c(!song && !followsSong() && rig.toneId === id);
-    // your slots first (same as keys 1–9), then your other saved tones, then the presets
-    const mine = tonelib.list || [];
-    const slots = mine.filter((t) => t.slot).sort((a, b) => a.slot - b.slot);
-    if (slots.length) {
-      items.push({ heading: true, label: 'Your slots (keys 1–9)' });
-      for (const t of slots) items.push({ label: `${t.slot}  ${t.name}`, hint: on(t.id), onClick: () => chooseTone(t.id) });
-      items.push('-');
-    }
-    const others = mine.filter((t) => !t.slot && !TONES.some((p) => p.id === t.id));
-    if (others.length) {
-      items.push({ heading: true, label: 'Your tones' });
-      for (const t of [...others.filter((x) => x.kind === kind), ...others.filter((x) => x.kind !== kind)]) items.push({ label: t.name, hint: on(t.id), onClick: () => chooseTone(t.id) });
-      items.push('-');
-    }
-    items.push({ heading: true, label: 'Presets' });
-    for (const t of [...TONES.filter((x) => x.kind === kind), ...TONES.filter((x) => x.kind !== kind)]) items.push({ label: t.name, hint: on(t.id), onClick: () => chooseTone(t.id) });
-    // 4.1.7: make a new one without leaving the song (it pauses while you build it)
-    items.push('-', {
-      label: 'Create a tone…',
-      icon: 'plus',
-      onClick: () => {
-        if (stage.engine.playing) stage.toggle();
-        import('./tonewizard.js').then((w) => w.openToneWizard({ kind }));
-      },
+  // 4.1.9: the tone menu is its own module (tonemenu.js): keys 1–9, the song's tones, search
+  toneBtn.onclick = () =>
+    openToneMenu(toneBtn, {
+      kind: H.tab && H.tab.type === 'bass' ? 'bass' : 'guitar',
+      songTones: () => (H.tab && H.tab.songTones) || null,
+      songToneNow: () => songToneAt(stage.engine.position),
+      chooseTone,
+      pause: () => stage.engine.playing && stage.toggle(),
     });
-    showMenu(r.right, r.bottom + 6, items, { align: 'right' });
-  };
 
   // --------------------------------------------------------------- mix --
   function setMixOpen(on) {

@@ -34,11 +34,17 @@ export function slotChangeText(ch) {
   return ch.replaces ? `Put “${ch.tone.name}” on key ${ch.slot}? It replaces “${ch.replaces.name}”, which stays in your tones.` : `Put “${ch.tone.name}” on key ${ch.slot}?`;
 }
 
+// "Gain" and "Amp_CA100_Gain" are the same knob (the editor writes the long name)
+const knobPrint = (g) => {
+  const m = new Map();
+  for (const [k, v] of Object.entries(g.knobs || {})) m.set((String(k).startsWith(`${g.key}_`) ? String(k).slice(g.key.length + 1) : String(k)).toLowerCase(), Math.round(Number(v) * 1000) / 1000);
+  return [...m].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+};
 const print = (tone) =>
   JSON.stringify([
     tone && tone.kind,
     ((tone && tone.gear) || [])
-      .map((g) => [g.slot, g.key, !!g.bypass, g.order || 0, Object.entries(g.knobs || {}).map(([k, v]) => [k, Math.round(Number(v) * 1000) / 1000]).sort((a, b) => (a[0] < b[0] ? -1 : 1))])
+      .map((g) => [g.slot, g.key, !!g.bypass, g.order || 0, knobPrint(g)])
       .sort((a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1)),
     (tone && tone.cabId) || null,
     (tone && tone.ir) || null,

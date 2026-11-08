@@ -109,6 +109,7 @@ ok('an edit is a change until it is saved; turning a knob back is not', () => {
   assert.equal(K.isChanged(saved, same), false);
   assert.equal(K.isChanged(saved, { ...saved, gear: [G('amp', 'Amp_CA100', { Gain: 9 }), saved.gear[1]] }), true);
   assert.equal(K.isChanged(saved, { ...saved, name: 'Thrash 2' }), true);
+  assert.equal(K.isChanged(saved, { ...saved, gear: [G('amp', 'Amp_CA100', { Gain: 8, Amp_CA100_Gain: 8 }), saved.gear[1]] }), false, 'the long knob name is the same knob');
   assert.equal(K.isChanged(saved, { ...saved, gear: [saved.gear[0], { ...saved.gear[1], bypass: true }] }), true);
 });
 
