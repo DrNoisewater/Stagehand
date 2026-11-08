@@ -375,6 +375,205 @@ class FakePortMain extends EventEmitter {
   await page.goto(`${base}/src/renderer/index.html`);
   await page.waitForTimeout(3500);
   const shot = (n) => process.env.SH_NO_PICS?Promise.resolve():(console.log('SHOT', n), page.screenshot({ path: path.join(outDir, `v3-${n}.png`) }));
+  // 4.1.9: Tones: keys on top (a click picks, never assigns), your tones, find a tone; edits are a draft
+  const slotsNow = () => page.evaluate(async () => { const { tonelib } = await import('/src/renderer/js/tonelib.js'); return JSON.stringify(tonelib.list.map((t) => [t.id, t.slot || null]).sort()); });
+  const tonesOverhaul = async () => {
+    for (let i = 0; i < 3 && (await page.locator('.modal').count()); i++) {
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+    }
+    await page.locator('.nav-section:has-text("Tones")').click();
+    await page.waitForTimeout(1000);
+    check((await page.locator('.tk-keys .tk-card').count()) === 9, 'Tones shows your keys 1–9 at the top');
+    check((await page.locator('.tones-sec.mine').count()) === 1 && (await page.locator('.tones-sec.find').count()) === 1, 'then your tones, then Find a tone');
+    check((await page.locator('.tones-list .gate-ctl .seg button').count()) === 3, 'the noise gate switch (Auto / Strong / Off) is on Tones');
+    // clicking a key that holds a tone only picks it
+    let s0 = await slotsNow();
+    const filled = page.locator('.tk-card:not(.vacant):not(.k1)');
+    if (await filled.count()) {
+      await filled.first().click();
+      await page.waitForTimeout(600);
+      check((await slotsNow()) === s0, 'clicking a key picks its tone and never changes the key');
+      check((await page.locator('.tk-card.on').count()) === 1 && (await page.locator('.modal').count()) === 0, 'the key is lit, nothing asked');
+      await shot('50-tones-keys');
+    }
+    // presets: pick one, ↓ moves on
+    await page.locator('.tones-tabs button:has-text("Presets")').click();
+    await page.waitForTimeout(500);
+    await page.locator('.find-items .tone-item .ti-main').first().click();
+    await page.waitForTimeout(400);
+    const before = await page.locator('.find-items .tone-item.on b').first().textContent();
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(500);
+    const after = await page.locator('.find-items .tone-item.on b').first().textContent();
+    check(before !== after, `↓ moves to the next tone (${before} → ${after})`);
+    check((await slotsNow()) === s0, 'moving through the list changes no key');
+    // putting it on a key that holds a tone asks first; Cancel leaves it; Undo puts it back
+    const taken = page.locator('.tones-edit .ts-key:not(.vacant):not(.here)');
+    if (await taken.count()) {
+      await taken.first().click();
+      await page.waitForTimeout(400);
+      check((await page.locator('.modal:has-text("It replaces")').count()) === 1, `putting ${after} on a key that holds a tone asks first, and says what it replaces`);
+      await shot('51-tones-replace-ask');
+      await page.locator('.modal button:has-text("Cancel")').click();
+      await page.waitForTimeout(400);
+      check((await slotsNow()) === s0, 'Cancel leaves the key as it was');
+      await taken.first().click();
+      await page.waitForTimeout(400);
+      await page.locator('.modal button:has-text("Put on key")').click();
+      await page.waitForTimeout(1000);
+      const s1 = await slotsNow();
+      check(s1 !== s0 && (await page.locator('.toast button:has-text("Undo")').count()) >= 1, 'Put on key puts it there, with Undo');
+      await page.locator('.toast button:has-text("Undo")').last().click();
+      await page.waitForTimeout(1200);
+      const s2 = JSON.parse(await slotsNow()).filter(([id]) => JSON.parse(s0).some(([x]) => x === id));
+      check(JSON.stringify(s2) === s0 && JSON.parse(await slotsNow()).length === JSON.parse(s0).length, 'Undo puts every key back (and the copy it made is gone)');
+    }
+    // an empty key: no question, but Undo
+    const empty = page.locator('.tones-edit .ts-key.vacant');
+    if (await empty.count()) {
+      s0 = await slotsNow();
+      await empty.first().click();
+      await page.waitForTimeout(1000);
+      check((await page.locator('.modal').count()) === 0 && (await slotsNow()) !== s0, 'an empty key takes the tone straight away');
+      await page.locator('.toast button:has-text("Undo")').last().click();
+      await page.waitForTimeout(1200);
+    }
+    // edits: heard live, marked unsaved, Revert goes back; leaving goes back too
+    const mineRow = page.locator('.mine-items .tone-item .ti-main').first();
+    if (await mineRow.count()) {
+      await mineRow.click();
+      await page.waitForTimeout(600);
+      if (!(await page.locator('.tones-edit .knobs3').count())) await page.locator('.tones-edit button:has-text("Edit tone")').click();
+      await page.waitForTimeout(500);
+      const id = await page.evaluate(() => window.__rig.toneId);
+      const knob = page.locator('.tones-edit .knobs3 .rknob').first();
+      await knob.focus();
+      for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowUp');
+      await page.waitForTimeout(600);
+      check(!(await page.locator('.te-dirty').isHidden()) && (await page.evaluate(() => window.__rig.mode)) === 'live', 'a knob turn is heard live and marked not saved');
+      check((await page.locator('.te-revert').isVisible()) && (await page.locator('.te-save').textContent()) === 'Save changes', 'with Save changes and Revert');
+      await shot('52-tones-unsaved');
+      await page.locator('.te-revert').click();
+      await page.waitForTimeout(600);
+      check((await page.locator('.te-dirty').isHidden()) && (await page.evaluate(() => window.__rig.mode)) === 'preset', 'Revert goes back to the saved tone (and you hear it)');
+      await page.locator('.tones-edit .knobs3 .rknob').first().focus();
+      for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowUp');
+      await page.waitForTimeout(500);
+      await page.locator('.nav-section:has-text("Jam")').first().click();
+      await page.waitForTimeout(600);
+      const back = await page.evaluate(() => ({ mode: window.__rig.mode, id: window.__rig.toneId }));
+      check(back.mode === 'preset' && back.id === id && (await page.locator('.toast:has-text("weren’t saved")').count()) >= 1, `leaving Tones without saving goes back to the saved tone (${back.mode})`);
+      await page.locator('.nav-section:has-text("Tones")').click();
+      await page.waitForTimeout(600);
+      check(await page.locator('.te-dirty').isHidden(), 'and Tones shows the saved tone again');
+    }
+    // song tones: one row per tone, described, grouped, filtered
+    await page.locator('.tones-tabs button:has-text("In my songs")').click();
+    await page.waitForTimeout(2500);
+    const rows = await page.locator('.find-items .tone-item').count();
+    const sub = (await page.locator('.find-items .tone-item .ti-main span').first().textContent().catch(() => '')) || '';
+    check(rows > 0 && /^(Clean|Crunch|High gain|Lead|Clean bass|Driven bass|Bass lead)( · |$)/.test(sub), `song tones are described by their sound and gear (“${sub}”)`);
+    check(/different tones/.test((await page.locator('.tones-count').textContent().catch(() => '')) || ''), 'and counted once each');
+    await shot('53-tones-songs');
+    await page.locator('.tones-filters .seg button:has-text("Bass")').click();
+    await page.waitForTimeout(400);
+    const bassSubs = await page.locator('.find-items .tone-item .ti-main span').allTextContents();
+    check(bassSubs.every((t) => /bass/i.test(t)), `the Bass filter shows bass tones only (${bassSubs.length})`);
+    await page.locator('.tones-filters .seg button:has-text("All")').first().click();
+    await page.locator('.tones-filters .seg button:has-text("By artist")').click();
+    await page.waitForTimeout(400);
+    check((await page.locator('.find-items .tones-group small').first().textContent().catch(() => '')).match(/song/), 'grouped by artist, with how many songs');
+    await page.locator('.tones-filters .seg button:has-text("By song")').click();
+    await page.locator('.tones-find').fill('zzzz nothing');
+    await page.waitForTimeout(300);
+    check((await page.locator('.find-items .tone-item').count()) === 0, 'a search with no match shows nothing');
+    await page.locator('.tones-find').fill('');
+    await page.waitForTimeout(300);
+  };
+  const createTonePedals = async () => {
+    // Create tone: the Pedals step adds, moves and removes pedals, heard live
+    await page.locator('.nav-section[data-page="play"]').click();
+    await page.waitForTimeout(600);
+    await page.locator('#page-play button:has-text("Create tone")').click();
+    await page.waitForTimeout(800);
+    await page.locator('.tw-card:has-text("Guitar")').first().click();
+    await page.waitForTimeout(400);
+    await page.locator('.tw-card:has-text("Thrash")').click();
+    await page.waitForTimeout(600);
+    for (let i = 0; i < 3; i++) await page.locator('.tw-modal footer button:has-text("Next")').click();
+    await page.waitForTimeout(500);
+    const pedals = await page.locator('.tw-modal .pb-pedal').count();
+    check(pedals >= 2, `Thrash starts with its pedals on the board (${pedals})`);
+    await page.locator('.tw-modal .pb-add').click();
+    await page.waitForTimeout(300);
+    await page.locator('.tw-modal .pb-choice[data-key="Pedal_AnalogueDelay"]').click();
+    await page.waitForTimeout(800);
+    const heard = await page.evaluate(() => (window.__rig.liveTone ? window.__rig.liveTone.gear.map((g) => g.key).join('>') : ''));
+    check(/Pedal_AnalogueDelay/.test(heard) && (await page.locator('.tw-modal .pb-pedal').count()) === pedals + 1, `an added pedal is heard straight away (${heard})`);
+    await shot('54-create-tone-pedals');
+    await page.locator('.tw-modal .pb-pedal[data-key="Pedal_AnalogueDelay"] .pb-del').click();
+    await page.waitForTimeout(600);
+    check(!/Pedal_AnalogueDelay/.test(await page.evaluate(() => window.__rig.liveTone.gear.map((g) => g.key).join('>'))), 'and taken off again');
+    check((await page.locator('.tw-modal .gate-ctl .seg button').count()) === 3, 'the Pedals step has the noise gate switch');
+    await page.locator('.tw-modal .gate-ctl button:has-text("Strong")').click();
+    check((await page.evaluate(() => window.__rig.gate)) === 'strong', 'Strong is set for every tone');
+    await page.locator('.tw-modal .gate-ctl button:has-text("Auto")').click();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+  };
+  const highwayToneMenu = async () => {
+    for (let i = 0; i < 3 && (await page.locator('.modal').count()); i++) {
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+    }
+    await page.evaluate(async () => {
+      const { state } = await import('/src/renderer/js/store.js');
+      const a = await import('/src/renderer/js/actions.js');
+      await a.playSong([...state.songs.values()][0].id, { autoplay: false });
+      (await import('/src/renderer/js/stage.js')).openHighway();
+    });
+    await page.waitForTimeout(3000);
+    // the first visit offers the timing check: not now
+    if (await page.locator('button:has-text("Not now")').count()) await page.locator('button:has-text("Not now")').first().click();
+    await page.waitForTimeout(400);
+    await page.locator('button.hw-chip[title="Tone for your guitar"]').click();
+    await page.waitForTimeout(500);
+    check((await page.locator('.tm .tm-keys .tm-key').count()) === 9, 'the highway tone menu shows keys 1–9');
+    check((await page.locator('.tm .tm-now strong').count()) === 1 && (await page.locator('.tm button:has-text("Edit this tone")').count()) === 1 && (await page.locator('.tm button:has-text("Create a tone")').count()) === 1, 'with what is playing now, Edit this tone and Create a tone');
+    await shot('55-highway-tone-menu');
+    // pressing a number with the menu open: the menu follows
+    const k = await page.locator('.tm .tm-key:not(.vacant)').nth(1).locator('b').textContent().catch(() => null);
+    if (k) {
+      await page.locator('.highway canvas').first().hover().catch(() => {});
+      await page.keyboard.press(k);
+      await page.waitForTimeout(800);
+      check((await page.locator('.tm').count()) === 1 && (await page.locator('.tm .tm-key.on b').textContent().catch(() => '')) === k, `the open menu stays open and follows key ${k}`);
+    }
+    await page.locator('.tm .tm-find').fill('crunch');
+    await page.waitForTimeout(300);
+    check((await page.locator('.tm .tm-search .tm-row').count()) >= 1, 'the search finds tones by name');
+    await shot('56-highway-tone-search');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    check((await page.locator('.tm').count()) === 0, 'Escape closes it');
+  };
+  if (process.env.SH_TONES_ONLY) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+    await tonesOverhaul();
+    await createTonePedals();
+    await highwayToneMenu();
+    const errs = logs.filter((l) => /^(pageerror)/.test(l) || (/^error/.test(l) && !/404|Failed to load resource|favicon/.test(l)));
+    check(errs.length === 0, `no page errors${errs.length ? `: ${errs.slice(0, 4).join(' | ')}` : ''}`);
+    await browser.close();
+    relay.quit();
+    server.close();
+    const failed = results.filter((r) => !r.ok).length;
+    console.log(failed ? `${failed} failed` : 'all passed');
+    process.exit(failed ? 1 : 0);
+  }
   if (process.env.SH_GETSONGS_ONLY) {
     // 4.0.4: Get songs: copies one wanted song after another as downloads come in
     await page.evaluate(async () => {
@@ -582,7 +781,7 @@ class FakePortMain extends EventEmitter {
   if (process.env.SH_SLOW_TONES) {
     await page.locator('.nav-section:has-text("Tones")').click();
     await page.waitForTimeout(600);
-    await page.locator('.tones-tabs button:has-text("From my songs")').click();
+    await page.locator('.tones-tabs button:has-text("In my songs")').click();
     await page.waitForTimeout(5000);
     const txt = await page.locator('.read-bar .rb-count').textContent().catch(() => '');
     check(/of 1,200 songs/.test(txt || ''), `Tones shows how far the reading is: “${txt}”`);
@@ -597,7 +796,7 @@ class FakePortMain extends EventEmitter {
     check((await page.locator('.modal .read-bar').count()) === 0, 'the bar goes away when it’s done');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(800);
-    check((await page.locator('.tones-items .tone-item').count()) > 0 && (await page.locator('.read-bar').count()) === 0, 'and the song tones appear');
+    check((await page.locator('.find-items .tone-item').count()) > 0 && (await page.locator('.read-bar').count()) === 0, 'and the song tones appear');
     await browser.close();
     relay.quit();
     server.close();
@@ -770,9 +969,9 @@ class FakePortMain extends EventEmitter {
   await page.locator('.nav-section:has-text("Tones")').click();
   await page.waitForTimeout(1200);
   await shot('7-tones');
-  await page.locator('.tones-tabs button:has-text("From my songs")').click();
+  await page.locator('.tones-tabs button:has-text("In my songs")').click();
   await page.waitForTimeout(2500);
-  await page.locator('.tone-item .ti-main').first().click();
+  await page.locator('.find-items .tone-item .ti-main').first().click();
   await page.waitForTimeout(800);
   // 3.13: a picked tone shows the simple view first: what it is, play it, put it on a key
   check((await page.locator('.tones-edit .ts-keys .ts-key').count()) === 8 && (await page.locator('.tones-edit .knobs3').count()) === 0, 'Tones opens a tone simply: keys 2–9 to put it on, no knobs in the way');
@@ -825,36 +1024,21 @@ class FakePortMain extends EventEmitter {
   await shot('11-settings-guitar');
   check(await page.locator('.modal select[aria-label="Sound engine"]').count() === 1, 'Settings has Guitar & audio');
 
-  // Tones: arrow keys move through the list, a slot tile takes the selected tone
+  // Tones (4.1.9): keys never change on a click; put on a key asks / undoes; edits are a draft
   await page.keyboard.press('Escape');
   await page.waitForTimeout(400);
-  await page.locator('.nav-section:has-text("Tones")').click();
-  await page.waitForTimeout(1000);
-  check((await page.locator('.slot-strip .ss-tile').count()) === 8, 'Tones shows your slots 2–9 (1 follows the song)');
+  await tonesOverhaul();
   await page.locator('.tones-tabs button:has-text("Presets")').click();
-  await page.waitForTimeout(500);
-  await page.locator('.tones-items .tone-item .ti-main').first().click();
-  await page.waitForTimeout(400);
-  const before = await page.locator('.tone-item.on b').first().textContent();
-  await page.keyboard.press('ArrowDown');
-  await page.waitForTimeout(500);
-  const after = await page.locator('.tone-item.on b').first().textContent();
-  check(before !== after, `↓ moves to the next tone (${before} → ${after})`);
-  await page.locator('.slot-strip .ss-tile').nth(7).click();
-  await page.waitForTimeout(1200);
-  check((await page.locator('.slot-strip .ss-tile').nth(7).locator('.ss-name').textContent()) === after, 'clicking slot 9 puts the selected tone there');
-  check((await page.locator('.tones-tabs button[aria-pressed="true"]').textContent()) === 'Presets', 'stays on the tab you were on');
-  await shot('7e-tones-slots');
   await page.locator('.nav-section:has-text("Jam")').first().click();
   await page.waitForTimeout(500);
   await page.locator('.nav-section:has-text("Tones")').click();
   await page.waitForTimeout(600);
-  check((await page.locator('.tones-tabs button[aria-pressed="true"]').textContent()) === 'Presets', 'Tones remembers your tab');
+  check((await page.locator('.tones-tabs button[aria-pressed="true"]').textContent()) === 'Presets', 'Tones remembers where you were looking');
 
   // picking a song's tone on Tones really puts that tone on your guitar
-  await page.locator('.tones-tabs button:has-text("From my songs")').click();
+  await page.locator('.tones-tabs button:has-text("In my songs")').click();
   await page.waitForTimeout(2500);
-  const songRows = page.locator('.tones-items .tone-item .ti-main');
+  const songRows = page.locator('.find-items .tone-item .ti-main');
   if (await songRows.count()) {
     await songRows.first().click();
     for (let i = 0; i < 40; i++) {
@@ -881,7 +1065,7 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(2500);
   await page.locator('button.hw-chip[title="Tone for your guitar"]').click();
   await page.waitForTimeout(500);
-  check((await page.locator('text=Your slots (keys 1–9)').count()) >= 1, 'highway tone menu lists your slots');
+  check((await page.locator('.tm .tm-keys .tm-key').count()) === 9, 'highway tone menu lists your keys 1–9');
   await shot('12-highway-tones');
   await page.keyboard.press('Escape');
 
@@ -911,7 +1095,7 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(800);
   await page.locator('.tones-tabs button:has-text("Presets")').click();
   await page.waitForTimeout(400);
-  await page.locator('.tone-item .ti-main:has-text("Crunch")').first().click();
+  await page.locator('.find-items .tone-item .ti-main:has-text("Crunch")').first().click();
   await page.waitForTimeout(2500);
   check((await page.locator('.tone-item:has(.ti-main:has-text("Crunch")) > .real-badge').count()) >= 1, 'the tone list marks it REAL');
   check((await page.locator('.ra-strip.real .ra-ladder i').count()) === 3 && (await page.locator('.ra-strip.real .ra-ladder i.on').count()) === 1, 'the amp card shows the three gain captures, one lit');
@@ -922,7 +1106,7 @@ class FakePortMain extends EventEmitter {
   await page.locator('.ra-seg button:has-text("Real")').click();
   await until(() => page.evaluate(() => !!window.__rig.capture));
   check(!!(await page.evaluate(() => window.__rig.capture)), 'Real switches it back');
-  await page.locator('.tone-item .ti-main:has-text("Metal")').first().click();
+  await page.locator('.find-items .tone-item .ti-main:has-text("Metal")').first().click();
   await page.waitForTimeout(2000);
   check((await page.locator('.ra-offer .ra-get').count()) === 1 && (await page.locator('.ra-offer :text("Mesa Dual Rectifier")').count()) === 1, 'a Cali-100 tone offers the real Rectifier');
   await shot('15-tones-get-real-amp');
@@ -952,7 +1136,7 @@ class FakePortMain extends EventEmitter {
   }
   await page.locator('.nav-section:has-text("Tones")').click();
   await page.waitForTimeout(500);
-  await page.locator('.tones-tabs button:has-text("From my songs")').click();
+  await page.locator('.tones-tabs button:has-text("In my songs")').click();
   await page.waitForTimeout(2500);
   check((await page.locator('.ra-libstrip button:has-text("Get all")').count()) === 1, `From my songs offers Get all: “${(await page.locator('.ra-libstrip').textContent().catch(() => '')) || ''}”`);
   await shot('20-tones-get-all');
@@ -1209,14 +1393,14 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(300);
 
   // reopening Stagehand on Tones › From my songs (the tab is remembered) must start reading by itself
-  await page.evaluate(() => localStorage.setItem('stagehand.tonesTab', 'songs'));
+  await page.evaluate(() => localStorage.setItem('stagehand.tonesFind', 'songs'));
   await page.reload();
   await page.waitForTimeout(3000);
   await page.locator('.nav-section:has-text("Tones")').click();
   let appeared = false;
   for (let i = 0; i < 40 && !appeared; i++) {
     await page.waitForTimeout(250);
-    appeared = (await page.locator('.tones-items .tone-item').count()) > 0;
+    appeared = (await page.locator('.find-items .tone-item').count()) > 0;
   }
   check(appeared, 'opening Tones on From my songs reads your songs by itself (no click needed)');
 
@@ -1284,7 +1468,7 @@ class FakePortMain extends EventEmitter {
   check((await page.locator('.tw-modal .tw-live').count()) === 1, 'Create tone opens with your guitar live');
   await page.locator('.tw-card:has-text("Guitar")').click();
   await page.waitForTimeout(400);
-  await page.locator('.tw-card:has-text("Metal")').click();
+  await page.locator('.tw-card:has-text("Heavy metal")').click();
   await page.waitForTimeout(500);
   const heard = await page.evaluate(async () => { const { rig } = await import('/src/renderer/js/rig.js'); return rig.mode + ' ' + (rig.liveTone ? rig.liveTone.gear.map((g) => g.key).join('>') : ''); });
   check(/^live .*Amp_CA100/.test(heard), `picking Metal plays it straight away (${heard})`);
@@ -1295,6 +1479,8 @@ class FakePortMain extends EventEmitter {
   await page.locator('.tw-modal footer button:has-text("Next")').click();
   await page.locator('.tw-card:has-text("4×12 slant")').click();
   await page.locator('.tw-modal footer button:has-text("Next")').click();
+  check((await page.locator('.tw-modal .pb-pedal').count()) >= 1, 'Create tone has a Pedals step with the sound’s pedals');
+  await page.locator('.tw-modal footer button:has-text("Next")').click();
   await page.locator('.tw-modal footer button:has-text("Next")').click();
   await page.waitForTimeout(400);
   await page.locator('.tw-name').fill('Test metal');
@@ -1304,6 +1490,9 @@ class FakePortMain extends EventEmitter {
   const made = await page.evaluate(async () => { const { tonelib } = await import('/src/renderer/js/tonelib.js'); const t = tonelib.list.find((x) => x.name === 'Test metal'); return t ? `${t.slot} ${t.cabId}` : ''; });
   check(made === '5 4x12_slant', `the new tone is saved on key 5 with its cabinet (${made})`);
   await page.locator('.tw-modal footer button:has-text("Done")').click();
+  await page.waitForTimeout(400);
+  await createTonePedals();
+  await page.locator('.nav-section[data-page="play"]').click();
   await page.waitForTimeout(400);
   check((await page.locator('#page-play .bk-art .gear-art').count()) >= 2, 'the rig shows pictures of its gear');
 

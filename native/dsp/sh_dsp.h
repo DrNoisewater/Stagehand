@@ -177,7 +177,12 @@ int cab_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int bass);
 int cab_build_ir(sh_block *b, const float *ir, int len, sh_arena *a);
 int fx_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int stereo);
 int rev_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int stereo);
-int gate_build_default(sh_block *b, sh_arena *a, double sr, float thr_db);
+/* Stagehand's own noise gate, in front of every tone. live (owned by the engine, read as it plays):
+   live[0] = the player's measured noise floor (dB, peak envelope; < -150 = not known yet),
+   live[1] = threshold offset (dB, + = stronger), live[2] = 1 when the gate is switched off;
+   the gate writes live[3] = how open it is (0..1).
+   It opens above max(thr_db, floor + 12) + offset and closes 6 dB lower. */
+int gate_build_default(sh_block *b, sh_arena *a, double sr, float thr_db, float *live);
 
 /* FFT (complex, in-place, n power of two) */
 void sh_fft(double *re, double *im, int n, int inverse);

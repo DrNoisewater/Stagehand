@@ -17,6 +17,12 @@ typedef struct {
   int clip;
   float level, blend;
   op_t dc;
+  /* tube-screamer style: the clipped part (high-passed, softened on top) is added back to the dry signal */
+  int ts;
+  op_t ts_hp, ts_lp;
+  /* the dry signal, held back to line up with the oversampled clipper (15 samples) */
+  float dbuf[16];
+  int dpos;
 } drive_t;
 
 static inline float clipf(int t, float x) {
@@ -37,10 +43,15 @@ static void drive_proc(sh_block *b, float *L, float *R, int n) {
     float dry = L[i];
     float x = bq_run(&d->hp, dry);
     x = bq_run(&d->mid, x);
+    if (d->ts) x = op_hp(&d->ts_hp, x);
     float u[4];
     os4_up(&d->os, x * d->pre, u);
     for (int k = 0; k < 4; k++) u[k] = clipf(d->clip, u[k]);
     float y = os4_down(&d->os, u);
+    d->dbuf[d->dpos] = dry;
+    d->dpos = (d->dpos + 1) & 15;
+    dry = d->dbuf[d->dpos]; /* the sample from 15 steps back */
+    if (d->ts) y = 0.8f * op_lp(&d->ts_lp, y) + dry;
     y = op_hp(&d->dc, y);
     y = bq_run(&d->tone, y);
     y = bq_run(&d->tone2, y);
@@ -61,8 +72,14 @@ static int drive_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
   float lo_db = 6, hi_db = 36, hp = 40, mid_hz = 0, mid_db = 0, lp = 9000;
   d->clip = CLIP_SOFT;
   d->blend = 1;
-  if (sh_has(k, "SuperDrive") || sh_has(k, "Overdrive")) { /* tube-screamer style: mid hump, soft */
-    lo_db = 4, hi_db = 34, hp = 720, mid_hz = 0, d->clip = CLIP_SOFT, lp = 5500;
+  if (sh_has(k, "BassOverdrive")) {
+    lo_db = 4, hi_db = 30, hp = 30, d->clip = CLIP_SOFT, lp = 5000, d->blend = P(g, "blend", 0.55f);
+  } else if (sh_has(k, "SuperDrive") || sh_has(k, "Overdrive")) {
+    /* tube-screamer style: the lows pass clean, the mids are pushed and clipped softly, the top rolled off */
+    lo_db = 8, hi_db = 38, hp = 20, mid_hz = 0, d->clip = CLIP_SOFT, lp = 6000;
+    d->ts = 1;
+    op_lp_set(&d->ts_hp, sr, 720);
+    op_lp_set(&d->ts_lp, sr, 2000);
   } else if (sh_has(k, "LineDrive")) { /* clean-ish boost */
     lo_db = 0, hi_db = 22, hp = 60, d->clip = CLIP_SOFT, lp = 12000;
   } else if (sh_has(k, "MetalDistortion")) { /* DS/HM style, tight and scooped */
@@ -96,8 +113,6 @@ static int drive_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
   } else if (sh_has(k, "CustomDrive")) {
     int ca = RAW(g, "voicing", 0) > 0.5f;
     lo_db = 10, hi_db = 40, hp = ca ? 160 : 90, d->clip = ca ? CLIP_HARD : CLIP_ASYM, lp = ca ? 7000 : 6000, mid_hz = ca ? 0 : 1000, mid_db = 3;
-  } else if (sh_has(k, "BassOverdrive")) {
-    lo_db = 4, hi_db = 30, hp = 30, d->clip = CLIP_SOFT, lp = 5000, d->blend = P(g, "blend", 0.55f);
   } else if (sh_has(k, "BassDistortion")) {
     lo_db = 10, hi_db = 38, hp = 30, d->clip = CLIP_HARD, lp = 4500, d->blend = 0.8f;
   } else if (sh_has(k, "BassFuzz")) {
@@ -115,6 +130,7 @@ static int drive_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
   op_lp_set(&d->dc, sr, 15);
   /* level: keep roughly unity loudness */
   d->level = (float)(d->clip == CLIP_SOFT ? 0.9 : 0.7) * (float)sh_db2lin(-(lo_db + (hi_db - lo_db) * gain) * 0.08);
+  if (d->ts) d->level = 0.75f;
   if (sh_has(k, "LineDrive")) d->level = (float)sh_db2lin((lo_db + (hi_db - lo_db) * gain) * 0.35);
   b->st = d;
   b->process = drive_proc;
@@ -154,6 +170,8 @@ typedef struct {
   float gate_thr, gate_g, gate_rel, gate_att;
   int hold, holdn;
   int limiter;
+  float *live; /* Stagehand's own gate: engine-owned floor / offset / off (see sh_dsp.h) */
+  float rel_auto, rel_strong;
 } dyn_t;
 
 static void dyn_proc(sh_block *b, float *L, float *R, int n) {
@@ -164,12 +182,24 @@ static void dyn_proc(sh_block *b, float *L, float *R, int n) {
     float g;
     if (d->gate) {
       float db = sh_lin2db_fast(e);
-      int open = db > d->gate_thr || (d->gate_g > 0.5f && db > d->gate_thr - 6);
+      float thr = d->gate_thr;
+      if (d->live) {
+        if (d->live[2] > 0.5f) { /* switched off: pass everything */
+          d->gate_g = 1, d->holdn = 0, d->live[3] = 1;
+          continue;
+        }
+        /* above the player's own noise floor (measured as they play), never below the tone's own */
+        if (d->live[0] > -150 && d->live[0] + 12 > thr) thr = d->live[0] + 12;
+        thr += d->live[1];
+        d->gate_rel = d->live[1] > 0.5f ? d->rel_strong : d->rel_auto;
+      }
+      int open = db > thr || (d->gate_g > 0.5f && db > thr - 6);
       if (open) d->holdn = d->hold;
       else if (d->holdn > 0) d->holdn--, open = 1;
       float target = open ? 1.f : 0.f;
       d->gate_g += (open ? d->gate_att : d->gate_rel) * (target - d->gate_g);
       g = d->gate_g;
+      if (d->live) d->live[3] = g;
     } else {
       float db = sh_lin2db_fast(e);
       float over = db - d->thr;
@@ -188,14 +218,19 @@ static void dyn_proc(sh_block *b, float *L, float *R, int n) {
 
 static dyn_t *dyn_new(sh_arena *a) { return (dyn_t *)ar_alloc(a, sizeof(dyn_t)); }
 
-int gate_build_default(sh_block *b, sh_arena *a, double sr, float thr_db) {
+int gate_build_default(sh_block *b, sh_arena *a, double sr, float thr_db, float *live) {
   dyn_t *d = dyn_new(a);
   if (!d) return 0;
   d->gate = 1;
   d->gate_thr = thr_db;
+  d->live = live;
   env_set(&d->env, sr, 0.3, 40);
   d->gate_att = (float)(1 - sh_exp(-1000.0 / (sr * 0.8)));
-  d->gate_rel = (float)(1 - sh_exp(-1000.0 / (sr * 90)));
+  /* closing: 60 ms, so a high-gain amp's hiss is gone within a third of a second;
+     Strong closes faster (35 ms) */
+  d->rel_auto = (float)(1 - sh_exp(-1000.0 / (sr * 60)));
+  d->rel_strong = (float)(1 - sh_exp(-1000.0 / (sr * 35)));
+  d->gate_rel = d->rel_auto;
   d->hold = (int)(sr * 0.05);
   d->gate_g = 1;
   b->st = d, b->process = dyn_proc, b->name = "gate";
