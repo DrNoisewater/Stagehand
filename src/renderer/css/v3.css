@@ -792,11 +792,6 @@ body:has(> .highway:not([hidden])) .stem-wait { display: none; }
 .hw-sync-ring { width: 84px; height: 84px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; border: 3px solid var(--tungsten); color: var(--tungsten); box-shadow: 0 0 24px rgba(255, 181, 71, 0.3); }
 .hw-sync-ring svg { width: 34px; height: 34px; }
 .hw-sync-ring.live { background: radial-gradient(circle, rgba(255, 181, 71, 0.15), transparent 70%); }
-.hw-sync-ring.tap { animation: hw-sync-tap 0.25s ease-out; }
-@keyframes hw-sync-tap { 0% { transform: scale(1.18); background: rgba(255, 181, 71, 0.55); } 100% { transform: scale(1); } }
-.hw-sync-dots { display: flex; justify-content: center; gap: 6px; margin: 4px 0 18px; }
-.hw-sync-dots i { width: 12px; height: 12px; border-radius: 50%; background: rgba(255, 255, 255, 0.12); transition: background 0.15s; }
-.hw-sync-dots i.on { background: var(--tungsten); box-shadow: 0 0 8px rgba(255, 181, 71, 0.6); }
 .hw-sync-big { font: 900 54px var(--font); color: var(--tungsten-hi); text-shadow: 0 0 22px rgba(255, 181, 71, 0.35); margin-bottom: 6px; }
 .hw-sync-legend { display: flex; justify-content: space-between; font: 600 11px var(--font); color: var(--ink-3); margin-bottom: 4px; }
 .hw-sync-strip { position: relative; height: 34px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); margin-bottom: 18px; }
@@ -805,6 +800,17 @@ body:has(> .highway:not([hidden])) .stem-wait { display: none; }
 .hw-sync-strip i.tap { width: 9px; height: 9px; border-radius: 50%; background: #7fe8ff; opacity: 0.8; }
 .hw-sync-strip i.avg { width: 4px; height: 26px; border-radius: 2px; background: var(--tungsten); box-shadow: 0 0 10px rgba(255, 181, 71, 0.7); }
 .hw-sync-actions { display: flex; justify-content: center; gap: 8px; }
+.hw-sync-eyebrow { font: 700 11px var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
+/* The timing check is a song on the highway: only what it needs shows, and a bar says what to do */
+.highway.hw-training .hw-views, .highway.hw-training .hw-parts, .highway.hw-training .hw-transport,
+.highway.hw-training .hw-sections, .highway.hw-training .hw-dock, .highway.hw-training .hw-tools-btn,
+.highway.hw-training .hw-tool-live, .highway.hw-training .hw-card { display: none !important; }
+.hw-trainbar { position: absolute; left: 50%; top: 74px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); padding: 8px 10px 8px 14px; border-radius: 999px; background: rgba(12, 16, 26, 0.82); border: 1px solid rgba(255, 181, 71, 0.4); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); color: var(--ink-2); font: 500 13px var(--font); white-space: nowrap; }
+.hw-trainbar b { color: var(--tungsten-hi); font-weight: 800; }
+.hw-trainbar .hw-train-icon { display: grid; place-items: center; color: var(--tungsten); }
+.hw-trainbar .hw-train-icon svg { width: 16px; height: 16px; }
+.hw-trainbar .hw-train-count { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.hw-trainbar span:not(.hw-train-count):not(.hw-train-icon) { overflow: hidden; text-overflow: ellipsis; }
 
 .hw-venues { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
 .hw-venue { position: relative; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; aspect-ratio: 16 / 10; background: #0a0d14; cursor: pointer; }
@@ -1099,7 +1105,6 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 .inst-tag{display:inline-flex;align-items:center;height:16px;padding:0 6px;margin:0 6px 0 2px;border-radius:5px;background:#33c8e022;color:#8fe6f5;font:700 9.5px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;flex:none}
 
 /* the play-along timing check's lane (3.13) */
-.hw-sync-lane { display: block; width: 100%; max-width: 400px; height: auto; margin: 6px auto 10px; border-radius: 12px; background: #070b12; }
 
 /* Recordings (3.13) */
 .modal-backdrop.over-highway { z-index: 320; }

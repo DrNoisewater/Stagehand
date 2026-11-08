@@ -127,7 +127,8 @@ export const practice = new (class extends EventTarget {
       this.free.prev = now;
       if (this.free.secs > 300) this._flushFree();
     } else this.free.prev = 0;
-    if (!this.judge || !eng.playing) {
+    // the timing check's warm-up song isn't practice on your song
+    if (!this.judge || !eng.playing || training()) {
       this.lastT = t;
       return;
     }
@@ -183,7 +184,7 @@ export const practice = new (class extends EventTarget {
   }
 
   startSession() {
-    if (!this.song) return;
+    if (!this.song || training()) return;
     if (!this.session || this.session.songId !== this.song.id) {
       this.flush();
       const src = this._source();
@@ -232,6 +233,12 @@ export const practice = new (class extends EventTarget {
     this._flushFree();
   }
 })();
+
+/** The highway is playing the timing check's own song. */
+function training() {
+  const hw = typeof window !== 'undefined' ? window.__shHighway : null;
+  return !!(hw && hw.training && hw.training());
+}
 
 function loop() {
   practice.tick();

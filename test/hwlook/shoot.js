@@ -39,45 +39,66 @@ const srv = http.createServer((req, res) => {
     // software rendering here is slow: keep the glow on for stills (the app turns it off on slow PCs)
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
     if (process.env.PLAYCAL) {
-      // the play-along timing check, with a pretend guitar that picks PLAYCAL ms after each note
+      // the timing check: its training song on the highway, scored like any song, with a pretend
+      // guitar playing the part (real plucked notes at the chart's pitches) PLAYCAL ms late
       const late = Number(process.env.PLAYCAL) / 1000;
       const r = await page.evaluate(async (late) => {
         const { rig } = await import('/js/rig.js');
+        const { renderPart } = await import('/js/training-song.js');
         const H = document.querySelector('.highway').__hw;
-        const { ctx: ac } = await window.__stage.engine.extraOut();
+        const eng = window.__stage.engine;
         rig.latencyMs = 0;
+        rig.sampleRate = 48000;
+        let part = null;
+        let partOf = null;
         rig.samples = (buf) => {
-          const sp = H.syncPlay;
-          const ts0 = ac.getOutputTimestamp ? ac.getOutputTimestamp() : null;
-          const now = ts0 && ts0.contextTime > 0 ? ts0.contextTime + (performance.now() - ts0.performanceTime) / 1000 : ac.currentTime;
-          const n = buf.length;
           buf.fill(0);
-          if (!sp) return buf;
-          for (const T of sp.notes) {
-            const p = T + late;
-            for (let i = 0; i < n; i++) {
-              const ts = now - (n - 1 - i) / 48000;
-              if (ts >= p && ts < p + 0.6) buf[i] += 0.4 * Math.exp(-(ts - p) * 6) * Math.sin(2 * Math.PI * 110 * (ts - p));
-            }
-          }
+          const tr = H.training;
+          if (!tr || !eng.playing) return buf;
+          if (partOf !== tr.tab) { partOf = tr.tab; part = renderPart(tr.tab, 48000, late); }
+          const end = Math.round(eng.position * 48000);
+          for (let i = 0; i < buf.length; i++) { const k = end - buf.length + 1 + i; if (k >= 0 && k < part.length) buf[i] = part[k]; }
           return buf;
         };
         rig.on = true;
+        window.__before = { song: H.song && H.song.id, duration: eng.duration, at: eng.position };
         document.querySelector('.highway').__openSync?.();
         return 'started';
       }, late);
       if (r !== 'started') throw new Error(r);
-      await page.waitForFunction(() => document.querySelector('.hw-syncbox .btn.primary'), null, { timeout: 10000 });
+      await page.waitForFunction(() => document.querySelector('.hw-syncbox:not([hidden]) .btn.primary'), null, { timeout: 10000 });
+      const intro = await page.evaluate(() => document.querySelector('.hw-syncbox').textContent);
+      if (/space|tap|click/i.test(intro)) throw new Error('the intro still talks about tapping: ' + intro);
+      await page.screenshot({ path: path.join(out, 'playcal-intro.png') }).catch(() => {});
       await page.click('.hw-syncbox .btn.primary');
-      await page.waitForFunction(() => document.querySelector('.hw-sync-big') || /Not enough/.test(document.querySelector('.hw-syncbox').textContent), null, { timeout: 40000 });
-      const out = await page.evaluate(() => ({ big: (document.querySelector('.hw-sync-big') || {}).textContent, text: document.querySelector('.hw-syncbox').textContent, played: document.querySelector('.highway').__hw.syncPlay.played.length }));
-      console.log('PLAYCAL', JSON.stringify(out));
+      await page.waitForFunction(() => { const H = document.querySelector('.highway').__hw; return H.training && window.__stage.engine.playing; }, null, { timeout: 15000 });
+      const song = await page.evaluate(() => { const H = document.querySelector('.highway').__hw; const e = window.__stage.engine; H.judge.debug = []; window.__fps0 = [performance.now(), e.position]; return { title: H.song.title, notes: H.targets.length, duration: e.duration, loaded: e.loaded && e.loaded.bytes, strings: [...new Set(H.tab.notes.map((n) => n.s))].sort() }; });
+      console.log('PLAYCAL training song', JSON.stringify(song));
+      if (!(song.duration > 24 && song.duration < 30) || !song.loaded || song.notes < 16) throw new Error('the training song did not load');
+      await page.waitForFunction(() => window.__stage.engine.position > 11.3, null, { timeout: 30000 });
+      await page.screenshot({ path: path.join(out, 'playcal-song.png') }).catch(() => {});
+      await page.waitForFunction(() => document.querySelector('.hw-sync-big') || /Not enough/.test(document.querySelector('.hw-syncbox').textContent), null, { timeout: 60000 });
+      const res = await page.evaluate(() => ({ big: (document.querySelector('.hw-sync-big') || {}).textContent, text: document.querySelector('.hw-syncbox').textContent, played: document.querySelector('.highway').__hw.syncPlay.played.length, result: document.querySelector('.highway').__hw.syncResult, framesPerSecond: Math.round((document.querySelector('.highway').__hw.judge.debug || []).length / (window.__stage.engine.position - window.__fps0[1])) }));
+      console.log('PLAYCAL', JSON.stringify(res));
+      await page.screenshot({ path: path.join(out, 'playcal.png') }).catch(() => {});
       // scoring takes (latency 20 ms + 30 ms) off what it hears; this pretend guitar has no latency
-      const got = parseInt(out.big, 10);
+      const got = parseInt(res.big, 10);
       const want = Number(process.env.PLAYCAL) - 50;
       if (!(Math.abs(got - want) <= 25)) throw new Error(`timing check measured ${got} ms, expected about ${want}`);
-      console.log(`PASS the play-along timing check measures a guitar ${process.env.PLAYCAL} ms late as ${got} ms (expected ${want} ± 25)`);
-      await page.screenshot({ path: path.join(process.argv[2], 'playcal.png') }).catch(() => {});
+      const N = res.result.notes;
+      // scoring needs a few frames after each pick: software drawing here can run too slowly for that
+      if (!(res.result.hits >= N - 4)) {
+        if (res.framesPerSecond >= 15) throw new Error(`only ${res.result.hits} of ${N} notes hit`);
+        console.log(`NOTE only ${res.result.hits} of ${N} notes hit, at ${res.framesPerSecond} frames a second (too slow here to judge that)`);
+      }
+      console.log(`PASS the timing check measures a guitar ${process.env.PLAYCAL} ms late as ${got} ms (expected ${want} ± 25), ${res.result.hits} of ${N} notes hit`);
+      // Use: the setting is saved and your song comes back where you were
+      await page.click('.hw-syncbox .btn.primary');
+      const after = await page.evaluate(() => { const H = document.querySelector('.highway').__hw; const e = window.__stage.engine; return { song: H.song && H.song.id, duration: e.duration, at: e.position, training: !!H.training, box: document.querySelector('.hw-syncbox').hidden, offset: JSON.parse(localStorage.getItem('stagehand.highway') || '{}').offsetMs, before: window.__before }; });
+      console.log('PLAYCAL after', JSON.stringify(after));
+      if (after.training || !after.box || after.song !== after.before.song || after.duration !== after.before.duration || Math.abs(after.at - after.before.at) > 0.01) throw new Error('the song did not come back after the timing check');
+      if (after.offset !== got) throw new Error(`offset saved as ${after.offset}, wanted ${got}`);
+      console.log('PASS back at the song after the timing check, offset saved');
     }
     if (process.env.LOSE_CONTEXT) {
       // the graphics card takes the moving background away: it must come back by itself, not stay black

@@ -279,7 +279,7 @@ const PAGES = [
   },
   {
     title: 'Tune up',
-    draw: () =>
+    draw: (ctx) =>
       h(
         'div',
         null,
@@ -290,8 +290,19 @@ const PAGES = [
           ['String by string', 'For a different tuning (E Standard to Drop D, say), the tuning guide lists which strings to change and listens as you go: Master Settings › Tuning guide.']
         ),
         h('h4', { text: 'The timing check (calibration)' }),
-        p('Every PC’s sound arrives a little late. If notes you play on time count as late or missed, run the timing check: four clicks, then 16 notes down the lane; play along and Stagehand lines the highway up with how you play. It takes about 30 seconds and you only do it once.'),
-        p('Stagehand offers it by itself if it can hear you playing but lots of notes aren’t counting, especially the first time through a song. It’s also under Tools › Timing check on the highway, and in Master Settings.'),
+        p('Every PC’s sound arrives a little late. If notes you play on time count as late or missed, run the timing check: a short, easy song of its own on the highway, a few notes on the top three strings. Play along like any song and Stagehand lines the highway up with how you play. It takes about 30 seconds and you only do it once.'),
+        p('Stagehand offers it by itself if it can hear you playing but lots of notes aren’t counting. It’s also under Tools › Timing check on the highway, and in Master Settings.'),
+        h(
+          'div.gs-actions',
+          null,
+          btn('Do the timing check now', {
+            iconName: 'clock',
+            onClick: async () => {
+              ctx.close();
+              (await import('./stage.js')).openTimingCheck();
+            },
+          })
+        ),
         h('h4', { text: 'Your input level' }),
         p('The other calibration: on the Jam page press Set input level and strum as hard as you play for 4 seconds. Stagehand sets your level so it hears every note, quiet or loud. Do it once, and again if you change guitars.')
       ),

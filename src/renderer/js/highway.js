@@ -28,6 +28,7 @@ import { breakdown, cheer } from './scorecard.js';
 import { StruggleWatch, nearestPick } from './struggle.js';
 import { state, on } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
+import { trainingChart, trainingTimes, trainingAudio, TRAINING_SONG } from './training-song.js';
 
 const STRING = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 const STRING_DARK = ['#7a1d27', '#7a5e12', '#164e80', '#7a4515', '#1c6a3c', '#55307f'];
@@ -198,7 +199,7 @@ export function createHighway(stage) {
   root.addEventListener('focusin', wakeControls);
   document.addEventListener('keydown', () => { if (H.open) wakeControls(); });
 
-  back.onclick = () => leave();
+  back.onclick = () => (trainSnap || !syncBox.hidden ? closeSync() : leave());
   // Back (and Esc) from the highway go to your song list; Tab/Waveform stay on the song
   function leave() {
     close();
@@ -434,26 +435,36 @@ export function createHighway(stage) {
   stage.engine.addEventListener('state', () => {
     if (stage.engine.playing) hideCard();
   });
-  stage.engine.addEventListener('ended', () => { if(H.open){ extras.ended(); showCard(); } });
+  stage.engine.addEventListener('ended', () => { if(H.open && !trainSnap){ extras.ended(); showCard(); } });
   H.showCard = showCard; // tests
 
   // ----------------------------------------------------- sync check --
-  // Like Rocksmith's calibration: clicks play through the same path as the
-  // song; you tap on each one you hear. The average gap between the clicks
-  // and your taps is how late the sound really reaches you, and the notes
-  // are shown that much later so they land with the music.
+  // The user: "it needs to be its own psarc-like style, actual notes on a highway,
+  // the exact same as a regular song. No clicking spacebar to clicks". So the timing
+  // check is a short song made for it (training-song.js), on this highway, through
+  // the song player (the same sound path and delay as any song), scored like any
+  // song. Your picks, heard the way scoring hears them, against the notes' times
+  // say how late you play; the notes are then shown that much later.
   const syncBox = h('div.hw-syncbox', { hidden: true, role: 'dialog', 'aria-label': 'Timing check' });
-  root.append(syncBox);
-  let syncRun = null;
+  const trainBar = h('div.hw-trainbar', { hidden: true, role: 'status' });
+  root.append(syncBox, trainBar);
   let syncHold = 0;
+  let trainSnap = null; // the song you had, to go back to
+  let trainTimer = 0;
+  let trainToken = 0;
+  window.__shHighway.training = () => !!(H.training || trainSnap);
   function openSync({ first = false } = {}) {
+    if (H.training || trainSnap) return;
     if (stage.engine.playing) stage.toggle();
     syncBox.hidden = false;
     syncIntro({ first });
-    // the song may start a moment later (it was still loading): keep it paused while this is open
+    holdSong();
+  }
+  /** The song may start a moment later (it was still loading): keep it paused while the box is open. */
+  function holdSong() {
     clearInterval(syncHold);
     syncHold = setInterval(() => {
-      if (syncBox.hidden) return clearInterval(syncHold);
+      if (syncBox.hidden || H.training) return clearInterval(syncHold);
       if (stage.engine.playing) stage.toggle();
     }, 200);
   }
@@ -461,24 +472,68 @@ export function createHighway(stage) {
   // highway with your guitar plugged in, it introduces itself (twice at most, never once done)
   let syncAskedNow = false; // once each time Stagehand is opened, not song after song
   function maybeFirstSync() {
-    if (syncAskedNow || prefs.syncChecked || (prefs.syncAsked || 0) >= 2 || !rig.on || !(prefs.detect !== false)) return;
+    if (syncAskedNow || !syncBox.hidden || H.training || trainSnap || prefs.syncChecked || (prefs.syncAsked || 0) >= 2 || !rig.on || !(prefs.detect !== false)) return;
     if (prefs.offsetMs) return setPref('syncChecked', true); // done before 4.1.6
     syncAskedNow = true;
     setPref('syncAsked', (prefs.syncAsked || 0) + 1);
     openSync({ first: true });
   }
+  /** Done, or cancelled: back to the song you had, where you were (or wherever you came from). */
   function closeSync() {
-    if (syncRun) syncRun.stop();
-    syncRun = null;
     syncBox.hidden = true;
     clearInterval(syncHold);
+    endTraining();
+    if (H.bare) {
+      H.bare = false;
+      if (H.open) close();
+    }
   }
+  /** The highway is closing (Back, another view): the timing check ends with it. */
+  function closeTraining() {
+    H.bare = false;
+    syncBox.hidden = true;
+    clearInterval(syncHold);
+    endTraining();
+  }
+  const kindNow = () => (rig.instrument === 'bass' ? 'bass' : 'guitar');
+  const topStrings = (kind) => (kind === 'bass' ? 'A, D and G strings' : 'G, B and high e strings');
+
   function syncIntro({ first = false } = {}) {
     syncBox.innerHTML = '';
     const go = h('button.btn.primary', { type: 'button', text: 'Start' });
     const cancel = h('button.btn.ghost', { type: 'button', text: first ? 'Not now' : 'Cancel' });
-    if (first && rig.on) {
-      go.onclick = () => syncPlay();
+    cancel.onclick = () => closeSync();
+    if (!rig.on) {
+      // the check is a song you play: nothing to do without your guitar
+      const kind = kindNow();
+      const connect = h('button.btn.primary', { type: 'button', text: `Connect my ${kind}` });
+      const why = h('p.fine', { text: '' });
+      connect.onclick = async () => {
+        connect.disabled = true;
+        rig.setSink(stage.engine.sinkId);
+        const ok = await rig.start().catch(() => false);
+        if (syncBox.hidden) return;
+        if (ok) {
+          applyTone();
+          renderControls();
+          return syncIntro({ first });
+        }
+        connect.disabled = false;
+        why.textContent = rig.error || `Stagehand can’t hear your ${kind} yet. Check the cable and that the input is picked in Settings.`;
+      };
+      syncBox.append(
+        h('div.hw-sync-ring', { html: icon('guitar') }),
+        h('h3', { text: `Plug in your ${kind}` }),
+        h('p', { text: `The timing check is a short song you play on your ${kind}, like any song on the highway. Plug it in, then press Connect.` }),
+        why,
+        h('div.hw-sync-actions', null, cancel, connect)
+      );
+      connect.focus();
+      return;
+    }
+    const kind = kindNow();
+    go.onclick = () => startTraining();
+    if (first) {
       cancel.onclick = () => {
         closeSync();
         toast({ title: 'Any time you like', message: 'The timing check is under Tools › Timing check on the highway.', kind: 'info', timeout: 6000 });
@@ -487,249 +542,203 @@ export function createHighway(stage) {
         h('div.hw-sync-ring', { html: icon('clock') }),
         h('h3', { text: 'First, a 30-second timing check' }),
         h('p', { text: 'Every PC plays sound a little late, some more than others. This lines Stagehand up with your PC and how you play, so notes you hit on time count as hits. You only do it once.' }),
-        h('p', { text: 'Four clicks count you in, then 16 notes come down the lane. Pick the open low string as each one reaches the line.' }),
+        h('p', { text: `It’s a short, easy song: play each note as it reaches the strings, only on the ${topStrings(kind)}, open or the first few frets.` }),
         h('p.fine', { text: 'Later: Tools › Timing check, any time.' }),
         h('div.hw-sync-actions', null, cancel, go)
       );
-      go.focus();
-      return;
-    }
-    const tap = h('button.btn.ghost', { type: 'button', text: rig.on ? 'Tap instead' : 'Tap along' });
-    cancel.onclick = () => closeSync();
-    tap.onclick = () => syncStart();
-    if (rig.on) {
-      // 3.13: the timing check is a short song you play, not a tapping test
-      go.onclick = () => syncPlay();
+    } else {
       syncBox.append(
         h('div.hw-sync-ring', { html: icon('guitar') }),
         h('h3', { text: 'Timing check' }),
-        h('p', { text: 'A short warm-up: four clicks count you in, then 16 notes come down the lane. Pick a string as each note reaches the line, the open low string is easiest. Play the way you normally would.' }),
-        h('div.hw-sync-actions', null, cancel, tap, go)
+        h('p', { text: 'A short, easy song, about 30 seconds. Drumsticks count you in, then the notes come down the highway like any song.' }),
+        h('p', { text: `Play each note as it reaches the strings, the way you normally play: only the ${topStrings(kind)}, open or the first few frets.` }),
+        h('p.fine', { text: 'Stagehand listens to when you pick and lines the notes up with how you play.' }),
+        h('div.hw-sync-actions', null, cancel, go)
       );
-      go.focus();
+    }
+    go.focus();
+  }
+
+  /** The training song on the highway, through the song player, scored like any song. */
+  async function startTraining() {
+    const token = ++trainToken;
+    clearInterval(trainTimer);
+    const eng = stage.engine;
+    if (eng.playing) eng.pause();
+    syncBox.hidden = false;
+    syncBox.innerHTML = '';
+    const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
+    cancel.onclick = () => closeSync();
+    syncBox.append(h('div.hw-sync-ring.live', { html: icon('guitar') }), h('h3', { text: 'Getting the song ready…' }), h('div.hw-sync-actions', null, cancel));
+    await new Promise((r) => setTimeout(r, 50)); // let that show before the song is made
+    if (token !== trainToken) return;
+    const kind = kindNow();
+    const tab = trainingChart(kind, myTuning(kind), myCents(kind));
+    let audio;
+    try {
+      audio = trainingAudio(tab, eng.sampleRate || 48000);
+    } catch (err) {
+      syncBox.innerHTML = '';
+      syncBox.append(h('div.hw-sync-ring', { html: icon('alert') }), h('h3', { text: 'The timing check didn’t start' }), h('p', { text: err.message || 'Something went wrong.' }), h('div.hw-sync-actions', null, cancel));
+      return;
+    }
+    if (token !== trainToken) return;
+    // the song you had leaves the player for now (it comes back after)
+    if (!trainSnap) trainSnap = { song: H.song, parts: H.parts, tab: H.tab, lyricLines: H.lyricLines, speed: eng.speed || 1, detect: prefs.detect, player: stage.borrowPlayer ? stage.borrowPlayer() : null };
+    if ((eng.speed || 1) !== 1) eng.setSpeed(1);
+    await eng.reset(audio.wav.sampleRate, audio.wav.frames);
+    if (token !== trainToken) return;
+    eng.loadTrack(0, 'mix', audio.buffer, audio.wav);
+    eng.setMode('mix');
+    const notes = trainingTimes(tab);
+    H.training = { tab, kind, notes, picks: [], end: notes[notes.length - 1] + 1.4 };
+    H.syncPlay = { notes, played: H.training.picks }; // tests
+    prefs.detect = true; // scored, whatever the switch says (put back after)
+    H.song = TRAINING_SONG;
+    H.parts = [];
+    H.tab = tab;
+    H.lyricLines = [];
+    rig.setSongTuning(tab.tuning, kind, tab.cents || 0);
+    H.scoringShift = tuneShift.st = rig.dropAmount();
+    H.targets = buildTargets(tab);
+    resetJudge();
+    H.cam.ready = false;
+    root.classList.add('hw-training');
+    syncBox.hidden = true;
+    clearInterval(syncHold);
+    renderControls();
+    renderStatus();
+    renderTrainBar(0);
+    trainBar.hidden = false;
+    await eng.play();
+    if (token !== trainToken) return;
+    trainTimer = setInterval(trainTick, 100);
+  }
+
+  function renderTrainBar(t) {
+    const tr = H.training;
+    if (!tr) return;
+    const n = tr.notes.length;
+    const done = tr.notes.filter((T) => T < t - 0.2).length;
+    const key = t < tr.notes[0] - 0.4 ? 'ready' : `n${done}`;
+    if (trainBar.dataset.key === key) return;
+    trainBar.dataset.key = key;
+    trainBar.innerHTML = '';
+    const stop = h('button.hw-chip', { type: 'button', text: 'Stop', title: 'Stop the timing check (Esc)' });
+    stop.onclick = () => closeSync();
+    trainBar.append(
+      h('span.hw-train-icon', { html: icon('clock') }),
+      h('b', { text: 'Timing check' }),
+      h('span', { text: key === 'ready' ? 'Get ready: the sticks count you in' : `Play each note as it reaches the strings · ${topStrings(tr.kind)}` }),
+      h('span.hw-train-count', { text: `${done} of ${n}` }),
+      stop
+    );
+  }
+  function trainTick() {
+    const tr = H.training;
+    if (!tr) return clearInterval(trainTimer);
+    const eng = stage.engine;
+    const t = eng.position;
+    renderTrainBar(t);
+    if (t >= tr.end || (!eng.playing && t > tr.notes[0])) finishTraining();
+  }
+  /** Picks heard by scoring (already less the input delay), placed by the attack itself. */
+  function trainingPick(t, buf) {
+    const p = H.training && !H.training.finished ? H.training.picks : null;
+    if (!p) return;
+    const at = t - attackAgo(buf, rig.sampleRate);
+    if (!p.length || at - p[p.length - 1] > 0.12) p.push(at);
+  }
+  function finishTraining() {
+    const tr = H.training;
+    clearInterval(trainTimer);
+    if (!tr) return;
+    tr.finished = true;
+    stage.engine.pause();
+    trainBar.hidden = true;
+    const r = matchTiming(tr.notes, tr.picks);
+    syncBox.hidden = false;
+    syncResult(r.offs, tr.notes.length, { hits: H.judge ? H.judge.hits : null });
+  }
+  /** Back to the song you had: its part on the highway, its audio in the player, where you were. */
+  function endTraining() {
+    clearInterval(trainTimer);
+    trainToken++;
+    const s = trainSnap;
+    if (!s) return;
+    trainSnap = null;
+    H.training = null;
+    root.classList.remove('hw-training');
+    trainBar.hidden = true;
+    const eng = stage.engine;
+    if (eng.playing) eng.pause();
+    prefs.detect = s.detect;
+    if (s.detect !== true) save();
+    H.song = s.song;
+    H.parts = s.parts || [];
+    H.tab = s.tab;
+    H.lyricLines = s.lyricLines || [];
+    lyricShown = -2;
+    if (H.tab) {
+      rig.setSongTuning(H.tab.tuning, instrument(), H.tab.cents || 0);
+      H.scoringShift = tuneShift.st = rig.dropAmount();
+      H.targets = buildTargets(H.tab);
+    } else H.targets = [];
+    if (s.speed !== 1 && eng.setSpeed) eng.setSpeed(s.speed);
+    resetJudge();
+    newWatch();
+    H.cam.ready = false;
+    if (stage.giveBack) stage.giveBack(s.player);
+    if (H.open) {
+      renderControls();
+      renderStatus();
+    }
+  }
+
+  /** From anywhere (the guide): open the highway (on your song if one is open), then the check. */
+  async function timingCheck(song) {
+    if (H.open) return openSync();
+    if (song) {
+      await open(song);
     } else {
-      syncBox.append(
-        h('div.hw-sync-ring', { html: icon('clock') }),
-        h('h3', { text: 'Timing check' }),
-        h('p', { text: 'Plug in your guitar to play the warm-up. Or tap along instead: you’ll hear 4 clicks to get ready, then 16 more. Tap Space (or click) on every click you hear.' }),
-        h('div.hw-sync-actions', null, cancel, tap)
-      );
-      tap.focus();
+      H.open = true;
+      root.hidden = false;
+      document.getElementById('app').classList.add('under-highway');
+      api.app.fullscreen(true).catch(() => {});
+      H.loadToken = (H.loadToken || 0) + 1;
+      H.song = null;
+      H.tab = null;
+      H.parts = [];
+      H.targets = [];
+      H.judge = null;
+      H.lyricLines = [];
+      showMsg(null);
+      resize();
+      H.clock = stage.engine.position;
+      H.last = performance.now();
+      hideCard();
+      renderControls();
+      renderStatus();
+      loop();
     }
+    H.bare = true; // when it's done, the highway closes again
+    openSync();
   }
 
-  /** The heard clock of the song player, in its own seconds (what engine.position follows). */
-  function heardClock(ac) {
-    const eng = stage.engine;
-    return () => {
-      const ts = ac.getOutputTimestamp ? ac.getOutputTimestamp() : null;
-      if (ts && ts.contextTime > 0 && ts.performanceTime > 0) return ts.contextTime + Math.max(0, (performance.now() - ts.performanceTime) / 1000) - (eng.extraLatency || 0);
-      return ac.currentTime - (ac.outputLatency || ac.baseLatency || 0) - (eng.extraLatency || 0);
-    };
-  }
-
-  function clickAt(ac, node, T, accent) {
-    const o = ac.createOscillator();
-    const g = ac.createGain();
-    o.frequency.value = accent ? 1760 : 1320;
-    g.gain.setValueAtTime(0, T);
-    g.gain.linearRampToValueAtTime(0.35, T + 0.002);
-    g.gain.exponentialRampToValueAtTime(0.001, T + 0.06);
-    o.connect(g).connect(node);
-    o.start(T);
-    o.stop(T + 0.08);
-    return o;
-  }
-
-  /**
-   * The play-along timing check: notes come down a lane to a line, with a click on
-   * each; what you pick is heard the same way scoring hears it (same detector,
-   * same delay), so the result lines the notes up with how you really play.
-   */
-  async function syncPlay() {
-    const N0 = 4;
-    const N = 16;
-    const gap = 0.75; // 80 bpm: relaxed
-    const LEAD = 1.6; // seconds a note is on screen before the line
-    const { ctx: ac, node } = await stage.engine.extraOut();
-    const heard = heardClock(ac);
-    const t0 = heard() + 1.2;
-    const beats = [];
-    const srcs = [];
-    for (let i = 0; i < N0 + N; i++) {
-      const T = t0 + i * gap;
-      beats.push(T);
-      // scheduled on the context so it's heard at T on the heard clock
-      srcs.push(clickAt(ac, node, ac.currentTime + (T - heard()), i < N0 ? i === 0 : (i - N0) % 4 === 0));
-    }
-    const notes = beats.slice(N0);
-    const played = [];
-    const an = new Analyzer(rig.sampleRate);
-    const on = new OnsetTracker();
-    const buf = new Float32Array(8192);
-    const cv = h('canvas.hw-sync-lane', { width: 400, height: 200 });
-    const g = cv.getContext('2d');
-    const label = h('p', { text: 'Get ready…' });
-    const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
-    cancel.onclick = () => closeSync();
-    syncBox.innerHTML = '';
-    syncBox.append(h('h3', { text: 'Pick on each note' }), cv, label, h('div.hw-sync-actions', null, cancel));
-    let raf = 0;
-    let lastHit = -1;
-    const delay = () => ((rig.latencyMs || 20) / 1000 + 0.03) * 1; // as scoring (speed 1)
-    const end = notes[notes.length - 1] + 0.8;
-    const step = () => {
-      const now = heard();
-      // what you played, timed as scoring times it
-      const b = rig.on ? rig.samples(buf) : null;
-      if (b) {
-        const tp = now - delay();
-        const f = an.frame(b);
-        if (on.update(tp, f) === 'attack') {
-          // the pick itself, not when the detector noticed it (that depends on the screen's speed)
-          const at = tp - attackAgo(b, rig.sampleRate);
-          if (!played.length || at - played[played.length - 1] > 0.12) played.push(at);
-          lastHit = now;
-        }
-      }
-      // the lane
-      const W = cv.width;
-      const Hh = cv.height;
-      const lineY = Hh - 34;
-      g.clearRect(0, 0, W, Hh);
-      g.fillStyle = '#0d1a26';
-      g.fillRect(W / 2 - 60, 0, 120, Hh);
-      g.fillStyle = now - lastHit < 0.15 ? '#ffffff' : '#50e8ff';
-      g.fillRect(W / 2 - 80, lineY - 2, 160, 4);
-      for (let i = 0; i < beats.length; i++) {
-        const dt = beats[i] - now;
-        if (dt > LEAD || dt < -0.3) continue;
-        const y = lineY - (dt / LEAD) * (lineY - 10);
-        if (i < N0) {
-          g.fillStyle = '#9fb0c4';
-          g.font = '800 26px sans-serif';
-          g.textAlign = 'center';
-          g.fillText(String(i + 1), W / 2, y + 9);
-        } else {
-          const near = Math.max(0, 1 - Math.abs(dt) / 0.25);
-          g.fillStyle = dt < -0.05 ? '#5a6078' : `rgb(${Math.round(255 * (0.8 + 0.2 * near))}, ${Math.round(80 + 120 * near)}, ${Math.round(80 + 60 * near)})`;
-          g.fillRect(W / 2 - 40, y - 10, 80, 20);
-        }
-      }
-      const done = notes.filter((T) => T < now).length;
-      label.textContent = now < notes[0] - gap * 0.5 ? 'Get ready…' : `${Math.min(done, N)} of ${N}`;
-      if (now > end) return finish();
-      raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    H.syncPlay = { beats, notes, played }; // tests
-    syncRun = {
-      stop() {
-        cancelAnimationFrame(raf);
-        for (const o of srcs) try { o.stop(); } catch (_) {}
-      },
-    };
-    function finish() {
-      syncRun.stop();
-      syncRun = null;
-      const r = matchTiming(notes, played);
-      syncResult(r.offs, N, { mode: 'play', again: () => syncPlay() });
-    }
-  }
-
-  async function syncStart() {
-    const N0 = 4;
-    const N = 16;
-    const gap = 0.6; // 100 bpm
-    const { ctx: ac, node } = await stage.engine.extraOut();
-    const eng = stage.engine;
-    // "heard" clock of the engine (what engine.position uses), in context seconds
-    const heardNow = () => {
-      const ts = ac.getOutputTimestamp ? ac.getOutputTimestamp() : null;
-      if (ts && ts.contextTime > 0 && ts.performanceTime > 0) return ts.contextTime + Math.max(0, (performance.now() - ts.performanceTime) / 1000) - (eng.extraLatency || 0);
-      return ac.currentTime - (ac.outputLatency || ac.baseLatency || 0) - (eng.extraLatency || 0);
-    };
-    const t0 = ac.currentTime + 0.6;
-    const clicks = [];
-    const srcs = [];
-    for (let i = 0; i < N0 + N; i++) {
-      const T = t0 + i * gap;
-      const o = ac.createOscillator();
-      const g = ac.createGain();
-      o.frequency.value = i % 4 === 0 ? 1760 : 1320;
-      g.gain.setValueAtTime(0, T);
-      g.gain.linearRampToValueAtTime(0.5, T + 0.002);
-      g.gain.exponentialRampToValueAtTime(0.001, T + 0.06);
-      o.connect(g).connect(node);
-      o.start(T);
-      o.stop(T + 0.08);
-      srcs.push(o);
-      // when you'll hear it, on the page's clock
-      clicks.push({ i, T, at: performance.now() + (T - heardNow()) * 1000 });
-    }
-    const taps = [];
-    H.syncClicks = clicks; // tests
-    const ring = h('div.hw-sync-ring.live');
-    const dots = h('div.hw-sync-dots');
-    for (let i = 0; i < N; i++) dots.append(h('i'));
-    const label = h('p', { text: 'Get ready…' });
-    const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
-    cancel.onclick = () => closeSync();
-    syncBox.innerHTML = '';
-    syncBox.append(ring, h('h3', { text: 'Tap on every click' }), label, dots, h('div.hw-sync-actions', null, cancel));
-    const onTap = (e) => {
-      if (e.type === 'keydown') {
-        if (e.code !== 'Space' && e.key !== 'Enter') return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.repeat) return;
-      } else if (e.target.closest('button')) return;
-      const now = performance.now();
-      taps.push(now);
-      ring.classList.remove('tap');
-      void ring.offsetWidth;
-      ring.classList.add('tap');
-      const done = clicks.filter((c) => c.i >= N0 && c.at < now + 250).length;
-      label.textContent = done ? `${done} of ${N}` : 'Get ready…';
-      [...dots.children].forEach((d, k) => d.classList.toggle('on', k < done));
-    };
-    document.addEventListener('keydown', onTap, true);
-    syncBox.addEventListener('pointerdown', onTap);
-    const end = clicks[clicks.length - 1].at + 700;
-    const timer = setInterval(() => {
-      if (performance.now() > end) finish();
-    }, 100);
-    syncRun = {
-      stop() {
-        clearInterval(timer);
-        document.removeEventListener('keydown', onTap, true);
-        syncBox.removeEventListener('pointerdown', onTap);
-        for (const o of srcs) try { o.stop(); } catch (_) {}
-      },
-    };
-    function finish() {
-      syncRun.stop();
-      syncRun = null;
-      // each measured click: the nearest tap within a quarter second
-      const offs = [];
-      for (const c of clicks) {
-        if (c.i < N0) continue;
-        let best = null;
-        for (const t of taps) if (Math.abs(t - c.at) < 250 && (best === null || Math.abs(t - c.at) < Math.abs(best - c.at))) best = t;
-        if (best !== null) offs.push(best - c.at);
-      }
-      syncResult(offs, N);
-    }
-  }
-  function syncResult(offs, N, { mode = 'tap', again: redo = () => syncStart() } = {}) {
+  function syncResult(offs, N, { hits = null } = {}) {
     syncBox.innerHTML = '';
     const again = h('button.btn.ghost', { type: 'button', text: 'Try again' });
-    again.onclick = () => redo();
+    again.onclick = () => startTraining();
     if (offs.length < N / 2) {
       const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
       cancel.onclick = () => closeSync();
-      const why = mode === 'play' ? `Only ${offs.length} of ${N} notes were heard near the line. Pick a little harder, one string at a time, as each note arrives.` : `Only ${offs.length} of ${N} taps landed near a click. Tap Space on each click you hear.`;
-      syncBox.append(h('div.hw-sync-ring', { html: icon('alert') }), h('h3', { text: mode === 'play' ? 'Not enough notes heard' : 'Not enough taps' }), h('p', { text: why }), h('div.hw-sync-actions', null, cancel, again));
+      syncBox.append(
+        h('div.hw-sync-ring', { html: icon('alert') }),
+        h('h3', { text: 'Not enough notes heard' }),
+        h('p', { text: `Only ${offs.length} of ${N} notes were heard near the strings. Pick a little harder, one note at a time, as each one arrives.` }),
+        h('div.hw-sync-actions', null, cancel, again)
+      );
+      again.focus();
       return;
     }
     const sorted = [...offs].sort((a, b) => a - b);
@@ -738,7 +747,8 @@ export function createHighway(stage) {
     const ms = Math.round(mean / 5) * 5;
     const spread = Math.round(Math.sqrt(trim.reduce((a, b) => a + (b - mean) ** 2, 0) / trim.length));
     const use = Math.max(-300, Math.min(300, ms));
-    // your taps as dots around the beat (centre line): see how steady they were
+    H.syncResult = { ms: use, spread, heard: offs.length, notes: N, hits }; // tests
+    // your picks as dots around the note (centre line): see how steady they were
     const strip = h('div.hw-sync-strip', null, h('i.beat'));
     for (const o of offs) {
       const d = h('i.tap');
@@ -759,14 +769,16 @@ export function createHighway(stage) {
       setPref('offsetMs', 0);
       closeSync();
     };
-    const steady = spread < 25 ? 'Nice and steady.' : spread < 45 ? 'A bit uneven: try again for a surer result.' : mode === 'play' ? 'Quite uneven: try again, picking just as each note reaches the line.' : 'Quite uneven: try again, tapping just as you hear each click.';
-    const said = mode === 'play' ? (use === 0 ? 'You play right on the notes: nothing to change.' : `You play ${Math.abs(use)} ms ${use > 0 ? 'after' : 'before'} the notes reach the line. The notes will move to match how you play. ${steady}`) : use === 0 ? 'Your sound and the notes already line up.' : `The sound reaches you ${Math.abs(use)} ms ${use > 0 ? 'later' : 'earlier'} than Stagehand expected. The notes will move to match. ${steady}`;
+    const steady = spread < 25 ? 'Nice and steady.' : spread < 45 ? 'A bit uneven: try again for a surer result.' : 'Quite uneven: try again, picking just as each note reaches the strings.';
+    const said = use === 0 ? 'You play right on the notes: nothing to change.' : `You play ${Math.abs(use)} ms ${use > 0 ? 'after' : 'before'} the notes reach the strings. The notes will move to match how you play. ${steady}`;
     syncBox.append(
+      h('div.hw-sync-eyebrow', { text: hits !== null ? `Timing check · ${hits} of ${N} notes hit` : 'Timing check' }),
       h('div.hw-sync-big', { text: `${use > 0 ? '+' : ''}${use} ms` }),
       h('p', { text: said }),
-      h('div.hw-sync-legend', null, h('span', { text: 'early' }), h('span', { text: mode === 'play' ? 'on the note' : 'on the click' }), h('span', { text: 'late' })),
+      h('div.hw-sync-legend', null, h('span', { text: 'early' }), h('span', { text: 'on the note' }), h('span', { text: 'late' })),
       strip,
-      h('div.hw-sync-actions', null, reset, again, ok)
+      h('div.hw-sync-actions', null, reset, again, ok),
+      h('p.fine', { text: `Set now: ${prefs.offsetMs ? `${prefs.offsetMs > 0 ? '+' : ''}${prefs.offsetMs} ms` : '0 ms'}. Afterwards you’re back ${trainSnap && trainSnap.song ? `at ${trainSnap.song.title}` : 'where you were'}.` })
     );
     ok.focus();
   }
@@ -972,7 +984,7 @@ export function createHighway(stage) {
     H.watch = new StruggleWatch({ checked: !!prefs.syncChecked });
   }
   function watchNote(e, tg) {
-    if (!H.watch || prefs.struggleOff || !stage.engine.playing || helpResting()) return;
+    if (!H.watch || H.training || prefs.struggleOff || !stage.engine.playing || helpResting()) return;
     const st = H.judge && H.judge.state.get(e.id);
     const near = nearestPick(H.judge && H.judge.onsets, tg.t);
     H.watch.add({ hit: e.hit, tried: e.hit || near !== null, offset: st && st.offset !== null && st.offset !== undefined ? st.offset : near });
@@ -1040,6 +1052,7 @@ export function createHighway(stage) {
   }
 
   function close() {
+    closeTraining();
     H.open = false;
     extras.close();
     practiceCheckpoint();
@@ -1095,7 +1108,7 @@ export function createHighway(stage) {
   /** The panel in the middle when the song can't play yet, and why. */
   function renderStatus() {
     const info = stage.loadInfo ? stage.loadInfo() : null;
-    if (!H.open || !info || !info.song) {
+    if (!H.open || !info || !info.song || H.training) {
       statusBox.hidden = true;
       return;
     }
@@ -1284,7 +1297,9 @@ export function createHighway(stage) {
     const delay = ((rig.latencyMs || 20) / 1000 + 0.03) * stage.engine.speed;
     const t = songT - delay;
     const f = analyzer.an.frame(buf);
-    H.judge.push(t, f, analyzer.on.update(t, f));
+    const onset = analyzer.on.update(t, f);
+    H.judge.push(t, f, onset);
+    if (H.training && onset === 'attack') trainingPick(t, buf); // the timing check
   }
 
   /** Newly judged notes light up (or don't); with no scoring, notes still land with a soft flash. */
@@ -1374,7 +1389,7 @@ export function createHighway(stage) {
       listen(H.clock);
 
       // your timing nudge: positive shows notes later (they reach the neck later)
-      const vis = visualTime(H.vclock, prefs.offsetMs, eng.speed);
+      const vis = visualTime(H.vclock, H.training ? 0 : prefs.offsetMs, eng.speed); // the timing check measures from 0
       H.vis = vis; // lyrics follow the same timing as the notes
       if (H.judge && eng.playing && prefs.detect && rig.on) H.judge.tick(H.clock - (((rig.latencyMs || 20) / 1000 + 0.03) * eng.speed));
       processEvents(vis);
@@ -2583,8 +2598,13 @@ export function createHighway(stage) {
       if (!H.open) return;
       // a menu that's open handles its own keys (arrows, Enter, Escape)
       if (document.querySelector('.menu[role="menu"]')) return;
-      if (!syncBox.hidden) {
+      if (!syncBox.hidden || trainSnap) {
         if (e.key === 'Escape') closeSync();
+        // the timing check plays to the end: no pausing or skipping (Space would press a button)
+        if (trainSnap && syncBox.hidden && !e.target.closest?.('input, select, textarea')) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         return;
       }
       if (e.key === 'Escape') {
@@ -2617,6 +2637,7 @@ export function createHighway(stage) {
   return {
     open,
     close,
+    timingCheck,
     get isOpen() {
       return H.open;
     },

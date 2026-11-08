@@ -642,6 +642,24 @@ class FakePortMain extends EventEmitter {
   await page.locator('.hw-syncbox button:has-text("Not now")').click().catch(() => {});
   await page.waitForTimeout(300);
   check(await page.locator('.hw-syncbox').isHidden(), 'Not now closes it');
+  // the timing check plays its own short song through the song player, then gives yours back
+  {
+    const stageNow = () => page.evaluate(async () => { const { engine } = await import('/src/renderer/js/stage.js'); const H = document.querySelector('.highway').__hw; return { id: H.song && H.song.id, title: H.song && H.song.title, dur: engine.duration, at: engine.position, playing: engine.playing, training: !!H.training }; });
+    if (await page.evaluate(async () => (await import('/src/renderer/js/stage.js')).engine.playing)) await page.keyboard.press('Space');
+    await page.waitForTimeout(300);
+    const was = await stageNow();
+    await page.evaluate(() => document.querySelector('.highway').__openSync());
+    await page.locator('.hw-syncbox:not([hidden]) button:has-text("Start")').click().catch(() => {});
+    await page.waitForFunction(() => { const H = document.querySelector('.highway').__hw; return H.training && H.clock > 6; }, null, { timeout: 30000 }).catch(() => {});
+    const tr = await stageNow();
+    check(tr.training && tr.playing && tr.at > 5 && tr.dur > 24 && tr.dur < 30, `the timing check plays its own song on the highway (${tr.title}, ${tr.at.toFixed(1)} of ${tr.dur && tr.dur.toFixed(1)} s)`);
+    check(await page.locator('.hw-trainbar').isVisible(), 'the timing check shows how far along it is');
+    await shot('6a2-highway-timing-check');
+    await page.locator('.hw-trainbar button:has-text("Stop")').click().catch(() => {});
+    await page.waitForTimeout(1500);
+    const back = await stageNow();
+    check(!back.training && back.id === was.id && Math.abs(back.dur - was.dur) < 0.05 && Math.abs(back.at - was.at) < 0.5, `Stop gives the song back where it was (${back.title} at ${back.at.toFixed(1)} s of ${back.dur.toFixed(1)})`);
+  }
   if (playingBefore && !(await page.evaluate(async () => (await import('/src/renderer/js/stage.js')).engine.playing))) await page.keyboard.press('Space');
   await page.waitForTimeout(1000);
   await shot('6b-highway');
