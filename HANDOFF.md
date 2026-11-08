@@ -11,14 +11,14 @@ User sent three Rocksmith clips (Bleed It Out, a bass solo at frets 12–15): "f
 Measured frame by frame (60 fps) in the clips. Before this, Stagehand only lit things after a note landed (hit posts and flares when scoring; a soft flash without). Rocksmith lights them **before**, whether or not you play:
 - **Note spots on the neck**: each coming note's place (its string, its fret) shows as an outline in the string's colour about 1 s early, brighter as it closes in, white-hot rim and a halo in the last moments and while it rings, then fades. One per string+fret (the soonest note).
 - **Fret wires light up** as white posts with a warm pink glow ~0.16 s before the note lands, brightest as it lands, dimmer through its sustain, fading 0.22 s after. Chords: at the frame's edges; open strings: at the hand position's edges. A missed note's posts go dark when it's judged. The pink hit posts and flares are unchanged on top.
-- **The chord's frame at the neck** (the "square"): an outline that brightens as the chord arrives, flashes as it lands, stays lit while it rings.
+- **The chord's box at the neck** (the "square"). First try was thin lines up to the chord's top string; user: "the single notes look much better, but the chords do not have the same highlighted box that Rocksmith has". Now, measured again: a rectangle as wide as the chord's frame and as tall as the neck (under the bottom string to above the top one), thick solid cyan edges, a soft halo fading outward, brighter top corners, faintly lit inside. It starts lighting 0.5 s before the chord (`BOX_LEAD`), flashes as it lands and stays faintly lit 0.6 s after (`BOX_HOLD`), so a strummed passage keeps its box.
 - The flying gem's rim turns white in its last 0.1 s.
 
 All in `buildApproach` (highway.js, "approach" section; `TARGET_LEAD`, `POST_LEAD`, `POST_FADE`, `postLight`), drawn after the neck, before the notes; depends only on the song clock, so it also shows when paused or scrolling. Not done for the 2D fallback highway (highway-classic.js).
 
 Look tool repairs (test/hwlook had drifted from 4.2): stubs for the names the app now imports (rig `P`/`openStrings`, tab `createTabView`, tonelib/captures/realamps), a quiet `api` stub, a `drums.js` stub (the real one starts before the song player in the harness's load order), the page's other elements in index.html, and the first-time timing check offer turned off so it doesn't cover shots. `seq.js` now takes a made-up scene (A/B/C/T) instead of a chart file and finds its own folder. `VERIFY=1` still looks for the old "Highway options" button (stale since 4.2.0).
 
-**Ask the user:** does the build-up feel like Rocksmith on their PC (too much, too little, too early?); are the lit fret wires readable on busy passages; does the chord square brighten enough.
+**Ask the user:** does the build-up feel like Rocksmith on their PC (too much, too little, too early?); are the lit fret wires readable on busy passages; does the chord box at the neck now match Rocksmith's (thickness, brightness, how long it stays).
 
 ## 4.2.0: timing check song, section speed, tones overhaul, tuner, tab view
 

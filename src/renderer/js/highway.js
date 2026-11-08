@@ -1926,6 +1926,8 @@ export function createHighway(stage) {
   const TARGET_LEAD = 1.0; // s before landing that a note's spot on the neck shows
   const POST_LEAD = 0.16; // s before landing that its fret wires light
   const POST_FADE = 0.22; // s for the posts to fade after the note (or its sustain) ends
+  const BOX_LEAD = 0.5; // s before a chord lands that its box at the neck starts to light
+  const BOX_HOLD = 0.6; // s a chord's box stays faintly lit after it lands
   const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
   /** How lit the wires around a note are at time t: rising before it lands, held while it rings. */
@@ -1976,10 +1978,13 @@ export function createHighway(stage) {
         }
       }
       // the chord's frame at the neck
+      // (4.2.1b: a full-height box, lit as the chord comes in, flashing as it lands, then
+      // staying faintly lit for a moment, so a strummed passage keeps its box on the neck)
       if (chord && !missed) {
         const dt = tg.t - t;
-        const fk = dt > 0 ? 0.12 + 0.5 * smooth(1 - dt / TARGET_LEAD) ** 2 : t <= end ? Math.max(0.35, Math.exp(dt / 0.14)) : 0.35 * (1 - (t - end) / POST_FADE);
-        if (fk > 0.02 && (!frame || fk > frame.k)) frame = { k: fk, box, tg };
+        const ring = Math.max(end, tg.t + BOX_HOLD);
+        const fk = dt > 0 ? (dt < BOX_LEAD ? 0.15 + 0.55 * smooth(1 - dt / BOX_LEAD) ** 2 : 0) : t <= ring ? Math.max(0.32, Math.exp(dt / 0.13)) : 0.32 * (1 - (t - ring) / 0.3);
+        if (fk > 0.02 && (!frame || fk > frame.k)) frame = { k: fk, box, tg, flash: dt <= 0 ? Math.exp(dt / 0.13) : 0 };
       }
       // each note's spot on the neck
       for (const nt of tg.notes) {
@@ -2037,19 +2042,45 @@ export function createHighway(stage) {
       solid.box(x - 0.03, x + 0.03, -0.2, G.yTop + 0.32, -0.1, -0.03, col('#fff6ee', Math.min(1, k * 1.1), 1 + 1.2 * k));
       glow.up(x - 0.16, x + 0.16, -0.2, G.yTop + 0.32, -0.105, col('#ff7a9a', 0.32 * k, 1.2), col('#ff9a6a', 0.12 * k));
     }
-    // the chord's frame at the neck: the square lights up as the chord arrives
+    // the chord's box at the neck (as in Rocksmith): a rectangle as wide as the chord's hand
+    // position and as tall as the neck, from under the bottom string to above the top one,
+    // with thick glowing cyan edges and bright corners, lit faintly inside
     if (frame) {
       const [xa, xb] = frame.box;
-      const topL = Math.max(...frame.tg.notes.map((nt) => level(nt.s)));
-      const yT = nY(topL) + G.gy * 0.55;
       const k = frame.k;
-      const w = 0.035;
-      const c = railCol(Math.min(1, 0.25 + k), 0.9 + 1.6 * k);
-      for (const [p0, p1, q0, q1] of [[xa - w, xa + w, 0, yT + w], [xb - w, xb + w, 0, yT + w], [xa - w, xb + w, yT - w, yT + w]]) glow.up(p0, p1, q0, q1, -0.02, c);
-      const gc = railCol(0.18 * k, 1.2);
-      glow.up(xa - 0.14, xa + 0.14, 0, yT + 0.12, -0.025, gc);
-      glow.up(xb - 0.14, xb + 0.14, 0, yT + 0.12, -0.025, gc);
-      glow.up(xa - 0.14, xb + 0.14, yT - 0.12, yT + 0.14, -0.025, gc);
+      const hot = frame.flash;
+      const y0 = -0.2;
+      const y1 = G.yTop + 0.38;
+      const z = -0.06;
+      const w = 0.05 + 0.02 * hot;
+      const edge = mix(RAIL, '#ffffff', 0.12 * hot, Math.min(1, 0.3 + k), 0.9 + 0.9 * k);
+      // the four edges, solid so they read even where the glow is faint
+      solid.box(xa - w, xa + w, y0, y1 + w, z - w, z + w, edge);
+      solid.box(xb - w, xb + w, y0, y1 + w, z - w, z + w, edge);
+      solid.box(xa - w, xb + w, y1 - w, y1 + w, z - w, z + w, edge);
+      solid.box(xa - w, xb + w, y0 - w, y0 + w, z - w, z + w, edge);
+      // a soft halo fading outward from each edge, wider and brighter as it lands
+      const R = 0.2 + 0.14 * hot;
+      const gc = railCol(Math.min(0.55, 0.22 * k + 0.25 * hot), 1.2);
+      const g0 = railCol(0);
+      const zg = z - 0.005;
+      for (const x of [xa, xb]) {
+        glow.quad([x - R, y0, zg], [x, y0, zg], [x, y1, zg], [x - R, y1, zg], g0, gc, gc, g0);
+        glow.quad([x, y0, zg], [x + R, y0, zg], [x + R, y1, zg], [x, y1, zg], gc, g0, g0, gc);
+      }
+      for (const y of [y0, y1]) {
+        glow.quad([xa, y - R, zg], [xb, y - R, zg], [xb, y, zg], [xa, y, zg], g0, g0, gc, gc);
+        glow.quad([xa, y, zg], [xb, y, zg], [xb, y + R, zg], [xa, y + R, zg], gc, gc, g0, g0);
+      }
+      // brighter top corners, a soft spot on each
+      const cR = 0.16 + 0.1 * hot;
+      const cc = mix(RAIL, '#ffffff', 0.35, Math.min(0.8, 0.2 * k + 0.45 * hot), 1.5);
+      for (const x of [xa, xb]) {
+        glow.quad([x - cR, y1, zg - 0.003], [x + cR, y1, zg - 0.003], [x + cR, y1 + cR, zg - 0.003], [x - cR, y1 + cR, zg - 0.003], cc, cc, g0, g0);
+        glow.quad([x - cR, y1 - cR, zg - 0.003], [x + cR, y1 - cR, zg - 0.003], [x + cR, y1, zg - 0.003], [x - cR, y1, zg - 0.003], g0, g0, cc, cc);
+      }
+      // faintly lit inside, more as the chord lands
+      alpha.up(xa, xb, y0, y1, z + 0.02, railCol(0.04 + 0.05 * k + 0.08 * hot), railCol(0.02 + 0.03 * k + 0.05 * hot));
     }
   }
 
