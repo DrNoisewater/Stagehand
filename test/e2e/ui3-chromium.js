@@ -467,7 +467,6 @@ class FakePortMain extends EventEmitter {
       await page.locator('.nav-section:has-text("Tones")').click();
       await page.waitForTimeout(600);
       check(await page.locator('.te-dirty').isHidden(), 'and Tones shows the saved tone again');
-      await page.locator('.tones-edit .te-simple').click().catch(() => {});
     }
     // song tones: one row per tone, described, grouped, filtered
     await page.locator('.tones-tabs button:has-text("In my songs")').click();
@@ -897,7 +896,7 @@ class FakePortMain extends EventEmitter {
   await shot('7-tones');
   await page.locator('.tones-tabs button:has-text("In my songs")').click();
   await page.waitForTimeout(2500);
-  await page.locator('.tone-item .ti-main').first().click();
+  await page.locator('.find-items .tone-item .ti-main').first().click();
   await page.waitForTimeout(800);
   // 3.13: a picked tone shows the simple view first: what it is, play it, put it on a key
   check((await page.locator('.tones-edit .ts-keys .ts-key').count()) === 8 && (await page.locator('.tones-edit .knobs3').count()) === 0, 'Tones opens a tone simply: keys 2–9 to put it on, no knobs in the way');
@@ -1021,7 +1020,7 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(800);
   await page.locator('.tones-tabs button:has-text("Presets")').click();
   await page.waitForTimeout(400);
-  await page.locator('.tone-item .ti-main:has-text("Crunch")').first().click();
+  await page.locator('.find-items .tone-item .ti-main:has-text("Crunch")').first().click();
   await page.waitForTimeout(2500);
   check((await page.locator('.tone-item:has(.ti-main:has-text("Crunch")) > .real-badge').count()) >= 1, 'the tone list marks it REAL');
   check((await page.locator('.ra-strip.real .ra-ladder i').count()) === 3 && (await page.locator('.ra-strip.real .ra-ladder i.on').count()) === 1, 'the amp card shows the three gain captures, one lit');
@@ -1032,7 +1031,7 @@ class FakePortMain extends EventEmitter {
   await page.locator('.ra-seg button:has-text("Real")').click();
   await until(() => page.evaluate(() => !!window.__rig.capture));
   check(!!(await page.evaluate(() => window.__rig.capture)), 'Real switches it back');
-  await page.locator('.tone-item .ti-main:has-text("Metal")').first().click();
+  await page.locator('.find-items .tone-item .ti-main:has-text("Metal")').first().click();
   await page.waitForTimeout(2000);
   check((await page.locator('.ra-offer .ra-get').count()) === 1 && (await page.locator('.ra-offer :text("Mesa Dual Rectifier")').count()) === 1, 'a Cali-100 tone offers the real Rectifier');
   await shot('15-tones-get-real-amp');
