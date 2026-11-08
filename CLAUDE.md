@@ -77,6 +77,17 @@ Also documented in HANDOFF.md but not re-run on 2026-11-01:
 - `.github/workflows/release.yml` is manual (Actions → Release → Run workflow, version e.g. `3.9.1`). It fails unless the version is `X.Y.Z`, equals `"version"` in `package.json`, and tag `v<version>` doesn't exist yet. Windows job: tests and the sound engine .exe. Linux job: builds `Stagehand-Setup-<version>.exe` (~4 MB; it downloads the runtime, decoder and uv when missing, pinned in `windows/setup/components.sh`, SHA-256 checked), then pushes tag `v<version>` and publishes the release with that one file and short notes.
 - To release, bump `version` in `package.json` (and the HANDOFF heading) in a commit on the default branch, then run the Release workflow on that branch.
 
+## Helper names
+
+When work is handed to helpers (subagents), start each one's short task label with its role name, so the user can see who is doing what in the chat. This goes with the delegation and model rules in the user's global instructions:
+
+- **Scout**: looking things up, finding code, short summaries (Haiku).
+- **Builder**: a bounded change or fix (Sonnet).
+- **Checker**: running tests and checking a helper's work.
+- **Reviewer**: a careful second look at important changes, hard debugging, design choices (Opus).
+
+Example labels: "Scout: find the tuner code", "Builder: fix the gain knob", "Checker: run npm test". When there are two of the same role, number them ("Builder 2: ..."). Use the same names when telling the user what each helper found or did. The names change nothing about when helpers are used: only start one when the global rules call for it.
+
 ## Conventions
 
 - Don't add npm dependencies to the app: everything is vendored or plain JS/C.
