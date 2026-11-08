@@ -1060,7 +1060,7 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 
 /* 3.10 Performance tools: existing Stagehand card, chip and gel vocabulary. */
 .hw-tools{position:absolute;right:26px;top:100px;display:flex;gap:7px;z-index:15}.hw-tools .hw-chip{background:rgba(17,20,28,.88)}
-.hw-mini-tuner{position:absolute;right:24px;top:148px;width:370px;z-index:25;box-shadow:0 16px 60px #0008}.hw-mini-tuner[hidden]{display:none}
+/* 4.2: the highway tuner folds out inside Sound & settings; the tab view has it as a panel tab */
 .attack-hud{position:absolute;left:28px;top:200px;padding:15px 22px;border-left:3px solid var(--tungsten);background:linear-gradient(90deg,#17171ee8,#17171e00);color:var(--tungsten);z-index:12;pointer-events:none}.attack-hud b{font-size:32px;display:block;font-variant-numeric:tabular-nums}.attack-hud small{letter-spacing:.12em;text-transform:uppercase}
 .perf-panel{position:absolute;right:24px;top:148px;width:370px;padding:20px;z-index:24;background:var(--panel,#181c24);border:1px solid var(--line,#ffffff20);border-radius:14px}.perf-panel[hidden]{display:none}.perf-panel p{color:var(--ink-3);line-height:1.6}.perf-panel button{margin:5px}.goal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0}.goal-card{padding:20px}.goal-card b{display:block;font-size:17px;margin:8px 0}.goal-card progress{width:100%;accent-color:var(--tungsten);height:7px}.goal-card.earned{border-color:var(--tungsten);animation:badge-arrive .7s ease-out}.goal-card small{color:var(--ink-3)}@keyframes badge-arrive{50%{box-shadow:0 0 35px #efb96044;transform:translateY(-3px)}}.reactive-bg{width:100%;height:100%;pointer-events:none}.jam-backing{max-width:210px}.jam-controls{display:flex;gap:10px;align-items:center}.hw-chip[aria-pressed=true]{color:var(--tungsten);border-color:var(--tungsten)}
 
@@ -1548,3 +1548,14 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .hw-card-titles p { overflow-wrap: anywhere; }
 .hw-card-notes > div > span:not(:first-child) { min-width: 0; overflow-wrap: anywhere; }
 .hw-card-notes .work .hw-chip { flex: none; }
+.hw-tuner-sec { margin: 6px 0 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.07); }
+.hw-tuner-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; background: none; border: 0; color: var(--ink-1); font: 600 13px var(--font); cursor: pointer; text-align: left; border-radius: 10px; }
+.hw-tuner-head:hover { background: rgba(255, 255, 255, 0.05); }
+.hw-tuner-head b { flex: 1; font-weight: 600; }
+.hw-tuner-head kbd { font: 600 10px var(--font); color: var(--ink-3); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 1px 5px; }
+.hw-tuner-ic, .hw-tuner-chev { display: inline-flex; color: var(--ink-3); }
+.hw-tuner-ic svg, .hw-tuner-chev svg { width: 16px; height: 16px; }
+.hw-tuner-sec .tuner3, .np-tuner.tuner3 { box-shadow: none; background: transparent; border: 0; margin: 0; padding: 4px 10px 10px; }
+.np-tuner.tuner3 { padding: 4px 0 0; }
+.hw-tuner-sec .tuner3 .card-head h2 { display: none; }
+.hw-tuner-sec .tuner3 .card-head { justify-content: flex-end; }

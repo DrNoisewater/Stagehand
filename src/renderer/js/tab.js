@@ -7,7 +7,6 @@ import { api } from './api.js';
 import { h, icon, esc, showMenu, toast } from './ui.js';
 import { rig, TONES, TUNINGS, openStrings, noteName } from './rig.js';
 import { describe } from './gearspec.js';
-import { createTuner } from './tuner.js';
 
 const STRING_COLORS = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 const GUITAR_NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
@@ -123,16 +122,9 @@ export function createTabView(host, stage) {
   const foot = h('div.tab-foot');
   host.append(bar, sectionsBar, main, foot);
 
-  // 4.2: the tuner here too (the same small one as on the highway): the menu, or U
-  const tuner = createTuner();
-  tuner.el.classList.add('hw-mini-tuner', 'tab-mini-tuner');
-  tuner.el.hidden = true;
-  main.append(tuner.el);
-  const toggleTuner = () => {
-    tuner.el.hidden = !tuner.el.hidden;
-    if (tuner.el.hidden) tuner.hide();
-    else tuner.show();
-  };
+  // 4.2: the tuner is the Tuner tab in the right panel (nowpanel.js), never over the tab
+  const toggleTuner = () => window.dispatchEvent(new CustomEvent('stagehand:tab-tuner'));
+  const tunerShowing = () => !!document.querySelector('.np-tuner') && document.querySelector('.np-tuner').isConnected;
   document.addEventListener('keydown', (e) => {
     if (e.key.toLowerCase() !== 'u' || e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
     const shown = (el) => !!el && el.isConnected && (el.checkVisibility ? el.checkVisibility() : el.getClientRects().length > 0);
@@ -152,7 +144,7 @@ export function createTabView(host, stage) {
       r.right,
       r.bottom + 4,
       [
-        { label: tuner.el.hidden ? 'Tuner' : 'Hide the tuner', icon: 'tuning', hint: 'U', onClick: toggleTuner },
+        { label: tunerShowing() ? 'Hide the tuner' : 'Tuner', icon: 'tuning', hint: 'U', onClick: toggleTuner },
         '-',
         { heading: true, label: 'Strings' },
         { label: 'Low E on top', icon: 'tuning', hint: check(prefs.lowTop), onClick: () => setPref('lowTop', true) },

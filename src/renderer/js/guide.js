@@ -312,7 +312,7 @@ const PAGES = [
           ['Play, time and speed', 'Space plays and pauses. The speed chip slows the song down (try 70 % on something new) without changing its pitch. ← and → skip 5 seconds.'],
           ['Sections', 'The strip of sections (Intro, Verse, Chorus…): click one to jump there, or its ⟲ to repeat it until you’ve got it. L repeats the section you’re in.'],
           ['Tab, Highway, Waveform', 'Switch views any time; T shows the tab.'],
-          ['Tools', 'The tuner (U), Score attack (a full run for points), Record a video clip, and the Timing check.'],
+          ['Tools', 'Score attack (a full run for points), Record a video clip, and the Timing check.'],
           ['Master Settings', 'The pull-out tab on the side: the mix (turn the song, the guitar or any stem up and down), the Drop and tuning, lyrics, chord names, the score card and more.']
         ),
         p('At the end you get a score card: how each section went and what to practise. Click a section to repeat it. Back (or Esc, or your mouse’s back button) returns to your songs.'),
