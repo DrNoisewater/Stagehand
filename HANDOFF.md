@@ -1,8 +1,41 @@
-# Stagehand handoff (v4.1.8, 2026-11-05): Get real amp is a clear button in Create tone
+# Stagehand handoff (v4.2.0, 2026-11-08): timing check song, section speed, tones overhaul, tuner and tab view
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.2.0: timing check song, section speed, tones overhaul, tuner, tab view
+
+The user sent one long list (highway options, timing check, score card, long sections, tones, retune card, tuner), then follow-ups. Built by me plus three helper sessions (timing, tones, speed) merged on branch `claude/calibration-timing-ui-7f8o8u`.
+
+**Highway**
+- Look ahead is always 4 s (option removed; `load()` forces `ahead: 4` in highway.js and highway-classic.js).
+- String order left the highway: Settings › Playback › "Strings on the highway" (dialogs.js writes `lowTop` to `stagehand.highway` and fires `stagehand:highway-pref`). User: the **tab view keeps its own switch** in its menu ("Tab view can have the option to switch. Not on the highway").
+- Section strip: a click inside a section longer than 30 s goes to that spot (hover shows the time); the strip and the score card no longer run off the screen (bars shrink, text wraps, card scrolls).
+
+**Timing check** (`training-song.js`, the timing-check section of highway.js, `stage.borrowPlayer/giveBack`): a 28 s practice song at 92 bpm on the real highway, drums/bass/strummed rhythm guitar made in JS when it starts, no vocals, no spacebar. User: notes on the **top three strings of the highway, red/yellow/blue** (low E, A, D, guitar and bass), frets 0–3; in a lowered string the fret moves up to stay in key. The offset is the trimmed mean of detected attacks vs the chart, saved as `prefs.offsetMs`. The song you had comes back where you were. A repeat you had waits (`rep.paused`), keys are blocked, speed chip and repeat bar hidden. `PLAYCAL=80 … shoot.js` expects ~+30 ms.
+
+**Speed** (`speed.js`, `repeat.js`, `speedpop.js`, player-worklet WSOLA): 25–150 %, pitch kept, changes mid-play without stopping. One chip + panel on the highway, classic highway and Now playing footer; `[` `]` anywhere. Repeat one or several sections (Shift+click / drag on the strip; tab view: double-click then Shift+click), each repeat has its own speed and "Speed up each time" (+5 %/pass to a goal); the speed comes back when it stops. Bests count at ≥100 %, Score attack needs exactly 100 %; above 100 % the hit window widens. Tests: `stretch.test.mjs`, `speed.test.mjs`.
+
+**Tones** (`tonerecipes.js`, `pedalboard.js`, `tonemenu.js`, `tonesongs.js`, toneslots/tonespage/tonelib, native `sh_fx.c`/`sh_engine.c`, rebuilt exe + wasm):
+- Why metal didn't work: the tube drive pedal cut ~30 dB of lows (fixed, now Tube Screamer-like), the bass overdrive blend did nothing (fixed), recipes lacked a mid scoop or a boost. New starting sounds: Thrash / 80s Metallica, Modern metal, 80s hair-metal lead, Shred lead.
+- Noise gate learns your noise floor, sits over every tone (Auto / Strong / Off; Pedals step, Tones, highway tone menu).
+- Create tone has a Pedals step (7 steps): add, move (across the amp), switch, remove pedals; 18 guitar, 7 bass.
+- Tones page: keys on top; clicking a key only picks it (no more overwrites), "Put on a key" asks first and has Undo; knob changes are marked unsaved with Save/Revert and go back to the saved tone when you leave.
+- Song tones: each tone once, described by sound and gear, search covers artist/amp/pedals/sound words, filters (Guitar/Bass, Clean/Crunch/Heavy/Lead).
+- Highway tone menu rebuilt (`tonemenu.js`): playing now, keys 1–9, the song's tones, search, Edit/Create, gate; follows number keys.
+- `rig-dsp.wasm` went from 826 KB to 197 KB in the rebuild; engine tests and rig-chromium pass with it.
+
+**Tuner** (user: not on the sidebar; only Jam, the highway/tab menus and the retune card):
+- Highway: a collapsible Tuner row in Sound & settings › Tuning (`hwTuner`, `H.toggleTuner`); U opens the pullout and the tuner. Tools now has Score attack, Record a video clip, Recordings, Timing check.
+- Tab view: a Tuner tab in the right panel (nowpanel.js, `stagehand:tab-tuner`), never over the tab; only listens while showing.
+- Retune card: one tuner like the main one (centre line), strict: within 3 cents, held 0.7 s, un-ticks if it slips past 5.
+
+**Tab view** (user: "it hasn't had as much attention"): click the tab to go to that note (a moment early), drag sideways or use the wheel to move (Ctrl+wheel zooms; Pages: a row per notch); sections get a second of lead-in, long ones go to the clicked spot, the first block says Start; the menu lists the keys. Fixed: coming back from the highway left the footer (speed, Record take) and side panel empty (nowpanel.js watches `under-highway`).
+
+**Ask the user:** do the timing check backing and count-in sound real, do notes count when played on time, and do later songs line up; is 110–150 % clean on busy songs and is +5 % per pass right; do the metal/lead starting sounds land, is the gate quiet between riffs on Auto without choking notes on Strong; does clicking keys on Tones feel safe now; does the tab view's click/drag/wheel feel natural; try Settings › Playback › Strings on the highway.
+
+**Not run here:** the Electron e2e tests (`test/e2e/highway.js`, `tab.js`, `crash-electron.js`, `tones-electron.js`). The full `ui3-chromium.js` has one known failure, "no page errors", from a recording's audio blocked in the Chromium mock (recordings.js, untouched).
 
 ## README for players (docs only, no version change)
 
