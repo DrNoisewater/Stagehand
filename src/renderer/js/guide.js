@@ -309,7 +309,7 @@ const PAGES = [
         p('The number on a note is the fret to press (0 means play the string open). Wide shapes are chords. A long tail means let the note ring; a curve means bend the string; a wavy tail is vibrato.'),
         h('h4', { text: 'Along the top' }),
         steps(
-          ['Play, time and speed', 'Space plays and pauses. The speed chip slows the song down (try 70 % on something new) without changing its pitch. ← and → skip 5 seconds.'],
+          ['Play, time and speed', 'Space plays and pauses. The speed chip slows the song down (try 70 % on something new) or speeds it up to 150 %, without changing its pitch. [ and ] change it too. ← and → skip 5 seconds.'],
           ['Sections', 'The strip of sections (Intro, Verse, Chorus…): click one to jump there, or its ⟲ to repeat it until you’ve got it. L repeats the section you’re in.'],
           ['Tab, Highway, Waveform', 'Switch views any time; T shows the tab.'],
           ['Tools', 'The tuner (U, the same as the Tuner button in the menu), Score attack (a full run for points), Record a video clip, and the Timing check.'],

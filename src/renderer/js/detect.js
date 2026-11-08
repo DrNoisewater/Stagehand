@@ -210,6 +210,8 @@ export function targetsFromTab(tab) {
 export class Judge {
   constructor(targets, { early = 0.13, late = 0.17 } = {}) {
     this.targets = targets;
+    this.early0 = early;
+    this.late0 = late;
     this.early = early;
     this.late = late;
     this.state = new Map(); // id -> { result: 'hit'|'miss', at, cents }
@@ -221,6 +223,17 @@ export class Judge {
     this.hits = 0;
     this.judged = 0;
     this.events = []; // newly judged, for the renderer's effects
+  }
+
+  /**
+   * The practice speed. Windows are in song seconds; above 100% the song runs
+   * faster than the clock on the wall, so they widen to stay as long, in real
+   * time, as at 100%. Slower than 100% they stay as they are (more forgiving).
+   */
+  setPace(speed) {
+    const k = Math.max(1, Number(speed) || 1);
+    this.early = this.early0 * k;
+    this.late = this.late0 * k;
   }
 
   reset(t) {

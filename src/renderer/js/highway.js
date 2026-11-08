@@ -28,13 +28,14 @@ import { breakdown, cheer } from './scorecard.js';
 import { StruggleWatch, nearestPick } from './struggle.js';
 import { state, on } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
+import { createRepeat } from './repeat.js';
+import { paintSpeedChip, openSpeedPopover, createRepeatBar } from './speedpop.js';
 
 const STRING = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 const STRING_DARK = ['#7a1d27', '#7a5e12', '#164e80', '#7a4515', '#1c6a3c', '#55307f'];
 const NAMES6 = ['E', 'A', 'D', 'G', 'B', 'e'];
 const NAMES4 = ['E', 'A', 'D', 'G'];
 const FONT = "'Archivo', 'Segoe UI', sans-serif";
-const SPEEDS = [0.5, 0.6, 0.75, 0.85, 1];
 
 function load() {
   const base = { ahead: 4, flow: 1, lowTop: true, detect: true, venue: 'warehouse', fx: true, v: 36 };
@@ -154,32 +155,22 @@ export function createHighway(stage) {
   const bottom = h('div.hw-bottom', { hidden: true }); // 3.9: everything lives in the top bar now
   const playBtn = h('button.hw-play', { type: 'button', title: 'Play / pause (Space)' });
   const time = h('div.hw-time');
-  // practice speed: one chip with a menu (keeps the top bar short)
-  const speedChip = h('button.hw-chip.hw-speed-chip', { type: 'button', title: 'Practice speed' });
-  speedChip.onclick = () => {
-    const r = speedChip.getBoundingClientRect();
-    showMenu(r.left, r.bottom + 6, SPEEDS.map((sp) => ({ label: sp === 1 ? '100% (full speed)' : `${Math.round(sp * 100)}%`, icon: sp === stage.engine.speed ? 'check' : null, onClick: () => (stage.engine.setSpeed(sp), renderControls()) })));
-  };
+  // practice speed: one chip that opens the speed panel (keeps the top bar short)
+  const speedChip = h('button.hw-chip.hw-speed-chip', { type: 'button', 'aria-haspopup': 'dialog' });
+  // repeating one section or several, at its own speed (shared with the other views)
+  const rep = stage.repeat || createRepeat({ engine: stage.engine, setLoop: (l) => stage.setLoop(l), getLoop: () => (stage.getLoop ? stage.getLoop() : null) });
+  speedChip.onclick = () => openSpeedPopover(speedChip, { engine: stage.engine, repeat: rep });
   const transport = h('div.hw-transport', null, playBtn, time, speedChip);
   top.append(back, titleBox, transport, h('span.grow'), score, h('span.grow'), views, parts, playAlong, rigBox);
-  const speed = h('div.hw-speed', { role: 'group', 'aria-label': 'Practice speed' });
-  for (const s of SPEEDS) {
-    const b = h('button', { type: 'button', text: s === 1 ? '100%' : `${Math.round(s * 100)}%` });
-    b.dataset.s = String(s);
-    b.onclick = () => {
-      stage.engine.setSpeed(s);
-      renderControls();
-    };
-    speed.append(b);
-  }
-  bottom.append(speed); // (hidden; the speed chip in the top bar is what you use)
   const msg = h('div.hw-msg', { hidden: true });
   // what the song is doing when it isn't playing yet: loading, waiting for stems, or failed (with a way out)
   const statusBox = h('div.hw-status', { hidden: true, role: 'status' });
   const fpsBox = h('div.hw-fps', { hidden: true });
   // lyrics, two lines under the title, the words lighting up as they're sung (as in Rocksmith)
   const lyricsBox = h('div.hw-lyrics', { hidden: true, 'aria-live': 'off' });
-  root.append(glCanvas, canvas, top, sections, bottom, msg, statusBox, dock, fpsBox, lyricsBox);
+  // the repeat bar hangs under the section strip
+  const repBar = createRepeatBar(rep, stage.engine, { cls: 'hw-rep-bar' });
+  root.append(glCanvas, canvas, top, sections, repBar, bottom, msg, statusBox, dock, fpsBox, lyricsBox);
   document.body.append(root);
   root.__hw = H; // for tests
   root.__openSync = () => openSync(); // for tests
@@ -412,7 +403,7 @@ export function createHighway(stage) {
   }
   function repeat(s) {
     hideCard();
-    stage.setLoop({ start: s.start, end: s.end, label: s.label });
+    rep.start({ start: s.start, end: s.end, label: s.label });
     jumpTo(Math.max(0, s.start - 1));
     if (!stage.engine.playing) stage.toggle();
   }
@@ -965,7 +956,9 @@ export function createHighway(stage) {
     if (!H.watch || prefs.struggleOff || !stage.engine.playing || helpResting()) return;
     const st = H.judge && H.judge.state.get(e.id);
     const near = nearestPick(H.judge && H.judge.onsets, tg.t);
-    H.watch.add({ hit: e.hit, tried: e.hit || near !== null, offset: st && st.offset !== null && st.offset !== undefined ? st.offset : near });
+    // offsets are in song time: at another speed, turn them into real milliseconds
+    const off = st && st.offset !== null && st.offset !== undefined ? st.offset : near;
+    H.watch.add({ hit: e.hit, tried: e.hit || near !== null, offset: off === null || off === undefined ? off : off / (stage.engine.speed || 1) });
     if (!syncBox.hidden) return;
     const v = H.watch.verdict();
     if (v) offerHelp(v);
@@ -1366,6 +1359,7 @@ export function createHighway(stage) {
       // your timing nudge: positive shows notes later (they reach the neck later)
       const vis = visualTime(H.vclock, prefs.offsetMs, eng.speed);
       H.vis = vis; // lyrics follow the same timing as the notes
+      if (H.judge) H.judge.setPace(eng.speed);
       if (H.judge && eng.playing && prefs.detect && rig.on) H.judge.tick(H.clock - (((rig.latencyMs || 20) / 1000 + 0.03) * eng.speed));
       processEvents(vis);
       followTone(H.clock);
@@ -2469,26 +2463,71 @@ export function createHighway(stage) {
     stage.seek(t);
     if (H.judge) H.judge.rewind(t);
   }
-  // "Repeating: Chorus ✕" in the bottom bar, and the repeated section marked on the strip
-  const loopChip = h('button.hw-chip.hw-loop-chip', { type: 'button', hidden: true, title: 'Stop repeating' });
-  loopChip.onclick = () => {
-    stage.setLoop(null);
-    renderLoop();
-  };
-  transport.append(loopChip);
+  // The repeat: the bar under the strip ("Repeating Verse 2 → Chorus 3", its speed,
+  // Speed up each time, ✕), and the repeated sections marked on the strip.
   let loopKey = '';
+  /** "Verse 2": the name, numbered when the song has more than one. */
+  function secLabel(i) {
+    const secs = H.tab ? H.tab.sections : [];
+    const n = pretty(secs[i] && secs[i].name);
+    let k = 0;
+    let all = 0;
+    secs.forEach((x, j) => {
+      if (pretty(x.name) !== n) return;
+      all++;
+      if (j <= i) k++;
+    });
+    return all > 1 ? `${n} ${k}` : n;
+  }
+  /** The sections a loop covers, as [first, last], or null. */
+  function loopSections(loop) {
+    const secs = H.tab ? H.tab.sections : [];
+    if (!loop || !secs.length) return null;
+    if (Number.isInteger(loop.from) && Number.isInteger(loop.to) && secs[loop.from] && secs[loop.to]) return [loop.from, loop.to];
+    let a = -1;
+    let b = -1;
+    secs.forEach((x, i) => {
+      if (x.start >= loop.start - 0.05 && x.end <= loop.end + 0.05) {
+        if (a < 0) a = i;
+        b = i;
+      }
+    });
+    return a < 0 ? null : [a, b];
+  }
+  /** Repeat sections a..b (either order). The first one you picked stays the anchor for Shift+click. */
+  function repeatSections(a, b, anchor = a) {
+    const secs = H.tab.sections;
+    const i = Math.min(a, b);
+    const j = Math.max(a, b);
+    const label = i === j ? secLabel(i) : `${secLabel(i)} → ${secLabel(j)}`;
+    rep.start({ start: secs[i].start, end: secs[j].end, label, from: i, to: j, anchor });
+    // carry on if you're already playing inside it, else start just before it
+    const t = stage.engine.position;
+    if (t < secs[i].start - 1.5 || t >= secs[j].end) jumpTo(Math.max(0, secs[i].start - 1));
+    renderLoop(true);
+  }
   function renderLoop(force) {
-    const loop = stage.getLoop ? stage.getLoop() : null;
+    const loop = rep.loop || (stage.getLoop ? stage.getLoop() : null);
     const key = loop ? `${loop.start}-${loop.end}` : '';
     if (key === loopKey && !force) return;
     loopKey = key;
-    loopChip.hidden = !loop;
-    if (loop) loopChip.innerHTML = `${icon('repeat')}<span>Repeating ${esc(loop.label || 'a part')}</span>${icon('x')}`;
+    root.classList.toggle('hw-repeating', !!loop);
+    const r = loopSections(loop);
     for (const b of sections.querySelectorAll('button[data-i]')) {
-      const s = H.tab && H.tab.sections[Number(b.dataset.i)];
-      b.classList.toggle('looping', !!(loop && s && Math.abs(loop.start - s.start) < 0.01 && Math.abs(loop.end - s.end) < 0.01));
+      const i = Number(b.dataset.i);
+      const inside = !!(r && i >= r[0] && i <= r[1]);
+      b.classList.toggle('looping', inside);
+      b.classList.toggle('loop-first', inside && i === r[0]);
+      b.classList.toggle('loop-last', inside && i === r[1]);
+      const rp = b.querySelector('.hw-sec-rep');
+      if (rp) {
+        const t = inside ? 'Stop repeating' : r ? `Repeat ${secLabel(i)} (Shift+click: stretch the repeat to here)` : `Repeat ${secLabel(i)} (Shift+click another to repeat several)`;
+        rp.title = t;
+        rp.setAttribute('aria-label', t);
+      }
     }
   }
+  rep.addEventListener('change', () => H.open && renderLoop(true));
 
   function renderControls() {
     const t = H.tab;
@@ -2521,10 +2560,7 @@ export function createHighway(stage) {
     toneBtn.hidden = !rig.on;
     rigBox.classList.toggle('real', !!rig.capture);
     renderMix();
-    for (const b of speed.querySelectorAll('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.s) === stage.engine.speed));
-    const sp = stage.engine.speed || 1;
-    speedChip.innerHTML = `${icon('clock')}<span>${Math.round(sp * 100)}%</span>`;
-    speedChip.classList.toggle('slow', sp < 0.999);
+    paintSpeedChip(speedChip, stage.engine.speed || 1);
     // section strip
     sections.innerHTML = '';
     if (t && t.sections.length) {
@@ -2552,27 +2588,74 @@ export function createHighway(stage) {
         hoverTime(b0, 0, z0, 'The start');
         sections.append(b0);
       }
+      // Drag across the strip (press on one section, let go on another) to repeat them all.
+      let drag = null;
+      const secAt = (e) => {
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const b = el && el.closest && el.closest('.hw-sections button[data-i]');
+        return b ? Number(b.dataset.i) : null;
+      };
+      const pick = (a, z) => {
+        for (const b of sections.querySelectorAll('button[data-i]')) {
+          const i = Number(b.dataset.i);
+          b.classList.toggle('hw-pick', a !== null && i >= Math.min(a, z) && i <= Math.max(a, z));
+        }
+      };
+      const onMove = (e) => {
+        if (!drag) return;
+        const i = secAt(e);
+        if (i === null || i === drag.to) return;
+        drag.to = i;
+        drag.moved = drag.to !== drag.from;
+        pick(drag.moved ? drag.from : null, drag.to);
+      };
+      const endDrag = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', endDrag);
+        window.removeEventListener('pointercancel', endDrag);
+        const d = drag;
+        drag = null;
+        pick(null, 0);
+        if (d && d.moved) {
+          repeatSections(d.from, d.to);
+          sections.dataset.dragged = '1'; // the click that follows is not a jump
+          setTimeout(() => delete sections.dataset.dragged, 0);
+        }
+      };
+      sections.onpointerdown = (e) => {
+        const i = secAt(e);
+        if (i === null || e.button !== 0 || e.shiftKey) return;
+        drag = { from: i, to: i, moved: false };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', endDrag);
+        window.addEventListener('pointercancel', endDrag);
+      };
       t.sections.forEach((s, i) => {
         // click: jump there (and stop any repeat). The ⟲ on the section repeats it, on purpose only.
+        // Shift+click (or Shift+⟲) stretches the repeat to this section; so does a drag across the strip.
         const long = s.end - s.start > LONG;
-        const b = h('button', { type: 'button', title: `${pretty(s.name)}: click to ${long ? 'go to that spot' : 'jump here'}` });
-        hoverTime(b, s.start, s.end, pretty(s.name));
+        const b = h('button', { type: 'button', title: `${secLabel(i)}: click to ${long ? 'go to that spot' : 'jump here'}. Shift+click to repeat up to here.` });
+        hoverTime(b, s.start, s.end, secLabel(i));
         b.append(h('span.hw-sec-name', { text: pretty(s.name) }));
-        const rep = h('span.hw-sec-rep', { role: 'button', title: `Repeat ${pretty(s.name)}`, 'aria-label': `Repeat ${pretty(s.name)}`, html: icon('repeat') });
-        b.append(rep);
+        const repBtn = h('span.hw-sec-rep', { role: 'button', title: `Repeat ${secLabel(i)}`, 'aria-label': `Repeat ${secLabel(i)}`, html: icon('repeat') });
+        b.append(repBtn);
         b.style.flexGrow = String(Math.max(0.01, s.end - s.start));
         b.dataset.i = String(i);
         b.onclick = (e) => {
-          const loop = stage.getLoop ? stage.getLoop() : null;
-          if (e.target.closest('.hw-sec-rep')) {
-            const same = loop && Math.abs(loop.start - s.start) < 0.01 && Math.abs(loop.end - s.end) < 0.01;
-            if (same) stage.setLoop(null);
-            else {
-              stage.setLoop({ start: s.start, end: s.end, label: pretty(s.name) });
-              jumpTo(Math.max(0, s.start - 1));
-            }
+          if (sections.dataset.dragged) return;
+          const loop = rep.loop || (stage.getLoop ? stage.getLoop() : null);
+          const r = loopSections(loop);
+          if (e.shiftKey) {
+            // stretch the repeat from the section you picked first to this one
+            // (nothing repeating: from the section that's playing)
+            let anchor = r ? (Number.isInteger(loop.anchor) ? loop.anchor : r[0]) : t.sections.findIndex((x) => stage.engine.position >= x.start && stage.engine.position < x.end);
+            if (anchor < 0) anchor = i;
+            repeatSections(anchor, i, anchor);
+          } else if (e.target.closest('.hw-sec-rep')) {
+            if (r && i >= r[0] && i <= r[1]) rep.stop();
+            else repeatSections(i, i);
           } else {
-            if (loop) stage.setLoop(null);
+            if (loop) rep.stop();
             if (long) {
               // near the start of the section: its start (with a second's run-up), else the spot
               const at = spotIn(b, e, s.start, s.end);

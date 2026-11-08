@@ -4,6 +4,10 @@
 const MAX_TRACKS = 8;
 // Practice speed: WSOLA time-stretch (pitch stays put). Grains are aligned on
 // the original mix and the same cut is applied to every stem, so they stay locked.
+// Slower (down to 25%) and faster (up to 150%) both work the same way: grains
+// are always written HS apart; they are read HS × speed apart.
+const MIN_SPEED = 0.25;
+const MAX_SPEED = 1.5;
 const N = 2048;
 const HS = N / 2;
 const TOL = 384;
@@ -44,11 +48,14 @@ class StagehandPlayer extends AudioWorkletProcessor {
         this.length = m.frames;
         if (this.pos > this.length) this.pos = this.length;
         break;
-      case 'speed':
+      case 'speed': {
         // keep the stretcher's state so a speed change mid-play doesn't click
-        this.speed = Math.max(0.25, Math.min(1, Number(m.speed) || 1));
+        // (back at 100% it carries on stretching by 1, which changes nothing,
+        // until the next seek or play)
+        this.speed = Math.max(MIN_SPEED, Math.min(MAX_SPEED, Number(m.speed) || 1));
         this.report();
         break;
+      }
       case 'play':
         if (this.pos >= this.length) this.pos = this.loop ? this.loop.start : 0;
         this.st = null;
@@ -74,6 +81,13 @@ class StagehandPlayer extends AudioWorkletProcessor {
 
   report() {
     this.port.postMessage({ type: 'pos', frame: this.pos, time: currentTime, playing: this.playing, speed: this.speed });
+  }
+
+  /** A position for reports: past the loop's end it is back inside the loop. */
+  inLoop(f) {
+    const loop = this.loop;
+    if (loop && f >= loop.end) f = loop.start + ((f - loop.end) % (loop.end - loop.start));
+    return f;
   }
 
   /** Source frame for a (possibly looped) offset, or -1 past the end. */
@@ -157,15 +171,36 @@ class StagehandPlayer extends AudioWorkletProcessor {
     }
     st.outFrame = start;
     st.prev = start;
-    st.src += HS * this.speed;
-    if (this.loop && st.src >= this.loop.end) st.src -= this.loop.end - this.loop.start;
+    st.src = this.inLoop(st.src + HS * this.speed);
     st.outPos = 0;
+  }
+
+  /**
+   * Starts the stretcher as if a grain had begun HS frames earlier: its tail
+   * is already in the overlap, so the first grain joins it at full level. The
+   * stretch starts without a fade-in, seamlessly from plain playback.
+   */
+  prime(st) {
+    for (let t = 0; t < MAX_TRACKS; t++) {
+      const tr = this.tracks[t];
+      if (!tr) continue;
+      const acc = st.acc[t];
+      for (let k = 0; k < HS; k++) {
+        const f = this.wrap(this.pos + k);
+        if (f < 0 || f >= tr.frames) continue;
+        const o = f * tr.ch;
+        const l = tr.data[o] * 3.0517578125e-5;
+        acc.L[k] = HANN[HS + k] * l;
+        acc.R[k] = HANN[HS + k] * (tr.ch > 1 ? tr.data[o + 1] * 3.0517578125e-5 : l);
+      }
+    }
   }
 
   processStretched(outputs, n) {
     if (!this.st) {
       const mk = (len) => Array.from({ length: MAX_TRACKS }, () => ({ L: new Float32Array(len), R: new Float32Array(len) }));
-      this.st = { src: this.pos, prev: -1, acc: mk(N), out: mk(HS), outPos: HS, outFrame: this.pos };
+      this.st = { src: this.pos, prev: this.pos - HS, acc: mk(N), out: mk(HS), outPos: HS, outFrame: this.pos };
+      this.prime(this.st);
     }
     const st = this.st;
     const startFrame = st.outPos < HS ? st.outFrame + st.outPos * this.speed : st.src;
@@ -179,8 +214,8 @@ class StagehandPlayer extends AudioWorkletProcessor {
       }
       st.outPos++;
     }
-    this.pos = Math.min(this.length, Math.round(st.outFrame + st.outPos * this.speed));
-    if ((this.quanta++ & 3) === 0) this.port.postMessage({ type: 'pos', frame: Math.round(startFrame), time: currentTime, playing: true, speed: this.speed });
+    this.pos = Math.min(this.length, Math.round(this.inLoop(st.outFrame + st.outPos * this.speed)));
+    if ((this.quanta++ & 3) === 0) this.port.postMessage({ type: 'pos', frame: Math.min(this.length, Math.round(this.inLoop(startFrame))), time: currentTime, playing: true, speed: this.speed });
     if (!this.loop && st.outFrame >= this.length) {
       this.playing = false;
       this.pos = this.length;
@@ -192,7 +227,7 @@ class StagehandPlayer extends AudioWorkletProcessor {
 
   process(_inputs, outputs) {
     if (!this.playing) return true;
-    if (this.speed !== 1) return this.processStretched(outputs, outputs[0][0].length);
+    if (this.speed !== 1 || this.st) return this.processStretched(outputs, outputs[0][0].length);
     const n = outputs[0][0].length;
     const idx = this.idx.length === n ? this.idx : (this.idx = new Int32Array(n));
     const loop = this.loop;
