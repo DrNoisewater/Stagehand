@@ -49,6 +49,12 @@ struct sh_engine {
   float m_inpk, m_outpk;
   int m_n;
   float gate_open;
+  /* the player's noise floor, learned from the quiet moments between notes (10 ms frames) */
+  float gate_live[4];
+  float nf_frame[40];  /* frame peaks (dB), last 400 ms */
+  int nf_i, nf_n, nf_pos;
+  float nf_pk;         /* this frame's peak so far */
+  float nf_recent;     /* recent playing peak (dB), falls slowly */
   /* drop: pitch shifter on the input */
   float dr_buf[DR_LEN];
   int dr_w;
@@ -106,6 +112,8 @@ sh_engine *sh_engine_init(void *mem, size_t bytes, double sr) {
   }
   e->xf_len = (int)(sr * XFADE_MS / 1000);
   op_lp_set(&e->dc, sr, 12);
+  e->gate_live[0] = -200, e->gate_live[3] = 1;
+  e->nf_recent = -20;
   return e;
 }
 
@@ -131,8 +139,9 @@ static int build_into(sh_engine *e, slot_t *s, const sh_spec *sp, const float *i
     if (sp->g[i].slot == SLOT_CAB) has_cab = 1;
     if (sp->g[i].slot == SLOT_AMP) has_amp = 1;
   }
-  int gate_i = -1;
-  if (!has_gate) gate_i = add_block(s); /* filled after the amp is known */
+  /* Stagehand's own gate always comes first: it follows the player's noise floor;
+     with a gate pedal in the tone it only does that (the pedal sets the rest) */
+  int gate_i = add_block(s); /* filled after the amp is known */
   float amp_db = 0;
   static const int ORDER[5] = {SLOT_PRE, SLOT_AMP, SLOT_POST, SLOT_CAB, SLOT_RACK};
   for (int o = 0; o < 5; o++) {
@@ -183,10 +192,10 @@ static int build_into(sh_engine *e, slot_t *s, const sh_spec *sp, const float *i
       }
     }
   }
-  if (gate_i >= 0) {
+  {
     float thr = sp->gate_db ? sp->gate_db : (float)sh_clamp(-80 + 0.55 * amp_db, -80, -54);
-    thr += e->p[SHP_GATE];
-    if (!gate_build_default(&s->b[gate_i], a, sr, thr)) return 0;
+    if (has_gate) thr = -200;
+    if (!gate_build_default(&s->b[gate_i], a, sr, thr, e->gate_live)) return 0;
   }
   for (int i = 0; i < s->nb; i++) s->b[i].fxscale = e->p[SHP_FX] * 2;
   return !a->failed && s->nb > 0;
@@ -367,6 +376,10 @@ const char *sh_engine_describe(sh_engine *e, int si) {
 void sh_engine_param(sh_engine *e, int id, float v) {
   if (!e || id < 0 || id >= SHP_COUNT) return;
   e->p[id] = v;
+  if (id == SHP_GATE) { /* 0 = auto, + = stronger (dB), -30 or lower = off */
+    e->gate_live[2] = v <= -30 ? 1.f : 0.f;
+    e->gate_live[1] = v <= -30 ? 0.f : (float)sh_clamp(v, -20, 20);
+  }
   if (id == SHP_INPUT) e->in_g_t = (float)sh_db2lin((sh_clamp(v, 0, 1) - 0.5) * 24);
   if (id == SHP_VOLUME) {
     /* 0.7 is unity; above it the knob adds up to +12 dB so the guitar can sit
@@ -519,12 +532,42 @@ static void room_process(sh_engine *e, float *L, float *R, int n, int bass) {
   }
 }
 
+/* The noise floor: a 400 ms stretch of steady, quiet input well below the playing is noise. */
+static void floor_frame(sh_engine *e, float db) {
+  e->nf_frame[e->nf_i] = db;
+  e->nf_i = (e->nf_i + 1) % 40;
+  if (e->nf_n < 40) e->nf_n++;
+  if (db > e->nf_recent) e->nf_recent = db;
+  else e->nf_recent -= 0.01f; /* 1 dB a second */
+  if (e->nf_recent < -24) e->nf_recent = -24;
+  if (e->nf_n < 40) return;
+  float lo = 1e9f, hi = -1e9f, a = 0, b = 0;
+  for (int k = 0; k < 40; k++) {
+    float v = e->nf_frame[(e->nf_i + k) % 40]; /* oldest first */
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+    if (k < 20) a += v; else b += v;
+  }
+  a /= 20, b /= 20;
+  float level = 0.5f * (a + b);
+  if (hi - lo > 4 || sh_fabsf(b - a) > 1.0f || level > e->nf_recent - 34 || level < -140) return;
+  float *f = &e->gate_live[0];
+  if (*f < -150) *f = level;
+  else *f += (level < *f ? 0.3f : 0.03f) * (level - *f); /* down fast, up slowly */
+}
+
 void sh_engine_process(sh_engine *e, const float *in, float *outL, float *outR, int n) {
   if (n > SH_MAX_BLOCK) n = SH_MAX_BLOCK;
   for (int i = 0; i < n; i++) {
     e->in_g += 0.002f * (e->in_g_t - e->in_g);
     float x = op_hp(&e->dc, in[i]) * e->in_g;
     e->inb[i] = x;
+    float ax = sh_fabsf(x);
+    if (ax > e->nf_pk) e->nf_pk = ax;
+    if (++e->nf_pos >= (int)(e->sr * 0.01)) {
+      floor_frame(e, e->nf_pk > 1e-9f ? (float)sh_lin2db(e->nf_pk) : -180.f);
+      e->nf_pk = 0, e->nf_pos = 0;
+    }
     float a = sh_fabsf(in[i]);
     if (a > e->m_inpk) e->m_inpk = a;
     e->m_in2 += (double)in[i] * in[i];
@@ -563,6 +606,7 @@ void sh_engine_process(sh_engine *e, const float *in, float *outL, float *outR, 
     e->m_out2 += 0.5 * ((double)l * l + (double)r * r);
   }
   e->m_n += n;
+  if (e->gate_live[3] > 0.5f) e->gate_open = 1; /* open at some point since the last read */
 }
 
 void sh_engine_meters(sh_engine *e, float out[5]) {
@@ -572,5 +616,5 @@ void sh_engine_meters(sh_engine *e, float out[5]) {
   out[2] = (float)sh_sqrt(e->m_out2 / n);
   out[3] = e->m_outpk;
   out[4] = e->gate_open;
-  e->m_in2 = e->m_out2 = 0, e->m_inpk = e->m_outpk = 0, e->m_n = 0;
+  e->m_in2 = e->m_out2 = 0, e->m_inpk = e->m_outpk = 0, e->m_n = 0, e->gate_open = 0;
 }
