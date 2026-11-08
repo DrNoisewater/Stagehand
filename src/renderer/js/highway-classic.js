@@ -29,12 +29,17 @@ const SPEEDS = [0.5, 0.6, 0.75, 0.85, 1];
 
 function load() {
   try {
-    return { ahead: 4, flow: 1, lowTop: true, detect: true, venue: 'arena', fx: true, ...(JSON.parse(localStorage.getItem('stagehand.highway') || '{}') || {}) };
+    return { ahead: 4, flow: 1, lowTop: true, detect: true, venue: 'arena', fx: true, ...(JSON.parse(localStorage.getItem('stagehand.highway') || '{}') || {}), ahead: 4 };
   } catch (_) {
     return { ahead: 4, flow: 1, lowTop: true, detect: true, venue: 'arena', fx: true };
   }
 }
 const prefs = load();
+// 4.2: string order is set in Settings › Playback
+window.addEventListener('stagehand:highway-pref', (e) => {
+  const d = e.detail || {};
+  if (d.key === 'lowTop') prefs.lowTop = !!d.value;
+});
 const save = () => {
   try {
     localStorage.setItem('stagehand.highway', JSON.stringify(prefs));
@@ -172,14 +177,8 @@ export function createClassicHighway(stage) {
         { heading: true, label: 'Highway motion (song tempo stays unchanged)' },
         ...[[0.8, 'Relaxed'], [1, 'Reference (default)'], [1.2, 'Brisk']].map(([v, label]) => ({ label, hint: c((prefs.flow ?? 1) === v), onClick: () => setPref('flow', v) })),
         '-',
-        { heading: true, label: 'Preview in song seconds' },
-        ...[3, 4, 5, 6].map((s) => ({ label: s === 4 ? `${s} seconds (default)` : `${s} seconds`, hint: c(prefs.ahead === s), onClick: () => setPref('ahead', s) })),
-        '-',
         { heading: true, label: 'Note timing (if notes look early or late against the music)' },
         ...[-100, -75, -50, -25, -10, 0, 10, 25, 50, 75, 100].map((ms) => ({ label: ms === 0 ? 'In sync (default)' : ms < 0 ? `Notes ${-ms} ms earlier` : `Notes ${ms} ms later`, hint: c((prefs.offsetMs || 0) === ms), onClick: () => setPref('offsetMs', ms) })),
-        '-',
-        { label: 'Low E on top', hint: c(prefs.lowTop), onClick: () => setPref('lowTop', true) },
-        { label: 'High e on top', hint: c(!prefs.lowTop), onClick: () => setPref('lowTop', false) },
         '-',
         { label: 'Score my playing', hint: c(prefs.detect), onClick: () => setPref('detect', !prefs.detect) },
         '-',

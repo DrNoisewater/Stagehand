@@ -257,6 +257,28 @@ const PANES = {
     end.onchange = () => saveSettings({ playback: { endAction: end.value } });
     el.append(setting('When a song ends', 'Looping a section keeps playing that section regardless of this setting.', end));
 
+    // 4.2: moved here from the highway's settings (set once, rarely changed)
+    let hw = {};
+    try {
+      hw = JSON.parse(localStorage.getItem('stagehand.highway') || '{}') || {};
+    } catch (_) {}
+    const strings = h('select.input', { 'aria-label': 'Strings on the highway' });
+    for (const [v, l] of [
+      ['low', 'Low E on top (like Rocksmith)'],
+      ['high', 'High e on top (like tab)'],
+    ])
+      strings.append(h('option', { value: v, text: l, selected: (hw.lowTop !== false) === (v === 'low') ? true : null }));
+    strings.onchange = () => {
+      const value = strings.value === 'low';
+      try {
+        const o = JSON.parse(localStorage.getItem('stagehand.highway') || '{}') || {};
+        o.lowTop = value;
+        localStorage.setItem('stagehand.highway', JSON.stringify(o));
+      } catch (_) {}
+      window.dispatchEvent(new CustomEvent('stagehand:highway-pref', { detail: { key: 'lowTop', value } }));
+    };
+    el.append(setting('Strings on the highway', 'Which string sits at the top of the highway.', strings));
+
     const dev = h('select.input', { 'aria-label': 'Output device' });
     dev.append(h('option', { value: '', text: 'System default' }));
     try {

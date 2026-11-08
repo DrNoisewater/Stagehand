@@ -37,7 +37,7 @@ const FONT = "'Archivo', 'Segoe UI', sans-serif";
 const SPEEDS = [0.5, 0.6, 0.75, 0.85, 1];
 
 function load() {
-  const base = { ahead: 3, flow: 1, lowTop: true, detect: true, venue: 'warehouse', fx: true, v: 36 };
+  const base = { ahead: 4, flow: 1, lowTop: true, detect: true, venue: 'warehouse', fx: true, v: 36 };
   try {
     const saved = JSON.parse(localStorage.getItem('stagehand.highway') || '{}') || {};
     // 3.6: the 3D highway runs at the game's pace (measured off your videos), so older speed choices start fresh
@@ -46,7 +46,8 @@ function load() {
       delete saved.flow;
       delete saved.offsetMs;
     }
-    return { ...base, ...saved, flow: 1, v: 36 };
+    // 4.2: always 4 seconds ahead (the user: "it should always look 4 seconds ahead")
+    return { ...base, ...saved, flow: 1, ahead: 4, v: 36 };
   } catch (_) {
     return base;
   }
@@ -233,20 +234,6 @@ export function createHighway(stage) {
   // 3.9: the options live in the Master Settings pullout, with the mix and the Drop
   const opts = h('div.hw-master-opts');
   function closeOpts() {}
-  function seg(label, items, cur, onPick) {
-    const row = h('div.hw-opt-row', null, h('span.hw-opt-label', { text: label }));
-    const g = h('div.hw-seg');
-    for (const [v, t] of items) {
-      const b = h('button', { type: 'button', text: t, 'aria-pressed': String(cur === v) });
-      b.onclick = () => {
-        onPick(v);
-        renderOpts();
-      };
-      g.append(b);
-    }
-    row.append(g);
-    return row;
-  }
   function toggle(label, on, onFlip, sub) {
     const b = h('button.hw-opt-toggle', { type: 'button', role: 'switch', 'aria-checked': String(!!on) }, h('span.hw-switch'), h('span', null, h('b', { text: label }), sub ? h('small', { text: sub }) : null));
     b.onclick = () => {
@@ -274,8 +261,6 @@ export function createHighway(stage) {
     opts.innerHTML = '';
     opts.append(
       h('div.hw-master-sec', { text: 'Highway' }),
-      seg('Look ahead', [[2, '2 s'], [2.5, '2.5 s'], [3, '3 s'], [4, '4 s']], prefs.ahead, (v) => setPref('ahead', v)),
-      seg('Strings', [[true, 'Low E on top'], [false, 'High e on top']], !!prefs.lowTop, (v) => setPref('lowTop', v)),
       venuePicker(),
       h('div.hw-opt-toggles', null,
         toggle('Score my playing', prefs.detect, () => setPref('detect', !prefs.detect)),
@@ -953,6 +938,11 @@ export function createHighway(stage) {
     }
   }
 
+  // 4.2: string order lives in Settings › Playback; it tells the highway here
+  window.addEventListener('stagehand:highway-pref', (e) => {
+    const d = e.detail || {};
+    if (d.key === 'lowTop') setPref('lowTop', !!d.value);
+  });
   function setPref(k, v) {
     prefs[k] = v;
     if (k === 'offsetMs') prefs.syncChecked = true; // 4.1.6: you've done a timing check
@@ -2539,15 +2529,34 @@ export function createHighway(stage) {
     sections.innerHTML = '';
     if (t && t.sections.length) {
       const total = stage.engine.duration || t.length || 1;
+      // 4.2: a long section (some songs have only one or two) goes to the spot you click,
+      // like the arrow keys; a normal one goes to its start. The time shows as you hover.
+      const LONG = 30;
+      const fmt = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
+      const spotIn = (b, e, a, z) => {
+        const r = b.getBoundingClientRect();
+        const f = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width)));
+        return a + f * (z - a);
+      };
+      const hoverTime = (b, a, z, name) => {
+        if (z - a <= LONG) return;
+        b.onpointermove = (e) => {
+          b.title = `${name}: click to go to ${fmt(spotIn(b, e, a, z))}`;
+        };
+      };
       if (t.sections[0].start > 0.5) {
-        const b0 = h('button', { type: 'button', text: '' });
-        b0.style.flexGrow = String(t.sections[0].start);
-        b0.onclick = () => stage.seek(0);
+        const b0 = h('button', { type: 'button', text: '', title: 'The start' });
+        const z0 = t.sections[0].start;
+        b0.style.flexGrow = String(z0);
+        b0.onclick = (e) => jumpTo(z0 > LONG ? spotIn(b0, e, 0, z0) : 0);
+        hoverTime(b0, 0, z0, 'The start');
         sections.append(b0);
       }
       t.sections.forEach((s, i) => {
         // click: jump there (and stop any repeat). The ⟲ on the section repeats it, on purpose only.
-        const b = h('button', { type: 'button', title: `${pretty(s.name)}: click to jump here` });
+        const long = s.end - s.start > LONG;
+        const b = h('button', { type: 'button', title: `${pretty(s.name)}: click to ${long ? 'go to that spot' : 'jump here'}` });
+        hoverTime(b, s.start, s.end, pretty(s.name));
         b.append(h('span.hw-sec-name', { text: pretty(s.name) }));
         const rep = h('span.hw-sec-rep', { role: 'button', title: `Repeat ${pretty(s.name)}`, 'aria-label': `Repeat ${pretty(s.name)}`, html: icon('repeat') });
         b.append(rep);
@@ -2564,7 +2573,11 @@ export function createHighway(stage) {
             }
           } else {
             if (loop) stage.setLoop(null);
-            jumpTo(Math.max(0, s.start - 1));
+            if (long) {
+              // near the start of the section: its start (with a second's run-up), else the spot
+              const at = spotIn(b, e, s.start, s.end);
+              jumpTo(at - s.start < 3 ? Math.max(0, s.start - 1) : at);
+            } else jumpTo(Math.max(0, s.start - 1));
           }
           renderLoop();
         };

@@ -1534,3 +1534,17 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .tw-foot .tw-tag { align-self: flex-start; }
 .tw-get { display: block; width: 100%; box-sizing: border-box; text-align: center; padding: 6px 10px; border-radius: 8px; background: var(--tungsten); border-color: var(--tungsten); color: var(--tungsten-ink, #2a1c05); font-weight: 700; font-size: 12.5px; }
 .tw-get:hover { background: var(--tungsten-hi); }
+
+/* 4.2: songs with lots of short sections pushed the strip off the right edge (each kept
+   8 px of padding); the name carries the padding now so a section can shrink to a sliver */
+.hw-sections { overflow-x: clip; }
+.hw-sections button { padding: 0; }
+.hw-sections .hw-sec-name { padding: 0 4px; }
+/* the score card stays on screen: bars shrink to fit, long text wraps, and it scrolls if it must */
+.hw-card { max-height: calc(100% - 200px); overflow-y: auto; overscroll-behavior: contain; min-width: 0; }
+.hw-card > * { min-width: 0; }
+.hw-card-bars { min-width: 0; overflow: hidden; gap: 2px; }
+.hw-card-bar { min-width: 1px; }
+.hw-card-titles p { overflow-wrap: anywhere; }
+.hw-card-notes > div > span:not(:first-child) { min-width: 0; overflow-wrap: anywhere; }
+.hw-card-notes .work .hw-chip { flex: none; }
