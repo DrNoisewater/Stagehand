@@ -16,11 +16,11 @@ import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, bySlot, useSlot, SLOT_GELS, SLOT_COUNT, saveSongTone, freeSlot, chainText, activeSlot, nowPlayingTone } from './tonelib.js';
 import { demoButton } from './rigui.js';
 import { guitarStatus } from './shell.js';
+import { paintSpeedChip, openSpeedPopover } from './speedpop.js';
 import { createTuner } from './tuner.js';
 
 const { panel, partChips, guitarPill, scoreLine, recBtn, speedSeg, modeSeg, vol, volIcon } = stage.hosts;
 const engine = stage.engine;
-const SPEEDS = [0.5, 0.6, 0.75, 0.85, 1];
 const PART_GEL = { lead: 'var(--gel-guitar)', combo: 'var(--gel-guitar)', rhythm: 'var(--tungsten)', bass: 'var(--gel-bass)' };
 const N = { tab: localStorage.getItem('stagehand.nowTab') || 'mix', raf: 0, toneKey: null, meters: [], back: 'mix' };
 // 4.2: the tuner is a tab in this panel, so it never sits over the tab itself.
@@ -89,14 +89,16 @@ function updateSubtitle() {
 }
 
 // -------------------------------------------------------------- footer --
+// 4.2: one chip that opens the speed panel (the same as on the highway)
+const speedBtn = h('button', { type: 'button', 'aria-haspopup': 'dialog' });
+speedBtn.onclick = () => openSpeedPopover(speedBtn, { engine, repeat: stage.repeat, above: true });
 function renderSpeed() {
-  speedSeg.innerHTML = '';
-  for (const sp of SPEEDS) {
-    const b = h('button', { type: 'button', text: `${Math.round(sp * 100)}%`, 'aria-pressed': String(Math.abs(engine.speed - sp) < 0.001), title: sp === 1 ? 'Full speed' : `Slow down to ${Math.round(sp * 100)}% (same pitch)` });
-    b.onclick = () => engine.setSpeed(sp);
-    speedSeg.append(b);
+  if (!speedBtn.isConnected) {
+    speedSeg.innerHTML = '';
+    speedSeg.classList.add('np-speed-one');
+    speedSeg.append(speedBtn);
   }
-  if (!SPEEDS.some((sp) => Math.abs(engine.speed - sp) < 0.001)) speedSeg.append(h('button', { type: 'button', text: `${Math.round(engine.speed * 100)}%`, 'aria-pressed': 'true', disabled: true }));
+  paintSpeedChip(speedBtn, engine.speed || 1);
 }
 engine.addEventListener('speed', () => {
   renderSpeed();
@@ -132,7 +134,7 @@ recBtn.onclick = async () => {
     const { L, R: Rr } = await renderTone(rig.tone, di, rate, { ...rig.knobs, volume: Math.max(0.35, rig.knobs.volume ?? 0.7) });
     const s = song();
     const sec = s && (s.sections || []).find((x) => rec.t0 >= x.start && rec.t0 < x.end);
-    await saveTake({ name: s ? `${s.title}${sec ? ` · ${sec.label}` : ''}${engine.speed < 0.999 ? ` at ${Math.round(engine.speed * 100)}%` : ''}` : 'Take', songId: s ? s.id : null, L, R: Rr, rate });
+    await saveTake({ name: s ? `${s.title}${sec ? ` · ${sec.label}` : ''}${Math.abs(engine.speed - 1) > 0.001 ? ` at ${Math.round(engine.speed * 100)}%` : ''}` : 'Take', songId: s ? s.id : null, L, R: Rr, rate });
     emit('takes');
     toast({ title: 'Take saved', message: 'Listen back in Progress.', kind: 'ok', actions: [{ label: 'Open Progress', onClick: () => setPage('progress') }] });
   } catch (err) {
@@ -528,7 +530,7 @@ on('practice', () => {
 });
 on('stage-song', () => {
   // a new song always starts at full speed
-  if (engine.speed < 0.999) engine.setSpeed(1);
+  if (Math.abs(engine.speed - 1) > 0.001) engine.setSpeed(1);
   R.prevSpeed = null;
   R.on = false;
   R.sec = -1;

@@ -24,6 +24,7 @@ const ICONS = {
   history: '<path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.6"/><path d="M4 4.5v4.1h4.1M12 8v4l2.5 2"/>',
   library: '<path d="M5 4.5v15M9.5 4.5v15M14 5l4.5 14"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
   trash: '<path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/>',
   external: '<path d="M14 5h5v5M19 5l-8 8"/><path d="M17 14v4a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 5 18V8.5A1.5 1.5 0 0 1 6.5 7H10"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',

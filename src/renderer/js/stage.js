@@ -7,6 +7,7 @@ import { WaveLane, drawBeam, drawRuler, drawSpectrum, fmtTime, overview, drawBar
 import * as actions from './actions.js';
 import { createTabView } from './tab.js';
 import { createHighway } from './highway.js';
+import { createRepeat } from './repeat.js';
 import { rig } from './rig.js';
 
 const STEM_LABEL = { guitar: 'Guitar', bass: 'Bass', drums: 'Drums', vocals: 'Vocals', piano: 'Keys', other: 'Other' };
@@ -39,6 +40,8 @@ function hexA(hex, a) {
 }
 
 const engine = new AudioEngine();
+// repeating sections at their own speed (every view shares it)
+export const repeat = createRepeat({ engine, setLoop: (l) => setLoop(l), getLoop: () => S.loop });
 rig.player = engine;
 const root = document.getElementById('stage');
 const mixer = (() => {
@@ -546,6 +549,7 @@ function wireTimeline() {
 function setLoop(loop) {
   S.loop = loop && loop.end - loop.start > 0.1 ? loop : null;
   engine.setLoop(S.loop);
+  repeat.sync(S.loop);
   loopBtn.classList.toggle('on', !!S.loop);
   updateLoopTag();
   drawScrub();
@@ -788,6 +792,7 @@ export async function load(song, { autoplay = true, at = 0, loop = null, quiet =
   S.info = null;
   S.stems = [];
   S.loop = null;
+  repeat.reset();
   S.error = null;
   S.duration = song.length || 0;
   S.view = { start: 0, end: Math.max(1, S.duration) };
@@ -1373,6 +1378,8 @@ tabView = createTabView(tabHost, {
   setMode: (m) => setMode(m),
   seek: (t) => seek(t),
   setLoop: (loop) => setLoop(loop),
+  getLoop: () => S.loop,
+  repeat,
   requestStems: () => S.song && actions.requestStems([S.song.id]).then(() => api.stems.prioritize(S.song.id).catch(() => {})),
   trackIndex: (name) => trackIndex(name),
   gel: (name) => (GEL[name] || GEL.other)[1],
@@ -1422,6 +1429,7 @@ function makeHighway() {
       seek: (t) => seek(t),
       setLoop: (loop) => setLoop(loop),
       getLoop: () => S.loop,
+      repeat,
       toggle: () => toggle(),
       setStem: (name, patch) => setStem(name, patch),
       trackIndex: (name) => trackIndex(name),

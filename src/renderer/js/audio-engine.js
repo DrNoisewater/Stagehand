@@ -191,20 +191,15 @@ export class AudioEngine extends EventTarget {
     await this._applyRoute();
   }
 
-  /** Practice speed (0.25–1). Pitch stays the same. */
+  /** Practice speed (0.25–1.5: slower or faster). Pitch stays the same. */
   setSpeed(speed) {
-    const pos = this.position;
-    this.speed = Math.max(0.25, Math.min(1, Number(speed) || 1));
-    if (!this.node) return;
-    this.node.port.postMessage({ type: 'pause' });
-    this.node.port.postMessage({ type: 'seek', frame: Math.round(pos * this.sampleRate) });
-    this.node.port.postMessage({ type: 'speed', speed: this.speed });
-    this.pausedFrame = Math.round(pos * this.sampleRate);
-    if (this.playing) {
-      this._ignoreBefore = this.ctx.currentTime - 0.003;
-      this.reports = [{ frame: this.pausedFrame, time: this.ctx.currentTime + this._latency(), playing: true, synthetic: true, speed: this.speed }];
-      this.node.port.postMessage({ type: 'play' });
-    }
+    const sp = Math.round(Math.max(0.25, Math.min(1.5, Number(speed) || 1)) * 100) / 100;
+    if (sp === this.speed) return;
+    this.speed = sp;
+    // The player changes speed in place, mid-grain, without a gap. What's already
+    // on its way to the speakers was made at the old speed, and its position
+    // reports say so, so the clock stays right through the change.
+    if (this.node) this.node.port.postMessage({ type: 'speed', speed: sp });
     this.dispatchEvent(new Event('speed'));
   }
 

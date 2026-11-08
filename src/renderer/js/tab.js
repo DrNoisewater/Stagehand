@@ -7,11 +7,11 @@ import { api } from './api.js';
 import { h, icon, esc, showMenu, toast } from './ui.js';
 import { rig, TONES, TUNINGS, openStrings, noteName } from './rig.js';
 import { describe } from './gearspec.js';
+import { createRepeatBar } from './speedpop.js';
 
 const STRING_COLORS = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 const GUITAR_NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
 const BASS_NAMES = ['E', 'A', 'D', 'G'];
-const SPEEDS = [0.5, 0.6, 0.75, 0.85, 1];
 const C = {
   bg: '#141a29',
   staff: 'rgba(163, 170, 194, 0.32)',
@@ -98,13 +98,6 @@ export function createTabView(host, stage) {
   const bar = h('div.tab-bar');
   const partsBox = h('div.tab-parts', { role: 'group', 'aria-label': 'Part' });
   const playAlongBtn = h('button.tab-toggle', { type: 'button' });
-  const speedSeg = h('div.seg.tab-speed', { role: 'group', 'aria-label': 'Practice speed' });
-  for (const s of SPEEDS) {
-    const b = h('button', { type: 'button', text: s === 1 ? '100%' : `${Math.round(s * 100)}%`, title: s === 1 ? 'Full speed' : `Slow down to ${Math.round(s * 100)}% (same pitch)` });
-    b.dataset.speed = String(s);
-    b.onclick = () => setSpeed(s);
-    speedSeg.append(b);
-  }
   const optBtn = h('button.icon-btn', { type: 'button', title: 'Tab options', 'aria-label': 'Tab options', html: icon('sliders') });
   const zOut = h('button.icon-btn', { type: 'button', title: 'Zoom out (-)', 'aria-label': 'Zoom out', html: icon('zoomOut') });
   const zIn = h('button.icon-btn', { type: 'button', title: 'Zoom in (+)', 'aria-label': 'Zoom in', html: icon('zoomIn') });
@@ -113,14 +106,18 @@ export function createTabView(host, stage) {
   // Stagehand 3: part chips live in the Now playing header, speed in its footer, the rig on Play.
   bar.append(h('span.grow'), zOut, zIn, optBtn);
 
-  const sectionsBar = h('div.tab-sections', { title: 'Click a section to jump there. Double-click to loop it.' });
+  const sectionsBar = h('div.tab-sections', { title: 'Click a section to jump there. Double-click to repeat it, Shift+click to repeat several.' });
+  // the repeat (one or several sections, its own speed), shared with the highway
+  const repeat = stage.repeat || null;
+  const repRow = repeat ? h('div.tab-rep-row', null, createRepeatBar(repeat, stage.engine, { cls: 'tab-rep-bar' })) : null;
   const main = h('div.tab-main');
   const canvas = h('canvas.tab-canvas', { 'aria-label': 'Tablature' });
   const msg = h('div.tab-msg', { hidden: true });
   const panel = h('aside.rig-panel', { hidden: true, 'aria-label': 'Your guitar' });
   main.append(canvas, msg, panel);
   const foot = h('div.tab-foot');
-  host.append(bar, sectionsBar, main, foot);
+  host.append(bar, sectionsBar, ...(repRow ? [repRow] : []), main, foot);
+  if (repeat) repeat.addEventListener('change', () => markLoop());
 
   // 4.2: the tuner is the Tuner tab in the right panel (nowpanel.js), never over the tab
   const toggleTuner = () => window.dispatchEvent(new CustomEvent('stagehand:tab-tuner'));
@@ -189,13 +186,6 @@ export function createTabView(host, stage) {
     /* Stagehand 3: Now playing is always full size */
     renderBar();
     requestAnimationFrame(() => resize());
-  }
-
-  function setSpeed(s) {
-    prefs.speed = s;
-    savePrefs();
-    stage.engine.setSpeed(s);
-    renderBar();
   }
 
   function zoom(dir) {
@@ -736,17 +726,70 @@ export function createTabView(host, stage) {
     tab.sections.forEach((s, i) => sectionsBar.append(segBtn(s, total, i)));
     sectionsBar.append(h('i.tab-sections-head'));
     V.curSection = -2;
+    markLoop();
   }
 
   function segBtn(s, total, i) {
-    const b = h('button', { type: 'button', text: prettySection(s.name), title: s.name ? `${prettySection(s.name)}: jump here, double-click to loop` : 'Start' });
+    const b = h('button', { type: 'button', text: prettySection(s.name), title: s.name ? `${prettySection(s.name)}: jump here, double-click to repeat, Shift+click to repeat up to here` : 'Start' });
     b.style.flexGrow = String(Math.max(0.001, s.end - s.start));
     b.style.flexBasis = '0';
     b.dataset.i = String(i);
-    b.onclick = () => stage.seek(s.start);
-    b.ondblclick = () => stage.setLoop({ start: s.start, end: s.end });
+    b.onclick = (e) => {
+      if (e.shiftKey && i >= 0) return stretchTo(i);
+      stage.seek(s.start);
+    };
+    b.ondblclick = () => repeatRange(i, i);
     void total;
     return b;
+  }
+
+  // numbered names: "Verse 2", "Chorus 3"
+  function secLabel(i) {
+    const secs = V.tab ? V.tab.sections : [];
+    const name = prettySection(secs[i] && secs[i].name) || 'Section';
+    const same = secs.filter((x) => prettySection(x.name) === name).length;
+    if (same < 2) return name;
+    let n = 0;
+    for (let k = 0; k <= i; k++) if (prettySection(secs[k].name) === name) n++;
+    return `${name} ${n}`;
+  }
+
+  function repeatRange(a, b) {
+    const secs = V.tab ? V.tab.sections : [];
+    if (a < 0 || b < 0 || !secs[a] || !secs[b]) return;
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const loop = { start: secs[lo].start, end: secs[hi].end, label: lo === hi ? secLabel(lo) : `${secLabel(lo)} → ${secLabel(hi)}`, from: lo, to: hi, anchor: a };
+    if (repeat) repeat.start(loop);
+    else stage.setLoop(loop);
+    const t = stage.engine.position || 0;
+    if (t < loop.start || t >= loop.end) stage.seek(loop.start);
+  }
+
+  // which sections the current repeat covers (by its own range, or by matching the edges)
+  function loopRange() {
+    const loop = stage.getLoop ? stage.getLoop() : null;
+    const secs = V.tab ? V.tab.sections : [];
+    if (!loop || !secs.length) return null;
+    if (Number.isInteger(loop.from) && Number.isInteger(loop.to) && secs[loop.from] && secs[loop.to]) return { lo: loop.from, hi: loop.to, anchor: Number.isInteger(loop.anchor) ? loop.anchor : loop.from };
+    const lo = secs.findIndex((x) => Math.abs(x.start - loop.start) < 0.05);
+    const hi = secs.findIndex((x) => Math.abs(x.end - loop.end) < 0.05);
+    return lo >= 0 && hi >= lo ? { lo, hi, anchor: lo } : null;
+  }
+
+  // Shift+click: stretch the repeat from where it started (or from the section playing now)
+  function stretchTo(i) {
+    const r = loopRange();
+    const from = r ? r.anchor : V.curSection >= 0 ? V.curSection : i;
+    repeatRange(from, i);
+  }
+
+  function markLoop() {
+    const r = loopRange();
+    for (const b of sectionsBar.querySelectorAll('button')) {
+      const i = Number(b.dataset.i);
+      b.classList.toggle('looping', !!r && i >= r.lo && i <= r.hi);
+    }
   }
 
   function updateSections(t) {
@@ -781,7 +824,6 @@ export function createTabView(host, stage) {
     playAlongBtn.setAttribute('aria-pressed', String(hasStems && prefs.playAlong));
     playAlongBtn.title = hasStems ? `Mute the ${inst} in the song so you can play it yourself` : 'Split stems first, so Stagehand can take your part out of the song';
     playAlongBtn.innerHTML = `<span class="sw"><i></i></span>Play along<span class="sub">${hasStems ? (prefs.playAlong ? `${inst} muted` : `hear the ${inst}`) : 'needs stems'}</span>`;
-    for (const b of speedSeg.querySelectorAll('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.speed) === prefs.speed));
     maxBtn.innerHTML = icon(prefs.maxed ? 'chevron' : 'fit');
     maxBtn.title = prefs.maxed ? 'Show the song list again' : 'Hide the song list (more room for the tab)';
     maxBtn.setAttribute('aria-label', maxBtn.title);
