@@ -1,8 +1,24 @@
-# Stagehand handoff (v4.2.0, 2026-11-08): timing check song, section speed, tones overhaul, tuner and tab view
+# Stagehand handoff (v4.2.1, 2026-11-08): the neck lights up as notes arrive
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.2.1: the neck lights up as notes arrive
+
+User sent three Rocksmith clips (Bleed It Out, a bass solo at frets 12–15): "focus on how the notes light up once they reach the playing area … the square lights up and the notes show and light up as they're getting closer/getting hit. See if we can mimic that behavior more."
+
+Measured frame by frame (60 fps) in the clips. Before this, Stagehand only lit things after a note landed (hit posts and flares when scoring; a soft flash without). Rocksmith lights them **before**, whether or not you play:
+- **Note spots on the neck**: each coming note's place (its string, its fret) shows as an outline in the string's colour about 1 s early, brighter as it closes in, white-hot rim and a halo in the last moments and while it rings, then fades. One per string+fret (the soonest note).
+- **Fret wires light up** as white posts with a warm pink glow ~0.16 s before the note lands, brightest as it lands, dimmer through its sustain, fading 0.22 s after. Chords: at the frame's edges; open strings: at the hand position's edges. A missed note's posts go dark when it's judged. The pink hit posts and flares are unchanged on top.
+- **The chord's box at the neck** (the "square"). First try was thin lines up to the chord's top string; user: "the single notes look much better, but the chords do not have the same highlighted box that Rocksmith has". Now, measured again: a rectangle as wide as the chord's frame and as tall as the neck (under the bottom string to above the top one), thick solid cyan edges, a soft halo fading outward, brighter top corners, faintly lit inside. It starts lighting 0.5 s before the chord (`BOX_LEAD`), flashes as it lands and stays faintly lit 0.6 s after (`BOX_HOLD`), so a strummed passage keeps its box. Then (user: "we can get a little closer and still soften it a bit"), next to the clip at the same moment: thin cyan neon lines with a soft glow along the top and bottom instead of thick bars, pink-white posts for the sides (as in the game), the top just above the top string (it was well above), small corners, barely lit inside, and the flying chord frame no longer draws once it reaches the neck (it showed as a second, smaller box inside; its notes still land).
+- The flying gem's rim turns white in its last 0.1 s.
+
+All in `buildApproach` (highway.js, "approach" section; `TARGET_LEAD`, `POST_LEAD`, `POST_FADE`, `postLight`), drawn after the neck, before the notes; depends only on the song clock, so it also shows when paused or scrolling. Not done for the 2D fallback highway (highway-classic.js).
+
+Look tool repairs (test/hwlook had drifted from 4.2): stubs for the names the app now imports (rig `P`/`openStrings`, tab `createTabView`, tonelib/captures/realamps), a quiet `api` stub, a `drums.js` stub (the real one starts before the song player in the harness's load order), the page's other elements in index.html, and the first-time timing check offer turned off so it doesn't cover shots. `seq.js` now takes a made-up scene (A/B/C/T) instead of a chart file and finds its own folder. `VERIFY=1` still looks for the old "Highway options" button (stale since 4.2.0).
+
+**Ask the user:** does the build-up feel like Rocksmith on their PC (too much, too little, too early?); are the lit fret wires readable on busy passages; does the chord box at the neck now match Rocksmith's (thickness, brightness, how long it stays).
 
 ## 4.2.0: timing check song, section speed, tones overhaul, tuner, tab view
 

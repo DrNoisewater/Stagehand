@@ -116,4 +116,6 @@ stage.giveBack = (snap) => { stage.borrowed = null; if (!snap) return; engine.du
 const hw = createHighway(stage);
 window.__stage = stage;
 await hw.open({ id: 's1', title: 'Scene ' + scene, artist: 'Test' });
+// the first-time timing check offer would cover the highway in every shot (TCHECK/PLAYCAL open it themselves)
+{ const H = document.querySelector('.highway').__hw; H.prefs.syncChecked = true; const box = document.querySelector('.hw-syncbox'); if (box && !box.hidden) box.querySelector('.btn.ghost')?.click(); }
 window.__hwReady = true;
