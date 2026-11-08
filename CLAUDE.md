@@ -79,14 +79,7 @@ Also documented in HANDOFF.md but not re-run on 2026-11-01:
 
 ## Helper names
 
-When work is handed to helpers (subagents), start each one's short task label with its role name, so the user can see who is doing what in the chat. This goes with the delegation and model rules in the user's global instructions:
-
-- **Scout**: looking things up, finding code, short summaries (Haiku).
-- **Builder**: a bounded change or fix (Sonnet).
-- **Checker**: running tests and checking a helper's work.
-- **Reviewer**: a careful second look at important changes, hard debugging, design choices (Opus).
-
-Example labels: "Scout: find the tuner code", "Builder: fix the gain knob", "Checker: run npm test". When there are two of the same role, number them ("Builder 2: ..."). Use the same names when telling the user what each helper found or did. The names change nothing about when helpers are used: only start one when the global rules call for it.
+When work is handed to a helper (subagent), give it one simple name that says what it is doing, in plain words, so the user can follow the progress messages in the chat. Examples: "Tuner finder", "Knob fixer", "Test runner". Use the same name when telling the user what that helper found or did. Naming changes nothing about when helpers are used.
 
 ## Conventions
 
