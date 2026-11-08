@@ -1,11 +1,10 @@
 /**
- * Highway tools (3.10): the small tuner (U), Score attack and Record clip.
+ * Highway tools (3.10): Score attack and Record clip (the tuner moved to Sound & settings in 4.2).
  * Tone match was here in 3.10 and 3.11; taken out in 3.12 at the user's request.
  * 4.0: one Tools menu instead of three floating buttons; while something runs
  * (recording, a score attack) one small chip shows it and stops it.
  */
 import { h, toast, isTyping, showMenu, icon } from './ui.js';
-import { createTuner } from './tuner.js';
 import { scoreHit } from './performance-math.js';
 import { createClipRecorder } from './take-video.js';
 
@@ -19,21 +18,12 @@ export function createPerformanceTools({ root, stage, H, rig }) {
     b.onclick = fn;
     return b;
   };
-  const toolsBtn = h('button.hw-chip.hw-tools-btn', { type: 'button', title: 'Tuner, score attack, recording', html: `<span>Tools</span>${icon('chevron')}` });
+  const toolsBtn = h('button.hw-chip.hw-tools-btn', { type: 'button', title: 'Score attack, recording, timing check', html: `<span>Tools</span>${icon('chevron')}` });
   const status = h('button.hw-chip.hw-tool-live', { type: 'button', hidden: true });
   row.append(status, toolsBtn);
 
-  // ------------------------------------------------------------ tuner --
-  const tuner = createTuner();
-  tuner.el.classList.add('hw-mini-tuner');
-  tuner.el.hidden = true;
-  root.append(tuner.el);
-  const toggleTuner = () => {
-    tuner.el.hidden = !tuner.el.hidden;
-    if (tuner.el.hidden) tuner.hide(); else tuner.show();
-  };
-  button('Tuner · U', 'Open tuner without leaving the song (U)', toggleTuner);
-  const tunerOpen = () => !tuner.el.hidden;
+  // 4.2: the tuner lives in Sound & settings now (highway.js); U still opens it
+  const toggleTuner = () => H.toggleTuner && H.toggleTuner();
 
   // ----------------------------------------------------- score attack --
   // A full-speed run from the start. Hits earn 100 × multiplier (up to ×4,
@@ -103,7 +93,6 @@ export function createPerformanceTools({ root, stage, H, rig }) {
   toolsBtn.onclick = () => {
     const r = toolsBtn.getBoundingClientRect();
     showMenu(r.right, r.bottom + 4, [
-      { label: tunerOpen() ? 'Hide the tuner' : 'Tuner', hint: 'U', icon: 'tuning', onClick: toggleTuner },
       { label: run ? 'Stop the score attack' : 'Score attack: a full run for points', icon: 'star', onClick: () => attack.onclick() },
       { label: clip.active ? 'Stop and save the clip' : 'Record a video clip', icon: 'record', onClick: () => rec.onclick() },
       '-',
@@ -187,8 +176,6 @@ export function createPerformanceTools({ root, stage, H, rig }) {
     /** Highway closing. */
     close() {
       leaderboard.hidden = true;
-      tuner.hide();
-      tuner.el.hidden = true;
       stopRun();
       if (clip.active) clip.stop().catch((e) => toast({ title: 'Clip could not be saved', message: e.message, kind: 'err' }));
     },

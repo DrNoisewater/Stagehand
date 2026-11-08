@@ -431,6 +431,27 @@ class FakePortMain extends EventEmitter {
     await shot('listpos');
     await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
   }
+  if (process.env.SH_TABTUNER) {
+    await page.evaluate(async () => { const { state } = await import('./js/store.js'); const a = await import('./js/actions.js'); await a.playAlong([...state.songs.values()][0].id).catch(() => {}); });
+    await page.waitForTimeout(2500);
+    await page.locator('.hw-views button:has-text("Tab")').click();
+    await page.waitForTimeout(800);
+    const v1 = await page.evaluate(() => ({ hw: !!document.querySelector('.highway:not([hidden])'), now: document.getElementById('app').className }));
+  // 4.2: the tab view has the tuner too: U (or its menu) opens the same small tuner, never two
+  {
+    const tunerUp = () => page.evaluate(() => ({ tab: !!(() => { const t = document.querySelector('.np-tuner'); return !!t && t.isConnected && !!t.closest('.np-pane') && t.getClientRects().length > 0; })(), hw: !!document.querySelector('.highway:not([hidden]) .hw-tuner:not([hidden])') }));
+    await page.keyboard.press('u');
+    await page.waitForTimeout(300);
+    let tu = await tunerUp();
+    check(tu.tab && !tu.hw, `U opens the Tuner tab in the side panel of the tab view, not over the tab (${JSON.stringify(tu)})`);
+    if (process.env.SH_TABTUNER) await shot('tab-tuner');
+    await page.keyboard.press('u');
+    await page.waitForTimeout(300);
+    tu = await tunerUp();
+    check(!tu.tab, 'U closes it again');
+  }
+    await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
+  }
   if(process.env.SH_PICTURES311){
     await shot('311-jam');
     await page.getByRole('button',{name:'Open visualizer',exact:true}).click();
@@ -492,7 +513,7 @@ class FakePortMain extends EventEmitter {
     check(await page.evaluate(()=>document.querySelector('.jam').hidden),'Jam exits cleanly');
     await page.evaluate(async()=>{const {state}=await import('./js/store.js');const a=await import('./js/actions.js');await a.playAlong(state.nowPlaying);});
     await page.waitForTimeout(1800);await page.keyboard.press('u');
-    check(await page.locator('.hw-mini-tuner').isVisible(),'U opens highway tuner');await page.keyboard.press('u');check(!(await page.locator('.hw-mini-tuner').isVisible()),'U closes highway tuner');
+    check(await page.locator('.hw-tuner').isVisible(),'U opens highway tuner');await page.keyboard.press('u');check(!(await page.locator('.hw-tuner').isVisible()),'U closes highway tuner');
     await page.locator('.hw-tools-btn').click();await page.locator('.menu button:has-text("Score attack")').click();await page.waitForTimeout(400);
     check(await page.locator('.attack-hud').isVisible(),'Score attack starts');
     await shot('performance-highway');
@@ -1041,6 +1062,19 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(600);
   const v1 = await page.evaluate(() => ({ hw: !!document.querySelector('.highway:not([hidden])'), now: document.getElementById('app').className }));
   check(!v1.hw && /now/.test(v1.now), 'Tab on the highway switches to the Tab view of the song');
+  // 4.2: the tab view has the tuner too: U (or its menu) opens the same small tuner, never two
+  {
+    const tunerUp = () => page.evaluate(() => ({ tab: !!(() => { const t = document.querySelector('.np-tuner'); return !!t && t.isConnected && !!t.closest('.np-pane') && t.getClientRects().length > 0; })(), hw: !!document.querySelector('.highway:not([hidden]) .hw-tuner:not([hidden])') }));
+    await page.keyboard.press('u');
+    await page.waitForTimeout(300);
+    let tu = await tunerUp();
+    check(tu.tab && !tu.hw, `U opens the Tuner tab in the side panel of the tab view, not over the tab (${JSON.stringify(tu)})`);
+    if (process.env.SH_TABTUNER) await shot('tab-tuner');
+    await page.keyboard.press('u');
+    await page.waitForTimeout(300);
+    tu = await tunerUp();
+    check(!tu.tab, 'U closes it again');
+  }
   await page.keyboard.press('h');
   await page.waitForTimeout(800);
   if (!(await page.evaluate(() => !!document.querySelector('.highway:not([hidden])')))) await page.evaluate(() => window.__stage && window.__stage.openHighway && window.__stage.openHighway());

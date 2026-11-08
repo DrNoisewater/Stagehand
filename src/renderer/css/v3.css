@@ -1066,7 +1066,7 @@ sup.acc.full { color: #1a1306; background: linear-gradient(135deg, #ffe08a, #ffb
 
 /* 3.10 Performance tools: existing Stagehand card, chip and gel vocabulary. */
 .hw-tools{position:absolute;right:26px;top:100px;display:flex;gap:7px;z-index:15}.hw-tools .hw-chip{background:rgba(17,20,28,.88)}
-.hw-mini-tuner{position:absolute;right:24px;top:148px;width:370px;z-index:25;box-shadow:0 16px 60px #0008}.hw-mini-tuner[hidden]{display:none}
+/* 4.2: the highway tuner folds out inside Sound & settings; the tab view has it as a panel tab */
 .attack-hud{position:absolute;left:28px;top:200px;padding:15px 22px;border-left:3px solid var(--tungsten);background:linear-gradient(90deg,#17171ee8,#17171e00);color:var(--tungsten);z-index:12;pointer-events:none}.attack-hud b{font-size:32px;display:block;font-variant-numeric:tabular-nums}.attack-hud small{letter-spacing:.12em;text-transform:uppercase}
 .perf-panel{position:absolute;right:24px;top:148px;width:370px;padding:20px;z-index:24;background:var(--panel,#181c24);border:1px solid var(--line,#ffffff20);border-radius:14px}.perf-panel[hidden]{display:none}.perf-panel p{color:var(--ink-3);line-height:1.6}.perf-panel button{margin:5px}.goal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0}.goal-card{padding:20px}.goal-card b{display:block;font-size:17px;margin:8px 0}.goal-card progress{width:100%;accent-color:var(--tungsten);height:7px}.goal-card.earned{border-color:var(--tungsten);animation:badge-arrive .7s ease-out}.goal-card small{color:var(--ink-3)}@keyframes badge-arrive{50%{box-shadow:0 0 35px #efb96044;transform:translateY(-3px)}}.reactive-bg{width:100%;height:100%;pointer-events:none}.jam-backing{max-width:210px}.jam-controls{display:flex;gap:10px;align-items:center}.hw-chip[aria-pressed=true]{color:var(--tungsten);border-color:var(--tungsten)}
 
@@ -1194,8 +1194,8 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .tcheck-intro { font-size: 15px; color: var(--ink); }
 .tcheck-intro b { color: var(--tungsten-hi); }
 .tcheck-ref { padding: 8px 12px; border-radius: var(--r-md); background: var(--tungsten-soft); border: 1px solid var(--tungsten-line); color: var(--ink); }
-.tcheck-strings { display: grid; gap: 6px; margin: 4px 0 12px; }
-.tcheck-row { display: grid; grid-template-columns: 28px 44px 22px 44px 1fr 120px; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--r-md); background: var(--deck-2); border: 1px solid var(--rule-soft); border-left: 4px solid var(--sc); }
+.tcheck-strings { display: grid; gap: 4px; margin: 4px 0 10px; }
+.tcheck-row { display: grid; grid-template-columns: 28px 44px 22px 44px 1fr; align-items: center; gap: 8px; padding: 5px 12px; border-radius: var(--r-md); background: var(--deck-2); border: 1px solid var(--rule-soft); border-left: 4px solid var(--sc); }
 .tcheck-row.keep { opacity: 0.55; }
 .tcheck-row.now { border-color: var(--sc); box-shadow: 0 0 0 1px var(--sc) inset; opacity: 1; }
 .tcheck-row.done { background: rgba(107, 212, 154, 0.12); }
@@ -1205,13 +1205,13 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .tcheck-row:not(.keep) .tcheck-to { color: var(--tungsten-hi); }
 .tcheck-arrow { font-size: 18px; text-align: center; color: var(--ink-2); }
 .tcheck-state { font-size: 14px; color: var(--ink-2); }
-.tcheck-meter { position: relative; height: 8px; border-radius: 4px; background: linear-gradient(90deg, rgba(255,107,107,.35), rgba(107,212,154,.5) 45% 55%, rgba(255,107,107,.35)); visibility: hidden; }
-.tcheck-row.now .tcheck-meter, .tcheck-row.done .tcheck-meter { visibility: visible; }
-.tcheck-needle { position: absolute; top: -4px; bottom: -4px; width: 3px; border-radius: 2px; background: #fff; left: calc(50% + var(--off, 0) * 50% - 1.5px); transition: left 0.08s linear; }
+.tcheck-tuner { padding: 14px 16px 12px; border-radius: var(--r-md); background: var(--deck-2); border: 1px solid var(--rule-soft); margin-top: 4px; }
+.tcheck-tuner .tn-needle { opacity: 1; background: #fff; }
+.tcheck-tuner .tn-needle.ok { background: #7fe0a6; }
 .tcheck-live { color: var(--ink-2); font-size: 13px; }
 .tcheck-always { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); cursor: pointer; }
 .hw-drop-guide { margin-top: 6px; }
-@media (max-width: 560px) { .tcheck-row { grid-template-columns: 24px 36px 18px 36px 1fr; } .tcheck-meter { grid-column: 1 / -1; } }
+@media (max-width: 560px) { .tcheck-row { grid-template-columns: 24px 36px 18px 36px 1fr; } }
 
 /* Recordings, Mine and Friends tabs (4.1): friends watch the videos you share (js/recordings.js, js/friends.js) */
 .rec-window { --fr: var(--gel-bass); }
@@ -1539,3 +1539,28 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .tw-foot .tw-tag { align-self: flex-start; }
 .tw-get { display: block; width: 100%; box-sizing: border-box; text-align: center; padding: 6px 10px; border-radius: 8px; background: var(--tungsten); border-color: var(--tungsten); color: var(--tungsten-ink, #2a1c05); font-weight: 700; font-size: 12.5px; }
 .tw-get:hover { background: var(--tungsten-hi); }
+
+/* 4.2: songs with lots of short sections pushed the strip off the right edge (each kept
+   8 px of padding); the name carries the padding now so a section can shrink to a sliver */
+.hw-sections { overflow-x: clip; }
+.hw-sections button { padding: 0; }
+.hw-sections .hw-sec-name { padding: 0 4px; }
+/* the score card stays on screen: bars shrink to fit, long text wraps, and it scrolls if it must */
+.hw-card { max-height: calc(100% - 200px); overflow-y: auto; overscroll-behavior: contain; min-width: 0; }
+.hw-card > * { min-width: 0; }
+.hw-card-bars { min-width: 0; overflow: hidden; gap: 2px; }
+.hw-card-bar { min-width: 1px; }
+.hw-card-titles p { overflow-wrap: anywhere; }
+.hw-card-notes > div > span:not(:first-child) { min-width: 0; overflow-wrap: anywhere; }
+.hw-card-notes .work .hw-chip { flex: none; }
+.hw-tuner-sec { margin: 6px 0 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.07); }
+.hw-tuner-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; background: none; border: 0; color: var(--ink-1); font: 600 13px var(--font); cursor: pointer; text-align: left; border-radius: 10px; }
+.hw-tuner-head:hover { background: rgba(255, 255, 255, 0.05); }
+.hw-tuner-head b { flex: 1; font-weight: 600; }
+.hw-tuner-head kbd { font: 600 10px var(--font); color: var(--ink-3); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 1px 5px; }
+.hw-tuner-ic, .hw-tuner-chev { display: inline-flex; color: var(--ink-3); }
+.hw-tuner-ic svg, .hw-tuner-chev svg { width: 16px; height: 16px; }
+.hw-tuner-sec .tuner3, .np-tuner.tuner3 { box-shadow: none; background: transparent; border: 0; margin: 0; padding: 4px 10px 10px; }
+.np-tuner.tuner3 { padding: 4px 0 0; }
+.hw-tuner-sec .tuner3 .card-head h2 { display: none; }
+.hw-tuner-sec .tuner3 .card-head { justify-content: flex-end; }

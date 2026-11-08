@@ -71,22 +71,28 @@ function show({ tab, song, kind, plan, key, songName, myName, what, sc, engine }
   );
   body.append(intro);
   if (plan.ref) body.append(h('p.tcheck-ref', { text: `Tune to ${plan.ref === 'A440' ? 'A = 440 Hz (standard pitch)' : `A = ${plan.ref.slice(1)} Hz`}: ${plan.ref === 'A440' ? 'back to normal' : 'slightly off standard pitch'}, so every string moves a little.` }));
-  // the strings, thin one at the top as you look down at the guitar
+  // 4.2 (user: "too much, it needs to be simple and to the point like the one in Jam"): one
+  // tuner up top, the same look as the main tuner, for whichever string you pluck; below it a
+  // short list of the strings, each with what to do and a tick when it's done
+  const bigNote = h('div.tn-note', { text: '–' });
+  const needle = h('i.tn-needle');
+  const reading = h('span.c', { text: rig.on ? 'Pluck any string' : '' });
+  const gauge = h('div.tuner3.tcheck-tuner', null, h('div.tn-row', null, bigNote, h('div', { style: { flex: '1' } }, h('div.tn-scale', null, needle), h('div.tn-read', null, h('span', { text: '−50' }), reading, h('span', { text: '+50' })))));
+  body.append(gauge);
   const rows = new Map();
   const list = h('div.tcheck-strings');
+  // thin string at the top as you look down at the guitar
   for (const s of [...plan.strings].reverse()) {
     const ci = (kind === 'bass' ? s.string + 2 : s.string) - 1;
-    const meter = h('div.tcheck-meter', null, h('i.tcheck-needle'));
     const state = h('span.tcheck-state', { text: s.keep ? 'Stays' : howFar(s.semis) });
     const row = h(`div.tcheck-row${s.keep ? '.keep' : ''}`, { style: { '--sc': COLORS[ci] || '#9ab' } },
       h('span.tcheck-num', { text: String(s.num) }),
       h('span.tcheck-from', { text: s.from }),
       h('span.tcheck-arrow', { text: s.keep ? '=' : s.up ? '↑' : '↓' }),
       h('span.tcheck-to', { text: s.to }),
-      state,
-      meter
+      state
     );
-    rows.set(s.string, { row, state, meter, s });
+    rows.set(s.string, { row, state, s, smooth: null });
     list.append(row);
   }
   body.append(list);
@@ -125,6 +131,7 @@ function show({ tab, song, kind, plan, key, songName, myName, what, sc, engine }
 
   const m = modal({ title: `Retune for ${song ? song.title : 'this song'}?`, body, footer: foot, onClose: () => {
     cancelAnimationFrame(raf);
+    clearTimeout(finishTimer);
     open = null;
     if (paused && !eng.playing) eng.play();
   } });
@@ -132,42 +139,124 @@ function show({ tab, song, kind, plan, key, songName, myName, what, sc, engine }
   m.el.parentElement.classList.add('over-highway');
   open = m;
 
-  // listen: which string, how close; ticks when held in tune
+  // listen: which string, how close. A string only gets its tick when it is within 3 cents
+  // (the main tuner's "in tune" is 1.5, "near" is 6), held steady for 0.7 s, judged on the
+  // settled note and not the pick attack. A ticked string played again and out by more than
+  // 5 cents loses its tick.
+  const TUNED = 3; // cents
+  const KEEP = 4; // stays "holding" up to here, so a wobble at the edge doesn't restart the count
+  const SLIPPED = 5;
+  const SETTLE = 250; // ms of each new note ignored: the attack is sharp
+  const HOLD = 700; // ms steady
   let raf = 0;
-  let hold = null;
+  let hold = null; // { string, at }
+  let note = null; // the note being played: { string, since, last, raw: [] }
+  let slip = null; // a ticked string that sounds out: { string, at }
   let finished = false;
+  let finishTimer = 0;
+  const median = (a) => [...a].sort((x, y) => x - y)[a.length >> 1];
+  const resetLive = () => {
+    hold = null;
+    slip = null;
+    note = null;
+  };
+  const say = (off) => {
+    const a = Math.abs(off);
+    reading.textContent = a <= TUNED ? 'In tune' : `${off > 0 ? '+' : '−'}${Math.round(a)} cents`;
+    reading.className = `c${a <= TUNED ? ' ok' : ''}`;
+  };
+  const rest = () => {
+    for (const r of rows.values()) r.row.classList.remove('now');
+    bigNote.textContent = '–';
+    bigNote.className = 'tn-note';
+    needle.classList.remove('ok');
+    needle.style.left = '50%';
+    reading.textContent = 'Pluck any string';
+    reading.className = 'c';
+  };
   const tick = () => {
     raf = requestAnimationFrame(tick);
     if (!rig.on || finished) return;
+    const now = performance.now();
     const p = rig.pitch && rig.pitch();
-    for (const r of rows.values()) r.row.classList.remove('now');
     if (!p || !(p.clarity > 0.85)) {
-      hold = null;
+      // silence: the needle rests, the next pluck is a new note
+      if (note && now - note.last > 250) {
+        rest();
+        resetLive();
+      }
       return;
     }
     const w = whichString(p.midi * 100 + p.cents, plan.strings);
     if (!w) return;
     const r = rows.get(w.string.string);
-    r.row.classList.add('now');
     const off = w.off;
-    r.meter.style.setProperty('--off', String(Math.max(-1, Math.min(1, off / 50))));
-    if (done.has(w.string.string)) return;
-    if (Math.abs(off) <= 6) {
-      r.state.textContent = 'In tune';
-      if (!hold || hold.string !== w.string.string) hold = { string: w.string.string, at: performance.now() };
-      else if (performance.now() - hold.at > 450) {
-        done.add(w.string.string);
-        r.row.classList.add('done');
-        r.state.textContent = '✓ In tune';
-        if (changing.length && changing.every((s) => done.has(s.string))) {
-          finished = true;
-          live.textContent = `All tuned: ${songName}.`;
-          setTimeout(() => open === m && finish(`Tuned to ${songName}`), 900);
+    // a new pluck: a different string, or a jump in pitch (silence in between is handled above)
+    if (!note || note.string !== w.string.string || Math.abs(off - note.raw[note.raw.length - 1]) > 40) {
+      note = { string: w.string.string, since: now, last: now, raw: [] };
+      hold = null;
+      slip = null;
+    }
+    note.last = now;
+    note.raw.push(off);
+    if (note.raw.length > 5) note.raw.shift();
+    for (const x of rows.values()) x.row.classList.toggle('now', x === r);
+    // the needle is smooth; the judging uses the middle of the last few readings
+    r.smooth = r.smooth == null || now - note.since < 60 ? off : r.smooth + (off - r.smooth) * 0.35;
+    const shown = Math.max(-50, Math.min(50, r.smooth));
+    const a = Math.abs(r.smooth);
+    needle.style.left = `${50 + shown}%`;
+    needle.classList.toggle('ok', a <= TUNED);
+    bigNote.textContent = r.s.to;
+    bigNote.className = `tn-note${a <= TUNED ? ' ok' : a < 6 ? ' near' : ''}`;
+    say(r.smooth);
+    const settled = now - note.since >= SETTLE && note.raw.length >= 3;
+    const j = median(note.raw);
+    const wasDone = done.has(w.string.string);
+    const dir = j < 0 ? 'Up' : 'Down';
+    if (!settled) {
+      if (!wasDone) r.state.textContent = 'Listening…';
+      return;
+    }
+    if (wasDone) {
+      // ticked before: is it still right?
+      if (Math.abs(j) > SLIPPED) {
+        if (!slip) slip = { at: now };
+        else if (now - slip.at > 300) {
+          done.delete(w.string.string);
+          r.row.classList.remove('done');
+          r.slipped = true;
+          r.state.textContent = `Slipped out: ${dir.toLowerCase()} ${Math.round(Math.abs(j))} cents`;
+          live.textContent = `String ${r.s.num} is out of tune again.`;
+          clearTimeout(finishTimer);
+          hold = null;
+          slip = null;
         }
+      } else slip = null;
+      return;
+    }
+    if (Math.abs(j) <= (hold && hold.string === w.string.string ? KEEP : TUNED)) {
+      if (!hold || hold.string !== w.string.string) hold = { string: w.string.string, at: now };
+      const held = now - hold.at;
+      if (held < HOLD) {
+        r.state.textContent = 'Hold it…';
+        return;
+      }
+      done.add(w.string.string);
+      r.slipped = false;
+      r.row.classList.add('done');
+      r.state.textContent = '✓ In tune';
+      live.textContent = rig.on ? 'Pluck the next string.' : live.textContent;
+      if (changing.length && changing.every((s) => done.has(s.string))) {
+        finished = true;
+        live.textContent = `All tuned: ${songName}.`;
+        finishTimer = setTimeout(() => open === m && finish(`Tuned to ${songName}`), 900);
       }
     } else {
       hold = null;
-      r.state.textContent = Math.abs(off) < 100 ? `${off < 0 ? 'Up' : 'Down'} a little (${Math.round(Math.abs(off))} cents)` : `${off < 0 ? 'Up' : 'Down'} ${howFar(Math.abs(off) / 100).replace(/ (up|down)/, '')}`;
+      const a = Math.abs(j);
+      const way = a < 100 ? `${dir} a little (${Math.round(a)} cents)` : `${dir} ${howFar(a / 100).replace(/ (up|down)/, '')}`;
+      r.state.textContent = r.slipped ? `Slipped out: ${way.toLowerCase()}` : way;
     }
   };
   raf = requestAnimationFrame(tick);
