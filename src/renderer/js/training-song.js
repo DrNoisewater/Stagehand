@@ -6,8 +6,9 @@
  *
  * About 28 seconds at 92 bpm: a bar of drumsticks counts you in, then G, Em,
  * C, D twice and home to G. You play single notes, one every beat or two, on
- * the top three strings (G, B and high e on a guitar; A, D and G on a bass),
- * open or the first three frets.
+ * the top three strings on the highway (red, yellow and blue: low E, A and D,
+ * on guitar and bass), open or the first few frets. In a lowered string (Drop D)
+ * the fret moves up so the note stays in key with the band.
  *
  * trainingChart() gives the part in the same shape the highway gets from a
  * real song (tabs.js / sng.js toTab), in the player's own tuning, so it plays
@@ -28,27 +29,28 @@ const LAST = at(9, 1);
 const LENGTH = Math.ceil((LAST + 4 * BEAT + 1.2) * 10) / 10; // the last chord rings out
 
 // [bar, beat, string, fret, beats it lasts]. Strings count from the lowest (0).
+// 4.2 (user): "top 3 strings. Red Yellow Blue": low E, A and D on both guitar and bass.
 const GUITAR = [
-  [1, 1, 3, 0, 1], [1, 2, 4, 0, 1], [1, 3, 4, 3, 2],
-  [2, 1, 5, 0, 2], [2, 3, 4, 0, 2],
-  [3, 1, 4, 1, 1], [3, 2, 5, 0, 1], [3, 3, 5, 3, 2],
-  [4, 1, 5, 2, 2], [4, 3, 4, 3, 2],
-  [5, 1, 4, 3, 1], [5, 2, 4, 0, 1], [5, 3, 3, 0, 2],
-  [6, 1, 5, 0, 2], [6, 3, 5, 3, 2],
-  [7, 1, 5, 0, 1], [7, 2, 4, 3, 1], [7, 3, 4, 1, 2],
-  [8, 1, 3, 2, 2], [8, 3, 4, 3, 2],
-  [9, 1, 3, 0, 4],
+  [1, 1, 0, 3, 1], [1, 2, 1, 2, 1], [1, 3, 2, 0, 2],
+  [2, 1, 2, 2, 2], [2, 3, 1, 2, 2],
+  [3, 1, 1, 3, 1], [3, 2, 2, 2, 1], [3, 3, 0, 3, 2],
+  [4, 1, 2, 0, 2], [4, 3, 1, 0, 2],
+  [5, 1, 0, 3, 1], [5, 2, 1, 2, 1], [5, 3, 2, 0, 2],
+  [6, 1, 0, 0, 2], [6, 3, 0, 3, 2],
+  [7, 1, 1, 3, 1], [7, 2, 2, 2, 1], [7, 3, 0, 3, 2],
+  [8, 1, 0, 2, 2], [8, 3, 1, 0, 2],
+  [9, 1, 0, 3, 4],
 ];
 const BASS = [
-  [1, 1, 3, 0, 2], [1, 3, 2, 0, 2],
-  [2, 1, 2, 2, 2], [2, 3, 1, 2, 2],
-  [3, 1, 1, 3, 2], [3, 3, 3, 0, 2],
+  [1, 1, 0, 3, 2], [1, 3, 2, 0, 2],
+  [2, 1, 0, 0, 2], [2, 3, 1, 2, 2],
+  [3, 1, 1, 3, 2], [3, 3, 0, 3, 2],
   [4, 1, 2, 0, 2], [4, 3, 1, 0, 2],
-  [5, 1, 3, 0, 2], [5, 3, 2, 0, 1], [5, 4, 1, 2, 1],
-  [6, 1, 2, 2, 2], [6, 3, 1, 2, 2],
-  [7, 1, 1, 3, 2], [7, 3, 2, 2, 1], [7, 4, 3, 0, 1],
-  [8, 1, 2, 0, 2], [8, 3, 1, 0, 1], [8, 4, 2, 0, 1],
-  [9, 1, 3, 0, 4],
+  [5, 1, 0, 3, 2], [5, 3, 2, 0, 1], [5, 4, 1, 2, 1],
+  [6, 1, 0, 0, 2], [6, 3, 2, 2, 2],
+  [7, 1, 1, 3, 2], [7, 3, 2, 2, 1], [7, 4, 0, 3, 1],
+  [8, 1, 2, 0, 2], [8, 3, 0, 2, 1], [8, 4, 1, 0, 1],
+  [9, 1, 0, 3, 4],
 ];
 const CHORDS = [null, 'G', 'Em', 'C', 'D', 'G', 'Em', 'C', 'D', 'G'];
 // open chord shapes, E Standard, low to high
@@ -65,7 +67,12 @@ export function trainingChart(kind = 'guitar', tuning = [], cents = 0) {
   const bass = kind === 'bass';
   const n = bass ? 4 : 6;
   const tun = Array.from({ length: 6 }, (_, i) => (i < n ? Math.round(Number(tuning[i]) || 0) : 0));
-  const notes = (bass ? BASS : GUITAR).map(([bar, beat, s, f, len]) => ({ t: r3(at(bar, beat)), s, f, sus: len >= 2 ? r3((len - 0.5) * BEAT) : 0 }));
+  // the band follows the G string; a string tuned differently from it gets the fret that keeps the note in key
+  const fretFor = (s, f) => {
+    const g = f + (tun[3] - tun[s]);
+    return g >= 0 && g <= 7 ? g : f;
+  };
+  const notes = (bass ? BASS : GUITAR).map(([bar, beat, s, f, len]) => ({ t: r3(at(bar, beat)), s, f: fretFor(s, f), sus: len >= 2 ? r3((len - 0.5) * BEAT) : 0 }));
   const beats = [];
   for (let i = 0; START + i * BEAT < LENGTH - 0.01; i++) beats.push({ t: r3(START + i * BEAT), m: i % 4 === 0 ? i / 4 : -1 });
   return {
@@ -303,7 +310,7 @@ export function renderTraining(tab, sr = 48000) {
   for (let i = 0; i < GUITAR.length; i++) {
     const [bar, beat, s, f, len] = GUITAR[i];
     const t = at(bar, beat);
-    const m = bassPart ? OPEN.guitar[s] + f + shift : midiOf(s, f);
+    const m = bassPart ? OPEN.guitar[s] + f + shift : midiOf(s, tab.notes[i] ? tab.notes[i].f : f);
     const ring = i === GUITAR.length - 1 ? 3.2 : len * BEAT + 0.05;
     pluck(lead, sr, t, m, ring, { amp: 1, ring: 2.6, damp: 0.22, pick: 0.14, soft: 0.25, click: 0.35, rel: i === GUITAR.length - 1 ? 0.6 : 0.09 }, rand);
   }
@@ -311,7 +318,7 @@ export function renderTraining(tab, sr = 48000) {
   for (let i = 0; i < BASS.length; i++) {
     const [bar, beat, s, f, len] = BASS[i];
     const t = at(bar, beat);
-    const m = bassPart ? midiOf(s, f) : OPEN.bass[s] + f + shift;
+    const m = bassPart ? midiOf(s, tab.notes[i] ? tab.notes[i].f : f) : OPEN.bass[s] + f + shift;
     const ring = i === BASS.length - 1 ? 3.2 : len * BEAT - 0.04;
     pluck(low, sr, t, m, ring, { amp: 1, ring: 2.2, damp: 0.62, pick: 0.22, soft: 0.65, click: 0.08, rel: 0.08 }, rand);
     tone(low, sr, t, hz(m), Math.min(0.9, ring), 0.55);

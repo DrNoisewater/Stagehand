@@ -16,7 +16,7 @@ for (const kind of ['guitar', 'bass']) {
     assert.strictEqual(tab.tuning.length, 6);
     assert.ok(tab.length >= 24 && tab.length <= 30, `length ${tab.length}`);
     assert.ok(tab.notes.length >= 16 && tab.notes.length <= 24, `${tab.notes.length} notes`);
-    const top = kind === 'bass' ? [1, 2, 3] : [3, 4, 5];
+    const top = [0, 1, 2]; // the top three on the highway: red, yellow, blue (low E, A, D)
     for (const n of tab.notes) {
       assert.ok(top.includes(n.s), `string ${n.s}`);
       assert.ok(n.f >= 0 && n.f <= 3, `fret ${n.f}`);
@@ -28,6 +28,16 @@ for (const kind of ['guitar', 'bass']) {
     assert.ok(targetsFromTab(tab).every((x) => x.kind === 'note'));
   });
 }
+
+test('Drop D: notes on the low string move up two frets, so they stay in key', () => {
+  const std = trainingChart('guitar', [], 0);
+  const drop = trainingChart('guitar', [-2, 0, 0, 0, 0, 0], 0);
+  std.notes.forEach((n, i) => {
+    const d = drop.notes[i];
+    assert.strictEqual(d.s, n.s);
+    assert.strictEqual(d.f, n.s === 0 ? n.f + 2 : n.f, `note ${i}`);
+  });
+});
 
 test('the backing is music: loud enough, never clipping, silent only before the count-in', () => {
   const tab = trainingChart('guitar', [], 0);

@@ -473,7 +473,7 @@ export function createHighway(stage) {
     endTraining();
   }
   const kindNow = () => (rig.instrument === 'bass' ? 'bass' : 'guitar');
-  const topStrings = (kind) => (kind === 'bass' ? 'A, D and G strings' : 'G, B and high e strings');
+  const topStrings = () => 'top three strings (red, yellow and blue)';
 
   function syncIntro({ first = false } = {}) {
     syncBox.innerHTML = '';
@@ -607,7 +607,7 @@ export function createHighway(stage) {
     trainBar.append(
       h('span.hw-train-icon', { html: icon('clock') }),
       h('b', { text: 'Timing check' }),
-      h('span', { text: key === 'ready' ? 'Get ready: the sticks count you in' : `Play each note as it reaches the strings · ${topStrings(tr.kind)}` }),
+      h('span', { text: key === 'ready' ? 'Get ready: the sticks count you in' : 'Play each note as it reaches the strings · red, yellow and blue only' }),
       h('span.hw-train-count', { text: `${done} of ${n}` }),
       stop
     );
