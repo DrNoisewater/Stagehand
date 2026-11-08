@@ -450,6 +450,42 @@ class FakePortMain extends EventEmitter {
     tu = await tunerUp();
     check(!tu.tab, 'U closes it again');
   }
+    // 4.2: click the tab to go there, drag it, the wheel, sections with a lead-in
+    {
+      const pos = () => page.evaluate(async () => (await import('./js/stage.js')).engine.position);
+      const box = await page.locator('.tab-canvas').boundingBox();
+      const t0 = await pos();
+      await page.mouse.click(box.x + box.width * 0.8, box.y + box.height * 0.5);
+      await page.waitForTimeout(200);
+      const t1 = await pos();
+      check(t1 > t0 + 1, `clicking ahead on the tab goes there (${t0.toFixed(2)} → ${t1.toFixed(2)})`);
+      await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.5);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width * 0.6 - 190, box.y + box.height * 0.5, { steps: 6 });
+      await page.mouse.up();
+      await page.waitForTimeout(200);
+      const t2 = await pos();
+      check(Math.abs(t2 - t1 - 1) < 0.35, `dragging the tab left by a second's width moves a second ahead (${t1.toFixed(2)} → ${t2.toFixed(2)})`);
+      await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+      await page.mouse.wheel(0, 380);
+      await page.waitForTimeout(200);
+      const t3 = await pos();
+      check(t3 > t2 + 1, `the wheel looks ahead (${t2.toFixed(2)} → ${t3.toFixed(2)})`);
+      const sec = await page.evaluate(() => { const b = [...document.querySelectorAll('.tab-sections button')].find((x) => x.dataset.i === '1'); return b ? b.textContent : null; });
+      if (sec) {
+        const want = await page.evaluate(async () => { const s = window.__shPractice?.tab?.sections?.[1]; return s ? { start: s.start, long: s.end - s.start > 30 } : null; });
+        await page.locator('.tab-sections button[data-i="1"]').click({ position: { x: 2, y: 8 } });
+        await page.waitForTimeout(200);
+        const t4 = await pos();
+        if (want) check(Math.abs(t4 - Math.max(0, want.start - 1)) < 0.3, `a section starts a second early (${sec}: ${want.start.toFixed(2)} → ${t4.toFixed(2)})`);
+      }
+      await page.locator('.tab-bar button[title*="ptions" i], .tab-bar button:last-child').last().click().catch(() => {});
+      await page.waitForTimeout(250);
+      const keys = await page.evaluate(() => [...document.querySelectorAll('.menu button')].map((b) => b.textContent).join(' | '));
+      check(/Play or pause/.test(keys) && /Slower or faster/.test(keys), 'the tab menu lists the keys');
+      if (process.env.SH_TABTUNER) await shot('tab-menu');
+      await page.keyboard.press('Escape');
+    }
     await browser.close();relay.quit();server.close();process.exit(results.some(r=>!r.ok)?1:0);
   }
   if(process.env.SH_PICTURES311){

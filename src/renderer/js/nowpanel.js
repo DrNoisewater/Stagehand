@@ -521,6 +521,16 @@ function renderAll() {
   updateSubtitle();
 }
 on('page', () => shown() && renderAll());
+// 4.2: coming back from the highway (or Jam) to this page didn't fill the footer and panel in
+{
+  const app = document.getElementById('app');
+  let under = app.classList.contains('under-highway');
+  new MutationObserver(() => {
+    const now = app.classList.contains('under-highway');
+    if (under && !now && shown()) renderAll();
+    under = now;
+  }).observe(app, { attributes: true, attributeFilter: ['class'] });
+}
 on('practice', () => {
   renderParts();
   updateSubtitle();

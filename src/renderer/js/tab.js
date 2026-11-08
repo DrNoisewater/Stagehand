@@ -132,6 +132,81 @@ export function createTabView(host, stage) {
     e.preventDefault();
     toggleTuner();
   });
+  const clock = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+  // 4.2: click the tab to go there; drag it (or use the wheel) to look back and ahead
+  const songEnd = () => Math.max(V.tab ? V.tab.length || 0 : 0, stage.engine.duration || 0);
+  const clampT = (t) => Math.max(0, Math.min(songEnd() || t, t));
+  function timeAt(x, y) {
+    const m = V.hit;
+    if (!m || !V.tab || x < m.gutter) return null;
+    if (prefs.layout === 'page') {
+      const row = m.rows.find((r) => y >= r.y0 && y < r.y1);
+      if (!row) return null;
+      return clampT(Math.min(row.t1, row.t0 + Math.max(0, x - row.x0) / row.pps));
+    }
+    return clampT(stage.engine.position + (x - m.playX) / m.pps);
+  }
+  // a click lands on the note under it (if there's one close), a moment before
+  function noteNear(t) {
+    const notes = V.tab ? [...(V.tab.notes || []), ...(V.tab.chordEvents || [])] : [];
+    let best = null;
+    for (const n of notes) {
+      const d = Math.abs(n.t - t);
+      if (d < 0.25 && (!best || d < Math.abs(best.t - t))) best = n;
+    }
+    return best ? best.t : t;
+  }
+  const drag = { on: false, x: 0, at: 0, moved: false };
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !V.tab) return;
+    drag.on = true;
+    drag.moved = false;
+    drag.x = e.clientX;
+    drag.at = stage.engine.position;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag.on) {
+      const r = canvas.getBoundingClientRect();
+      const t = timeAt(e.clientX - r.left, e.clientY - r.top);
+      canvas.style.cursor = t === null ? '' : prefs.layout === 'page' ? 'pointer' : 'grab';
+      return;
+    }
+    const dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) < 5) return;
+    if (prefs.layout === 'page') return; // pages don't slide
+    drag.moved = true;
+    canvas.style.cursor = 'grabbing';
+    stage.seek(clampT(drag.at - dx / (V.hit ? V.hit.pps : 190)));
+  });
+  const endDrag = (e) => {
+    if (!drag.on) return;
+    drag.on = false;
+    canvas.style.cursor = '';
+    if (drag.moved || e.type === 'pointercancel') return;
+    const r = canvas.getBoundingClientRect();
+    const t = timeAt(e.clientX - r.left, e.clientY - r.top);
+    if (t !== null) stage.seek(Math.max(0, noteNear(t) - 0.4));
+  };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('wheel', (e) => {
+    if (!V.tab) return;
+    e.preventDefault();
+    if (e.ctrlKey) return zoom(e.deltaY < 0 ? 1 : -1);
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    const px = e.deltaMode === 1 ? d * 30 : d;
+    if (prefs.layout === 'page') {
+      // a wheel notch moves a row
+      const rows = V.systems || [];
+      const t = stage.engine.position;
+      const cur = rows.findIndex((r) => t >= r.t0 && t < r.t1);
+      const next = rows[Math.max(0, Math.min(rows.length - 1, cur + (px > 0 ? 1 : -1)))];
+      if (next) stage.seek(next.t0);
+      return;
+    }
+    stage.seek(clampT(stage.engine.position + px / (V.hit ? V.hit.pps : 190)));
+  }, { passive: false });
   zOut.onclick = () => zoom(-1);
   zIn.onclick = () => zoom(1);
   optBtn.onclick = (e) => {
@@ -152,6 +227,14 @@ export function createTabView(host, stage) {
         { label: 'Pages', icon: 'list', hint: check(prefs.layout === 'page'), onClick: () => setPref('layout', 'page') },
         '-',
         { label: 'Show lyrics', icon: 'music', hint: check(prefs.lyrics), onClick: () => setPref('lyrics', !prefs.lyrics) },
+        '-',
+        { heading: true, label: 'Keys' },
+        { label: 'Play or pause', hint: 'Space', onClick: () => stage.toggle() },
+        { label: 'Back or ahead 5 seconds', hint: '← →' },
+        { label: 'Repeat this section', hint: 'L', onClick: () => stage.toggleSectionLoop && stage.toggleSectionLoop() },
+        { label: 'Slower or faster', hint: '[ ]' },
+        { label: 'Zoom out or in', hint: '− +' },
+        { label: 'The highway', hint: 'H', onClick: () => stage.openHighway && stage.openHighway() },
       ],
       { align: 'right' }
     );
@@ -427,6 +510,8 @@ export function createTabView(host, stage) {
     const tab = V.tab;
     if (!tab || V.loading || V.error) return;
     const g = geometry();
+    const hit = [];
+    V.hit = { gutter: g.gutter, pps: g.pps, rows: hit, playX: 0, t };
     if (prefs.layout === 'page') {
       const rows = systems(g);
       let cur = rows.findIndex((r) => t >= r.t0 && t < r.t1);
@@ -438,6 +523,7 @@ export function createTabView(host, stage) {
         const x0 = g.gutter + 6;
         const x1 = x0 + (row.t1 - row.t0) * g.pps;
         drawSystem({ t0: row.t0, t1: row.t1, x0, x1, staffTop: top + 70, gap: g.gap, t, lyrics: g.lyrics, playhead: r === 0, dim: r > 0 });
+        hit.push({ y0: top, y1: top + g.sysH, x0, t0: row.t0, t1: row.t1, pps: g.pps });
         if (r > 0) {
           ctx.fillStyle = 'rgba(42, 51, 80, 0.6)';
           ctx.fillRect(12, top - 3, W - 24, 1);
@@ -448,6 +534,7 @@ export function createTabView(host, stage) {
       const playX = g.gutter + Math.min(260, (W - g.gutter) * 0.24);
       const t0 = t - (playX - g.gutter) / g.pps;
       const t1 = t0 + (W - g.gutter) / g.pps;
+      V.hit.playX = playX;
       drawSystem({ t0, t1, x0: g.gutter, x1: W, xAt: (time) => playX + (time - t) * g.pps, staffTop: g.staffTop, gap: g.gap, t, lyrics: g.lyrics, playhead: true, playX });
       drawStringNames(g, g.staffTop);
     }
@@ -730,13 +817,27 @@ export function createTabView(host, stage) {
   }
 
   function segBtn(s, total, i) {
-    const b = h('button', { type: 'button', text: prettySection(s.name), title: s.name ? `${prettySection(s.name)}: jump here, double-click to repeat, Shift+click to repeat up to here` : 'Start' });
+    const b = h('button', { type: 'button', text: s.name ? prettySection(s.name) : 'Start', title: s.name ? `${prettySection(s.name)}: jump here, double-click to repeat, Shift+click to repeat up to here` : 'The start' });
     b.style.flexGrow = String(Math.max(0.001, s.end - s.start));
     b.style.flexBasis = '0';
     b.dataset.i = String(i);
+    // 4.2: like the highway: a second of lead-in; inside a long section, go to the spot you clicked
+    const long = s.end - s.start > 30;
+    if (long) {
+      b.onmousemove = (e) => {
+        const r = b.getBoundingClientRect();
+        const at = s.start + Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))) * (s.end - s.start);
+        b.title = `${s.name ? prettySection(s.name) : 'Start'} · click to go to ${clock(at)}. Double-click to repeat, Shift+click to repeat up to here`;
+      };
+    }
     b.onclick = (e) => {
       if (e.shiftKey && i >= 0) return stretchTo(i);
-      stage.seek(s.start);
+      if (long) {
+        const r = b.getBoundingClientRect();
+        const at = s.start + Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))) * (s.end - s.start);
+        return stage.seek(at - s.start < 3 ? Math.max(0, s.start - 1) : at);
+      }
+      stage.seek(Math.max(0, s.start - 1));
     };
     b.ondblclick = () => repeatRange(i, i);
     void total;
