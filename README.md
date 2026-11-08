@@ -170,6 +170,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.2.1:** the neck lights up as notes arrive, like Rocksmith: each note's spot on its string, the frets around it, and the chord frame.
 - **4.2:** a real practice song for the timing check, slow down or speed up one or several sections, metal and lead sounds with pedals and a noise gate, a calmer Tones page, and a tab view you can click and drag.
 - **4.1:** watch your friends' highway and Jam videos. Swap codes in **Recordings › Friends**. Only videos you choose to share can be seen, and only while your Stagehand is open. 4.1.1 makes connecting more reliable.
 - **4.0.3:** official DLC plays, even when its audio is stored elsewhere in your Rocksmith folder.

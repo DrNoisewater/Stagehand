@@ -1602,6 +1602,7 @@ export function createHighway(stage) {
     R3.begin();
     buildFloor(t, a, f0, f1);
     buildNeck(t, a, f0, f1);
+    buildApproach(t, a);
     buildNotes(t, a);
     buildLands(t, a);
     buildHits(t, a);
@@ -1914,6 +1915,144 @@ export function createHighway(stage) {
 
   }
 
+  // ------------------------------------------------------- approach --
+  // 4.2.1 (user's Rocksmith clips): the neck lights up for a note BEFORE it lands, whether
+  // or not you play it. Measured frame by frame at 60 fps:
+  // - each coming note's spot on the neck (its string, its fret) shows as a dim outline about
+  //   a second early, getting brighter as the note closes in, and glows while it's held;
+  // - the two fret wires around it light up as white posts about 0.15 s before it lands,
+  //   brightest as it lands, stay lit (dimmer) through its sustain, then fade;
+  // - a chord's frame does the same at the neck: an outline that brightens, a flash as it lands.
+  const TARGET_LEAD = 1.0; // s before landing that a note's spot on the neck shows
+  const POST_LEAD = 0.16; // s before landing that its fret wires light
+  const POST_FADE = 0.22; // s for the posts to fade after the note (or its sustain) ends
+  const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+
+  /** How lit the wires around a note are at time t: rising before it lands, held while it rings. */
+  function postLight(t, t0, t1) {
+    if (t < t0) return 0.95 * smooth(1 - (t0 - t) / POST_LEAD) ** 1.5;
+    const flash = 0.45 + 0.55 * Math.exp(-(t - t0) / 0.12);
+    if (t <= t1) return Math.max(flash, 0.5);
+    return Math.max(0, (t1 > t0 + 0.05 ? 0.5 : flash) * (1 - (t - t1) / POST_FADE));
+  }
+
+  function buildApproach(t, a) {
+    const { solid, alpha, glow } = R3.L;
+    const T = H.targets;
+    if (!T || !T.length) return;
+    const spots = new Map(); // one per string and fret: the soonest note there
+    const posts = new Map(); // fret wire x → how lit
+    let frame = null; // the chord frame at the neck, the brightest one
+    const post = (x, k) => {
+      if (k < 0.02) return;
+      const key = x.toFixed(3);
+      posts.set(key, Math.max(posts.get(key) || 0, k));
+    };
+    for (let i = Math.max(0, lower(T, t - 8)); i < T.length && T[i].t < t + TARGET_LEAD; i++) {
+      const tg = T[i];
+      const st = judged(tg);
+      const missed = !!(st && st.result === 'miss');
+      const an = anchorAt(tg.t);
+      const chord = isChord(tg);
+      const box = chord ? chordBox(tg, an) : null;
+      let end = tg.t;
+      for (const nt of tg.notes) end = Math.max(end, noteEnd(nt, tg));
+      if (t > end + POST_FADE) continue;
+      // the fret wires: a missed note's go dark as soon as it's judged
+      const pk = missed ? 0 : postLight(t, tg.t, end);
+      if (chord) {
+        post(box[0], pk);
+        post(box[1], pk);
+      } else {
+        for (const nt of tg.notes) {
+          if (nt.linked) continue;
+          if (nt.f === 0) {
+            post(anX0(an), pk * 0.8);
+            post(anX1(an), pk * 0.8);
+          } else {
+            post(XF(nt.f - 1), pk);
+            post(XF(nt.f), pk);
+          }
+        }
+      }
+      // the chord's frame at the neck
+      if (chord && !missed) {
+        const dt = tg.t - t;
+        const fk = dt > 0 ? 0.12 + 0.5 * smooth(1 - dt / TARGET_LEAD) ** 2 : t <= end ? Math.max(0.35, Math.exp(dt / 0.14)) : 0.35 * (1 - (t - end) / POST_FADE);
+        if (fk > 0.02 && (!frame || fk > frame.k)) frame = { k: fk, box, tg };
+      }
+      // each note's spot on the neck
+      for (const nt of tg.notes) {
+        if (nt.linked) continue;
+        const key = nt.s * 64 + nt.f;
+        const ne = noteEnd(nt, tg);
+        let k;
+        if (tg.t > t) k = 0.18 + 0.62 * smooth(1 - (tg.t - t) / TARGET_LEAD) ** 2;
+        else if (t <= ne) k = Math.max(0.55, Math.exp(-(t - tg.t) / 0.12));
+        else k = 0.55 * (1 - (t - ne) / POST_FADE);
+        if (k <= 0.02) continue;
+        const cur = spots.get(key);
+        // the soonest coming note wins; a ringing one keeps its spot lit
+        if (!cur || (tg.t <= t && t <= ne) || (cur.at > t && tg.t < cur.at)) spots.set(key, { nt, tg, an, box, k, at: tg.t, missed, landed: tg.t <= t });
+      }
+    }
+    // the spots: an outline in the string's colour, filled in and glowing as the note arrives
+    const z = -0.012;
+    for (const { nt, an, box, k, missed, landed } of spots.values()) {
+      const hex = missed ? '#5a6078' : STRING[nt.s];
+      const y = strH(nt.s);
+      let x0, x1, hh;
+      if (nt.f === 0) {
+        x0 = (box ? box[0] : anX0(an)) + 0.1;
+        x1 = (box ? box[1] : anX1(an)) - 0.1;
+        hh = G.gy * 0.14;
+      } else {
+        const x = laneC(nt.f);
+        const hw = laneW(nt.f) * (box ? 0.27 : 0.3);
+        x0 = x - hw;
+        x1 = x + hw;
+        hh = G.gy * (box ? 0.4 : 0.44);
+      }
+      const kk = missed ? Math.min(k, 0.3) : k;
+      const r = Math.min(x1 - x0, 2 * hh) * 0.12;
+      const rc = col(hex, Math.min(1, 0.35 + kk), 0.8 + 1.4 * kk);
+      glow.up(x0, x1, y + hh - r, y + hh, z, rc);
+      glow.up(x0, x1, y - hh, y - hh + r, z, rc);
+      glow.up(x0, x0 + r, y - hh, y + hh, z, rc);
+      glow.up(x1 - r, x1, y - hh, y + hh, z, rc);
+      alpha.up(x0, x1, y - hh, y + hh, z + 0.004, col(hex, 0.08 + 0.3 * kk));
+      // the last moments and while it rings: a white-hot rim and a halo in the string's colour
+      if (!missed && kk > 0.6) {
+        const hot = (kk - 0.6) / 0.4;
+        const p = r * 0.5;
+        glow.up(x0 + p, x1 - p, y + hh - r - p * 0.3, y + hh - p, z - 0.002, col('#ffffff', 0.85 * hot, 1.4));
+        glow.up(x0 + p, x1 - p, y - hh + p, y - hh + r + p * 0.3, z - 0.002, col('#ffffff', 0.85 * hot, 1.4));
+        const R = (x1 - x0) * 0.35;
+        glow.up(x0 - R, x1 + R, y - hh - R * 0.6, y + hh + R * 0.6, z + 0.006, col(hex, (landed ? 0.32 : 0.2) * hot, 1.3));
+      }
+    }
+    // the fret wires: a white post with a warm pink glow, the same height as the frets
+    for (const [xs, k] of posts) {
+      const x = Number(xs);
+      solid.box(x - 0.03, x + 0.03, -0.2, G.yTop + 0.32, -0.1, -0.03, col('#fff6ee', Math.min(1, k * 1.1), 1 + 1.2 * k));
+      glow.up(x - 0.16, x + 0.16, -0.2, G.yTop + 0.32, -0.105, col('#ff7a9a', 0.32 * k, 1.2), col('#ff9a6a', 0.12 * k));
+    }
+    // the chord's frame at the neck: the square lights up as the chord arrives
+    if (frame) {
+      const [xa, xb] = frame.box;
+      const topL = Math.max(...frame.tg.notes.map((nt) => level(nt.s)));
+      const yT = nY(topL) + G.gy * 0.55;
+      const k = frame.k;
+      const w = 0.035;
+      const c = railCol(Math.min(1, 0.25 + k), 0.9 + 1.6 * k);
+      for (const [p0, p1, q0, q1] of [[xa - w, xa + w, 0, yT + w], [xb - w, xb + w, 0, yT + w], [xa - w, xb + w, yT - w, yT + w]]) glow.up(p0, p1, q0, q1, -0.02, c);
+      const gc = railCol(0.18 * k, 1.2);
+      glow.up(xa - 0.14, xa + 0.14, 0, yT + 0.12, -0.025, gc);
+      glow.up(xb - 0.14, xb + 0.14, 0, yT + 0.12, -0.025, gc);
+      glow.up(xa - 0.14, xb + 0.14, yT - 0.12, yT + 0.14, -0.025, gc);
+    }
+  }
+
   /** In front of the neck: fret numbers, the next chord's name, finger numbers as a chord lands. */
   function drawNeckFront(t, a, f0, f1) {
     const T = H.targets;
@@ -2176,7 +2315,8 @@ export function createHighway(stage) {
     solid.box(x - hw, x + hw, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, missed ? 0.15 : 0.42, fade, 1 + 0.3 * near), col(hex, fade, 1.1), col(dark, fade, 0.85));
     // bright rim around the front, and a light bar across the middle
     const rim = Math.min(hw, hh) * 0.3;
-    const rc = flare > 0.05 ? col('#ffffff', fade, rimK) : col(hex, fade, rimK);
+    // 4.2.1: in its last tenth of a second the rim goes white-hot, as in Rocksmith
+    const rc = flare > 0.05 || (near > 0.8 && !missed) ? col('#ffffff', fade, rimK) : col(hex, fade, rimK);
     const zf = z - 0.006;
     glow.up(x - hw, x + hw, y + hh - rim, y + hh, zf, rc);
     glow.up(x - hw, x + hw, y - hh, y - hh + rim, zf, rc);
