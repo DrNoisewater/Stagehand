@@ -24,6 +24,7 @@ import { createRenderer3D, col, mix } from './highway3d.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { tuningGuide } from './tuning-check.js';
+import { createTuner } from './tuner.js';
 import { breakdown, cheer } from './scorecard.js';
 import { StruggleWatch, nearestPick } from './struggle.js';
 import { state, on } from './store.js';
@@ -839,8 +840,36 @@ export function createHighway(stage) {
     mixBtn.setAttribute('aria-pressed', String(on));
     mixTab.setAttribute('aria-expanded', String(on));
     mixTab.innerHTML = `${icon(on ? 'chevronRight' : 'chevronLeft')}<span>Sound &amp; settings</span>`;
+    if (!on && typeof hwTuner !== 'undefined') hwTuner.hide(); // closed: stop listening
+    else if (on && tunerOn && H.open) hwTuner.show();
     renderMix();
   }
+  // 4.2: the tuner, folded into Sound & settings (it was a floating box from the Tools menu).
+  // Closed until you open it (U, or its row); it only listens while it's showing.
+  const hwTuner = createTuner();
+  hwTuner.el.classList.add('hw-tuner');
+  let tunerOn = false;
+  const tunerSec = h('div.hw-tuner-sec');
+  function renderTunerSec() {
+    tunerSec.innerHTML = '';
+    tunerSec.classList.toggle('open', tunerOn);
+    const head = h('button.hw-tuner-head', { type: 'button', 'aria-expanded': String(tunerOn), title: tunerOn ? 'Fold the tuner away (U)' : 'Open the tuner (U)' }, h('span.hw-tuner-ic', { html: icon('tuning') }), h('b', { text: 'Tuner' }), h('kbd', { text: 'U' }), h('span.hw-tuner-chev', { html: icon(tunerOn ? 'chevronUp' : 'chevron') }));
+    head.onclick = () => setTunerOpen(!tunerOn);
+    tunerSec.append(head);
+    if (tunerOn) tunerSec.append(hwTuner.el);
+  }
+  function setTunerOpen(on) {
+    tunerOn = on;
+    if (on && mixOpen && H.open) hwTuner.show();
+    else hwTuner.hide();
+    renderTunerSec();
+  }
+  H.toggleTuner = () => {
+    if (mixOpen && tunerOn) return setTunerOpen(false);
+    if (!mixOpen) setMixOpen(true);
+    setTunerOpen(true);
+    tunerSec.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  };
   mixBtn.onclick = () => setMixOpen(!mixOpen);
   mixTab.onclick = () => setMixOpen(!mixOpen);
   setTimeout(() => setMixOpen(mixOpen));
@@ -853,7 +882,8 @@ export function createHighway(stage) {
     mixMeters.clear();
     mixPanel.append(h('div.hw-master-title', null, h('b', { text: 'Sound & settings' })), syncButton());
     renderMixBody();
-    mixPanel.append(h('div.hw-master-sec', { text: 'Tuning' }), dropBox, opts);
+    mixPanel.append(h('div.hw-master-sec', { text: 'Tuning' }), tunerSec, dropBox, opts);
+    renderTunerSec();
     renderDropBox();
     renderOpts();
   }
@@ -1025,6 +1055,8 @@ export function createHighway(stage) {
   function close() {
     H.open = false;
     extras.close();
+    hwTuner.hide();
+    tunerOn = false;
     practiceCheckpoint();
     dropFluid();
     visuals.drop();

@@ -71,26 +71,28 @@ function show({ tab, song, kind, plan, key, songName, myName, what, sc, engine }
   );
   body.append(intro);
   if (plan.ref) body.append(h('p.tcheck-ref', { text: `Tune to ${plan.ref === 'A440' ? 'A = 440 Hz (standard pitch)' : `A = ${plan.ref.slice(1)} Hz`}: ${plan.ref === 'A440' ? 'back to normal' : 'slightly off standard pitch'}, so every string moves a little.` }));
-  // the strings, thin one at the top as you look down at the guitar
+  // 4.2 (user: "too much, it needs to be simple and to the point like the one in Jam"): one
+  // tuner up top, the same look as the main tuner, for whichever string you pluck; below it a
+  // short list of the strings, each with what to do and a tick when it's done
+  const bigNote = h('div.tn-note', { text: '–' });
+  const needle = h('i.tn-needle');
+  const reading = h('span.c', { text: rig.on ? 'Pluck any string' : '' });
+  const gauge = h('div.tuner3.tcheck-tuner', null, h('div.tn-row', null, bigNote, h('div', { style: { flex: '1' } }, h('div.tn-scale', null, needle), h('div.tn-read', null, h('span', { text: '−50' }), reading, h('span', { text: '+50' })))));
+  body.append(gauge);
   const rows = new Map();
   const list = h('div.tcheck-strings');
+  // thin string at the top as you look down at the guitar
   for (const s of [...plan.strings].reverse()) {
     const ci = (kind === 'bass' ? s.string + 2 : s.string) - 1;
-    // the same look as the main tuner: a centre line, ticks every 10 cents, a needle, the cents as a number
-    const needle = h('i.tcheck-needle');
-    const num = h('span.tcheck-cents', { text: '' });
-    const meter = h('div.tcheck-meter', null, h('i.tcheck-zone'), needle);
-    const gauge = h('div.tcheck-gauge', null, meter, h('div.tcheck-scale', null, h('span', { text: '−50' }), num, h('span', { text: '+50' })));
     const state = h('span.tcheck-state', { text: s.keep ? 'Stays' : howFar(s.semis) });
     const row = h(`div.tcheck-row${s.keep ? '.keep' : ''}`, { style: { '--sc': COLORS[ci] || '#9ab' } },
       h('span.tcheck-num', { text: String(s.num) }),
       h('span.tcheck-from', { text: s.from }),
       h('span.tcheck-arrow', { text: s.keep ? '=' : s.up ? '↑' : '↓' }),
       h('span.tcheck-to', { text: s.to }),
-      state,
-      gauge
+      state
     );
-    rows.set(s.string, { row, state, meter, needle, num, s, smooth: null });
+    rows.set(s.string, { row, state, s, smooth: null });
     list.append(row);
   }
   body.append(list);
@@ -158,9 +160,19 @@ function show({ tab, song, kind, plan, key, songName, myName, what, sc, engine }
     slip = null;
     note = null;
   };
-  const say = (r, off) => {
+  const say = (off) => {
     const a = Math.abs(off);
-    r.num.textContent = a < 0.5 ? '0' : `${off > 0 ? '+' : '−'}${a.toFixed(a < 10 ? 1 : 0)}`;
+    reading.textContent = a <= TUNED ? 'In tune' : `${off > 0 ? '+' : '−'}${Math.round(a)} cents`;
+    reading.className = `c${a <= TUNED ? ' ok' : ''}`;
+  };
+  const rest = () => {
+    for (const r of rows.values()) r.row.classList.remove('now');
+    bigNote.textContent = '–';
+    bigNote.className = 'tn-note';
+    needle.classList.remove('ok');
+    needle.style.left = '50%';
+    reading.textContent = 'Pluck any string';
+    reading.className = 'c';
   };
   const tick = () => {
     raf = requestAnimationFrame(tick);
@@ -170,7 +182,7 @@ function show({ tab, song, kind, plan, key, songName, myName, what, sc, engine }
     if (!p || !(p.clarity > 0.85)) {
       // silence: the needle rests, the next pluck is a new note
       if (note && now - note.last > 250) {
-        for (const r of rows.values()) r.row.classList.remove('now');
+        rest();
         resetLive();
       }
       return;
@@ -192,9 +204,12 @@ function show({ tab, song, kind, plan, key, songName, myName, what, sc, engine }
     // the needle is smooth; the judging uses the middle of the last few readings
     r.smooth = r.smooth == null || now - note.since < 60 ? off : r.smooth + (off - r.smooth) * 0.35;
     const shown = Math.max(-50, Math.min(50, r.smooth));
-    r.needle.style.left = `${50 + shown}%`;
-    r.needle.classList.toggle('ok', Math.abs(r.smooth) <= TUNED);
-    say(r, r.smooth);
+    const a = Math.abs(r.smooth);
+    needle.style.left = `${50 + shown}%`;
+    needle.classList.toggle('ok', a <= TUNED);
+    bigNote.textContent = r.s.to;
+    bigNote.className = `tn-note${a <= TUNED ? ' ok' : a < 6 ? ' near' : ''}`;
+    say(r.smooth);
     const settled = now - note.since >= SETTLE && note.raw.length >= 3;
     const j = median(note.raw);
     const wasDone = done.has(w.string.string);

@@ -192,13 +192,14 @@ const srv = http.createServer((req, res) => {
         row = await play(5, 45, 4, 1700);
         out.fiveTicked = row.classList.contains('done');
         out.fiveState = row.querySelector('.tcheck-state').textContent;
-        out.fiveCents = row.querySelector('.tcheck-cents').textContent;
+        out.fiveCents = document.querySelector('.tcheck-tuner .tn-read .c').textContent;
         row = await play(4, 50, -1, 1700);
         out.four = row.classList.contains('done');
         row = await play(6, 38, 9, 1400);
         out.sixSlipped = !row.classList.contains('done');
         out.sixState = row.querySelector('.tcheck-state').textContent;
-        out.centre = get(1) && getComputedStyle(get(1).querySelector('.tcheck-meter')).backgroundImage.includes('gradient');
+        // 4.2: one tuner (the main tuner's look, centre line included), not a meter per string
+        out.centre = document.querySelectorAll('.tcheck-tuner .tn-scale').length === 1 && !document.querySelector('.tcheck-row .tn-scale');
         out.rows = document.querySelectorAll('.tcheck-row').length;
         out.ref = (document.querySelector('.tcheck-ref') || {}).textContent;
         window.__shot = true;
@@ -215,7 +216,7 @@ const srv = http.createServer((req, res) => {
       r.done = r.six && /Slipped/.test(r.sixState) && !r.fiveTicked && r.four && r.sixSlipped && r.centre && r2;
       console.log('TCHECK', JSON.stringify({ ...r, retickedAfterSlip: r2 }));
       if (!r.done || r.rows !== 6 || !/425/.test(r.ref || '')) throw new Error('tuning check card: ' + JSON.stringify(r));
-      console.log('PASS the tuning check card: a centre line on every string, 3 cents to tick, 4 cents off does not tick, a ticked string played out loses its tick');
+      console.log('PASS the tuning check card: one tuner like the main one, 3 cents to tick, 4 cents off does not tick, a ticked string played out loses its tick');
       continue;
     }
     await page.waitForTimeout(play === 'p' ? 2600 : 2200);

@@ -10,7 +10,6 @@ const storeFns = { accBand };
 import { h, icon, esc, showMenu, confirmDialog, toast } from './ui.js';
 import { counts as discoverCounts } from './discover.js';
 import { updateLabel, openUpdate } from './updates.js';
-import { toggleTunerWindow, tunerWindowOpen } from './tuner-float.js';
 
 const side = document.getElementById('sidebar');
 const root = h('div.nav-scroll');
@@ -143,11 +142,6 @@ export function render() {
     top.append(b);
   }
   top.append(section({ page: 'play', label: 'Jam', iconName: 'guitar', gel: 'var(--gel-guitar)' }));
-  // 4.1.9: the tuner from any page (a small window; U does the same)
-  const tunerBtn = section({ page: 'tuner', label: 'Tuner', iconName: 'tuning', gel: '#6bd49a', onClick: () => { toggleTunerWindow(); tunerBtn.setAttribute('aria-pressed', String(tunerWindowOpen())); } });
-  tunerBtn.title = 'Tune up, on any page (U)';
-  tunerBtn.insertAdjacentHTML('beforeend', '<kbd class="nav-key">U</kbd>');
-  top.append(tunerBtn);
   top.append(
     section({
       page: 'songs',

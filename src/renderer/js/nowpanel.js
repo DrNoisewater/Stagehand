@@ -1,7 +1,7 @@
 /**
  * Now playing, the parts around the song view: part chips and the guitar in
  * the header, the score line, speed and Record take in the footer, and the
- * right panel (Mix, Riff repeater, Tone).
+ * right panel (Mix, Riff repeater, Tone, Tuner).
  */
 import { api } from './api.js';
 import { state, on, emit, setPage } from './store.js';
@@ -17,11 +17,17 @@ import { tonelib, bySlot, useSlot, SLOT_GELS, SLOT_COUNT, saveSongTone, freeSlot
 import { demoButton } from './rigui.js';
 import { guitarStatus } from './shell.js';
 import { paintSpeedChip, openSpeedPopover } from './speedpop.js';
+import { createTuner } from './tuner.js';
 
 const { panel, partChips, guitarPill, scoreLine, recBtn, speedSeg, modeSeg, vol, volIcon } = stage.hosts;
 const engine = stage.engine;
 const PART_GEL = { lead: 'var(--gel-guitar)', combo: 'var(--gel-guitar)', rhythm: 'var(--tungsten)', bass: 'var(--gel-bass)' };
-const N = { tab: localStorage.getItem('stagehand.nowTab') || 'mix', raf: 0, toneKey: null, meters: [] };
+const N = { tab: localStorage.getItem('stagehand.nowTab') || 'mix', raf: 0, toneKey: null, meters: [], back: 'mix' };
+// 4.2: the tuner is a tab in this panel, so it never sits over the tab itself.
+// It only listens while its tab is showing; it isn't remembered for next time.
+const npTuner = createTuner();
+npTuner.el.classList.add('np-tuner');
+if (N.tab === 'tuner') N.tab = 'mix';
 const R = { on: false, sec: -1, trainer: true, start: 0.6, step: 0.05, goal: 1, thresh: 0.9, countIn: true, passes: [] };
 
 const shown = () => state.page === 'now' && !document.getElementById('app').classList.contains('under-highway');
@@ -155,15 +161,9 @@ function renderScore() {
 // ---------------------------------------------------------------- panel --
 function tabsEl() {
   const t = h('div.np-tabs', { role: 'tablist' });
-  for (const [id, label] of [['mix', 'Mix'], ['riff', 'Riff repeater'], ['tone', 'Tone']]) {
-    const b = h('button', { type: 'button', role: 'tab', 'aria-selected': String(N.tab === id), text: label });
-    b.onclick = () => {
-      N.tab = id;
-      try {
-        localStorage.setItem('stagehand.nowTab', id);
-      } catch (_) {}
-      renderPanel();
-    };
+  for (const [id, label] of [['mix', 'Mix'], ['riff', 'Riff repeater'], ['tone', 'Tone'], ['tuner', 'Tuner']]) {
+    const b = h('button', { type: 'button', role: 'tab', 'aria-selected': String(N.tab === id), text: label, title: id === 'tuner' ? 'Tuner (U)' : undefined });
+    b.onclick = () => setTab(id);
     t.append(b);
   }
   return t;
@@ -423,16 +423,41 @@ function renderTonePane(box) {
   box.append(grid);
 }
 
+function setTab(id) {
+  if (id !== 'tuner') {
+    N.back = id;
+    try {
+      localStorage.setItem('stagehand.nowTab', id);
+    } catch (_) {}
+  }
+  N.tab = id;
+  renderPanel();
+}
+
 function renderPanel() {
-  if (!shown()) return;
+  if (!shown()) return npTuner.hide();
   panel.innerHTML = '';
   panel.append(tabsEl());
   const box = h('div.np-pane');
   if (N.tab === 'riff') renderRiff(box);
   else if (N.tab === 'tone') renderTonePane(box);
+  else if (N.tab === 'tuner') box.append(npTuner.el);
   else renderMix(box);
   panel.append(box);
+  if (N.tab === 'tuner') npTuner.show();
+  else npTuner.hide();
 }
+
+// U in the tab view (tab.js), or its menu: open the Tuner tab, or go back to the last one
+window.addEventListener('stagehand:tab-tuner', () => {
+  if (!shown()) return;
+  setTab(N.tab === 'tuner' ? N.back || 'mix' : 'tuner');
+});
+// leaving the page, or the highway coming up over it: stop listening
+setInterval(() => {
+  if (N.tab === 'tuner' && !shown()) npTuner.hide();
+}, 1000);
+export const tabTunerOpen = () => N.tab === 'tuner' && shown();
 
 // ---------------------------------------------------------- tone follow --
 function followTone() {

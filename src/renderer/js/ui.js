@@ -34,6 +34,7 @@ const ICONS = {
   chevron: '<path d="M6 9l6 6 6-6"/>',
   chevronRight: '<path d="M9 6l6 6-6 6"/>',
   chevronLeft: '<path d="M15 6l-6 6 6 6"/>',
+  chevronUp: '<path d="M6 15l6-6 6 6"/>',
   download: '<path d="M12 4.5v10M7.5 10.5l4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>',
   globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.5 3.5 5.3 3.5 8.5s-1.1 6-3.5 8.5c-2.4-2.5-3.5-5.3-3.5-8.5s1.1-6 3.5-8.5z"/>',
   pie: '<path d="M11 4.6A7.5 7.5 0 1 0 19.4 13H11z"/><path d="M14 3.6a7.5 7.5 0 0 1 6.4 6.4H14z"/>',

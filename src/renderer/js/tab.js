@@ -119,6 +119,19 @@ export function createTabView(host, stage) {
   host.append(bar, sectionsBar, ...(repRow ? [repRow] : []), main, foot);
   if (repeat) repeat.addEventListener('change', () => markLoop());
 
+  // 4.2: the tuner is the Tuner tab in the right panel (nowpanel.js), never over the tab
+  const toggleTuner = () => window.dispatchEvent(new CustomEvent('stagehand:tab-tuner'));
+  const tunerShowing = () => !!document.querySelector('.np-tuner') && document.querySelector('.np-tuner').isConnected;
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() !== 'u' || e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
+    const shown = (el) => !!el && el.isConnected && (el.checkVisibility ? el.checkVisibility() : el.getClientRects().length > 0);
+    if (!shown(host)) return; // the tab view isn't showing
+    if (shown(document.querySelector('.highway'))) return; // the highway has its own tuner on U
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault();
+    toggleTuner();
+  });
   zOut.onclick = () => zoom(-1);
   zIn.onclick = () => zoom(1);
   optBtn.onclick = (e) => {
@@ -128,6 +141,8 @@ export function createTabView(host, stage) {
       r.right,
       r.bottom + 4,
       [
+        { label: tunerShowing() ? 'Hide the tuner' : 'Tuner', icon: 'tuning', hint: 'U', onClick: toggleTuner },
+        '-',
         { heading: true, label: 'Strings' },
         { label: 'Low E on top', icon: 'tuning', hint: check(prefs.lowTop), onClick: () => setPref('lowTop', true) },
         { label: 'High e on top (standard tab)', icon: 'tuning', hint: check(!prefs.lowTop), onClick: () => setPref('lowTop', false) },
