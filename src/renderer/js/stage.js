@@ -7,6 +7,7 @@ import { WaveLane, drawBeam, drawRuler, drawSpectrum, fmtTime, overview, drawBar
 import * as actions from './actions.js';
 import { createTabView } from './tab.js';
 import { createHighway } from './highway.js';
+import { createRepeat } from './repeat.js';
 import { rig } from './rig.js';
 
 const STEM_LABEL = { guitar: 'Guitar', bass: 'Bass', drums: 'Drums', vocals: 'Vocals', piano: 'Keys', other: 'Other' };
@@ -39,6 +40,8 @@ function hexA(hex, a) {
 }
 
 const engine = new AudioEngine();
+// repeating sections at their own speed (every view shares it)
+export const repeat = createRepeat({ engine, setLoop: (l) => setLoop(l), getLoop: () => S.loop });
 rig.player = engine;
 const root = document.getElementById('stage');
 const mixer = (() => {
@@ -546,6 +549,7 @@ function wireTimeline() {
 function setLoop(loop) {
   S.loop = loop && loop.end - loop.start > 0.1 ? loop : null;
   engine.setLoop(S.loop);
+  repeat.sync(S.loop);
   loopBtn.classList.toggle('on', !!S.loop);
   updateLoopTag();
   drawScrub();
@@ -731,6 +735,7 @@ engine.addEventListener('state', () => {
   requestDraw();
 });
 engine.addEventListener('ended', () => {
+  if (S.borrowed) return; // the timing check's song ended, not yours
   const s = state.settings;
   if (s && s.playback.endAction === 'next') actions.playAdjacent(1);
 });
@@ -771,8 +776,9 @@ export function playNow() {
   if (S.phase === 'ready' && !engine.playing) engine.play();
 }
 
-export async function load(song, { autoplay = true } = {}) {
+export async function load(song, { autoplay = true, at = 0, loop = null, quiet = false } = {}) {
   const token = ++S.token;
+  S.borrowed = false;
   // the old song leaves the player now: it can't keep playing under the new title
   engine.unloadAll();
   stopWaiting();
@@ -786,6 +792,7 @@ export async function load(song, { autoplay = true } = {}) {
   S.info = null;
   S.stems = [];
   S.loop = null;
+  repeat.reset();
   S.error = null;
   S.duration = song.length || 0;
   S.view = { start: 0, end: Math.max(1, S.duration) };
@@ -839,6 +846,9 @@ export async function load(song, { autoplay = true } = {}) {
     S.duration = info.duration;
     S.view = { start: 0, end: S.duration };
     engine.setMode('mix');
+    // back from the timing check: where you were, repeating what you repeated
+    if (at > 0) engine.seek(Math.min(at, S.duration));
+    if (loop) setLoop(loop);
     timecode.lastChild.textContent = ` / ${fmtTime(S.duration)}`;
     const mix = lanes.get('mix');
     mix.lane.classList.remove('scanning');
@@ -856,10 +866,11 @@ export async function load(song, { autoplay = true } = {}) {
       if (wait) startWaiting(token);
       else await engine.play();
     }
-    api.songs
-      .played(song.id)
-      .then((s) => s && upsertSongs([s]))
-      .catch(() => {});
+    if (!quiet)
+      api.songs
+        .played(song.id)
+        .then((s) => s && upsertSongs([s]))
+        .catch(() => {});
     requestDraw();
     await loadStems(token);
   } catch (err) {
@@ -1367,6 +1378,11 @@ tabView = createTabView(tabHost, {
   setMode: (m) => setMode(m),
   seek: (t) => seek(t),
   setLoop: (loop) => setLoop(loop),
+  getLoop: () => S.loop,
+  repeat,
+  toggle: () => toggle(),
+  toggleSectionLoop: () => toggleSectionLoop(),
+  openHighway: () => openHighway(),
   requestStems: () => S.song && actions.requestStems([S.song.id]).then(() => api.stems.prioritize(S.song.id).catch(() => {})),
   trackIndex: (name) => trackIndex(name),
   gel: (name) => (GEL[name] || GEL.other)[1],
@@ -1374,9 +1390,37 @@ tabView = createTabView(tabHost, {
 });
 setStageView(stageView);
 
+// The timing check plays its own short song through this same player (the same
+// sound path and delay as any song); afterwards the song you had comes back where you were.
+function borrowPlayer() {
+  const snap = { song: S.song, at: engine.position, loop: S.loop };
+  S.token++; // a song still opening stops here
+  stopWaiting();
+  S.borrowed = true;
+  engine.setLoop(null);
+  engine.unloadAll();
+  return snap;
+}
+function giveBack(snap) {
+  if (!S.borrowed) return null;
+  S.borrowed = false;
+  engine.unloadAll();
+  if (!snap || !snap.song || S.song !== snap.song) return null;
+  return load(snap.song, { autoplay: false, at: snap.at, loop: snap.loop, quiet: true });
+}
+
 // ------------------------------------------------------------- highway --
 let highway = null;
 export function openHighway() {
+  makeHighway();
+  return highway.open(S.song);
+}
+/** The timing check from anywhere (the guide): on the highway, back where you were after. */
+export function openTimingCheck() {
+  makeHighway();
+  return highway.timingCheck(S.song);
+}
+function makeHighway() {
   if (!highway)
     highway = createHighway({
       engine,
@@ -1388,6 +1432,7 @@ export function openHighway() {
       seek: (t) => seek(t),
       setLoop: (loop) => setLoop(loop),
       getLoop: () => S.loop,
+      repeat,
       toggle: () => toggle(),
       setStem: (name, patch) => setStem(name, patch),
       trackIndex: (name) => trackIndex(name),
@@ -1400,6 +1445,8 @@ export function openHighway() {
       backToPrevious: () => backToPrevious(),
       playNow: () => playNow(),
       requestStems: () => S.song && actions.requestStems([S.song.id]).then(() => api.stems.prioritize(S.song.id).catch(() => {})),
+      borrowPlayer: () => borrowPlayer(),
+      giveBack: (snap) => giveBack(snap),
       goBack: () => setPage('songs'),
       showView: (v) => setStageView(v),
       onHighwayClosed: () => {
@@ -1409,7 +1456,6 @@ export function openHighway() {
         if (tabView && tabView.visible && tabView.redraw) tabView.redraw();
       },
     });
-  return highway.open(S.song);
 }
 export function highwayOpen() {
   return !!(highway && highway.isOpen);

@@ -102,7 +102,8 @@ Share your highway and Jam videos with friends. Swap codes in **Recordings › F
 | <kbd>Enter</kbd> | Open the selected song |
 | <kbd>1</kbd> | Follow the song's tone |
 | <kbd>2</kbd>–<kbd>9</kbd> | Switch to the tone in that slot |
-| <kbd>U</kbd> | Small tuner on the highway |
+| <kbd>U</kbd> | Tuner (on the highway and in the tab view) |
+| <kbd>[</kbd> <kbd>]</kbd> | Slower / faster (25% to 150%) |
 | <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>6</kbd> | Turn a stem off or on (<kbd>Shift</kbd>+<kbd>Alt</kbd>: solo) |
 | <kbd>H</kbd> | Note highway (<kbd>Esc</kbd> to go back) |
 | <kbd>T</kbd> | Tab view / waveform view |
@@ -169,6 +170,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.2:** a real practice song for the timing check, slow down or speed up one or several sections, metal and lead sounds with pedals and a noise gate, a calmer Tones page, and a tab view you can click and drag.
 - **4.1:** watch your friends' highway and Jam videos. Swap codes in **Recordings › Friends**. Only videos you choose to share can be seen, and only while your Stagehand is open. 4.1.1 makes connecting more reliable.
 - **4.0.3:** official DLC plays, even when its audio is stored elsewhere in your Rocksmith folder.
 - **3.12:** real cabinets, Jam as the home screen, 17 drum styles, Score attack, Record clip, progress goals and new moving backgrounds.

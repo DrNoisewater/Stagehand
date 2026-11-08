@@ -109,7 +109,9 @@ const check = (cond, what) => {
   await page.click('.menu button:has-text("Low E on top")');
 
   // Practice speed: half speed moves the clock at half rate
-  await page.click('.tab-speed button:has-text("50%")');
+  await page.click('.np-speed .speed-chip');
+  await page.click('.speed-pop .sp-picks button:text-is("50")');
+  await page.keyboard.press('Escape');
   await wait(400);
   const a = await page.evaluate(async () => {
     const { current } = await import('./js/stage.js');
@@ -121,7 +123,9 @@ const check = (cond, what) => {
     return (p1 - p0) / ((performance.now() - t0) / 1000);
   });
   check(a > 0.4 && a < 0.6, `half speed advances ${a.toFixed(2)} s per second`);
-  await page.click('.tab-speed button:has-text("100%")');
+  await page.click('.np-speed .speed-chip');
+  await page.click('.speed-pop .sp-reset');
+  await page.keyboard.press('Escape');
 
   // Hide the song list
   await page.click('.tab-bar button[title^="Hide the song list"]');

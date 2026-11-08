@@ -8,6 +8,7 @@ import { api } from './api.js';
 import { rig, TONES } from './rig.js';
 import { loadGear, describe, gearName, gearInfo } from './gearspec.js';
 import { emit } from './store.js';
+import { slotChange } from './toneslots.js';
 
 export const SLOT_COUNT = 9;
 /** One colour per slot, from the stem gels, so a slot looks the same everywhere. */
@@ -187,6 +188,22 @@ export async function saveTone(tone) {
   else tonelib.list.push(saved);
   register();
   return saved;
+}
+
+/**
+ * Puts a saved tone on key n (null = off its key). Returns { change, undo }: undo() puts
+ * both tones back where they were. Never call this from a plain click on a key.
+ */
+export async function assignSlot(id, n) {
+  const change = slotChange(tonelib.list, id, n);
+  if (change.noop) return { change, undo: async () => {} };
+  await saveTone({ ...change.tone, slot: change.slot });
+  const undo = async () => {
+    if (change.replaces) await saveTone({ ...(byId(change.replaces.id) || change.replaces), slot: change.slot });
+    const t = byId(id);
+    if (t) await saveTone({ ...t, slot: change.from });
+  };
+  return { change, undo };
 }
 
 export async function removeTone(id) {

@@ -109,7 +109,9 @@ const check = (cond, what) => {
 
   await page.click('.hw-icon[title="Highway options"]');
   await page.click('.menu button:has-text("6 seconds")');
-  await page.click('.hw-speed button:has-text("75%")');
+  await page.click('.hw-speed-chip');
+  await page.click('.speed-pop .sp-picks button:text-is("75")');
+  await page.keyboard.press('Escape');
   await wait(1200);
   await shot(page, 'h4-6s-75pct');
   await page.click('.hw-parts .hw-chip:has-text("Lead")');

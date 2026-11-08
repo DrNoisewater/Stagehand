@@ -18,6 +18,7 @@ import { tonelib, useTone } from './tonelib.js';
 import { VENUES, createVenue, createFire } from './venues.js';
 import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
+import { paintSpeedChip, openSpeedPopover } from './speedpop.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './detect.js';
 
 const STRING = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
@@ -25,16 +26,20 @@ const STRING_DARK = ['#7a1d27', '#7a5e12', '#164e80', '#7a4515', '#1c6a3c', '#55
 const NAMES6 = ['E', 'A', 'D', 'G', 'B', 'e'];
 const NAMES4 = ['E', 'A', 'D', 'G'];
 const FONT = "'Archivo', 'Segoe UI', sans-serif";
-const SPEEDS = [0.5, 0.6, 0.75, 0.85, 1];
 
 function load() {
   try {
-    return { ahead: 4, flow: 1, lowTop: true, detect: true, venue: 'arena', fx: true, ...(JSON.parse(localStorage.getItem('stagehand.highway') || '{}') || {}) };
+    return { ahead: 4, flow: 1, lowTop: true, detect: true, venue: 'arena', fx: true, ...(JSON.parse(localStorage.getItem('stagehand.highway') || '{}') || {}), ahead: 4 };
   } catch (_) {
     return { ahead: 4, flow: 1, lowTop: true, detect: true, venue: 'arena', fx: true };
   }
 }
 const prefs = load();
+// 4.2: string order is set in Settings › Playback
+window.addEventListener('stagehand:highway-pref', (e) => {
+  const d = e.detail || {};
+  if (d.key === 'lowTop') prefs.lowTop = !!d.value;
+});
 const save = () => {
   try {
     localStorage.setItem('stagehand.highway', JSON.stringify(prefs));
@@ -118,17 +123,9 @@ export function createClassicHighway(stage) {
   const bottom = h('div.hw-bottom');
   const playBtn = h('button.hw-play', { type: 'button', title: 'Play / pause (Space)' });
   const time = h('div.hw-time');
-  const speed = h('div.hw-speed', { role: 'group', 'aria-label': 'Practice speed' });
-  for (const s of SPEEDS) {
-    const b = h('button', { type: 'button', text: s === 1 ? '100%' : `${Math.round(s * 100)}%` });
-    b.dataset.s = String(s);
-    b.onclick = () => {
-      stage.engine.setSpeed(s);
-      renderControls();
-    };
-    speed.append(b);
-  }
-  bottom.append(playBtn, time, h('span.grow'), h('span.hw-label', { text: 'Speed' }), speed);
+  const speed = h('button.hw-chip.hw-speed-chip', { type: 'button', 'aria-haspopup': 'dialog' });
+  speed.onclick = () => openSpeedPopover(speed, { engine: stage.engine, repeat: stage.repeat || null, above: true });
+  bottom.append(playBtn, time, h('span.grow'), speed);
   const msg = h('div.hw-msg', { hidden: true });
   root.append(canvas, top, sections, bottom, msg, dock);
   document.body.append(root);
@@ -172,14 +169,8 @@ export function createClassicHighway(stage) {
         { heading: true, label: 'Highway motion (song tempo stays unchanged)' },
         ...[[0.8, 'Relaxed'], [1, 'Reference (default)'], [1.2, 'Brisk']].map(([v, label]) => ({ label, hint: c((prefs.flow ?? 1) === v), onClick: () => setPref('flow', v) })),
         '-',
-        { heading: true, label: 'Preview in song seconds' },
-        ...[3, 4, 5, 6].map((s) => ({ label: s === 4 ? `${s} seconds (default)` : `${s} seconds`, hint: c(prefs.ahead === s), onClick: () => setPref('ahead', s) })),
-        '-',
         { heading: true, label: 'Note timing (if notes look early or late against the music)' },
         ...[-100, -75, -50, -25, -10, 0, 10, 25, 50, 75, 100].map((ms) => ({ label: ms === 0 ? 'In sync (default)' : ms < 0 ? `Notes ${-ms} ms earlier` : `Notes ${ms} ms later`, hint: c((prefs.offsetMs || 0) === ms), onClick: () => setPref('offsetMs', ms) })),
-        '-',
-        { label: 'Low E on top', hint: c(prefs.lowTop), onClick: () => setPref('lowTop', true) },
-        { label: 'High e on top', hint: c(!prefs.lowTop), onClick: () => setPref('lowTop', false) },
         '-',
         { label: 'Score my playing', hint: c(prefs.detect), onClick: () => setPref('detect', !prefs.detect) },
         '-',
@@ -566,6 +557,7 @@ export function createClassicHighway(stage) {
 
       // your timing nudge: positive shows notes later (they reach the neck later)
       const vis = visualTime(H.clock, prefs.offsetMs, eng.speed);
+      if (H.judge) H.judge.setPace(eng.speed);
       if (H.judge && eng.playing && prefs.detect && rig.on) H.judge.tick(H.clock - (((rig.latencyMs || 20) / 1000 + 0.03) * eng.speed));
       processEvents(vis);
       followTone(H.clock);
@@ -1898,7 +1890,7 @@ export function createClassicHighway(stage) {
     toneBtn.hidden = !rig.on;
     rigBox.classList.toggle('real', !!rig.capture);
     renderMix();
-    for (const b of speed.querySelectorAll('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.s) === stage.engine.speed));
+    paintSpeedChip(speed, stage.engine.speed || 1);
     // section strip
     sections.innerHTML = '';
     if (t && t.sections.length) {

@@ -82,16 +82,37 @@ function songC() {
 }
 const tab = scene.startsWith('R') ? (await (await fetch('/' + (q.get('file') || 'real.json'))).json())[q.get('part') || (scene === 'RB' ? 'bass' : 'lead')] : { A: songA, B: songB, C: songC, T: songT }[scene]();
 tab.id = 'p1';
+// secs=song: a song's usual sections (for the section strip and repeats)
+if (q.get('secs') === 'song') {
+  const names = ['intro', 'verse', 'prechorus', 'chorus', 'verse', 'prechorus', 'chorus', 'bridge', 'solo', 'chorus', 'outro'];
+  const a = 1, z = tab.length - 1, w = (z - a) / names.length;
+  tab.sections = names.map((name, i) => ({ name, start: a + i * w, end: a + (i + 1) * w }));
+}
 window.__tab = tab;
 window.__parts = [{ id: 'p1', type: 'lead', name: 'Lead' }];
 
-const engine = Object.assign(new EventTarget(), { position: Number(q.get('t') || 3), playing: q.get('play') === '1', speed: 1, duration: tab.length, tracks: [], sinkId: '', setSpeed() {}, setPlayAlong() {}, level: () => 0, extraLatency: 0, async extraOut() { this._ac = this._ac || new AudioContext(); await this._ac.resume(); return { ctx: this._ac, node: this._ac.destination }; } });
-const stage = { engine, stems: () => [], toggle() {}, seek(t) { engine.position = t; }, setMode() {}, setLoop(l) { this._loop = l; }, getLoop() { return this._loop || null; }, gel: () => '#fff', label: (x) => x, trackIndex: () => 0, setStem() {}, songLevel: () => 0.8, setSongLevel() {}, setYou() {} };
-if (engine.playing) {
-  let last = performance.now();
-  const tick = (now) => { engine.position += (now - last) / 1000; last = now; requestAnimationFrame(tick); };
-  requestAnimationFrame(tick);
-}
+const engine = Object.assign(new EventTarget(), { playing: q.get('play') === '1', speed: 1, duration: tab.length, tracks: [], sinkId: '', sampleRate: 48000, setSpeed(s) { s = Math.round(Math.max(0.25, Math.min(1.5, s)) * 100) / 100; if (s === this.speed) return; const p = this.position; this.speed = s; this.position = p; this.dispatchEvent(new Event('speed')); }, setPlayAlong() {}, level: () => 0, extraLatency: 0, async extraOut() { this._ac = this._ac || new AudioContext(); await this._ac.resume(); return { ctx: this._ac, node: this._ac.destination }; } });
+// a smooth song clock, moving while playing (tests may also set it by hand)
+let clockAt = Number(q.get('t') || 3);
+let clockFrom = performance.now();
+Object.defineProperty(engine, 'position', {
+  get() { return this.playing ? clockAt + ((performance.now() - clockFrom) / 1000) * this.speed : clockAt; },
+  set(v) { clockAt = v; clockFrom = performance.now(); },
+});
+// enough of the song player for the timing check's training song
+Object.assign(engine, {
+  async reset(sr, frames) { this.pause(); this.tracks = []; this.duration = frames / sr; this.position = 0; },
+  loadTrack(i, name, buffer, wav) { this.tracks[i] = { name, frames: wav.frames }; this.duration = wav.frames / wav.sampleRate; this.loaded = { name, bytes: buffer.byteLength, wav }; },
+  setMode(m) { this.mode = m; },
+  async play() { if (!this.playing) { this.position = this.position; this.playing = true; this.dispatchEvent(new Event('state')); } },
+  pause() { if (this.playing) { const p = this.position; this.playing = false; this.position = p; this.dispatchEvent(new Event('state')); } },
+  seek(t) { this.position = t; },
+  setLoop() {},
+  unloadAll() { this.tracks = []; this.loaded = null; },
+});
+const stage = { engine, stems: () => [], toggle() {}, seek(t) { engine.position = t; engine.dispatchEvent(new Event('seek')); }, setMode() {}, setLoop(l) { this._loop = l; }, getLoop() { return this._loop || null; }, gel: () => '#fff', label: (x) => x, trackIndex: () => 0, setStem() {}, songLevel: () => 0.8, setSongLevel() {}, setYou() {} };
+stage.borrowPlayer = () => { engine.pause(); const snap = { at: engine.position, duration: engine.duration }; engine.unloadAll(); stage.borrowed = snap; return snap; };
+stage.giveBack = (snap) => { stage.borrowed = null; if (!snap) return; engine.duration = snap.duration; engine.position = snap.at; stage.gaveBack = snap; };
 const hw = createHighway(stage);
 window.__stage = stage;
 await hw.open({ id: 's1', title: 'Scene ' + scene, artist: 'Test' });

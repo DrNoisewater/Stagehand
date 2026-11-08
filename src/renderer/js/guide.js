@@ -279,19 +279,30 @@ const PAGES = [
   },
   {
     title: 'Tune up',
-    draw: () =>
+    draw: (ctx) =>
       h(
         'div',
         null,
         p('Each song is made for a tuning: most are E Standard, some are Drop D, E♭ Standard and so on. Stagehand remembers what your instrument is tuned to and tells you before you play when a song needs something else.'),
         steps(
-          ['The tuner follows the song', 'Open the tuner (on the Jam page, or press U on the highway) and it’s already set to the tuning the song needs. Play one open string at a time; the string lights up and the needle shows how close you are. Pick another tuning in its menu if you like; the next song sets it back.'],
+          ['The tuner follows the song', 'Open the tuner (on the Jam page, or press U on the highway or in the tab view) and it’s already set to the tuning the song needs. Play one open string at a time; the string lights up and the needle shows how close you are. Pick another tuning in its menu if you like; the next song sets it back.'],
           ['Or let the Drop do it', 'When a song is the same tuning, just lower (E♭ or D Standard, Drop C from Drop D), the Drop lowers your sound for you: no retuning. Click “Match the song” in Master Settings, or turn on Match on the Jam page and it follows every song.'],
           ['String by string', 'For a different tuning (E Standard to Drop D, say), the tuning guide lists which strings to change and listens as you go: Master Settings › Tuning guide.']
         ),
         h('h4', { text: 'The timing check (calibration)' }),
-        p('Every PC’s sound arrives a little late. If notes you play on time count as late or missed, run the timing check: four clicks, then 16 notes down the lane; play along and Stagehand lines the highway up with how you play. It takes about 30 seconds and you only do it once.'),
-        p('Stagehand offers it by itself if it can hear you playing but lots of notes aren’t counting, especially the first time through a song. It’s also under Tools › Timing check on the highway, and in Master Settings.'),
+        p('Every PC’s sound arrives a little late. If notes you play on time count as late or missed, run the timing check: a short, easy song of its own on the highway, a few notes on the top three strings. Play along like any song and Stagehand lines the highway up with how you play. It takes about 30 seconds and you only do it once.'),
+        p('Stagehand offers it by itself if it can hear you playing but lots of notes aren’t counting. It’s also under Tools › Timing check on the highway, and in Master Settings.'),
+        h(
+          'div.gs-actions',
+          null,
+          btn('Do the timing check now', {
+            iconName: 'clock',
+            onClick: async () => {
+              ctx.close();
+              (await import('./stage.js')).openTimingCheck();
+            },
+          })
+        ),
         h('h4', { text: 'Your input level' }),
         p('The other calibration: on the Jam page press Set input level and strum as hard as you play for 4 seconds. Stagehand sets your level so it hears every note, quiet or loud. Do it once, and again if you change guitars.')
       ),
@@ -309,11 +320,11 @@ const PAGES = [
         p('The number on a note is the fret to press (0 means play the string open). Wide shapes are chords. A long tail means let the note ring; a curve means bend the string; a wavy tail is vibrato.'),
         h('h4', { text: 'Along the top' }),
         steps(
-          ['Play, time and speed', 'Space plays and pauses. The speed chip slows the song down (try 70 % on something new) without changing its pitch. ← and → skip 5 seconds.'],
+          ['Play, time and speed', 'Space plays and pauses. The speed chip slows the song down (try 70 % on something new) or speeds it up to 150 %, without changing its pitch. [ and ] change it too. ← and → skip 5 seconds.'],
           ['Sections', 'The strip of sections (Intro, Verse, Chorus…): click one to jump there, or its ⟲ to repeat it until you’ve got it. L repeats the section you’re in.'],
           ['Tab, Highway, Waveform', 'Switch views any time; T shows the tab.'],
-          ['Tools', 'The tuner (U), Score attack (a full run for points), Record a video clip, and the Timing check.'],
-          ['Master Settings', 'The pull-out tab on the side: the mix (turn the song, the guitar or any stem up and down), the Drop and tuning, look-ahead, lyrics, chord names, the score card and more.']
+          ['Tools', 'Score attack (a full run for points), Record a video clip, and the Timing check.'],
+          ['Master Settings', 'The pull-out tab on the side: the mix (turn the song, the guitar or any stem up and down), the Drop and tuning, lyrics, chord names, the score card and more.']
         ),
         p('At the end you get a score card: how each section went and what to practise. Click a section to repeat it. Back (or Esc, or your mouse’s back button) returns to your songs.'),
       ),
@@ -442,7 +453,7 @@ const PAGES = [
             ['← →', 'Back / forward 5 s (Shift: 15 s)'],
             ['H', 'Open the highway'],
             ['T', 'Tab view'],
-            ['U', 'Tuner on the highway'],
+            ['U', 'Tuner on the highway and in the tab view'],
             ['L', 'Repeat this section'],
             ['D', 'The Drop on or off'],
             ['M', 'Full song or your stems mix'],

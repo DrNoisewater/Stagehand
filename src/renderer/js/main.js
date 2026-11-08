@@ -18,6 +18,8 @@ import './progress.js';
 import './friends.js';
 import './stemformat.js';
 import { rig } from './rig.js';
+import { nudgeSpeed } from './speedpop.js';
+import { pct } from './speed.js';
 import { loadTones, useSlot } from './tonelib.js';
 import { setPage, setView, goBack } from './store.js';
 import './jam.js';
@@ -111,6 +113,12 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === '+' || e.key === '=') stage.zoom(1);
   else if (e.key === '-') stage.zoom(-1);
   else if (e.key === '0') stage.zoom(0);
+  else if ((e.key === '[' || e.key === ']') && !ctrl && !e.altKey && stage.current()) {
+    // practice speed, 5% at a time; say it when no speed chip is in sight
+    const s = nudgeSpeed(stage.engine, e.key === ']' ? 1 : -1);
+    const chip = [...document.querySelectorAll('.speed-chip')].some((c) => c.offsetParent !== null);
+    if (!chip) toast({ title: `Speed ${pct(s)}`, kind: 'info', timeout: 1200 });
+  }
   else if (e.key === 'Escape') stage.clearLoop();
   else if (e.key === 'MediaPlayPause') stage.toggle();
   else if (e.key === 'MediaTrackNext') actions.playAdjacent(1);

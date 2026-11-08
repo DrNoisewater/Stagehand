@@ -7,11 +7,11 @@ import { api } from './api.js';
 import { h, icon, esc, showMenu, toast } from './ui.js';
 import { rig, TONES, TUNINGS, openStrings, noteName } from './rig.js';
 import { describe } from './gearspec.js';
+import { createRepeatBar } from './speedpop.js';
 
 const STRING_COLORS = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 const GUITAR_NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
 const BASS_NAMES = ['E', 'A', 'D', 'G'];
-const SPEEDS = [0.5, 0.6, 0.75, 0.85, 1];
 const C = {
   bg: '#141a29',
   staff: 'rgba(163, 170, 194, 0.32)',
@@ -98,13 +98,6 @@ export function createTabView(host, stage) {
   const bar = h('div.tab-bar');
   const partsBox = h('div.tab-parts', { role: 'group', 'aria-label': 'Part' });
   const playAlongBtn = h('button.tab-toggle', { type: 'button' });
-  const speedSeg = h('div.seg.tab-speed', { role: 'group', 'aria-label': 'Practice speed' });
-  for (const s of SPEEDS) {
-    const b = h('button', { type: 'button', text: s === 1 ? '100%' : `${Math.round(s * 100)}%`, title: s === 1 ? 'Full speed' : `Slow down to ${Math.round(s * 100)}% (same pitch)` });
-    b.dataset.speed = String(s);
-    b.onclick = () => setSpeed(s);
-    speedSeg.append(b);
-  }
   const optBtn = h('button.icon-btn', { type: 'button', title: 'Tab options', 'aria-label': 'Tab options', html: icon('sliders') });
   const zOut = h('button.icon-btn', { type: 'button', title: 'Zoom out (-)', 'aria-label': 'Zoom out', html: icon('zoomOut') });
   const zIn = h('button.icon-btn', { type: 'button', title: 'Zoom in (+)', 'aria-label': 'Zoom in', html: icon('zoomIn') });
@@ -113,15 +106,107 @@ export function createTabView(host, stage) {
   // Stagehand 3: part chips live in the Now playing header, speed in its footer, the rig on Play.
   bar.append(h('span.grow'), zOut, zIn, optBtn);
 
-  const sectionsBar = h('div.tab-sections', { title: 'Click a section to jump there. Double-click to loop it.' });
+  const sectionsBar = h('div.tab-sections', { title: 'Click a section to jump there. Double-click to repeat it, Shift+click to repeat several.' });
+  // the repeat (one or several sections, its own speed), shared with the highway
+  const repeat = stage.repeat || null;
+  const repRow = repeat ? h('div.tab-rep-row', null, createRepeatBar(repeat, stage.engine, { cls: 'tab-rep-bar' })) : null;
   const main = h('div.tab-main');
   const canvas = h('canvas.tab-canvas', { 'aria-label': 'Tablature' });
   const msg = h('div.tab-msg', { hidden: true });
   const panel = h('aside.rig-panel', { hidden: true, 'aria-label': 'Your guitar' });
   main.append(canvas, msg, panel);
   const foot = h('div.tab-foot');
-  host.append(bar, sectionsBar, main, foot);
+  host.append(bar, sectionsBar, ...(repRow ? [repRow] : []), main, foot);
+  if (repeat) repeat.addEventListener('change', () => markLoop());
 
+  // 4.2: the tuner is the Tuner tab in the right panel (nowpanel.js), never over the tab
+  const toggleTuner = () => window.dispatchEvent(new CustomEvent('stagehand:tab-tuner'));
+  const tunerShowing = () => !!document.querySelector('.np-tuner') && document.querySelector('.np-tuner').isConnected;
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() !== 'u' || e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
+    const shown = (el) => !!el && el.isConnected && (el.checkVisibility ? el.checkVisibility() : el.getClientRects().length > 0);
+    if (!shown(host)) return; // the tab view isn't showing
+    if (shown(document.querySelector('.highway'))) return; // the highway has its own tuner on U
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault();
+    toggleTuner();
+  });
+  const clock = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+  // 4.2: click the tab to go there; drag it (or use the wheel) to look back and ahead
+  const songEnd = () => Math.max(V.tab ? V.tab.length || 0 : 0, stage.engine.duration || 0);
+  const clampT = (t) => Math.max(0, Math.min(songEnd() || t, t));
+  function timeAt(x, y) {
+    const m = V.hit;
+    if (!m || !V.tab || x < m.gutter) return null;
+    if (prefs.layout === 'page') {
+      const row = m.rows.find((r) => y >= r.y0 && y < r.y1);
+      if (!row) return null;
+      return clampT(Math.min(row.t1, row.t0 + Math.max(0, x - row.x0) / row.pps));
+    }
+    return clampT(stage.engine.position + (x - m.playX) / m.pps);
+  }
+  // a click lands on the note under it (if there's one close), a moment before
+  function noteNear(t) {
+    const notes = V.tab ? [...(V.tab.notes || []), ...(V.tab.chordEvents || [])] : [];
+    let best = null;
+    for (const n of notes) {
+      const d = Math.abs(n.t - t);
+      if (d < 0.25 && (!best || d < Math.abs(best.t - t))) best = n;
+    }
+    return best ? best.t : t;
+  }
+  const drag = { on: false, x: 0, at: 0, moved: false };
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !V.tab) return;
+    drag.on = true;
+    drag.moved = false;
+    drag.x = e.clientX;
+    drag.at = stage.engine.position;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag.on) {
+      const r = canvas.getBoundingClientRect();
+      const t = timeAt(e.clientX - r.left, e.clientY - r.top);
+      canvas.style.cursor = t === null ? '' : prefs.layout === 'page' ? 'pointer' : 'grab';
+      return;
+    }
+    const dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) < 5) return;
+    if (prefs.layout === 'page') return; // pages don't slide
+    drag.moved = true;
+    canvas.style.cursor = 'grabbing';
+    stage.seek(clampT(drag.at - dx / (V.hit ? V.hit.pps : 190)));
+  });
+  const endDrag = (e) => {
+    if (!drag.on) return;
+    drag.on = false;
+    canvas.style.cursor = '';
+    if (drag.moved || e.type === 'pointercancel') return;
+    const r = canvas.getBoundingClientRect();
+    const t = timeAt(e.clientX - r.left, e.clientY - r.top);
+    if (t !== null) stage.seek(Math.max(0, noteNear(t) - 0.4));
+  };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('wheel', (e) => {
+    if (!V.tab) return;
+    e.preventDefault();
+    if (e.ctrlKey) return zoom(e.deltaY < 0 ? 1 : -1);
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    const px = e.deltaMode === 1 ? d * 30 : d;
+    if (prefs.layout === 'page') {
+      // a wheel notch moves a row
+      const rows = V.systems || [];
+      const t = stage.engine.position;
+      const cur = rows.findIndex((r) => t >= r.t0 && t < r.t1);
+      const next = rows[Math.max(0, Math.min(rows.length - 1, cur + (px > 0 ? 1 : -1)))];
+      if (next) stage.seek(next.t0);
+      return;
+    }
+    stage.seek(clampT(stage.engine.position + px / (V.hit ? V.hit.pps : 190)));
+  }, { passive: false });
   zOut.onclick = () => zoom(-1);
   zIn.onclick = () => zoom(1);
   optBtn.onclick = (e) => {
@@ -131,6 +216,8 @@ export function createTabView(host, stage) {
       r.right,
       r.bottom + 4,
       [
+        { label: tunerShowing() ? 'Hide the tuner' : 'Tuner', icon: 'tuning', hint: 'U', onClick: toggleTuner },
+        '-',
         { heading: true, label: 'Strings' },
         { label: 'Low E on top', icon: 'tuning', hint: check(prefs.lowTop), onClick: () => setPref('lowTop', true) },
         { label: 'High e on top (standard tab)', icon: 'tuning', hint: check(!prefs.lowTop), onClick: () => setPref('lowTop', false) },
@@ -140,6 +227,14 @@ export function createTabView(host, stage) {
         { label: 'Pages', icon: 'list', hint: check(prefs.layout === 'page'), onClick: () => setPref('layout', 'page') },
         '-',
         { label: 'Show lyrics', icon: 'music', hint: check(prefs.lyrics), onClick: () => setPref('lyrics', !prefs.lyrics) },
+        '-',
+        { heading: true, label: 'Keys' },
+        { label: 'Play or pause', hint: 'Space', onClick: () => stage.toggle() },
+        { label: 'Back or ahead 5 seconds', hint: '← →' },
+        { label: 'Repeat this section', hint: 'L', onClick: () => stage.toggleSectionLoop && stage.toggleSectionLoop() },
+        { label: 'Slower or faster', hint: '[ ]' },
+        { label: 'Zoom out or in', hint: '− +' },
+        { label: 'The highway', hint: 'H', onClick: () => stage.openHighway && stage.openHighway() },
       ],
       { align: 'right' }
     );
@@ -174,13 +269,6 @@ export function createTabView(host, stage) {
     /* Stagehand 3: Now playing is always full size */
     renderBar();
     requestAnimationFrame(() => resize());
-  }
-
-  function setSpeed(s) {
-    prefs.speed = s;
-    savePrefs();
-    stage.engine.setSpeed(s);
-    renderBar();
   }
 
   function zoom(dir) {
@@ -422,6 +510,8 @@ export function createTabView(host, stage) {
     const tab = V.tab;
     if (!tab || V.loading || V.error) return;
     const g = geometry();
+    const hit = [];
+    V.hit = { gutter: g.gutter, pps: g.pps, rows: hit, playX: 0, t };
     if (prefs.layout === 'page') {
       const rows = systems(g);
       let cur = rows.findIndex((r) => t >= r.t0 && t < r.t1);
@@ -433,6 +523,7 @@ export function createTabView(host, stage) {
         const x0 = g.gutter + 6;
         const x1 = x0 + (row.t1 - row.t0) * g.pps;
         drawSystem({ t0: row.t0, t1: row.t1, x0, x1, staffTop: top + 70, gap: g.gap, t, lyrics: g.lyrics, playhead: r === 0, dim: r > 0 });
+        hit.push({ y0: top, y1: top + g.sysH, x0, t0: row.t0, t1: row.t1, pps: g.pps });
         if (r > 0) {
           ctx.fillStyle = 'rgba(42, 51, 80, 0.6)';
           ctx.fillRect(12, top - 3, W - 24, 1);
@@ -443,6 +534,7 @@ export function createTabView(host, stage) {
       const playX = g.gutter + Math.min(260, (W - g.gutter) * 0.24);
       const t0 = t - (playX - g.gutter) / g.pps;
       const t1 = t0 + (W - g.gutter) / g.pps;
+      V.hit.playX = playX;
       drawSystem({ t0, t1, x0: g.gutter, x1: W, xAt: (time) => playX + (time - t) * g.pps, staffTop: g.staffTop, gap: g.gap, t, lyrics: g.lyrics, playhead: true, playX });
       drawStringNames(g, g.staffTop);
     }
@@ -721,17 +813,84 @@ export function createTabView(host, stage) {
     tab.sections.forEach((s, i) => sectionsBar.append(segBtn(s, total, i)));
     sectionsBar.append(h('i.tab-sections-head'));
     V.curSection = -2;
+    markLoop();
   }
 
   function segBtn(s, total, i) {
-    const b = h('button', { type: 'button', text: prettySection(s.name), title: s.name ? `${prettySection(s.name)}: jump here, double-click to loop` : 'Start' });
+    const b = h('button', { type: 'button', text: s.name ? prettySection(s.name) : 'Start', title: s.name ? `${prettySection(s.name)}: jump here, double-click to repeat, Shift+click to repeat up to here` : 'The start' });
     b.style.flexGrow = String(Math.max(0.001, s.end - s.start));
     b.style.flexBasis = '0';
     b.dataset.i = String(i);
-    b.onclick = () => stage.seek(s.start);
-    b.ondblclick = () => stage.setLoop({ start: s.start, end: s.end });
+    // 4.2: like the highway: a second of lead-in; inside a long section, go to the spot you clicked
+    const long = s.end - s.start > 30;
+    if (long) {
+      b.onmousemove = (e) => {
+        const r = b.getBoundingClientRect();
+        const at = s.start + Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))) * (s.end - s.start);
+        b.title = `${s.name ? prettySection(s.name) : 'Start'} · click to go to ${clock(at)}. Double-click to repeat, Shift+click to repeat up to here`;
+      };
+    }
+    b.onclick = (e) => {
+      if (e.shiftKey && i >= 0) return stretchTo(i);
+      if (long) {
+        const r = b.getBoundingClientRect();
+        const at = s.start + Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))) * (s.end - s.start);
+        return stage.seek(at - s.start < 3 ? Math.max(0, s.start - 1) : at);
+      }
+      stage.seek(Math.max(0, s.start - 1));
+    };
+    b.ondblclick = () => repeatRange(i, i);
     void total;
     return b;
+  }
+
+  // numbered names: "Verse 2", "Chorus 3"
+  function secLabel(i) {
+    const secs = V.tab ? V.tab.sections : [];
+    const name = prettySection(secs[i] && secs[i].name) || 'Section';
+    const same = secs.filter((x) => prettySection(x.name) === name).length;
+    if (same < 2) return name;
+    let n = 0;
+    for (let k = 0; k <= i; k++) if (prettySection(secs[k].name) === name) n++;
+    return `${name} ${n}`;
+  }
+
+  function repeatRange(a, b) {
+    const secs = V.tab ? V.tab.sections : [];
+    if (a < 0 || b < 0 || !secs[a] || !secs[b]) return;
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const loop = { start: secs[lo].start, end: secs[hi].end, label: lo === hi ? secLabel(lo) : `${secLabel(lo)} → ${secLabel(hi)}`, from: lo, to: hi, anchor: a };
+    if (repeat) repeat.start(loop);
+    else stage.setLoop(loop);
+    const t = stage.engine.position || 0;
+    if (t < loop.start || t >= loop.end) stage.seek(loop.start);
+  }
+
+  // which sections the current repeat covers (by its own range, or by matching the edges)
+  function loopRange() {
+    const loop = stage.getLoop ? stage.getLoop() : null;
+    const secs = V.tab ? V.tab.sections : [];
+    if (!loop || !secs.length) return null;
+    if (Number.isInteger(loop.from) && Number.isInteger(loop.to) && secs[loop.from] && secs[loop.to]) return { lo: loop.from, hi: loop.to, anchor: Number.isInteger(loop.anchor) ? loop.anchor : loop.from };
+    const lo = secs.findIndex((x) => Math.abs(x.start - loop.start) < 0.05);
+    const hi = secs.findIndex((x) => Math.abs(x.end - loop.end) < 0.05);
+    return lo >= 0 && hi >= lo ? { lo, hi, anchor: lo } : null;
+  }
+
+  // Shift+click: stretch the repeat from where it started (or from the section playing now)
+  function stretchTo(i) {
+    const r = loopRange();
+    const from = r ? r.anchor : V.curSection >= 0 ? V.curSection : i;
+    repeatRange(from, i);
+  }
+
+  function markLoop() {
+    const r = loopRange();
+    for (const b of sectionsBar.querySelectorAll('button')) {
+      const i = Number(b.dataset.i);
+      b.classList.toggle('looping', !!r && i >= r.lo && i <= r.hi);
+    }
   }
 
   function updateSections(t) {
@@ -766,7 +925,6 @@ export function createTabView(host, stage) {
     playAlongBtn.setAttribute('aria-pressed', String(hasStems && prefs.playAlong));
     playAlongBtn.title = hasStems ? `Mute the ${inst} in the song so you can play it yourself` : 'Split stems first, so Stagehand can take your part out of the song';
     playAlongBtn.innerHTML = `<span class="sw"><i></i></span>Play along<span class="sub">${hasStems ? (prefs.playAlong ? `${inst} muted` : `hear the ${inst}`) : 'needs stems'}</span>`;
-    for (const b of speedSeg.querySelectorAll('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.speed) === prefs.speed));
     maxBtn.innerHTML = icon(prefs.maxed ? 'chevron' : 'fit');
     maxBtn.title = prefs.maxed ? 'Show the song list again' : 'Hide the song list (more room for the tab)';
     maxBtn.setAttribute('aria-label', maxBtn.title);

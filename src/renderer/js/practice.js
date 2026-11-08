@@ -127,10 +127,13 @@ export const practice = new (class extends EventTarget {
       this.free.prev = now;
       if (this.free.secs > 300) this._flushFree();
     } else this.free.prev = 0;
-    if (!this.judge || !eng.playing) {
+    // the timing check's warm-up song isn't practice on your song
+    if (!this.judge || !eng.playing || training()) {
       this.lastT = t;
       return;
     }
+    this.judge.setPace(eng.speed);
+    if (this.session) this.session.speed = Math.min(this.session.speed ?? eng.speed, eng.speed);
     // the song looped or jumped back: close the pass, forget what follows
     if (t < this.lastT - 0.3) {
       this._endPass();
@@ -183,12 +186,12 @@ export const practice = new (class extends EventTarget {
   }
 
   startSession() {
-    if (!this.song) return;
+    if (!this.song || training()) return;
     if (!this.session || this.session.songId !== this.song.id) {
       this.flush();
       const src = this._source();
       const j = src.judge;
-      this.session = { songId: this.song.id, part: src.part, secs: 0, at: Date.now(), judge: j, hits0: j ? j.hits : 0, judged0: j ? j.judged : 0, tuning: this.tab ? this.tab.tuning : null, cents: this.tab ? this.tab.cents || 0 : 0, title: this.song ? this.song.title : null, kind: this.kind, tab: src.tab, targets: src.targets, pos0: stage.engine.position - 0.5 };
+      this.session = { songId: this.song.id, part: src.part, secs: 0, at: Date.now(), judge: j, hits0: j ? j.hits : 0, judged0: j ? j.judged : 0, tuning: this.tab ? this.tab.tuning : null, cents: this.tab ? this.tab.cents || 0 : 0, title: this.song ? this.song.title : null, kind: this.kind, tab: src.tab, targets: src.targets, pos0: stage.engine.position - 0.5, speed: stage.engine.speed };
     }
   }
 
@@ -217,7 +220,7 @@ export const practice = new (class extends EventTarget {
       if (accuracy !== null && accuracy >= 0.6 && notes >= 30 && !rig.dropAmount() && s.tuning) setMyTuning(s.kind, s.tuning, s.cents || 0, s.title);
       // the breakdown (sections, kinds of notes, longest streak) of what was played in this session
       const detail = j && s.targets ? compact(breakdown(s.tab, s.targets, j, { from: s.pos0 })) : {};
-      api.stats.log({ songId: s.songId, part: s.part, seconds: s.secs, accuracy, notes, hit, speed: stage.engine.speed, at: s.at, ...detail }).then(() => emit('stats')).catch(() => {});
+      api.stats.log({ songId: s.songId, part: s.part, seconds: s.secs, accuracy, notes, hit, speed: s.speed ?? stage.engine.speed, at: s.at, ...detail }).then(() => emit('stats')).catch(() => {});
     }
   }
 
@@ -232,6 +235,12 @@ export const practice = new (class extends EventTarget {
     this._flushFree();
   }
 })();
+
+/** The highway is playing the timing check's own song. */
+function training() {
+  const hw = typeof window !== 'undefined' ? window.__shHighway : null;
+  return !!(hw && hw.training && hw.training());
+}
 
 function loop() {
   practice.tick();
@@ -251,6 +260,15 @@ on('page', () => {
   if (state.page === 'progress') practice.checkpoint();
 });
 if (typeof window !== 'undefined') window.__shPractice = practice;
+// A session is logged at the slowest speed it was played at. 100% and faster count
+// toward your best and slower doesn't, so crossing 100% starts a new session.
+let fullSpeed = stage.engine.speed >= 0.999;
+stage.engine.addEventListener('speed', () => {
+  const now = stage.engine.speed >= 0.999;
+  if (now === fullSpeed) return;
+  fullSpeed = now;
+  practice.checkpoint();
+});
 stage.engine.addEventListener('seek', () => {
   if (practice.judge) practice.judge.rewind(stage.engine.position);
 });

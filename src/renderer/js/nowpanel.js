@@ -1,7 +1,7 @@
 /**
  * Now playing, the parts around the song view: part chips and the guitar in
  * the header, the score line, speed and Record take in the footer, and the
- * right panel (Mix, Riff repeater, Tone).
+ * right panel (Mix, Riff repeater, Tone, Tuner).
  */
 import { api } from './api.js';
 import { state, on, emit, setPage } from './store.js';
@@ -16,12 +16,18 @@ import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, bySlot, useSlot, SLOT_GELS, SLOT_COUNT, saveSongTone, freeSlot, chainText, activeSlot, nowPlayingTone } from './tonelib.js';
 import { demoButton } from './rigui.js';
 import { guitarStatus } from './shell.js';
+import { paintSpeedChip, openSpeedPopover } from './speedpop.js';
+import { createTuner } from './tuner.js';
 
 const { panel, partChips, guitarPill, scoreLine, recBtn, speedSeg, modeSeg, vol, volIcon } = stage.hosts;
 const engine = stage.engine;
-const SPEEDS = [0.5, 0.6, 0.75, 0.85, 1];
 const PART_GEL = { lead: 'var(--gel-guitar)', combo: 'var(--gel-guitar)', rhythm: 'var(--tungsten)', bass: 'var(--gel-bass)' };
-const N = { tab: localStorage.getItem('stagehand.nowTab') || 'mix', raf: 0, toneKey: null, meters: [] };
+const N = { tab: localStorage.getItem('stagehand.nowTab') || 'mix', raf: 0, toneKey: null, meters: [], back: 'mix' };
+// 4.2: the tuner is a tab in this panel, so it never sits over the tab itself.
+// It only listens while its tab is showing; it isn't remembered for next time.
+const npTuner = createTuner();
+npTuner.el.classList.add('np-tuner');
+if (N.tab === 'tuner') N.tab = 'mix';
 const R = { on: false, sec: -1, trainer: true, start: 0.6, step: 0.05, goal: 1, thresh: 0.9, countIn: true, passes: [] };
 
 const shown = () => state.page === 'now' && !document.getElementById('app').classList.contains('under-highway');
@@ -83,14 +89,16 @@ function updateSubtitle() {
 }
 
 // -------------------------------------------------------------- footer --
+// 4.2: one chip that opens the speed panel (the same as on the highway)
+const speedBtn = h('button', { type: 'button', 'aria-haspopup': 'dialog' });
+speedBtn.onclick = () => openSpeedPopover(speedBtn, { engine, repeat: stage.repeat, above: true });
 function renderSpeed() {
-  speedSeg.innerHTML = '';
-  for (const sp of SPEEDS) {
-    const b = h('button', { type: 'button', text: `${Math.round(sp * 100)}%`, 'aria-pressed': String(Math.abs(engine.speed - sp) < 0.001), title: sp === 1 ? 'Full speed' : `Slow down to ${Math.round(sp * 100)}% (same pitch)` });
-    b.onclick = () => engine.setSpeed(sp);
-    speedSeg.append(b);
+  if (!speedBtn.isConnected) {
+    speedSeg.innerHTML = '';
+    speedSeg.classList.add('np-speed-one');
+    speedSeg.append(speedBtn);
   }
-  if (!SPEEDS.some((sp) => Math.abs(engine.speed - sp) < 0.001)) speedSeg.append(h('button', { type: 'button', text: `${Math.round(engine.speed * 100)}%`, 'aria-pressed': 'true', disabled: true }));
+  paintSpeedChip(speedBtn, engine.speed || 1);
 }
 engine.addEventListener('speed', () => {
   renderSpeed();
@@ -126,7 +134,7 @@ recBtn.onclick = async () => {
     const { L, R: Rr } = await renderTone(rig.tone, di, rate, { ...rig.knobs, volume: Math.max(0.35, rig.knobs.volume ?? 0.7) });
     const s = song();
     const sec = s && (s.sections || []).find((x) => rec.t0 >= x.start && rec.t0 < x.end);
-    await saveTake({ name: s ? `${s.title}${sec ? ` · ${sec.label}` : ''}${engine.speed < 0.999 ? ` at ${Math.round(engine.speed * 100)}%` : ''}` : 'Take', songId: s ? s.id : null, L, R: Rr, rate });
+    await saveTake({ name: s ? `${s.title}${sec ? ` · ${sec.label}` : ''}${Math.abs(engine.speed - 1) > 0.001 ? ` at ${Math.round(engine.speed * 100)}%` : ''}` : 'Take', songId: s ? s.id : null, L, R: Rr, rate });
     emit('takes');
     toast({ title: 'Take saved', message: 'Listen back in Progress.', kind: 'ok', actions: [{ label: 'Open Progress', onClick: () => setPage('progress') }] });
   } catch (err) {
@@ -153,15 +161,9 @@ function renderScore() {
 // ---------------------------------------------------------------- panel --
 function tabsEl() {
   const t = h('div.np-tabs', { role: 'tablist' });
-  for (const [id, label] of [['mix', 'Mix'], ['riff', 'Riff repeater'], ['tone', 'Tone']]) {
-    const b = h('button', { type: 'button', role: 'tab', 'aria-selected': String(N.tab === id), text: label });
-    b.onclick = () => {
-      N.tab = id;
-      try {
-        localStorage.setItem('stagehand.nowTab', id);
-      } catch (_) {}
-      renderPanel();
-    };
+  for (const [id, label] of [['mix', 'Mix'], ['riff', 'Riff repeater'], ['tone', 'Tone'], ['tuner', 'Tuner']]) {
+    const b = h('button', { type: 'button', role: 'tab', 'aria-selected': String(N.tab === id), text: label, title: id === 'tuner' ? 'Tuner (U)' : undefined });
+    b.onclick = () => setTab(id);
     t.append(b);
   }
   return t;
@@ -421,16 +423,41 @@ function renderTonePane(box) {
   box.append(grid);
 }
 
+function setTab(id) {
+  if (id !== 'tuner') {
+    N.back = id;
+    try {
+      localStorage.setItem('stagehand.nowTab', id);
+    } catch (_) {}
+  }
+  N.tab = id;
+  renderPanel();
+}
+
 function renderPanel() {
-  if (!shown()) return;
+  if (!shown()) return npTuner.hide();
   panel.innerHTML = '';
   panel.append(tabsEl());
   const box = h('div.np-pane');
   if (N.tab === 'riff') renderRiff(box);
   else if (N.tab === 'tone') renderTonePane(box);
+  else if (N.tab === 'tuner') box.append(npTuner.el);
   else renderMix(box);
   panel.append(box);
+  if (N.tab === 'tuner') npTuner.show();
+  else npTuner.hide();
 }
+
+// U in the tab view (tab.js), or its menu: open the Tuner tab, or go back to the last one
+window.addEventListener('stagehand:tab-tuner', () => {
+  if (!shown()) return;
+  setTab(N.tab === 'tuner' ? N.back || 'mix' : 'tuner');
+});
+// leaving the page, or the highway coming up over it: stop listening
+setInterval(() => {
+  if (N.tab === 'tuner' && !shown()) npTuner.hide();
+}, 1000);
+export const tabTunerOpen = () => N.tab === 'tuner' && shown();
 
 // ---------------------------------------------------------- tone follow --
 function followTone() {
@@ -494,6 +521,16 @@ function renderAll() {
   updateSubtitle();
 }
 on('page', () => shown() && renderAll());
+// 4.2: coming back from the highway (or Jam) to this page didn't fill the footer and panel in
+{
+  const app = document.getElementById('app');
+  let under = app.classList.contains('under-highway');
+  new MutationObserver(() => {
+    const now = app.classList.contains('under-highway');
+    if (under && !now && shown()) renderAll();
+    under = now;
+  }).observe(app, { attributes: true, attributeFilter: ['class'] });
+}
 on('practice', () => {
   renderParts();
   updateSubtitle();
@@ -503,7 +540,7 @@ on('practice', () => {
 });
 on('stage-song', () => {
   // a new song always starts at full speed
-  if (engine.speed < 0.999) engine.setSpeed(1);
+  if (Math.abs(engine.speed - 1) > 0.001) engine.setSpeed(1);
   R.prevSpeed = null;
   R.on = false;
   R.sec = -1;
