@@ -1,11 +1,11 @@
 /**
- * The Green Room in the page (4.3; Friends before): your name, the clips you show,
+ * Backstage in the page (4.3; Friends before): your name, the clips you show,
  * who's here, and messages. The page is greenroom.js; the direct link for watching
  * is friendlink.js; the meeting point and addresses live in the main process
  * (services/greenroom.js).
  *
  * Loaded at start, so your Stagehand answers people who want to watch your clips
- * even when the Green Room page isn't open.
+ * even when the Backstage page isn't open.
  */
 import { api } from './api.js';
 import { emit, state } from './store.js';
@@ -35,7 +35,7 @@ export const host = startHost(api, {
     G.peers = n;
     G.watching = names;
     const fresh = names.filter((x) => !was.includes(x));
-    if (fresh.length) toast({ title: `${fresh[0]} is watching your clips`, message: 'From the Green Room.', kind: 'info', timeout: 4000 });
+    if (fresh.length) toast({ title: `${fresh[0]} is watching your clips`, message: 'From Backstage.', kind: 'info', timeout: 4000 });
     emit('room');
   },
 });
@@ -82,14 +82,14 @@ api.on('room:message', (m) => {
 export const isShown = (id) => !!(G.st && G.st.joined && G.st.shared.includes(id));
 
 /**
- * Asks for your name in the Green Room (the first time you show a clip or message
+ * Asks for your name backstage (the first time you show a clip or message
  * someone). Resolves true once you're in.
  */
 export function askName({ why = '' } = {}) {
   return new Promise((resolve) => {
     let done = false;
     const st = G.st || {};
-    const input = h('input.input', { value: st.name || st.suggest || '', placeholder: 'Your name', maxlength: 40, spellcheck: 'false', 'aria-label': 'Your name in the Green Room' });
+    const input = h('input.input', { value: st.name || st.suggest || '', placeholder: 'Your name', maxlength: 40, spellcheck: 'false', 'aria-label': 'Your name backstage' });
     const err = h('div.gr-err');
     const ok = h('button.btn.primary', { type: 'button', text: st.joined ? 'Save' : 'Come in' });
     const cancel = h('button.btn', { type: 'button', text: 'Cancel' });
@@ -97,9 +97,9 @@ export function askName({ why = '' } = {}) {
       why ? h('p', { text: why }) : null,
       h('label.gr-label', { text: 'Your name' }),
       input,
-      h('p.np-fine', { text: 'Everyone in the Green Room sees this name next to the clips you show. No password, no email.' }),
+      h('p.np-fine', { text: 'Everyone backstage sees this name next to the clips you show. No password, no email.' }),
       err);
-    const m = modal({ title: st.joined ? 'Your name in the Green Room' : 'Come into the Green Room', body, footer: [cancel, ok], onClose: () => !done && resolve(false) });
+    const m = modal({ title: st.joined ? 'Your name backstage' : 'Come backstage', body, footer: [cancel, ok], onClose: () => !done && resolve(false) });
     m.el.parentElement.classList.add('over-highway');
     const go = async () => {
       ok.disabled = true;
@@ -126,14 +126,14 @@ export function askName({ why = '' } = {}) {
   });
 }
 
-/** Show a video in the Green Room, or take it out. Asks for your name first if you haven't one. */
+/** Show a video backstage, or take it out. Asks for your name first if you haven't one. */
 export async function toggleShown(t) {
   const on = !isShown(t.id);
   try {
     if (on && !(G.st && G.st.joined) && !(await askName({ why: 'Pick the name people see next to your clips.' }))) return false;
     G.st = await api.room.share(t.id, on);
     emit('room');
-    if (on) toast({ title: 'In the Green Room', message: 'Everyone can watch it while your Stagehand is open.', kind: 'ok', timeout: 3500 });
+    if (on) toast({ title: 'Backstage', message: 'Everyone can watch it while your Stagehand is open.', kind: 'ok', timeout: 3500 });
     return true;
   } catch (err) {
     toast({ title: 'Couldn’t change that', message: err.message, kind: 'err' });

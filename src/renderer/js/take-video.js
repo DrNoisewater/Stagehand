@@ -10,7 +10,7 @@ import {createSoundTrack} from './clip-sound.js';
  *  app); nothing big is kept here. A whole song's video used to be kept in the page and
  *  copied again to save it, and the page ran out of memory and went blank. */
 /** title(): what the file is called after "SH - " (the song's title, or Jam Session).
- *  about(): what's being played, kept with the clip for the Green Room (4.3): { song, part, tuning, speed }. */
+ *  about(): what's being played, kept with the clip for Backstage (4.3): { song, part, tuning, speed }. */
 const LIMIT_S=600; // 10 minutes
 const fmt=(s)=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()=>null,about=()=>null}){
@@ -104,7 +104,7 @@ export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()
             const saved=await api.clips.finish(id,{seconds});
             const open=saved&&saved.take?[{label:'My clips',onClick:()=>import('./greenroom.js').then(r=>r.openGreenRoom({tab:'mine',focus:saved.take.id}))}]:[];
             // (the sound was checked before recording and watched all through: 4.1.2)
-            if(saved&&saved.take)toast({title:`Saved “${saved.take.name}”`,message:'In the Green Room, under My clips. Show it there if you want everyone to see it.',kind:'ok',actions:open});
+            if(saved&&saved.take)toast({title:`Saved “${saved.take.name}”`,message:'Backstage, under My clips. Show it there if you want everyone to see it.',kind:'ok',actions:open});
             resolve(saved&&saved.path);}catch(e){clean();reject(e);}};
         });
         // Catch auto-stop failures as well as explicit save failures.

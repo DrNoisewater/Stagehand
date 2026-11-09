@@ -74,7 +74,7 @@ let toneIndex;
 let stats;
 let takes;
 let captures;
-let room; // the Green Room (4.3; Friends before)
+let room; // Backstage (4.3; Friends before)
 let updates; // 4.1.4: newer Stagehand from GitHub releases
 const logLines = [];
 let clipSessions = null;
@@ -563,7 +563,7 @@ function registerIpc() {
   });
   handle('clips:prepare',()=>require('./services/video-export').ensureEncoder(tools).then(()=>true));
   // 3.13: no save box: the video goes straight into your recordings as "SH - <song>.mp4"
-  // (or "SH - Jam Session.mp4"), never over an older one, and shows in the Green Room (My clips)
+  // (or "SH - Jam Session.mp4"), never over an older one, and shows backstage (My clips)
   handle('clips:save',async(data,meta={})=>{
     if(!(data instanceof Uint8Array)||data.byteLength>650*1024*1024)throw Error('Clip exceeds the 650 MB limit.');
     const temp=await fsp.mkdtemp(path.join(app.getPath('temp'),'stagehand-video-'));
@@ -597,7 +597,7 @@ function registerIpc() {
     if (room) await room.setShared(id, false).catch(() => {});
     return r;
   });
-  // The Green Room (4.3): everyone sees the videos you show there, and can message you.
+  // Backstage (4.3): everyone sees the videos you show there, and can message you.
   // Only videos (never audio takes or songs); the page makes the direct connection (js/friendlink.js).
   const sharedVideo = async (id) => {
     const t = (await takes.list()).find((x) => x.id === String(id));
@@ -613,7 +613,7 @@ function registerIpc() {
   handle('room:hide', (addr, on) => room.hide(addr, on));
   handle('room:share', async (id, on) => {
     const t = (await takes.list()).find((x) => x.id === String(id));
-    if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can be shown in the Green Room'), { code: 'NOT_VIDEO' });
+    if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can be shown backstage'), { code: 'NOT_VIDEO' });
     return room.setShared(String(id), on);
   });
   handle('room:connect', (addr, sdp) => room.connect(addr, sdp, { onStage: (stage) => send('room:progress', { addr, stage }) }));
@@ -626,7 +626,7 @@ function registerIpc() {
   });
   handle('room:hostRead', async (id, part, offset, length) => {
     const t = await sharedVideo(id);
-    if (!t || part !== 'video') throw Object.assign(new Error('That video isn’t shown in the Green Room'), { code: 'NOT_SHARED' });
+    if (!t || part !== 'video') throw Object.assign(new Error('That video isn’t shown backstage'), { code: 'NOT_SHARED' });
     const fh = await fsp.open(takes.pathOf(t.id), 'r');
     try {
       const { size } = await fh.stat();
@@ -1065,7 +1065,7 @@ app.whenReady().then(async () => {
     safeStorage,
     log,
   });
-  await room.load().catch((e) => log(`Green Room failed to load: ${e.message}`));
+  await room.load().catch((e) => log(`Backstage failed to load: ${e.message}`));
   room.on('change', (st) => send('room:change', st));
   room.on('offer', (o) => send('room:offer', o));
   room.on('message', (m) => send('room:message', m));

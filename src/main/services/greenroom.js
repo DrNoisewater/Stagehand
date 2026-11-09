@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The Green Room (4.3): everyone with Stagehand, in one place. It replaces
+ * Backstage (4.3): everyone with Stagehand, in one place. It replaces
  * Friends and their codes (4.1–4.2).
  *
  *   - There is one shared meeting point (an ntfy topic everybody knows). Each
@@ -12,7 +12,7 @@
  *     sealed with a key from that address, carries messages to it and requests
  *     to watch its clips. Watching is the same direct PC-to-PC link as before
  *     (js/friendlink.js), so clips can only be watched while their owner's
- *     Stagehand is open. Only videos marked "Show in the Green Room" are handed out.
+ *     Stagehand is open. Only videos marked "Show backstage" are handed out.
  *   - The room is public by design: anyone can read it. So nothing private goes
  *     there: a name, and each shown clip's title, song, part and tone name.
  *
@@ -87,7 +87,7 @@ function cleanClip(c) {
 const chatOut = (c) => ({ id: c.id, dir: c.dir, name: c.name || '', text: c.text, at: c.at, state: c.state || null, error: c.error || null, about: c.about || null });
 const cleanAbout = (a) => (a && typeof a === 'object' && clipId(a.id) ? { id: a.id, title: str(a.title, 120) || 'a clip' } : null);
 
-/** Messages from before the Green Room (friends.json, 4.1–4.2), grouped by person, to read. */
+/** Messages from before Backstage (friends.json, 4.1–4.2), grouped by person, to read. */
 function oldConversations(old, show) {
   const friends = (Array.isArray(old.friends) ? old.friends : []).map((f) => ({ name: str(f.name, MAX_NAME) || 'Friend', code: show(f.code) })).filter((f) => f.code);
   const chats = (Array.isArray(old.chats) ? old.chats : []).filter((c) => c && typeof c.text === 'string' && typeof c.with === 'string');
@@ -250,7 +250,7 @@ class GreenRoom extends EventEmitter {
   async setName(name) {
     const n = str(name, MAX_NAME);
     if (n.length < 2) throw Object.assign(new Error('Pick a name with at least 2 letters.'), { code: 'BAD_NAME', field: 'name' });
-    if (this._here().some((p) => sameName(p.name, n))) throw Object.assign(new Error(`Someone in the Green Room is called ${n} already. Pick another name.`), { code: 'NAME_TAKEN', field: 'name' });
+    if (this._here().some((p) => sameName(p.name, n))) throw Object.assign(new Error(`Someone backstage is called ${n} already. Pick another name.`), { code: 'NAME_TAKEN', field: 'name' });
     const first = !this.joined;
     this.data.name = n;
     this.data.suggest = n;
@@ -268,7 +268,7 @@ class GreenRoom extends EventEmitter {
 
   async setShared(takeId, on) {
     if (!clipId(takeId)) throw Object.assign(new Error('That isn’t one of your clips'), { code: 'NOT_CLIP' });
-    if (on && !this.joined) throw Object.assign(new Error('Pick your name for the Green Room first.'), { code: 'NO_NAME' });
+    if (on && !this.joined) throw Object.assign(new Error('Pick your name for Backstage first.'), { code: 'NO_NAME' });
     const s = new Set(this.data.shared);
     if (on) s.add(takeId);
     else s.delete(takeId);
@@ -379,7 +379,7 @@ class GreenRoom extends EventEmitter {
       return;
     }
     clearTimeout(this._annT);
-    this._annP = (this._annP || Promise.resolve()).then(() => this._sayHere()).catch((err) => this.log(`Green Room: couldn’t say here: ${err.message}`));
+    this._annP = (this._annP || Promise.resolve()).then(() => this._sayHere()).catch((err) => this.log(`Backstage: couldn’t say here: ${err.message}`));
     return this._annP;
   }
 
@@ -476,7 +476,7 @@ class GreenRoom extends EventEmitter {
   /** The page's answer to a request to watch that we passed it. */
   async answer(conn, sdp) {
     const host = this.host;
-    if (!host || !this.joined) throw Object.assign(new Error('You’re not in the Green Room'), { code: 'NOT_SHARING' });
+    if (!host || !this.joined) throw Object.assign(new Error('You’re not backstage'), { code: 'NOT_SHARING' });
     const via = host.via.get(String(conn));
     const say = (relays) => this._publish(relays, host.topic, host.key, { t: 'answer', conn: String(conn), sdp: String(sdp) });
     await say(via ? [via] : this.data.relays).catch((err) => {
@@ -493,8 +493,8 @@ class GreenRoom extends EventEmitter {
    * States: sending → sent (a meeting point took it) → delivered (their Stagehand got it), or failed.
    */
   async sendMessage(to, text, about = null) {
-    if (!this.joined) throw Object.assign(new Error('Pick your name for the Green Room first.'), { code: 'NO_NAME' });
-    if (!isAddress(to)) throw Object.assign(new Error('That person isn’t in the Green Room any more'), { code: 'NO_PERSON' });
+    if (!this.joined) throw Object.assign(new Error('Pick your name for Backstage first.'), { code: 'NO_NAME' });
+    if (!isAddress(to)) throw Object.assign(new Error('That person isn’t backstage any more'), { code: 'NO_PERSON' });
     const t = String(text || '').trim().slice(0, MAX_TEXT);
     if (!t) throw Object.assign(new Error('Type a message first'), { code: 'EMPTY' });
     const ab = cleanAbout(about);
@@ -508,7 +508,7 @@ class GreenRoom extends EventEmitter {
     } catch (err) {
       msg.state = 'failed';
       msg.error = err.message;
-      this.log(`Green Room: message not sent: ${err.message}`);
+      this.log(`Backstage: message not sent: ${err.message}`);
     }
     await this._changed();
     return chatOut(msg);
@@ -548,7 +548,7 @@ class GreenRoom extends EventEmitter {
    */
   async connect(addr, sdp, { timeout = 20000, onStage = null } = {}) {
     const stage = (x) => onStage && onStage(x);
-    if (!isAddress(addr)) throw Object.assign(new Error('That person isn’t in the Green Room any more'), { code: 'NO_PERSON' });
+    if (!isAddress(addr)) throw Object.assign(new Error('That person isn’t backstage any more'), { code: 'NO_PERSON' });
     const who = this.nameOf(addr);
     const { topic, key } = derive(addr);
     const conn = crypto.randomBytes(9).toString('base64url');

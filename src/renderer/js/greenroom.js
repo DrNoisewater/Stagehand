@@ -1,12 +1,12 @@
 /**
- * The Green Room (4.3): the page at the bottom of the left menu. It replaces the
+ * Backstage (4.3): the page just above Getting started on the left menu. It replaces the
  * Recordings window and Friends (with their codes).
- *  - The Room: who's in Stagehand now and the clips they show. Watch one (it comes
+ *  - Everyone: who's in Stagehand now and the clips they show. Watch one (it comes
  *    straight from their PC), see the song, part and tone, try or keep the tone,
  *    open the song if you have it (or find it), and message them about it.
  *  - My clips: everything you've recorded (videos, looper takes, Record take).
- *    Videos get one switch: Show in the Green Room.
- *  - Messages: your conversations, and the ones from before the Green Room (to read).
+ *    Videos get one switch: Show backstage.
+ *  - Messages: your conversations, and the ones from before Backstage (to read).
  * State and the service: room.js and services/greenroom.js. Files stay "SH - <song>.mp4/.wav"
  * in Stagehand's recordings folder.
  */
@@ -74,7 +74,7 @@ const player = h('section.gr-player', { hidden: true, 'aria-label': 'Watching' }
 const panel = h('div.gr-panel');
 if (root) root.append(head, player, panel);
 
-/** Opens the Green Room. tab: 'room' | 'mine' | 'messages'; focus: one of your clips; with: a conversation. */
+/** Opens Backstage. tab: 'room' | 'mine' | 'messages'; focus: one of your clips; with: a conversation. */
 export function openGreenRoom({ tab = 'room', focus = null, with: addr = null } = {}) {
   V.tab = tab;
   V.focus = focus;
@@ -123,12 +123,20 @@ on('takes', () => {
   if (shown() && V.tab === 'mine' && !busyTyping()) render();
 });
 
+/** A round initial in a colour of its own per person, with a green dot while they're here. */
+function avatar(name, cls = '', online = false) {
+  const n = (name || '?').trim();
+  let hue = 0;
+  for (const ch of n.toLowerCase()) hue = (hue * 31 + ch.codePointAt(0)) % 360;
+  return h(`span.gr-av${cls}`, { text: n.slice(0, 1).toUpperCase(), style: { '--hue': String(hue) } }, online ? h('i.gr-here', { title: 'Here now' }) : null);
+}
+
 function drawHead() {
   const st = G.st;
   const here = st ? st.people.length : 0;
   const unread = unreadAll();
-  const tabs = h('div.gseg.gr-tabs', { role: 'tablist', 'aria-label': 'The Green Room', style: { '--gel': 'var(--gel-bass)' } });
-  for (const [id, label, ic, n] of [['room', 'The Room', 'people', here ? String(here) : ''], ['mine', 'My clips', 'record', ''], ['messages', 'Messages', 'edit', unread ? String(unread) : '']]) {
+  const tabs = h('div.gseg.gr-tabs', { role: 'tablist', 'aria-label': 'Backstage', style: { '--gel': 'var(--gel-bass)' } });
+  for (const [id, label, ic, n] of [['room', 'Everyone', 'people', here ? String(here) : ''], ['mine', 'My clips', 'record', ''], ['messages', 'Messages', 'edit', unread ? String(unread) : '']]) {
     const b = h('button', { type: 'button', role: 'tab', 'aria-selected': String(V.tab === id), 'aria-pressed': String(V.tab === id), 'data-tab': id, html: `${icon(ic)}<span></span>` });
     b.querySelector('span').textContent = label;
     if (n) b.append(h(`i.gr-count${id === 'messages' ? '.new' : ''}`, { text: n, title: id === 'messages' ? `${n} new` : `${n} here now` }));
@@ -146,31 +154,38 @@ function drawHead() {
     const name = h('button.gr-me-name', { type: 'button', title: 'Change your name', html: `${icon('person')}<span></span>` });
     name.querySelector('span').textContent = st.name;
     name.onclick = () => askName();
-    const more = h('button.icon-btn', { type: 'button', title: 'More', 'aria-label': 'Green Room options', html: icon('more') });
+    const more = h('button.icon-btn', { type: 'button', title: 'More', 'aria-label': 'Backstage options', html: icon('more') });
     more.onclick = (e) => {
       const r = e.currentTarget.getBoundingClientRect();
       showMenu(r.left, r.bottom + 4, [
         { label: 'Change my name', icon: 'edit', onClick: () => askName() },
         ...(st.hidden.length ? [{ label: `People I’ve hidden (${st.hidden.length})`, icon: 'people', onClick: () => openHidden() }] : []),
         '-',
-        { label: 'Step out of the Green Room', icon: 'x', onClick: () => stepOut() },
+        { label: 'Step out of Backstage', icon: 'x', onClick: () => stepOut() },
       ]);
     };
     const watching = G.watching.length ? h('span.gr-live', { text: `${G.watching.join(' and ')} ${G.watching.length > 1 ? 'are' : 'is'} watching your clips` }) : null;
-    me = h('div.gr-me', null, h('span.gr-me-label', { text: 'You’re in as' }), name, watching, more);
+    me = h('div.gr-me.gr-pass', null,
+      avatar(st.name, '.big', true),
+      h('div.gr-pass-text', null, h('span.gr-me-label', { text: 'Your backstage pass' }), name, h('span.gr-pass-fine', { text: watching ? '' : 'Everyone here sees this name.' }), watching),
+      more);
   } else {
     const come = btn('Come in', 'person', () => askName(), '.primary.small');
-    me = h('div.gr-me', null, h('span.gr-me-label', { text: 'Look around, or pick a name to show your clips and message people.' }), come);
+    me = h('div.gr-me.gr-pass.none', null,
+      h('span.gr-av.big.gr-nopass', { html: icon('person') }),
+      h('div.gr-pass-text', null, h('span.gr-me-label', { text: 'No pass yet' }), h('span.gr-pass-fine', { text: 'Look around freely. Pick a name to show your clips and message people.' })),
+      come);
   }
+  const live = !st ? null : !st.inRoom ? h('span.gr-onair.off', { text: 'Reaching Backstage…' }) : h('span.gr-onair', { title: 'People with Stagehand open right now' }, h('i'), h('span', { text: here ? `${here} ${here === 1 ? 'other player' : 'other players'} here now` : 'Just you right now' }));
   head.replaceChildren(
-    h('div.gr-title', null, h('h1.page-title', { text: 'The Green Room' }), h('p.gr-sub', { text: 'Clips from everyone with Stagehand. Watch them while their owner is online, try their tones, and say hi.' })),
+    h('div.gr-title', null, h('div.gr-marquee', null, h('h1.page-title.gr-neon', { text: 'Backstage' }), live), h('p.gr-sub', { text: 'Clips from everyone with Stagehand. Watch them while their owner is online, try their tones, and say hi.' })),
     me,
     tabs
   );
 }
 
 async function stepOut() {
-  if (!(await confirmDialog({ title: 'Step out of the Green Room?', message: 'Nobody sees you or your clips until you pick a name again. Your clips and messages stay on your PC.', confirm: 'Step out' }))) return;
+  if (!(await confirmDialog({ title: 'Step out of Backstage?', message: 'Nobody sees you or your clips until you pick a name again. Your clips and messages stay on your PC.', confirm: 'Step out' }))) return;
   G.st = await api.room.leave();
   render();
 }
@@ -186,8 +201,8 @@ function openHidden() {
 function renderRoom() {
   const st = G.st;
   panel.innerHTML = '';
-  if (!st) return panel.append(h('p.np-fine', { text: 'Getting the Green Room ready…' }));
-  if (!st.inRoom) panel.append(h('div.gr-note.wait', null, h('i'), h('span', { text: 'Reaching the Green Room… If this takes more than a minute, check your internet connection.' })));
+  if (!st) return panel.append(h('p.np-fine', { text: 'Getting Backstage ready…' }));
+  if (!st.inRoom) panel.append(h('div.gr-note.wait', null, h('i'), h('span', { text: 'Reaching Backstage… If this takes more than a minute, check your internet connection.' })));
   const people = st.people;
   if (V.who && !people.some((p) => p.addr === V.who)) V.who = null;
   if (!people.length) {
@@ -198,7 +213,7 @@ function renderRoom() {
   const chips = h('div.gr-people');
   for (const p of people) {
     const sel = V.who === p.addr;
-    const chip = h(`button.gr-person${sel ? '.sel' : ''}`, { type: 'button', title: sel ? 'Show everyone' : `Just ${p.name}’s clips` }, h('span.gr-av', { text: (p.name || '?').trim().slice(0, 1).toUpperCase() }), h('span.gr-pname', { text: p.name }), h('span.gr-pn', { text: p.clips.length ? String(p.clips.length) : '' }));
+    const chip = h(`button.gr-person${sel ? '.sel' : ''}`, { type: 'button', title: sel ? 'Show everyone' : `Just ${p.name}’s clips` }, avatar(p.name, '', true), h('span.gr-pname', { text: p.name }), h('span.gr-pn', { text: p.clips.length ? `${p.clips.length} clip${p.clips.length === 1 ? '' : 's'}` : '' }));
     chip.onclick = () => ((V.who = sel ? null : p.addr), renderRoom());
     chips.append(chip);
   }
@@ -206,7 +221,7 @@ function renderRoom() {
   if (V.who) {
     const p = people.find((x) => x.addr === V.who);
     panel.append(h('div.gr-personbar', null,
-      h('span.gr-av.big', { text: (p.name || '?').trim().slice(0, 1).toUpperCase() }),
+      avatar(p.name, '.big', true),
       h('div.gr-who', null, h('b', { text: p.name }), h('span', { text: p.clips.length ? `${p.clips.length} clip${p.clips.length === 1 ? '' : 's'}` : 'No clips shown yet' })),
       h('span.grow'),
       btn(`Message ${p.name}`, 'edit', () => startChat(p.addr), '.small.soft'),
@@ -249,7 +264,7 @@ function card(p, c) {
     cover,
     h('div.gr-card-text', null,
       h('b', { text: c.title }),
-      h('span.gr-by', { text: p.name }),
+      h('span.gr-by', null, avatar(p.name, '.tiny', true), h('span', { text: p.name })),
       c.song ? h('span.gr-song', { text: c.artist ? `${c.song} · ${c.artist}` : c.song }) : null,
       h('div.gr-tags', null,
         partLine(c) ? h('span.gr-tag', { text: partLine(c) }) : null,
@@ -427,7 +442,7 @@ function drawPlayer() {
   let screen;
   if (w.err) {
     const code = w.err.code;
-    const title = code === 'OFFLINE' ? `${w.name} isn’t answering` : code === 'DIRECT' ? 'Your PCs couldn’t connect' : code === 'RELAY' ? 'Can’t reach the Green Room' : code === 'GONE' ? 'That clip is gone' : 'Couldn’t play it';
+    const title = code === 'OFFLINE' ? `${w.name} isn’t answering` : code === 'DIRECT' ? 'Your PCs couldn’t connect' : code === 'RELAY' ? 'Can’t reach Backstage' : code === 'GONE' ? 'That clip is gone' : 'Couldn’t play it';
     const say = code === 'DIRECT' ? `${w.name}’s Stagehand answered, but the direct line between your two PCs didn’t open. A strict network (work, school, some mobile hotspots) can block it. Try again, or from another network.` : code === 'RELAY' ? 'Stagehand couldn’t get online. Check your internet connection, then try again.' : w.err.message;
     const again = btn('Try again', 'refresh', () => {
       const p = { addr: w.addr, name: w.name };
@@ -437,7 +452,7 @@ function drawPlayer() {
     screen = h('div.gr-screen.msg', null, h('span.gr-orb', { html: icon(code === 'OFFLINE' ? 'person' : 'alert') }), h('b', { text: title }), h('p', { text: say }), code === 'GONE' ? null : again);
   } else if (w.stage !== 'ready') {
     const steps = [
-      ['relay', 'Reaching the Green Room'],
+      ['relay', 'Reaching Backstage'],
       ['asking', `Asking ${w.name}’s Stagehand`],
       ['direct', 'Connecting your two PCs'],
       ['getting', 'Getting the clip'],
@@ -511,7 +526,7 @@ async function tryTone(tone, who) {
 async function keepTone(tone, who) {
   try {
     const { saveTone } = await import('./tonelib.js');
-    const saved = await saveTone({ name: tone.name, kind: tone.kind === 'bass' ? 'bass' : 'guitar', gear: tone.gear, capture: tone.capture || null, cabId: tone.cabId || null, autoCab: tone.autoCab !== false, from: { song: `${who} (Green Room)` } });
+    const saved = await saveTone({ name: tone.name, kind: tone.kind === 'bass' ? 'bass' : 'guitar', gear: tone.gear, capture: tone.capture || null, cabId: tone.cabId || null, autoCab: tone.autoCab !== false, from: { song: `${who} (Backstage)` } });
     const { emit } = await import('./store.js');
     emit('tones');
     toast({ title: `“${saved.name}” is in your tones`, message: `From ${who}. Find it on the Tones page.`, kind: 'ok', actions: [{ label: 'Tones', onClick: () => setPage('tones') }] });
@@ -536,7 +551,7 @@ async function renderMine() {
   panel.innerHTML = '';
   const folder = btn('Open the folder', 'folder', () => dir() && api.shell.openPath(dir()), '.small.ghost');
   const showing = all.filter((t) => t.kind === 'video' && isShown(t.id)).length;
-  const line = !st || !st.joined ? 'Show a video in the Green Room and everyone can watch it while your Stagehand is open.' : showing ? `${showing} clip${showing === 1 ? '' : 's'} in the Green Room. People can watch ${showing === 1 ? 'it' : 'them'} while your Stagehand is open.` : 'Nothing in the Green Room yet. Press Show on a video to put it there.';
+  const line = !st || !st.joined ? 'Show a video backstage and everyone can watch it while your Stagehand is open.' : showing ? `${showing} clip${showing === 1 ? '' : 's'} backstage. People can watch ${showing === 1 ? 'it' : 'them'} while your Stagehand is open.` : 'Nothing backstage yet. Press Show on a video to put it there.';
   panel.append(h('div.gr-minehead', null, h('span.gr-share-ic', { html: icon('people') }), h('span.grow', { text: line }), folder));
   if (!all.length) {
     panel.append(h('div.gr-empty', null, h('span.gr-orb', { html: icon('record') }), h('b', { text: 'Nothing recorded yet' }), h('p', { text: 'Record a video on the highway (Tools › Record a video clip) or in Jam, or use the looper and Record take.' })));
@@ -561,7 +576,7 @@ function mineRow(t, just) {
   const pl = h('button.round-play.sm', { type: 'button', 'aria-label': `Play ${t.name}`, html: icon(on ? 'stop' : 'play') });
   const name = h('b', { text: t.name });
   const sh = isShown(t.id);
-  const show = video ? h(`button.gr-show${sh ? '.on' : ''}`, { type: 'button', 'aria-pressed': String(sh), title: sh ? 'In the Green Room: everyone can watch it (click to take it out)' : 'Show it in the Green Room', html: `${icon(sh ? 'check' : 'people')}<span>${sh ? 'In the Green Room' : 'Show in the Green Room'}</span>` }) : h('span.gr-noshow', { text: 'Sound only', title: 'Only videos can go in the Green Room' });
+  const show = video ? h(`button.gr-show${sh ? '.on' : ''}`, { type: 'button', 'aria-pressed': String(sh), title: sh ? 'Backstage: everyone can watch it (click to take it out)' : 'Show it backstage', html: `${icon(sh ? 'check' : 'people')}<span>${sh ? 'Backstage' : 'Show backstage'}</span>` }) : h('span.gr-noshow', { text: 'Sound only', title: 'Only videos can go backstage' });
   if (video) show.onclick = async () => (await toggleShown(t)) && renderMine();
   const rename = h('button.icon-btn', { type: 'button', title: 'Rename', 'aria-label': 'Rename', html: icon('edit') });
   const showBtn = h('button.icon-btn', { type: 'button', title: 'Show in folder', 'aria-label': 'Show in folder', html: icon('folder') });
@@ -595,7 +610,7 @@ function mineRow(t, just) {
     input.onblur = () => finish(true);
   };
   del.onclick = async () => {
-    if (!(await confirmDialog({ title: `Delete “${t.name}”?`, message: sh ? 'The recording is deleted from your PC and leaves the Green Room.' : 'The recording is deleted from your PC.', confirm: 'Delete', danger: true }))) return;
+    if (!(await confirmDialog({ title: `Delete “${t.name}”?`, message: sh ? 'The recording is deleted from your PC and leaves Backstage.' : 'The recording is deleted from your PC.', confirm: 'Delete', danger: true }))) return;
     if (on) stopPlayer({ keep: false });
     await api.takes.remove(t.id).catch((e) => toast({ title: 'Couldn’t delete', message: e.message, kind: 'err' }));
     V.takes = null;
@@ -632,13 +647,13 @@ function renderMessages() {
   const cur = V.chat ? conversation(st, V.chat) : null;
   if (!cur) V.chat = null;
   const side = h('div.gr-convs');
-  if (!st.chats.length && !cur) side.append(h('p.np-fine.gr-convs-empty', { text: 'No messages yet. Press Message on someone’s clip in The Room to say hi.' }));
+  if (!st.chats.length && !cur) side.append(h('p.np-fine.gr-convs-empty', { text: 'No messages yet. Press Message on someone’s clip under Everyone to say hi.' }));
   const item = (c, old = false) => {
     const last = c.messages[c.messages.length - 1];
     const n = old ? 0 : unreadFor(c);
     const key = old ? c.key : c.addr;
     const b = h(`button.gr-conv${V.chat === key ? '.sel' : ''}${old ? '.old' : ''}`, { type: 'button' },
-      h('span.gr-av', { text: (c.name || '?').trim().slice(0, 1).toUpperCase() }, c.here ? h('i.gr-here', { title: 'In the Green Room now' }) : null),
+      avatar(c.name, '', c.here),
       h('div.gr-ctext', null, h('b', { text: c.name }), h('span', { text: last ? `${last.dir === 'out' ? 'You: ' : ''}${last.text}` : 'No messages yet' })),
       n ? h('i.gr-count.new', { text: String(n) }) : null);
     b.onclick = () => ((V.chat = key), V.about && V.about.for !== key && (V.about = null), renderMessages());
@@ -647,11 +662,11 @@ function renderMessages() {
   if (cur && !cur.old && !st.chats.some((x) => x.addr === cur.addr)) side.append(item(cur));
   for (const c of st.chats) side.append(item(c));
   if (st.old.length) {
-    side.append(h('div.gr-label.gr-oldlabel', { text: 'Before the Green Room' }));
+    side.append(h('div.gr-label.gr-oldlabel', { text: 'Before Backstage' }));
     for (const c of st.old) side.append(item(c, true));
   }
   const main = h('div.gr-thread');
-  if (!cur) main.append(h('div.gr-empty.small', null, h('span.gr-orb', { html: icon('edit') }), h('b', { text: st.chats.length || st.old.length ? 'Pick a conversation' : 'Messages' }), h('p', { text: 'Messages go to people in the Green Room. They arrive even if their Stagehand is closed for a while (up to 12 hours).' })));
+  if (!cur) main.append(h('div.gr-empty.small', null, h('span.gr-orb', { html: icon('edit') }), h('b', { text: st.chats.length || st.old.length ? 'Pick a conversation' : 'Messages' }), h('p', { text: 'Messages go to people backstage. They arrive even if their Stagehand is closed for a while (up to 12 hours).' })));
   else {
     if (!cur.old) markRead(cur);
     main.append(thread(st, cur));
@@ -662,7 +677,7 @@ function renderMessages() {
 }
 
 function thread(st, c) {
-  const top = h('div.gr-thead', null, h('span.gr-av', { text: (c.name || '?').trim().slice(0, 1).toUpperCase() }), h('div.gr-who', null, h('b', { text: c.name }), h('span', { text: c.old ? 'From before the Green Room' : c.here ? 'In the Green Room now' : 'Not in the Green Room right now: they get it when they’re back (within 12 hours)' })));
+  const top = h('div.gr-thead', null, avatar(c.name, '', c.here), h('div.gr-who', null, h('b', { text: c.name }), h('span', { text: c.old ? 'From before Backstage' : c.here ? 'Backstage now' : 'Not backstage right now: they get it when they’re back (within 12 hours)' })));
   if (!c.old && c.here) {
     const see = btn('Their clips', 'video', () => ((V.tab = 'room'), (V.who = c.addr), render()), '.small.ghost');
     top.append(h('span.grow'), see);
@@ -690,7 +705,7 @@ function thread(st, c) {
   }
   const box = h('div.gr-chat', null, top, list);
   if (c.old) {
-    box.append(h('p.np-fine.gr-oldnote', { text: 'Friend codes are gone. If they’re in the Green Room, find them in The Room and message them there.' }));
+    box.append(h('p.np-fine.gr-oldnote', { text: 'Friend codes are gone. If they’re backstage, find them under Everyone and message them there.' }));
     return box;
   }
   if (!st.joined) {

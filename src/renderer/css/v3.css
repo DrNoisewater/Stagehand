@@ -1635,7 +1635,7 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .tm-actions .btn { flex: 1; justify-content: center; }
 .tm .gate-ctl { padding-top: 2px; }
 
-/* ------------------------------------------- 4.3: the Green Room (js/greenroom.js) -- */
+/* ------------------------------------------- 4.3: Backstage (js/greenroom.js) -- */
 #page-greenroom { --gr: var(--gel-bass); gap: 16px; background: radial-gradient(1000px 460px at 70% -8%, rgba(140, 123, 255, 0.07), transparent 70%); }
 .nav-section .count.new { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; display: grid; place-items: center; background: var(--gel); color: #0b0f18; font: 750 11.5px var(--font); }
 .gr-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px 20px; }
@@ -1798,3 +1798,99 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .gr-ask p { margin: 0; }
 .gr-err { min-height: 16px; font-size: 12.5px; color: #ff9aa4; }
 #page-greenroom .grow { flex: 1; min-width: 0; }
+
+/* ---- 4.3: Backstage gets its own look: stage lights, a neon sign, passes, glowing "here" dots -- */
+#page-greenroom {
+  --gr: #b48cff; --gr2: #ff5fa8; --gr3: #3fe0d0; --live: #45d07c;
+  position: relative; isolation: isolate;
+  background:
+    radial-gradient(520px 380px at 12% -6%, rgba(255, 95, 168, 0.13), transparent 70%),
+    radial-gradient(620px 420px at 88% -10%, rgba(63, 224, 208, 0.11), transparent 70%),
+    radial-gradient(900px 520px at 50% 115%, rgba(180, 140, 255, 0.10), transparent 70%),
+    #07060d;
+}
+/* two slow spotlights sweeping across the back of the stage */
+#page-greenroom::before, #page-greenroom::after {
+  content: ''; position: absolute; top: -120px; width: 46%; height: 140%; z-index: -1; pointer-events: none;
+  background: conic-gradient(from 180deg at 50% 0%, transparent 160deg, rgba(255, 255, 255, 0.05) 175deg, rgba(255, 255, 255, 0.08) 180deg, rgba(255, 255, 255, 0.05) 185deg, transparent 200deg);
+  filter: blur(6px); transform-origin: 50% 0;
+}
+#page-greenroom::before { left: 2%; animation: grSweep 14s ease-in-out infinite alternate; }
+#page-greenroom::after { right: 2%; animation: grSweep 17s ease-in-out infinite alternate-reverse; }
+@keyframes grSweep { from { transform: rotate(-14deg); } to { transform: rotate(14deg); } }
+
+/* the sign */
+.gr-marquee { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.gr-neon.page-title {
+  font-size: 34px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #fff4fb;
+  text-shadow: 0 0 4px #fff, 0 0 12px var(--gr2), 0 0 26px var(--gr2), 0 0 44px color-mix(in srgb, var(--gr2) 60%, transparent);
+  animation: grFlicker 7s linear infinite;
+}
+@keyframes grFlicker { 0%, 92%, 95%, 100% { opacity: 1; } 93% { opacity: .55; } 94% { opacity: .9; } 96% { opacity: .7; } }
+.gr-sub { color: #b9b2d6; }
+.gr-onair { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--live) 50%, transparent); background: color-mix(in srgb, var(--live) 12%, #07060d); color: #c9f7da; font: 700 12px var(--font); letter-spacing: .03em; }
+.gr-onair i { width: 9px; height: 9px; border-radius: 50%; background: var(--live); box-shadow: 0 0 10px var(--live); animation: grBeat 1.8s ease-in-out infinite; }
+.gr-onair.off { border-color: #3a3550; background: #120f1c; color: #a9a3c4; }
+@keyframes grBeat { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.7); opacity: .6; } }
+
+/* your pass */
+.gr-pass { position: relative; gap: 12px; padding: 10px 12px 10px 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--gr) 45%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--gr) 22%, #0d0a18), color-mix(in srgb, var(--gr2) 14%, #0d0a18));
+  box-shadow: 0 10px 30px -14px var(--gr), inset 0 1px 0 #ffffff14; transform: rotate(-1.2deg); }
+.gr-pass::before { content: ''; position: absolute; top: 50%; left: -5px; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: #07060d; border: 1px solid color-mix(in srgb, var(--gr) 45%, transparent); }
+.gr-pass.none { border-style: dashed; background: #0f0c1a; box-shadow: none; transform: none; }
+.gr-pass-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.gr-pass .gr-me-label { font: 800 10.5px var(--font); letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--gr) 70%, #fff); }
+.gr-pass .gr-me-name { height: auto; padding: 0; border: 0; background: none; font: 800 19px var(--font); color: #fff; }
+.gr-pass .gr-me-name svg { display: none; }
+.gr-pass .gr-me-name:hover { text-decoration: underline dotted; }
+.gr-pass-fine { font-size: 11.5px; color: #a9a3c4; }
+.gr-pass-fine:empty { display: none; }
+.gr-live { font-weight: 650; color: #9ff0bf; }
+
+/* people: a colour each, a glowing dot while they're here */
+.gr-av { background: hsl(var(--hue, 265) 55% 42%); box-shadow: inset 0 -2px 0 #0003; }
+.gr-av.big { width: 42px; height: 42px; font-size: 18px; }
+.gr-av.tiny { width: 16px; height: 16px; font-size: 9px; }
+.gr-av.gr-nopass { background: #1a1628; color: #6f6890; }
+.gr-av.gr-nopass svg { position: absolute; inset: 0; margin: auto; width: 20px; height: 20px; }
+.gr-here { width: 10px; height: 10px; background: var(--live); box-shadow: 0 0 0 2px #07060d, 0 0 8px var(--live); }
+.gr-av.tiny .gr-here { width: 6px; height: 6px; right: -2px; bottom: -2px; box-shadow: 0 0 0 1.5px #07060d; }
+.gr-section .gr-label { color: #9ff0bf; letter-spacing: .12em; }
+.gr-people { gap: 10px; }
+.gr-person { height: 44px; padding: 0 14px 0 5px; border-radius: 22px; border-color: #2c2542; background: linear-gradient(180deg, #16112a, #0e0b19); color: #e6e0fa; font-size: 14px; font-weight: 650; transition: transform .15s, box-shadow .15s, border-color .15s; }
+.gr-person .gr-av { width: 34px; height: 34px; font-size: 15px; }
+.gr-person:hover { transform: translateY(-2px); border-color: color-mix(in srgb, hsl(var(--hue, 265) 70% 60%) 60%, transparent); box-shadow: 0 8px 20px -10px var(--gr); }
+.gr-person.sel { border-color: var(--gr); background: color-mix(in srgb, var(--gr) 22%, #0e0b19); box-shadow: 0 0 0 1px var(--gr), 0 0 22px -6px var(--gr); }
+.gr-pn { font-weight: 500; color: #a9a3c4; }
+.gr-personbar, .gr-minehead { background: #100c1d; border-color: #2a2340; }
+
+/* clips: posters under a light */
+.gr-tabs button[aria-pressed='true'], .gr-filter button[aria-pressed='true'] { background: color-mix(in srgb, var(--gr) 24%, transparent); box-shadow: inset 0 0 0 1px var(--gr), 0 0 16px -6px var(--gr); }
+.gr-count.new { background: var(--gr2); color: #fff; }
+.gr-grid { gap: 18px; }
+.gr-card { border-color: #2a2340; background: linear-gradient(180deg, #15102a, #0d0a18); box-shadow: 0 14px 30px -18px #000; }
+.gr-card:nth-child(3n + 1) { --tilt: -0.8deg; }
+.gr-card:nth-child(3n + 2) { --tilt: 0.6deg; }
+.gr-card:nth-child(3n) { --tilt: -0.3deg; }
+.gr-card { transform: rotate(var(--tilt, 0deg)); }
+.gr-card:hover { transform: rotate(0deg) translateY(-4px) scale(1.02); border-color: var(--gr); box-shadow: 0 0 0 1px var(--gr), 0 18px 36px -14px color-mix(in srgb, var(--gr) 70%, transparent); }
+.gr-card.on { border-color: var(--gr2); box-shadow: 0 0 0 1px var(--gr2), 0 0 28px -6px var(--gr2); }
+.gr-card .gr-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, #0d0a18cc); pointer-events: none; }
+.gr-by { display: inline-flex; align-items: center; gap: 6px; font-weight: 650; color: color-mix(in srgb, var(--gr) 55%, #fff); }
+.gr-player { background: #05040a; border-color: #2a2340; box-shadow: 0 0 0 1px #ffffff06, 0 20px 50px -24px var(--gr); }
+.gr-orb { background: color-mix(in srgb, var(--gr2) 16%, transparent); color: var(--gr2); box-shadow: 0 0 30px -4px var(--gr2); }
+
+@media (prefers-reduced-motion: reduce) {
+  #page-greenroom::before, #page-greenroom::after, .gr-neon.page-title, .gr-onair i { animation: none; }
+  .gr-card, .gr-card:hover, .gr-pass, .gr-person:hover { transform: none; }
+}
+
+/* 4.3: the Drop, clearer */
+.drop3 .drop-line { margin: 4px 0 0; font-size: 12.5px; color: var(--ink-2); }
+.drop3.on .drop-line { color: #d9d3ff; }
+.drop3.on.idle .drop-line { color: #ffd36b; }
+.drop3 .drop-warn { margin: 4px 0 0; font-size: 12px; color: #ffd36b; }
+.hw-drop-head small.drop-line { margin: 0; }
+.np-drop.idle[aria-pressed='true'] { border-color: color-mix(in srgb, #ffd36b 50%, transparent); background: color-mix(in srgb, #ffd36b 8%, transparent); }
+.np-drop.idle[aria-pressed='true'] .led { background: #ffd36b; box-shadow: none; }

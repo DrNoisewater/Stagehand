@@ -314,7 +314,7 @@ class Takes {
   }
 
   /** Adds a finished video (already in the recordings folder) to the list.
-   *  `about` (4.3): what was played, for the Green Room (aboutClip below). */
+   *  `about` (4.3): what was played, for Backstage (aboutClip below). */
   async addVideo({ file, name, songId = null, seconds = 0, about = null }) {
     await this._load();
     const id = `k_${crypto.randomBytes(5).toString('hex')}`;

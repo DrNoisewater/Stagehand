@@ -74,7 +74,7 @@ export function createPerformanceTools({ root, stage, H, rig }) {
     engine: eng,
     title: () => (H.song && H.song.title) || 'Jam Session',
     songId: () => (H.song && H.song.id) || null,
-    // 4.3: the clip remembers the song, the part and the speed (the Green Room shows them)
+    // 4.3: the clip remembers the song, the part and the speed (Backstage shows them)
     about: () => ({
       song: H.song ? { title: H.song.title, artist: H.song.artist, official: !!H.song.official } : null,
       part: H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null,
@@ -108,7 +108,7 @@ export function createPerformanceTools({ root, stage, H, rig }) {
       { label: run ? 'Stop the score attack' : 'Score attack: a full run for points', icon: 'star', onClick: () => attack.onclick() },
       { label: clip.active ? 'Stop and save the clip' : 'Record a video clip', icon: 'record', onClick: () => rec.onclick() },
       '-',
-      { label: 'The Green Room (my clips)', icon: 'people', onClick: () => import('./greenroom.js').then((m) => m.openGreenRoom({ tab: 'mine' })) },
+      { label: 'Backstage (my clips)', icon: 'people', onClick: () => import('./greenroom.js').then((m) => m.openGreenRoom({ tab: 'mine' })) },
       { label: 'Timing check', icon: 'clock', onClick: () => H.openSync && H.openSync() },
     ], { align: 'right' });
   };

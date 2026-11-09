@@ -1,9 +1,9 @@
 /**
- * The Green Room (4.3) in Chromium: two pages are two Stagehands, each with the
+ * Backstage (4.3) in Chromium: two pages are two Stagehands, each with the
  * real page (js/greenroom.js, js/room.js, js/friendlink.js), a real GreenRoom
  * service behind a stand-in bridge, and a local stand-in meeting point. Alex shows
  * a video (a short WebM made in the page) with its song, part and tone; Bo sees it
- * in The Room, watches it, keeps the tone, and they message about it. A long video
+ * under Everyone, watches it, keeps the tone, and they message about it. A long video
  * whose connection drops partway carries on. Screenshots go to <outDir>.
  *
  *   node test/e2e/greenroom-chromium.js <outDir>
@@ -65,7 +65,7 @@ function fakeNtfy() {
   return new Promise((r) => server.listen(0, '127.0.0.1', () => r({ server, url: `http://127.0.0.1:${server.address().port}` })));
 }
 
-// the app's own page, with the Green Room's parts loaded instead of the whole app
+// the app's own page, with Backstage's parts loaded instead of the whole app
 const HARNESS = fs
   .readFileSync(path.join(ROOT, 'src/renderer/index.html'), 'utf8')
   .replace(/<meta\s+http-equiv="Content-Security-Policy"[\s\S]*?\/>/, '')
@@ -134,7 +134,7 @@ async function stagehand(browser, name, relay, url) {
     'room.hide': (a, on) => room.hide(a, on),
     'room.share': (id, on) => {
       const t = takes.find((x) => x.id === id);
-      if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can go in the Green Room'), { code: 'NOT_VIDEO' });
+      if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can go backstage'), { code: 'NOT_VIDEO' });
       return room.setShared(id, on);
     },
     'room.connect': (addr, sdp) => room.connect(addr, sdp, { onStage: (stage) => page.evaluate((p) => window.__emit('room:progress', p), { addr, stage }).catch(() => {}) }),
@@ -248,14 +248,14 @@ const shot = async (S, file) => {
     // Bo looks first: nobody here yet (nobody has a name)
     await B.page.evaluate(() => window.setPage('greenroom'));
     await B.page.waitForSelector('#page-greenroom .gr-empty', { timeout: 15000 });
-    check(/Nobody else is here/.test(await B.page.locator('#page-greenroom .gr-empty').textContent()), 'an empty Green Room says so, and how clips get there');
+    check(/Nobody else is here/.test(await B.page.locator('#page-greenroom .gr-empty').textContent()), 'an empty Backstage says so, and how clips get there');
     check(/Come in/.test(await B.page.locator('.gr-me').textContent()), 'without a name you can look around, with a Come in button');
     await shot(B, 'gr-1-empty.png');
 
     // Alex: My clips; only videos can be shown
     await A.page.evaluate(() => window.GR.openGreenRoom({ tab: 'mine' }));
     await A.page.waitForSelector('#page-greenroom .gr-row');
-    check((await A.page.locator('.gr-row.video .gr-show').count()) === 2 && (await A.page.locator('.gr-row:not(.video) .gr-show').count()) === 0, 'only videos have Show in the Green Room');
+    check((await A.page.locator('.gr-row.video .gr-show').count()) === 2 && (await A.page.locator('.gr-row:not(.video) .gr-show').count()) === 0, 'only videos have Show backstage');
     check(/Paranoid · Lead · Crunchy Plexi/.test(await A.page.locator('.gr-row[data-clip="k_aaaaaaaaaa"]').textContent()), 'a clip in My clips says its song, part and tone');
     await A.page.locator('.gr-row[data-clip="k_aaaaaaaaaa"] .gr-show').click();
     // the first time: pick a name
@@ -264,8 +264,8 @@ const shot = async (S, file) => {
     await shot(A, 'gr-2-pick-name.png');
     await A.page.locator('.modal button:has-text("Come in")').click();
     await A.page.waitForSelector('.gr-row[data-clip="k_aaaaaaaaaa"] .gr-show.on', { timeout: 10000 });
-    check(A.room.joined && A.room.isShared('k_aaaaaaaaaa') && !A.room.isShared('k_bbbbbbbbbb'), 'after a name, that one video is in the Green Room');
-    check(/You’re in as\s*Alex/.test(await A.page.locator('.gr-me').textContent()), 'Alex sees their name at the top');
+    check(A.room.joined && A.room.isShared('k_aaaaaaaaaa') && !A.room.isShared('k_bbbbbbbbbb'), 'after a name, that one video is backstage');
+    check(/backstage pass\s*Alex/i.test(await A.page.locator('.gr-me').textContent()), 'Alex sees their name at the top');
     await shot(A, 'gr-3-mine-shown.png');
 
     // Bo: Alex and their clip show up by themselves
@@ -357,7 +357,7 @@ const shot = async (S, file) => {
     await A.page.locator('.gr-tabs [data-tab="mine"]').click();
     await A.page.locator('.gr-row[data-clip="k_aaaaaaaaaa"] .gr-show.on').click();
     await B.page.waitForFunction(() => ![...document.querySelectorAll('.gr-card')].some((c) => c.dataset.clip === 'k_aaaaaaaaaa'), null, { timeout: 15000 }).catch(() => {});
-    check(!(await B.page.locator('.gr-card[data-clip="k_aaaaaaaaaa"]').count()), 'a clip taken out leaves everyone’s Green Room');
+    check(!(await B.page.locator('.gr-card[data-clip="k_aaaaaaaaaa"]').count()), 'a clip taken out leaves everyone’s Backstage');
 
     // Alex closes Stagehand: Bo sees them go
     await A.room.close();

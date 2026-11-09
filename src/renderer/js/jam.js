@@ -211,7 +211,7 @@ export function registerJamControls(cards,refresh){
 }
 let clip=null;
 export const recordControl=h('button.jam-chip',{text:'Record video'});controls.append(recordControl);
-// 4.3: your recordings are in the Green Room (My clips)
-export const recordingsControl=h('button.jam-chip',{text:'My clips',title:'Your recordings, in the Green Room: play, show, rename, delete'});controls.append(recordingsControl);
+// 4.3: your recordings are backstage (My clips)
+export const recordingsControl=h('button.jam-chip',{text:'My clips',title:'Your recordings, backstage: play, show, rename, delete'});controls.append(recordingsControl);
 recordingsControl.onclick=()=>import('./greenroom.js').then((r)=>r.openGreenRoom({tab:'mine'}));
 recordControl.onclick=async()=>{const record=recordControl;clip??=createClipRecorder({rig,engine:stage.engine,title:()=>'Jam Session',about:()=>({part:'jam'})});record.disabled=true;try{if(clip.active){record.textContent='Exporting…';await clip.stop();record.textContent='Record video';}else{await clip.start();record.textContent='Save video';}}catch(e){record.textContent='Record video';toast({title:'Recording',message:e.message,kind:'err'});}finally{record.disabled=false;}};

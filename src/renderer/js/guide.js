@@ -5,7 +5,7 @@
  *    song, tuning up and the timing check.
  *  - Play a song: reading the highway and its controls; stems and the mix.
  *  - Around Stagehand: one page per menu section (Songs, Jam, Tones,
- *    Progress, Discover, the Green Room), then the keys.
+ *    Progress, Discover, Backstage), then the keys.
  * Every tour page has "Show me": the guide steps aside, goes there and rings
  * the control it's talking about, with a way back to the same page.
  * Offered once on a fresh install with no songs; people who saw the old,
@@ -379,7 +379,7 @@ const PAGES = [
           ['Tuner and Drop', 'The tuner follows the tuning you’re in, or the song you last opened. The Drop lowers your sound without retuning; Match follows each song.'],
           ['Drums & metronome', 'Pick a beat (Click, Rock, Shuffle, Metal…) and a tempo, and play along.'],
           ['Looper', 'Press Record, play, press Stop: it loops straight away. Overdub to add layers; it locks to the drums when they’re on.'],
-          ['Record video', 'Records you jamming, with the sound. Find it in the Green Room, under My clips.'],
+          ['Record video', 'Records you jamming, with the sound. Find it Backstage, under My clips.'],
           ['Visualizer', 'Open visualizer (or J) for a full screen with a moving background that reacts to what you play.']
         )
       ),
@@ -426,8 +426,8 @@ const PAGES = [
       ),
   },
   {
-    title: 'The Green Room',
-    show: { title: 'The Green Room', at: '.nav-section[data-page="greenroom"]', go: () => setPage('greenroom'), tip: 'Your clips, the clips other players show, and your messages.' },
+    title: 'Backstage',
+    show: { title: 'Backstage', at: '.nav-section[data-page="greenroom"]', go: () => setPage('greenroom'), tip: 'Your clips, the clips other players show, and your messages.' },
     draw: () =>
       h(
         'div',
@@ -435,8 +435,8 @@ const PAGES = [
         steps(
           ['Video clips', 'On the highway, Tools › Record a video clip records you playing along, with the sound. Jam can record too. Each clip remembers the song, the part and your tone.'],
           ['My clips', 'Everything you’ve recorded, looper takes too. Play, rename, delete, or show the file.'],
-          ['Show it', 'Press Show in the Green Room on a video and everyone with Stagehand can watch it while your Stagehand is open. Pick a name the first time.'],
-          ['The Room', 'See who’s here and what they’ve shown. Watch a clip, try or keep their tone, open the song if you have it, or message them.']
+          ['Show it', 'Press Show backstage on a video and everyone with Stagehand can watch it while your Stagehand is open. Pick a name the first time.'],
+          ['Everyone', 'See who’s here and what they’ve shown. Watch a clip, try or keep their tone, open the song if you have it, or message them.']
         )
       ),
   },

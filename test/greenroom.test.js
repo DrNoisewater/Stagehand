@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The Green Room (4.3): the shared meeting point, who's here, their clips, messages,
+ * Backstage (4.3): the shared meeting point, who's here, their clips, messages,
  * hiding someone, watching (the offer and answer), old messages kept, and the
  * meeting-point helpers. Uses a small stand-in for an ntfy server on localhost.
  *   node test/greenroom.test.js

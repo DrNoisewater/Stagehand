@@ -112,7 +112,7 @@ function render() {
   }
   row.append(songs);
 
-  // recordings: the newest few; everything is in the Green Room (My clips)
+  // recordings: the newest few; everything is backstage (My clips)
   const allRec = h('button.btn.small.ghost', { type: 'button', text: 'All my clips' });
   allRec.onclick = () => import('./greenroom.js').then((r) => r.openGreenRoom({ tab: 'mine' }));
   const takes = h('section.card.ptakes', { 'aria-label': 'Recordings' }, h('div.card-head', null, h('h2', { text: 'Recordings' }), allRec));

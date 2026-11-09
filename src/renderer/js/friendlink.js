@@ -1,11 +1,11 @@
 /**
  * The direct connection between two Stagehands (WebRTC data channel,
- * DTLS-encrypted; 4.1 for friends, 4.3 for the Green Room). The offer and answer
+ * DTLS-encrypted; 4.1 for friends, 4.3 for Backstage). The offer and answer
  * travel sealed through the main process (services/greenroom.js), through the
  * other person's hidden address. No UI here (see greenroom.js), and `api` is
  * passed in so tests can drive it in a plain browser.
  *
- * What travels is the videos you show in the Green Room, with what's in them
+ * What travels is the videos you show backstage, with what's in them
  * (song, part, tone: `list`).
  * On the channel (JSON text, plus binary chunks of a file):
  *   friend → host  {op:'hi', name} (4.1.3: who's watching; older hosts ignore it)
@@ -80,7 +80,7 @@ async function sendBytes(dc, bytes) {
 // ------------------------------------------------------------------ host --
 /**
  * Answers people who connect to watch, handing out the videos main says are
- * shown in the Green Room (it refuses the rest). Returns { peers, stop }.
+ * shown backstage (it refuses the rest). Returns { peers, stop }.
  */
 export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
   const peers = new Map();

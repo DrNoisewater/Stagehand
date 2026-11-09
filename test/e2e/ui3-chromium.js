@@ -286,7 +286,7 @@ class FakePortMain extends EventEmitter {
     'takes.list': () => takes.list(),
     'takes.save': (t) => takes.save({ ...t, pcm: Uint8Array.from(Object.values(t.pcm)) }),
     'takes.remove': (id) => takes.remove(id),
-    // the Green Room: one other player showing one clip
+    // Backstage: one other player showing one clip
     'room.get': () => ({ joined: false, name: '', suggest: '', me: '', listening: true, inRoom: true, relays: [], shared: [], hidden: [], old: [], chats: [],
       people: [{ addr: '0123456789ABCDEFGHJKMNPQRS', name: 'Sam', seen: Date.now(), clips: [{ id: 'v1', title: 'Fade To Black', song: 'Fade To Black', artist: 'Metallica', part: 'lead', tuning: 'E Standard', speed: 0.8, tone: 'Crunch 75', sec: 42, size: 3000000, at: Date.now() - 60000 }] }] }),
     'songs.setUser': (id, patch) => library.setUser(id, patch),
@@ -1382,9 +1382,9 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(500);
   check(await page.evaluate(() => document.querySelector('.jam').hidden && !document.querySelector('.jam .hw-fluid')), 'Esc leaves Jam and stops the picture');
 
-  // 4.3: the Green Room, last on the menu: who's here and their clips, then My clips (every recording, playable here)
+  // 4.3: Backstage, just above Getting started: who's here and their clips, then My clips (every recording, playable here)
   await takes.save({ name: 'Integration', seconds: 1, rate: 48000, channels: 1, pcm: new Uint8Array(new Float32Array(48000).fill(0.05).buffer) });
-  check(await page.evaluate(() => { const s = [...document.querySelectorAll('.nav-section')]; return s.length && s[s.length - 1].dataset.page === 'greenroom'; }), 'The Green Room is last on the menu');
+  check(await page.evaluate(() => { const s = [...document.querySelectorAll('.nav-section')].map((b) => b.dataset.page); return s.length > 1 && s[s.length - 1] === 'guide' && s[s.length - 2] === 'greenroom'; }), 'Backstage is just above Getting started, which is last on the menu');
   await page.locator('.nav-section[data-page="greenroom"]').click();
   await page.waitForSelector('#page-greenroom .gr-card', { timeout: 10000 });
   const cardText = await page.evaluate(() => document.querySelector('#page-greenroom .gr-card').textContent);
@@ -1452,7 +1452,7 @@ class FakePortMain extends EventEmitter {
   await page.locator('.nav-section[data-page="guide"]').click();
   await page.waitForTimeout(600);
   const pages = await page.locator('.gs-step span').allTextContents();
-  check(['Tune up', 'The highway', 'Stems: mute any part', 'Songs', 'Jam', 'Tones', 'Progress', 'Discover', 'The Green Room'].every((t) => pages.includes(t)), `Getting started covers every section: ${pages.join(' / ')}`);
+  check(['Tune up', 'The highway', 'Stems: mute any part', 'Songs', 'Jam', 'Tones', 'Progress', 'Discover', 'Backstage'].every((t) => pages.includes(t)), `Getting started covers every section: ${pages.join(' / ')}`);
   await shot('40-guide-welcome');
   await page.locator('.gs-step:has-text("Stems")').click();
   await page.waitForTimeout(250);

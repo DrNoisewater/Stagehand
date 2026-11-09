@@ -177,11 +177,11 @@ export function render() {
   );
   const discoverSub = h('div.nav-sub');
   top.append(discoverSub);
-  // 4.1.2: a walk-through for people new to Rocksmith songs (opens a window, not a page)
-  top.append(section({ page: 'guide', label: 'Getting started', iconName: 'info', gel: 'var(--gel-other)', onClick: () => import('./guide.js').then((g) => g.openGuide()) }));
-  // 4.3: the Green Room (your clips, everyone's shown clips, messages), last on the menu
+  // 4.3: Backstage (your clips, everyone's shown clips, messages), just above Getting started
   const unread = unreadAll();
-  top.append(section({ page: 'greenroom', label: 'The Green Room', iconName: 'people', gel: 'var(--gel-bass)', badge: unread ? String(unread) : '' }));
+  top.append(section({ page: 'greenroom', label: 'Backstage', iconName: 'people', gel: 'var(--gel-bass)', badge: unread ? String(unread) : '' }));
+  // 4.1.2: a walk-through for people new to Rocksmith songs (opens a window, not a page), last on the menu
+  top.append(section({ page: 'guide', label: 'Getting started', iconName: 'info', gel: 'var(--gel-other)', onClick: () => import('./guide.js').then((g) => g.openGuide()) }));
 
   root.append(top);
   // section highlight follows the page, not the Songs list
@@ -407,7 +407,7 @@ export async function addFolder(p) {
 }
 
 on('library', render);
-// the Green Room's count of new messages
+// Backstage's count of new messages
 let lastUnread = 0;
 const roomCount = () => {
   const n = unreadAll();
