@@ -191,7 +191,7 @@ export const practice = new (class extends EventTarget {
       this.flush();
       const src = this._source();
       const j = src.judge;
-      this.session = { songId: this.song.id, part: src.part, secs: 0, at: Date.now(), judge: j, hits0: j ? j.hits : 0, judged0: j ? j.judged : 0, tuning: this.tab ? this.tab.tuning : null, cents: this.tab ? this.tab.cents || 0 : 0, title: this.song ? this.song.title : null, kind: this.kind, tab: src.tab, targets: src.targets, pos0: stage.engine.position - 0.5, speed: stage.engine.speed };
+      this.session = { songId: this.song.id, part: src.part, secs: 0, at: Date.now(), judge: j, hits0: j ? j.hits : 0, judged0: j ? j.judged : 0, tuning: this.tab ? this.tab.tuning : null, cents: this.tab ? this.tab.cents || 0 : 0, title: this.song ? this.song.title : null, kind: this.kind, tab: src.tab, targets: src.targets, pos0: stage.engine.position - 0.5, speed: stage.engine.speed, drop: rig.dropAmount() };
     }
   }
 
@@ -216,8 +216,14 @@ export const practice = new (class extends EventTarget {
       let notes = j ? j.judged - s.judged0 : 0;
       if (j && (notes < 0 || hit < 0)) (hit = j.hits), (notes = j.judged); // the score was reset (seek back): count what's there
       const accuracy = notes > 0 ? hit / notes : null;
-      // played it well with the Drop off: that's how your instrument is tuned now
-      if (accuracy !== null && accuracy >= 0.6 && notes >= 30 && !rig.dropAmount() && s.tuning) setMyTuning(s.kind, s.tuning, s.cents || 0, s.title);
+      // played it well with the Drop off: that's how your instrument is tuned now.
+      // 4.3: the Drop as it was while you played, not after: turning it off (D) ends the
+      // session, and reading it then "learned" the song's tuning as yours, so the Drop
+      // did nothing on the next song in that tuning
+      if (accuracy !== null && accuracy >= 0.6 && notes >= 30 && !s.drop && !rig.dropAmount() && s.tuning) {
+        setMyTuning(s.kind, s.tuning, s.cents || 0, s.title);
+        if (rig.songTuning && rig.songTuning.length) rig.setSongTuning(rig.songTuning, rig.songKind, rig.songCents); // "match the song" follows
+      }
       // the breakdown (sections, kinds of notes, longest streak) of what was played in this session
       const detail = j && s.targets ? compact(breakdown(s.tab, s.targets, j, { from: s.pos0 })) : {};
       api.stats.log({ songId: s.songId, part: s.part, seconds: s.secs, accuracy, notes, hit, speed: s.speed ?? stage.engine.speed, at: s.at, ...detail }).then(() => emit('stats')).catch(() => {});
@@ -276,6 +282,7 @@ window.addEventListener('beforeunload', () => practice.flushAll());
 // the Drop changes which pitches you play for the same notes: re-aim the scoring
 rig.addEventListener('drop', () => {
   const st = rig.dropAmount();
+  if (practice.session && st) practice.session.drop = st; // played with the Drop at some point
   if (st === tuneShift.st) return;
   tuneShift.st = st;
   if (practice.tab) {

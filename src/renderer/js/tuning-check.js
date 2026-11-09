@@ -13,10 +13,11 @@
  */
 import { h, modal, toast } from './ui.js';
 import { rig } from './rig.js';
-import { tuningPlan, tuningName, myTuning, myCents, myTuningFrom, setMyTuning, refLabel, howFar, whichString, dropAlways, setDropAlways } from './tuning.js';
+import { tuningPlan, tuningName, myTuning, myCents, myTuningFrom, setMyTuning, refLabel, howFar, whichString, dropAlways, setDropAlways, dropCovers } from './tuning.js';
 
 const COLORS = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 const skipped = new Set(); // songs × tunings you said "keep going" to, this session
+const warned = new Set(); // songs the "the Drop is still on" note was shown for, this session
 let open = null;
 
 const fullName = (offs, cents, kind) => `${tuningName(offs, kind)}${refLabel(cents) ? ` ${refLabel(cents)}` : ''}`;
@@ -33,21 +34,30 @@ export function checkTuning(tab, song, { force = false, engine = null } = {}) {
   const mc = myCents(kind);
   const sc = Number(tab.cents) || 0;
   const plan = tuningPlan(tab.tuning, kind, mine, sc, mc);
+  const what0 = kind === 'bass' ? 'bass' : 'guitar';
   if (plan.same) {
-    if (force) toast({ title: `Your ${kind} is ready`, message: `${fullName(tab.tuning, sc, kind)}, the same as this song.`, kind: 'ok', timeout: 2500 });
+    // 4.3: the Drop left on at a fixed step would make this song sound too low: say so (once)
+    const a = rig.drop.on && !rig.drop.match ? rig.drop.st : 0;
+    const wkey = `${song && song.id}|${kind}|${a}`;
+    if (a && (force || !warned.has(wkey))) {
+      warned.add(wkey);
+      toast({ title: 'The Drop is still on', message: `This song is in your tuning (${fullName(tab.tuning, sc, kind)}), but your ${what0} sounds ${a === 12 ? 'an octave' : `${a} semitone${a === 1 ? '' : 's'}`} lower. Press D to turn it off.`, kind: 'info', timeout: 5000 });
+    } else if (force) toast({ title: `Your ${kind} is ready`, message: `${fullName(tab.tuning, sc, kind)}, the same as this song.`, kind: 'ok', timeout: 2500 });
     return;
   }
   const key = `${song && song.id}|${kind}|${(tab.tuning || []).join(',')}|${sc}|${mine.join(',')}|${mc}`;
   const songName = fullName(tab.tuning, sc, kind);
   const myName = fullName(mine, mc, kind);
   const what = kind === 'bass' ? 'bass' : 'guitar';
+  // 4.3: the Drop is already on and does this song (on "match", or on the step it needs):
+  // it stays on, and no card. Once you use the Drop for a tuning, the next song in it just plays.
+  if (!force && dropCovers(rig.drop, plan)) return;
   // the Drop can do it and you said always: no card
   if (!force && plan.drop && dropAlways()) {
-    if (!(rig.drop.on && rig.drop.match)) rig.setDrop({ on: true, match: true });
+    rig.setDrop({ on: true, match: true });
     toast({ title: `Drop −${plan.drop} for ${songName}`, message: `Your ${what} stays in ${myName}.`, kind: 'info', timeout: 2500 });
     return;
   }
-  if (!force && plan.drop && rig.drop.on && rig.drop.match) return; // already covered by the Drop
   if (!force && skipped.has(key)) return;
   if (open) open.close();
   show({ tab, song, kind, plan, key, songName, myName, what, sc, engine });
@@ -103,7 +113,8 @@ function show({ tab, song, kind, plan, key, songName, myName, what, sc, engine }
   const finish = (msg) => {
     setMyTuning(kind, tab.tuning, sc, song && song.title);
     rig.setSongTuning(tab.tuning, kind, sc);
-    if (rig.drop.on && rig.drop.match) rig.setDrop({ on: false });
+    // you retuned for the song: the Drop on top would take it lower again (4.3: a fixed step too)
+    if (rig.drop.on) rig.setDrop({ on: false });
     m.close();
     toast({ title: msg || `Your ${what}: ${songName}`, kind: 'ok', timeout: 2200 });
   };

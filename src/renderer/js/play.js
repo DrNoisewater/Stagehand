@@ -367,11 +367,15 @@ export function renderDrop() {
   dropCard.classList.toggle('on', d.on);
   const sw = h('button.drop-switch', { type: 'button', 'aria-pressed': String(d.on), title: `${d.on ? 'Turn the Drop off' : 'Turn the Drop on'} (D)` }, h('span.led'));
   sw.onclick = () => rig.setDrop({ on: !d.on });
-  const label = d.on ? (amt ? (amt === 12 ? 'Octave down' : `Down ${amt} semitone${amt === 1 ? '' : 's'}`) : 'Song is in standard') : 'Off';
-  dropCard.append(h('div.card-head', null, h('h2', { text: 'Drop' }), h('span.drop-state', { text: label }), h('span.grow'), sw));
+  // 4.3: one clear line, whether it's working right now and by how much
+  const ds = rig.dropStatus();
+  dropCard.classList.toggle('idle', ds.state === 'idle');
+  dropCard.append(h('div.card-head', null, h('h2', { text: 'Drop' }), h('span.grow'), sw));
+  dropCard.append(h('p.drop-line', { text: ds.line }));
+  if (ds.state === 'on' && ds.warn) dropCard.append(h('p.drop-warn', { text: ds.warn }));
   const chips = h('div.drop-steps', { role: 'group', 'aria-label': 'How far to drop' });
   for (const st of DROP_STEPS) {
-    const b = h('button', { type: 'button', text: st === 12 ? 'Oct' : `−${st}`, 'aria-pressed': String(!d.match && d.st === st), title: `Sound like ${TUNE_NAMES[st]}` });
+    const b = h('button', { type: 'button', text: st === 12 ? 'Oct' : `−${st}`, 'aria-pressed': String(d.on && !d.match && d.st === st), title: `Sound like ${TUNE_NAMES[st]}` });
     b.onclick = () => rig.setDrop({ st, match: false, on: true });
     chips.append(b);
   }
@@ -379,8 +383,9 @@ export function renderDrop() {
   const songSt = rig.dropSong;
   const kind = rig.songKind || 'guitar';
   const songName = rig.songTuning && rig.songTuning.length ? tuningName(rig.songTuning, kind) : '';
-  const match = h('label.check.drop-match', null, h('input', { type: 'checkbox', checked: d.match ? true : null }), h('span', { text: songSt ? `Match the song (${songName}: −${songSt})` : 'Match the song’s tuning' }));
-  match.querySelector('input').onchange = (e) => rig.setDrop({ match: e.target.checked, on: e.target.checked ? true : d.on });
+  const match = h('label.check.drop-match', null, h('input', { type: 'checkbox', checked: d.on && d.match ? true : null }), h('span', { text: songSt ? `Match the song (${songName}: −${songSt})` : 'Match the song’s tuning' }));
+  // unticking keeps the sound as it is: the Drop stays at the step it was on (or goes off if it did nothing)
+  match.querySelector('input').onchange = (e) => rig.setDrop(e.target.checked ? { match: true, on: true } : amt ? { match: false, st: amt } : { match: false, on: false });
   dropCard.append(match);
   // 3.7: what your instrument is actually tuned to (Stagehand also learns it from your playing)
   const mine = h('select.input.drop-mine', { 'aria-label': `Your ${kind} is tuned to` });

@@ -1,6 +1,6 @@
 import { cabinetFor,prepareCab,cabSamples } from './cabinets.js';
 import { detectPitch, PitchSmoother } from './pitch.js';
-import { tuningPlan, myTuning } from './tuning.js';
+import { tuningPlan, myTuning, dropStatus } from './tuning.js';
 import { InstrumentSense, reading } from './instrument.js';
 import { instrumentShift } from './detect.js';
 import { loadGear, toSpec, ampGain, describe } from './gearspec.js';
@@ -1130,6 +1130,13 @@ export class Rig extends EventTarget {
   dropAmount() {
     if (!this.drop.on) return 0;
     return this.drop.match ? this.dropSong : this.drop.st;
+  }
+
+  /** 4.3: what the Drop is doing right now, in words: { state, line, short, warn } (tuning.js). */
+  dropStatus() {
+    const kind = this.songKind === 'bass' ? 'bass' : 'guitar';
+    const song = this.songTuning && this.songTuning.length ? { tuning: this.songTuning, cents: this.songCents || 0 } : null;
+    return dropStatus(this.drop, this.dropAmount(), song, kind);
   }
 
   /** Change the Drop: { on, st (1–12, 12 = octave), match (follow the song's tuning) }. */

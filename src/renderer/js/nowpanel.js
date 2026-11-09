@@ -55,12 +55,14 @@ const dropPill = h('button.np-drop', { type: 'button' });
 dropPill.onclick = () => rig.setDrop({ on: !rig.drop.on });
 function renderDrop() {
   if (!dropPill.isConnected && guitarPill.parentNode) guitarPill.before(dropPill);
+  // 4.3: says whether it's working right now: "Drop on · −1", "Drop on · not needed", "Drop off"
   const on = rig.drop.on;
-  const amt = rig.dropAmount();
+  const ds = rig.dropStatus();
   dropPill.setAttribute('aria-pressed', String(on));
+  dropPill.classList.toggle('idle', ds.state === 'idle');
   dropPill.innerHTML = '';
-  dropPill.append(h('span.led'), h('span', { text: on ? (amt === 12 ? 'Drop · Oct' : amt ? `Drop −${amt}` : 'Drop · song in E') : 'Drop' }));
-  dropPill.title = on ? 'The Drop is on: click (or press D) to turn it off' : 'Turn on the Drop to play lower-tuned songs in E standard (D)';
+  dropPill.append(h('span.led'), h('span', { text: ds.short }));
+  dropPill.title = `The Drop: ${ds.line}.${ds.warn ? ` ${ds.warn}` : ''} Click (or press D) to turn it ${on ? 'off' : 'on'}.`;
 }
 rig.addEventListener('drop', renderDrop);
 
