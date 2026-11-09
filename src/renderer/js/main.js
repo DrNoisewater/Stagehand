@@ -138,7 +138,7 @@ function crashNotice(n) {
   const showRec = (r) => {
     recs.innerHTML = '';
     for (const x of n.recordings || []) {
-      recs.append(h('p', { text: x.saving ? `Saving the recording of ${x.title} as far as it got…` : x.name ? `The recording was saved as far as it got: “${x.name}”, in Recordings.` : x.error ? `The recording couldn’t be saved: ${x.error}` : 'The recording had nothing in it yet.' }));
+      recs.append(h('p', { text: x.saving ? `Saving the recording of ${x.title} as far as it got…` : x.name ? `The recording was saved as far as it got: “${x.name}”, in the Green Room, under My clips.` : x.error ? `The recording couldn’t be saved: ${x.error}` : 'The recording had nothing in it yet.' }));
     }
   };
   showRec();

@@ -414,8 +414,9 @@ function drawProgress() {
   if (!w || !bar) return drawPlayer();
   bar.style.setProperty('--p', `${Math.round(w.p * 100)}%`);
   const t = player.querySelector('.gr-progress-text');
-  if (t) t.textContent = w.retry ? `Connection dropped, reconnecting… (${Math.round(w.p * 100)}% so far)` : `Getting it from ${w.name}’s PC… ${Math.round(w.p * 100)}%`;
+  if (t) t.textContent = progressText(w);
 }
+const progressText = (w) => (w.retry ? `Connection dropped, reconnecting… (${Math.round(w.p * 100)}% so far)` : `Getting it from ${w.name}’s PC… ${Math.round(w.p * 100)}%`);
 
 function drawPlayer() {
   const w = V.watch;
@@ -447,7 +448,7 @@ function drawPlayer() {
       h('b', { text: w.stage === 'retry' ? `Trying once more to reach ${w.name}…` : `Getting ${w.name}’s clip…` }),
       h('ol.gr-steps', null, ...steps.map(([, t], i) => h(`li.${i < at ? 'done' : i === at ? 'now' : 'todo'}`, null, h('i', { html: i < at ? icon('check') : '' }), h('span', { text: t })))),
       w.stage === 'getting' ? h('div.gr-progress', { style: { '--p': `${Math.round(w.p * 100)}%` } }, h('i')) : null,
-      w.stage === 'getting' ? h('span.gr-progress-text', { text: `Getting it from ${w.name}’s PC… ${Math.round(w.p * 100)}%` }) : null);
+      w.stage === 'getting' ? h('span.gr-progress-text', { text: progressText(w) }) : null);
   } else {
     stopPlayer();
     media = h(w.kind === 'audio' ? 'audio' : 'video', { src: w.url, controls: true, crossOrigin: 'anonymous' });

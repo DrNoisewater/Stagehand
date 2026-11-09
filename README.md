@@ -87,9 +87,9 @@ Double-click a song, or press **Play along**.
 
 Time played, day streak, accuracy over time, goals, what's improving, and **your recordings** to look back on.
 
-### 👥 Friends
+### 👥 The Green Room
 
-Share your highway and Jam videos with friends. Swap codes in **Recordings › Friends**, and they can watch the videos you choose to share.
+Last on the menu. **My clips** has everything you've recorded. Press **Show in the Green Room** on a video and everyone with Stagehand can watch it while your Stagehand is open. Each clip shows the song, the part and the tone: try or keep someone's tone, open the song if you have it (or find it on CustomsForge), and message them about it. No codes, no accounts: just a name.
 
 ---
 
@@ -170,9 +170,10 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.3:** the Green Room replaces Recordings and friend codes: show a clip and everyone with Stagehand can watch it, with its song, part and tone.
 - **4.2.1:** the neck lights up as notes arrive, like Rocksmith: each note's spot on its string, the frets around it, and the chord frame.
 - **4.2:** a real practice song for the timing check, slow down or speed up one or several sections, metal and lead sounds with pedals and a noise gate, a calmer Tones page, and a tab view you can click and drag.
-- **4.1:** watch your friends' highway and Jam videos. Swap codes in **Recordings › Friends**. Only videos you choose to share can be seen, and only while your Stagehand is open. 4.1.1 makes connecting more reliable.
+- **4.1:** watch your friends' highway and Jam videos. Only videos you choose to share can be seen, and only while your Stagehand is open. 4.1.1 makes connecting more reliable.
 - **4.0.3:** official DLC plays, even when its audio is stored elsewhere in your Rocksmith folder.
 - **3.12:** real cabinets, Jam as the home screen, 17 drum styles, Score attack, Record clip, progress goals and new moving backgrounds.
 - **3.9:** a score card after each song, Master Settings on the highway, and the mouse back button.

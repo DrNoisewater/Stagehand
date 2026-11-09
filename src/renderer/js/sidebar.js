@@ -10,6 +10,7 @@ const storeFns = { accBand };
 import { h, icon, esc, showMenu, confirmDialog, toast } from './ui.js';
 import { counts as discoverCounts } from './discover.js';
 import { updateLabel, openUpdate } from './updates.js';
+import { unreadAll } from './room.js';
 
 const side = document.getElementById('sidebar');
 const root = h('div.nav-scroll');

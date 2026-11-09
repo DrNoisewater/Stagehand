@@ -1638,8 +1638,9 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 /* ------------------------------------------- 4.3: the Green Room (js/greenroom.js) -- */
 #page-greenroom { --gr: var(--gel-bass); gap: 16px; background: radial-gradient(1000px 460px at 70% -8%, rgba(140, 123, 255, 0.07), transparent 70%); }
 .nav-section .count.new { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; display: grid; place-items: center; background: var(--gel); color: #0b0f18; font: 750 11.5px var(--font); }
-.gr-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; }
-.gr-title { flex: 1 1 340px; min-width: 0; }
+.gr-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px 20px; }
+@media (max-width: 900px) { .gr-head { grid-template-columns: 1fr; } }
+.gr-title { min-width: 0; }
 .gr-title .page-title { margin: 0; }
 .gr-sub { margin: 4px 0 0; color: var(--ink-3); font-size: 13px; }
 .gr-me { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
@@ -1647,7 +1648,7 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .gr-me-name { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid color-mix(in srgb, var(--gr) 55%, transparent); background: color-mix(in srgb, var(--gr) 14%, transparent); color: #fff; font: 650 13px var(--font); }
 .gr-me-name svg { width: 14px; height: 14px; color: var(--gr); }
 .gr-live { font-size: 12px; color: #a8e8c0; }
-.gr-tabs { flex-basis: 100%; align-self: flex-start; flex-grow: 0; }
+.gr-tabs { grid-column: 1 / -1; justify-self: start; }
 .gr-tabs button svg { width: 15px; height: 15px; }
 .gr-tabs button[aria-pressed='true'], .gr-filter button[aria-pressed='true'] { background: color-mix(in srgb, var(--gel) 20%, transparent); color: var(--ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gel) 55%, transparent); }
 .gr-count { font-style: normal; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-grid; place-items: center; background: #ffffff14; color: var(--ink-2); font: 700 11px var(--font); }

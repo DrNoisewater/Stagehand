@@ -563,7 +563,7 @@ function registerIpc() {
   });
   handle('clips:prepare',()=>require('./services/video-export').ensureEncoder(tools).then(()=>true));
   // 3.13: no save box: the video goes straight into your recordings as "SH - <song>.mp4"
-  // (or "SH - Jam Session.mp4"), never over an older one, and shows in Recordings
+  // (or "SH - Jam Session.mp4"), never over an older one, and shows in the Green Room (My clips)
   handle('clips:save',async(data,meta={})=>{
     if(!(data instanceof Uint8Array)||data.byteLength>650*1024*1024)throw Error('Clip exceeds the 650 MB limit.');
     const temp=await fsp.mkdtemp(path.join(app.getPath('temp'),'stagehand-video-'));

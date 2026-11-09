@@ -46,7 +46,7 @@ const check = (ok, msg) => {
   const probe = saved && saved.path ? spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', saved.path]).stdout.toString() : '';
   check(/video/.test(probe) && /audio/.test(probe), `the file has picture and sound (${probe.trim().replace(/\n/g, ', ')})`);
 
-  // open Recordings and press play on it; listen on Stagehand's own sound bus
+  // open the Green Room's My clips and press play on it; listen on Stagehand's own sound bus
   await page.evaluate(async () => {
     const { engine } = await import('./js/stage.js');
     const { ctx, node } = await engine.extraOut();

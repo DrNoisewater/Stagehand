@@ -1452,7 +1452,7 @@ class FakePortMain extends EventEmitter {
   await page.locator('.nav-section[data-page="guide"]').click();
   await page.waitForTimeout(600);
   const pages = await page.locator('.gs-step span').allTextContents();
-  check(['Tune up', 'The highway', 'Stems: mute any part', 'Songs', 'Jam', 'Tones', 'Progress', 'Recordings & Friends', 'Discover'].every((t) => pages.includes(t)), `Getting started covers every section: ${pages.join(' / ')}`);
+  check(['Tune up', 'The highway', 'Stems: mute any part', 'Songs', 'Jam', 'Tones', 'Progress', 'Discover', 'The Green Room'].every((t) => pages.includes(t)), `Getting started covers every section: ${pages.join(' / ')}`);
   await shot('40-guide-welcome');
   await page.locator('.gs-step:has-text("Stems")').click();
   await page.waitForTimeout(250);
