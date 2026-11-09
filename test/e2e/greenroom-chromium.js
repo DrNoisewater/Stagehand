@@ -267,6 +267,20 @@ const shot = async (S, file) => {
     check(A.room.joined && A.room.isShared('k_aaaaaaaaaa') && !A.room.isShared('k_bbbbbbbbbb'), 'after a name, that one video is backstage');
     check(/backstage pass\s*Alex/i.test(await A.page.locator('.gr-me').textContent()), 'Alex sees their name at the top');
     await shot(A, 'gr-3-mine-shown.png');
+    // the pass: drops in on its lanyard just after picking a name, then just hangs there
+    check((await A.page.locator('.gr-pass .gr-lan.drop').count()) === 1 && /VIP/.test(await A.page.locator('.gr-pass').textContent()), 'the VIP pass drops in after picking a name');
+    await A.page.waitForTimeout(3000);
+    await A.page.evaluate(() => window.GR.openGreenRoom({ tab: 'room' }));
+    check((await A.page.locator('.gr-pass .gr-lan.drop').count()) === 0, 'it doesn’t drop again when Backstage opens from elsewhere');
+    // from the left menu it drops every time: a few frames of the fall
+    await A.page.locator('.nav-section[data-page="greenroom"]').click();
+    check((await A.page.locator('.gr-pass .gr-lan.drop').count()) === 1, 'opening Backstage from the left menu drops the pass in');
+    const box = await A.page.locator('#page-greenroom').boundingBox();
+    for (let i = 0; i < 8; i++) {
+      await A.page.screenshot({ path: path.join(outDir, `gr-pass-${i}.png`), clip: { x: box.x, y: box.y, width: 520, height: 300 } });
+      await A.page.waitForTimeout(260);
+    }
+    await A.page.waitForTimeout(2000);
 
     // Bo: Alex and their clip show up by themselves
     await B.page.waitForSelector('#page-greenroom .gr-card', { timeout: 15000 });
@@ -295,8 +309,8 @@ const shot = async (S, file) => {
     check(v.w === 640 && v.h === 360, `Alex’s clip plays on Bo’s side, straight from Alex’s PC (${v.w}×${v.h}, ${v.t.toFixed(1)} s in)`);
     const det = await B.page.locator('.gr-details').textContent();
     check(/Play this song/.test(det) && /Try it/.test(det) && /Keep it/.test(det) && /Guitar tone/.test(det), 'beside it: Play this song (Bo has it), and Try it / Keep it for the tone');
-    await A.page.waitForFunction(() => /Bo is watching|is watching your clips/.test(document.querySelector('.gr-me')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
-    check(/is watching your clips/.test(await A.page.locator('.gr-me').textContent()), 'Alex sees someone is watching');
+    await A.page.waitForFunction(() => /Bo is watching|is watching your clips/.test(document.querySelector('.gr-head')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
+    check(/is watching your clips/.test(await A.page.locator('.gr-head').textContent()), 'Alex sees someone is watching');
     await shot(B, 'gr-5-watching.png');
     // keep the tone: it arrives whole, without Alex's own cabinet file
     await B.page.locator('.gr-details button:has-text("Keep it")').click();

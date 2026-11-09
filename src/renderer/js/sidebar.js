@@ -179,7 +179,8 @@ export function render() {
   top.append(discoverSub);
   // 4.3: Backstage (your clips, everyone's shown clips, messages), just above Getting started
   const unread = unreadAll();
-  top.append(section({ page: 'greenroom', label: 'Backstage', iconName: 'people', gel: 'var(--gel-bass)', badge: unread ? String(unread) : '' }));
+  // the pass drops in on its lanyard each time Backstage is opened from here
+  top.append(section({ page: 'greenroom', label: 'Backstage', iconName: 'people', gel: 'var(--gel-bass)', badge: unread ? String(unread) : '', onClick: () => (emit('pass-drop'), setPage('greenroom')) }));
   // 4.1.2: a walk-through for people new to Rocksmith songs (opens a window, not a page), last on the menu
   top.append(section({ page: 'guide', label: 'Getting started', iconName: 'info', gel: 'var(--gel-other)', onClick: () => import('./guide.js').then((g) => g.openGuide()) }));
 

@@ -1,7 +1,7 @@
 'use strict';
 /**
  * Backstage (4.3): the shared meeting point, who's here, their clips, messages,
- * hiding someone, watching (the offer and answer), old messages kept, and the
+ * hiding someone, watching (the offer and answer), a fresh start (no old chats), and the
  * meeting-point helpers. Uses a small stand-in for an ntfy server on localhost.
  *   node test/greenroom.test.js
  */
@@ -209,7 +209,7 @@ test('watching: a request reaches their Stagehand only while they show something
   assert.deepStrictEqual(stages, ['relay', 'asking']);
 });
 
-test('old friends’ messages are kept to read; old shares and codes are not carried over', async () => {
+test('Backstage starts fresh: old friends’ chats, shares and codes are not carried over', async () => {
   const oldFile = path.join(tmp, 'friends.json');
   fs.writeFileSync(oldFile, JSON.stringify({
     code: { plain: 'dominos2496' },
@@ -228,15 +228,24 @@ test('old friends’ messages are kept to read; old shares and codes are not car
   assert.strictEqual(st.joined, false, 'not in the room until you pick a name');
   assert.strictEqual(st.suggest, 'Jake', 'the old name is offered');
   assert.deepStrictEqual(st.shared, [], 'nothing shown publicly that was only shared with friends');
-  assert.deepStrictEqual(st.old.map((c) => [c.name, c.messages.length]), [['Ian', 2], ['Kim', 1]]);
+  assert.strictEqual(st.old, undefined, 'no chats from before Backstage');
+  assert.deepStrictEqual(st.chats, []);
   assert.ok(!JSON.stringify(st).includes('dominos'), 'the old code is gone');
-  assert.ok(!fs.readFileSync(path.join(tmp, 'jake.json'), 'utf8').includes('dominos'));
-  // reopened: the same address and the same old messages
+  const saved = fs.readFileSync(path.join(tmp, 'jake.json'), 'utf8');
+  assert.ok(!saved.includes('dominos') && !saved.includes('hi from Kim'));
+  // reopened: the same address
   const again = new GreenRoom({ file: path.join(tmp, 'jake.json'), fetchImpl: fetch, relays: [relay.url], room: roomName });
   await again.load();
   rooms.push(again);
   assert.strictEqual(again.state().me, st.me);
-  assert.strictEqual(again.state().old.length, 2);
+  // a file saved by an earlier 4.3 test build with old chats: they're dropped on load
+  const j = JSON.parse(saved); j.old = [{ key: 'old0', name: 'Ian', messages: [{ dir: 'in', text: 'hello', at: 1 }] }];
+  fs.writeFileSync(path.join(tmp, 'jake2.json'), JSON.stringify(j));
+  const third = new GreenRoom({ file: path.join(tmp, 'jake2.json'), fetchImpl: fetch, relays: [relay.url], room: roomName });
+  await third.load();
+  rooms.push(third);
+  assert.strictEqual(third.state().old, undefined);
+  assert.ok(!fs.readFileSync(path.join(tmp, 'jake2.json'), 'utf8').includes('"old"'), 'the old chats are gone from the file');
 });
 
 test('someone who goes quiet has left (no "bye": their PC crashed)', async () => {
@@ -269,5 +278,5 @@ test('someone who goes quiet has left (no "bye": their PC crashed)', async () =>
     console.log(`${failed} failed`);
     process.exit(1);
   }
-  console.log('PASS green room: who’s here, clips, messages, hiding, watching, old messages');
+  console.log('PASS green room: who’s here, clips, messages, hiding, watching, a fresh start');
 })();

@@ -1763,11 +1763,9 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 @media (max-width: 820px) { .gr-messages { grid-template-columns: 1fr; } }
 .gr-convs { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .gr-convs-empty { padding: 8px 4px; }
-.gr-oldlabel { margin: 12px 4px 2px; }
 .gr-conv { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--ink-2); text-align: left; }
 .gr-conv:hover { background: #ffffff08; }
 .gr-conv.sel { background: color-mix(in srgb, var(--gr) 14%, transparent); border-color: color-mix(in srgb, var(--gr) 40%, transparent); color: #fff; }
-.gr-conv.old { opacity: .75; }
 .gr-ctext { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .gr-ctext b { font-size: 13.5px; color: var(--ink); }
 .gr-ctext span { font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1793,7 +1791,6 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .gr-compose { display: flex; align-items: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid #1a2136; }
 .gr-compose.off { align-items: center; font-size: 13px; color: var(--ink-3); }
 .gr-type { flex: 1; min-height: 36px; max-height: 120px; resize: vertical; padding: 8px 10px; font: 500 13.5px/1.4 var(--font); }
-.gr-oldnote { padding: 10px 12px; border-top: 1px solid #1a2136; }
 .gr-ask { display: flex; flex-direction: column; gap: 8px; min-width: min(380px, 80vw); }
 .gr-ask p { margin: 0; }
 .gr-err { min-height: 16px; font-size: 12.5px; color: #ff9aa4; }
@@ -1801,52 +1798,119 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 
 /* ---- 4.3: Backstage gets its own look: stage lights, a neon sign, passes, glowing "here" dots -- */
 #page-greenroom {
-  --gr: #b48cff; --gr2: #ff5fa8; --gr3: #3fe0d0; --live: #45d07c;
+  --gr: #b48cff; --gr2: #ff5fa8; --gr3: #3fe0d0; --live: #45d07c; --neon: #ff4fd2; --tube: #ff5a5a;
   position: relative; isolation: isolate;
+  /* a dark purple wall lit by the sign (4.3: a little dimmer than before) */
   background:
-    radial-gradient(520px 380px at 12% -6%, rgba(255, 95, 168, 0.13), transparent 70%),
-    radial-gradient(620px 420px at 88% -10%, rgba(63, 224, 208, 0.11), transparent 70%),
-    radial-gradient(900px 520px at 50% 115%, rgba(180, 140, 255, 0.10), transparent 70%),
-    #07060d;
+    radial-gradient(560px 300px at 34% 0%, rgba(255, 79, 210, 0.09), transparent 70%),
+    radial-gradient(620px 420px at 92% -10%, rgba(63, 224, 208, 0.06), transparent 70%),
+    radial-gradient(900px 520px at 50% 115%, rgba(180, 140, 255, 0.06), transparent 70%),
+    linear-gradient(180deg, #170f20, #0b0810 70%);
 }
 /* two slow spotlights sweeping across the back of the stage */
 #page-greenroom::before, #page-greenroom::after {
   content: ''; position: absolute; top: -120px; width: 46%; height: 140%; z-index: -1; pointer-events: none;
-  background: conic-gradient(from 180deg at 50% 0%, transparent 160deg, rgba(255, 255, 255, 0.05) 175deg, rgba(255, 255, 255, 0.08) 180deg, rgba(255, 255, 255, 0.05) 185deg, transparent 200deg);
+  background: conic-gradient(from 180deg at 50% 0%, transparent 160deg, rgba(255, 255, 255, 0.035) 175deg, rgba(255, 255, 255, 0.055) 180deg, rgba(255, 255, 255, 0.035) 185deg, transparent 200deg);
   filter: blur(6px); transform-origin: 50% 0;
 }
 #page-greenroom::before { left: 2%; animation: grSweep 14s ease-in-out infinite alternate; }
 #page-greenroom::after { right: 2%; animation: grSweep 17s ease-in-out infinite alternate-reverse; }
 @keyframes grSweep { from { transform: rotate(-14deg); } to { transform: rotate(14deg); } }
 
-/* the sign */
-.gr-marquee { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+/* the head: the pass hangs on the left, the sign and tabs beside it */
+#page-greenroom .gr-head { grid-template-columns: 136px minmax(0, 1fr); align-items: start; gap: 0 22px; }
+.gr-headmain { display: flex; flex-direction: column; gap: 14px; min-width: 0; padding-top: 4px; }
+.gr-headmain .gr-tabs { align-self: flex-start; }
+.gr-sub { color: #a9a1c2; }
+.gr-live { font-size: 12.5px; font-weight: 650; color: #9ff0bf; }
+
+/* the sign: red neon letters in a pink neon frame, like a club wall */
+.gr-marquee { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.gr-signbox { display: inline-block; padding: 6px 18px 7px; border: 2px solid var(--neon); border-radius: 10px;
+  box-shadow: 0 0 4px color-mix(in srgb, var(--neon) 70%, transparent), 0 0 16px color-mix(in srgb, var(--neon) 35%, transparent), inset 0 0 5px color-mix(in srgb, var(--neon) 55%, transparent), inset 0 0 16px color-mix(in srgb, var(--neon) 18%, transparent);
+  animation: grFlicker 9s linear infinite; }
 .gr-neon.page-title {
-  font-size: 34px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #fff4fb;
-  text-shadow: 0 0 4px #fff, 0 0 12px var(--gr2), 0 0 26px var(--gr2), 0 0 44px color-mix(in srgb, var(--gr2) 60%, transparent);
-  animation: grFlicker 7s linear infinite;
+  font-size: 32px; font-weight: 800; letter-spacing: .08em; line-height: 1.1; text-transform: uppercase;
+  color: color-mix(in srgb, var(--tube) 18%, transparent); -webkit-text-stroke: 1.4px #ff8a86;
+  filter: drop-shadow(0 0 1.5px var(--tube)) drop-shadow(0 0 7px color-mix(in srgb, var(--tube) 70%, transparent));
 }
-@keyframes grFlicker { 0%, 92%, 95%, 100% { opacity: 1; } 93% { opacity: .55; } 94% { opacity: .9; } 96% { opacity: .7; } }
-.gr-sub { color: #b9b2d6; }
-.gr-onair { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--live) 50%, transparent); background: color-mix(in srgb, var(--live) 12%, #07060d); color: #c9f7da; font: 700 12px var(--font); letter-spacing: .03em; }
+.gr-neon span { display: inline-block; }
+.gr-neon .gr-tube { animation: grTube 6.5s linear infinite; } /* one tube that acts up */
+@keyframes grFlicker { 0%, 92%, 95%, 100% { opacity: 1; } 93% { opacity: .6; } 94% { opacity: .9; } 96% { opacity: .75; } }
+@keyframes grTube { 0%, 61%, 63.5%, 66%, 100% { opacity: 1; } 62% { opacity: .2; } 63% { opacity: .8; } 64.5% { opacity: .15; } }
+.gr-onair { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--live) 50%, transparent); background: color-mix(in srgb, var(--live) 10%, #0b0810); color: #c9f7da; font: 700 12px var(--font); letter-spacing: .03em; }
 .gr-onair i { width: 9px; height: 9px; border-radius: 50%; background: var(--live); box-shadow: 0 0 10px var(--live); animation: grBeat 1.8s ease-in-out infinite; }
 .gr-onair.off { border-color: #3a3550; background: #120f1c; color: #a9a3c4; }
 @keyframes grBeat { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.7); opacity: .6; } }
 
-/* your pass */
-.gr-pass { position: relative; gap: 12px; padding: 10px 12px 10px 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--gr) 45%, transparent);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--gr) 22%, #0d0a18), color-mix(in srgb, var(--gr2) 14%, #0d0a18));
-  box-shadow: 0 10px 30px -14px var(--gr), inset 0 1px 0 #ffffff14; transform: rotate(-1.2deg); }
-.gr-pass::before { content: ''; position: absolute; top: 50%; left: -5px; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: #07060d; border: 1px solid color-mix(in srgb, var(--gr) 45%, transparent); }
-.gr-pass.none { border-style: dashed; background: #0f0c1a; box-shadow: none; transform: none; }
-.gr-pass-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
-.gr-pass .gr-me-label { font: 800 10.5px var(--font); letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--gr) 70%, #fff); }
-.gr-pass .gr-me-name { height: auto; padding: 0; border: 0; background: none; font: 800 19px var(--font); color: #fff; }
-.gr-pass .gr-me-name svg { display: none; }
+/* your pass: a VIP card on a black lanyard. The cord comes down from above the page. */
+.gr-pass { position: relative; display: block; width: 136px; margin-top: -44px; font-size: 12px; color: #fff; }
+.gr-lan { transform-origin: 50% 0; }
+.gr-swing, .gr-sway { transform-origin: 50% 0; }
+.gr-sway { display: flex; flex-direction: column; align-items: center; animation: grSway 7s ease-in-out infinite; }
+.gr-cord { position: relative; z-index: 2; display: block; width: 56px; height: 90px; pointer-events: none; filter: drop-shadow(0 3px 3px #0009); }
+.gr-cord svg { display: block; width: 100%; height: 100%; }
+.gr-badge { position: relative; z-index: 1; width: 124px; min-height: 176px; margin-top: -16px; padding: 7px 8px 10px; box-sizing: border-box; border-radius: 9px; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; text-align: center; background: #0e0d13;
+  box-shadow: 0 16px 26px -12px #000, 0 0 0 1px #ffffff14, inset 0 1px 0 #ffffff22; }
+/* the photo on the card: stage lights, haze and glitter */
+.gr-badge-art { position: absolute; inset: 0 0 34% 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(circle at 1px 1px, #ffffff59 .5px, transparent 1px) 0 0 / 6px 7px,
+    radial-gradient(circle at 1px 1px, #ffffff33 .4px, transparent 1px) 3px 4px / 9px 8px,
+    linear-gradient(116deg, transparent 38%, #c8fff455 44%, transparent 50%),
+    linear-gradient(64deg, transparent 52%, #ffb3ec4d 57%, transparent 62%),
+    linear-gradient(150deg, transparent 58%, #fff7b04a 62%, transparent 66%),
+    radial-gradient(48px 56px at 14% 62%, #ff3fb4e6, transparent 72%),
+    radial-gradient(56px 46px at 30% 18%, #22c4ffe0, transparent 72%),
+    radial-gradient(54px 54px at 82% 40%, #3dff8cd0, transparent 72%),
+    radial-gradient(34px 30px at 62% 14%, #fff2a0b0, transparent 72%),
+    radial-gradient(60px 40px at 55% 70%, #8a5cff99, transparent 72%),
+    linear-gradient(180deg, #0f2a3c, #141028);
+}
+.gr-badge-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 60%, #0e0d13 100%); }
+.gr-badge-art svg { position: absolute; left: 0; right: 0; bottom: 6%; width: 100%; height: 34%; }
+/* the laminate catching the light */
+.gr-badge::after { content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit; background: linear-gradient(125deg, transparent 30%, #ffffff12 42%, transparent 50%); }
+.gr-badge > :not(.gr-badge-art):not(.gr-pass-more) { position: relative; z-index: 2; }
+.gr-slot { flex: none; width: 26px; height: 6px; border-radius: 3px; background: #e8e8ee; box-shadow: inset 0 1px 2px #0009; }
+.gr-vip { margin-top: 58px; font: 700 52px/0.86 Bahnschrift, 'Arial Narrow', Impact, var(--font); font-stretch: condensed; letter-spacing: .01em; color: #fff; text-shadow: 0 2px 10px #000a; }
+.gr-pass .gr-me-label { margin-top: 3px; font: 700 9.5px Bahnschrift, 'Arial Narrow', var(--font); font-stretch: condensed; letter-spacing: .14em; text-transform: uppercase; color: #fff; }
+.gr-pass .gr-me-name { display: block; max-width: 100%; height: auto; margin-top: 7px; padding: 0; border: 0; background: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 800 14px var(--font); color: #fff; cursor: pointer; }
 .gr-pass .gr-me-name:hover { text-decoration: underline dotted; }
-.gr-pass-fine { font-size: 11.5px; color: #a9a3c4; }
-.gr-pass-fine:empty { display: none; }
-.gr-live { font-weight: 650; color: #9ff0bf; }
+.gr-role { margin-top: 2px; font-size: 9.5px; font-style: italic; line-height: 1.25; color: #ff9fd6; }
+.gr-pass-more.icon-btn { position: absolute; z-index: 4; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; border-radius: 6px; background: #0008; color: #fff; opacity: .55; }
+.gr-pass-more.icon-btn:hover, .gr-pass-more.icon-btn:focus-visible { opacity: 1; }
+.gr-pass-more svg { width: 14px; height: 14px; }
+/* no name yet: an empty, dashed card on the same lanyard */
+.gr-badge.ghost { justify-content: flex-start; gap: 8px; background: #120d1a; border: 1.5px dashed #4a3f66; box-shadow: none; }
+.gr-badge.ghost .gr-me-label { margin-top: 14px; color: #cfc6ee; }
+.gr-badge.ghost .gr-pass-fine { font-size: 11px; line-height: 1.35; color: #a9a3c4; }
+.gr-badge.ghost .btn { margin-top: auto; }
+.gr-pass.wait .gr-badge.ghost { justify-content: center; }
+
+/* it drops in: falls from above the page, the lanyard catches it, it swings and settles */
+.gr-lan.drop { animation: grFall 1.3s both; }
+.gr-lan.drop .gr-swing { animation: grSwing 2.6s ease-in-out both; }
+@keyframes grFall {
+  0% { transform: translateY(-120%); animation-timing-function: cubic-bezier(.55, 0, .9, .45); }
+  52% { transform: translateY(7px); animation-timing-function: ease-out; }
+  70% { transform: translateY(-3px); animation-timing-function: ease-in-out; }
+  86% { transform: translateY(1px); }
+  100% { transform: translateY(0); }
+}
+@keyframes grSwing {
+  0% { transform: rotate(-9deg); }
+  32% { transform: rotate(7deg); }
+  50% { transform: rotate(-4.5deg); }
+  66% { transform: rotate(2.6deg); }
+  80% { transform: rotate(-1.2deg); }
+  91% { transform: rotate(.45deg); }
+  100% { transform: rotate(0deg); }
+}
+/* then it just hangs there, barely moving */
+@keyframes grSway { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(.8deg); } 75% { transform: rotate(-.8deg); } }
 
 /* people: a colour each, a glowing dot while they're here */
 .gr-av { background: hsl(var(--hue, 265) 55% 42%); box-shadow: inset 0 -2px 0 #0003; }
@@ -1882,8 +1946,8 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .gr-orb { background: color-mix(in srgb, var(--gr2) 16%, transparent); color: var(--gr2); box-shadow: 0 0 30px -4px var(--gr2); }
 
 @media (prefers-reduced-motion: reduce) {
-  #page-greenroom::before, #page-greenroom::after, .gr-neon.page-title, .gr-onair i { animation: none; }
-  .gr-card, .gr-card:hover, .gr-pass, .gr-person:hover { transform: none; }
+  #page-greenroom::before, #page-greenroom::after, .gr-signbox, .gr-neon .gr-tube, .gr-onair i, .gr-sway, .gr-lan.drop, .gr-lan.drop .gr-swing { animation: none; }
+  .gr-card, .gr-card:hover, .gr-person:hover { transform: none; }
 }
 
 /* 4.3: the Drop, clearer */

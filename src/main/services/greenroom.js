@@ -21,7 +21,7 @@
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const { readJson, writeJsonAtomic } = require('../core/files');
-const { Subscription, normCode, derive, seal, open, relayList, newAddress, isAddress, DEFAULT_RELAYS, MAX_MSG } = require('./relay');
+const { Subscription, derive, seal, open, relayList, newAddress, isAddress, DEFAULT_RELAYS, MAX_MSG } = require('./relay');
 
 const PROTOCOL = 2; // in every message, so a later Stagehand can tell an older one apart
 const ROOM = 'STAGEHAND GREEN ROOM 1'; // the shared meeting point's name (its topic and key come from it)
@@ -87,30 +87,14 @@ function cleanClip(c) {
 const chatOut = (c) => ({ id: c.id, dir: c.dir, name: c.name || '', text: c.text, at: c.at, state: c.state || null, error: c.error || null, about: c.about || null });
 const cleanAbout = (a) => (a && typeof a === 'object' && clipId(a.id) ? { id: a.id, title: str(a.title, 120) || 'a clip' } : null);
 
-/** Messages from before Backstage (friends.json, 4.1–4.2), grouped by person, to read. */
-function oldConversations(old, show) {
-  const friends = (Array.isArray(old.friends) ? old.friends : []).map((f) => ({ name: str(f.name, MAX_NAME) || 'Friend', code: show(f.code) })).filter((f) => f.code);
-  const chats = (Array.isArray(old.chats) ? old.chats : []).filter((c) => c && typeof c.text === 'string' && typeof c.with === 'string');
-  const by = new Map();
-  for (const c of chats) {
-    if (!by.has(c.with)) by.set(c.with, []);
-    by.get(c.with).push({ id: String(c.id || ''), dir: c.dir === 'in' ? 'in' : 'out', name: str(c.name, MAX_NAME), text: c.text.slice(0, MAX_TEXT), at: Number(c.at) || 0, state: c.state === 'delivered' ? 'delivered' : null });
-  }
-  return [...by.entries()].map(([w, messages], i) => {
-    const f = friends.find((x) => normCode(x.code) === w);
-    const last = messages.filter((m) => m.dir === 'in' && m.name).pop();
-    return { key: `old${i}`, name: (f && f.name) || (last && last.name) || 'Someone', messages };
-  });
-}
-
 class GreenRoom extends EventEmitter {
   /**
    * @param {object} o
    * @param {string} o.file greenroom.json
-   * @param {string} [o.oldFile] friends.json (4.1–4.2): its messages are kept to read
+   * @param {string} [o.oldFile] friends.json (4.1–4.2): only its name (offered) and meeting points are used
    * @param {Function} o.fetchImpl fetch (streaming bodies)
    * @param {Function} o.listClips async () => your videos marked to show (takes, with `about`)
-   * @param {object} [o.safeStorage] Electron safeStorage, only to read old friends' codes
+   * @param {object} [o.safeStorage] Electron safeStorage (kept for callers; not needed now)
    */
   constructor({ file, oldFile = null, fetchImpl, safeStorage, log, listClips, room = ROOM, beat = BEAT, gone = GONE, relays = null }) {
     super();
@@ -143,10 +127,10 @@ class GreenRoom extends EventEmitter {
 
   async load() {
     const d = await readJson(this.file, null);
-    let old = { conversations: [], name: '', relays: null };
+    let old = { name: '', relays: null };
     if (!d && this.oldFile) {
       const o = await readJson(this.oldFile, null);
-      if (o) old = { conversations: oldConversations(o, (v) => this._show(v)), name: str(o.name, MAX_NAME), relays: relayList(o.relays) };
+      if (o) old = { name: str(o.name, MAX_NAME), relays: relayList(o.relays) };
     }
     const x = d || {};
     this.data = {
@@ -157,9 +141,9 @@ class GreenRoom extends EventEmitter {
       shared: Array.isArray(x.shared) ? x.shared.filter(clipId) : [],
       hidden: (Array.isArray(x.hidden) ? x.hidden : []).filter((h) => h && isAddress(h.addr)).map((h) => ({ addr: h.addr, name: str(h.name, MAX_NAME) || 'Someone' })),
       chats: (Array.isArray(x.chats) ? x.chats : []).filter((c) => c && typeof c.id === 'string' && typeof c.text === 'string' && isAddress(c.with)).slice(-MAX_CHATS),
-      old: Array.isArray(x.old) ? x.old : old.conversations,
     };
-    if (!d) await this.save();
+    // 4.3: Backstage starts fresh. Chats from before it (Friends) are no longer kept.
+    if (!d || 'old' in x) await this.save();
     this._listen();
     this._enter();
     this.timers.push(setInterval(() => this._announce('beat'), this.beat));
@@ -171,7 +155,7 @@ class GreenRoom extends EventEmitter {
 
   async save() {
     const d = this.data;
-    await writeJsonAtomic(this.file, { v: 1, addr: d.addr, name: d.name, suggest: d.suggest, relays: d.relays, shared: d.shared, hidden: d.hidden, chats: d.chats.slice(-MAX_CHATS), old: d.old });
+    await writeJsonAtomic(this.file, { v: 1, addr: d.addr, name: d.name, suggest: d.suggest, relays: d.relays, shared: d.shared, hidden: d.hidden, chats: d.chats.slice(-MAX_CHATS) });
   }
 
   get joined() {
@@ -236,7 +220,6 @@ class GreenRoom extends EventEmitter {
         .filter(([a]) => !hidden.has(a))
         .map(([addr, messages]) => ({ addr, name: this.nameOf(addr), here: this.people.has(addr), messages }))
         .sort((a, b) => b.messages[b.messages.length - 1].at - a.messages[a.messages.length - 1].at),
-      old: d.old,
     };
   }
 
@@ -602,4 +585,4 @@ class GreenRoom extends EventEmitter {
   }
 }
 
-module.exports = { GreenRoom, clipSummary, cleanClip, oldConversations, ROOM, PROTOCOL };
+module.exports = { GreenRoom, clipSummary, cleanClip, ROOM, PROTOCOL };
