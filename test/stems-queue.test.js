@@ -1,7 +1,8 @@
 /* The stem queue: the song you open goes first, even while another song's split is
-   still getting its audio ready; cancelling works then too. 4.4: one engine stays open
-   between songs, a stopped split really stops (no split left running in the background),
-   time left is reported, and songs you pick in the list are split ahead.
+   still getting its audio ready; cancelling works then too. 4.4.1: each song gets its own
+   engine (one that stayed open could hang on Windows), a stopped split really stops (no
+   split left running in the background), time left comes only from real progress, and
+   songs you pick in the list are split ahead.
    `node test/stems-queue.test.js` */
 const assert = require('assert');
 const fs = require('fs');
@@ -12,67 +13,51 @@ const cp = require('child_process');
 const crypto = require('crypto');
 const keyOf = (id) => crypto.createHash('sha1').update(id).digest('hex').slice(0, 24);
 
-// a pretend stem engine that stays open (--serve): one JSON job per line on stdin;
-// progress, then "done" after a while, unless cancelled or killed
+// a pretend stem engine for one song: progress, then "done" after a while, unless killed
 const engines = [];
-const splits = []; // every split job the engine was given
-const cancels = [];
-let stubborn = false; // the engine ignores "cancel" (it must then be closed)
+const splits = []; // every split started
 let jobMs = 300;
 cp.spawn = (cmd, args) => {
-  assert.ok(args.includes('--serve'), 'the engine is started in serve mode');
+  assert.ok(!args.includes('--serve'), 'one engine per song');
+  const opt = (k) => args[args.indexOf(k) + 1];
   const child = new EventEmitter();
   child.stdout = new EventEmitter();
   child.stderr = new EventEmitter();
   child.pid = 0;
   child.exitCode = null;
   child.killed = false;
+  child.args = args;
   const say = (ev) => child.stdout.emit('data', Buffer.from(JSON.stringify(ev) + '\n'));
-  const running = new Map();
+  let t = null;
   const end = (code) => {
-    if (child.exitCode !== null) return;
+    if (child.closed) return;
+    child.closed = true;
     child.exitCode = code;
-    for (const t of running.values()) clearInterval(t);
+    clearInterval(t);
     setImmediate(() => child.emit('close', code));
   };
-  child.stdin = {
-    destroyed: false,
-    on() {},
-    end() {
-      this.destroyed = true;
-      end(0); // the engine quits when its input closes
-    },
-    write(line) {
-      const m = JSON.parse(line);
-      if (m.cmd === 'cancel') {
-        cancels.push(m.id);
-        if (stubborn || !running.has(m.id)) return;
-        clearInterval(running.get(m.id));
-        running.delete(m.id);
-        say({ event: 'error', message: 'Cancelled', cancelled: true, job: m.id });
-        return;
-      }
-      splits.push({ id: m.id, input: m.input });
-      say({ event: 'device', device: 'cuda', name: 'Test GPU', job: m.id });
-      let step = 0;
-      const steps = 6;
-      const t = setInterval(() => {
-        step++;
-        if (step < steps) return say({ event: 'progress', value: step / steps, job: m.id });
-        clearInterval(t);
-        running.delete(m.id);
-        for (const n of ['vocals', 'drums', 'bass', 'other']) fs.writeFileSync(path.join(m.outdir, `${n}.wav`), 'x');
-        say({ event: 'done', stems: ['vocals', 'drums', 'bass', 'other'], sampleRate: 48000, frames: 48000 * 200, seconds: 3, device: 'cuda', job: m.id });
-      }, jobMs / steps);
-      running.set(m.id, t);
-    },
-  };
+  splits.push({ input: opt('--input'), child });
+  setImmediate(() => {
+    if (child.closed) return;
+    say({ event: 'status', message: 'Loading model' });
+    say({ event: 'device', device: 'cuda', name: 'Test GPU' });
+    say({ event: 'status', message: 'Separating' });
+    let step = 0;
+    const steps = 6;
+    t = setInterval(() => {
+      step++;
+      if (step < steps) return say({ event: 'progress', value: step / steps });
+      clearInterval(t);
+      for (const n of ['vocals', 'drums', 'bass', 'other']) fs.writeFileSync(path.join(opt('--outdir'), `${n}.wav`), 'x');
+      say({ event: 'done', stems: ['vocals', 'drums', 'bass', 'other'], sampleRate: 48000, frames: 48000 * 200, seconds: 3, device: 'cuda' });
+      end(0);
+    }, jobMs / steps);
+  });
   child.kill = () => {
     child.killed = true;
     end(null);
   };
   engines.push(child);
-  setImmediate(() => say({ event: 'ready', serve: true }));
   return child;
 };
 const { StemService } = require('../src/main/services/stems');
@@ -100,7 +85,6 @@ async function until(fn, ms = 5000) {
     settings: { get: () => ({ stems: { model: 'htdemucs' } }) },
     library: { get: (id) => songs[id] },
     engineScript: 'x.py',
-    stopGraceMs: 400,
   });
   const ready = new Map();
   const updates = [];
@@ -122,8 +106,8 @@ async function until(fn, ms = 5000) {
   assert.ok(ready.get('b') - t0 < 1000, `B didn’t wait for A’s whole split (${ready.get('b') - t0} ms)`);
   await until(() => ready.has('a'));
   assert.ok(ready.has('a'), 'A went back in line and finished after');
-  assert.strictEqual(engines.length, 1, 'one engine split both songs (it stays open)');
-  console.log('ok   the opened song jumps ahead of one still decoding; one engine for both');
+  assert.ok(engines.every((c) => c.closed), 'every engine closed when its song was done');
+  console.log('ok   the opened song jumps ahead of one still decoding');
 
   // 2. cancel while decoding: no split starts for it
   slow.c = 400;
@@ -137,7 +121,7 @@ async function until(fn, ms = 5000) {
   assert.ok(!fs.readdirSync(dir).some((n) => n.startsWith('C [')), 'nothing left behind for it');
   console.log('ok   cancel while decoding: no split starts');
 
-  // 3. time left: there from the start, and it goes down
+  // 3. time left: only once the split is really going, and it goes down
   jobMs = 1200;
   updates.length = 0;
   svc.request(['d']);
@@ -145,47 +129,53 @@ async function until(fn, ms = 5000) {
   const runs = updates.filter((u) => u.songId === 'd' && u.state === 'running');
   assert.ok(runs.length >= 4, 'running updates for D');
   assert.ok(runs.every((u) => typeof u.startedAt === 'number'), 'each update says when the split started');
+  const firstProgress = runs.findIndex((u) => u.progress > 0.03);
+  assert.ok(runs.slice(0, firstProgress).every((u) => u.eta == null), 'no time left before the split shows progress (no countdown while it starts)');
   const etas = runs.map((u) => u.eta).filter((e) => typeof e === 'number');
-  assert.ok(etas.length >= 4, `the time left is in the updates (${JSON.stringify(etas)})`);
-  assert.ok(etas[0] >= 4 && etas[etas.length - 1] <= 2, `the time left starts as a guess from past splits (3 s each, plus start-up) and goes down (${JSON.stringify(etas)})`);
+  assert.ok(etas.length >= 3, `the time left is in the updates (${JSON.stringify(etas)})`);
   for (let i = 1; i < etas.length; i++) assert.ok(etas[i] <= etas[i - 1], `the time left never goes up (${JSON.stringify(etas)})`);
-  console.log(`ok   time left goes down: ${etas.join(', ')} s`);
+  console.log(`ok   time left only from real progress, and it goes down: ${etas.join(', ')} s`);
 
-  // 4. a song opened to play stops a running split: the engine is told to cancel it
+  // 4. a song opened to play stops a running split: its engine is ended
   svc.request(['e']);
   await until(() => splitOf('e').length && (svc.states.get('e') || {}).progress > 0);
+  const eEngine = splitOf('e')[0].child;
   svc.request(['f']);
   svc.prioritize('f', { now: true });
   await until(() => ready.has('f'));
-  assert.ok(cancels.includes(splitOf('e')[0].id), 'the running split of E was cancelled in the engine');
+  assert.ok(eEngine.killed, 'the running split of E was ended');
   assert.ok(!ready.has('e') || ready.get('f') < ready.get('e'), 'F was split before E');
   await until(() => ready.has('e'));
   assert.ok(ready.has('e'), 'E went back in line and finished after');
-  assert.strictEqual(engines.filter((c) => c.exitCode === null).length, 1, 'still one engine, nothing left running');
-  console.log('ok   jump ahead cancels the running split in the engine');
+  const open = engines.filter((c) => !c.closed).map((c) => c.args[c.args.indexOf('--input') + 1].slice(-12));
+  assert.ok(!open.length, 'nothing left running: ' + open);
+  console.log('ok   jump ahead ends the running split');
 
-  // 5. an engine that won't stop is closed (and a fresh one splits the next song)
-  stubborn = true;
+  // 5. cancel ends the engine at once; the waited-for song runs at normal priority
   svc.request(['g']);
   await until(() => splitOf('g').length);
-  const old = engines[engines.length - 1];
+  const gEngine = splitOf('g')[0].child;
+  assert.strictEqual(gEngine.args[gEngine.args.indexOf('--priority') + 1], 'normal', 'a split ahead runs at normal priority (it may become the song you wait for)');
   svc.cancel('g');
-  await until(() => old.exitCode !== null, 2000);
-  assert.ok(old.exitCode !== null, 'an engine that ignores cancel is closed');
+  await until(() => gEngine.closed, 2000);
+  assert.ok(gEngine.killed, 'cancel ends the engine');
   await until(() => svc.status(songs.g).state === 'none', 2000);
   assert.strictEqual(svc.status(songs.g).state, 'none');
-  stubborn = false;
   jobMs = 300;
   svc.request(['h']);
+  svc.prioritize('h', { now: true });
+  await until(() => splitOf('h').length);
+  const hEngine = splitOf('h')[0].child;
+  assert.strictEqual(hEngine.args[hEngine.args.indexOf('--priority') + 1], 'normal', 'the song you wait for runs at normal priority');
   await until(() => ready.has('h'));
-  assert.ok(ready.has('h') && engines.length === 2, 'a new engine starts for the next song');
-  console.log('ok   an engine that won’t stop is closed; the next song gets a new one');
+  assert.ok(ready.has('h'), 'the next song splits');
+  console.log('ok   cancel ends the engine; splits run at normal priority');
 
   // 6. split ahead: songs picked in the list, at most a few waiting, never stopping a split
   jobMs = 1500;
   svc.request(['i']); // a running split
   await until(() => splitOf('i').length);
-  const cancelsBefore = cancels.length;
+  const killedBefore = engines.filter((c) => c.killed).length;
   for (const id of ['j', 'k', 'b2', 'c', 'h']) svc.ahead(id); // (b2 isn't a song, h has stems)
   svc.ahead('f'); // has stems
   assert.deepStrictEqual(svc.queue.map((j) => j.songId), ['c', 'k', 'j'], `picked songs wait, newest first (${svc.queue.map((j) => j.songId)})`);
@@ -199,7 +189,7 @@ async function until(fn, ms = 5000) {
   svc.ahead('j');
   assert.strictEqual(svc.queue[0].songId, 'm', 'a song opened to play stays first');
   assert.strictEqual(svc.queue[1].songId, 'j', 'a new pick goes right after it');
-  assert.strictEqual(cancels.length, cancelsBefore + 1, 'picking songs never stopped a split (only opening M did)');
+  assert.strictEqual(engines.filter((c) => c.killed).length, killedBefore + 1, 'picking songs never stopped a split (only opening M did)');
   svc.request(['c']); // asked for: no longer a pick that can drop out
   assert.strictEqual(svc.queue.find((j) => j.songId === 'c').ahead, false);
   jobMs = 100;
@@ -210,7 +200,7 @@ async function until(fn, ms = 5000) {
   // 7. closing the app closes the engine; leftover work folders are cleaned at start
   svc.stopAll();
   await wait(50);
-  assert.ok(engines.every((c) => c.exitCode !== null), 'no engine left running after the app closes');
+  assert.ok(engines.every((c) => c.closed), 'no engine left running after the app closes');
   console.log('ok   closing the app closes the engine');
 
   // 8. folders named after their songs; old key-named folders are renamed at start; lookups go by the key

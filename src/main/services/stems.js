@@ -3,11 +3,10 @@
  * Stem separation queue. One job runs at a time (it uses the whole GPU/CPU);
  * results are cached per audio hash and model so they survive edits/renames.
  *
- * 4.4: one stem engine stays open between songs (`--serve`), so the model is
- * loaded once. Stopping a split asks the engine to cancel it; if it doesn't
- * stop soon, the engine is closed with everything it started (on Windows a
- * venv's python.exe starts the real Python as a child, and killing only the
- * first left splits running in the background, slowing every later one).
+ * Each song gets its own engine (4.4.0 kept one open between songs; on Windows it
+ * could hang and nothing split, so 4.4.1 went back to this). Stopping a split ends
+ * the engine with everything it started: on Windows a venv's python.exe starts the
+ * real Python as a child, and killing only the first left splits running unseen.
  */
 const fs = require('fs');
 const fsp = fs.promises;
@@ -25,12 +24,8 @@ const MODELS = {
 const EXT = { wav: 'wav', flac: 'flac', opus192: 'opus', opus128: 'opus', opus256: 'opus' };
 
 const IS_WIN = process.platform === 'win32';
-// how long a split may take to stop after it's asked to, before the engine is closed
-const STOP_GRACE_MS = 4000;
 // songs split ahead because you picked them in the list: at most this many waiting
 const AHEAD_MAX = 3;
-// seconds of splitting per second of song, before this PC has split anything
-const RATE_GUESS = { cuda: 0.12, cpu: 1.0 };
 
 const KEY_RE = /^[a-f0-9]{8,40}$/;
 
@@ -56,7 +51,6 @@ function killTree(child) {
   if (!child || child.exitCode !== null || child.killedTree) return;
   child.killedTree = true;
   try {
-    if (child.stdin) child.stdin.end(); // the engine quits by itself when this closes
   } catch (_) {}
   if (IS_WIN && child.pid) {
     // the whole tree first: once the launcher is gone, its child can't be found from it
@@ -74,9 +68,8 @@ function killTree(child) {
 }
 
 class StemService extends EventEmitter {
-  constructor({ stemsDir, audio, tools, settings, library, engineScript, log = () => {}, stopGraceMs = STOP_GRACE_MS }) {
+  constructor({ stemsDir, audio, tools, settings, library, engineScript, log = () => {}}) {
     super();
-    this.stopGraceMs = stopGraceMs;
     this.dir = stemsDir;
     this.audio = audio;
     this.tools = tools;
@@ -87,7 +80,6 @@ class StemService extends EventEmitter {
     this.queue = [];
     this.current = null;
     this.states = new Map(); // songId -> {state, progress, message}
-    this.worker = null; // the stem engine that stays open between songs
     this.seq = 0;
     this.rates = { cuda: [], cpu: [] }; // past splits: seconds per second of song
     // 4.4: which folder holds each audio key's stems, and what's in them, kept in memory:
@@ -318,34 +310,15 @@ class StemService extends EventEmitter {
     if (list.length > 20) list.splice(0, list.length - 20);
   }
 
-  /** About how long a split of this song takes, before it shows any progress. */
-  _guess(song, kind) {
-    if (!kind) {
-      const s = this.settings.get().stems || {};
-      const last = (l) => (l.length ? l[l.length - 1].at : -1);
-      kind = s.device === 'cpu' ? 'cpu' : last(this.rates.cuda) >= last(this.rates.cpu) && this.rates.cuda.length ? 'cuda' : this.rates.cpu.length ? 'cpu' : 'cuda';
-    }
-    const list = this.rates[kind].slice(-8).map((r) => r.rate).sort((a, b) => a - b);
-    const rate = list.length ? list[list.length >> 1] : RATE_GUESS[kind];
-    const secs = (song && song.length) || 240;
-    // a fresh engine has to start up and load the model first
-    const warm = this.worker && !this.worker.dead && this.worker.used;
-    return rate * secs + (warm ? 2 : 10);
-  }
-
-  /** Time left for a running split: from how fast it's going, smoothed; a guess before it starts. */
+  /** Time left for a running split: from how fast it's going, smoothed. */
   _eta(job, song, progress) {
+    // 4.4.1: only from how fast it's really going: a guess before it starts counted
+    // down while the engine was still getting ready
     const now = Date.now();
-    let at;
     if (progress > 0.03 && job.sepStart) {
       const took = now - job.sepStart;
-      at = now + (took * (1 - progress)) / progress + 1500; // (+ writing the stems)
-      job.etaAt = job.etaAt && job.measured ? job.etaAt * 0.7 + at * 0.3 : at;
-      job.measured = true;
-    } else if (!job.measured) {
-      job.etaAt = job.startedAt + this._guess(song, job.deviceKind) * 1000;
-      // the guess ran out and there's no progress yet: no time to show
-      if (job.etaAt < now) job.etaAt = null;
+      const at = now + (took * (1 - progress)) / progress + 1500; // (+ writing the stems)
+      job.etaAt = job.etaAt ? job.etaAt * 0.7 + at * 0.3 : at;
     }
     return { startedAt: job.startedAt, etaAt: job.etaAt || null, eta: job.etaAt ? Math.max(0, Math.round((job.etaAt - now) / 1000)) : null };
   }
@@ -493,16 +466,7 @@ class StemService extends EventEmitter {
   /** Stops the running split: the engine is asked first, and closed if it doesn't stop soon. */
   _stop(job) {
     if (job.wake) job.wake();
-    const w = job.worker;
-    if (!w || !job.jobId || w.dead) return;
-    this._send(w, { cmd: 'cancel', id: job.jobId });
-    clearTimeout(job.stopTimer);
-    job.stopTimer = setTimeout(() => {
-      if (!job.finished && !w.dead) {
-        this.log('Stems: the engine did not stop in time, closing it');
-        this._closeWorker(w);
-      }
-    }, this.stopGraceMs);
+    if (job.child) killTree(job.child);
   }
 
   _userLoad() {
@@ -517,15 +481,8 @@ class StemService extends EventEmitter {
   }
 
   /** Tells the engine a running split's new priority and CPU share. */
-  _tune(job) {
-    const w = job.worker;
-    if (!w || w.dead || !job.jobId || job.finished) return;
-    this._send(w, { cmd: 'priority', level: job.playing ? 'normal' : 'low' });
-    const load = this._load(job);
-    if (load !== job.load) {
-      job.load = load;
-      this._send(w, { cmd: 'load', level: load });
-    }
+  _tune(_job) {
+    // (4.4.1: a running engine is left as it is; the next split gets the new priority)
   }
 
   /** A song started or stopped playing (a split in the background takes half the CPU meanwhile). */
@@ -539,65 +496,10 @@ class StemService extends EventEmitter {
   /** Closes the stem engine (when the app quits). */
   stopAll() {
     this.queue = [];
-    if (this.current) this.current.cancelled = true;
-    if (this.worker) this._closeWorker(this.worker);
-  }
-
-  // ------------------------------------------------------ the engine --
-  /** The stem engine that stays open, started when needed. */
-  _engine(python) {
-    let w = this.worker;
-    if (w && !w.dead && w.python === python) return w;
-    if (w) this._closeWorker(w); // the engine was changed in Settings
-    const child = spawn(python, ['-u', this.script, '--serve'], { env: { ...process.env, ...this.tools.engineEnv() }, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
-    w = { child, python, jobs: new Map(), dead: false, used: false, errTail: '' };
-    this.worker = w;
-    // (each split sets its own priority from inside the engine: on Windows this
-    // process is only a launcher, the real Python is its child)
-    if (child.stdin) child.stdin.on('error', () => {}); // (writing to an engine that just quit)
-    let buf = '';
-    child.stdout.on('data', (d) => {
-      buf += d.toString();
-      let nl;
-      while ((nl = buf.indexOf('\n')) >= 0) {
-        const line = buf.slice(0, nl).trim();
-        buf = buf.slice(nl + 1);
-        if (!line) continue;
-        let ev;
-        try {
-          ev = JSON.parse(line);
-        } catch (_) {
-          continue;
-        }
-        const fn = ev.job != null && w.jobs.get(String(ev.job));
-        if (fn) fn(ev);
-      }
-    });
-    child.stderr.on('data', (d) => {
-      w.errTail = (w.errTail + d.toString()).slice(-3000);
-    });
-    const gone = (code, err) => {
-      if (w.dead && !w.jobs.size) return;
-      w.dead = true;
-      if (this.worker === w) this.worker = null;
-      for (const fn of [...w.jobs.values()]) fn({ event: 'exit', code, error: err });
-      w.jobs.clear();
-    };
-    child.on('error', (err) => gone(null, err));
-    child.on('close', (code) => gone(code));
-    return w;
-  }
-
-  _send(w, msg) {
-    try {
-      if (w.child.stdin && !w.child.stdin.destroyed) w.child.stdin.write(JSON.stringify(msg) + '\n');
-    } catch (_) {}
-  }
-
-  _closeWorker(w) {
-    w.dead = true;
-    if (this.worker === w) this.worker = null;
-    killTree(w.child);
+    if (this.current) {
+      this.current.cancelled = true;
+      if (this.current.child) killTree(this.current.child);
+    }
   }
 
   async remove(song) {
@@ -659,78 +561,85 @@ class StemService extends EventEmitter {
     const model = this.model();
     const work = path.join(this.dir, '.work', `${info.key}.${model}.${crypto.randomBytes(3).toString('hex')}`);
     await fsp.mkdir(work, { recursive: true });
-    const tm = { start: job.startedAt, decoded: Date.now(), warm: !!(this.worker && !this.worker.dead && this.worker.used) };
+    const tm = { start: job.startedAt, decoded: Date.now() };
     const s = this.settings.get().stems;
     this._running(job, song, { progress: 0, message: 'Starting engine' });
 
     let doneEvent = null;
     let device = null;
     let note = null;
-    const w = this._engine(python);
-    const id = `j${++this.seq}`;
-    job.worker = w;
-    job.jobId = id;
-    w.errTail = '';
+    // 4.4.1: one engine per song again, as before 4.4.0 (the engine that stayed open
+    // could hang on Windows and nothing split). It reads nothing from the app.
+    job.load = this._load(job);
+    const args = [
+      '-u', this.script,
+      '--input', this.audio.wavPath(info.key),
+      '--outdir', work,
+      '--model', model,
+      '--shifts', String(s.shifts || 1),
+      '--device', s.device || 'auto',
+      '--cpu-load', job.load,
+      // normal priority, as before 4.4.0: a split ahead may become the song you wait for
+      '--priority', 'normal',
+    ];
+    let errTail = '';
+    let errorEvent = null;
     await new Promise((resolve, reject) => {
-      const stoppedErr = () => (job.cancelled ? new Error('Cancelled') : job.requeue ? new Error('Moved back in line') : null);
-      w.jobs.set(id, (ev) => {
-        if (!tm.first) tm.first = Date.now();
-        if (ev.event === 'status' && ev.message === 'Loading model') tm.load = Date.now();
-        if (ev.event === 'status' && ev.message === 'Separating') tm.sep = Date.now();
-        if (ev.event === 'status' && ev.message === 'Writing stems') tm.write = Date.now();
-        if (ev.event === 'device' && !tm.device) tm.device = Date.now();
-        const cur = this.states.get(job.songId) || {};
-        if (ev.event === 'progress') {
-          if (!job.sepStart) job.sepStart = Date.now();
-          this._running(job, song, { ...cur, progress: ev.value, message: device ? `Separating on ${device}` : 'Separating', device: job.deviceKind, deviceName: device });
-        } else if (ev.event === 'status') {
-          if (/GPU|CPU/.test(ev.message)) note = ev.message;
-          if (ev.message === 'Separating') job.sepStart = Date.now();
-          this._running(job, song, { ...cur, message: ev.message, note });
-        } else if (ev.event === 'device') {
-          job.deviceKind = ev.device;
-          device = ev.device === 'cuda' ? ev.name || 'GPU' : 'CPU';
-          this.log(
-            `Separating ${song.title} on ${device}${ev.threads ? `, ${ev.threads} CPU threads (${job.load}${job.load !== this._userLoad() ? ' while a song plays' : ''})` : ''}` +
-              `${ev.cores ? `, ${ev.physical || '?'} cores (${ev.cores} with hyperthreads)` : ''}, ${job.playing ? 'normal priority: you are waiting for it' : 'below normal priority'}${ev.fallback ? `; GPU ${ev.fallback}` : ''}`
-          );
-          this._running(job, song, { ...cur, device: job.deviceKind, deviceName: device, note });
-        } else if (ev.event === 'threads') {
-          this.log(`Stems: ${song.title} now uses ${ev.threads} CPU threads (${ev.level})`);
-        } else if (ev.event === 'done') {
-          doneEvent = ev;
-          // (stopped so another song could go first, but finished anyway: keep it)
-          if (job.cancelled) reject(new Error('Cancelled'));
-          else resolve();
-        } else if (ev.event === 'error') {
-          if (ev.cancelled || stoppedErr()) return reject(stoppedErr() || new Error('Cancelled'));
-          if (w.errTail.trim()) this.log(`Stem engine output:\n${w.errTail}`);
-          // start the next song on a fresh engine, in case this left it in a bad way
-          this._closeWorker(w);
-          reject(new Error(ev.message || 'Stem separation failed'));
-        } else if (ev.event === 'exit') {
-          if (stoppedErr()) return reject(stoppedErr());
-          if (ev.error) return reject(ev.error);
-          this.log(`Stem engine output:\n${w.errTail}`);
-          reject(new Error(w.errTail.trim().split('\n').slice(-1)[0] || `Engine exited with code ${ev.code}`));
+      const child = spawn(python, args, { env: { ...process.env, ...this.tools.engineEnv() }, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      job.child = child;
+      tm.sent = Date.now();
+      if (job.requeue || job.cancelled) killTree(child); // stopped between the last check and now
+      let buf = '';
+      child.stdout.on('data', (d) => {
+        buf += d.toString();
+        let nl;
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          let ev;
+          try {
+            ev = JSON.parse(line);
+          } catch (_) {
+            continue;
+          }
+          if (!tm.first) tm.first = Date.now();
+          if (ev.event === 'status' && ev.message === 'Loading model') tm.load = Date.now();
+          if (ev.event === 'status' && ev.message === 'Separating') tm.sep = Date.now();
+          if (ev.event === 'status' && ev.message === 'Writing stems') tm.write = Date.now();
+          if (ev.event === 'device' && !tm.device) tm.device = Date.now();
+          const cur = this.states.get(job.songId) || {};
+          if (ev.event === 'progress') {
+            if (!job.sepStart) job.sepStart = Date.now();
+            this._running(job, song, { ...cur, progress: ev.value, message: device ? `Separating on ${device}` : 'Separating', device: job.deviceKind, deviceName: device });
+          } else if (ev.event === 'status') {
+            if (/GPU|CPU/.test(ev.message)) note = ev.message;
+            if (ev.message === 'Separating') job.sepStart = Date.now();
+            this._running(job, song, { ...cur, message: ev.message, note });
+          } else if (ev.event === 'device') {
+            job.deviceKind = ev.device;
+            device = ev.device === 'cuda' ? ev.name || 'GPU' : 'CPU';
+            this.log(
+              `Separating ${song.title} on ${device}${ev.threads ? `, ${ev.threads} CPU threads (${job.load}${job.load !== this._userLoad() ? ' while a song plays' : ''})` : ''}` +
+                `${ev.cores ? `, ${ev.physical || '?'} cores (${ev.cores} with hyperthreads)` : ''}, ${job.playing ? 'normal priority: you are waiting for it' : 'below normal priority'}${ev.fallback ? `; GPU ${ev.fallback}` : ''}`
+            );
+            this._running(job, song, { ...cur, device: job.deviceKind, deviceName: device, note });
+          } else if (ev.event === 'done') doneEvent = ev;
+          else if (ev.event === 'error') errorEvent = ev;
         }
       });
-      this._send(w, {
-        cmd: 'split',
-        id,
-        input: this.audio.wavPath(info.key),
-        outdir: work,
-        model,
-        shifts: s.shifts || 1,
-        device: s.device || 'auto',
-        cpu_load: (job.load = this._load(job)),
-        // the song you're waiting for runs at normal priority; splits in the background
-        // stay below normal so the app stays smooth
-        priority: job.playing ? 'normal' : 'low',
+      child.stderr.on('data', (d) => {
+        errTail = (errTail + d.toString()).slice(-3000);
       });
-      tm.sent = Date.now();
-      w.used = true;
-      if (job.requeue || job.cancelled) this._stop(job); // stopped between the last check and now
+      child.on('error', reject);
+      child.on('close', (code) => {
+        if (job.cancelled) return reject(new Error('Cancelled'));
+        if (job.requeue) return reject(new Error('Moved back in line'));
+        if (code === 0 && doneEvent) return resolve();
+        const msg = errorEvent ? errorEvent.message : errTail.trim().split('\n').slice(-1)[0] || `Engine exited with code ${code}`;
+        this.log(`Stem engine output:\n${errTail}`);
+        reject(new Error(msg));
+      });
     })
       .catch(async (err) => {
         await fsp.rm(work, { recursive: true, force: true });
@@ -738,8 +647,7 @@ class StemService extends EventEmitter {
       })
       .finally(() => {
         job.finished = true;
-        clearTimeout(job.stopTimer);
-        w.jobs.delete(id);
+        job.child = null;
       });
 
     tm.done = Date.now();
@@ -770,8 +678,8 @@ class StemService extends EventEmitter {
     const sec = (a, b) => (a && b ? `${((b - a) / 1000).toFixed(1)} s` : '?');
     this.log(
       `Stems for ${song.title} took ${meta.seconds}s on ${device || meta.device}. ` +
-        `Timing: decode ${sec(tm.start, tm.decoded)}, engine start ${sec(tm.sent, tm.first)}${tm.warm ? ' (already open)' : ''}, ` +
-        `model ${tm.load ? sec(tm.load, tm.device) : 'already loaded'}, separate ${sec(tm.sep, tm.write)}, write ${sec(tm.write, tm.done)}, save ${sec(tm.done, Date.now())}`
+        `Timing: decode ${sec(tm.start, tm.decoded)}, engine start ${sec(tm.sent, tm.first)}, ` +
+        `model ${sec(tm.load, tm.device)}, separate ${sec(tm.sep, tm.write)}, write ${sec(tm.write, tm.done)}, save ${sec(tm.done, Date.now())}`
     );
     this.emit('done', { songId: job.songId, ...ready, seconds: meta.seconds, device: meta.device, deviceName: device, note });
   }
