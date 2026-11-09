@@ -1,10 +1,10 @@
-# Stagehand handoff (v4.3.0, 2026-11-09): levels, Backstage, the Drop holds, guitar/bass off sticks
+# Stagehand handoff (v4.4.0, 2026-11-09): levels, fast stems, VIP pass; 4.3: Backstage, the Drop holds, guitar/bass off sticks
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
 
-## 4.3.0 (also): stems: fast again, ready before you play, readable folders, smaller option
+## 4.4.0: stems: fast again, ready before you play, readable folders, smaller option
 
 User: "Stem separation times do not update live on the menu … stem separation is taking longer the more songs I [have split] … They used to separate before the beginning of the song would play … I really want the stems to be separated before you start playing the song." Then: stem folders have "crazy" random names; could stems be zipped to save space and still load fast; does it use all CPU cores.
 
@@ -23,7 +23,7 @@ User: "Stem separation times do not update live on the menu … stem separation 
 
 **Ask the user:** is splitting quick again, and does the song now start with its stems? Does the time left look right? Can they find songs in the Stems folder? Smaller as the default for new splits? Is keeping the model in GPU memory for 10 idle minutes OK alongside games?
 
-## 4.3.0 (also): levels, deeper (trophies, weekly, titles, streak multiplier)
+## 4.4.0 (also): levels, deeper (trophies, weekly, titles, streak multiplier)
 
 User: "needs to be more in depth and video game-y. Not just exploring the app. Those should show as 10 percent of the challenges. With backstage being a little higher."
 
@@ -34,7 +34,7 @@ User: "needs to be more in depth and video game-y. Not just exploring the app. T
 
 **Ask the user:** is level 28 in two months too fast? Song of the week: one you haven't nailed yet (now) or any song? Show titles to others in Backstage? Trophy targets right (500-note streak, 100 days)?
 
-## 4.3.0 (also): levels: points for playing and for trying things, pass tiers, locked venues
+## 4.4.0 (also): levels: points for playing and for trying things, pass tiers, locked venues
 
 User: "Joining this area should count in Progress too. Like a challenge … make people want to try the new features … You could get points, and they could level up your badge. That would be shown in backstage as well … a holographic or style based off what level you are … reward you for doing very well. And that should be one of the best things, but we also wanna reward you for exploring … playing in a different tuning or play some new songs. Go and get some new songs … Play 5 songs today in full as an example … Can we have some of the venues locked behind a few levels."
 
@@ -48,7 +48,7 @@ User: "Joining this area should count in Progress too. Like a challenge … make
 
 **Ask the user:** are the point values right (too fast, too slow)? Which venues should be locked, at which levels? Do the pass tiers look special enough, especially holographic? Ideas offered next: weekly challenges, swap one daily challenge, streak freeze, share a level-up in Backstage, pass colours to unlock.
 
-## 4.3.0 (also): a VIP pass on a lanyard, a neon sign, a fresh start
+## 4.4.0 (also): a VIP pass on a lanyard, a neon sign, a fresh start
 
 User (with a photo of a VIP backstage pass on a black lanyard and a red-in-pink neon BACKSTAGE sign): "If messages are no longer supported dont show them. It says before backstage. Lets have everything here fresh … I want the Backstage pass to look like the image and animate as if it smoothly falls down on the top left … in place of current username pass … After creating your username it shows. Then you only see the animation when clicking on Backstage main left menu item … we dont want it getting in the way … This area is allowed to be more fun like Guitar Hero art style and band memes/stereotypes. Backstage main area can look more like photo, neon, flicker is alright. Slightly dimmer."
 
