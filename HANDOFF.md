@@ -1,8 +1,24 @@
-# Stagehand handoff (v4.4.0, 2026-11-09): levels, fast stems, VIP pass; 4.3: Backstage, the Drop holds, guitar/bass off sticks
+# Stagehand handoff (v4.4.1, 2026-11-09): stems split again; 4.4.0: levels, fast stems, VIP pass; 4.3: Backstage, the Drop holds, guitar/bass off sticks
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.4.1: stems split again (4.4.0 regression)
+
+**What the user said:** after 4.4.0, "the stems dont ever seem to split", and "a forty second countdown before it even starts". A couple of weeks earlier a split took about ten seconds and the song started.
+
+**Why:** 4.4.0 kept one stem engine open for all songs (`--serve`, jobs sent on its stdin, a thread reading stdin for cancels) and showed a guessed "time left" from past speed before the split showed any progress. On Windows the open engine never got going (most likely the stdin reader or the venv launcher in between; can't be tested on Linux), so the guess counted down from ~40 s and nothing happened.
+
+**What changed:**
+- `src/main/services/stems.js`: back to one engine process per song, as before 4.4.0 (stdin ignored, no `--serve`). Stop/cancel/jump ahead kill that process tree (`taskkill /T`, kept from 4.4.0). Removed the open-engine code (`_engine`, `_send`, `_closeWorker`, `stopGraceMs`, the speed guess).
+- Time left only comes from real progress (after 3%); nothing is shown before that.
+- Splits run at normal priority again (4.4.0 ran background splits below normal; with one process per song a split ahead would then stay slow after you open that song).
+- `engine/stagehand_stems.py` takes `--priority` in one-shot mode. Its `--serve` mode is still there (tested by `engine_check_test.py`) but the app no longer uses it.
+- `test/stems-queue.test.js` rewritten for one engine per song.
+- Kept from 4.4.0: split ahead on selection, readable folders, the index (no checks that grow with the library), Smaller (Opus), parallel stem loading, live time on the menu.
+
+**Ask the user:** does a split start right away and finish in about the old time? If not, Settings › About › the log, and the GPU/CPU it says it used.
 
 ## 4.4.0: stems: fast again, ready before you play, readable folders, smaller option
 

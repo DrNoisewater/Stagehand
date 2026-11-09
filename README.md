@@ -170,6 +170,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.4.1:** stems split again, quickly, like before 4.4 (4.4.0 could sit on a countdown and never split).
 - **4.4:** levels: earn points for playing well, with daily and weekly challenges, trophies, titles, pass styles and venues to unlock. Stems split faster, are ready before the song starts, can be stored smaller, and live in folders named after the song. A VIP pass on a lanyard and a neon sign in Backstage.
 - **4.3:** Backstage replaces Recordings and friend codes: show a clip and everyone with Stagehand can watch it, with its song, part and tone. The Drop now holds from song to song and says plainly whether it's on, and turning the guitar or bass part off stays off for every song.
 - **4.2.1:** the neck lights up as notes arrive, like Rocksmith: each note's spot on its string, the frets around it, and the chord frame.

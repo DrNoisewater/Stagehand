@@ -551,6 +551,7 @@ def main():
     ap.add_argument("--cpu-load", dest="cpu_load", default="full", choices=["full", "half", "low"])
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--prefetch")
+    ap.add_argument("--priority", choices=["normal", "low"])
     ap.add_argument("--serve", action="store_true")
     ap.add_argument("--idle", type=float, default=600)
     ap.add_argument("--watch-stdin", dest="watch_stdin", action="store_true")
@@ -566,6 +567,8 @@ def main():
             return prefetch(args.prefetch)
         if not args.input or not args.outdir:
             ap.error("--input and --outdir are required")
+        if args.priority:
+            set_priority(args.priority)
         return separate(args)
     except Exception as e:  # noqa: BLE001
         sys.stderr.write(traceback.format_exc())
