@@ -6,6 +6,7 @@
  * forbid apps doing that). It opens the site in your browser with the search
  * copied, then picks the download up from your Downloads folder.
  */
+import { did } from './rewards.js';
 import { api } from './api.js';
 import { state, on, emit, setView, rsListIds, rsListLabel, loadRocksmith, upsertSongs, loadLibrary } from './store.js';
 import { h, icon, esc, toast, showMenu, fmtDuration, fmtDate, fmtDateTime, modal, debounce } from './ui.js';
@@ -1391,6 +1392,7 @@ export function render() {
     lastSub = null;
     return;
   }
+  did('discover');
   const id = sub();
   const keepScroll = id === lastSub ? scroll.scrollTop : 0;
   if (id !== lastSub && lastSub !== null) D.sel.clear();

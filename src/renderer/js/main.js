@@ -1,3 +1,4 @@
+import { did } from './rewards.js';
 import { api } from './api.js';
 import { state, emit, on, loadLibrary, upsertSongs, bump, loadRocksmith } from './store.js';
 import './sidebar.js';
@@ -22,6 +23,21 @@ import { rig } from './rig.js';
 import { nudgeSpeed } from './speedpop.js';
 import { pct } from './speed.js';
 import { loadTones, useSlot } from './tonelib.js';
+
+// 4.4: while a song is being split, its time left counts down every second
+// (between the engine's own updates)
+let stemTimer = null;
+function tickStems() {
+  const busy = () => [...state.stems.values()].some((x) => x && x.state === 'running');
+  if (!busy() || stemTimer) return;
+  stemTimer = setInterval(() => {
+    if (!busy()) {
+      clearInterval(stemTimer);
+      stemTimer = null;
+    }
+    emit('stems-tick');
+  }, 1000);
+}
 import { setPage, setView, goBack } from './store.js';
 import './jam.js';
 import './song-auto.js';
@@ -104,6 +120,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'l' || e.key === 'L') stage.toggleSectionLoop();
   else if ((e.key === 'd' || e.key === 'D') && !ctrl) {
     rig.setDrop({ on: !rig.drop.on });
+    if (rig.drop.on) did('drop');
     const ds = rig.dropStatus();
     toast({ title: `Drop ${ds.line.replace(/^(On|Off)/, (w) => w.toLowerCase())}`, message: ds.state === 'on' ? ds.warn : '', kind: 'info', timeout: 2000 });
   }
@@ -179,7 +196,24 @@ async function boot() {
     if (!prev || prev.state !== u.state) emit('stems');
     else emit('stems-progress');
     emit('stems-update', u);
+    tickStems();
   });
+  // 4.4: songs you pick are split ahead (Split songs automatically), so they're often
+  // ready by the time you press play. Waits a moment so scrolling doesn't queue them all.
+  on(
+    'selection',
+    debounce(() => {
+      const st = state.settings && state.settings.stems;
+      if (!st || !st.auto || !state.engine || !state.engine.installed || !api.stems.ahead) return;
+      if (!state.selection || state.selection.size !== 1) return;
+      const id = [...state.selection][0];
+      const s = state.songs.get(id);
+      if (!s || s.hasStems) return;
+      const cur = state.stems.get(id);
+      if (cur && ['running', 'queued', 'error', 'ready'].includes(cur.state)) return;
+      api.stems.ahead(id).catch(() => {});
+    }, 600)
+  );
   api.on('stems:done', (d) => {
     const s = state.songs.get(d.songId);
     if (!s) return;
@@ -242,6 +276,7 @@ async function boot() {
     .then((q) => {
       for (const it of q) state.stems.set(it.songId, it);
       if (q.length) emit('stems');
+      tickStems();
     })
     .catch(() => {});
   if (state.settings.ui && state.settings.ui.sinkId) stage.setSink(state.settings.ui.sinkId).catch(() => {});

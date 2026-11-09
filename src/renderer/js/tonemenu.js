@@ -7,6 +7,7 @@
  * User: "useless and ignores selected keys. Needs complete rework, much smarter and in
  * line with the rest of Stagehand." "…that menu is so overwhelming…"
  */
+import { did } from './rewards.js';
 import { h, icon, closeMenu } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { emit, on, setPage } from './store.js';
@@ -84,7 +85,7 @@ export function openToneMenu(anchor, ctx) {
       const t = bySlot(n);
       const b = h(`button.tm-key${t ? '' : '.vacant'}${cur === n ? '.on' : ''}`, { type: 'button', disabled: t ? null : true, style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: t ? `Key ${n}: ${t.name}` : `Key ${n} is empty (put a tone on it in Tones)` });
       b.append(h('b', { text: String(n) }), h('span', { text: t ? t.name : 'Empty' }));
-      if (t) b.onclick = pick(() => ctx.chooseTone(t.id));
+      if (t) b.onclick = pick(() => (did('tone-try'), ctx.chooseTone(t.id)));
       grid.append(b);
     }
     return grid;
@@ -104,6 +105,7 @@ export function openToneMenu(anchor, ctx) {
       const b = h(`button.tm-row${on ? '.on' : ''}`, { type: 'button', title: rig.autoSong ? 'Play this one all the way through (key 1 follows the song again)' : 'Play this tone' });
       b.append(h('span.tm-dot', { style: { '--gel': t.kind === 'bass' ? '#8c7bff' : '#ff6b3d' } }), h('span.tm-row-main', null, h('b', { text: t.name }), h('small', { text: d.text })), h('span.tm-hint', { text: on ? (rig.autoSong ? 'now' : 'held') : now && now.key === t.key ? 'now in the song' : '' }));
       b.onclick = pick(() => {
+        did('tone-try');
         rig.autoSong = false;
         rig.setSongTone(t);
       });

@@ -113,6 +113,19 @@ export function fmtDuration(sec) {
   return s === 60 ? `${m + 1}:00` : `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/**
+ * 4.4: time left on a stem split, counting down between updates: "about 40 s left".
+ * Empty when there's no estimate yet.
+ */
+export function stemsLeft(st) {
+  if (!st || st.state !== 'running') return '';
+  let left = st.etaAt ? (st.etaAt - Date.now()) / 1000 : st.eta;
+  if (!Number.isFinite(left) || left == null) return '';
+  if (left < 3) return (st.progress || 0) > 0.5 ? 'almost done' : '';
+  if (left < 90) return `about ${Math.round(left)} s left`;
+  return `about ${Math.round(left / 60)} min left`;
+}
+
 export function fmtBytes(n) {
   if (!n) return '0 MB';
   if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;

@@ -1,3 +1,4 @@
+import { did } from './rewards.js';
 import {toneToast} from './ui.js';
 /**
  * Your tones: the saved list (tones.json via the main process), slots 1–9,
@@ -163,6 +164,7 @@ export function useSlot(n) {
   try {
     localStorage.setItem('stagehand.slot', String(n));
   } catch (_) {}
+  did('tone-try');
   toneToast(n, t.name, rig.setTone(t.id));
   emit('tones');
   return true;

@@ -10,7 +10,7 @@ import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift } from './dete
 import * as stage from './stage.js';
 import { toast } from './ui.js';
 import { breakdown, compact } from './scorecard.js';
-import { setMyTuning } from './tuning.js';
+import { setMyTuning, tuningName } from './tuning.js';
 import { checkTuning } from './tuning-check.js';
 
 // 4.0.6: the tuning check is a card with every string (tuning-check.js); it replaced
@@ -140,7 +140,10 @@ export const practice = new (class extends EventTarget {
       this.judge.rewind(t);
     }
     this.lastT = t;
-    if (this.session && rig.on) this.session.secs += dt;
+    if (this.session && rig.on) {
+      this.session.secs += dt;
+      this._cover(t, dt * eng.speed);
+    }
     // the highway scores on its own while it's open: don't analyse the guitar twice
     if (rig.on && !document.getElementById('app').classList.contains('under-highway')) {
       const buf = rig.samples(this.buf);
@@ -153,6 +156,28 @@ export const practice = new (class extends EventTarget {
       }
       this.judge.tick(t - this._delay());
     }
+  }
+
+  /**
+   * 4.4: how much of the song you've played since its start, for "played it all the way
+   * through" (levels). Not split by the highway opening or a speed change; jumping back to
+   * the start begins again.
+   */
+  _cover(t, secs) {
+    const id = this.song && this.song.id;
+    const r = this.run;
+    if (!r || r.songId !== id || (t < 5 && t < r.last - 3)) this.run = { songId: id, start: t, secs: 0, last: t };
+    this.run.secs += secs;
+    this.run.last = t;
+  }
+
+  /** The song just ended: was it played all the way through? */
+  playedInFull() {
+    const r = this.run;
+    const dur = stage.engine.duration || 0;
+    const ok = !!(r && this.song && r.songId === this.song.id && dur > 30 && r.start <= 15 && r.secs >= 0.7 * dur);
+    this.run = null;
+    return ok;
   }
 
   /** Riff repeater: start counting a pass over [start, end). */
@@ -226,7 +251,11 @@ export const practice = new (class extends EventTarget {
       }
       // the breakdown (sections, kinds of notes, longest streak) of what was played in this session
       const detail = j && s.targets ? compact(breakdown(s.tab, s.targets, j, { from: s.pos0 })) : {};
-      api.stats.log({ songId: s.songId, part: s.part, seconds: s.secs, accuracy, notes, hit, speed: s.speed ?? stage.engine.speed, at: s.at, ...detail }).then(() => emit('stats')).catch(() => {});
+      // 4.4 (levels): played start to finish, and the tuning's name
+      const full = this.endFull === s.songId;
+      this.endFull = null;
+      const tuning = s.tuning ? tuningName(s.tuning, s.kind === 'bass' ? 'bass' : 'guitar') : null;
+      api.stats.log({ songId: s.songId, part: s.part, seconds: s.secs, accuracy, notes, hit, speed: s.speed ?? stage.engine.speed, at: s.at, ...detail, ...(full ? { full: true } : {}), ...(tuning ? { tuning } : {}) }).then(() => emit('stats')).catch(() => {});
     }
   }
 
@@ -260,7 +289,10 @@ stage.engine.addEventListener('state', () => {
 });
 // the song ends: log it now, not when the next song starts
 stage.engine.addEventListener('state', () => {
-  if (!stage.engine.playing && stage.engine.duration && stage.engine.position >= stage.engine.duration - 0.5) practice.flush();
+  if (!stage.engine.playing && stage.engine.duration && stage.engine.position >= stage.engine.duration - 0.5) {
+    if (practice.session && practice.playedInFull()) practice.endFull = practice.session.songId;
+    practice.flush();
+  }
 });
 on('page', () => {
   if (state.page === 'progress') practice.checkpoint();

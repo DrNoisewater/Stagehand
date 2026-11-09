@@ -1,8 +1,64 @@
-# Stagehand handoff (v4.3.0, 2026-11-09): Backstage, the Drop holds, guitar/bass off sticks
+# Stagehand handoff (v4.4.0, 2026-11-09): levels, fast stems, VIP pass; 4.3: Backstage, the Drop holds, guitar/bass off sticks
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.4.0: stems: fast again, ready before you play, readable folders, smaller option
+
+User: "Stem separation times do not update live on the menu … stem separation is taking longer the more songs I [have split] … They used to separate before the beginning of the song would play … I really want the stems to be separated before you start playing the song." Then: stem folders have "crazy" random names; could stems be zipped to save space and still load fast; does it use all CPU cores.
+
+- **Likely cause of "slower over time":** on Windows the venv `python.exe` is a launcher; `child.kill()` only killed the launcher, so a stopped split (switching songs mid-split) kept running hidden, and they piled up. Now `taskkill /T /F` on Windows, and the engine quits by itself when its stdin closes.
+- **Things that scaled with your library / stems:** `stems.ready()` hit the disk for every song on each library refresh (now an in-memory index: 3,000 songs/500 split 25 ms → 1.5 ms here; Windows disks slower); startup tidy of every stem folder ran before the window (677 ms → 2 ms; now in the background 4 s after start).
+- **Warm engine:** `engine/stagehand_stems.py --serve` keeps torch and the model loaded between songs (jobs as JSON lines on stdin, cancel between chunks, frees GPU memory after each job, quits on stdin EOF or 10 idle min). One-shot mode, `--check`, `--prefetch` unchanged. StemService uses one worker; a job that doesn't stop in 4 s gets the worker closed.
+- **Wait for stems:** the 15 s full-mix fallback (`WAIT_MAX_MS`) is gone: with "Wait for the stems" on, the song starts when its stems are in (Play now still works; failure/cancel plays the full mix).
+- **Time left, live:** `eta`/`etaAt` from progress speed (or past splits before progress), `ui.js stemsLeft()`, a 1 s ticker; on the top pill, its menu (rows now update in place; rebuilding them lost Cancel clicks), the highway panel and the wait card.
+- **Split ahead:** selecting a song (600 ms debounce) queues its split (`stems:ahead`, last 3 picks only, never stops a running split).
+- **Readable folders:** `Stems/Artist - Title [1a2b3c4d]/<model>/`; the full key is in meta.json; old hash folders are renamed in the background (in-use ones next start). `stagehand://stems/<key>/…` resolves through the index.
+- **Loading:** stems load in parallel (6×3 min FLAC: 1.87 s → 1.0 s in Chromium).
+- **Storage choice** (Settings › Stems): Lossless (FLAC, default) or Smaller (Opus 192, ~1/6 the size; loads a bit slower: 1.6 s vs 1.0 s), convert-existing button with space saved, total size. Zip wouldn't help (FLAC is already compressed).
+- **CPU:** "full" = all physical cores; the split you're waiting for runs at normal priority, background splits lower and on CPU at half the cores while a song plays (set from inside Python). Each split logs device, cores, threads and the time of each step (decode, engine start, model, separate, write, save).
+- Tests: stems-queue.test.js rewritten (serve protocol, stop, eta, split ahead, folder rename/lookup), engine_check_test.py (serve without torch), codec-chromium ok, ui3: all stem checks passed incl. "keeps waiting for slow stems"; the "FLAC only" check was updated for the new choice (not re-run); "Jam … Fluid picture" failed on a Fluid `splats` error unrelated to this change.
+- Not verifiable here (Windows only): taskkill of the tree, SetPriorityClass, renaming a folder with a file open.
+
+**Ask the user:** is splitting quick again, and does the song now start with its stems? Does the time left look right? Can they find songs in the Stems folder? Smaller as the default for new splits? Is keeping the model in GPU memory for 10 idle minutes OK alongside games?
+
+## 4.4.0 (also): levels, deeper (trophies, weekly, titles, streak multiplier)
+
+User: "needs to be more in depth and video game-y. Not just exploring the app. Those should show as 10 percent of the challenges. With backstage being a little higher."
+
+- `levels.js` rewritten (still recomputed from scratch; levels.json v2 reads v1): **daily** 4 (playing, skill, a wildcard feature/Backstage one, a bonus "Daily gig"); **weekly** 3 (Song of the week: 85% on a song from your library, saved for the week; a big playing one; one more); **18 trophies** × bronze/silver/gold/platinum (XP once each, kept); **20 titles** to wear on your pass (`levels:title`, replaces the joke line); **day streak** ×0.1 per day up to ×1.5 on playing XP.
+- Shares over two years of days: features 9.8 % of challenges (6 % of challenge XP), Backstage 13.8 % (10 %), playing 76 % (84 %). Someone doing everything at 20 min a day: level 28 in 60 days.
+- `rewards.js`: challenge toasts with a trophy, a smaller trophy card, cards queue. `progress.js`: flame/multiplier, title picker, This week, Titles, Trophy case. `greenroom.js`: worn title on the pass.
+- Tests: levels.test.js 16 pass; greenroom-chromium all passed (title, trophy card).
+
+**Ask the user:** is level 28 in two months too fast? Song of the week: one you haven't nailed yet (now) or any song? Show titles to others in Backstage? Trophy targets right (500-note streak, 100 days)?
+
+## 4.4.0 (also): levels: points for playing and for trying things, pass tiers, locked venues
+
+User: "Joining this area should count in Progress too. Like a challenge … make people want to try the new features … You could get points, and they could level up your badge. That would be shown in backstage as well … a holographic or style based off what level you are … reward you for doing very well. And that should be one of the best things, but we also wanna reward you for exploring … playing in a different tuning or play some new songs. Go and get some new songs … Play 5 songs today in full as an example … Can we have some of the venues locked behind a few levels."
+
+- **Points (XP), worked out fresh every time** (`src/main/services/levels.js`, saved in levels.json `{v, since, did, daily, done}`): everything is recomputed from stats.json sessions plus the things you tried, so nothing counts twice and **past playing counts** (existing players start levelled). Per minute with a song 1 (free play 0.5, max 180 a day); daily streak bonus 5×days (max 50); new song +20; new tuning +40; played in full +25; full-speed scored songs (50+ notes) +15/+40/+70/+150 at 80/90/95/100 %; personal best +30; songs added to the library after levels arrived +10 (5 a day); first time trying each feature (FIRSTS: Backstage join/show/watch/message/tone, record a video, looper, jam, make/try a tone, the Drop, tuner, timing check, slow down, repeat, tab, stems, Discover, a venue, each part, first full song, first 90 %/100 %); daily challenges.
+- **Levels:** XP for level L = 50×(L−1)×L. Pass tiers: Roadie 1, Garage band 3, Opening act 5, Headliner 10, Rock star 15, Legend 20, Hall of Fame 30 (bronze → silver → gold → holographic looks).
+- **Daily challenges:** three a day (one playing, one skill, one exploring), picked by the date so they're the same all day, e.g. "Play 5 songs today in full". Finished ones are kept in `done`.
+- **Where it shows:** Progress has a level panel at the top (medal, XP bar, next unlock, today's challenges, "Things to try" with Go buttons) (`progress.js levelPanel`). Backstage: your pass takes the tier look and "LV n · Tier"; other people show "LV n" (sent with the "here" announce as `lvl`; older versions ignore it). Points earned show as a small "+XP" note; a new level gets a big "Level up!" card (`src/renderer/js/rewards.js`).
+- **Locked venues:** Festival 3, Swarm 5, Canyon 7, Astral 10, Mandala 13, Nebula 16 (`UNLOCKS`). Locked ones show "LV n" in the venue picker; the venue you already use is never locked.
+- Feature hooks: `did('<id>')` from rewards.js at the click sites (take-video, looper, jam, tones pages, tuner, highway, speedpop, tab, stage, discover…). Not from rig.js or repeat.js: importing rewards.js there breaks Node tests.
+- Tests: `node --test test/levels.test.js` (in npm test); greenroom-chromium.js checks the tier and level on passes (`TIERS=1` also shoots every tier, the Progress panel and the level-up card; in that mode a later video step times out, the normal run passes). `npm test` passed; highway shot unchanged.
+
+**Ask the user:** are the point values right (too fast, too slow)? Which venues should be locked, at which levels? Do the pass tiers look special enough, especially holographic? Ideas offered next: weekly challenges, swap one daily challenge, streak freeze, share a level-up in Backstage, pass colours to unlock.
+
+## 4.4.0 (also): a VIP pass on a lanyard, a neon sign, a fresh start
+
+User (with a photo of a VIP backstage pass on a black lanyard and a red-in-pink neon BACKSTAGE sign): "If messages are no longer supported dont show them. It says before backstage. Lets have everything here fresh … I want the Backstage pass to look like the image and animate as if it smoothly falls down on the top left … in place of current username pass … After creating your username it shows. Then you only see the animation when clicking on Backstage main left menu item … we dont want it getting in the way … This area is allowed to be more fun like Guitar Hero art style and band memes/stereotypes. Backstage main area can look more like photo, neon, flicker is alright. Slightly dimmer."
+
+- **Fresh start:** chats from before Backstage (old Friends) are no longer kept or shown: no "Before Backstage" list, no "Friend codes are gone" note. `services/greenroom.js` no longer migrates them (`oldConversations` removed) and drops any `old` saved by earlier 4.3 builds on load. friends.json is still read once for the name to offer and the meeting points. Messages themselves are still fully supported.
+- **The pass** (greenroom.js `drawHead`/`lanyard()`/`dropPass()`, CSS "your pass" in the Backstage look block): a VIP card at the top left of the page (its own column of the head, so it covers nothing): stage-light art with glitter and a crowd with hands up, "VIP", "BACKSTAGE PASS", your name (click to change it), a joke line picked from your name (`ROLES`: "Plays too loud", "Bassist: yes, we exist" …), and the ⋯ menu in its corner. It hangs from a black two-strand lanyard with a metal clip coming down from above the page. No name yet: an empty dashed card on the same lanyard with Come in.
+- **The drop:** it falls in, the lanyard catches it with a small bounce, it swings and settles (~2.6 s), then sways very slightly. It drops only right after you pick a name, and each time you press Backstage on the left menu (sidebar emits `pass-drop`); opening Backstage from elsewhere, and redraws (people coming and going), don't replay it (a redraw mid-fall carries on). Off with reduced motion.
+- **The sign and the room:** BACKSTAGE in red neon tube outline inside a pink neon frame, one letter flickers now and then; the page is a dark purple wall, lights a little dimmer than before. "N is watching your clips" moved under the tagline.
+- Tests: greenroom.test.js (fresh start), greenroom-chromium.js (the pass drops after a name, not from elsewhere, again from the left menu; frames `gr-pass-0..7.png`): all passed; `npm test` passed.
+
+**Ask the user:** does the drop feel smooth and fun (too slow, too much swing)? Is the pass the right size, and does the joke line land? Is the sign close to the photo, and is the page dim enough?
 
 ## 4.3.0 (also): Backstage, the Drop holds, guitar or bass off for every song
 

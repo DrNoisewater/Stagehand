@@ -6,6 +6,7 @@ import * as actions from './actions.js';
 import { KIND_LABEL } from './scorecard.js';
 import { coverEl } from './shell.js';
 import { engine } from './stage.js';
+import { L, loadLevels, wearTitle } from './rewards.js';
 
 const root = document.getElementById('page-progress');
 const P = { period: 'week', data: null, takes: [], playing: null, audio: null };
@@ -47,6 +48,8 @@ function render() {
     seg.append(b);
   }
   root.append(h('div.prog-head', null, h('h1.page-title', { text: 'Progress' }), h('span.grow'), seg));
+  // 4.4: your level, today's challenges and things to try
+  if (L.st) root.append(levelPanel(L.st));
   const d = P.data;
   if (!d) {
     root.append(h('p', { text: 'Reading your practice…', style: { color: 'var(--ink-3)' } }));
@@ -321,4 +324,132 @@ async function playTake(t) {
 
 on('page', () => state.page === 'progress' && load());
 on('stats', () => state.page === 'progress' && load());
+on('levels', () => state.page === 'progress' && P.data && render());
+on('page', () => state.page === 'progress' && loadLevels());
 on('takes', () => state.page === 'progress' && load());
+
+// ------------------------------------------------------- 4.4: levels --
+const FLAME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 6 5 11a5 5 0 0 1-10 0c0-2.4 1.2-4 2.5-5.2.2 1.7 1 2.7 2 3.2C11 8.5 11 5 12 2Z" fill="currentColor"/></svg>';
+const CUP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" fill="currentColor"/><path d="M7 6H4.5a2.5 2.5 0 0 0 3 3.5M17 6h2.5a2.5 2.5 0 0 1-3 3.5M12 14v4M8 20h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const METAL = ['bronze', 'silver', 'gold', 'platinum'];
+const n = (x) => Number(x || 0).toLocaleString();
+
+/** One challenge: a tick, the name, a bar when it takes more than one go, and the points. */
+function challengeRow(c, tag) {
+  const short = c.name.replace(/^Daily gig: /, '').replace(/^Song of the week: /, '');
+  const name = short.charAt(0).toUpperCase() + short.slice(1);
+  const bar = c.target > 1 && !c.done ? h('div.lv-cbar', null, h('i', { style: { width: `${Math.round((c.value / c.target) * 100)}%` } })) : null;
+  const sub = c.songId ? h('small.lv-csub', { text: [c.artist, c.best ? `Best this week: ${Math.round(c.best * 100)}%` : 'Not played this week'].filter(Boolean).join(' · ') }) : null;
+  const count = c.target > 1 ? `${n(c.value)} / ${n(c.target)}${c.unit ? ` ${c.unit}` : ''} · ` : '';
+  return h(`div.lv-c${c.done ? '.done' : ''}${c.bonus ? '.gig' : ''}${c.songId ? '.sotw' : ''}`, null,
+    h('span.lv-check', { html: c.done ? icon('check') : '' }),
+    h('div.lv-ctext', null, tag ? h('span.lv-tag', { text: tag }) : null, h('b', { text: name }), sub, bar),
+    h('span.lv-xp', { text: c.done ? `Done · +${c.xp}` : `${count}+${c.xp} XP` }));
+}
+const tagOf = (c) => (c.bonus ? 'Daily gig' : c.songId ? 'Song of the week' : c.kind === 'backstage' ? 'Backstage' : c.kind === 'explore' ? 'Try something' : '');
+
+/** Your level and pass, the bar to the next one, the streak, today's challenges; this week; trophies; titles; things to try. */
+function levelPanel(st) {
+  const span = Math.max(1, st.to - st.from);
+  const into = st.xp - st.from;
+  const medal = h(`div.lv-medal.tier-${st.tier.id}`, { title: `${st.tier.name} pass` }, h('small', { text: 'LEVEL' }), h('b', { text: String(st.level) }));
+  const next = st.next ? `Level ${st.next.level} unlocks the ${st.next.name} venue` : 'Every venue is yours';
+  // days in a row: a flame and the multiplier
+  const sk = st.streak || { days: 0, mult: 1, today: false, nextMult: 1 };
+  const flame = h(`div.lv-flame${sk.days >= 2 ? '.hot' : ''}${sk.today ? '' : '.cold'}`, { title: 'Play on days in a row to earn more for playing: x1.1 a day, up to x1.5' },
+    h('span.lv-fic', { html: FLAME }),
+    h('b', { text: `x${(sk.today ? sk.mult : sk.nextMult).toFixed(1)}` }),
+    h('span', { text: sk.today ? (sk.days >= 2 ? `${sk.days} days in a row` : 'Come back tomorrow for x1.1') : sk.days ? `Play today to keep your ${sk.days}-day streak` : 'Play today to start a streak' }));
+  // the title on your pass
+  const earned = (st.titles || []).filter((t) => t.earned);
+  const pickT = h('select.input.lv-tsel', { 'aria-label': 'Title on your Backstage pass' });
+  pickT.append(h('option', { value: '', text: 'A joke line (changes with your name)' }));
+  for (const t of earned) pickT.append(h('option', { value: t.id, text: t.name }));
+  pickT.value = st.title ? st.title.id : '';
+  pickT.disabled = !earned.length;
+  pickT.onchange = () => wearTitle(pickT.value);
+  const who = h('div.lv-who', null,
+    h('div.lv-title', null, h('b', { text: st.tier.name }), st.title ? h('span.lv-worn', { text: `“${st.title.name}”` }) : null, h('span', { text: `${n(st.xp)} XP` })),
+    h('div.lv-bar', { role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(span), 'aria-valuenow': String(into), 'aria-label': 'XP to the next level' }, h('i', { style: { width: `${Math.round((into / span) * 100)}%` } })),
+    h('div.lv-sub', null, h('span', { text: `${n(st.to - st.xp)} XP to level ${st.level + 1}` }), st.today ? h('span.lv-today', { text: `+${n(st.today)} today` }) : null),
+    flame,
+    h('p.lv-next', { text: `${next}. Your pass in Backstage gets fancier as you level up.` }),
+    h('label.lv-tpick', null, h('span', { text: 'Title on your pass' }), pickT));
+  const ch = h('div.lv-chal', null, h('div.lv-h', null, h('b', { text: 'Today’s challenges' }), h('small', { text: 'New ones at midnight' })));
+  for (const c of st.challenges) ch.append(challengeRow(c, tagOf(c)));
+  const panel = h('section.card.lv-panel', { 'aria-label': 'Your level' }, medal, who, ch);
+  const wrap = h('div.lv-wrap', null, panel);
+
+  // this week, and your titles
+  const row = h('div.lv-row');
+  if (st.weekly && st.weekly.length) {
+    const wk = h('section.card.lv-week', { 'aria-label': 'This week' }, h('div.card-head', null, h('h2', { text: 'This week' }), h('span.grow'),
+      h('small.np-fine', { text: st.weekLeft > 1 ? `${st.weekLeft} days left` : 'Last day' })));
+    for (const c of st.weekly) {
+      const r = challengeRow(c, tagOf(c));
+      if (c.songId) {
+        r.classList.add('go');
+        r.title = 'Play it now';
+        r.onclick = () => actions.playAlong(c.songId);
+      }
+      wk.append(r);
+    }
+    row.append(wk);
+  }
+  if (st.titles && st.titles.length) {
+    const tl = h('section.card.lv-titles', { 'aria-label': 'Titles' }, h('div.card-head', null, h('h2', { text: 'Titles' }), h('span.grow'),
+      h('small.np-fine', { text: `${earned.length} of ${st.titles.length} earned` })));
+    const chips = h('div.lv-tchips');
+    for (const t of st.titles) {
+      const on = st.title && st.title.id === t.id;
+      const b = h(`button.lv-tchip${t.earned ? '' : '.locked'}${on ? '.on' : ''}`, { type: 'button', title: t.earned ? (on ? 'On your pass now' : 'Wear it on your Backstage pass') : t.how, 'aria-pressed': String(!!on) },
+        h('b', { text: t.name }), t.earned ? null : h('small', { text: t.how }));
+      if (t.earned) b.onclick = () => wearTitle(on ? null : t.id);
+      else b.disabled = true;
+      chips.append(b);
+    }
+    tl.append(chips);
+    row.append(tl);
+  }
+  if (row.children.length) wrap.append(row);
+
+  // the trophy case
+  if (st.trophies && st.trophies.length) {
+    const metals = st.trophies.reduce((a, t) => a + t.tier + 1, 0);
+    const grid = h('div.lv-tro-grid');
+    for (const t of st.trophies) {
+      const m = t.tier >= 0 ? METAL[t.tier] : 'none';
+      const from = t.tier >= 0 ? t.tiers[t.tier] : 0;
+      const pctTo = t.next ? Math.max(0, Math.min(1, (t.value - from) / (t.next - from))) : 1;
+      const pips = h('span.lv-pips', null, ...t.tiers.map((need, i) => h(`i.${i <= t.tier ? METAL[i] : 'off'}`, { title: `${METAL[i][0].toUpperCase()}${METAL[i].slice(1)}: ${n(need)}` })));
+      grid.append(h(`div.lv-tro.metal-${m}${t.tier < 0 ? '.locked' : ''}`, { title: t.what },
+        h('span.lv-cup', { html: CUP }),
+        h('div.lv-trotext', null,
+          h('b', { text: t.name }),
+          h('small', { text: t.what }),
+          h('div.lv-cbar', null, h('i', { style: { width: `${Math.round(pctTo * 100)}%` } })),
+          h('div.lv-trofoot', null, h('span', { text: t.next ? `${n(t.value)} / ${n(t.next)}` : `${n(t.value)} · all done` }), pips))));
+    }
+    wrap.append(h('section.card.lv-trophies', { 'aria-label': 'Trophy case' }, h('div.card-head', null, h('h2', { text: 'Trophy case' }), h('span.grow'),
+      h('small.np-fine', { text: `${metals} of ${st.trophies.length * 4} medals · bronze, silver, gold, platinum` })), grid));
+  }
+
+  const todo = st.firsts.filter((f) => !f.done);
+  if (todo.length) {
+    const grid = h('div.lv-try-grid');
+    for (const f of todo.slice(0, 8)) {
+      const b = h('button.lv-try', { type: 'button', title: f.how }, h('span.lv-xp', { text: `+${f.xp}` }), h('b', { text: f.name }), h('small', { text: f.how }));
+      b.onclick = () => goTo(f.go);
+      grid.append(b);
+    }
+    const doneN = st.firsts.length - todo.length;
+    wrap.append(h('section.card.lv-try', { 'aria-label': 'Things to try' }, h('div.card-head', null, h('h2', { text: 'Things to try' }), h('span.grow'), h('small.np-fine', { text: `${doneN} of ${st.firsts.length} done` })), grid));
+  }
+  return wrap;
+}
+
+function goTo(page) {
+  if (page === 'greenroom') import('./greenroom.js').then((g) => g.openGreenRoom({ tab: 'room' }));
+  else if (page === 'discover') setView({ kind: 'discover', id: 'search' });
+  else setPage(page || 'songs');
+}

@@ -4,6 +4,7 @@
  * − / + in 5% steps, quick picks and "Back to 100%". Also the repeat bar
  * ("Repeating Verse 2 → Chorus 3", its speed, Speed up each time, ✕).
  */
+import { did } from './rewards.js';
 import { h, icon, esc, showMenu } from './ui.js';
 import { PICKS, GOALS, MIN_SPEED, MAX_SPEED, clampSpeed, stepSpeed, pct, speedKind, speedWords } from './speed.js';
 
@@ -25,6 +26,7 @@ export function paintSpeedChip(chip, s, { label = '' } = {}) {
 /** [ slower, ] faster. Returns the new speed. */
 export function nudgeSpeed(engine, dir) {
   engine.setSpeed(stepSpeed(engine.speed || 1, dir));
+  if (engine.speed < 1) did('slow');
   return engine.speed;
 }
 
@@ -51,7 +53,7 @@ export function openSpeedPopover(anchor, { engine, repeat = null, above = false 
     const b = h('button', { type: 'button', text: String(Math.round(p * 100)), title: `${pct(p)}${p === 1 ? ' (full speed)' : ''}` });
     b.dataset.s = String(p);
     b.classList.add(speedKind(p) || 'full');
-    b.onclick = () => engine.setSpeed(p);
+    b.onclick = () => (engine.setSpeed(p), p < 1 && did('slow'));
     picks.append(b);
   }
   const reset = h('button.sp-reset', { type: 'button', html: `${icon('restore')}<span>Back to 100%</span>` });
@@ -77,6 +79,7 @@ export function openSpeedPopover(anchor, { engine, repeat = null, above = false 
       let s = Math.round((MIN_SPEED + f * (MAX_SPEED - MIN_SPEED)) * 20) / 20;
       if (Math.abs(s - 1) < 0.026) s = 1;
       engine.setSpeed(s);
+      if (s < 1) did('slow');
     };
     at(e.clientX);
     gauge.setPointerCapture(e.pointerId);

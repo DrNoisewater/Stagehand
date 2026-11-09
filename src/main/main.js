@@ -29,6 +29,7 @@ const { TabService } = require('./services/tabs');
 const { RigAudio } = require('./services/rigaudio');
 const { ToneStore, ToneIndex } = require('./services/tones');
 const { Stats, Takes } = require('./services/stats');
+const { Levels } = require('./services/levels');
 const { Captures } = require('./services/captures');
 const { GreenRoom } = require('./services/greenroom');
 
@@ -72,6 +73,7 @@ let tabs;
 let toneStore;
 let toneIndex;
 let stats;
+let levels; // 4.4: points and levels
 let takes;
 let captures;
 let room; // Backstage (4.3; Friends before)
@@ -298,7 +300,9 @@ async function serve(req) {
     file = path.join(D.audio, parts[0]);
   } else if (u.host === 'stems') {
     if (parts.length !== 3 || !/^[a-f0-9]{8,40}$/.test(parts[0]) || !MODELS[parts[1]] || !/^[a-z]+\.(wav|flac|opus)$/.test(parts[2])) return notFound();
-    file = path.join(D.stems, ...parts);
+    // 4.4: the folder is named after the song; the address keeps the audio key
+    file = stems.fileFor(parts[0], parts[1], parts[2]);
+    if (!file) return notFound();
   } else if (u.host === 'cover') {
     const f = parts.length === 1 ? await covers.file(parts[0], Number(u.searchParams.get('size')) || 250) : null;
     // No cover: a transparent pixel, so the page keeps its drawn placeholder without logging errors.
@@ -551,9 +555,22 @@ function registerIpc() {
     return result;
   });
   handle('captures:browse', (ampKey, opts) => captures.browse(ampKey, opts));
-  handle('stats:log', (s) => stats.log(s));
+  handle('stats:log', (s) => {
+    const was = levels ? levels.state().level : 0;
+    const e = stats.log(s);
+    if (levels && room && levels.state().level !== was) room.announceSoon();
+    return e;
+  });
   handle('stats:summary', (period) => stats.summary(period));
   handle('stats:best', () => stats.best());
+  handle('levels:state', () => levels.state());
+  handle('levels:did', async (id) => {
+    const was = levels.state().level;
+    const st = await levels.did(id);
+    if (st.level !== was && room) room.announceSoon();
+    return st;
+  });
+  handle('levels:title', (id) => levels.setTitle(id));
   handle('clips:source', async () => {
     const sources=await desktopCapturer.getSources({types:['window'],thumbnailSize:{width:0,height:0}});
     const own=win;
@@ -775,6 +792,9 @@ function registerIpc() {
   handle('stems:status', (songId) => stems.status(library.get(songId)));
   handle('stems:request', (songIds, opts) => stems.request(songIds, opts || {}));
   handle('stems:prioritize', (songId, opts) => stems.prioritize(songId, opts || {}));
+  handle('stems:ahead', (songId) => stems.ahead(songId));
+  handle('stems:playing', (on) => stems.setPlaying(on));
+  handle('stems:note', (text) => log(`Stems: ${String(text).slice(0, 300)}`));
   handle('stems:cancel', (songId) => stems.cancel(songId));
   handle('stems:remove', (songId) => stems.remove(library.get(songId)));
   handle('stems:queue', () => stems.queueInfo());
@@ -982,7 +1002,7 @@ function registerIpc() {
   }));
   handle('cache:clear', async (which) => {
     if (which === 'audio') await audio.clear();
-    else if (which === 'stems') await fsp.rm(D.stems, { recursive: true, force: true });
+    else if (which === 'stems') await stems.clearAll();
     else if (which === 'art') await fsp.rm(D.art, { recursive: true, force: true });
     else throw new Error('Unknown cache');
   });
@@ -1037,6 +1057,14 @@ app.whenReady().then(async () => {
   toneIndex = new ToneIndex({ file: path.join(D.local, 'Cache', 'tone-index.json'), log });
   stats = new Stats(path.join(D.roaming, 'stats.json'));
   await stats.load();
+  // 4.4: points and levels, worked out from your playing, what you've tried and new songs
+  levels = new Levels({
+    file: path.join(D.roaming, 'levels.json'),
+    sessions: () => stats.data.sessions,
+    added: () => Object.values((library.data && library.data.songs) || {}).map((s) => s.addedAt).filter(Number.isFinite),
+    songs: () => (library.data && library.data.songs) || {}, // for artists and the song of the week
+  });
+  await levels.load().catch((e) => log(`Levels failed to load: ${e.message}`));
   takes = new Takes(D.takes);
   clipSessions = new ClipSessions({ tempRoot: app.getPath('temp') });
   captures = new Captures({
@@ -1059,7 +1087,8 @@ app.whenReady().then(async () => {
   // Chromium's network stack first: it uses Windows' proxy settings (work and school networks); Node's as a fallback
   room = new GreenRoom({
     file: path.join(D.roaming, 'greenroom.json'),
-    oldFile: path.join(D.roaming, 'friends.json'), // 4.1–4.2: its messages are kept to read
+    oldFile: path.join(D.roaming, 'friends.json'), // 4.1–4.2: only the name it had is offered
+    level: () => levels.state().level,
     fetchImpl: (url, opts) => net.fetch(url, opts).catch((err) => (opts && opts.signal && opts.signal.aborted ? Promise.reject(err) : fetch(url, opts))),
     listClips: async () => (await takes.list()).filter((t) => t.kind === 'video'),
     safeStorage,
@@ -1166,7 +1195,7 @@ app.on('before-quit', async (e) => {
     if (rigAudio) rigAudio.quit();
     importer.stop();
     discover.cancelGaps();
-    for (const j of [stems.current]) if (j && j.child) j.child.kill();
+    stems.stopAll();
     await Promise.all([room ? room.close() : null, library.save(), settings.save(), discover.save(), importer.save(), toneStore.flush(), stats.flush(), toneIndex ? toneIndex.flush() : null]);
   } catch (_) {}
   app.quit();

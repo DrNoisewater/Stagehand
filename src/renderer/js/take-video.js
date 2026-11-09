@@ -1,3 +1,4 @@
+import { did } from './rewards.js';
 import {api} from './api.js';
 import {toast} from './ui.js';
 import {nowPlayingTone} from './tonelib.js';
@@ -104,6 +105,7 @@ export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()
             const saved=await api.clips.finish(id,{seconds});
             const open=saved&&saved.take?[{label:'My clips',onClick:()=>import('./greenroom.js').then(r=>r.openGreenRoom({tab:'mine',focus:saved.take.id}))}]:[];
             // (the sound was checked before recording and watched all through: 4.1.2)
+            if(saved&&saved.take)did('record-video');
             if(saved&&saved.take)toast({title:`Saved “${saved.take.name}”`,message:'Backstage, under My clips. Show it there if you want everyone to see it.',kind:'ok',actions:open});
             resolve(saved&&saved.path);}catch(e){clean();reject(e);}};
         });

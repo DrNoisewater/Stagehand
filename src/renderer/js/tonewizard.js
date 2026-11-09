@@ -16,6 +16,7 @@
  * cabinet files and a very easy setup wizard for a new tone, tied to the player
  * through the entire workflow with a Create tone button."
  */
+import { did } from './rewards.js';
 import { api } from './api.js';
 import { h, icon, esc, modal, toast } from './ui.js';
 import { rig } from './rig.js';
@@ -392,6 +393,7 @@ export async function openToneWizard({ kind = null } = {}) {
     try {
       const t = await saveTone({ ...buildTone(W), name: (W.name || '').trim() || 'My tone', slot: W.slot || null });
       saved = t;
+      did('tone-make');
       useTone(t.id);
       toast({ title: `Saved “${t.name}”`, message: t.slot ? `On key ${t.slot}.` : 'In Tones › My tones.', kind: 'ok', timeout: 3500 });
       draw();

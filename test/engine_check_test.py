@@ -19,6 +19,7 @@ FAKE_TORCH = textwrap.dedent('''
     class version:
         cuda = None if MODE == "cpu" else "12.6"
     _threads = [8]
+    def load(*a, **k): return None
     def get_num_threads(): return _threads[0]
     def set_num_threads(n): _threads[0] = n
     class _T:
@@ -60,9 +61,12 @@ def make_fakes(root):
     with open(os.path.join(root, "demucs", "__init__.py"), "w") as f:
         f.write('__version__ = "4.0.1"\n')
     with open(os.path.join(root, "demucs", "pretrained.py"), "w") as f:
-        f.write("def get_model(name): return None\n")
+        f.write("import os, time\ndef get_model(name):\n    time.sleep(float(os.environ.get('FAKE_MODEL_SLEEP', '0')))\n    return None\n")
     with open(os.path.join(root, "demucs", "apply.py"), "w") as f:
-        f.write("def apply_model(*a, **k): return None\n")
+        f.write("class BagOfModels: pass\ndef apply_model(*a, **k): return None\n")
+    os.makedirs(os.path.join(root, "julius"))
+    with open(os.path.join(root, "julius", "__init__.py"), "w") as f:
+        f.write("")
 
 
 def run_check(root, mode):
@@ -70,6 +74,79 @@ def run_check(root, mode):
     out = subprocess.run([sys.executable, ENGINE, "--check"], env=env, capture_output=True, text=True, timeout=60)
     events = [json.loads(l) for l in out.stdout.splitlines() if l.strip().startswith("{")]
     return out.returncode, [e for e in events if e["event"] == "check"][0]
+
+
+def serve_checks(root):
+    """The engine that stays open: quits when the app goes away, reports each job by
+    its id, and stops a cancelled one (all without a real PyTorch)."""
+    import queue
+    import threading
+    import time
+
+    env = dict(os.environ, PYTHONPATH=root, FAKE_TORCH_MODE="cpu", FAKE_MODEL_SLEEP="1.5")
+    results = []
+
+    def start(*extra):
+        p = subprocess.Popen([sys.executable, "-u", ENGINE, "--serve", *extra], env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        p.lines = queue.Queue()
+        threading.Thread(target=lambda: [p.lines.put(l) for l in p.stdout], daemon=True).start()
+        return p
+
+    def read_until(p, test, timeout=10):
+        end = time.time() + timeout
+        while time.time() < end:
+            try:
+                line = p.lines.get(timeout=max(0.05, end - time.time()))
+            except queue.Empty:
+                break
+            if line.strip().startswith("{"):
+                ev = json.loads(line)
+                if test(ev):
+                    return ev
+        return None
+
+    # 1. stdin closes (the app stopped or crashed): the engine quits by itself
+    p = start()
+    ok = read_until(p, lambda e: e["event"] == "ready") is not None
+    t = time.time()
+    p.stdin.close()
+    try:
+        p.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        p.kill()
+        ok = False
+    results.append(("serve quits when the app closes its input (%.1f s)" % (time.time() - t), ok))
+
+    # 2. a cancel while the model loads: the job ends as cancelled, with its id
+    p = start()
+    read_until(p, lambda e: e["event"] == "ready")
+    p.stdin.write(json.dumps({"cmd": "split", "id": "j1", "input": "x.wav", "outdir": root, "model": "htdemucs"}) + "\n")
+    p.stdin.flush()
+    time.sleep(0.3)
+    p.stdin.write(json.dumps({"cmd": "cancel", "id": "j1"}) + "\n")
+    p.stdin.flush()
+    ev = read_until(p, lambda e: e["event"] in ("error", "done") and e.get("job") == "j1")
+    results.append(("serve stops a cancelled job", bool(ev and ev.get("cancelled"))))
+
+    # 3. the next job still runs (and fails here, the fake model is empty), reported by its id
+    p.stdin.write(json.dumps({"cmd": "split", "id": "j2", "input": "x.wav", "outdir": root, "model": "htdemucs"}) + "\n")
+    p.stdin.flush()
+    ev = read_until(p, lambda e: e["event"] in ("error", "done") and e.get("job") == "j2")
+    results.append(("serve carries on with the next job", bool(ev and not ev.get("cancelled"))))
+    p.stdin.close()
+    p.wait(timeout=10)
+
+    # 4. nothing to do for a while: it closes by itself
+    p = start("--idle", "0.5")
+    try:
+        p.wait(timeout=10)
+        ok = p.returncode == 0
+    except subprocess.TimeoutExpired:
+        p.kill()
+        ok = False
+    p.stdin.close()
+    results.append(("serve closes when idle", ok))
+    return results
 
 
 def main():
@@ -99,6 +176,8 @@ def main():
         sys.path.insert(0, os.path.dirname(ENGINE))
         import stagehand_stems as eng  # noqa: E402
 
+        eng.cpu_info = lambda: (16, None)  # (no psutil: full = PyTorch's default)
+
         got = []
         for level in ("full", "half", "low"):
             import torch  # the fake
@@ -108,6 +187,10 @@ def main():
         ok = got == [8, 4, 2]
         failures += not ok
         print("  %s cpu load full/half/low -> %s threads" % ("ok " if ok else "FAIL", got))
+
+        for name, ok in serve_checks(root):
+            failures += not ok
+            print("  %s %s" % ("ok " if ok else "FAIL", name))
     print("\n%s" % ("all passed" if not failures else "%d failed" % failures))
     return 1 if failures else 0
 

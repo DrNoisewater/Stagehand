@@ -1,3 +1,4 @@
+import { did, venueLock } from './rewards.js';
 import { APPROACH_UNITS, approachDepth, chordSpan, isChordRepeat } from './highway-layout.js';
 /**
  * Note highway: the part coming toward you down a 3D fretboard, Rocksmith
@@ -7,7 +8,7 @@ import { APPROACH_UNITS, approachDepth, chordSpan, isChordRepeat } from './highw
  */
 import { visualTime, sustainIndex, firstSustain, noteEnd, matchTiming, attackAgo } from './highway-timing.js';
 import { api } from './api.js';
-import { h, icon, esc, showMenu, toast, instrumentTag } from './ui.js';
+import { h, icon, esc, showMenu, toast, instrumentTag, stemsLeft } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
@@ -241,10 +242,13 @@ export function createHighway(stage) {
     const grid = h('div.hw-venues');
     for (const v of VENUES) {
       const th = venueThumb(v);
-      const b = h('button.hw-venue', { type: 'button', title: v.name, 'aria-pressed': String(cur === v.id) }, th ? h('img', { src: th, alt: '' }) : h(v.scene ? `i.fluid.sc-${v.scene}` : v.fluid ? 'i.fluid' : 'i.plain'), h('span', { text: v.name }));
+      // 4.4: some venues open up with levels (the one you're in always stays yours)
+      const lock = cur === v.id ? 0 : venueLock(v.id);
+      const b = h(`button.hw-venue${lock ? '.locked' : ''}`, { type: 'button', title: lock ? `${v.name}: reach level ${lock} to play here` : v.name, 'aria-pressed': String(cur === v.id), ...(lock ? { 'data-lock': `LV ${lock}` } : {}) }, th ? h('img', { src: th, alt: '' }) : h(v.scene ? `i.fluid.sc-${v.scene}` : v.fluid ? 'i.fluid' : 'i.plain'), h('span', { text: v.name }));
       b.onclick = () => {
+        if (lock) return toast({ title: `${v.name} opens at level ${lock}`, message: 'Play songs, do today’s challenges and try new things to level up. Your level is on the Progress page.', kind: 'info' });
         setPref('venue', v.id);
-
+        did('venue');
         renderOpts();
       };
       grid.append(b);
@@ -289,7 +293,7 @@ export function createHighway(stage) {
     const head = h('div.hw-drop-head', null, h('div', null, h('b', { text: 'Drop' }), h('small.drop-line', { text: ds.line })));
     const sw = h('button.drop-switch', { type: 'button', 'aria-pressed': String(d.on), title: 'The Drop on or off (D)' }, h('span.led'));
     sw.style.setProperty('--gel', '#8c7bff');
-    sw.onclick = () => rig.setDrop({ on: !d.on });
+    sw.onclick = () => (rig.setDrop({ on: !d.on }), rig.drop.on && did('drop'));
     head.append(sw);
     dropBox.append(head);
     // on, but not what this song wants (the line below says what it needs)
@@ -305,12 +309,12 @@ export function createHighway(stage) {
     }
     // one "match the song" (4.3: there were two), then the fixed steps
     const matchT = h('button.hw-chip.hw-drop-match', { type: 'button', text: `Match the song${plan.drop ? ` (−${plan.drop})` : ''}`, title: 'Follow each song’s tuning', 'aria-pressed': String(d.on && d.match) });
-    matchT.onclick = () => rig.setDrop({ on: true, match: true });
+    matchT.onclick = () => (rig.setDrop({ on: true, match: true }), did('drop'));
     dropBox.append(matchT);
     const steps = h('div.drop-steps');
     for (const st of [1, 2, 3, 4, 5, 6, 7, 12]) {
       const b = h('button', { type: 'button', text: st === 12 ? 'Oct' : `−${st}`, 'aria-pressed': String(d.on && !d.match && d.st === st) });
-      b.onclick = () => rig.setDrop({ st, match: false, on: true });
+      b.onclick = () => (rig.setDrop({ st, match: false, on: true }), did('drop'));
       steps.append(b);
     }
     dropBox.append(steps);
@@ -404,6 +408,7 @@ export function createHighway(stage) {
   function repeat(s) {
     hideCard();
     rep.start({ start: s.start, end: s.end, label: s.label });
+    did('repeat');
     jumpTo(Math.max(0, s.start - 1));
     if (!stage.engine.playing) stage.toggle();
   }
@@ -738,6 +743,7 @@ export function createHighway(stage) {
     const ok = h('button.btn.primary', { type: 'button', text: use === 0 ? 'Keep in sync' : `Use ${use > 0 ? '+' : ''}${use} ms` });
     ok.onclick = () => {
       setPref('offsetMs', use);
+      did('timing');
       closeSync();
       toast({ title: use ? `Notes now ${Math.abs(use)} ms ${use > 0 ? 'later' : 'earlier'}` : 'Notes in sync', message: 'Only the picture moves; scoring is not affected.' });
     };
@@ -1101,7 +1107,8 @@ export function createHighway(stage) {
     } else if (info.waiting) {
       const st = info.waiting;
       const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
-      const what = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : pct ? `Splitting the stems · ${pct}%` : stage.stemsStep ? stage.stemsStep(st) : 'Splitting the stems…';
+      const left = stemsLeft(st);
+      const what = (st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : pct ? `Splitting the stems · ${pct}%` : stage.stemsStep ? stage.stemsStep(st) : 'Splitting the stems…') + (left ? ` · ${left}` : '');
       key = `wait:${info.song.id}:${st.state}`;
       if (statusBox.dataset.key === key && st.state === 'running') {
         const b = statusBox.querySelector('b');
@@ -1111,7 +1118,7 @@ export function createHighway(stage) {
         statusBox.hidden = false;
         return;
       }
-      html = `<div class="hw-st-box"><b>${what}</b><span>${title} starts by itself: with the stems, or with the full mix in a few seconds if they take long.</span><div class="hw-st-bar"><i style="width:${Math.max(2, pct)}%"></i></div><div class="hw-st-acts"><button type="button" class="btn small" data-act="now">Play now with the full mix</button></div></div>`;
+      html = `<div class="hw-st-box"><b>${what}</b><span>${title} starts by itself as soon as its stems are ready.</span><div class="hw-st-bar"><i style="width:${Math.max(2, pct)}%"></i></div><div class="hw-st-acts"><button type="button" class="btn small" data-act="now">Play now with the full mix</button></div></div>`;
     }
     if (!html) {
       statusBox.hidden = true;
@@ -1133,6 +1140,7 @@ export function createHighway(stage) {
   };
   on('stage-phase', () => renderStatus());
   on('stems-update', () => H.open && renderStatus());
+  on('stems-tick', () => H.open && renderStatus()); // (the time left counts down)
 
   function pickPart() {
     const want = prefs.part || 'lead';
@@ -2690,6 +2698,7 @@ export function createHighway(stage) {
     const j = Math.max(a, b);
     const label = i === j ? secLabel(i) : `${secLabel(i)} → ${secLabel(j)}`;
     rep.start({ start: secs[i].start, end: secs[j].end, label, from: i, to: j, anchor });
+    did('repeat');
     // carry on if you're already playing inside it, else start just before it
     const t = stage.engine.position;
     if (t < secs[i].start - 1.5 || t >= secs[j].end) jumpTo(Math.max(0, secs[i].start - 1));

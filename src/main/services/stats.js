@@ -50,6 +50,9 @@ class Stats {
       for (const [k, v] of Object.entries(s.kinds)) if (/^[a-z]{3,10}$/.test(k) && Array.isArray(v)) e.kinds[k] = [Number(v[0]) || 0, Number(v[1]) || 0];
     }
     if (Number.isFinite(Number(s.bestStreak))) e.bestStreak = Number(s.bestStreak);
+    // 4.4: for levels: played start to finish, and the tuning's name
+    if (s.full === true) e.full = true;
+    if (typeof s.tuning === 'string' && s.tuning) e.tuning = s.tuning.slice(0, 40);
     this.data.sessions.push(e);
     if (this.data.sessions.length > 20000) this.data.sessions.splice(0, this.data.sessions.length - 20000);
     this.saveSoon();

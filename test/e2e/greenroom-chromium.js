@@ -15,6 +15,14 @@ const http = require('http');
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 const { GreenRoom, clipSummary } = require('../../src/main/services/greenroom');
 const { aboutClip } = require('../../src/main/services/stats');
+const { Levels } = require('../../src/main/services/levels');
+
+// 4.4: Alex has played for two months (a fancy pass); Bo is new
+const HISTORY = { Alex: [], Bo: [] };
+for (let d = 70; d >= 1; d--) for (let i = 0; i < 4; i++) HISTORY.Alex.push({ songId: `song${(d * 4 + i) % 90}`, part: i === 3 ? 'bass' : 'lead', seconds: 600, accuracy: i === 1 ? 0.97 : 0.93, notes: 400, speed: 1, full: true, tuning: i === 2 ? 'Drop D' : 'E Standard', at: Date.now() - d * 86400000 + i * 900000,
+  bestStreak: 80 + d * 3, sections: [['Verse', 12, 12], ['Chorus', 10, 12]], kinds: { bend: [6, 8], slide: [3, 4], chord: [25, 30], legato: [10, 12] } });
+// their library (for artists and the song of the week)
+const SONGS = Object.fromEntries(Array.from({ length: 90 }, (_, i) => [`song${i}`, { title: ['Paranoid', 'Money', 'Holy Wars', 'Hysteria', 'Black Dog'][i % 5] + (i >= 5 ? ` ${i}` : ''), artist: ['Black Sabbath', 'Pink Floyd', 'Megadeth', 'Muse', 'Led Zeppelin', 'Rush', 'AC/DC'][i % 7] }]));
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const outDir = process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'sh-gr-out-'));
@@ -116,7 +124,8 @@ const SHAPE = (() => {
 async function stagehand(browser, name, relay, url) {
   const takes = []; // { id, kind, name, file, seconds, at, bytes, about, data }
   const saved = []; // tones kept
-  const room = new GreenRoom({ file: path.join(tmp, `${name}.json`), fetchImpl: fetch, relays: [relay], room: 'E2E ROOM', listClips: async () => takes.filter((t) => t.kind === 'video') });
+  const levels = await new Levels({ file: path.join(tmp, `${name}-levels.json`), sessions: () => HISTORY[name] || [], songs: () => (name === 'Alex' ? SONGS : {}) }).load();
+  const room = new GreenRoom({ file: path.join(tmp, `${name}.json`), fetchImpl: fetch, relays: [relay], room: 'E2E ROOM', listClips: async () => takes.filter((t) => t.kind === 'video'), level: () => levels.state().level });
   await room.load();
   const page = await browser.newPage({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 1 });
   page.on('console', (m) => m.type() === 'error' && !/404|Failed to load/.test(m.text()) && console.log(`[${name}] CONSOLE ${m.text()}`));
@@ -128,6 +137,9 @@ async function stagehand(browser, name, relay, url) {
     'takes.rename': (id, n) => Object.assign(takes.find((t) => t.id === id), { name: n }),
     'takes.remove': (id) => (room.setShared(id, false).catch(() => {}), takes.splice(takes.findIndex((t) => t.id === id), 1) && true),
     'room.get': () => (room.prune && room.prune(), room.state()),
+    'levels.state': () => levels.state(),
+    'levels.did': (id) => levels.did(id),
+    'levels.title': (id) => levels.setTitle(id),
     'room.setName': (n) => room.setName(n),
     'room.leave': () => room.leave(),
     'room.send': (to, t, about) => room.sendMessage(to, t, about),
@@ -182,7 +194,7 @@ async function stagehand(browser, name, relay, url) {
   room.on('message', (m) => page.evaluate((m) => window.__emit('room:message', m), m).catch(() => {}));
   await page.goto(`${url}/src/renderer/harness.html`);
   await page.waitForFunction(() => window.ready, null, { timeout: 30000 });
-  return { room, takes, saved, page, name };
+  return { room, takes, saved, page, name, levels };
 }
 const clearToasts = (S) => S.page.locator('.toast').evaluateAll((els) => els.forEach((e) => e.remove()));
 const shot = async (S, file) => {
@@ -267,6 +279,96 @@ const shot = async (S, file) => {
     check(A.room.joined && A.room.isShared('k_aaaaaaaaaa') && !A.room.isShared('k_bbbbbbbbbb'), 'after a name, that one video is backstage');
     check(/backstage pass\s*Alex/i.test(await A.page.locator('.gr-me').textContent()), 'Alex sees their name at the top');
     await shot(A, 'gr-3-mine-shown.png');
+    // the pass: drops in on its lanyard just after picking a name, then just hangs there
+    check((await A.page.locator('.gr-pass .gr-lan.drop').count()) === 1 && /VIP/.test(await A.page.locator('.gr-pass').textContent()), 'the VIP pass drops in after picking a name');
+    await A.page.waitForFunction(() => /LV \d+/.test(document.querySelector('.gr-pass')?.textContent || ''), null, { timeout: 5000 }).catch(() => {});
+    const lvA = A.levels.state();
+    check(lvA.level >= 15 && (await A.page.locator(`.gr-pass.tier-${lvA.tier.id}`).count()) === 1 && new RegExp(`LV ${lvA.level} · ${lvA.tier.name}`).test(await A.page.locator('.gr-pass').textContent()), `Alex’s pass shows level ${lvA.level} (${lvA.tier.name}) in its style`);
+    check(lvA.firsts.find((f) => f.id === 'backstage-join').done, 'getting a backstage pass counts toward levels');
+    // a title earned from a trophy (a 250-note streak) goes on the pass in place of the joke line
+    check(lvA.titles.find((t) => t.id === 'metronome').earned && lvA.trophies.find((t) => t.id === 'streak').tier >= 2, 'a long note streak earns a trophy and a title');
+    await A.page.evaluate(async () => (await import('./js/rewards.js')).wearTitle('metronome'));
+    await A.page.waitForFunction(() => /Human Metronome/.test(document.querySelector('.gr-pass .gr-role.earned')?.textContent || ''), null, { timeout: 5000 }).catch(() => {});
+    check(/Human Metronome/.test((await A.page.locator('.gr-pass .gr-role').textContent()) || ''), 'the title shows on the pass');
+    await A.page.waitForTimeout(3000);
+    await A.page.evaluate(() => window.GR.openGreenRoom({ tab: 'room' }));
+    check((await A.page.locator('.gr-pass .gr-lan.drop').count()) === 0, 'it doesn’t drop again when Backstage opens from elsewhere');
+    // from the left menu it drops every time: a few frames of the fall
+    await A.page.locator('.nav-section[data-page="greenroom"]').click();
+    check((await A.page.locator('.gr-pass .gr-lan.drop').count()) === 1, 'opening Backstage from the left menu drops the pass in');
+    const box = await A.page.locator('#page-greenroom').boundingBox();
+    for (let i = 0; i < 8; i++) {
+      await A.page.screenshot({ path: path.join(outDir, `gr-pass-${i}.png`), clip: { x: box.x, y: box.y, width: 520, height: 300 } });
+      await A.page.waitForTimeout(260);
+    }
+    await A.page.waitForTimeout(2000);
+    // TIERS=1: every pass style side by side (tiers.png), for looking at
+    if (process.env.TIERS) {
+      const lv = A.levels.state();
+      for (const [i, t] of [['roadie', 'Roadie', 1], ['garage', 'Garage band', 3], ['opener', 'Opening act', 5], ['headliner', 'Headliner', 10], ['rockstar', 'Rock star', 15], ['legend', 'Legend', 20], ['hof', 'Hall of Fame', 30]].entries()) {
+        await A.page.evaluate(async ([id, n, l]) => {
+          const R = await import('./js/rewards.js');
+          R.L.st = { ...R.L.st, level: l, tier: { id, name: n } };
+          (await import('./js/store.js')).emit('levels', R.L.st);
+        }, t);
+        await A.page.waitForTimeout(300);
+        const pb = await A.page.locator('.gr-pass').boundingBox();
+        await A.page.screenshot({ path: path.join(outDir, `tier-${i}.png`), clip: { x: pb.x - 12, y: Math.max(0, pb.y), width: pb.width + 24, height: pb.height + 16 } });
+      }
+      await A.page.evaluate(async (st) => ((await import('./js/rewards.js')).L.st = st, (await import('./js/store.js')).emit('levels', st)), lv);
+      // the level panel on Progress, and the level-up card
+      const err = await A.page.evaluate(async () => {
+        try {
+          await import('./js/progress.js');
+          window.setPage('progress');
+          return null;
+        } catch (e) {
+          return e.message;
+        }
+      });
+      if (err) console.log(`(Progress didn’t load here: ${err})`);
+      else {
+        await A.page.waitForSelector('.lv-panel', { timeout: 8000 }).catch(() => {});
+        await shot(A, 'lv-progress.png');
+        // the whole level area: today, this week, titles, the trophy case, things to try
+        await clearToasts(A);
+        const wrap = A.page.locator('.lv-wrap');
+        if (await wrap.count()) {
+          await A.page.setViewportSize({ width: 1360, height: 2600 });
+          await wrap.screenshot({ path: path.join(outDir, 'lv-area.png') });
+          for (const [sel, file] of [['.lv-panel', 'lv-today.png'], ['.lv-row', 'lv-week.png'], ['.lv-trophies', 'lv-trophies.png']]) await A.page.locator(sel).screenshot({ path: path.join(outDir, file) }).catch(() => {});
+          // narrower window
+          await A.page.setViewportSize({ width: 980, height: 3000 });
+          await wrap.screenshot({ path: path.join(outDir, 'lv-area-narrow.png') });
+          await A.page.setViewportSize({ width: 1360, height: 900 });
+        }
+        // a new trophy card and a finished-challenge note
+        await A.page.evaluate(async () => {
+          const R = await import('./js/rewards.js');
+          const st = R.L.st;
+          const fake = { ...st, recent: [{ key: 't:streak:3', xp: 200, why: 'Trophy: Combo king (platinum)', at: Date.now() }, { key: 'c:x:full2', xp: 25, why: 'Challenge: Play 2 songs all the way through', at: Date.now() }, ...st.recent] };
+          // as if the main process sent it
+          const { api } = await import('./js/api.js');
+          const real = api.levels.state;
+          api.levels.state = async () => fake;
+          await R.loadLevels();
+          api.levels.state = real;
+        });
+        await A.page.waitForTimeout(900);
+        await A.page.screenshot({ path: path.join(outDir, 'lv-trophy-card.png') });
+        check((await A.page.locator('.lv-trophy-up').count()) === 1 && (await A.page.locator('.toast.lv-toast').count()) === 1, 'a new trophy gets a card, a finished challenge a trophy note');
+        await A.page.evaluate(() => document.querySelectorAll('.lvup').forEach((e) => e.remove()));
+      }
+      await A.page.evaluate(async () => {
+        const R = await import('./js/rewards.js');
+        R.L.st = { ...R.L.st, level: R.L.st.level - 1, tier: { id: 'rockstar', name: 'Rock star' } };
+        await R.loadLevels();
+      });
+      await A.page.waitForTimeout(900);
+      await shot(A, 'lv-levelup.png');
+      await A.page.evaluate(() => document.querySelectorAll('.lvup').forEach((e) => e.remove()));
+      await A.page.evaluate(() => window.GR.openGreenRoom({ tab: 'room' }));
+    }
 
     // Bo: Alex and their clip show up by themselves
     await B.page.waitForSelector('#page-greenroom .gr-card', { timeout: 15000 });
@@ -275,6 +377,8 @@ const shot = async (S, file) => {
     check(/Paranoid/.test(card) && /Alex/.test(card) && /Black Sabbath/.test(card) && /Lead · E Standard · 80% speed/.test(card) && /Crunchy Plexi/.test(card), `the card says the song, who, the part, tuning, speed and tone (${card.replace(/\s+/g, ' ').slice(0, 120)})`);
     check(/You have it/.test(card), 'and that Bo has that song');
     check(/Here now · 1/.test(await B.page.locator('.gr-section').textContent()), 'Alex is listed as here now');
+    await B.page.waitForFunction(() => /LV \d+/.test(document.querySelector('.gr-people')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
+    check(new RegExp(`LV ${A.levels.state().level}`).test(await B.page.locator('.gr-people').textContent()), 'Bo sees Alex’s level next to their name');
     await shot(B, 'gr-4-room.png');
     // the filters
     await B.page.locator('.gr-filter button:has-text("Bass")').click();
@@ -295,8 +399,8 @@ const shot = async (S, file) => {
     check(v.w === 640 && v.h === 360, `Alex’s clip plays on Bo’s side, straight from Alex’s PC (${v.w}×${v.h}, ${v.t.toFixed(1)} s in)`);
     const det = await B.page.locator('.gr-details').textContent();
     check(/Play this song/.test(det) && /Try it/.test(det) && /Keep it/.test(det) && /Guitar tone/.test(det), 'beside it: Play this song (Bo has it), and Try it / Keep it for the tone');
-    await A.page.waitForFunction(() => /Bo is watching|is watching your clips/.test(document.querySelector('.gr-me')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
-    check(/is watching your clips/.test(await A.page.locator('.gr-me').textContent()), 'Alex sees someone is watching');
+    await A.page.waitForFunction(() => /Bo is watching|is watching your clips/.test(document.querySelector('.gr-head')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
+    check(/is watching your clips/.test(await A.page.locator('.gr-head').textContent()), 'Alex sees someone is watching');
     await shot(B, 'gr-5-watching.png');
     // keep the tone: it arrives whole, without Alex's own cabinet file
     await B.page.locator('.gr-details button:has-text("Keep it")').click();

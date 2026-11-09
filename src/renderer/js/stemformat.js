@@ -1,12 +1,13 @@
 /**
- * Stems are stored as lossless FLAC: new ones are converted as they're made,
- * and any WAV stems can be converted from Settings › Stems.
+ * Stems are stored as lossless FLAC, or (4.4, Settings › Stems) as smaller Opus
+ * 192 kbps: new ones are converted as they're made, and stems already made can be
+ * converted from Settings › Stems (FLAC to Opus; never back).
  */
 import { api } from './api.js';
 import { state, on, emit } from './store.js';
 import { h, icon, esc, toast, modal, fmtBytes } from './ui.js';
 import { parseWav } from './audio-engine.js';
-import { encodeFlac, decodeTo, wavChannels, FORMATS } from './codec.js';
+import { encodeFlac, encodeOpus, opusSupported, decodeTo, wavChannels, FORMATS } from './codec.js';
 import * as stage from './stage.js';
 
 const fmtById = (id) => FORMATS.find((f) => f.id === id) || FORMATS[0];
@@ -47,6 +48,11 @@ function flac() {
   return flacWorker;
 }
 function encode(fmt, l, r, rate) {
+  if (fmt.bitrate) {
+    const L = Float32Array.from(l, (x) => x / 32768);
+    const R = Float32Array.from(r, (x) => x / 32768);
+    return encodeOpus(L, R, rate, fmt.bitrate);
+  }
   if (typeof Worker === 'undefined') return encodeFlac(l, r, rate);
   const id = ++flacSeq;
   const L = l.slice();
@@ -135,19 +141,39 @@ async function convert(songId, model, format) {
 }
 
 // New stems get stored in the chosen format as soon as they're made.
+/** How new stems are stored: lossless FLAC (the default) or the smaller Opus 192 kbps. */
+export function storeFormat() {
+  const f = state.settings && state.settings.stems && state.settings.stems.format;
+  return f === 'opus192' && opusSupported() ? 'opus192' : 'flac';
+}
+
 api.on('stems:done', (d) => {
-  const f = 'flac'; // lossless only for now
+  const f = storeFormat();
   if (d && d.songId) enqueue([{ songId: d.songId, model: d.model || (state.settings.stems.model || 'htdemucs_6s') }], f);
 });
 
 // ============================================================ settings UI
+// (when a song's length isn't known: Opus 192 kbps is roughly a fifth of FLAC)
+const OPUS_SHARE = 0.22;
+
 /** Rows for Settings › Stems. */
 export async function settingsRows(setting) {
   const rows = [];
-  const f = 'flac';
+  const canOpus = opusSupported();
+  const pick = h('select.input', { 'aria-label': 'How stems are stored' });
+  for (const [v, l] of [
+    ['flac', 'Lossless (FLAC)'],
+    ['opus192', 'Smaller (Opus 192 kbps, about a fifth of the size)'],
+  ])
+    pick.append(h('option', { value: v, text: l, disabled: v !== 'flac' && !canOpus ? true : null }));
+  pick.value = storeFormat();
+  pick.onchange = async () => {
+    state.settings = await api.settings.set({ stems: { format: pick.value } });
+    emit('settings');
+  };
   const info = h('span', { text: 'Measuring…', style: { color: 'var(--ink-2)' } });
-  const shrink = h('button.btn.small.soft', { type: 'button', text: 'Convert to FLAC', disabled: true });
-  const row = setting('Stems are stored as lossless FLAC', '', info, shrink);
+  const conv = h('button.btn.small.soft', { type: 'button', text: 'Convert', disabled: true });
+  const row = setting('How stems are stored', '', pick, info, conv);
   const desc = row.querySelector('.d');
   rows.push(row);
   const refresh = async () => {
@@ -155,18 +181,28 @@ export async function settingsRows(setting) {
     try {
       list = await api.stems.formats();
     } catch (_) {}
+    const f = storeFormat();
     const total = list.reduce((a, x) => a + x.bytes, 0);
-    const todo = list.filter((x) => x.format === 'wav');
-    info.textContent = `${list.length} song${list.length === 1 ? '' : 's'} · ${fmtBytes(total)}`;
+    // what can be converted to the chosen format: WAV to either; FLAC to Opus (never back)
+    const todo = list.filter((x) => (f === 'flac' ? x.format === 'wav' : x.format === 'wav' || x.format === 'flac'));
+    const todoBytes = todo.reduce((a, x) => a + x.bytes, 0);
+    // Opus is a fixed rate: 192 kbps per stem for the song's length
+    const opusBytes = (x) => (x.seconds ? x.seconds * 24000 * (x.model === 'htdemucs_6s' ? 6 : 4) : x.bytes * OPUS_SHARE);
+    const after = f === 'flac' ? todoBytes * 0.5 : todo.reduce((a, x) => a + Math.min(x.bytes, opusBytes(x)), 0);
+    info.textContent = `${list.length} song${list.length === 1 ? '' : 's'} · ${fmtBytes(total)} in all`;
+    conv.textContent = f === 'flac' ? 'Convert to FLAC' : 'Make them smaller';
     if (Q.running) {
       desc.textContent = `Converting ${Q.done + 1} of ${Q.total}${Q.current && state.songs.get(Q.current.songId) ? `: ${state.songs.get(Q.current.songId).title}` : ''}…`;
-      shrink.disabled = true;
+      conv.disabled = true;
     } else {
-      desc.textContent = todo.length ? `${todo.length} song${todo.length === 1 ? '' : 's'} still in WAV. Converting runs in the background; you can keep playing.` : 'A perfect copy of what separation makes, at about half the size of WAV.';
-      shrink.disabled = !todo.length;
+      const what = f === 'flac' ? 'Lossless: a perfect copy of what separation makes. New stems are stored this way.' : 'Opus 192 kbps: sounds the same for playing along, about a fifth of the size. New stems are stored this way.';
+      desc.textContent = todo.length
+        ? `${what} ${todo.length} song${todo.length === 1 ? '' : 's'} could be converted, saving about ${fmtBytes(Math.max(0, todoBytes - after))}. It runs in the background; you can keep playing.${f !== 'flac' ? ' Smaller stems can’t be turned back into lossless ones.' : ''}`
+        : what;
+      conv.disabled = !todo.length;
     }
-    shrink.hidden = !todo.length && !Q.running;
-    shrink.onclick = () => {
+    conv.hidden = !todo.length && !Q.running;
+    conv.onclick = () => {
       enqueue(todo.map((x) => ({ songId: x.songId, model: x.model })), f);
       refresh();
     };

@@ -6,7 +6,7 @@
  *    open the song if you have it (or find it), and message them about it.
  *  - My clips: everything you've recorded (videos, looper takes, Record take).
  *    Videos get one switch: Show backstage.
- *  - Messages: your conversations, and the ones from before Backstage (to read).
+ *  - Messages: your conversations (4.3 starts fresh: chats from before Backstage are gone).
  * State and the service: room.js and services/greenroom.js. Files stay "SH - <song>.mp4/.wav"
  * in Stagehand's recordings folder.
  */
@@ -16,6 +16,7 @@ import { h, icon, confirmDialog, toast, fmtBytes, showMenu } from './ui.js';
 import { G, loadRoom, isShown, toggleShown, askName, unreadFor, unreadAll, markRead } from './room.js';
 import { connectTo } from './friendlink.js';
 import { coverEl } from './shell.js';
+import { did, L, loadLevels } from './rewards.js';
 
 const root = document.getElementById('page-greenroom');
 const V = {
@@ -24,7 +25,7 @@ const V = {
   haveOnly: false, // only songs you have
   who: null, // one person's clips (their address)
   focus: null, // a clip of yours to show first (just saved)
-  chat: null, // the conversation open: an address, or an old one's key
+  chat: null, // the conversation open: an address
   about: null, // the clip a new message is about: { id, title }
   takes: null, // your recordings, read when My clips opens
   links: new Map(), // address -> an open direct link
@@ -114,14 +115,22 @@ on('page', () => {
     V.takes = null;
     loadRoom();
     render();
+    did('backstage-visit'); // a challenge some days
+    loadLevels();
   } else stopPlayer({ keep: false });
 });
 on('room', () => shown() && !busyTyping() && render());
 on('room-read', () => shown() && drawHead());
+on('levels', () => shown() && drawHead());
 on('takes', () => {
   V.takes = null;
   if (shown() && V.tab === 'mine' && !busyTyping()) render();
 });
+
+/** Someone's level, small, beside their name (4.4; older Stagehands don't send one). */
+function lvTag(level) {
+  return level > 0 ? h('span.gr-lvtag', { text: `LV ${level}`, title: `Level ${level}` }) : null;
+}
 
 /** A round initial in a colour of its own per person, with a green dot while they're here. */
 function avatar(name, cls = '', online = false) {
@@ -149,12 +158,16 @@ function drawHead() {
     tabs.append(b);
   }
   let me;
-  if (!st) me = h('span.gr-me', { text: 'Getting ready…' });
+  if (!st) me = h('div.gr-me.gr-pass.wait', null, lanyard(h('div.gr-badge.ghost', null, h('span.gr-pass-fine', { text: 'Getting ready…' }))));
   else if (st.joined) {
-    const name = h('button.gr-me-name', { type: 'button', title: 'Change your name', html: `${icon('person')}<span></span>` });
-    name.querySelector('span').textContent = st.name;
+    // just picked a name: the pass drops in
+    if (wasJoined === false) dropPass();
+    did('backstage-join');
+    if (st.shared.length) did('backstage-show');
+    const lv = L.st;
+    const name = h('button.gr-me-name', { type: 'button', title: 'Change your name', text: st.name });
     name.onclick = () => askName();
-    const more = h('button.icon-btn', { type: 'button', title: 'More', 'aria-label': 'Backstage options', html: icon('more') });
+    const more = h('button.icon-btn.gr-pass-more', { type: 'button', title: 'More', 'aria-label': 'Backstage options', html: icon('more') });
     more.onclick = (e) => {
       const r = e.currentTarget.getBoundingClientRect();
       showMenu(r.left, r.bottom + 4, [
@@ -164,25 +177,101 @@ function drawHead() {
         { label: 'Step out of Backstage', icon: 'x', onClick: () => stepOut() },
       ]);
     };
-    const watching = G.watching.length ? h('span.gr-live', { text: `${G.watching.join(' and ')} ${G.watching.length > 1 ? 'are' : 'is'} watching your clips` }) : null;
-    me = h('div.gr-me.gr-pass', null,
-      avatar(st.name, '.big', true),
-      h('div.gr-pass-text', null, h('span.gr-me-label', { text: 'Your backstage pass' }), name, h('span.gr-pass-fine', { text: watching ? '' : 'Everyone here sees this name.' }), watching),
-      more);
+    me = h(`div.gr-me.gr-pass${lv ? `.tier-${lv.tier.id}` : ''}`, { title: 'Your backstage pass. Everyone here sees your name and level.' },
+      lanyard(h('div.gr-badge', null,
+        h('span.gr-slot'),
+        h('div.gr-badge-art', { html: CROWD }),
+        h('div.gr-vip', { text: 'VIP' }),
+        h('span.gr-me-label', { text: 'Backstage pass' }),
+        name,
+        lv ? h('span.gr-lv', { text: `LV ${lv.level} · ${lv.tier.name}`, title: `Level ${lv.level}: ${lv.tier.name} pass` }) : null,
+        lv && lv.title ? h('span.gr-role.earned', { text: lv.title.name, title: 'Your title. Change it in Progress.' }) : h('span.gr-role', { text: roleOf(st.name) }),
+        more)));
   } else {
     const come = btn('Come in', 'person', () => askName(), '.primary.small');
     me = h('div.gr-me.gr-pass.none', null,
-      h('span.gr-av.big.gr-nopass', { html: icon('person') }),
-      h('div.gr-pass-text', null, h('span.gr-me-label', { text: 'No pass yet' }), h('span.gr-pass-fine', { text: 'Look around freely. Pick a name to show your clips and message people.' })),
-      come);
+      lanyard(h('div.gr-badge.ghost', null,
+        h('span.gr-slot'),
+        h('span.gr-me-label', { text: 'No pass yet' }),
+        h('span.gr-pass-fine', { text: 'Look around freely. Pick a name to show your clips and message people.' }),
+        come)));
   }
+  if (st) wasJoined = !!st.joined;
+  const watching = st && st.joined && G.watching.length ? h('span.gr-live', { text: `${G.watching.join(' and ')} ${G.watching.length > 1 ? 'are' : 'is'} watching your clips` }) : null;
   const live = !st ? null : !st.inRoom ? h('span.gr-onair.off', { text: 'Reaching Backstage…' }) : h('span.gr-onair', { title: 'People with Stagehand open right now' }, h('i'), h('span', { text: here ? `${here} ${here === 1 ? 'other player' : 'other players'} here now` : 'Just you right now' }));
   head.replaceChildren(
-    h('div.gr-title', null, h('div.gr-marquee', null, h('h1.page-title.gr-neon', { text: 'Backstage' }), live), h('p.gr-sub', { text: 'Clips from everyone with Stagehand. Watch them while their owner is online, try their tones, and say hi.' })),
     me,
-    tabs
+    h('div.gr-headmain', null,
+      h('div.gr-title', null, h('div.gr-marquee', null, neonSign(), live), h('p.gr-sub', { text: 'Clips from everyone with Stagehand. Watch them while their owner is online, try their tones, and say hi.' }), watching),
+      tabs)
   );
 }
+
+// ------------------------------------------------------ the pass --
+// It hangs on a lanyard at the top left. It drops in when you open Backstage from the
+// left menu, or just after you pick a name; the rest of the time it just hangs there.
+const DROP_MS = 2600; // the fall and the swing settling (as in the CSS)
+let dropAt = 0;
+let wasJoined = null; // null until the first state: only a real "no name, then a name" drops it
+function dropPass() {
+  dropAt = performance.now();
+}
+on('pass-drop', () => {
+  dropPass();
+  if (shown()) drawHead();
+});
+
+/** The cord, the clip and whatever card hangs on them. Redraws mid-fall carry on where they were. */
+function lanyard(card) {
+  const lan = h('div.gr-lan', null, h('div.gr-swing', null, h('div.gr-sway', null, h('span.gr-cord', { html: CORD }), card)));
+  // the idle sway keeps its place across redraws (the page redraws when people come and go)
+  lan.querySelector('.gr-sway').style.animationDelay = `${-((performance.now() / 1000) % 7)}s`;
+  const t = performance.now() - dropAt;
+  if (dropAt && t < DROP_MS) {
+    lan.classList.add('drop');
+    const d = `${-t / 1000}s`;
+    lan.style.animationDelay = d;
+    lan.firstChild.style.animationDelay = d;
+  }
+  return lan;
+}
+
+/** The sign, a letter each so one tube can act up now and then. */
+function neonSign() {
+  const t = h('h1.page-title.gr-neon', { 'aria-label': 'Backstage' });
+  [...'Backstage'].forEach((ch, i) => t.append(h(`span${i === 5 ? '.gr-tube' : ''}`, { text: ch, 'aria-hidden': 'true' })));
+  return h('div.gr-signbox', null, t);
+}
+
+// what the small print on your pass says about you (picked by your name, so it stays put)
+const ROLES = [
+  'Plays too loud', 'Knows half of Wonderwall', 'Brought their own cable', 'Tunes between every song', 'Owns too many pedals',
+  'Here for the free pizza', 'Says “one more song”', 'Turned it up to 11', 'Sound guy’s worst nightmare', 'Bassist: yes, we exist',
+  'Setlist taped to the floor', 'Air drums when bored', 'Writes riffs, forgets them', 'Stage dives onto the couch', 'Solo goes on a bit',
+  'Lost a pick in the guitar', 'Still owes the drummer $20', 'Heard it was a jam night',
+];
+function roleOf(name) {
+  let n = 0;
+  for (const ch of String(name || '').toLowerCase()) n = (n * 31 + ch.codePointAt(0)) % 9973;
+  return ROLES[n % ROLES.length];
+}
+
+// the black cord from above, its metal crimp and the swivel clip through the card
+const CORD = `<svg viewBox="0 0 60 96" aria-hidden="true">
+<defs><linearGradient id="grMetal" x1="0" x2="1"><stop offset="0" stop-color="#6e7380"/><stop offset=".45" stop-color="#f1f3f7"/><stop offset="1" stop-color="#8a8f9b"/></linearGradient></defs>
+<path d="M19 0 C21 22 25 40 28 54" stroke="#0b0b0e" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+<path d="M41 0 C39 22 35 40 32 54" stroke="#0b0b0e" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+<path d="M20 2 C22 22 25.5 39 28.3 52" stroke="#3a3a44" stroke-width="1.2" fill="none"/>
+<path d="M40 2 C38 22 34.5 39 31.7 52" stroke="#3a3a44" stroke-width="1.2" fill="none"/>
+<rect x="25" y="51" width="10" height="9" rx="2" fill="url(#grMetal)"/>
+<circle cx="30" cy="63.5" r="3.4" fill="none" stroke="url(#grMetal)" stroke-width="2"/>
+<path d="M26.5 67 h7 l1.2 18 a4.7 4.7 0 0 1 -9.4 0 z" fill="url(#grMetal)"/>
+<path d="M28.3 71 v13" stroke="#5c606b" stroke-width="1.4"/>
+<circle cx="30" cy="91" r="3.2" fill="none" stroke="url(#grMetal)" stroke-width="2"/>
+</svg>`;
+
+// a crowd with hands up, black against the stage lights
+const CROWD = `<svg viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true"><path fill="#06060a" d="M0 40V26c3-2 5-6 6-11l1.4.3c-.6 4-1.6 7-3 9.5 2 .4 4 1.2 5 3 1-2.5 3-4 5.5-4 2 0 3.6 1 4.6 2.5l2-12 1.5.2-1.6 13c1.5.8 2.7 2 3.4 3.6 1-3 3.5-5 6.5-5 1.2 0 2.3.3 3.2.8l3-16 1.5.3-2.8 17c1.2 1 2 2.4 2.4 4 1.3-2.4 3.7-4 6.5-4 3.3 0 6 2.4 6.6 5.6.8-1.6 2-2.8 3.6-3.5L56 7l1.5-.2 2 18.8c3 .3 5.4 2.4 6.2 5.2 1-2.2 3-3.8 5.4-4.2l-1-15 1.5-.1 1.3 15.3c2.6.6 4.6 2.6 5.2 5.2 1-2 3-3.5 5.4-3.8l4-14 1.4.5-3.8 13.6c2.6.6 4.6 2.6 5.2 5.2.8-2.6 3.2-4.6 6-4.8l2.4-10 1.5.4-2.2 9.8c2.4.7 4.2 2.6 4.8 5 1-1.6 2.6-2.8 4.6-3.1l1.5-8 1.5.3-1.4 7.8c1 .4 1.9 1 2.5 1.8V40z"/></svg>`;
 
 async function stepOut() {
   if (!(await confirmDialog({ title: 'Step out of Backstage?', message: 'Nobody sees you or your clips until you pick a name again. Your clips and messages stay on your PC.', confirm: 'Step out' }))) return;
@@ -193,7 +282,7 @@ async function stepOut() {
 function openHidden() {
   const st = G.st;
   const items = st.hidden.map((p) => ({ label: `Show ${p.name} again`, icon: 'people', onClick: () => api.room.hide(p.addr, false) }));
-  const r = head.querySelector('.gr-me .icon-btn').getBoundingClientRect();
+  const r = head.querySelector('.gr-pass-more').getBoundingClientRect();
   showMenu(r.left, r.bottom + 4, items);
 }
 
@@ -213,7 +302,7 @@ function renderRoom() {
   const chips = h('div.gr-people');
   for (const p of people) {
     const sel = V.who === p.addr;
-    const chip = h(`button.gr-person${sel ? '.sel' : ''}`, { type: 'button', title: sel ? 'Show everyone' : `Just ${p.name}’s clips` }, avatar(p.name, '', true), h('span.gr-pname', { text: p.name }), h('span.gr-pn', { text: p.clips.length ? `${p.clips.length} clip${p.clips.length === 1 ? '' : 's'}` : '' }));
+    const chip = h(`button.gr-person${sel ? '.sel' : ''}`, { type: 'button', title: sel ? 'Show everyone' : `Just ${p.name}’s clips` }, avatar(p.name, '', true), h('span.gr-pname', { text: p.name }), lvTag(p.level), h('span.gr-pn', { text: p.clips.length ? `${p.clips.length} clip${p.clips.length === 1 ? '' : 's'}` : '' }));
     chip.onclick = () => ((V.who = sel ? null : p.addr), renderRoom());
     chips.append(chip);
   }
@@ -264,7 +353,7 @@ function card(p, c) {
     cover,
     h('div.gr-card-text', null,
       h('b', { text: c.title }),
-      h('span.gr-by', null, avatar(p.name, '.tiny', true), h('span', { text: p.name })),
+      h('span.gr-by', null, avatar(p.name, '.tiny', true), h('span', { text: p.name }), lvTag(p.level)),
       c.song ? h('span.gr-song', { text: c.artist ? `${c.song} · ${c.artist}` : c.song }) : null,
       h('div.gr-tags', null,
         partLine(c) ? h('span.gr-tag', { text: partLine(c) }) : null,
@@ -385,6 +474,7 @@ async function watch(p, c) {
     if (!live()) return;
     w.stage = 'ready';
     drawPlayer();
+    did('backstage-watch');
   } catch (err) {
     if (!live()) return;
     if (err.code === 'OFFLINE' && have) err.message = `${p.name}’s Stagehand stopped answering. You got ${Math.round((have / Math.max(1, size)) * 100)}% of it; try again when they’re back.`;
@@ -529,6 +619,7 @@ async function keepTone(tone, who) {
     const saved = await saveTone({ name: tone.name, kind: tone.kind === 'bass' ? 'bass' : 'guitar', gear: tone.gear, capture: tone.capture || null, cabId: tone.cabId || null, autoCab: tone.autoCab !== false, from: { song: `${who} (Backstage)` } });
     const { emit } = await import('./store.js');
     emit('tones');
+    did('backstage-tone');
     toast({ title: `“${saved.name}” is in your tones`, message: `From ${who}. Find it on the Tones page.`, kind: 'ok', actions: [{ label: 'Tones', onClick: () => setPage('tones') }] });
   } catch (err) {
     toast({ title: 'Couldn’t keep that tone', message: err.message, kind: 'err' });
@@ -577,7 +668,7 @@ function mineRow(t, just) {
   const name = h('b', { text: t.name });
   const sh = isShown(t.id);
   const show = video ? h(`button.gr-show${sh ? '.on' : ''}`, { type: 'button', 'aria-pressed': String(sh), title: sh ? 'Backstage: everyone can watch it (click to take it out)' : 'Show it backstage', html: `${icon(sh ? 'check' : 'people')}<span>${sh ? 'Backstage' : 'Show backstage'}</span>` }) : h('span.gr-noshow', { text: 'Sound only', title: 'Only videos can go backstage' });
-  if (video) show.onclick = async () => (await toggleShown(t)) && renderMine();
+  if (video) show.onclick = async () => (await toggleShown(t)) && (sh || did('backstage-share'), renderMine());
   const rename = h('button.icon-btn', { type: 'button', title: 'Rename', 'aria-label': 'Rename', html: icon('edit') });
   const showBtn = h('button.icon-btn', { type: 'button', title: 'Show in folder', 'aria-label': 'Show in folder', html: icon('folder') });
   const del = h('button.icon-btn', { type: 'button', title: 'Delete', 'aria-label': 'Delete', html: icon('trash') });
@@ -629,12 +720,10 @@ function startChat(addr, about = null) {
   setTimeout(() => panel.querySelector('.gr-type')?.focus(), 30);
 }
 
-/** The conversation for an address (or an old one), even with no messages yet. */
+/** The conversation for an address, even with no messages yet. */
 function conversation(st, key) {
   const c = st.chats.find((x) => x.addr === key);
   if (c) return c;
-  const old = st.old.find((x) => x.key === key);
-  if (old) return { ...old, old: true };
   const p = st.people.find((x) => x.addr === key);
   return p ? { addr: p.addr, name: p.name, here: true, messages: [] } : null;
 }
@@ -648,27 +737,23 @@ function renderMessages() {
   if (!cur) V.chat = null;
   const side = h('div.gr-convs');
   if (!st.chats.length && !cur) side.append(h('p.np-fine.gr-convs-empty', { text: 'No messages yet. Press Message on someone’s clip under Everyone to say hi.' }));
-  const item = (c, old = false) => {
+  const item = (c) => {
     const last = c.messages[c.messages.length - 1];
-    const n = old ? 0 : unreadFor(c);
-    const key = old ? c.key : c.addr;
-    const b = h(`button.gr-conv${V.chat === key ? '.sel' : ''}${old ? '.old' : ''}`, { type: 'button' },
+    const n = unreadFor(c);
+    const key = c.addr;
+    const b = h(`button.gr-conv${V.chat === key ? '.sel' : ''}`, { type: 'button' },
       avatar(c.name, '', c.here),
       h('div.gr-ctext', null, h('b', { text: c.name }), h('span', { text: last ? `${last.dir === 'out' ? 'You: ' : ''}${last.text}` : 'No messages yet' })),
       n ? h('i.gr-count.new', { text: String(n) }) : null);
     b.onclick = () => ((V.chat = key), V.about && V.about.for !== key && (V.about = null), renderMessages());
     return b;
   };
-  if (cur && !cur.old && !st.chats.some((x) => x.addr === cur.addr)) side.append(item(cur));
+  if (cur && !st.chats.some((x) => x.addr === cur.addr)) side.append(item(cur));
   for (const c of st.chats) side.append(item(c));
-  if (st.old.length) {
-    side.append(h('div.gr-label.gr-oldlabel', { text: 'Before Backstage' }));
-    for (const c of st.old) side.append(item(c, true));
-  }
   const main = h('div.gr-thread');
-  if (!cur) main.append(h('div.gr-empty.small', null, h('span.gr-orb', { html: icon('edit') }), h('b', { text: st.chats.length || st.old.length ? 'Pick a conversation' : 'Messages' }), h('p', { text: 'Messages go to people backstage. They arrive even if their Stagehand is closed for a while (up to 12 hours).' })));
+  if (!cur) main.append(h('div.gr-empty.small', null, h('span.gr-orb', { html: icon('edit') }), h('b', { text: st.chats.length ? 'Pick a conversation' : 'Messages' }), h('p', { text: 'Messages go to people backstage. They arrive even if their Stagehand is closed for a while (up to 12 hours).' })));
   else {
-    if (!cur.old) markRead(cur);
+    markRead(cur);
     main.append(thread(st, cur));
   }
   panel.append(h('div.gr-messages', null, side, main));
@@ -677,8 +762,8 @@ function renderMessages() {
 }
 
 function thread(st, c) {
-  const top = h('div.gr-thead', null, avatar(c.name, '', c.here), h('div.gr-who', null, h('b', { text: c.name }), h('span', { text: c.old ? 'From before Backstage' : c.here ? 'Backstage now' : 'Not backstage right now: they get it when they’re back (within 12 hours)' })));
-  if (!c.old && c.here) {
+  const top = h('div.gr-thead', null, avatar(c.name, '', c.here), h('div.gr-who', null, h('b', { text: c.name }), h('span', { text: c.here ? 'Backstage now' : 'Not backstage right now: they get it when they’re back (within 12 hours)' })));
+  if (c.here) {
     const see = btn('Their clips', 'video', () => ((V.tab = 'room'), (V.who = c.addr), render()), '.small.ghost');
     top.append(h('span.grow'), see);
   }
@@ -686,7 +771,7 @@ function thread(st, c) {
   if (!c.messages.length) list.append(h('p.gr-msgs-empty', { text: `Say hi to ${c.name}.` }));
   for (const x of c.messages) {
     let stt = null;
-    if (x.dir === 'out' && !c.old) {
+    if (x.dir === 'out') {
       const old = Date.now() - x.at > 30000;
       if (x.state === 'delivered') stt = h('span.gr-st.ok', { text: 'Delivered' });
       else if (x.state === 'failed') {
@@ -699,15 +784,11 @@ function thread(st, c) {
     list.append(h(`div.gr-msg.${x.dir}`, null,
       x.about ? h('span.gr-about', { html: `${icon('video')}<span></span>` }) : null,
       h('div.gr-bubble', { text: x.text }),
-      h('div.gr-mmeta', null, h('span', { text: c.old ? fmtWhen(x.at) : fmtTime(x.at) }), stt)));
+      h('div.gr-mmeta', null, h('span', { text: fmtTime(x.at) }), stt)));
     const ab = list.lastElementChild.querySelector('.gr-about span');
     if (ab) ab.textContent = `About “${x.about.title}”`;
   }
   const box = h('div.gr-chat', null, top, list);
-  if (c.old) {
-    box.append(h('p.np-fine.gr-oldnote', { text: 'Friend codes are gone. If they’re backstage, find them under Everyone and message them there.' }));
-    return box;
-  }
   if (!st.joined) {
     box.append(h('div.gr-compose.off', null, h('span.grow', { text: 'Pick a name to answer.' }), btn('Come in', 'person', () => askName(), '.small.primary')));
     return box;
@@ -742,6 +823,7 @@ async function sendText(c, text, about = null) {
   if (draft && draft.value.trim() === t) draft.value = '';
   try {
     await api.room.send(c.addr, t, about ? { id: about.id, title: about.title } : null);
+    did('backstage-message');
     if (about && V.about === about) V.about = null;
   } catch (err) {
     if (draft && !draft.value) draft.value = t;

@@ -251,6 +251,9 @@ class FakePortMain extends EventEmitter {
     'stems.formats': () => library.snapshot().songs.map((x) => ({ songId: x.id, model: 'htdemucs_6s', format: 'wav', bytes: 6 * 48000 * 30 * 4, seconds: 30 })),
     'stems.status': async (id) => (await later(stemsDelay.get(id)), stemHold.has(id) ? { songId: id, state: 'running', progress: 0.4 } : { state: 'ready', model: 'htdemucs_6s', format: 'wav', sampleRate: 48000, frames: 48000 * SECS, stems: ['guitar', 'bass', 'drums', 'vocals', 'piano', 'other'].map((name) => ({ name, url: '/song.wav' })) }),
     'stems.prioritize': () => true,
+    'stems.ahead': () => false,
+    'stems.playing': () => true,
+    'stems.note': () => true,
     'stems.queue': () => ({ items: [] }),
     'engine.status': () => ({ state: 'missing', ok: false }),
     'imports.status': () => ({ watching: false, history: [] }),
@@ -1015,12 +1018,12 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(1200);
   check((await page.locator('.pnext .btn').count()) === 1 && (await page.locator('.pmastery .pm-key').count()) === 4, `Progress suggests what to practise next and shows your songs by mastery (“${((await page.locator('.pnext h2').textContent().catch(() => '')) || '').slice(0, 50)}”)`);
   await shot('8b-progress-top');
-  // Settings › Stems (FLAC only)
+  // Settings › Stems: lossless FLAC (the default) or smaller Opus (4.4)
   await page.keyboard.press('Control+Comma');
   await page.waitForTimeout(800);
   await page.locator('.modal button:has-text("Stems")').first().click();
   await page.waitForTimeout(1200);
-  check((await page.locator('.modal button:has-text("Compare formats")').count()) === 0 && (await page.locator('.modal :text("lossless FLAC")').count()) >= 1, 'stems are FLAC only, no format choice');
+  check((await page.locator('.modal select[aria-label="How stems are stored"] option').count()) === 2 && (await page.locator('.modal select[aria-label="How stems are stored"]').inputValue()) === 'flac', 'stems are stored as FLAC, with a smaller Opus choice');
   await shot('10-settings-stems');
   await page.locator('.modal button:has-text("Guitar & audio")').first().click();
   await page.waitForTimeout(1500);
@@ -1267,12 +1270,15 @@ class FakePortMain extends EventEmitter {
     await page.waitForTimeout(2500); // A's late answer comes now
     v = await hwState();
     check(v.song === sB && /Splitting/.test(v.status) && !v.playing, `an older song finishing late doesn't press play on the new one (${JSON.stringify({ song: v.song === sB, waiting: /Splitting/.test(v.status), playing: v.playing })})`);
-    // and it never waits long: after about 15 s it starts with the full mix while the stems are made
-    v = await until((x) => x.playing, 25000);
-    check(v.playing && v.song === sB && !v.status, `a song waiting for slow stems starts with the full mix after a few seconds (${JSON.stringify({ playing: v.playing, status: v.status.slice(0, 30) })})`);
+    // 4.4: it waits for its stems however long they take (it used to give up after 15 s)
+    await page.waitForTimeout(16000);
+    v = await hwState();
+    check(!v.playing && v.song === sB && /Splitting/.test(v.status), `a song waiting for slow stems keeps waiting for them (${JSON.stringify({ playing: v.playing, status: v.status.slice(0, 30) })})`);
     stemHold.delete(sB);
     stemsDelay.clear();
     await page.evaluate((id) => window.__shEmit('stems:update', { songId: id, state: 'ready' }), sB);
+    v = await until((x) => x.playing, 10000);
+    check(v.playing && v.song === sB && !v.status, 'and starts by itself once they are in');
     // back to the first song for the rest of the run
     along(firstId);
     await until((x) => x.phase === 'ready' && x.tabFor === firstId);
