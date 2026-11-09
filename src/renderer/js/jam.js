@@ -1,3 +1,4 @@
+import { did } from './rewards.js';
 import {createClipRecorder} from './take-video.js';
 /**
  * Jam (3.7): just you and the Fluid picture, full screen, no highway. Your
@@ -86,6 +87,7 @@ export function jamOpen() {
 export function openJam() {
   if (J.open) return;
   J.open = true;
+  did('jam');
   setPage('play');controls.prepend(backingControls);controls.append(recordControl,recordingsControl);
   wasPlaying=stage.engine.playing;
   J.ink = guitarInk();

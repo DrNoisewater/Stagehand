@@ -15,6 +15,11 @@ const http = require('http');
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 const { GreenRoom, clipSummary } = require('../../src/main/services/greenroom');
 const { aboutClip } = require('../../src/main/services/stats');
+const { Levels } = require('../../src/main/services/levels');
+
+// 4.4: Alex has played for two months (a fancy pass); Bo is new
+const HISTORY = { Alex: [], Bo: [] };
+for (let d = 70; d >= 1; d--) for (let i = 0; i < 4; i++) HISTORY.Alex.push({ songId: `song${(d * 4 + i) % 90}`, part: i === 3 ? 'bass' : 'lead', seconds: 600, accuracy: 0.93, notes: 400, speed: 1, full: true, tuning: i === 2 ? 'Drop D' : 'E Standard', at: Date.now() - d * 86400000 + i * 900000 });
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const outDir = process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'sh-gr-out-'));
@@ -116,7 +121,8 @@ const SHAPE = (() => {
 async function stagehand(browser, name, relay, url) {
   const takes = []; // { id, kind, name, file, seconds, at, bytes, about, data }
   const saved = []; // tones kept
-  const room = new GreenRoom({ file: path.join(tmp, `${name}.json`), fetchImpl: fetch, relays: [relay], room: 'E2E ROOM', listClips: async () => takes.filter((t) => t.kind === 'video') });
+  const levels = await new Levels({ file: path.join(tmp, `${name}-levels.json`), sessions: () => HISTORY[name] || [] }).load();
+  const room = new GreenRoom({ file: path.join(tmp, `${name}.json`), fetchImpl: fetch, relays: [relay], room: 'E2E ROOM', listClips: async () => takes.filter((t) => t.kind === 'video'), level: () => levels.state().level });
   await room.load();
   const page = await browser.newPage({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 1 });
   page.on('console', (m) => m.type() === 'error' && !/404|Failed to load/.test(m.text()) && console.log(`[${name}] CONSOLE ${m.text()}`));
@@ -128,6 +134,8 @@ async function stagehand(browser, name, relay, url) {
     'takes.rename': (id, n) => Object.assign(takes.find((t) => t.id === id), { name: n }),
     'takes.remove': (id) => (room.setShared(id, false).catch(() => {}), takes.splice(takes.findIndex((t) => t.id === id), 1) && true),
     'room.get': () => (room.prune && room.prune(), room.state()),
+    'levels.state': () => levels.state(),
+    'levels.did': (id) => levels.did(id),
     'room.setName': (n) => room.setName(n),
     'room.leave': () => room.leave(),
     'room.send': (to, t, about) => room.sendMessage(to, t, about),
@@ -182,7 +190,7 @@ async function stagehand(browser, name, relay, url) {
   room.on('message', (m) => page.evaluate((m) => window.__emit('room:message', m), m).catch(() => {}));
   await page.goto(`${url}/src/renderer/harness.html`);
   await page.waitForFunction(() => window.ready, null, { timeout: 30000 });
-  return { room, takes, saved, page, name };
+  return { room, takes, saved, page, name, levels };
 }
 const clearToasts = (S) => S.page.locator('.toast').evaluateAll((els) => els.forEach((e) => e.remove()));
 const shot = async (S, file) => {
@@ -269,6 +277,10 @@ const shot = async (S, file) => {
     await shot(A, 'gr-3-mine-shown.png');
     // the pass: drops in on its lanyard just after picking a name, then just hangs there
     check((await A.page.locator('.gr-pass .gr-lan.drop').count()) === 1 && /VIP/.test(await A.page.locator('.gr-pass').textContent()), 'the VIP pass drops in after picking a name');
+    await A.page.waitForFunction(() => /LV \d+/.test(document.querySelector('.gr-pass')?.textContent || ''), null, { timeout: 5000 }).catch(() => {});
+    const lvA = A.levels.state();
+    check(lvA.level >= 15 && (await A.page.locator(`.gr-pass.tier-${lvA.tier.id}`).count()) === 1 && new RegExp(`LV ${lvA.level} · ${lvA.tier.name}`).test(await A.page.locator('.gr-pass').textContent()), `Alex’s pass shows level ${lvA.level} (${lvA.tier.name}) in its style`);
+    check(lvA.firsts.find((f) => f.id === 'backstage-join').done, 'getting a backstage pass counts toward levels');
     await A.page.waitForTimeout(3000);
     await A.page.evaluate(() => window.GR.openGreenRoom({ tab: 'room' }));
     check((await A.page.locator('.gr-pass .gr-lan.drop').count()) === 0, 'it doesn’t drop again when Backstage opens from elsewhere');
@@ -281,6 +293,45 @@ const shot = async (S, file) => {
       await A.page.waitForTimeout(260);
     }
     await A.page.waitForTimeout(2000);
+    // TIERS=1: every pass style side by side (tiers.png), for looking at
+    if (process.env.TIERS) {
+      const lv = A.levels.state();
+      for (const [i, t] of [['roadie', 'Roadie', 1], ['garage', 'Garage band', 3], ['opener', 'Opening act', 5], ['headliner', 'Headliner', 10], ['rockstar', 'Rock star', 15], ['legend', 'Legend', 20], ['hof', 'Hall of Fame', 30]].entries()) {
+        await A.page.evaluate(async ([id, n, l]) => {
+          const R = await import('./js/rewards.js');
+          R.L.st = { ...R.L.st, level: l, tier: { id, name: n } };
+          (await import('./js/store.js')).emit('levels', R.L.st);
+        }, t);
+        await A.page.waitForTimeout(300);
+        const pb = await A.page.locator('.gr-pass').boundingBox();
+        await A.page.screenshot({ path: path.join(outDir, `tier-${i}.png`), clip: { x: pb.x - 12, y: Math.max(0, pb.y), width: pb.width + 24, height: pb.height + 16 } });
+      }
+      await A.page.evaluate(async (st) => ((await import('./js/rewards.js')).L.st = st, (await import('./js/store.js')).emit('levels', st)), lv);
+      // the level panel on Progress, and the level-up card
+      const err = await A.page.evaluate(async () => {
+        try {
+          await import('./js/progress.js');
+          window.setPage('progress');
+          return null;
+        } catch (e) {
+          return e.message;
+        }
+      });
+      if (err) console.log(`(Progress didn’t load here: ${err})`);
+      else {
+        await A.page.waitForSelector('.lv-panel', { timeout: 8000 }).catch(() => {});
+        await shot(A, 'lv-progress.png');
+      }
+      await A.page.evaluate(async () => {
+        const R = await import('./js/rewards.js');
+        R.L.st = { ...R.L.st, level: R.L.st.level - 1, tier: { id: 'rockstar', name: 'Rock star' } };
+        await R.loadLevels();
+      });
+      await A.page.waitForTimeout(900);
+      await shot(A, 'lv-levelup.png');
+      await A.page.evaluate(() => document.querySelectorAll('.lvup').forEach((e) => e.remove()));
+      await A.page.evaluate(() => window.GR.openGreenRoom({ tab: 'room' }));
+    }
 
     // Bo: Alex and their clip show up by themselves
     await B.page.waitForSelector('#page-greenroom .gr-card', { timeout: 15000 });
@@ -289,6 +340,8 @@ const shot = async (S, file) => {
     check(/Paranoid/.test(card) && /Alex/.test(card) && /Black Sabbath/.test(card) && /Lead · E Standard · 80% speed/.test(card) && /Crunchy Plexi/.test(card), `the card says the song, who, the part, tuning, speed and tone (${card.replace(/\s+/g, ' ').slice(0, 120)})`);
     check(/You have it/.test(card), 'and that Bo has that song');
     check(/Here now · 1/.test(await B.page.locator('.gr-section').textContent()), 'Alex is listed as here now');
+    await B.page.waitForFunction(() => /LV \d+/.test(document.querySelector('.gr-people')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
+    check(new RegExp(`LV ${A.levels.state().level}`).test(await B.page.locator('.gr-people').textContent()), 'Bo sees Alex’s level next to their name');
     await shot(B, 'gr-4-room.png');
     // the filters
     await B.page.locator('.gr-filter button:has-text("Bass")').click();

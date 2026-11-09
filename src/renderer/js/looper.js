@@ -6,6 +6,7 @@
  * the tone you were playing (the same amp engine, off the live path), so the
  * result sounds like what you heard and the live sound isn't touched.
  */
+import { did } from './rewards.js';
 import { api } from './api.js';
 import { rig } from './rig.js';
 import { engine } from './stage.js';
@@ -93,7 +94,7 @@ class Looper extends EventTarget {
   const data=this.rec.stop();this.stopping=false;this.rate=data.rate;
   if(data.L.length<this.rate*.3){this.clear();return toast({title:'Play a little longer before stopping',kind:'info'});}
   const fixed=bars?fit(data.L,data.R,Math.round(bars*240/this.bpm*this.rate)):data;this.L=fixed.L;this.R=fixed.R;this.layers=1;this.loopStart=0;this._set('busy');
-  try{await this._play(this.bpm&&drums.on?drums.nextBarTime(this.ctx.currentTime+.02):undefined);if(generation===this.generation)this._set('playing');}catch(e){this.clear();toast({title:'Loop playback failed',message:e.message,kind:'err'});}
+  try{await this._play(this.bpm&&drums.on?drums.nextBarTime(this.ctx.currentTime+.02):undefined);if(generation===this.generation){this._set('playing');did('looper');}}catch(e){this.clear();toast({title:'Loop playback failed',message:e.message,kind:'err'});}
  }
  async overdub(){
   if(this.state!=='playing'||!this.src||!rig.on)return;

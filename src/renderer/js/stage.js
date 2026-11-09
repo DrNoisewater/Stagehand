@@ -1,4 +1,5 @@
 /** Bottom pane: transport, timeline, full-mix lane and per-stem lanes. */
+import { did } from './rewards.js';
 import { api } from './api.js';
 import { state, on, emit, upsertSongs, setPage } from './store.js';
 import { h, icon, esc, toast } from './ui.js';
@@ -371,6 +372,7 @@ function setStem(name, patch) {
     const cur = S.mix.stems[name] || { v: 0.8, on: true };
     S.mix.stems[name] = { v: 'volume' in patch ? Number(patch.volume) : cur.v, on: 'muted' in patch ? !patch.muted : cur.on };
     if ('muted' in patch) rememberPartOff(name, patch.muted);
+    if (patch.muted && PARTS.includes(name)) did('stems');
     saveMixSoon();
   }
   if (engine.tracks[index]) engine.setTrack(index, patch);

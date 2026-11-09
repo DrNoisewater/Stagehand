@@ -1958,3 +1958,96 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .hw-drop-head small.drop-line { margin: 0; }
 .np-drop.idle[aria-pressed='true'] { border-color: color-mix(in srgb, #ffd36b 50%, transparent); background: color-mix(in srgb, #ffd36b 8%, transparent); }
 .np-drop.idle[aria-pressed='true'] .led { background: #ffd36b; box-shadow: none; }
+
+/* ---------------------------------------- 4.4: levels (js/rewards.js, progress.js, greenroom.js) -- */
+/* tier colours: the medal on Progress, the pass in Backstage, the level-up card */
+.tier-roadie { --t1: #8b86a3; --t2: #5c5873; }
+.tier-garage { --t1: #9c7bff; --t2: #5a3fd0; }
+.tier-opener { --t1: #e3a86a; --t2: #8a5226; }
+.tier-headliner { --t1: #eef2f8; --t2: #8c96a8; }
+.tier-rockstar { --t1: #ffe08a; --t2: #b8862a; }
+.tier-legend, .tier-hof { --t1: #ff9ad5; --t2: #7fd6ff; }
+@keyframes lvHolo { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
+@keyframes lvShine { 0%, 70% { transform: translateX(-120%) skewX(-18deg); } 100% { transform: translateX(220%) skewX(-18deg); } }
+
+/* Progress: the level panel */
+.lv-wrap { display: flex; flex-direction: column; gap: 14px; }
+.lv-panel { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(260px, 0.9fr); gap: 18px 22px; align-items: center; }
+@media (max-width: 1000px) { .lv-panel { grid-template-columns: auto minmax(0, 1fr); } .lv-chal { grid-column: 1 / -1; } }
+.lv-medal { position: relative; width: 84px; height: 96px; display: grid; place-content: center; text-align: center; overflow: hidden;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: linear-gradient(150deg, var(--t1), var(--t2)); color: #0b0a12; }
+.lv-medal small { font: 800 9px var(--font); letter-spacing: .16em; opacity: .75; }
+.lv-medal b { font: 900 34px/1 var(--font); }
+.lv-medal.tier-legend, .lv-medal.tier-hof { background: linear-gradient(115deg, #ff9ad5, #9ad7ff, #b5ffb0, #fff59a, #ff9ad5); background-size: 200% 100%; animation: lvHolo 6s linear infinite; }
+.lv-medal.tier-headliner::after, .lv-medal.tier-rockstar::after, .lv-medal.tier-legend::after, .lv-medal.tier-hof::after { content: ''; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, #ffffffa0, transparent); animation: lvShine 4.5s ease-in-out infinite; }
+.lv-who { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.lv-title { display: flex; align-items: baseline; gap: 10px; }
+.lv-title b { font-size: 20px; }
+.lv-title span { color: var(--ink-3); font-size: 13px; }
+.lv-bar { height: 10px; border-radius: 5px; background: #ffffff10; overflow: hidden; }
+.lv-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--gel-piano), var(--gel-bass)); box-shadow: 0 0 12px -2px var(--gel-bass); transition: width .6s; }
+.lv-sub { display: flex; gap: 12px; font-size: 12.5px; color: var(--ink-2); }
+.lv-today { color: #9ff0bf; font-weight: 700; }
+.lv-next { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-3); }
+.lv-chal { display: flex; flex-direction: column; gap: 8px; }
+.lv-h { display: flex; align-items: baseline; justify-content: space-between; }
+.lv-h small { color: var(--ink-3); font-size: 11.5px; }
+.lv-c { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #ffffff06; border: 1px solid #ffffff0d; }
+.lv-c.done { border-color: color-mix(in srgb, #45d07c 45%, transparent); background: color-mix(in srgb, #45d07c 9%, transparent); }
+.lv-check { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #ffffff30; display: grid; place-items: center; color: #0b0f18; }
+.lv-c.done .lv-check { background: #45d07c; border-color: #45d07c; }
+.lv-check svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 3; }
+.lv-ctext { display: flex; flex-direction: column; gap: 5px; min-width: 0; font-size: 13px; }
+.lv-ctext b { font-weight: 650; }
+.lv-cbar { height: 4px; border-radius: 2px; background: #ffffff10; overflow: hidden; }
+.lv-cbar i { display: block; height: 100%; background: var(--gel-bass); }
+.lv-xp { font: 750 12px var(--font); color: #ffd36b; white-space: nowrap; }
+.lv-c.done .lv-xp { color: #9ff0bf; }
+.lv-try-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.lv-try-grid .lv-try { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px 14px; border-radius: 12px; text-align: left; cursor: pointer;
+  background: linear-gradient(180deg, #ffffff08, #ffffff03); border: 1px solid #ffffff12; color: var(--ink); font: inherit; transition: transform .15s, border-color .15s; }
+.lv-try-grid .lv-try:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--gel-bass) 60%, transparent); }
+.lv-try-grid .lv-try b { font-size: 13.5px; }
+.lv-try-grid .lv-try small { font-size: 12px; color: var(--ink-3); }
+.lv-try-grid .lv-try .lv-xp { position: absolute; top: 10px; right: 12px; }
+
+/* Backstage: levels on names, and the pass by tier */
+.gr-lvtag { display: inline-grid; place-items: center; height: 17px; padding: 0 6px; border-radius: 6px; background: #ffd36b1f; border: 1px solid #ffd36b55; color: #ffd36b; font: 800 10px var(--font); letter-spacing: .04em; }
+.gr-lv { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box; margin-top: 3px; padding: 1px 6px; border-radius: 8px; font: 800 9px var(--font); letter-spacing: .04em; color: #0b0a12; background: linear-gradient(135deg, var(--t1, #fff), var(--t2, #aaa)); }
+.gr-pass[class*='tier-'] .gr-badge { box-shadow: 0 16px 26px -12px #000, 0 0 0 2px var(--t1), 0 0 18px -6px var(--t1), inset 0 1px 0 #ffffff22; }
+.gr-pass.tier-roadie .gr-badge { box-shadow: 0 16px 26px -12px #000, 0 0 0 1px #ffffff14, inset 0 1px 0 #ffffff22; }
+/* silver and up: a shine sweeps across now and then */
+.gr-pass.tier-headliner .gr-badge::before, .gr-pass.tier-rockstar .gr-badge::before, .gr-pass.tier-legend .gr-badge::before, .gr-pass.tier-hof .gr-badge::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 45%; z-index: 4; pointer-events: none; background: linear-gradient(90deg, transparent, #ffffff40, transparent); animation: lvShine 5s ease-in-out infinite; }
+.gr-pass.tier-rockstar .gr-vip { background: linear-gradient(180deg, #fff6c8, #ffd36b 55%, #c4902e); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 2px 6px #000a); }
+/* Legend: the whole card is holographic */
+.gr-pass.tier-legend .gr-badge::after, .gr-pass.tier-hof .gr-badge::after {
+  background: linear-gradient(115deg, #ff9ad5, #9ad7ff, #b5ffb0, #fff59a, #ff9ad5); background-size: 200% 100%; mix-blend-mode: color-dodge; opacity: .2; animation: lvHolo 6s linear infinite; }
+.gr-pass.tier-legend .gr-vip, .gr-pass.tier-hof .gr-vip { background: linear-gradient(115deg, #ffc4e6, #c4ecff, #d8ffd2, #fff8c4, #ffc4e6); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; animation: lvHolo 6s linear infinite; filter: drop-shadow(0 2px 6px #000a); }
+/* Hall of Fame: it glows */
+.gr-pass.tier-hof .gr-badge { box-shadow: 0 16px 26px -12px #000, 0 0 0 2px #fff, 0 0 26px -2px #ff9ad5, 0 0 40px -6px #7fd6ff; }
+
+/* the big moment */
+.lvup { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; background: #05040acc; animation: lvIn .35s ease-out both; }
+.lvup.out { animation: lvOut .35s ease-in both; }
+.lvup-burst { position: absolute; width: 640px; height: 640px; border-radius: 50%; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--t1) 30%, transparent) 0 8deg, transparent 8deg 22deg); mask: radial-gradient(circle, #000 20%, transparent 68%); animation: lvSpin 14s linear infinite; }
+.lvup-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 26px 40px 22px; border-radius: 20px; text-align: center;
+  background: linear-gradient(160deg, #1a1426, #0c0a14); border: 2px solid var(--t1); box-shadow: 0 0 40px -8px var(--t1); animation: lvPop .6s cubic-bezier(.2, 1.6, .4, 1) both; }
+.lvup-card small { font: 900 14px var(--font); letter-spacing: .3em; text-transform: uppercase; color: var(--t1); }
+.lvup-n { font: 900 88px/1 var(--font); background: linear-gradient(180deg, #fff, var(--t1)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lvup-tier { font-weight: 750; font-size: 16px; }
+.lvup-new { font-size: 13.5px; color: #9ff0bf; }
+.lvup-card .btn { margin-top: 8px; }
+@keyframes lvIn { from { opacity: 0; } }
+@keyframes lvOut { to { opacity: 0; } }
+@keyframes lvPop { from { transform: scale(.4); opacity: 0; } }
+@keyframes lvSpin { to { transform: rotate(360deg); } }
+
+/* venues still locked */
+.hw-venue.locked { position: relative; opacity: .55; filter: grayscale(.7); }
+.hw-venue.locked::after { content: attr(data-lock); position: absolute; top: 4px; right: 4px; padding: 1px 6px; border-radius: 6px; background: #000c; color: #ffd36b; font: 800 10px var(--font); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-medal, .lv-medal::after, .gr-pass .gr-badge::before, .gr-pass .gr-badge::after, .gr-pass .gr-vip, .lvup, .lvup-burst, .lvup-card { animation: none !important; }
+}

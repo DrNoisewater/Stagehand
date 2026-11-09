@@ -110,6 +110,10 @@ contextBridge.exposeInMainWorld('stagehand', {
     summary: (period) => call('stats:summary', period),
     best: () => call('stats:best'),
   },
+  levels: {
+    state: () => call('levels:state'),
+    did: (id) => call('levels:did', id),
+  },
   clips: {
     prepare: () => call('clips:prepare'),
     source: () => call('clips:source'),

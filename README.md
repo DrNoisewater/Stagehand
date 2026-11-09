@@ -170,7 +170,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
-- **4.3:** Backstage replaces Recordings and friend codes: show a clip and everyone with Stagehand can watch it, with its song, part and tone. The Drop now holds from song to song and says plainly whether it's on, and turning the guitar or bass part off stays off for every song.
+- **4.3:** Backstage replaces Recordings and friend codes: show a clip and everyone with Stagehand can watch it, with its song, part and tone. The Drop now holds from song to song and says plainly whether it's on, and turning the guitar or bass part off stays off for every song. Levels: earn points for playing well and trying new things, with daily challenges, pass styles and venues to unlock.
 - **4.2.1:** the neck lights up as notes arrive, like Rocksmith: each note's spot on its string, the frets around it, and the chord frame.
 - **4.2:** a real practice song for the timing check, slow down or speed up one or several sections, metal and lead sounds with pedals and a noise gate, a calmer Tones page, and a tab view you can click and drag.
 - **4.1:** watch your friends' highway and Jam videos. Only videos you choose to share can be seen, and only while your Stagehand is open. 4.1.1 makes connecting more reliable.

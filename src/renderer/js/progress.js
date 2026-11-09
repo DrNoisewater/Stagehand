@@ -6,6 +6,7 @@ import * as actions from './actions.js';
 import { KIND_LABEL } from './scorecard.js';
 import { coverEl } from './shell.js';
 import { engine } from './stage.js';
+import { L, loadLevels } from './rewards.js';
 
 const root = document.getElementById('page-progress');
 const P = { period: 'week', data: null, takes: [], playing: null, audio: null };
@@ -47,6 +48,8 @@ function render() {
     seg.append(b);
   }
   root.append(h('div.prog-head', null, h('h1.page-title', { text: 'Progress' }), h('span.grow'), seg));
+  // 4.4: your level, today's challenges and things to try
+  if (L.st) root.append(levelPanel(L.st));
   const d = P.data;
   if (!d) {
     root.append(h('p', { text: 'Reading your practice…', style: { color: 'var(--ink-3)' } }));
@@ -321,4 +324,47 @@ async function playTake(t) {
 
 on('page', () => state.page === 'progress' && load());
 on('stats', () => state.page === 'progress' && load());
+on('levels', () => state.page === 'progress' && P.data && render());
+on('page', () => state.page === 'progress' && loadLevels());
 on('takes', () => state.page === 'progress' && load());
+
+// ------------------------------------------------------- 4.4: levels --
+/** Your level and pass, the bar to the next one, today's three challenges, and things to try. */
+function levelPanel(st) {
+  const span = Math.max(1, st.to - st.from);
+  const into = st.xp - st.from;
+  const medal = h(`div.lv-medal.tier-${st.tier.id}`, { title: `${st.tier.name} pass` }, h('small', { text: 'LEVEL' }), h('b', { text: String(st.level) }));
+  const next = st.next ? `Level ${st.next.level} unlocks the ${st.next.name} venue` : 'Every venue is yours';
+  const who = h('div.lv-who', null,
+    h('div.lv-title', null, h('b', { text: st.tier.name }), h('span', { text: `${st.xp.toLocaleString()} XP` })),
+    h('div.lv-bar', { role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(span), 'aria-valuenow': String(into), 'aria-label': 'XP to the next level' }, h('i', { style: { width: `${Math.round((into / span) * 100)}%` } })),
+    h('div.lv-sub', null, h('span', { text: `${(st.to - st.xp).toLocaleString()} XP to level ${st.level + 1}` }), st.today ? h('span.lv-today', { text: `+${st.today} today` }) : null),
+    h('p.lv-next', { text: `${next}. Your pass in Backstage gets fancier as you level up.` }));
+  const ch = h('div.lv-chal', null, h('div.lv-h', null, h('b', { text: 'Today’s challenges' }), h('small', { text: 'New ones at midnight' })));
+  for (const c of st.challenges) {
+    ch.append(h(`div.lv-c${c.done ? '.done' : ''}`, null,
+      h('span.lv-check', { html: c.done ? icon('check') : '' }),
+      h('div.lv-ctext', null, h('b', { text: c.name }), c.target > 1 ? h('div.lv-cbar', null, h('i', { style: { width: `${Math.round((c.value / c.target) * 100)}%` } })) : null),
+      h('span.lv-xp', { text: c.done ? 'Done' : c.target > 1 ? `${c.value}/${c.target} · +${c.xp}` : `+${c.xp} XP` })));
+  }
+  const panel = h('section.card.lv-panel', { 'aria-label': 'Your level' }, medal, who, ch);
+  const todo = st.firsts.filter((f) => !f.done);
+  const wrap = h('div.lv-wrap', null, panel);
+  if (todo.length) {
+    const grid = h('div.lv-try-grid');
+    for (const f of todo.slice(0, 8)) {
+      const b = h('button.lv-try', { type: 'button', title: f.how }, h('span.lv-xp', { text: `+${f.xp}` }), h('b', { text: f.name }), h('small', { text: f.how }));
+      b.onclick = () => goTo(f.go);
+      grid.append(b);
+    }
+    const doneN = st.firsts.length - todo.length;
+    wrap.append(h('section.card.lv-try', { 'aria-label': 'Things to try' }, h('div.card-head', null, h('h2', { text: 'Things to try' }), h('span.grow'), h('small.np-fine', { text: `${doneN} of ${st.firsts.length} done` })), grid));
+  }
+  return wrap;
+}
+
+function goTo(page) {
+  if (page === 'greenroom') import('./greenroom.js').then((g) => g.openGreenRoom({ tab: 'room' }));
+  else if (page === 'discover') setView({ kind: 'discover', id: 'search' });
+  else setPage(page || 'songs');
+}

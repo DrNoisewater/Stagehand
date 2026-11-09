@@ -3,6 +3,7 @@
  * the music, with play-along (your instrument's stem muted), practice speed,
  * lyrics, and your own guitar through the rig.
  */
+import { did } from './rewards.js';
 import { api } from './api.js';
 import { h, icon, esc, showMenu, toast } from './ui.js';
 import { rig, TONES, TUNINGS, openStrings, noteName } from './rig.js';
@@ -861,6 +862,7 @@ export function createTabView(host, stage) {
     const lo = Math.min(a, b);
     const hi = Math.max(a, b);
     const loop = { start: secs[lo].start, end: secs[hi].end, label: lo === hi ? secLabel(lo) : `${secLabel(lo)} → ${secLabel(hi)}`, from: lo, to: hi, anchor: a };
+    did('repeat');
     if (repeat) repeat.start(loop);
     else stage.setLoop(loop);
     const t = stage.engine.position || 0;
@@ -1346,6 +1348,7 @@ export function createTabView(host, stage) {
       return V.visible;
     },
     async show() {
+      did('tab');
       V.visible = true;
       host.hidden = false;
       

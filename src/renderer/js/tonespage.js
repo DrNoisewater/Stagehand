@@ -1,3 +1,4 @@
+import { did } from './rewards.js';
 import {cabinetFor} from './cabinets.js';
 /**
  * Tones (4.1.9): your keys at the top, then your tones, then a place to find one
@@ -520,6 +521,7 @@ async function save() {
   try {
     clearTimeout(T.liveTimer);
     const saved = await saveTone({ id: d.mine ? d.id : undefined, name: d.name, kind: d.kind, gear: d.gear, slot: d.mine ? d.slot : null, from: d.from, ir: d.ir || null, autoCab: d.autoCab !== false, capture: d.capture || null });
+    did('tone-make');
     T.sel = `mine:${saved.id}`;
     T.draft = { ...clone(saved), id: saved.id, mine: true };
     T.saved = clone(T.draft);

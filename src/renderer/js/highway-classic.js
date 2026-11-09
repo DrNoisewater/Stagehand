@@ -1,3 +1,4 @@
+import { did, venueLock } from './rewards.js';
 import { chordSpan, isChordRepeat } from './highway-layout.js';
 // the 2D highway keeps its own pace (3.5)
 const APPROACH_UNITS = 8.8;
@@ -175,7 +176,8 @@ export function createClassicHighway(stage) {
         { label: 'Score my playing', hint: c(prefs.detect), onClick: () => setPref('detect', !prefs.detect) },
         '-',
         { heading: true, label: 'Venue' },
-        ...VENUES.map((v) => ({ label: v.name, hint: c(prefs.venue === v.id), onClick: () => setPref('venue', v.id) })),
+        // 4.4: some venues open up with levels (the one you're in always stays yours)
+        ...VENUES.map((v) => (prefs.venue !== v.id && venueLock(v.id) ? { label: v.name, hint: `LV ${venueLock(v.id)}`, onClick: () => {} } : { label: v.name, hint: c(prefs.venue === v.id), onClick: () => (setPref('venue', v.id), did('venue')) })),
         { label: 'Fire when you’re on a streak', hint: c(prefs.fx), onClick: () => setPref('fx', !prefs.fx) },
       ],
       { align: 'right' }

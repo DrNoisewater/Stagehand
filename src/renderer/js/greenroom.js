@@ -16,6 +16,7 @@ import { h, icon, confirmDialog, toast, fmtBytes, showMenu } from './ui.js';
 import { G, loadRoom, isShown, toggleShown, askName, unreadFor, unreadAll, markRead } from './room.js';
 import { connectTo } from './friendlink.js';
 import { coverEl } from './shell.js';
+import { did, L, loadLevels } from './rewards.js';
 
 const root = document.getElementById('page-greenroom');
 const V = {
@@ -114,14 +115,22 @@ on('page', () => {
     V.takes = null;
     loadRoom();
     render();
+    did('backstage-visit'); // a challenge some days
+    loadLevels();
   } else stopPlayer({ keep: false });
 });
 on('room', () => shown() && !busyTyping() && render());
 on('room-read', () => shown() && drawHead());
+on('levels', () => shown() && drawHead());
 on('takes', () => {
   V.takes = null;
   if (shown() && V.tab === 'mine' && !busyTyping()) render();
 });
+
+/** Someone's level, small, beside their name (4.4; older Stagehands don't send one). */
+function lvTag(level) {
+  return level > 0 ? h('span.gr-lvtag', { text: `LV ${level}`, title: `Level ${level}` }) : null;
+}
 
 /** A round initial in a colour of its own per person, with a green dot while they're here. */
 function avatar(name, cls = '', online = false) {
@@ -153,6 +162,9 @@ function drawHead() {
   else if (st.joined) {
     // just picked a name: the pass drops in
     if (wasJoined === false) dropPass();
+    did('backstage-join');
+    if (st.shared.length) did('backstage-show');
+    const lv = L.st;
     const name = h('button.gr-me-name', { type: 'button', title: 'Change your name', text: st.name });
     name.onclick = () => askName();
     const more = h('button.icon-btn.gr-pass-more', { type: 'button', title: 'More', 'aria-label': 'Backstage options', html: icon('more') });
@@ -165,13 +177,14 @@ function drawHead() {
         { label: 'Step out of Backstage', icon: 'x', onClick: () => stepOut() },
       ]);
     };
-    me = h('div.gr-me.gr-pass', { title: 'Your backstage pass. Everyone here sees this name.' },
+    me = h(`div.gr-me.gr-pass${lv ? `.tier-${lv.tier.id}` : ''}`, { title: 'Your backstage pass. Everyone here sees your name and level.' },
       lanyard(h('div.gr-badge', null,
         h('span.gr-slot'),
         h('div.gr-badge-art', { html: CROWD }),
         h('div.gr-vip', { text: 'VIP' }),
         h('span.gr-me-label', { text: 'Backstage pass' }),
         name,
+        lv ? h('span.gr-lv', { text: `LV ${lv.level} · ${lv.tier.name}`, title: `Level ${lv.level}: ${lv.tier.name} pass` }) : null,
         h('span.gr-role', { text: roleOf(st.name) }),
         more)));
   } else {
@@ -289,7 +302,7 @@ function renderRoom() {
   const chips = h('div.gr-people');
   for (const p of people) {
     const sel = V.who === p.addr;
-    const chip = h(`button.gr-person${sel ? '.sel' : ''}`, { type: 'button', title: sel ? 'Show everyone' : `Just ${p.name}’s clips` }, avatar(p.name, '', true), h('span.gr-pname', { text: p.name }), h('span.gr-pn', { text: p.clips.length ? `${p.clips.length} clip${p.clips.length === 1 ? '' : 's'}` : '' }));
+    const chip = h(`button.gr-person${sel ? '.sel' : ''}`, { type: 'button', title: sel ? 'Show everyone' : `Just ${p.name}’s clips` }, avatar(p.name, '', true), h('span.gr-pname', { text: p.name }), lvTag(p.level), h('span.gr-pn', { text: p.clips.length ? `${p.clips.length} clip${p.clips.length === 1 ? '' : 's'}` : '' }));
     chip.onclick = () => ((V.who = sel ? null : p.addr), renderRoom());
     chips.append(chip);
   }
@@ -340,7 +353,7 @@ function card(p, c) {
     cover,
     h('div.gr-card-text', null,
       h('b', { text: c.title }),
-      h('span.gr-by', null, avatar(p.name, '.tiny', true), h('span', { text: p.name })),
+      h('span.gr-by', null, avatar(p.name, '.tiny', true), h('span', { text: p.name }), lvTag(p.level)),
       c.song ? h('span.gr-song', { text: c.artist ? `${c.song} · ${c.artist}` : c.song }) : null,
       h('div.gr-tags', null,
         partLine(c) ? h('span.gr-tag', { text: partLine(c) }) : null,
@@ -461,6 +474,7 @@ async function watch(p, c) {
     if (!live()) return;
     w.stage = 'ready';
     drawPlayer();
+    did('backstage-watch');
   } catch (err) {
     if (!live()) return;
     if (err.code === 'OFFLINE' && have) err.message = `${p.name}’s Stagehand stopped answering. You got ${Math.round((have / Math.max(1, size)) * 100)}% of it; try again when they’re back.`;
@@ -605,6 +619,7 @@ async function keepTone(tone, who) {
     const saved = await saveTone({ name: tone.name, kind: tone.kind === 'bass' ? 'bass' : 'guitar', gear: tone.gear, capture: tone.capture || null, cabId: tone.cabId || null, autoCab: tone.autoCab !== false, from: { song: `${who} (Backstage)` } });
     const { emit } = await import('./store.js');
     emit('tones');
+    did('backstage-tone');
     toast({ title: `“${saved.name}” is in your tones`, message: `From ${who}. Find it on the Tones page.`, kind: 'ok', actions: [{ label: 'Tones', onClick: () => setPage('tones') }] });
   } catch (err) {
     toast({ title: 'Couldn’t keep that tone', message: err.message, kind: 'err' });
@@ -808,6 +823,7 @@ async function sendText(c, text, about = null) {
   if (draft && draft.value.trim() === t) draft.value = '';
   try {
     await api.room.send(c.addr, t, about ? { id: about.id, title: about.title } : null);
+    did('backstage-message');
     if (about && V.about === about) V.about = null;
   } catch (err) {
     if (draft && !draft.value) draft.value = t;

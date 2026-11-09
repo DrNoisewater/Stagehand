@@ -96,13 +96,14 @@ class GreenRoom extends EventEmitter {
    * @param {Function} o.listClips async () => your videos marked to show (takes, with `about`)
    * @param {object} [o.safeStorage] Electron safeStorage (kept for callers; not needed now)
    */
-  constructor({ file, oldFile = null, fetchImpl, safeStorage, log, listClips, room = ROOM, beat = BEAT, gone = GONE, relays = null }) {
+  constructor({ file, oldFile = null, fetchImpl, safeStorage, log, listClips, level, room = ROOM, beat = BEAT, gone = GONE, relays = null }) {
     super();
     Object.assign(this, { file, oldFile, room, beat, gone });
     this.relaysWanted = relayList(relays); // (tests: a stand-in meeting point)
     this.fetch = fetchImpl || fetch;
     this.log = log || (() => {});
     this.listClips = listClips || (async () => []);
+    this.level = level || (() => 0); // 4.4: your level, shown on your name for others
     this.safe = safeStorage && safeStorage.isEncryptionAvailable && safeStorage.isEncryptionAvailable() ? safeStorage : null;
     this.data = null;
     this.host = null; // our own topic: messages and requests to watch
@@ -214,7 +215,7 @@ class GreenRoom extends EventEmitter {
       shared: [...d.shared],
       hidden: d.hidden.map((h) => ({ ...h })),
       people: this._here()
-        .map((p) => ({ addr: p.addr, name: p.name, clips: p.clips.map((c) => ({ ...c })), seen: p.seen }))
+        .map((p) => ({ addr: p.addr, name: p.name, clips: p.clips.map((c) => ({ ...c })), seen: p.seen, level: p.level || 0 }))
         .sort((a, b) => a.name.localeCompare(b.name)),
       chats: [...by.entries()]
         .filter(([a]) => !hidden.has(a))
@@ -332,7 +333,8 @@ class GreenRoom extends EventEmitter {
       if (!name) return;
       if (was && was.seen > t) return; // an older "here" read back after a newer one
       const clips = (Array.isArray(m.clips) ? m.clips.slice(0, MAX_CLIPS) : []).map(cleanClip).filter(Boolean);
-      this.people.set(m.addr, { addr: m.addr, name, clips, seen: t });
+      const level = Math.max(0, Math.min(999, Math.floor(Number(m.lvl) || 0)));
+      this.people.set(m.addr, { addr: m.addr, name, clips, seen: t, level });
       if (this.people.size > 500) this.people.delete(this.people.keys().next().value);
     } else if (m.t === 'bye') {
       if (!was || was.seen > t) return;
@@ -348,6 +350,11 @@ class GreenRoom extends EventEmitter {
       this._soonT = null;
       this.emit('change', this.state());
     }, 300);
+  }
+
+  /** Something people see changed (your level): tell the room in a moment. */
+  announceSoon() {
+    if (this.data && this.data.name) this._announce('soon');
   }
 
   /**
@@ -375,7 +382,11 @@ class GreenRoom extends EventEmitter {
     let clips = takes.map(clipSummary).filter(Boolean).slice(0, MAX_CLIPS);
     // keep it under the meeting point's size limit: fewer clips if need be (newest kept)
     for (;;) {
-      const obj = { t: 'here', addr: this.data.addr, name: this.data.name, clips };
+      let lvl = 0;
+      try {
+        lvl = Math.floor(Number(this.level()) || 0);
+      } catch (_) {}
+      const obj = { t: 'here', addr: this.data.addr, name: this.data.name, clips, ...(lvl > 0 ? { lvl } : {}) };
       const size = seal(this.lobby.key, this.lobby.topic, { ...obj, v: PROTOCOL, ts: 0, n: 'x'.repeat(12) }).length;
       if (size <= MAX_MSG || !clips.length) return this._publish(ready, this.lobby.topic, this.lobby.key, obj);
       clips = clips.slice(0, -1);

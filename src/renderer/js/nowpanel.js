@@ -3,6 +3,7 @@
  * the header, the score line, speed and Record take in the footer, and the
  * right panel (Mix, Riff repeater, Tone, Tuner).
  */
+import { did } from './rewards.js';
 import { api } from './api.js';
 import { state, on, emit, setPage } from './store.js';
 import { h, icon, esc, toast } from './ui.js';
@@ -52,7 +53,7 @@ function renderParts() {
 
 // The Drop, one click away while you play (D on the keyboard too)
 const dropPill = h('button.np-drop', { type: 'button' });
-dropPill.onclick = () => rig.setDrop({ on: !rig.drop.on });
+dropPill.onclick = () => (rig.setDrop({ on: !rig.drop.on }), rig.drop.on && did('drop'));
 function renderDrop() {
   if (!dropPill.isConnected && guitarPill.parentNode) guitarPill.before(dropPill);
   // 4.3: says whether it's working right now: "Drop on · −1", "Drop on · not needed", "Drop off"

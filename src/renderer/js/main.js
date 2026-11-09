@@ -1,3 +1,4 @@
+import { did } from './rewards.js';
 import { api } from './api.js';
 import { state, emit, on, loadLibrary, upsertSongs, bump, loadRocksmith } from './store.js';
 import './sidebar.js';
@@ -104,6 +105,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'l' || e.key === 'L') stage.toggleSectionLoop();
   else if ((e.key === 'd' || e.key === 'D') && !ctrl) {
     rig.setDrop({ on: !rig.drop.on });
+    if (rig.drop.on) did('drop');
     const ds = rig.dropStatus();
     toast({ title: `Drop ${ds.line.replace(/^(On|Off)/, (w) => w.toLowerCase())}`, message: ds.state === 'on' ? ds.warn : '', kind: 'info', timeout: 2000 });
   }

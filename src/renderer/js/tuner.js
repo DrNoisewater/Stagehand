@@ -5,6 +5,7 @@
  * the tuning Stagehand knows your instrument is in. Picking a tuning by hand
  * lasts until the next song.
  */
+import { did } from './rewards.js';
 import { h, icon } from './ui.js';
 import { rig, TUNINGS, noteName } from './rig.js';
 import { myTuning, myCents, tuningName } from './tuning.js';
@@ -219,6 +220,7 @@ export function createTuner() {
     show() {
       refresh(); // what you're tuned to may have changed while it was hidden
       T.visible = true;
+      did('tuner');
       if (!T.raf) T.raf = requestAnimationFrame(loop);
     },
     hide() {

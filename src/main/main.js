@@ -29,6 +29,7 @@ const { TabService } = require('./services/tabs');
 const { RigAudio } = require('./services/rigaudio');
 const { ToneStore, ToneIndex } = require('./services/tones');
 const { Stats, Takes } = require('./services/stats');
+const { Levels } = require('./services/levels');
 const { Captures } = require('./services/captures');
 const { GreenRoom } = require('./services/greenroom');
 
@@ -72,6 +73,7 @@ let tabs;
 let toneStore;
 let toneIndex;
 let stats;
+let levels; // 4.4: points and levels
 let takes;
 let captures;
 let room; // Backstage (4.3; Friends before)
@@ -551,9 +553,21 @@ function registerIpc() {
     return result;
   });
   handle('captures:browse', (ampKey, opts) => captures.browse(ampKey, opts));
-  handle('stats:log', (s) => stats.log(s));
+  handle('stats:log', (s) => {
+    const was = levels ? levels.state().level : 0;
+    const e = stats.log(s);
+    if (levels && room && levels.state().level !== was) room.announceSoon();
+    return e;
+  });
   handle('stats:summary', (period) => stats.summary(period));
   handle('stats:best', () => stats.best());
+  handle('levels:state', () => levels.state());
+  handle('levels:did', async (id) => {
+    const was = levels.state().level;
+    const st = await levels.did(id);
+    if (st.level !== was && room) room.announceSoon();
+    return st;
+  });
   handle('clips:source', async () => {
     const sources=await desktopCapturer.getSources({types:['window'],thumbnailSize:{width:0,height:0}});
     const own=win;
@@ -1037,6 +1051,13 @@ app.whenReady().then(async () => {
   toneIndex = new ToneIndex({ file: path.join(D.local, 'Cache', 'tone-index.json'), log });
   stats = new Stats(path.join(D.roaming, 'stats.json'));
   await stats.load();
+  // 4.4: points and levels, worked out from your playing, what you've tried and new songs
+  levels = new Levels({
+    file: path.join(D.roaming, 'levels.json'),
+    sessions: () => stats.data.sessions,
+    added: () => Object.values((library.data && library.data.songs) || {}).map((s) => s.addedAt).filter(Number.isFinite),
+  });
+  await levels.load().catch((e) => log(`Levels failed to load: ${e.message}`));
   takes = new Takes(D.takes);
   clipSessions = new ClipSessions({ tempRoot: app.getPath('temp') });
   captures = new Captures({
@@ -1059,7 +1080,8 @@ app.whenReady().then(async () => {
   // Chromium's network stack first: it uses Windows' proxy settings (work and school networks); Node's as a fallback
   room = new GreenRoom({
     file: path.join(D.roaming, 'greenroom.json'),
-    oldFile: path.join(D.roaming, 'friends.json'), // 4.1–4.2: its messages are kept to read
+    oldFile: path.join(D.roaming, 'friends.json'), // 4.1–4.2: only the name it had is offered
+    level: () => levels.state().level,
     fetchImpl: (url, opts) => net.fetch(url, opts).catch((err) => (opts && opts.signal && opts.signal.aborted ? Promise.reject(err) : fetch(url, opts))),
     listClips: async () => (await takes.list()).filter((t) => t.kind === 'video'),
     safeStorage,
