@@ -113,6 +113,7 @@ contextBridge.exposeInMainWorld('stagehand', {
   levels: {
     state: () => call('levels:state'),
     did: (id) => call('levels:did', id),
+    title: (id) => call('levels:title', id),
   },
   clips: {
     prepare: () => call('clips:prepare'),
@@ -156,6 +157,9 @@ contextBridge.exposeInMainWorld('stagehand', {
     status: (songId) => call('stems:status', songId),
     request: (songIds, opts) => call('stems:request', songIds, opts),
     prioritize: (id, opts) => call('stems:prioritize', id, opts),
+    ahead: (id) => call('stems:ahead', id),
+    playing: (on) => call('stems:playing', on),
+    note: (text) => call('stems:note', text),
     cancel: (songId) => call('stems:cancel', songId),
     remove: (songId) => call('stems:remove', songId),
     queue: () => call('stems:queue'),

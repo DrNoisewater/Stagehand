@@ -1,7 +1,7 @@
 /** Settings, stem engine setup, file renaming, backups and the activity pill. */
 import { api } from './api.js';
 import { state, on, emit, bump, loadLibrary, upsertSongs, loadRocksmith } from './store.js';
-import { h, icon, esc, modal, toast, fmtBytes, fmtDateTime, confirmDialog, debounce } from './ui.js';
+import { h, icon, esc, modal, toast, fmtBytes, fmtDateTime, confirmDialog, debounce, stemsLeft } from './ui.js';
 import * as actions from './actions.js';
 
 // ---------------------------------------------------------- engine setup --
@@ -391,9 +391,9 @@ const PANES = {
     ])
       load.append(h('option', { value: v, text: l, selected: (s.stems.cpuLoad || 'full') === v ? true : null }));
     load.onchange = () => saveSettings({ stems: { cpuLoad: load.value } });
-    el.append(setting('CPU load', 'How hard separation works the CPU when it runs there. Separation always runs at low priority, so other apps stay responsive. On a GPU the CPU stays mostly idle either way.', load));
+    el.append(setting('CPU load', 'How hard separation works the CPU when it runs there. “All cores” uses every real core. Songs split in the background run at low priority and, while you play, on half the cores, so playing stays smooth; the song you’re waiting for gets full speed. On a GPU the CPU stays mostly idle either way.', load));
 
-    el.append(setting('Split songs automatically', 'When you open a song without stems, start separating it in the background.', toggleCtl(s.stems.auto, (v) => saveSettings({ stems: { auto: v } }), 'Split automatically')));
+    el.append(setting('Split songs automatically', 'When you pick or open a song without stems, start separating it in the background, so it’s often ready by the time you press play.', toggleCtl(s.stems.auto, (v) => saveSettings({ stems: { auto: v } }), 'Split automatically')));
     el.append(setting('Wait for the stems', 'When you open a song to play, it starts once its stems are split and loaded (they’re split for you), so the mix never changes under you. You can always press Play now.', toggleCtl(s.stems.waitFirst !== false, (v) => saveSettings({ stems: { waitFirst: v } }), 'Wait for the stems')));
     el.append(setting('Switch to stems when ready', 'Play through the stem mixer as soon as a song’s stems load, instead of the full mix.', toggleCtl(s.stems.preferStems, (v) => saveSettings({ stems: { preferStems: v } }), 'Prefer stems')));
   },
@@ -758,31 +758,68 @@ function renderActivity() {
   if (scan) text = scan.total ? `Reading songs ${scan.done} of ${scan.total}` : 'Looking for songs';
   else if (running) {
     const song = state.songs.get(running[0]);
-    text = `Splitting ${song ? song.title : 'song'} ${Math.round((running[1].progress || 0) * 100)}%`;
+    const left = stemsLeft(running[1]);
+    text = `Splitting ${song ? song.title : 'song'} ${Math.round((running[1].progress || 0) * 100)}%${left ? ` · ${left}` : ''}`;
   } else text = `${busy.length} waiting to split`;
   if (!scan && busy.length > 1) text += ` (+${busy.length - 1})`;
-  pill.innerHTML = `<span class="spin"></span><span>${esc(text)}</span>`;
+  const label = pill.querySelector('.act-text');
+  if (label) label.textContent = text;
+  else pill.innerHTML = `<span class="spin"></span><span class="act-text">${esc(text)}</span>`;
   if (popover) fillPopover();
 }
 
+/** What a stem row says under the song's name. */
+function stemLine(st) {
+  if (st.state !== 'running') return 'Waiting';
+  const left = stemsLeft(st);
+  return `${Math.round((st.progress || 0) * 100)}%${left ? `, ${left}` : ''}${st.message ? ` · ${st.message}` : ''}`;
+}
+
+/**
+ * The activity menu. 4.4: rows are updated in place (they used to be rebuilt on every
+ * update, which also swallowed clicks on Cancel); only a change in the list rebuilds it.
+ */
 function fillPopover() {
+  const scanning = state.scan && state.scan.state !== 'done';
+  const busy = [...state.stems.entries()].filter(([, s]) => s.state === 'running' || s.state === 'queued');
+  busy.sort((a, b) => (a[1].state === 'running' ? -1 : b[1].state === 'running' ? 1 : 0));
+  const shape = `${scanning ? 'scan' : ''}|${busy.map(([id, st]) => `${id}:${st.state}`).join(',')}`;
+  if (popover.dataset.shape === shape) {
+    if (scanning) {
+      const s = state.scan;
+      const it = popover.querySelector('.qitem.scan');
+      if (it) {
+        it.querySelector('.n').textContent = s.total ? `Reading ${s.done} of ${s.total} files` : 'Looking for songs';
+        it.querySelector('.s').textContent = s.file || '';
+        const p = it.querySelector('.progress');
+        if (p && s.total) p.style.setProperty('--p', `${Math.round((s.done / s.total) * 100)}%`);
+      }
+    }
+    for (const [id, st] of busy) {
+      const it = popover.querySelector(`.qitem[data-song="${CSS.escape(id)}"]`);
+      if (!it) continue;
+      it.querySelector('.s').textContent = stemLine(st);
+      const p = it.querySelector('.progress');
+      if (p) p.style.setProperty('--p', `${Math.round((st.progress || 0) * 100)}%`);
+    }
+    return;
+  }
+  popover.dataset.shape = shape;
   popover.innerHTML = '';
-  if (state.scan && state.scan.state !== 'done') {
+  if (scanning) {
     popover.append(h('h4', { text: 'Library' }));
     const s = state.scan;
-    const it = h('div.qitem', null, h('div.n', { text: s.total ? `Reading ${s.done} of ${s.total} files` : 'Looking for songs' }), h('div.s', { text: s.file || '' }));
+    const it = h('div.qitem.scan', null, h('div.n', { text: s.total ? `Reading ${s.done} of ${s.total} files` : 'Looking for songs' }), h('div.s', { text: s.file || '' }));
     if (s.total) it.append(h('div.progress', { style: { '--p': `${Math.round((s.done / s.total) * 100)}%` } }, h('i')));
     popover.append(it);
   }
-  const busy = [...state.stems.entries()].filter(([, s]) => s.state === 'running' || s.state === 'queued');
   if (busy.length) {
     popover.append(h('h4', { text: 'Stem separation', style: { marginTop: '8px' } }));
-    busy.sort((a, b) => (a[1].state === 'running' ? -1 : b[1].state === 'running' ? 1 : 0));
     for (const [id, st] of busy) {
       const song = state.songs.get(id);
       const cancel = h('button.btn.small.ghost', { type: 'button', text: 'Cancel' });
       cancel.onclick = () => api.stems.cancel(id);
-      const it = h('div.qitem', null, h('div.n', { text: song ? `${song.title}, ${song.artist}` : id }), cancel, h('div.s', { text: st.state === 'running' ? `${Math.round((st.progress || 0) * 100)}%, ${st.message || ''}` : 'Waiting' }));
+      const it = h('div.qitem', { dataset: { song: id } }, h('div.n', { text: song ? `${song.title}, ${song.artist}` : id }), cancel, h('div.s', { text: stemLine(st) }));
       if (st.state === 'running') it.append(h('div.progress', { style: { '--p': `${Math.round((st.progress || 0) * 100)}%` } }, h('i')));
       popover.append(it);
     }
@@ -811,6 +848,7 @@ document.addEventListener('mousedown', (e) => {
 on('scan', renderActivity);
 on('stems', renderActivity);
 on('stems-progress', renderActivity);
+on('stems-tick', renderActivity);
 
 // -------------------------------------------------------------- duplicates --
 /**

@@ -185,7 +185,7 @@ function drawHead() {
         h('span.gr-me-label', { text: 'Backstage pass' }),
         name,
         lv ? h('span.gr-lv', { text: `LV ${lv.level} · ${lv.tier.name}`, title: `Level ${lv.level}: ${lv.tier.name} pass` }) : null,
-        h('span.gr-role', { text: roleOf(st.name) }),
+        lv && lv.title ? h('span.gr-role.earned', { text: lv.title.name, title: 'Your title. Change it in Progress.' }) : h('span.gr-role', { text: roleOf(st.name) }),
         more)));
   } else {
     const come = btn('Come in', 'person', () => askName(), '.primary.small');
@@ -668,7 +668,7 @@ function mineRow(t, just) {
   const name = h('b', { text: t.name });
   const sh = isShown(t.id);
   const show = video ? h(`button.gr-show${sh ? '.on' : ''}`, { type: 'button', 'aria-pressed': String(sh), title: sh ? 'Backstage: everyone can watch it (click to take it out)' : 'Show it backstage', html: `${icon(sh ? 'check' : 'people')}<span>${sh ? 'Backstage' : 'Show backstage'}</span>` }) : h('span.gr-noshow', { text: 'Sound only', title: 'Only videos can go backstage' });
-  if (video) show.onclick = async () => (await toggleShown(t)) && renderMine();
+  if (video) show.onclick = async () => (await toggleShown(t)) && (sh || did('backstage-share'), renderMine());
   const rename = h('button.icon-btn', { type: 'button', title: 'Rename', 'aria-label': 'Rename', html: icon('edit') });
   const showBtn = h('button.icon-btn', { type: 'button', title: 'Show in folder', 'aria-label': 'Show in folder', html: icon('folder') });
   const del = h('button.icon-btn', { type: 'button', title: 'Delete', 'aria-label': 'Delete', html: icon('trash') });

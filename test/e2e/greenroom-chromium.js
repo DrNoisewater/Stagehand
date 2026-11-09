@@ -19,7 +19,10 @@ const { Levels } = require('../../src/main/services/levels');
 
 // 4.4: Alex has played for two months (a fancy pass); Bo is new
 const HISTORY = { Alex: [], Bo: [] };
-for (let d = 70; d >= 1; d--) for (let i = 0; i < 4; i++) HISTORY.Alex.push({ songId: `song${(d * 4 + i) % 90}`, part: i === 3 ? 'bass' : 'lead', seconds: 600, accuracy: 0.93, notes: 400, speed: 1, full: true, tuning: i === 2 ? 'Drop D' : 'E Standard', at: Date.now() - d * 86400000 + i * 900000 });
+for (let d = 70; d >= 1; d--) for (let i = 0; i < 4; i++) HISTORY.Alex.push({ songId: `song${(d * 4 + i) % 90}`, part: i === 3 ? 'bass' : 'lead', seconds: 600, accuracy: i === 1 ? 0.97 : 0.93, notes: 400, speed: 1, full: true, tuning: i === 2 ? 'Drop D' : 'E Standard', at: Date.now() - d * 86400000 + i * 900000,
+  bestStreak: 80 + d * 3, sections: [['Verse', 12, 12], ['Chorus', 10, 12]], kinds: { bend: [6, 8], slide: [3, 4], chord: [25, 30], legato: [10, 12] } });
+// their library (for artists and the song of the week)
+const SONGS = Object.fromEntries(Array.from({ length: 90 }, (_, i) => [`song${i}`, { title: ['Paranoid', 'Money', 'Holy Wars', 'Hysteria', 'Black Dog'][i % 5] + (i >= 5 ? ` ${i}` : ''), artist: ['Black Sabbath', 'Pink Floyd', 'Megadeth', 'Muse', 'Led Zeppelin', 'Rush', 'AC/DC'][i % 7] }]));
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const outDir = process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'sh-gr-out-'));
@@ -121,7 +124,7 @@ const SHAPE = (() => {
 async function stagehand(browser, name, relay, url) {
   const takes = []; // { id, kind, name, file, seconds, at, bytes, about, data }
   const saved = []; // tones kept
-  const levels = await new Levels({ file: path.join(tmp, `${name}-levels.json`), sessions: () => HISTORY[name] || [] }).load();
+  const levels = await new Levels({ file: path.join(tmp, `${name}-levels.json`), sessions: () => HISTORY[name] || [], songs: () => (name === 'Alex' ? SONGS : {}) }).load();
   const room = new GreenRoom({ file: path.join(tmp, `${name}.json`), fetchImpl: fetch, relays: [relay], room: 'E2E ROOM', listClips: async () => takes.filter((t) => t.kind === 'video'), level: () => levels.state().level });
   await room.load();
   const page = await browser.newPage({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 1 });
@@ -136,6 +139,7 @@ async function stagehand(browser, name, relay, url) {
     'room.get': () => (room.prune && room.prune(), room.state()),
     'levels.state': () => levels.state(),
     'levels.did': (id) => levels.did(id),
+    'levels.title': (id) => levels.setTitle(id),
     'room.setName': (n) => room.setName(n),
     'room.leave': () => room.leave(),
     'room.send': (to, t, about) => room.sendMessage(to, t, about),
@@ -281,6 +285,11 @@ const shot = async (S, file) => {
     const lvA = A.levels.state();
     check(lvA.level >= 15 && (await A.page.locator(`.gr-pass.tier-${lvA.tier.id}`).count()) === 1 && new RegExp(`LV ${lvA.level} · ${lvA.tier.name}`).test(await A.page.locator('.gr-pass').textContent()), `Alex’s pass shows level ${lvA.level} (${lvA.tier.name}) in its style`);
     check(lvA.firsts.find((f) => f.id === 'backstage-join').done, 'getting a backstage pass counts toward levels');
+    // a title earned from a trophy (a 250-note streak) goes on the pass in place of the joke line
+    check(lvA.titles.find((t) => t.id === 'metronome').earned && lvA.trophies.find((t) => t.id === 'streak').tier >= 2, 'a long note streak earns a trophy and a title');
+    await A.page.evaluate(async () => (await import('./js/rewards.js')).wearTitle('metronome'));
+    await A.page.waitForFunction(() => /Human Metronome/.test(document.querySelector('.gr-pass .gr-role.earned')?.textContent || ''), null, { timeout: 5000 }).catch(() => {});
+    check(/Human Metronome/.test((await A.page.locator('.gr-pass .gr-role').textContent()) || ''), 'the title shows on the pass');
     await A.page.waitForTimeout(3000);
     await A.page.evaluate(() => window.GR.openGreenRoom({ tab: 'room' }));
     check((await A.page.locator('.gr-pass .gr-lan.drop').count()) === 0, 'it doesn’t drop again when Backstage opens from elsewhere');
@@ -321,6 +330,34 @@ const shot = async (S, file) => {
       else {
         await A.page.waitForSelector('.lv-panel', { timeout: 8000 }).catch(() => {});
         await shot(A, 'lv-progress.png');
+        // the whole level area: today, this week, titles, the trophy case, things to try
+        await clearToasts(A);
+        const wrap = A.page.locator('.lv-wrap');
+        if (await wrap.count()) {
+          await A.page.setViewportSize({ width: 1360, height: 2600 });
+          await wrap.screenshot({ path: path.join(outDir, 'lv-area.png') });
+          for (const [sel, file] of [['.lv-panel', 'lv-today.png'], ['.lv-row', 'lv-week.png'], ['.lv-trophies', 'lv-trophies.png']]) await A.page.locator(sel).screenshot({ path: path.join(outDir, file) }).catch(() => {});
+          // narrower window
+          await A.page.setViewportSize({ width: 980, height: 3000 });
+          await wrap.screenshot({ path: path.join(outDir, 'lv-area-narrow.png') });
+          await A.page.setViewportSize({ width: 1360, height: 900 });
+        }
+        // a new trophy card and a finished-challenge note
+        await A.page.evaluate(async () => {
+          const R = await import('./js/rewards.js');
+          const st = R.L.st;
+          const fake = { ...st, recent: [{ key: 't:streak:3', xp: 200, why: 'Trophy: Combo king (platinum)', at: Date.now() }, { key: 'c:x:full2', xp: 25, why: 'Challenge: Play 2 songs all the way through', at: Date.now() }, ...st.recent] };
+          // as if the main process sent it
+          const { api } = await import('./js/api.js');
+          const real = api.levels.state;
+          api.levels.state = async () => fake;
+          await R.loadLevels();
+          api.levels.state = real;
+        });
+        await A.page.waitForTimeout(900);
+        await A.page.screenshot({ path: path.join(outDir, 'lv-trophy-card.png') });
+        check((await A.page.locator('.lv-trophy-up').count()) === 1 && (await A.page.locator('.toast.lv-toast').count()) === 1, 'a new trophy gets a card, a finished challenge a trophy note');
+        await A.page.evaluate(() => document.querySelectorAll('.lvup').forEach((e) => e.remove()));
       }
       await A.page.evaluate(async () => {
         const R = await import('./js/rewards.js');

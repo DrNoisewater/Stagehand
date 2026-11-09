@@ -8,7 +8,7 @@ import { APPROACH_UNITS, approachDepth, chordSpan, isChordRepeat } from './highw
  */
 import { visualTime, sustainIndex, firstSustain, noteEnd, matchTiming, attackAgo } from './highway-timing.js';
 import { api } from './api.js';
-import { h, icon, esc, showMenu, toast, instrumentTag } from './ui.js';
+import { h, icon, esc, showMenu, toast, instrumentTag, stemsLeft } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
 import { tonelib, useTone } from './tonelib.js';
@@ -1107,7 +1107,8 @@ export function createHighway(stage) {
     } else if (info.waiting) {
       const st = info.waiting;
       const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
-      const what = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : pct ? `Splitting the stems · ${pct}%` : stage.stemsStep ? stage.stemsStep(st) : 'Splitting the stems…';
+      const left = stemsLeft(st);
+      const what = (st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : pct ? `Splitting the stems · ${pct}%` : stage.stemsStep ? stage.stemsStep(st) : 'Splitting the stems…') + (left ? ` · ${left}` : '');
       key = `wait:${info.song.id}:${st.state}`;
       if (statusBox.dataset.key === key && st.state === 'running') {
         const b = statusBox.querySelector('b');
@@ -1117,7 +1118,7 @@ export function createHighway(stage) {
         statusBox.hidden = false;
         return;
       }
-      html = `<div class="hw-st-box"><b>${what}</b><span>${title} starts by itself: with the stems, or with the full mix in a few seconds if they take long.</span><div class="hw-st-bar"><i style="width:${Math.max(2, pct)}%"></i></div><div class="hw-st-acts"><button type="button" class="btn small" data-act="now">Play now with the full mix</button></div></div>`;
+      html = `<div class="hw-st-box"><b>${what}</b><span>${title} starts by itself as soon as its stems are ready.</span><div class="hw-st-bar"><i style="width:${Math.max(2, pct)}%"></i></div><div class="hw-st-acts"><button type="button" class="btn small" data-act="now">Play now with the full mix</button></div></div>`;
     }
     if (!html) {
       statusBox.hidden = true;
@@ -1139,6 +1140,7 @@ export function createHighway(stage) {
   };
   on('stage-phase', () => renderStatus());
   on('stems-update', () => H.open && renderStatus());
+  on('stems-tick', () => H.open && renderStatus()); // (the time left counts down)
 
   function pickPart() {
     const want = prefs.part || 'lead';

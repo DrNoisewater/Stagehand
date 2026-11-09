@@ -2,7 +2,7 @@
 import { did } from './rewards.js';
 import { api } from './api.js';
 import { state, on, emit, upsertSongs, setPage } from './store.js';
-import { h, icon, esc, toast } from './ui.js';
+import { h, icon, esc, toast, stemsLeft } from './ui.js';
 import { AudioEngine, loadTrackData, STEM_ORDER } from './audio-engine.js';
 import { WaveLane, drawBeam, drawRuler, drawSpectrum, fmtTime, overview, drawBars } from './wave.js';
 import * as actions from './actions.js';
@@ -756,6 +756,11 @@ function setPlayIcon() {
 engine.addEventListener('state', () => {
   setPlayIcon();
   requestDraw();
+  // 4.4: while a song plays, a split in the background takes half the CPU
+  if (api.stems.playing && S.toldPlaying !== engine.playing) {
+    S.toldPlaying = engine.playing;
+    api.stems.playing(engine.playing).catch(() => {});
+  }
 });
 engine.addEventListener('ended', () => {
   if (S.borrowed) return; // the timing check's song ended, not yours
@@ -944,20 +949,25 @@ async function loadStems(token, { switchMode = true } = {}) {
     lanes.get('mix').wave.revealAt = 0;
     S.loadingStems = true;
     renderStemsCall();
-    for (const n of names) {
+    // 4.4: every stem is fetched and decoded at once (they used to come one after another)
+    const t0 = performance.now();
+    const fetchStem = async (n) => {
       const url = st.stems.find((x) => x.name === n).url;
       try {
-        let data;
-        try {
-          data = await loadTrackData(url, undefined, { rate: engine.sampleRate, frames: engine.frames });
-        } catch (e) {
-          // the stems may have just been converted: ask where they are now and try once more
-          const fresh = await api.stems.status(song.id);
-          const f = fresh && fresh.stems && fresh.stems.find((x) => x.name === n);
-          if (!f || f.url === url) throw e;
-          data = await loadTrackData(f.url, undefined, { rate: engine.sampleRate, frames: engine.frames });
-        }
-        if (token !== S.token) return;
+        return await loadTrackData(url, undefined, { rate: engine.sampleRate, frames: engine.frames });
+      } catch (e) {
+        // the stems may have just been converted: ask where they are now and try once more
+        const fresh = await api.stems.status(song.id);
+        const f = fresh && fresh.stems && fresh.stems.find((x) => x.name === n);
+        if (!f || f.url === url) throw e;
+        return loadTrackData(f.url, undefined, { rate: engine.sampleRate, frames: engine.frames });
+      }
+    };
+    const loaded = await Promise.all(names.map((n) => fetchStem(n).then((data) => ({ n, data }), (err) => ({ n, err }))));
+    if (token !== S.token) return; // another song opened meanwhile: this one's news is old
+    for (const { n, data, err } of loaded) {
+      try {
+        if (err) throw err;
         if (data.wav.frames !== engine.frames || data.wav.sampleRate !== engine.sampleRate) {
           throw new Error('Stem length does not match the song; separate stems again');
         }
@@ -967,12 +977,12 @@ async function loadStems(token, { switchMode = true } = {}) {
         rec.lane.classList.remove('scanning');
         rec.wave.setPeaks(data.peaks, S.duration);
         refreshLane(rec);
-      } catch (err) {
-        if (token !== S.token) return; // another song opened meanwhile: this one's news is old
+      } catch (e) {
         lanes.get(n)?.lane.classList.remove('scanning');
-        toast({ title: `Could not load the ${STEM_LABEL[n].toLowerCase()} stem`, message: err.message, kind: 'err' });
+        toast({ title: `Could not load the ${STEM_LABEL[n].toLowerCase()} stem`, message: e.message, kind: 'err' });
       }
     }
+    if (api.stems.note) api.stems.note(`${song.title}: ${S.stems.length} stems (${st.format || 'wav'}) loaded in ${Math.round(performance.now() - t0)} ms`).catch(() => {});
     S.loadingStems = false;
     stemModeBtn.disabled = !S.stems.length;
     const prefer = state.settings ? state.settings.stems.preferStems !== false : true;
@@ -1164,7 +1174,12 @@ async function stemsFirst(song, token) {
     await api.stems.prioritize(song.id, { now: true }).catch(() => {});
     return (S.waitStatus = st), token === S.token;
   }
-  if (st.state === 'ready' || st.state === 'running') return (S.waitStatus = st), true;
+  if (st.state === 'running') {
+    // (maybe split ahead in the background: now you're waiting for it, it gets the full PC)
+    api.stems.prioritize(song.id, { now: true }).catch(() => {});
+    return (S.waitStatus = st), true;
+  }
+  if (st.state === 'ready') return (S.waitStatus = st), true;
   if (st.state === 'none' && state.engine && state.engine.installed && (await actions.engineReady())) {
     await actions.requestStems([song.id]);
     await api.stems.prioritize(song.id, { now: true }).catch(() => {});
@@ -1174,19 +1189,12 @@ async function stemsFirst(song, token) {
   return false; // nothing to wait for (no stem engine yet): play the full mix
 }
 
-// 4.0: never wait long for stems. A split can take minutes on a CPU: after this long
-// the song starts with the full mix and the stems come in when they're ready.
-const WAIT_MAX_MS = 15000;
-
+// 4.4: the song waits for its stems however long they take (the user wants the stems
+// from the first note). It used to give up after 15 s and start with the full mix.
+// "Play now with the full mix" still starts it at once, and a split that fails or is
+// cancelled starts it with the full mix.
 function startWaiting(token) {
   S.waitPlay = token;
-  clearTimeout(S.waitTimer);
-  S.waitTimer = setTimeout(() => {
-    if (S.waitPlay !== token || token !== S.token) return;
-    stopWaiting();
-    if (S.phase === 'ready' && !engine.playing) engine.play();
-    toast({ title: 'Playing the full mix for now', message: 'The stems are still being made; they come in by themselves when they’re ready.', kind: 'info', timeout: 6000 });
-  }, WAIT_MAX_MS);
   renderWaiting(S.waitStatus || S.status);
   emit('stage-waiting', true);
   emit('stage-phase');
@@ -1194,7 +1202,6 @@ function startWaiting(token) {
 }
 
 function stopWaiting() {
-  clearTimeout(S.waitTimer);
   if (!S.waitPlay) return;
   S.waitPlay = 0;
   waitBox.hidden = true;
@@ -1216,7 +1223,8 @@ function renderWaiting(st) {
   st = st || { state: 'queued' };
   const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
   const title = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : pct ? `Splitting the stems · ${pct}%` : stemsStep(st);
-  const note = st.state === 'queued' ? 'Another song is being split first. The song starts with the full mix in a few seconds if it takes long.' : st.state === 'ready' ? 'Almost there.' : 'Guitar, bass, drums and the rest, so you can mix them. The song starts by itself (with the full mix if this takes long).';
+  const left = stemsLeft(st);
+  const note = st.state === 'queued' ? 'Another song is being split first. This one is next.' : st.state === 'ready' ? 'Almost there.' : 'Guitar, bass, drums and the rest, so you can mix them. The song starts by itself as soon as its stems are ready.';
   if (!waitBox.firstChild) {
     waitBox.innerHTML = `<div class="read-bar"><div class="rb-top"><span class="eq"><i></i><i></i><i></i><i></i></span><span class="rb-label"></span><span class="rb-count"></span></div><div class="rb-track"><i></i></div><div class="rb-note"></div><div class="sw-row"><span class="sw-song"></span></div></div>`;
     const now = h('button.btn.small', { type: 'button', html: `${icon('play')}<span>Play now with the full mix</span>` });
@@ -1227,7 +1235,7 @@ function renderWaiting(st) {
     waitBox.querySelector('.sw-row').append(now);
   }
   waitBox.querySelector('.rb-label').textContent = title;
-  waitBox.querySelector('.rb-count').textContent = st.state === 'running' ? `${pct}%` : '';
+  waitBox.querySelector('.rb-count').textContent = st.state === 'running' ? `${pct}%${left ? ` · ${left}` : ''}` : '';
   waitBox.querySelector('.rb-note').textContent = note;
   waitBox.querySelector('.sw-song').textContent = S.song ? `${S.song.title}${S.song.artist ? ` · ${S.song.artist}` : ''}` : '';
   waitBox.querySelector('.read-bar').classList.toggle('waiting', st.state === 'queued');
@@ -1358,6 +1366,10 @@ on('stems-update', (u) => {
   if (u.state === 'ready' && !S.stems.length && !S.loadingStems && S.phase === 'ready') loadStems(S.token);
   else renderStemsCall();
   emit('stage-phase');
+});
+// 4.4: the time left counts down between updates
+on('stems-tick', () => {
+  if (S.waitPlay && S.song) renderWaiting(S.waitStatus || S.status);
 });
 on('library', () => {
   if (!S.song) return;
