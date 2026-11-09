@@ -5,7 +5,7 @@
  *    song, tuning up and the timing check.
  *  - Play a song: reading the highway and its controls; stems and the mix.
  *  - Around Stagehand: one page per menu section (Songs, Jam, Tones,
- *    Progress, Recordings & Friends, Discover), then the keys.
+ *    Progress, Discover, the Green Room), then the keys.
  * Every tour page has "Show me": the guide steps aside, goes there and rings
  * the control it's talking about, with a way back to the same page.
  * Offered once on a fresh install with no songs; people who saw the old,
@@ -379,7 +379,7 @@ const PAGES = [
           ['Tuner and Drop', 'The tuner follows the tuning you’re in, or the song you last opened. The Drop lowers your sound without retuning; Match follows each song.'],
           ['Drums & metronome', 'Pick a beat (Click, Rock, Shuffle, Metal…) and a tempo, and play along.'],
           ['Looper', 'Press Record, play, press Stop: it loops straight away. Overdub to add layers; it locks to the drums when they’re on.'],
-          ['Record video', 'Records you jamming, with the sound, into Recordings.'],
+          ['Record video', 'Records you jamming, with the sound. Find it in the Green Room, under My clips.'],
           ['Visualizer', 'Open visualizer (or J) for a full screen with a moving background that reacts to what you play.']
         )
       ),
@@ -411,20 +411,6 @@ const PAGES = [
       ),
   },
   {
-    title: 'Recordings & Friends',
-    show: { title: 'Recordings', at: '.nav-section[data-page="recordings"]', go: () => {}, tip: 'Click here for your recordings, and the Friends tab to share videos with a code.' },
-    draw: () =>
-      h(
-        'div',
-        null,
-        steps(
-          ['Video clips', 'On the highway, Tools › Record a video clip records you playing along, with the sound. Jam can record too.'],
-          ['Takes and loops', 'Looper loops and takes are kept here as well. Play, rename, delete, or show the file.'],
-          ['Friends', 'Give a friend your code (two words) and they can watch the videos you choose to share; add their code to watch theirs. Only videos you share, never your songs.']
-        )
-      ),
-  },
-  {
     title: 'Discover',
     show: { title: 'Discover', at: '.nav-section[data-page="discover"]', go: () => setView({ kind: 'discover', id: 'search' }), tip: 'Search any artist, see what you’re missing, keep a Wanted list, and watch your Downloads.' },
     draw: () =>
@@ -436,6 +422,21 @@ const PAGES = [
           ['Collection gaps', 'Albums and songs by artists you like that you don’t have yet.'],
           ['Wanted', 'Your list of songs to get. One click copies the name and opens CustomsForge.'],
           ['Imports', 'Which folders Stagehand watches for new downloads, and where songs go.']
+        )
+      ),
+  },
+  {
+    title: 'The Green Room',
+    show: { title: 'The Green Room', at: '.nav-section[data-page="greenroom"]', go: () => setPage('greenroom'), tip: 'Your clips, the clips other players show, and your messages.' },
+    draw: () =>
+      h(
+        'div',
+        null,
+        steps(
+          ['Video clips', 'On the highway, Tools › Record a video clip records you playing along, with the sound. Jam can record too. Each clip remembers the song, the part and your tone.'],
+          ['My clips', 'Everything you’ve recorded, looper takes too. Play, rename, delete, or show the file.'],
+          ['Show it', 'Press Show in the Green Room on a video and everyone with Stagehand can watch it while your Stagehand is open. Pick a name the first time.'],
+          ['The Room', 'See who’s here and what they’ve shown. Watch a clip, try or keep their tone, open the song if you have it, or message them.']
         )
       ),
   },

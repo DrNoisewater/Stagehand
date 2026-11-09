@@ -112,15 +112,15 @@ function render() {
   }
   row.append(songs);
 
-  // recordings: the newest few; everything is in the Recordings window
-  const allRec = h('button.btn.small.ghost', { type: 'button', text: 'All recordings' });
-  allRec.onclick = () => import('./recordings.js').then((r) => r.openRecordings());
+  // recordings: the newest few; everything is in the Green Room (My clips)
+  const allRec = h('button.btn.small.ghost', { type: 'button', text: 'All my clips' });
+  allRec.onclick = () => import('./greenroom.js').then((r) => r.openGreenRoom({ tab: 'mine' }));
   const takes = h('section.card.ptakes', { 'aria-label': 'Recordings' }, h('div.card-head', null, h('h2', { text: 'Recordings' }), allRec));
   if (!P.takes.length) takes.append(h('p.np-fine', { text: 'Nothing recorded yet. Record a clip from the highway’s Tools, or use the looper in Jam.' }));
   for (const t of P.takes.slice(0, 4)) {
     const on = P.playing === t.id;
     const play = h('button.round-play.sm', { type: 'button', 'aria-label': on ? 'Stop' : 'Play', html: icon(on ? 'stop' : 'play') });
-    play.onclick = () => (t.kind === 'video' ? import('./recordings.js').then((r) => r.openRecordings({ focus: t.id })) : playTake(t));
+    play.onclick = () => (t.kind === 'video' ? import('./greenroom.js').then((r) => r.openGreenRoom({ tab: 'mine', focus: t.id })) : playTake(t));
     const when = new Date(t.at);
     const meta = `${t.kind === 'video' ? 'Video · ' : ''}${when.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${Math.floor((t.seconds || 0) / 60)}:${String(Math.round((t.seconds || 0) % 60)).padStart(2, '0')}`;
     takes.append(h(`div.take${on ? '.on' : ''}`, null, play, h('div.tk-text', null, h('b', { text: t.name }), h('span', { text: meta }))));

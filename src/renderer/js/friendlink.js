@@ -1,11 +1,12 @@
 /**
- * Friends (3.10): the direct connection between two Stagehands (WebRTC data
- * channel, DTLS-encrypted). The offer and answer travel sealed through the
- * main process (services/friends.js), which derives the relay topic and key
- * from the friend code. No UI here (see friends.js), and `api` is passed in
- * so tests can drive it in a plain browser.
+ * The direct connection between two Stagehands (WebRTC data channel,
+ * DTLS-encrypted; 4.1 for friends, 4.3 for the Green Room). The offer and answer
+ * travel sealed through the main process (services/greenroom.js), through the
+ * other person's hidden address. No UI here (see greenroom.js), and `api` is
+ * passed in so tests can drive it in a plain browser.
  *
- * What travels is your shared recordings (videos of the highway and Jam).
+ * What travels is the videos you show in the Green Room, with what's in them
+ * (song, part, tone: `list`).
  * On the channel (JSON text, plus binary chunks of a file):
  *   friend → host  {op:'hi', name} (4.1.3: who's watching; older hosts ignore it)
  *                  {op:'list', r}   {op:'get', r, id, part: 'video'|'thumb', from}   {op:'cancel', r}
@@ -78,8 +79,8 @@ async function sendBytes(dc, bytes) {
 
 // ------------------------------------------------------------------ host --
 /**
- * Answers friends who connect while sharing is on, handing out the recordings
- * main says are shared (it refuses the rest). Returns { peers, stop }.
+ * Answers people who connect to watch, handing out the videos main says are
+ * shown in the Green Room (it refuses the rest). Returns { peers, stop }.
  */
 export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
   const peers = new Map();
@@ -98,7 +99,7 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
     dc.onopen = async () => {
       poke();
       try {
-        const l = await api.friends.hostList();
+        const l = await api.room.hostList();
         send({ op: 'hello', name: l.name || '' });
       } catch (_) {}
     };
@@ -114,7 +115,7 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
       poke();
       const r = Number(m.r) || 0;
       if (m.op === 'hi') {
-        names.set(conn, String(m.name || 'A friend').slice(0, 40));
+        names.set(conn, String(m.name || 'Someone').slice(0, 40));
         changed();
         return;
       }
@@ -126,12 +127,12 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
         try {
           if (cancelled.has(r)) return;
           if (m.op === 'list') {
-            const l = await api.friends.hostList();
+            const l = await api.room.hostList();
             send({ op: 'list', r, name: l.name || '', recordings: l.recordings });
           } else if (m.op === 'get' && typeof m.id === 'string') {
             const part = m.part === 'thumb' ? 'thumb' : 'video';
             let off = Math.max(0, Math.floor(Number(m.from) || 0));
-            let first = await api.friends.hostRead(m.id, part, off, SLICE); // main refuses what isn't shared
+            let first = await api.room.hostRead(m.id, part, off, SLICE); // main refuses what isn't shared
             send({ op: 'file', r, id: m.id, part, size: first.size, from: Math.min(off, first.size) });
             for (;;) {
               const bytes = first.bytes instanceof Uint8Array ? first.bytes : new Uint8Array(first.bytes);
@@ -139,7 +140,7 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
               off += bytes.byteLength;
               if (off >= first.size || !bytes.byteLength) break;
               if (cancelled.has(r)) break;
-              first = await api.friends.hostRead(m.id, part, off, SLICE);
+              first = await api.room.hostRead(m.id, part, off, SLICE);
             }
             send({ op: 'end', r, cancelled: cancelled.has(r) });
           }
@@ -153,7 +154,7 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
     return () => clearTimeout(idle);
   }
 
-  const off = api.on('friends:offer', async ({ conn, sdp }) => {
+  const off = api.on('room:offer', async ({ conn, sdp }) => {
     if (peers.size >= 8 || peers.has(conn)) return;
     const pc = new RTCPeerConnection({ iceServers });
     let stopIdle = null;
@@ -182,7 +183,7 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
       await pc.setRemoteDescription({ type: 'offer', sdp });
       await pc.setLocalDescription(await pc.createAnswer());
       await gathered(pc);
-      await api.friends.answer(conn, pc.localDescription.sdp);
+      await api.room.answer(conn, pc.localDescription.sdp);
     } catch (_) {
       kill();
     }
@@ -202,13 +203,13 @@ export function startHost(api, { iceServers = ICE, onPeers = null } = {}) {
 
 // ---------------------------------------------------------------- friend --
 /**
- * Connects to a friend's Stagehand. Resolves a link:
+ * Connects to someone's Stagehand (their hidden address). Resolves a link:
  *   { name, list(), get(id, { part, onChunk, onProgress }) → { bytes, size }, cancel(), close(), onclose }
  * With onChunk the pieces go there as they arrive (to start a video playing)
  * and `bytes` comes back empty.
  * Errors carry `code`: OFFLINE (no answer), RELAY, DIRECT (couldn't connect directly).
  */
-export async function connectTo(api, friendId, { iceServers = ICE, timeout = 20000, name = '', onStage = null } = {}) {
+export async function connectTo(api, addr, { iceServers = ICE, timeout = 20000, name = '', onStage = null } = {}) {
   const pc = new RTCPeerConnection({ iceServers });
   const dc = pc.createDataChannel('recordings', { ordered: true });
   dc.binaryType = 'arraybuffer';
@@ -221,8 +222,8 @@ export async function connectTo(api, friendId, { iceServers = ICE, timeout = 200
   try {
     await pc.setLocalDescription(await pc.createOffer());
     await gathered(pc);
-    const answer = await api.friends.connect(friendId, pc.localDescription.sdp);
-    // they answered, so the code is right: now the direct line between the two PCs
+    const answer = await api.room.connect(addr, pc.localDescription.sdp);
+    // they answered: now the direct line between the two PCs
     if (onStage) onStage('direct');
     await pc.setRemoteDescription({ type: 'answer', sdp: answer });
   } catch (err) {
@@ -327,7 +328,7 @@ export async function connectTo(api, friendId, { iceServers = ICE, timeout = 200
   pc.onconnectionstatechange = () => (pc.connectionState === 'failed' || pc.connectionState === 'closed') && link.close();
 
   await new Promise((res, rej) => {
-    const t = setTimeout(() => rej(Object.assign(new Error('Couldn’t connect directly to your friend’s PC. One of your networks may block it.'), { code: 'DIRECT' })), timeout);
+    const t = setTimeout(() => rej(Object.assign(new Error('Couldn’t connect directly to their PC. One of your networks may block it.'), { code: 'DIRECT' })), timeout);
     if (dc.readyState === 'open') {
       clearTimeout(t);
       res();

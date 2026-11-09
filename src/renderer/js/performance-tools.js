@@ -69,7 +69,19 @@ export function createPerformanceTools({ root, stage, H, rig }) {
   closeBoard.onclick = () => { leaderboard.hidden = true; };
 
   // ------------------------------------------------------ record clip --
-  const clip = createClipRecorder({ rig, engine: eng, title: () => (H.song && H.song.title) || 'Jam Session', songId: () => (H.song && H.song.id) || null });
+  const clip = createClipRecorder({
+    rig,
+    engine: eng,
+    title: () => (H.song && H.song.title) || 'Jam Session',
+    songId: () => (H.song && H.song.id) || null,
+    // 4.3: the clip remembers the song, the part and the speed (the Green Room shows them)
+    about: () => ({
+      song: H.song ? { title: H.song.title, artist: H.song.artist, official: !!H.song.official } : null,
+      part: H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null,
+      tuning: (H.tab && H.tab.tuningName) || '',
+      speed: eng.speed || 1,
+    }),
+  });
   const rec = button('● Record clip', 'Save highway video with the audible song and processed instrument', async () => {
     rec.disabled = true;
     try {
@@ -96,7 +108,7 @@ export function createPerformanceTools({ root, stage, H, rig }) {
       { label: run ? 'Stop the score attack' : 'Score attack: a full run for points', icon: 'star', onClick: () => attack.onclick() },
       { label: clip.active ? 'Stop and save the clip' : 'Record a video clip', icon: 'record', onClick: () => rec.onclick() },
       '-',
-      { label: 'Recordings', icon: 'folder', onClick: () => import('./recordings.js').then((m) => m.openRecordings()) },
+      { label: 'The Green Room (my clips)', icon: 'people', onClick: () => import('./greenroom.js').then((m) => m.openGreenRoom({ tab: 'mine' })) },
       { label: 'Timing check', icon: 'clock', onClick: () => H.openSync && H.openSync() },
     ], { align: 'right' });
   };

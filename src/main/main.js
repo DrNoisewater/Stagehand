@@ -30,7 +30,7 @@ const { RigAudio } = require('./services/rigaudio');
 const { ToneStore, ToneIndex } = require('./services/tones');
 const { Stats, Takes } = require('./services/stats');
 const { Captures } = require('./services/captures');
-const { Friends } = require('./services/friends');
+const { GreenRoom } = require('./services/greenroom');
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'stagehand', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true, codeCache: true } },
@@ -74,7 +74,7 @@ let toneIndex;
 let stats;
 let takes;
 let captures;
-let friends;
+let room; // the Green Room (4.3; Friends before)
 let updates; // 4.1.4: newer Stagehand from GitHub releases
 const logLines = [];
 let clipSessions = null;
@@ -489,7 +489,7 @@ function openTone3000(url, redirect) {
 
 // ------------------------------------------------------------------ IPC --
 /** A recorded clip (capture + optional WAV of the engine's sound) → an MP4 in your recordings. */
-async function saveClip({ input, sound, title, songId, seconds }) {
+async function saveClip({ input, sound, title, songId, seconds, about = null }) {
   await fsp.mkdir(path.join(D.takes,'Videos'),{recursive:true});
   const rel=takes.freeName(String(title||'Jam Session'),'mp4','Videos');
   const file=path.join(D.takes,rel);
@@ -503,7 +503,7 @@ async function saveClip({ input, sound, title, songId, seconds }) {
   const soundBytes=sound?(await fsp.stat(sound).catch(()=>({size:0}))).size:0;
   log(`Video saved: ${rel}, ${Math.round(Number(seconds)||0)} s; engine sound ${soundBytes?`${Math.round(soundBytes/1024)} KB`:'none'}; loudest ${level.peakDb===null?'no sound track':`${level.peakDb} dB`}`);
   await fsp.copyFile(output,file);
-  const take=await takes.addVideo({file:rel,name:path.basename(rel,'.mp4').replace(/^SH - /,''),songId:songId||null,seconds:Number(seconds)||0});
+  const take=await takes.addVideo({file:rel,name:path.basename(rel,'.mp4').replace(/^SH - /,''),songId:songId||null,seconds:Number(seconds)||0,about});
   return {path:file,take,hasSound:level.hasSound,peakDb:level.peakDb};
 }
 
@@ -573,7 +573,7 @@ function registerIpc() {
     try{
       await fsp.writeFile(input,data);
       if(sound)await fsp.writeFile(sound,meta.audio);
-      return await saveClip({input,sound,title:meta&&meta.title,songId:meta&&meta.songId,seconds:meta&&meta.seconds});
+      return await saveClip({input,sound,title:meta&&meta.title,songId:meta&&meta.songId,seconds:meta&&meta.seconds,about:meta&&meta.about});
     }finally{await fsp.rm(temp,{recursive:true,force:true});}
   });
   // 4.0.7: Record clip writes to disk while it records (clip-sessions.js)
@@ -594,46 +594,39 @@ function registerIpc() {
   handle('takes:save', (t) => takes.save(t));
   handle('takes:remove', async (id) => {
     const r = await takes.remove(id);
-    if (friends) await friends.setShared(id, false);
+    if (room) await room.setShared(id, false).catch(() => {});
     return r;
   });
-  // Friends (4.1): friends watch the highway and Jam videos you share, with a code.
+  // The Green Room (4.3): everyone sees the videos you show there, and can message you.
   // Only videos (never audio takes or songs); the page makes the direct connection (js/friendlink.js).
   const sharedVideo = async (id) => {
     const t = (await takes.list()).find((x) => x.id === String(id));
-    return t && t.kind === 'video' && friends.isShared(t.id) ? t : null;
+    return t && t.kind === 'video' && room.isShared(t.id) ? t : null;
   };
-  handle('friends:get', async () => {
-    await friends.prune((await takes.list()).filter((t) => t.kind === 'video').map((t) => t.id));
-    return friends.state();
+  handle('room:get', async () => {
+    await room.prune((await takes.list()).filter((t) => t.kind === 'video').map((t) => t.id));
+    return room.state();
   });
-  handle('friends:setSharing', (on) => friends.setSharing(on));
-  handle('friends:setName', (name) => friends.setName(name));
-  handle('friends:setRelay', (url) => friends.setRelay(url));
-  handle('friends:newCode', () => friends.newCode());
-  handle('friends:setCode', (code) => friends.setCode(code));
-  handle('friends:setFriendCode', (id, code) => friends.setFriendCode(id, code));
-  handle('friends:send', (to, text) => friends.sendMessage(to, text));
-  handle('friends:add', (code, name) => friends.addFriend(code, name));
-  handle('friends:rename', (id, name) => friends.renameFriend(id, name));
-  handle('friends:remove', (id) => friends.removeFriend(id));
-  handle('friends:share', async (id, on) => {
+  handle('room:setName', (name) => room.setName(name));
+  handle('room:leave', () => room.leave());
+  handle('room:send', (to, text, about) => room.sendMessage(to, text, about));
+  handle('room:hide', (addr, on) => room.hide(addr, on));
+  handle('room:share', async (id, on) => {
     const t = (await takes.list()).find((x) => x.id === String(id));
-    if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can be shared with friends'), { code: 'NOT_VIDEO' });
-    return friends.setShared(String(id), on);
+    if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can be shown in the Green Room'), { code: 'NOT_VIDEO' });
+    return room.setShared(String(id), on);
   });
-  // 4.1.3: the window shows each step of connecting (reaching the meeting point, asking them)
-  handle('friends:connect', (friendId, sdp) => friends.connect(friendId, sdp, { onStage: (stage) => send('friends:progress', { friendId, stage }) }));
-  handle('friends:answer', (conn, sdp) => friends.answer(conn, sdp));
-  // what a connected friend may see and fetch: shared videos only, only while sharing is on
-  handle('friends:hostList', async () => {
-    const st = friends.state();
-    const list = st.sharing ? (await takes.list()).filter((t) => t.kind === 'video' && friends.isShared(t.id)) : [];
-    return { name: st.shownName, recordings: list.map((t) => ({ id: t.id, name: t.name, seconds: t.seconds, size: t.bytes, at: t.at })) };
+  handle('room:connect', (addr, sdp) => room.connect(addr, sdp, { onStage: (stage) => send('room:progress', { addr, stage }) }));
+  handle('room:answer', (conn, sdp) => room.answer(conn, sdp));
+  // what someone watching may see and fetch: the videos you show, with what's in them (the tone too)
+  handle('room:hostList', async () => {
+    const { clipSummary } = require('./services/greenroom');
+    const list = room.joined ? (await takes.list()).filter((t) => t.kind === 'video' && room.isShared(t.id)) : [];
+    return { name: room.data.name, recordings: list.map((t) => ({ ...clipSummary(t), name: t.name, seconds: t.seconds, tone: (t.about && t.about.tone) || null })) };
   });
-  handle('friends:hostRead', async (id, part, offset, length) => {
+  handle('room:hostRead', async (id, part, offset, length) => {
     const t = await sharedVideo(id);
-    if (!t || part !== 'video') throw Object.assign(new Error('That video isn’t shared'), { code: 'NOT_SHARED' });
+    if (!t || part !== 'video') throw Object.assign(new Error('That video isn’t shown in the Green Room'), { code: 'NOT_SHARED' });
     const fh = await fsp.open(takes.pathOf(t.id), 'r');
     try {
       const { size } = await fh.stat();
@@ -1064,21 +1057,18 @@ app.whenReady().then(async () => {
   });
   await captures.load().catch((e) => log(`Captures failed to load: ${e.message}`));
   // Chromium's network stack first: it uses Windows' proxy settings (work and school networks); Node's as a fallback
-  // 4.1.5: until you set a name, friends see your Windows user name ("Jake"), not "Someone"
-  const winName = (() => {
-    try {
-      const u = String(require('os').userInfo().username || '').replace(/[._-]+/g, ' ').trim();
-      return /^(user|admin|administrator|owner|pc)$/i.test(u) ? '' : u.replace(/^\w/, (c) => c.toUpperCase());
-    } catch (_) {
-      return '';
-    }
-  })();
-  friends = new Friends({ fallbackName: winName, file: path.join(D.roaming, 'friends.json'), fetchImpl: (url, opts) => net.fetch(url, opts).catch((err) => (opts && opts.signal && opts.signal.aborted ? Promise.reject(err) : fetch(url, opts))), safeStorage, log });
-  await friends.load().catch((e) => log(`Friends failed to load: ${e.message}`));
-  friends.on('change', (st) => send('friends:change', st));
-  friends.on('offer', (o) => send('friends:offer', o));
-  friends.on('message', (m) => send('friends:message', m));
-  friends.on('moved', (m) => send('friends:moved', m));
+  room = new GreenRoom({
+    file: path.join(D.roaming, 'greenroom.json'),
+    oldFile: path.join(D.roaming, 'friends.json'), // 4.1–4.2: its messages are kept to read
+    fetchImpl: (url, opts) => net.fetch(url, opts).catch((err) => (opts && opts.signal && opts.signal.aborted ? Promise.reject(err) : fetch(url, opts))),
+    listClips: async () => (await takes.list()).filter((t) => t.kind === 'video'),
+    safeStorage,
+    log,
+  });
+  await room.load().catch((e) => log(`Green Room failed to load: ${e.message}`));
+  room.on('change', (st) => send('room:change', st));
+  room.on('offer', (o) => send('room:offer', o));
+  room.on('message', (m) => send('room:message', m));
   // 4.1.4: updates from GitHub releases: checked a little after start and every 6 hours
   const { Updates } = require('./services/updates');
   // (tests only: STAGEHAND_UPDATES_API points at a pretend GitHub; STAGEHAND_UPDATES_MARK records the Setup run instead of running it)
@@ -1174,11 +1164,10 @@ app.on('before-quit', async (e) => {
   try {
     library.close();
     if (rigAudio) rigAudio.quit();
-    if (friends) friends.close();
     importer.stop();
     discover.cancelGaps();
     for (const j of [stems.current]) if (j && j.child) j.child.kill();
-    await Promise.all([library.save(), settings.save(), discover.save(), importer.save(), toneStore.flush(), stats.flush(), toneIndex ? toneIndex.flush() : null]);
+    await Promise.all([room ? room.close() : null, library.save(), settings.save(), discover.save(), importer.save(), toneStore.flush(), stats.flush(), toneIndex ? toneIndex.flush() : null]);
   } catch (_) {}
   app.quit();
 });

@@ -11,7 +11,7 @@ import { overview, drawBars, fmtTime } from './wave.js';
 import * as stage from './stage.js';
 
 const app = document.getElementById('app');
-const PAGES = ['play', 'songs', 'discover', 'tones', 'progress', 'now'];
+const PAGES = ['play', 'songs', 'discover', 'tones', 'progress', 'now', 'greenroom'];
 
 /** One colour per song, from the stem gels, so a song looks the same everywhere. */
 export const SONG_GELS = ['#ff6b3d', '#8c7bff', '#ff4d8d', '#33c8e0', '#9bdb5a', '#ffb547'];

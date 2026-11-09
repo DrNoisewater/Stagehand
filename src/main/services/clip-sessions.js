@@ -21,7 +21,7 @@ class ClipSessions {
     this.n = 0;
   }
 
-  /** meta: { title, songId, rate } → session id */
+  /** meta: { title, songId, rate, about (4.3: what was played) } → session id */
   async begin(meta = {}) {
     const dir = await fsp.mkdtemp(path.join(this.tempRoot, 'stagehand-clip-'));
     const id = `c${Date.now().toString(36)}${++this.n}`;
@@ -32,6 +32,7 @@ class ClipSessions {
       pcm: path.join(dir, 'sound.pcm'),
       title: String(meta.title || 'Jam Session'),
       songId: meta.songId || null,
+      about: meta.about && typeof meta.about === 'object' ? meta.about : null,
       rate: Number(meta.rate) || 48000,
       vbytes: 0,
       abytes: 0,
@@ -71,7 +72,7 @@ class ClipSessions {
       sound = path.join(s.dir, 'sound.wav');
       await writeWav(s.pcm, sound, s.rate);
     }
-    return { input: s.video, sound, title: s.title, songId: s.songId, seconds: (Date.now() - s.startedAt) / 1000, dir: s.dir, vbytes: s.vbytes };
+    return { input: s.video, sound, title: s.title, songId: s.songId, about: s.about, seconds: (Date.now() - s.startedAt) / 1000, dir: s.dir, vbytes: s.vbytes };
   }
 
   async remove(dirOrId) {

@@ -59,23 +59,23 @@ const check = (ok, msg) => {
       a.getFloatTimeDomainData(buf);
       for (const x of buf) window.__busPeak = Math.max(window.__busPeak, Math.abs(x));
     }, 50);
-    const { openRecordings } = await import('./js/recordings.js');
-    openRecordings();
+    const { openGreenRoom } = await import('./js/greenroom.js');
+    openGreenRoom({ tab: 'mine' });
   });
-  await page.waitForSelector('.rec-row.video .round-play', { timeout: 10000 });
-  await page.click('.rec-row.video .round-play');
+  await page.waitForSelector('.gr-row.video .round-play', { timeout: 10000 });
+  await page.click('.gr-row.video .round-play');
   await page.waitForTimeout(2500);
   const st = await page.evaluate(() => {
-    const v = document.querySelector('.rec-window video');
+    const v = document.querySelector('#page-greenroom .gr-player video');
     return { peak: window.__busPeak, t: v ? v.currentTime : -1, err: v && v.error ? v.error.message || v.error.code : null };
   });
-  check(st.t > 0.5, `the video plays in Recordings (at ${st.t.toFixed(2)} s${st.err ? ', ' + st.err : ''})`);
+  check(st.t > 0.5, `the video plays in the Green Room (at ${st.t.toFixed(2)} s${st.err ? ', ' + st.err : ''})`);
   check(st.peak > 0.1, `its sound reaches Stagehand's own sound path, like the song and the looper (peak ${st.peak.toFixed(3)})`);
   await page.screenshot({ path: path.join(outDir, 'recplay.png') });
   // stop it: nothing left playing
-  await page.click('.rec-row.video .round-play');
+  await page.click('.gr-row.video .round-play');
   await page.waitForTimeout(300);
-  check(!(await page.$('.rec-window video')), 'pressing again stops it');
+  check(!(await page.$('#page-greenroom .gr-player video')), 'pressing again stops it');
   await app.close().catch(() => {});
   fs.rmSync(home, { recursive: true, force: true });
   console.log(results.every(Boolean) ? 'all passed' : 'some failed');
