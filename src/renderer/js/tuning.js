@@ -141,3 +141,41 @@ export function whichString(heard, strings) {
 /** Common tunings to pick from (offsets per string, low to high). */
 export const MY_TUNINGS = [[0, 0, 0, 0, 0, 0], [-1, -1, -1, -1, -1, -1], [-2, -2, -2, -2, -2, -2], [-3, -3, -3, -3, -3, -3], [-4, -4, -4, -4, -4, -4], [-2, 0, 0, 0, 0, 0], [-3, -1, -1, -1, -1, -1], [-4, -2, -2, -2, -2, -2], [-5, -3, -3, -3, -3, -3]];
 export const MY_TUNINGS_BASS = [[0, 0, 0, 0], [-1, -1, -1, -1], [-2, -2, -2, -2], [-3, -3, -3, -3], [-2, 0, 0, 0], [-4, -2, -2, -2]];
+
+/**
+ * 4.3: does the Drop, as it is set now, already make this song playable?
+ * drop: { on, st, match }; plan: from tuningPlan(). On "match" it follows any song
+ * that is the same tuning, just lower; on a fixed step, when the step is what the song needs.
+ */
+export function dropCovers(drop, plan) {
+  if (!drop || !drop.on || !plan || !plan.drop) return false;
+  return !!drop.match || drop.st === plan.drop;
+}
+
+/**
+ * 4.3: what the Drop is doing right now, the same words everywhere it shows.
+ * drop: { on, st, match }; amount: semitones it lowers right now (rig.dropAmount());
+ * song: { tuning, cents } of the open song, or null. Returns
+ * { state: 'on' | 'idle' (on, but doing nothing) | 'off', line, short, warn }:
+ * line is the one clear sentence, short fits a small button, warn (or '') says when
+ * the song wants something else.
+ */
+export function dropStatus(drop, amount, song, kind = 'guitar', mine = myTuning(kind), mineCents = myCents(kind)) {
+  const what = kind === 'bass' ? 'bass' : 'guitar';
+  const has = !!(song && song.tuning && song.tuning.length);
+  const plan = has ? tuningPlan(song.tuning, kind, mine, song.cents || 0, mineCents) : null;
+  if (!drop || !drop.on) {
+    const warn = plan && plan.drop ? `This song needs −${plan.drop}.` : '';
+    return { state: 'off', line: 'Off', short: 'Drop off', warn };
+  }
+  const a = Math.max(0, Math.round(Number(amount) || 0));
+  if (!a) {
+    const why = !plan ? 'it follows the next song’s tuning' : plan.same ? 'this song needs no drop' : 'this song needs retuning, not a drop';
+    return { state: 'idle', line: plan ? `On, but ${why}` : `On: ${why}`, short: 'Drop on · not needed', warn: '' };
+  }
+  const how = a === 12 ? 'an octave lower' : `${a} semitone${a === 1 ? '' : 's'} lower`;
+  const sounds = a < 12 ? ` (${tuningName(mine.map((x) => x - a), kind)})` : '';
+  let warn = '';
+  if (plan && !(plan.drop === a)) warn = plan.same ? 'This song needs no drop.' : plan.drop ? `This song needs −${plan.drop}.` : 'This song needs retuning, not a drop.';
+  return { state: 'on', line: `On: your ${what} sounds ${how}${sounds}`, short: a === 12 ? 'Drop on · −oct' : `Drop on · −${a}`, warn };
+}

@@ -1,5 +1,6 @@
 import {api} from './api.js';
 import {toast} from './ui.js';
+import {nowPlayingTone} from './tonelib.js';
 import {createSoundTrack} from './clip-sound.js';
 /** Captures our own window and internal audio; never OS loopback.
  *  With the native engine (the Rocksmith cable) the sound is collected straight from the
@@ -8,10 +9,16 @@ import {createSoundTrack} from './clip-sound.js';
  *  4.0.7: video and sound go to disk every second while recording (clip-sessions.js in the
  *  app); nothing big is kept here. A whole song's video used to be kept in the page and
  *  copied again to save it, and the page ran out of memory and went blank. */
-/** title(): what the file is called after "SH - " (the song's title, or Jam Session). */
+/** title(): what the file is called after "SH - " (the song's title, or Jam Session).
+ *  about(): what's being played, kept with the clip for Backstage (4.3): { song, part, tuning, speed }. */
 const LIMIT_S=600; // 10 minutes
 const fmt=(s)=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
-export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()=>null}){
+export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()=>null,about=()=>null}){
+  // the song, the part, and the tone playing when the recording starts
+  const details=()=>{let a={};try{a={...(about()||{})};}catch(_){}
+    const instrument=rig&&rig.instrument==='bass'?'bass':'guitar';let tone=null;
+    try{const t=nowPlayingTone().tone;if(t&&Array.isArray(t.gear)&&t.gear.length)tone={name:t.name,kind:t.kind||instrument,gear:t.gear,capture:t.capture||null,cabId:t.cabId||null,autoCab:t.autoCab!==false};}catch(_){}
+    return{...a,instrument,tone};};
   let startedAt=0;
   let recorder=null,video=null,monitor=null,extra=null,dest=null,timer=null,done=null,session=null,send=Promise.resolve(),beat=0,pieces=Promise.resolve(),soundBytes=0;
   let pcm=null; // native: {handle, track (clip-sound.js), rate}
@@ -79,7 +86,7 @@ export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()
         const mime=kinds.find(x=>MediaRecorder.isTypeSupported(x));
         if(!mime)throw Error('Video recording is unavailable on this system.');
         const name=title()||'Jam Session';
-        session=await api.clips.begin({title:name,songId:songId(),rate:pcm?pcm.rate:48000});
+        session=await api.clips.begin({title:name,songId:songId(),rate:pcm?pcm.rate:48000,about:details()});
         send=Promise.resolve();pieces=Promise.resolve();soundBytes=0;
         // 10 Mbit/s: the saved MP4 is made again from this at full quality, so more only costs disk
         recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:10000000,...(audioTracks.length?{audioBitsPerSecond:256000}:{})});
@@ -95,9 +102,9 @@ export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()
             const seconds=(performance.now()-startedAt)/1000;
             toast({title:'Saving the video…',message:`${fmt(seconds)} long.`,kind:'info',timeout:3000});
             const saved=await api.clips.finish(id,{seconds});
-            const open=saved&&saved.take?[{label:'Recordings',onClick:()=>import('./recordings.js').then(r=>r.openRecordings({focus:saved.take.id}))}]:[];
+            const open=saved&&saved.take?[{label:'My clips',onClick:()=>import('./greenroom.js').then(r=>r.openGreenRoom({tab:'mine',focus:saved.take.id}))}]:[];
             // (the sound was checked before recording and watched all through: 4.1.2)
-            if(saved&&saved.take)toast({title:`Saved “${saved.take.name}”`,message:'In Recordings (the file is “SH - …mp4”).',kind:'ok',actions:open});
+            if(saved&&saved.take)toast({title:`Saved “${saved.take.name}”`,message:'Backstage, under My clips. Show it there if you want everyone to see it.',kind:'ok',actions:open});
             resolve(saved&&saved.path);}catch(e){clean();reject(e);}};
         });
         // Catch auto-stop failures as well as explicit save failures.

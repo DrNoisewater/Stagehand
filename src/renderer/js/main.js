@@ -15,7 +15,8 @@ import './practice.js';
 import './nowpanel.js';
 import './tonespage.js';
 import './progress.js';
-import './friends.js';
+import './room.js';
+import './greenroom.js';
 import './stemformat.js';
 import { rig } from './rig.js';
 import { nudgeSpeed } from './speedpop.js';
@@ -103,8 +104,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'l' || e.key === 'L') stage.toggleSectionLoop();
   else if ((e.key === 'd' || e.key === 'D') && !ctrl) {
     rig.setDrop({ on: !rig.drop.on });
-    const a = rig.dropAmount();
-    toast({ title: rig.drop.on ? `Drop on${a ? (a === 12 ? ': an octave down' : `: down ${a}`) : ''}` : 'Drop off', kind: 'info', timeout: 1500 });
+    const ds = rig.dropStatus();
+    toast({ title: `Drop ${ds.line.replace(/^(On|Off)/, (w) => w.toLowerCase())}`, message: ds.state === 'on' ? ds.warn : '', kind: 'info', timeout: 2000 });
   }
   else if (digit && !ctrl && e.shiftKey) stage.toggleMute(Number(digit[1]) - 1, e.altKey);
   else if (digit && !ctrl) useSlot(Number(digit[1]));
@@ -137,7 +138,7 @@ function crashNotice(n) {
   const showRec = (r) => {
     recs.innerHTML = '';
     for (const x of n.recordings || []) {
-      recs.append(h('p', { text: x.saving ? `Saving the recording of ${x.title} as far as it got…` : x.name ? `The recording was saved as far as it got: “${x.name}”, in Recordings.` : x.error ? `The recording couldn’t be saved: ${x.error}` : 'The recording had nothing in it yet.' }));
+      recs.append(h('p', { text: x.saving ? `Saving the recording of ${x.title} as far as it got…` : x.name ? `The recording was saved as far as it got: “${x.name}”, Backstage, under My clips.` : x.error ? `The recording couldn’t be saved: ${x.error}` : 'The recording had nothing in it yet.' }));
     }
   };
   showRec();

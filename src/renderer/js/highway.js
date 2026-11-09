@@ -280,16 +280,20 @@ export function createHighway(stage) {
     dropBox.classList.toggle('on',rig.drop.on);
     const d = rig.drop;
     const kind = instrument() === 'bass' ? 'bass' : 'guitar';
-    const amt = rig.dropAmount();
     const songT = H.tab && H.tab.tuning ? `${tuningName(H.tab.tuning, kind)}${refLabel(H.tab.cents) ? ` ${refLabel(H.tab.cents)}` : ''}` : '';
     const mine = myTuning(kind);
     const plan = H.tab ? tuningPlan(H.tab.tuning, kind, mine, H.tab.cents || 0) : { same: true };
-    const head = h('div.hw-drop-head', null, h('div', null, h('b', { text: 'Drop' }), h('small', { text: d.on ? (amt ? (amt === 12 ? 'An octave down' : `Down ${amt} semitone${amt === 1 ? '' : 's'}`) : 'Song is in standard') : 'Off' })));
+    // 4.3: one clear line, whether it's working right now and by how much
+    const ds = rig.dropStatus();
+    dropBox.classList.toggle('idle', ds.state === 'idle');
+    const head = h('div.hw-drop-head', null, h('div', null, h('b', { text: 'Drop' }), h('small.drop-line', { text: ds.line })));
     const sw = h('button.drop-switch', { type: 'button', 'aria-pressed': String(d.on), title: 'The Drop on or off (D)' }, h('span.led'));
     sw.style.setProperty('--gel', '#8c7bff');
     sw.onclick = () => rig.setDrop({ on: !d.on });
     head.append(sw);
     dropBox.append(head);
+    // on, but not what this song wants (the line below says what it needs)
+    if (ds.state === 'on' && ds.warn) dropBox.append(h('div.drop-warn', { text: ds.warn }));
     let need = '';
     if (H.tab) need = plan.same ? `${songT}: your ${kind} is ready` : plan.drop ? `${songT} song, your ${kind} is in ${tuningName(mine, kind)}: Drop −${plan.drop}` : plan.retune.length ? `${songT}: retune ${plan.retune.map((r) => `${r.from}→${r.to}`).join(', ')}${plan.ref ? ` (to ${plan.ref})` : ''}` : `${songT}: retune every string a little (to ${plan.ref})`;
     if (need) dropBox.append(h(`div.hw-drop-need${plan.same ? '.ok' : ''}`, { text: need }));
@@ -299,18 +303,11 @@ export function createHighway(stage) {
       g.onclick = () => tuningGuide({ ...H.tab, type: kind === 'bass' ? 'bass' : H.tab.type }, H.song, stage.engine);
       dropBox.append(g);
     }
-    if (plan.drop && !(d.on && d.match)) {
-      const b = h('button.hw-chip.hw-drop-match', { type: 'button', html: `${icon('check')}<span>Match the song (−${plan.drop})</span>` });
-      b.onclick = () => rig.setDrop({ on: true, match: true });
-      dropBox.append(b);
-    }
-    const steps = h('div.drop-steps');
-    const matchT = h('button', { type: 'button', text: 'Match', title: 'Follow each song’s tuning', 'aria-pressed': String(d.on && d.match) });
+    // one "match the song" (4.3: there were two), then the fixed steps
+    const matchT = h('button.hw-chip.hw-drop-match', { type: 'button', text: `Match the song${plan.drop ? ` (−${plan.drop})` : ''}`, title: 'Follow each song’s tuning', 'aria-pressed': String(d.on && d.match) });
     matchT.onclick = () => rig.setDrop({ on: true, match: true });
-    // Keep the original eight-button Drop layout; auto-match is separate.
     dropBox.append(matchT);
-    matchT.className='hw-chip hw-drop-match';
-    matchT.textContent='Match song tuning';
+    const steps = h('div.drop-steps');
     for (const st of [1, 2, 3, 4, 5, 6, 7, 12]) {
       const b = h('button', { type: 'button', text: st === 12 ? 'Oct' : `−${st}`, 'aria-pressed': String(d.on && !d.match && d.st === st) });
       b.onclick = () => rig.setDrop({ st, match: false, on: true });
@@ -1067,7 +1064,7 @@ export function createHighway(stage) {
       H.tab = tab;
       prefs.part = H.tab.type === 'combo' ? 'lead' : H.tab.type;
       save();
-      rig.setSongTuning(H.tab.tuning, instrument());
+      rig.setSongTuning(H.tab.tuning, instrument(), H.tab.cents || 0); // 4.3: this song's pitch, not the last one's
       H.scoringShift=tuneShift.st=rig.dropAmount();
       H.targets = buildTargets(H.tab);
       H.lyricLines = buildLyrics(H.tab.lyrics || []);

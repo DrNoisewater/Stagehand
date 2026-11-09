@@ -10,6 +10,7 @@ const storeFns = { accBand };
 import { h, icon, esc, showMenu, confirmDialog, toast } from './ui.js';
 import { counts as discoverCounts } from './discover.js';
 import { updateLabel, openUpdate } from './updates.js';
+import { unreadAll } from './room.js';
 
 const side = document.getElementById('sidebar');
 const root = h('div.nav-scroll');
@@ -54,10 +55,10 @@ function item({ kind, id, label, iconName, count, cls = '', onContext, drop, cur
 }
 
 /** A top-level section of the menu, with its own gel colour. */
-function section({ page, label, iconName, gel, onClick, sub }) {
+function section({ page, label, iconName, gel, onClick, sub, badge = '' }) {
   const cur = state.page === page;
   const b = h(`button.nav-section${sub ? '.has-sub' : ''}`, { type: 'button', 'aria-current': cur ? 'page' : 'false', 'data-page': page, style: { '--gel': gel } });
-  b.innerHTML = `${icon(iconName)}<span class="name">${esc(label)}</span>`;
+  b.innerHTML = `${icon(iconName)}<span class="name">${esc(label)}</span>${badge ? `<span class="count new" title="${esc(badge)} new">${esc(badge)}</span>` : ''}`;
   b.onclick = onClick || (() => setPage(page));
   return b;
 }
@@ -160,8 +161,6 @@ export function render() {
   top.append(songsSub);
   top.append(section({ page: 'tones', label: 'Tones', iconName: 'tones', gel: 'var(--gel-bass)' }));
   top.append(section({ page: 'progress', label: 'Progress', iconName: 'chart', gel: 'var(--gel-piano)' }));
-  // 3.13: one place for every recording (looper, takes, highway and Jam videos)
-  top.append(section({ page: 'recordings', label: 'Recordings', iconName: 'record', gel: 'var(--gel-drums)', onClick: () => import('./recordings.js').then((r) => r.openRecordings()) }));
   top.append(
     section({
       page: 'discover',
@@ -178,13 +177,16 @@ export function render() {
   );
   const discoverSub = h('div.nav-sub');
   top.append(discoverSub);
-  // 4.1.2: a walk-through for people new to Rocksmith songs (opens a window, not a page)
+  // 4.3: Backstage (your clips, everyone's shown clips, messages), just above Getting started
+  const unread = unreadAll();
+  top.append(section({ page: 'greenroom', label: 'Backstage', iconName: 'people', gel: 'var(--gel-bass)', badge: unread ? String(unread) : '' }));
+  // 4.1.2: a walk-through for people new to Rocksmith songs (opens a window, not a page), last on the menu
   top.append(section({ page: 'guide', label: 'Getting started', iconName: 'info', gel: 'var(--gel-other)', onClick: () => import('./guide.js').then((g) => g.openGuide()) }));
 
   root.append(top);
   // section highlight follows the page, not the Songs list
   for (const b of top.querySelectorAll('.nav-section')) b.setAttribute('aria-current', 'false');
-  // (by page name, not position: 4.0 added Recordings, which opens a window, not a page)
+  // (by page name, not position: Getting started opens a window, not a page)
   const secs = [...top.querySelectorAll('.nav-section')];
   const idx = secs.findIndex((b) => b.dataset.page === page);
   if (secs[idx]) secs[idx].setAttribute('aria-current', 'page');
@@ -405,6 +407,14 @@ export async function addFolder(p) {
 }
 
 on('library', render);
+// Backstage's count of new messages
+let lastUnread = 0;
+const roomCount = () => {
+  const n = unreadAll();
+  if (n !== lastUnread) (lastUnread = n), render();
+};
+on('room', roomCount);
+on('room-read', roomCount);
 on('updates', render);
 on('view', render);
 on('page', render);

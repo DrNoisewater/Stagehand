@@ -107,9 +107,29 @@ export function setYou(v) {
   rig.setKnob('volume', v);
   rememberMix({ you: Number(v) });
 }
+// 4.3: turning the guitar or bass part off (to play it yourself) holds for every song
+// until you turn it back on. The other parts are still remembered per song.
+const PARTS = ['guitar', 'bass'];
+const partsOff = (() => {
+  try {
+    return JSON.parse(localStorage.getItem('stagehand.partsOff') || '{}') || {};
+  } catch (_) {
+    return {};
+  }
+})();
+function rememberPartOff(name, off) {
+  if (!PARTS.includes(name)) return;
+  partsOff[name] = !!off;
+  try {
+    localStorage.setItem('stagehand.partsOff', JSON.stringify(partsOff));
+  } catch (_) {}
+}
+/** Whether the guitar or bass part is held off for every song (null: never set). */
+export const partHeldOff = (name) => (PARTS.includes(name) && name in partsOff ? !!partsOff[name] : null);
 function stemPref(name) {
   const p = (S.mix && S.mix.stems && S.mix.stems[name]) || {};
-  return { volume: p.v ?? 0.8, muted: p.on === false, solo: !!(S.solo && S.solo[name]) };
+  const held = partHeldOff(name);
+  return { volume: p.v ?? 0.8, muted: held ?? p.on === false, solo: !!(S.solo && S.solo[name]) };
 }
 
 const S = {
@@ -350,6 +370,7 @@ function setStem(name, patch) {
     S.mix.stems = S.mix.stems || {};
     const cur = S.mix.stems[name] || { v: 0.8, on: true };
     S.mix.stems[name] = { v: 'volume' in patch ? Number(patch.volume) : cur.v, on: 'muted' in patch ? !patch.muted : cur.on };
+    if ('muted' in patch) rememberPartOff(name, patch.muted);
     saveMixSoon();
   }
   if (engine.tracks[index]) engine.setTrack(index, patch);
@@ -953,7 +974,9 @@ async function loadStems(token, { switchMode = true } = {}) {
     S.loadingStems = false;
     stemModeBtn.disabled = !S.stems.length;
     const prefer = state.settings ? state.settings.stems.preferStems !== false : true;
-    if (switchMode && prefer && S.stems.length) setMode('stems');
+    // a part you keep off needs the stems playing, whatever the setting
+    const heldOff = S.stems.some((n) => partHeldOff(n));
+    if (S.stems.length && ((switchMode && prefer) || heldOff)) setMode('stems');
     else setMode(engine.mode);
     renderStemsCall();
     if (tabView) tabView.stemsChanged();

@@ -242,6 +242,32 @@ class Stats {
   }
 }
 
+/**
+ * 4.3: what a clip is of, kept with it: { song: { title, artist, official }, part, tuning,
+ * instrument, speed, tone (the tone itself, so others can try it) }. Anything else is dropped.
+ */
+function aboutClip(a) {
+  if (!a || typeof a !== 'object') return null;
+  const s = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+  const song = a.song && typeof a.song === 'object' ? { title: s(a.song.title, 120), artist: s(a.song.artist, 120), official: !!a.song.official } : null;
+  let tone = null;
+  if (a.tone && typeof a.tone === 'object' && Array.isArray(a.tone.gear)) {
+    // the tone's own speaker-cabinet file is a file on this PC: it doesn't travel
+    const { name, kind, gear, capture, cabId, autoCab } = a.tone;
+    tone = JSON.parse(JSON.stringify({ name: s(name, 80) || 'Tone', kind: kind === 'bass' ? 'bass' : 'guitar', gear: gear.slice(0, 40), capture: capture || null, cabId: cabId || null, autoCab: autoCab !== false }));
+    if (JSON.stringify(tone).length > 60000) tone = { name: tone.name, kind: tone.kind, gear: [] };
+  }
+  const speed = Number(a.speed);
+  return {
+    song: song && song.title ? song : null,
+    part: ['lead', 'rhythm', 'bass', 'jam'].includes(a.part) ? a.part : null,
+    tuning: s(a.tuning, 40),
+    instrument: a.instrument === 'bass' ? 'bass' : 'guitar',
+    speed: Number.isFinite(speed) && speed > 0 && speed <= 2 ? Math.round(speed * 100) / 100 : 1,
+    tone,
+  };
+}
+
 class Takes {
   constructor(dir) {
     this.dir = dir;
@@ -287,11 +313,12 @@ class Takes {
     return `${sub ? `${sub}/` : ''}${base} ${Date.now()}.${ext}`;
   }
 
-  /** Adds a finished video (already in the recordings folder) to the list. */
-  async addVideo({ file, name, songId = null, seconds = 0 }) {
+  /** Adds a finished video (already in the recordings folder) to the list.
+   *  `about` (4.3): what was played, for Backstage (aboutClip below). */
+  async addVideo({ file, name, songId = null, seconds = 0, about = null }) {
     await this._load();
     const id = `k_${crypto.randomBytes(5).toString('hex')}`;
-    const t = { id, kind: 'video', file, name: String(name || 'Video').slice(0, 120), songId, seconds: Math.round(Number(seconds) * 10) / 10, bpm: null, at: Date.now() };
+    const t = { id, kind: 'video', file, name: String(name || 'Video').slice(0, 120), songId, seconds: Math.round(Number(seconds) * 10) / 10, bpm: null, at: Date.now(), about: aboutClip(about) };
     this.list_.push(t);
     await writeJsonAtomic(this.index, { takes: this.list_ });
     return t;
@@ -350,4 +377,4 @@ class Takes {
   }
 }
 
-module.exports = { Stats, Takes, dayKey };
+module.exports = { Stats, Takes, dayKey, aboutClip };
