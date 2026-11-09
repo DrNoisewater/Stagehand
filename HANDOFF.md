@@ -1,8 +1,25 @@
-# Stagehand handoff (v4.3.0, 2026-11-09): the Green Room
+# Stagehand handoff (v4.3.0, 2026-11-09): Backstage, the Drop holds, guitar/bass off sticks
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.
 
 **Fast start (3.7):** `bash scripts/session-setup.sh` (~1 min): prebuilt llvm-mingw from GitHub releases (replaces the ~15 min `native/toolchain/build-mingw.sh` build), the Setup payload zips (Electron, vgmstream, uv) into `/home/claude/deps`, and the fake audio helper for the UI tests. miniz is vendored in `windows/setup/miniz`. Then `npm test`, `ui3-chromium.js`, `test/hwlook/shoot.js`, and `SETUP_DEPS="/home/claude/deps/electron.zip /home/claude/deps/vgmstream.zip /home/claude/deps/uv.zip" sh scripts/package.sh <out>` (Setup .exe in ~30 s). Both build scripts use llvm-mingw when `/home/claude/llvm-mingw` exists (else the old self-built sysroot). The 3.7.0 Setup that shipped was built with the old sysroot; the llvm-mingw stub compiles (with `_WIN32_WINNT=0x0A00`) but hasn't been run under Wine yet: run `windows/setup/test-wine.sh` once before shipping a Setup built that way. `native/bin/stagehand-audio.exe` is prebuilt in the source: only rebuild (`native/build.sh`) when `native/` changes.
+
+## 4.3.0 (also): Backstage, the Drop holds, guitar or bass off for every song
+
+User: "how would it show what friends are online? Do you have a username / The getting started page should be the last thing … when you switch guitar off so that you can play in its place or bass, it needs to remember that … for every song … Don't apply that to the other stems … playing in a drop tuning using the drop ability, and then going to another song with the same tuning, the drop doesn't seem to hold … it's not intuitive on if it's working or not / Change The Green Room, to Backstage. And update look … a little more experimental … exciting."
+
+- **Backstage** (was the Green Room): every user-facing word renamed (page, menu, tour, toasts, errors, README; a kept tone says "from <name> (Backstage)"). Internal names stay: page id `greenroom`, files `greenroom.js`/`room.js`, IPC `room:*`, the meeting-point topic string (changing it would split old and new Stagehands). The first tab is **Everyone** (was The Room).
+- **Menu order:** Backstage just above **Getting started**, which is last (sidebar.js; ui3 checks it).
+- **Its own look** (end of the Backstage CSS block in v3.css, "Backstage gets its own look"): near-black stage with two slow sweeping spotlights, a flickering neon BACKSTAGE sign, a green "N other players here now / Just you right now" light, your name on a tilted "Your backstage pass" card (or a dashed "No pass yet" card with Come in), a colour per person from their name (`avatar()` in greenroom.js) with a glowing here-now dot, bigger people chips, poster-style tilted clip cards. All motion stops with reduced motion.
+- **Guitar or bass part off holds for every song** (stage.js `partsOff`, localStorage `stagehand.partsOff`): your own mute/unmute of the guitar or bass stem (any mixer: stage lanes, highway, classic highway, tab, Now playing "play it yourself") is remembered globally and wins over the per-song mix; other stems stay per song. If a held-off part is in the song, stems mode is switched on even when "prefer stems" is off. Jam's own part switch (`applyPart`) is unchanged.
+- **The Drop** (a helper found these; tuning.js `dropCovers`/`dropStatus`, rig.js `dropStatus()`, tuning-check.js, highway.js, play.js, nowpanel.js, practice.js, main.js D key; `test/drop.test.mjs` in npm test):
+  - The retune card came back on every next song when the Drop was on a fixed step (−1 button): only Match counted as covering the song. Now a fixed step equal to what the song needs counts too, and "I'm in …" turns the Drop off in any mode (it used to leave a fixed step on, dropping twice).
+  - The tuning learner could save the song's tuning as yours if you turned the Drop off right after playing, so the Drop then did nothing on those songs. It now notes if the Drop was on at any time during the session.
+  - The highway's song loader didn't pass the song's reference pitch (A425 then A440 could make Match give 0).
+  - The sound engine was not a cause: the drop is global there and resent on every tone change.
+  - One status line everywhere: "On: your guitar sounds 1 semitone lower (E♭ Standard)" / "On, but this song needs no drop" (amber) / "Off", with a warning when the step doesn't fit the song. One Match button; steps only light while on. A song in your own tuning with a fixed Drop left on shows "The Drop is still on … Press D to turn it off" once.
+
+**Ask the user:** does the Drop now hold from song to song (and did they use the −1 button or Match / "Use the Drop"; had "Your guitar is in" flipped to E♭)? Is the Drop status clear in the highway box, Jam and the Now playing pill? Does the guitar part stay off across songs? Does Backstage feel exciting without being hard to read (neon, tilt, moving lights: too much)?
 
 ## 4.3.0: the Green Room (replaces Recordings and Friends codes)
 
