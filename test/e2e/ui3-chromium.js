@@ -1503,7 +1503,8 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(400);
   check((await page.locator('#page-play .bk-art .gear-art').count()) >= 2, 'the rig shows pictures of its gear');
 
-  const errs = logs.filter((l) => /^(pageerror)/.test(l) || (/^error/.test(l) && !/404|Failed to load resource|favicon/.test(l)));
+  // the plain browser can't open the app's own stagehand:// files (Electron registers them); recplay-electron.js plays them for real
+  const errs = logs.filter((l) => /^(pageerror)/.test(l) || (/^error/.test(l) && !/404|Failed to load resource|favicon|'stagehand:\/\/take\//.test(l)));
   check(errs.length === 0, `no page errors${errs.length ? `: ${errs.slice(0, 4).join(' | ')}` : ''}`);
   fs.writeFileSync(path.join(outDir, 'ui-chromium.log'), logs.join('\n'));
   await browser.close();
