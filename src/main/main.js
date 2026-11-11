@@ -30,6 +30,8 @@ const { RigAudio } = require('./services/rigaudio');
 const { ToneStore, ToneIndex } = require('./services/tones');
 const { Stats, Takes } = require('./services/stats');
 const { Levels } = require('./services/levels');
+const { CareerBackups } = require('./services/profile-backup');
+const { lifetime } = require('./services/lifetime');
 const { Captures } = require('./services/captures');
 const { GreenRoom } = require('./services/greenroom');
 
@@ -74,6 +76,12 @@ let toneStore;
 let toneIndex;
 let stats;
 let levels; // 4.4: points and levels
+let careerBackups; // 4.5: backups of stats/levels/tones…
+/** 4.5: the developer menu works only when developer mode is on (Settings › About, or STAGEHAND_DEV=1). */
+const devOn = () => process.env.STAGEHAND_DEV === '1' || !!(settings && settings.get().developer === true);
+const needDev = () => {
+  if (!devOn()) throw new Error('Developer mode is off');
+};
 let takes;
 let captures;
 let room; // Backstage (4.3; Friends before)
@@ -356,8 +364,9 @@ function createWindow() {
     backgroundColor: '#131826',
     title: 'Stagehand',
     icon: fs.existsSync(ICON) ? ICON : undefined,
+    // 4.5: no Windows overlay buttons; the page draws its own minimize/maximize/close
+    // (index.html .win-ctl) so they match the look. 'hidden' keeps the resize edges and snapping.
     titleBarStyle: 'hidden',
-    titleBarOverlay: { color: '#131826', symbolColor: '#A3AAC2', height: 44 },
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -385,6 +394,8 @@ function createWindow() {
   win.on('app-command', (_e, cmd) => {
     if (cmd === 'browser-backward') send('nav:back');
   });
+  const winState = () => send('win:state', { maximized: win.isMaximized(), fullscreen: win.isFullScreen() });
+  for (const ev of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) win.on(ev, winState);
   win.on('resize', saveBounds);
   win.on('move', saveBounds);
   win.on('closed', () => (win = null));
@@ -571,6 +582,107 @@ function registerIpc() {
     return st;
   });
   handle('levels:title', (id) => levels.setTitle(id));
+
+  // 4.5: lifetime statistics (never reset with progression), backups, export
+  const songsLib = () => (library.data && library.data.songs) || {};
+  handle('career:lifetime', () => {
+    const l = lifetime({ sessions: stats.data.sessions, archive: stats.data.archive, songs: songsLib() });
+    l.recovered = stats.recovered;
+    return l;
+  });
+  handle('career:backups', () => careerBackups.list());
+  handle('career:backup', () => careerBackups.backup('manual'));
+  handle('career:export', async () => {
+    const r = await dialog.showSaveDialog(win, { title: 'Export your career', defaultPath: `Stagehand career ${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: 'JSON', extensions: ['json'] }] });
+    if (r.canceled || !r.filePath) return null;
+    const st = levels.state();
+    const out = {
+      exported: new Date().toISOString(), version: app.getVersion(),
+      lifetime: { ...lifetime({ sessions: stats.data.sessions, archive: stats.data.archive, songs: songsLib() }), masteryBySong: undefined },
+      progression: { level: st.level, xp: st.xp, unlocked: st.unlocked, trophies: st.trophies.map((t) => ({ id: t.id, tier: t.metal, value: t.value })), titles: st.titles.filter((t) => t.earned).map((t) => t.name), timeline: st.timeline },
+      sessions: stats.data.sessions,
+      archive: stats.data.archive || null,
+    };
+    await fsp.writeFile(r.filePath, JSON.stringify(out, null, 1));
+    return r.filePath;
+  });
+
+  // 4.5: the developer menu. Every call checks developer mode here, not only in the page.
+  handle('dev:enabled', () => devOn());
+  handle('dev:levels', async (op, ...args) => {
+    needDev();
+    const ops = {
+      setLevel: () => levels.setLevel(args[0]),
+      addXp: () => levels.addXp(Number(args[0]) || 0),
+      setVenue: () => levels.setVenue(String(args[0]), args[1] === null ? null : !!args[1]),
+      unlockAll: () => levels.unlockAll(!!args[0]),
+      resetProgression: () => levels.resetProgression(),
+      resetAchievements: () => levels.resetAchievements(),
+      completeChallenge: () => levels.completeChallenge(String(args[0])),
+      resetChallenges: () => levels.resetChallenges(),
+    };
+    if (!ops[op]) throw new Error(`Unknown: ${op}`);
+    const st = await ops[op]();
+    if (room) room.announceSoon();
+    return st;
+  });
+  handle('dev:integrity', async (fix) => {
+    needDev();
+    let fixed = 0;
+    if (fix) {
+      await careerBackups.backup('before-dedupe');
+      fixed = stats.dedupe();
+      await stats.flush();
+    }
+    return { ...(await careerBackups.integrity({ sessions: stats.data.sessions })), fixed };
+  });
+  handle('dev:balance', (days) => {
+    needDev();
+    return require('./services/progression-sim').balanceReport({ days: Math.max(30, Math.min(730, Number(days) || 365)) });
+  });
+  handle('dev:restore', async (id) => {
+    needDev();
+    await stats.flush();
+    const r = await careerBackups.restore(id, ['stats.json', 'levels.json']); // the career; other files are kept in the backup for by-hand recovery
+    await stats.load();
+    await levels.reload();
+    return r;
+  });
+  handle('dev:testRecovery', async () => {
+    needDev();
+    // in a scratch folder: back up, damage the copy, read it back through recovery
+    const tmp = await fsp.mkdtemp(path.join(app.getPath('temp'), 'sh-recovery-'));
+    const tb = new CareerBackups({ dataDir: tmp, dir: path.join(tmp, 'backups'), log: () => {} });
+    await fsp.writeFile(path.join(tmp, 'stats.json'), JSON.stringify({ sessions: stats.data.sessions.slice(-50) }));
+    await tb.backup('test');
+    await fsp.writeFile(path.join(tmp, 'stats.json'), '{"sessions": [ damaged');
+    const r = await tb.safeRead(path.join(tmp, 'stats.json'));
+    const ok = !!(r.data && Array.isArray(r.data.sessions) && r.recovered && fs.existsSync(r.corrupt));
+    await fsp.rm(tmp, { recursive: true, force: true });
+    return { ok, sessions: r.data ? r.data.sessions.length : 0 };
+  });
+  /** Removes sessions logged in the last N minutes (test playing). A backup is made first. */
+  handle('dev:clearRecent', async (minutes) => {
+    needDev();
+    const m = Math.max(1, Math.min(7 * 24 * 60, Number(minutes) || 0));
+    await careerBackups.backup('before-clear-test-data');
+    const since = Date.now() - m * 60000;
+    const n = stats.removeWhere((x) => x.at >= since);
+    await stats.flush();
+    levels._cache = null;
+    return { removed: n };
+  });
+  /** Erases ALL lifetime statistics. Needs the exact phrase; a backup is always made first. */
+  handle('dev:eraseLifetime', async (phrase) => {
+    needDev();
+    if (phrase !== 'ERASE MY LIFETIME STATS') throw new Error('Type the phrase exactly to erase lifetime statistics');
+    const b = await careerBackups.backup('before-erase-lifetime');
+    stats.data = { sessions: [] };
+    await stats.flush();
+    await levels.resetProgression();
+    log(`Lifetime statistics erased from the developer menu (backup ${b.id})`);
+    return { backup: b.id };
+  });
   handle('clips:source', async () => {
     const sources=await desktopCapturer.getSources({types:['window'],thumbnailSize:{width:0,height:0}});
     const own=win;
@@ -682,9 +794,17 @@ function registerIpc() {
     if (win && !win.isDestroyed()) win.setFullScreen(!!on);
     return !!(win && win.isFullScreen());
   });
-  handle('win:titlebar', (colors) => {
-    if (win && win.setTitleBarOverlay) win.setTitleBarOverlay(colors);
+  handle('win:titlebar', () => null); // the overlay is gone (4.5); kept so old callers don't fail
+  handle('win:minimize', () => { if (win && !win.isDestroyed()) win.minimize(); });
+  handle('win:maximize', () => {
+    if (!win || win.isDestroyed()) return false;
+    if (win.isFullScreen()) win.setFullScreen(false);
+    else if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+    return win.isMaximized();
   });
+  handle('win:close', () => { if (win && !win.isDestroyed()) win.close(); });
+  handle('win:state', () => (win && !win.isDestroyed() ? { maximized: win.isMaximized(), fullscreen: win.isFullScreen() } : { maximized: false, fullscreen: false }));
 
   handle('library:get', () => {
     const snap = library.snapshot();
@@ -1055,14 +1175,20 @@ app.whenReady().then(async () => {
   toneStore = new ToneStore(path.join(D.roaming, 'tones.json'));
   await toneStore.load();
   toneIndex = new ToneIndex({ file: path.join(D.local, 'Cache', 'tone-index.json'), log });
-  stats = new Stats(path.join(D.roaming, 'stats.json'));
+  // 4.5: a backup of your career files once a day, before anything reads (or migrates) them
+  careerBackups = new CareerBackups({ dataDir: D.roaming, dir: path.join(D.local, 'Backups', 'Career'), version: app.getVersion(), log });
+  await careerBackups.auto().catch((e) => log(`Career backup failed: ${e.message}`));
+  stats = new Stats(path.join(D.roaming, 'stats.json'), { backups: careerBackups, log });
   await stats.load();
+  if (stats.recovered) log(`Your practice history couldn’t be read and was ${stats.recovered.from ? `recovered from the backup ${stats.recovered.from}` : 'started fresh'}; the damaged file is kept as ${path.basename(stats.recovered.corrupt)}`);
   // 4.4: points and levels, worked out from your playing, what you've tried and new songs
   levels = new Levels({
     file: path.join(D.roaming, 'levels.json'),
     sessions: () => stats.data.sessions,
     added: () => Object.values((library.data && library.data.songs) || {}).map((s) => s.addedAt).filter(Number.isFinite),
     songs: () => (library.data && library.data.songs) || {}, // for artists and the song of the week
+    backups: careerBackups,
+    log,
   });
   await levels.load().catch((e) => log(`Levels failed to load: ${e.message}`));
   takes = new Takes(D.takes);

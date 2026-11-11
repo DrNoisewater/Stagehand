@@ -1,3 +1,6 @@
+import { drop, reuse } from './artkeep.js';
+import { badgesHtml } from './songbadges.js';
+import { decorativeImage } from './menu-art.js';
 /** Centre pane: the song table (virtualised) and the cover grid. */
 import { api } from './api.js';
 import { isOfficial, state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, setView, accBand, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel, lastSearch, clearSearch, viewHas } from './store.js';
@@ -108,9 +111,9 @@ function buildHead() {
 function setLayout(l) {
   state.layout = l;
   persistUi();
-  rowEls.forEach((el) => el.remove());
+  rowEls.forEach(drop);
   rowEls.clear();
-  tileEls.forEach((el) => el.remove());
+  tileEls.forEach(drop);
   tileEls.clear();
   render();
 }
@@ -194,7 +197,7 @@ function buildRow(s) {
   el.dataset.id = s.id;
   el.innerHTML = `
     <div><div class="thumb">${thumbHtml(s, 64)}</div></div>
-    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}</div>
+    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}${badgesHtml(s)}</div>
     <div>${s.artist ? `<span class="go" data-go="artist" title="All songs by ${esc(s.artist)}">${esc(s.artist)}</span>` : ''}</div>
     <div>${s.album ? `<span class="go" data-go="album" title="Everything from ${esc(s.album)}">${esc(s.album)}</span>` : ''}</div>
     <div class="num">${s.year ? `<span class="go" data-go="year" title="Songs from ${s.year}">${s.year}</span>` : ''}</div>
@@ -204,6 +207,7 @@ function buildRow(s) {
     <div class="num">${fmtDuration(s.length)}</div>
     <div>${stemHtml(s)}</div>
     <div>${starsHtml(s)}</div>`;
+  reuse(el); // 4.5: the same picture moves over from the old row (no reload, no blink)
   const img = el.querySelector('img');
   if (img) img.onerror = () => img.replaceWith(htmlToNode(icon('music')));
   return el;
@@ -222,9 +226,11 @@ function buildTile(s) {
     .map(([key, letter, label]) => `<span class="pb pb-${key}" title="${label}">${letter}</span>`)
     .join('');
   el.innerHTML = `<div class="halo"></div><div class="cover gelled"><span class="ini">${esc(initialsOf(s))}</span>${s.art ? `<img src="${esc(api.artUrl(s, 256))}" alt="" loading="lazy" decoding="async" draggable="false">` : ''}<span class="badges">${badges}</span>${ring}<button type="button" class="play" title="Play" data-play>${icon('play')}</button></div>
-    <div class="tt" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}</div><div class="ta">${esc(s.artist)}${s.tuning ? ` · ${esc(s.tuning)}` : ''}</div>`;
+    <div class="tt" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}</div>${badgesHtml(s) ? `<div class="tbadges">${badgesHtml(s)}</div>` : ''}<div class="ta">${esc(s.artist)}${s.tuning ? ` · ${esc(s.tuning)}` : ''}</div>`;
+  reuse(el);
   const img = el.querySelector('img');
   if (img) {
+    if (img.complete && img.naturalWidth) el.querySelector('.cover').classList.add('has-img');
     img.onload = () => el.querySelector('.cover').classList.add('has-img');
     img.onerror = () => img.remove();
   }
@@ -267,7 +273,7 @@ function renderWindow() {
       const s = list[i];
       let el = rowEls.get(s.id);
       if (el && el._song !== s) {
-        el.remove();
+        drop(el);
         el = null;
       }
       if (!el) {
@@ -283,7 +289,7 @@ function renderWindow() {
       keep.set(s.id, el);
       if (!el.isConnected) rowsEl.append(el);
     }
-    for (const [id, el] of rowEls) if (!keep.has(id)) el.remove();
+    for (const [id, el] of rowEls) if (!keep.has(id)) drop(el);
     rowEls = keep;
   } else {
     const width = scroller.clientWidth - 40;
@@ -304,7 +310,7 @@ function renderWindow() {
         const s = list[i];
         let el = tileEls.get(s.id);
         if (el && el._song !== s) {
-          el.remove();
+          drop(el);
           el = null;
         }
         if (!el) {
@@ -406,6 +412,7 @@ function renderEmpty() {
   } else {
     box.innerHTML = `<h2>Nothing here yet</h2><p>${esc(emptyHint())}</p>`;
   }
+  if (state.loaded) { box.querySelector('svg.art')?.remove(); box.prepend(decorativeImage('empty-songs')); }
   emptyEl.append(box);
 }
 
@@ -488,9 +495,9 @@ function setScope(all) {
 }
 
 function rebuild() {
-  rowEls.forEach((el) => el.remove());
+  rowEls.forEach(drop);
   rowEls.clear();
-  tileEls.forEach((el) => el.remove());
+  tileEls.forEach(drop);
   tileEls.clear();
   render();
 }
@@ -752,10 +759,22 @@ void emit;
 void loadLibrary;
 
 // Your best changes when practice is logged: rebuild the visible rows and tiles.
-on('best', () => {
-  rowEls.forEach((el) => el.remove());
+// 4.5: and when levels change (badges: song of the week, new bests). Pictures are kept (artkeep).
+let badgeKey = '';
+on('levels', (st) => {
+  const k = st ? `${st.weekSong}|${(st.timeline || []).filter((e) => e.type === 'best').length}|${(st.weekly || []).map((c) => c.done).join()}` : '';
+  if (k === badgeKey) return;
+  badgeKey = k;
+  rowEls.forEach(drop);
   rowEls.clear();
-  tileEls.forEach((el) => el.remove());
+  tileEls.forEach(drop);
+  tileEls.clear();
+  render();
+});
+on('best', () => {
+  rowEls.forEach(drop);
+  rowEls.clear();
+  tileEls.forEach(drop);
   tileEls.clear();
   render();
 });

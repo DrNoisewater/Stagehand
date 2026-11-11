@@ -51,6 +51,7 @@ int sh_parse_spec(const char *text, sh_spec *out);
 int kn_find(const sh_gear *g, const char *needle, sh_knob *out);    /* name contains needle */
 int kn_exact(const sh_gear *g, const char *name, sh_knob *out);     /* name equals */
 float kn_pos(const sh_gear *g, const char *needle, float def);      /* 0..1 position */
+int kn_any_exact(const sh_gear *g, const char *const *names, sh_knob *out); /* first exact name of a list */
 float kn_raw(const sh_gear *g, const char *needle, float def);      /* raw value */
 int sh_has(const char *hay, const char *needle);                   /* substring, case-insensitive */
 

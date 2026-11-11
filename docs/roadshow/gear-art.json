@@ -1,0 +1,1068 @@
+{
+  "assets": {
+    "Amp_MarshallJCM800": {
+      "file": "Amp_MarshallJCM800.webp",
+      "name": "Marshall JCM800",
+      "width": 1200,
+      "height": 800,
+      "knobs": {
+        "preamp": [
+          80,
+          69,
+          4.5
+        ],
+        "gain": [
+          80,
+          69,
+          4.5
+        ],
+        "bass": [
+          52,
+          70.5,
+          4.5
+        ],
+        "mid": [
+          59,
+          70,
+          4.5
+        ],
+        "treble": [
+          66.3,
+          69.5,
+          4.5
+        ],
+        "presence": [
+          45,
+          71,
+          4.5
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Amp_MarshallPlexi": {
+      "file": "Amp_MarshallPlexi.webp",
+      "name": "Marshall Plexi",
+      "width": 1200,
+      "height": 800,
+      "knobs": {
+        "loudness 1": [
+          75.8,
+          68.5,
+          4.5
+        ],
+        "gain": [
+          75.8,
+          68.5,
+          4.5
+        ],
+        "loudness 2": [
+          69.5,
+          68.8,
+          4.5
+        ],
+        "bass": [
+          62.9,
+          69.3,
+          4.5
+        ],
+        "mid": [
+          56.4,
+          69.5,
+          4.5
+        ],
+        "treble": [
+          49.7,
+          69.8,
+          4.5
+        ],
+        "presence": [
+          43.2,
+          70,
+          4.5
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Amp_MarshallJTM45": {
+      "file": "Amp_MarshallJTM45.webp",
+      "name": "Marshall JTM45",
+      "width": 1200,
+      "height": 800,
+      "knobs": {
+        "vol 1": [
+          78.4,
+          66.1,
+          4.5
+        ],
+        "gain": [
+          78.4,
+          66.1,
+          4.5
+        ],
+        "bass": [
+          64.5,
+          67,
+          4.5
+        ],
+        "mid": [
+          57.7,
+          67.5,
+          4.5
+        ],
+        "treble": [
+          50.6,
+          68,
+          4.5
+        ],
+        "presence": [
+          43.3,
+          68.5,
+          4.5
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Amp_MarshallJVM410H": {
+      "file": "Amp_MarshallJVM410H.webp",
+      "name": "Marshall JVM410H",
+      "width": 1200,
+      "height": 800,
+      "knobs": {
+        "gain": [
+          65,
+          59.5,
+          3.2
+        ],
+        "bass": [
+          54.5,
+          60,
+          3.2
+        ],
+        "mid": [
+          58,
+          60,
+          3.2
+        ],
+        "treble": [
+          61.7,
+          59.7,
+          3.2
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Amp_OrangeRockerverb": {
+      "file": "Amp_OrangeRockerverb.webp",
+      "name": "Orange Rockerverb 50 MkII",
+      "width": 1200,
+      "height": 800,
+      "knobs": {
+        "gain": [
+          60.5,
+          70,
+          5.5
+        ],
+        "bass": [
+          55.5,
+          70.5,
+          5.5
+        ],
+        "mid": [
+          50.5,
+          70.5,
+          5.5
+        ],
+        "treble": [
+          46,
+          71,
+          5.5
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Amp_OrangeAD50": {
+      "file": "Amp_OrangeAD50.webp",
+      "name": "Orange AD50",
+      "width": 1200,
+      "height": 800,
+      "knobs": {
+        "gain": [
+          82.5,
+          66,
+          7
+        ],
+        "bass": [
+          58.2,
+          68,
+          7
+        ],
+        "treble": [
+          74.6,
+          66.5,
+          7
+        ],
+        "presence": [
+          50,
+          69,
+          7
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Amp_OrangeTinyTerror": {
+      "file": "Amp_OrangeTinyTerror.webp",
+      "name": "Orange Tiny Terror",
+      "width": 1200,
+      "height": 800,
+      "knobs": {
+        "gain": [
+          78.5,
+          83,
+          8
+        ],
+        "tone": [
+          63,
+          83,
+          8
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Bass_Amp_OrangeAD200B": {
+      "file": "Bass_Amp_OrangeAD200B.webp",
+      "name": "Orange AD200B",
+      "width": 1200,
+      "height": 800,
+      "knobs": {
+        "gain": [
+          78.5,
+          66,
+          6
+        ],
+        "bass": [
+          45.5,
+          67.5,
+          6
+        ],
+        "mid": [
+          53.9,
+          67,
+          6
+        ],
+        "treble": [
+          62.5,
+          66.8,
+          6
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Bass_Amp_EdenWT800": {
+      "file": "Bass_Amp_EdenWT800.webp",
+      "name": "Eden WT800",
+      "width": 1200,
+      "height": 800,
+      "knobs": {
+        "gain": [
+          35.5,
+          67,
+          6
+        ],
+        "bass": [
+          42.5,
+          66.7,
+          6
+        ],
+        "low-mid": [
+          48,
+          66.2,
+          6
+        ],
+        "mid": [
+          54,
+          65.5,
+          6
+        ],
+        "high-mid": [
+          59.5,
+          65.2,
+          6
+        ],
+        "treble": [
+          65,
+          65,
+          6
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Pedal_MarshallGuvnorPlus": {
+      "file": "Pedal_MarshallGuvnorPlus.webp",
+      "name": "Marshall Guv'nor Plus",
+      "width": 1000,
+      "height": 1000,
+      "knobs": {
+        "gain": [
+          36.3,
+          17,
+          13
+        ],
+        "bass": [
+          52.5,
+          16,
+          13
+        ],
+        "treble": [
+          68.3,
+          15,
+          13
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Pedal_MarshallSupervibe": {
+      "file": "Pedal_MarshallSupervibe.webp",
+      "name": "Marshall Supervibe",
+      "width": 1000,
+      "height": 1000,
+      "knobs": {
+        "speed": [
+          38.5,
+          18,
+          14
+        ],
+        "depth": [
+          52,
+          21,
+          14
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Bass_Pedal_EdenWTDI": {
+      "file": "Bass_Pedal_EdenWTDI.webp",
+      "name": "Eden WT D.I.",
+      "width": 1000,
+      "height": 1000,
+      "knobs": {
+        "gain": [
+          79,
+          27,
+          12
+        ],
+        "bass": [
+          38,
+          28,
+          12
+        ],
+        "mid": [
+          52,
+          28,
+          12
+        ],
+        "treble": [
+          66,
+          27,
+          12
+        ],
+        "enhance": [
+          30,
+          47,
+          12
+        ],
+        "compression": [
+          45,
+          47,
+          12
+        ]
+      },
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Cab_Marshall1960a": {
+      "file": "Cab_Marshall1960a.webp",
+      "name": "Cab_Marshall1960a",
+      "width": 1000,
+      "height": 1000,
+      "knobs": {},
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Cab_Marshall1936": {
+      "file": "Cab_Marshall1936.webp",
+      "name": "Cab_Marshall1936",
+      "width": 1200,
+      "height": 800,
+      "knobs": {},
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Cab_OrangePPC412": {
+      "file": "Cab_OrangePPC412.webp",
+      "name": "Cab_OrangePPC412",
+      "width": 1200,
+      "height": 900,
+      "knobs": {},
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Cab_OrangePPC212OB": {
+      "file": "Cab_OrangePPC212OB.webp",
+      "name": "Cab_OrangePPC212OB",
+      "width": 1200,
+      "height": 900,
+      "knobs": {},
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Bass_Cab_OrangeOBC810": {
+      "file": "Bass_Cab_OrangeOBC810.webp",
+      "name": "Bass_Cab_OrangeOBC810",
+      "width": 1000,
+      "height": 1000,
+      "knobs": {},
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Bass_Cab_EdenD410XST": {
+      "file": "Bass_Cab_EdenD410XST.webp",
+      "name": "Bass_Cab_EdenD410XST",
+      "width": 1200,
+      "height": 800,
+      "knobs": {},
+      "source": "AI product reconstruction; physical accuracy requires review"
+    },
+    "Pedal_SuperDrive": {
+      "file": "Pedal_SuperDrive.webp",
+      "name": "Super Drive",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "gain": [
+          68,
+          16,
+          17
+        ],
+        "tone": [
+          50,
+          27,
+          15
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_VintageDistortion": {
+      "file": "Pedal_VintageDistortion.webp",
+      "name": "Vintage Distortion",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "gain": [
+          24,
+          38,
+          19
+        ],
+        "tone": [
+          50,
+          38,
+          19
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_BuzzOne": {
+      "file": "Pedal_BuzzOne.webp",
+      "name": "Buzz 1",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "gain": [
+          80,
+          24,
+          18
+        ],
+        "tone": [
+          50,
+          24,
+          18
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_FuzzWasHe": {
+      "file": "Pedal_FuzzWasHe.webp",
+      "name": "Fuzz Was He?",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "gain": [
+          76,
+          34,
+          17
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_Compression": {
+      "file": "Pedal_Compression.webp",
+      "name": "Compression",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "compression": [
+          66,
+          21,
+          24
+        ],
+        "squeeze": [
+          66,
+          21,
+          24
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_Phaser": {
+      "file": "Pedal_Phaser.webp",
+      "name": "Phaser-363",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "rate": [
+          50,
+          23,
+          25
+        ],
+        "speed": [
+          50,
+          23,
+          25
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_AnalogueDelay": {
+      "file": "Pedal_AnalogueDelay.webp",
+      "name": "Analog Delay",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "time": [
+          72,
+          30,
+          20
+        ],
+        "feedback": [
+          27,
+          30,
+          20
+        ],
+        "mix": [
+          50,
+          14,
+          20
+        ],
+        "repeats": [
+          27,
+          30,
+          20
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_Chorus20": {
+      "file": "Pedal_Chorus20.webp",
+      "name": "Chorus 2.0",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "rate": [
+          32,
+          19,
+          20
+        ],
+        "speed": [
+          32,
+          19,
+          20
+        ],
+        "depth": [
+          68,
+          19,
+          20
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_ClassicFlanger": {
+      "file": "Pedal_ClassicFlanger.webp",
+      "name": "Classic Flange",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "rate": [
+          77,
+          28,
+          19
+        ],
+        "speed": [
+          77,
+          28,
+          19
+        ],
+        "depth": [
+          50,
+          28,
+          19
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_USWah": {
+      "file": "Pedal_USWah.webp",
+      "name": "US Wah",
+      "width": 667,
+      "height": 1000,
+      "knobs": {},
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_EQ5": {
+      "file": "Pedal_EQ5.webp",
+      "name": "5-Band Graphic EQ",
+      "width": 800,
+      "height": 533,
+      "knobs": {},
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_ShredZone": {
+      "file": "Pedal_ShredZone.webp",
+      "name": "Shred Zone",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "gain": [
+          77,
+          19,
+          14
+        ],
+        "bass": [
+          41,
+          19,
+          14
+        ],
+        "mid": [
+          59,
+          19,
+          14
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Bass_Pedal_BassAutoFilter": {
+      "file": "Bass_Pedal_BassAutoFilter.webp",
+      "name": "Bass Auto Filter",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "sensitivity": [
+          76,
+          34,
+          17
+        ],
+        "mix": [
+          66,
+          15,
+          19
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_SpringReverb": {
+      "file": "Pedal_SpringReverb.webp",
+      "name": "Spring Reverb",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "time": [
+          71,
+          20,
+          18
+        ],
+        "mix": [
+          71,
+          37,
+          18
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Bass_Pedal_MBComp": {
+      "file": "Bass_Pedal_MBComp.webp",
+      "name": "MB Comp",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "compression": [
+          28,
+          28,
+          24
+        ],
+        "squeeze": [
+          28,
+          28,
+          24
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_NoiseGate": {
+      "file": "Pedal_NoiseGate.webp",
+      "name": "Noise Gate",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "threshold": [
+          40,
+          18,
+          13
+        ],
+        "rate": [
+          58,
+          18,
+          13
+        ],
+        "release": [
+          58,
+          18,
+          13
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Bass_Pedal_BassDistortion": {
+      "file": "Bass_Pedal_BassDistortion.webp",
+      "name": "Bass Distortion",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "gain": [
+          69,
+          34,
+          18
+        ],
+        "tone": [
+          32,
+          34,
+          18
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Bass_Pedal_BassChorus": {
+      "file": "Bass_Pedal_BassChorus.webp",
+      "name": "Bass Chorus",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "rate": [
+          60,
+          20,
+          14
+        ],
+        "speed": [
+          60,
+          20,
+          14
+        ],
+        "depth": [
+          78,
+          20,
+          14
+        ],
+        "low filter": [
+          43,
+          20,
+          14
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Bass_Pedal_BassOverdrive": {
+      "file": "Bass_Pedal_BassOverdrive.webp",
+      "name": "Bass Overdrive",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "gain": [
+          75,
+          20,
+          14
+        ],
+        "tone": [
+          43,
+          20,
+          14
+        ],
+        "blend": [
+          60,
+          20,
+          14
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Bass_Pedal_BassFuzz": {
+      "file": "Bass_Pedal_BassFuzz.webp",
+      "name": "Bass Fuzz",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "gain": [
+          70,
+          18,
+          20
+        ],
+        "tone": [
+          50,
+          32,
+          20
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Pedal_Tremolo": {
+      "file": "Pedal_Tremolo.webp",
+      "name": "Tremolo",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "speed": [
+          31,
+          15,
+          18
+        ],
+        "mix": [
+          70,
+          15,
+          18
+        ],
+        "depth": [
+          70,
+          15,
+          18
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    },
+    "Bass_Pedal_BassSubOctave": {
+      "file": "Bass_Pedal_BassSubOctave.webp",
+      "name": "Bass Sub Octave",
+      "width": 667,
+      "height": 1000,
+      "knobs": {
+        "mix": [
+          69,
+          16,
+          17
+        ]
+      },
+      "source": "Generated product illustration; approximate visual analogue for fictional Rocksmith gear, not a verified exact counterpart"
+    }
+  },
+  "prompts": [
+    {
+      "id": "Amp_MarshallJCM800",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-e07950cc-1270-4946-92a4-debeb5580fa0.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Marshall JCM800 2203 amplifier head, black levant tolex, white script logo, gold control strip along lower front with six black knobs and two input jacks. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Amp_MarshallPlexi",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-4dec5495-87d8-4b45-8916-ead740eba7cf.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Marshall 1959 Super Lead Plexi amplifier head, black tolex, gold front panel with six knobs and four input sockets. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Amp_MarshallJTM45",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-6cc020ba-dab6-4dbf-8084-d578fd017a2c.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Marshall JTM45 amplifier head, small black tolex head with white piping, gold six-knob front panel and four inputs. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Amp_MarshallJVM410H",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-e3abac56-f0dd-42af-b159-2fead66f4254.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Marshall JVM410H amplifier head with authentic densely populated gold front panel, black tolex, white script. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Amp_OrangeRockerverb",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-71a07be5-518c-4c1a-8ae3-a87e5b91679e.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Orange Rockerverb 50 MkII amplifier head, orange tolex and cream front control panel, correct black knobs and front grille. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Amp_OrangeAD50",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-1dcdb922-9df2-462c-a72b-06e1f20488b0.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Orange AD50 amplifier head, orange tolex, cream control panel, six large black knobs. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Amp_OrangeTinyTerror",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-b702d256-0e65-417d-9ced-85996fa73f43.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Orange Tiny Terror original white metal lunchbox tube amp head with perforated steel cage, metal handle, three knobs across cream front, no orange tolex. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Bass_Amp_OrangeAD200B",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-469b0784-ae36-4cb6-a0a9-9672edefe8da.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Orange AD200B bass amplifier head, orange tolex, cream panel, five black knobs. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Bass_Amp_EdenWT800",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-8f5985f8-5d60-48f9-9c46-3eb2f2467bfd.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Eden World Tour WT800 bass rack amplifier head, wide gold metal faceplate, many small black control knobs, black steel enclosure. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Pedal_MarshallGuvnorPlus",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-fc015578-b18d-4e63-9861-66eff76edbf2.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Marshall GV-2 Guv'nor Plus distortion pedal, gold curved diecast body, four black knob assemblies, black rubber footswitch panel. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Pedal_MarshallSupervibe",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-641bddc2-8dda-40ea-b28b-2beaefa1ca8b.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Marshall SV-1 Supervibe chorus pedal, reflective silver curved enclosure, four black controls and black rubber footswitch. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Bass_Pedal_EdenWTDI",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-abc788a7-42d6-4b8f-8b55-fadc5ce3141f.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Eden WTDI bass preamp direct box pedal, compact black diecast enclosure, gold control face, two rows of small black knobs, chrome stomp switch. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Cab_Marshall1960a",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-aefb5e22-1e33-4721-ae1d-10f53afb3f1b.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Marshall 1960A angled 4x12 speaker cabinet, black tolex, black grille cloth, white script, four speakers beneath grille and caster wheels. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Cab_Marshall1936",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-b85010b4-41f3-4f90-bc45-d8f6741a2335.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Marshall 1936 horizontal 2x12 cabinet, rectangular black tolex, black grille, white piping and white script. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Cab_OrangePPC412",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-f10f88e1-1a60-4f69-aa3a-1b06ad563ad2.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Orange PPC412 closed-back 4x12 cabinet, orange tolex, beige basketweave grille, centered Orange crest, wooden skids. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Cab_OrangePPC212OB",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-b37f4659-74e4-4833-aaee-ed23527ca5a7.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Orange PPC212OB horizontal 2x12 open-back guitar speaker cabinet, orange tolex and beige woven grille. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Bass_Cab_OrangeOBC810",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-ba02f6df-0499-4e94-be43-e53a10ba4ba7.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Orange OBC810 tall bass cabinet with eight ten-inch speakers behind black metal grille, orange tolex, casters. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Bass_Cab_EdenD410XST",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-a685d2c4-610e-4e12-92bf-89b16109b3a0.png",
+      "prompt": "Use case product-mockup. One realistic studio product photograph-style cutout of Eden D410XST bass cabinet, black carpet, metal grille with four ten-inch speakers and central horn, yellow Eden badge. Preserve the real product's distinctive physical silhouette, proportions, panel layout, materials and colors. Slightly road worn, used but cared for: small edge scuffs, rubbed corners, modest grime around screws; not destroyed, not rusty wreckage. Front three-quarter view with only slight angle and entire unit visible, large in frame, generous clean margin. Soft neutral product lighting, crisp tactile materials. True transparent background, no ground, no extra props, no cables, no people, no decorative illustration. Landscape 3:2 for amplifier heads, square for pedals or cabinets. This is a standalone asset for a gear picker."
+    },
+    {
+      "id": "Pedal_SuperDrive",
+      "path": "generated_images/exec-5319efc3-153b-45f4-9341-8bee8b2f82f5.png"
+    },
+    {
+      "id": "Pedal_VintageDistortion",
+      "path": "generated_images/exec-62e45ebc-c368-4d52-8906-efbd43615ee6.png"
+    },
+    {
+      "id": "Pedal_BuzzOne",
+      "path": "generated_images/exec-7e16759c-c530-4ded-9af1-3c79b08b550e.png"
+    },
+    {
+      "id": "Pedal_FuzzWasHe",
+      "path": "generated_images/exec-3adce498-950d-4be1-8f39-9c77071ac299.png"
+    },
+    {
+      "id": "Pedal_Compression",
+      "path": "generated_images/exec-4fbd8659-ad40-45ff-aeea-ab4e757a5509.png"
+    },
+    {
+      "id": "Pedal_Phaser",
+      "path": "generated_images/exec-3672fa29-00e9-4f0b-9a57-d03a77aefa09.png"
+    },
+    {
+      "id": "Pedal_AnalogueDelay",
+      "path": "generated_images/exec-27fc0932-ab7b-4a99-8b06-e686cec605f6.png"
+    },
+    {
+      "id": "Pedal_Chorus20",
+      "path": "generated_images/exec-7fcdaa9b-1c2e-412c-b1eb-60ddc25473b2.png"
+    },
+    {
+      "id": "Pedal_ClassicFlanger",
+      "path": "generated_images/exec-c58e37dd-e65a-46ca-ad7a-f8b764989c59.png"
+    },
+    {
+      "id": "Pedal_USWah",
+      "path": "generated_images/exec-25db9565-3b93-464c-b124-ba69a8d17300.png"
+    },
+    {
+      "id": "Pedal_EQ5",
+      "path": "generated_images/exec-e8140563-cf31-43f8-8244-81717acd7d96.png"
+    },
+    {
+      "id": "Pedal_ShredZone",
+      "subject": "Boss MT-2 Metal Zone, black compact Boss enclosure with orange lettering, four control assemblies including concentric EQ knobs, black rubber footswitch",
+      "prompt": "Realistic product photograph cutout of Boss MT-2 Metal Zone, black compact Boss enclosure with orange lettering, four control assemblies including concentric EQ knobs, black rubber footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-dfd6f433-256a-47fb-b6aa-dad0c74804c7.png"
+    },
+    {
+      "id": "Bass_Pedal_BassAutoFilter",
+      "subject": "MXR M82 Bass Envelope Filter, metallic blue rectangular pedal, five black knobs in two rows and chrome footswitch",
+      "prompt": "Realistic product photograph cutout of MXR M82 Bass Envelope Filter, metallic blue rectangular pedal, five black knobs in two rows and chrome footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-833f381d-beaf-41ae-832e-21d2063b9b70.png"
+    },
+    {
+      "id": "Pedal_SpringReverb",
+      "subject": "DigiTech Polara reverb pedal, green illustrated landscape printed enclosure, four black knobs and chrome footswitch",
+      "prompt": "Realistic product photograph cutout of DigiTech Polara reverb pedal, green illustrated landscape printed enclosure, four black knobs and chrome footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-76156ad1-0632-4fa7-83ea-d9cf5f8eff30.png"
+    },
+    {
+      "id": "Bass_Pedal_MBComp",
+      "subject": "EBS MultiComp bass compressor, black rectangular pedal, two large black knobs and a mini mode switch, chrome footswitch",
+      "prompt": "Realistic product photograph cutout of EBS MultiComp bass compressor, black rectangular pedal, two large black knobs and a mini mode switch, chrome footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-039f0164-4684-49b7-987e-bcc4e231aa4c.png"
+    },
+    {
+      "id": "Pedal_NoiseGate",
+      "subject": "Boss NS-2 noise suppressor, off-white compact Boss enclosure, three knobs THRESHOLD DECAY MODE and black rubber footswitch",
+      "prompt": "Realistic product photograph cutout of Boss NS-2 noise suppressor, off-white compact Boss enclosure, three knobs THRESHOLD DECAY MODE and black rubber footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-676b9610-0bb0-48d8-88c3-00f5d8b85880.png"
+    },
+    {
+      "id": "Bass_Pedal_BassDistortion",
+      "subject": "MXR M85 Bass Distortion, dark metallic red compact pedal, four knobs DRY WET TONE DIST, chrome footswitch",
+      "prompt": "Realistic product photograph cutout of MXR M85 Bass Distortion, dark metallic red compact pedal, four knobs DRY WET TONE DIST, chrome footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-4c698689-54fb-4172-b5dc-14bbe6b12381.png"
+    },
+    {
+      "id": "Bass_Pedal_BassChorus",
+      "subject": "Boss CEB-3 bass chorus, light blue compact Boss enclosure with four black controls and black rubber footswitch",
+      "prompt": "Realistic product photograph cutout of Boss CEB-3 bass chorus, light blue compact Boss enclosure with four black controls and black rubber footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-7575054b-71ef-42eb-bff2-335d3569c5a9.png"
+    },
+    {
+      "id": "Bass_Pedal_BassOverdrive",
+      "subject": "Boss ODB-3 bass overdrive, yellow compact Boss enclosure, four control assemblies, black rubber footswitch",
+      "prompt": "Realistic product photograph cutout of Boss ODB-3 bass overdrive, yellow compact Boss enclosure, four control assemblies, black rubber footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-140a60fe-e87c-47bb-9817-6a692fa63dec.png"
+    },
+    {
+      "id": "Bass_Pedal_BassFuzz",
+      "subject": "Electro-Harmonix Bass Big Muff Pi, olive green and silver rectangular metal pedal, three black knobs and chrome footswitch",
+      "prompt": "Realistic product photograph cutout of Electro-Harmonix Bass Big Muff Pi, olive green and silver rectangular metal pedal, three black knobs and chrome footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-04e72475-412d-4540-a921-c3bf25cac569.png"
+    },
+    {
+      "id": "Pedal_Tremolo",
+      "subject": "Boss TR-2 tremolo, muted green compact Boss enclosure, three knobs RATE WAVE DEPTH and black rubber footswitch",
+      "prompt": "Realistic product photograph cutout of Boss TR-2 tremolo, muted green compact Boss enclosure, three knobs RATE WAVE DEPTH and black rubber footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-c03db9f7-e503-4037-9699-a5c5afa27970.png"
+    },
+    {
+      "id": "Bass_Pedal_BassSubOctave",
+      "subject": "Boss OC-2 Octave, brown compact Boss enclosure, three black knobs OCT2 OCT1 DIRECT LEVEL and black rubber footswitch",
+      "prompt": "Realistic product photograph cutout of Boss OC-2 Octave, brown compact Boss enclosure, three black knobs OCT2 OCT1 DIRECT LEVEL and black rubber footswitch. Straight-on TOP VIEW, camera squarely down at pedal front, no perspective. Entire pedal centered with 12 percent transparent margins. Correct distinctive product shape and material. Subtle road wear, slight paint chips and scuffs, not destroyed. Crisp neutral product lighting, true transparent background, portrait 2:3. No floor or props.",
+      "path": "/workspace/scratch/b6d189c2b194/generated_images/exec-ae506061-6ff2-49fd-9d4a-6d197b266941.png"
+    }
+  ]
+}

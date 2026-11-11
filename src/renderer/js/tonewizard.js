@@ -24,7 +24,7 @@ import { loadGear } from './gearspec.js';
 import { caps, loadCaptures, realAmpsOn, setRealAmps, packForCurated, resolveCapture } from './captures.js';
 import { getRealAmp, getAllRealAmps, batch } from './realamps.js';
 import { saveTone, useTone, bySlot, freeSlot, SLOT_COUNT, SLOT_GELS } from './tonelib.js';
-import { rotaryKnob } from './rigui.js';
+import { rotaryKnob, gearFaceplate } from './rigui.js';
 import { ampArt, cabArt, pedalArt, gearArt } from './gearart.js';
 
 import { AMPS, STYLES, CABS, PEDALS, ampKnob, buildTone, styleOf, fromStyle, freshChoices } from './tonerecipes.js';
@@ -40,7 +40,12 @@ const STEPS = ['Guitar or bass', 'Starting sound', 'Amp', 'Cabinet', 'Pedals', '
 let open = null;
 
 /** Opens Create tone. kind: 'guitar' | 'bass' (default: what's plugged in). */
-export async function openToneWizard({ kind = null } = {}) {
+export function openToneWizard({ kind = null } = {}) {
+  return import('./rigroom.js').then((r) => r.openRig({ kind }));
+}
+
+/** The 4.4 step-by-step helper (seven questions, one at a time). Reached from Create a tone. */
+export async function openStepByStep({ kind = null } = {}) {
   if (open) return;
   await loadGear();
   await loadCaptures().catch(() => {});
@@ -69,7 +74,7 @@ export async function openToneWizard({ kind = null } = {}) {
       if (!saved) restore();
     },
   });
-  m.el?.classList?.add('tw-modal');
+  m.el?.classList?.add('tw-modal', 'panel-modal', 'panel-xl');
   open = m;
 
   function restore() {
@@ -331,6 +336,9 @@ export async function openToneWizard({ kind = null } = {}) {
           })
         );
       }
+      const selectedAmp = AMPS[W.kind].find(x=>x.pack===W.amp);
+      const faceplate = selectedAmp && gearFaceplate(selectedAmp.key, knobs);
+      if (faceplate) box.append(faceplate);
       box.append(knobs);
       return box;
     },

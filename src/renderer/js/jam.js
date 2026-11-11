@@ -1,4 +1,4 @@
-import { did } from './rewards.js';
+import { did, venueLock } from './rewards.js';
 import {createClipRecorder} from './take-video.js';
 /**
  * Jam (3.7): just you and the Fluid picture, full screen, no highway. Your
@@ -7,7 +7,7 @@ import {createClipRecorder} from './take-video.js';
  * eddies keeps it moving. Open with the Jam button on Play or J; Esc leaves.
  */
 import * as stage from './stage.js';
-import { state, setPage } from './store.js';
+import { state, setPage, on } from './store.js';
 import { createFluidDriver } from './reactive-bg.js';
 import { createFeatures } from './music-features.js';
 import { createVisuals, SCENES } from './visuals.js';
@@ -31,6 +31,18 @@ export const backingControls=h('div.jam-backing-controls',null,choose,backing,pa
 // 3.12: pick the picture: Fluid or one of the moving scenes; Jam remembers it
 const LOOKS = [{ id: 'fluid', name: 'Fluid' }, ...SCENES];
 const look = h('select.input', { 'aria-label': 'Jam look', title: 'What moves behind you' }, ...LOOKS.map((l) => h('option', { value: l.id, text: l.name })));
+// 4.5: scenes you haven't unlocked yet show their level and can't be picked
+function lockLooks() {
+  for (const o of look.options) {
+    const lv = o.value === 'fluid' ? 0 : venueLock(o.value); // Fluid is Jam's own picture, always there
+    o.disabled = !!lv;
+    const name = (LOOKS.find((l) => l.id === o.value) || {}).name || o.value;
+    o.textContent = lv ? `${name} · level ${lv}` : name;
+  }
+  if (look.selectedOptions[0] && look.selectedOptions[0].disabled) look.value = 'fluid';
+}
+on('levels', lockLooks);
+look.addEventListener('focus', lockLooks);
 try {
   const saved = localStorage.getItem('stagehand.jamLook');
   look.value = LOOKS.some((l) => l.id === saved) ? saved : 'fluid';

@@ -1,0 +1,588 @@
+{
+  "version": 3,
+  "assets": [
+    {
+      "id": "vinyl-crate",
+      "file": "vinyl-crate.webp",
+      "master": "docs/identity/art-masters/vinyl-crate.png",
+      "source": "Generated for this redesign",
+      "width": 720,
+      "height": 388,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "pedal-bloom",
+      "file": "pedal-bloom.webp",
+      "master": "docs/identity/art-masters/pedal-bloom.png",
+      "source": "Generated for this redesign",
+      "width": 600,
+      "height": 540,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "bass-orbit",
+      "file": "bass-orbit.webp",
+      "master": "docs/identity/art-masters/bass-orbit.png",
+      "source": "Generated for this redesign",
+      "width": 720,
+      "height": 518,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "pick-rescue",
+      "file": "pick-rescue.webp",
+      "master": "docs/identity/art-masters/pick-rescue.png",
+      "source": "Generated for this redesign",
+      "width": 720,
+      "height": 480,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "encore-patch",
+      "file": "encore-patch.webp",
+      "master": "docs/identity/art-masters/encore-patch.png",
+      "source": "Generated for this redesign",
+      "width": 591,
+      "height": 540,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "pedal-tower",
+      "file": "pedal-tower.webp",
+      "master": "docs/identity/art-masters/pedal-tower.png",
+      "source": "Selected from user-provided art pack",
+      "width": 591,
+      "height": 540,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "pick-cushion",
+      "file": "pick-cushion.webp",
+      "master": "docs/identity/art-masters/pick-cushion.png",
+      "source": "Selected from user-provided art pack",
+      "width": 720,
+      "height": 480,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "broken-string",
+      "file": "broken-string.webp",
+      "master": "docs/identity/art-masters/broken-string.png",
+      "source": "Selected from user-provided art pack",
+      "width": 720,
+      "height": 240,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "winged-pick",
+      "file": "winged-pick.webp",
+      "master": "docs/identity/art-masters/winged-pick.png",
+      "source": "Selected from user-provided art pack",
+      "width": 591,
+      "height": 540,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "chrome-bolt",
+      "file": "chrome-bolt.webp",
+      "master": "docs/identity/art-masters/chrome-bolt.png",
+      "source": "Selected from user-provided art pack",
+      "width": 493,
+      "height": 540,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "tour-patch",
+      "file": "tour-patch.webp",
+      "master": "docs/identity/art-masters/tour-patch.png",
+      "source": "Selected from user-provided art pack",
+      "width": 540,
+      "height": 540,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "cyan-paper",
+      "file": "cyan-paper.webp",
+      "master": "docs/identity/art-masters/cyan-paper.png",
+      "source": "Selected from user-provided art pack",
+      "width": 720,
+      "height": 240,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "pink-paper",
+      "file": "pink-paper.webp",
+      "master": "docs/identity/art-masters/pink-paper.png",
+      "source": "Selected from user-provided art pack",
+      "width": 720,
+      "height": 240,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "setlist-paper",
+      "file": "setlist-paper.webp",
+      "master": "docs/identity/art-masters/setlist-paper.png",
+      "source": "Selected from user-provided art pack",
+      "width": 432,
+      "height": 540,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "lime-note",
+      "file": "lime-note.webp",
+      "master": "docs/identity/art-masters/lime-note.png",
+      "source": "Selected from user-provided art pack",
+      "width": 432,
+      "height": 540,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "orange-tape",
+      "file": "orange-tape.webp",
+      "master": "docs/identity/art-masters/orange-tape.png",
+      "source": "Selected from user-provided art pack",
+      "width": 720,
+      "height": 240,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "checker-tape",
+      "file": "checker-tape.webp",
+      "master": "docs/identity/art-masters/checker-tape.png",
+      "source": "Selected from user-provided art pack",
+      "width": 720,
+      "height": 240,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "blue-ticket",
+      "file": "blue-ticket.webp",
+      "master": "docs/identity/art-masters/blue-ticket.png",
+      "source": "Selected from user-provided art pack",
+      "width": 720,
+      "height": 240,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "backstage-arrow",
+      "file": "backstage-arrow.webp",
+      "master": "docs/identity/art-masters/backstage-arrow.png",
+      "source": "Selected from user-provided art pack",
+      "width": 720,
+      "height": 240,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "access-pass",
+      "file": "access-pass.webp",
+      "master": "docs/identity/art-masters/access-pass.png",
+      "source": "Selected from user-provided art pack",
+      "width": 360,
+      "height": 540,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "skeleton-pick",
+      "file": "roadshow/skeleton-pick.webp",
+      "master": "docs/roadshow/skeleton-pick.png",
+      "source": "Generated original Roadshow character",
+      "width": 700,
+      "height": 700,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "riff-reaper",
+      "file": "roadshow/riff-reaper.webp",
+      "master": "docs/roadshow/riff-reaper.png",
+      "source": "Generated original Roadshow character",
+      "width": 700,
+      "height": 700,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "pick-goblin",
+      "file": "roadshow/pick-goblin.webp",
+      "master": "docs/roadshow/pick-goblin.png",
+      "source": "Generated original Roadshow character",
+      "width": 700,
+      "height": 700,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "backstage-kraken",
+      "file": "roadshow/backstage-kraken.webp",
+      "master": "docs/roadshow/backstage-kraken.png",
+      "source": "Generated original Roadshow character",
+      "width": 700,
+      "height": 700,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "skull-cassette",
+      "file": "roadshow/skull-cassette.webp",
+      "master": "docs/roadshow/skull-cassette.png",
+      "source": "Generated original Roadshow character",
+      "width": 700,
+      "height": 700,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "practice-beast",
+      "file": "roadshow/practice-beast.webp",
+      "master": "docs/roadshow/practice-beast.png",
+      "source": "Generated original Roadshow character",
+      "width": 700,
+      "height": 700,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "amp-cherub",
+      "file": "roadshow/amp-cherub.webp",
+      "master": "docs/roadshow/amp-cherub.png",
+      "source": "Generated original Roadshow character",
+      "width": 900,
+      "height": 600,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "glass-cherub",
+      "file": "mythology/glass-cherub.webp",
+      "master": "docs/mythology/glass-cherub.png",
+      "source": "Generated original Mythology of Music menu art; built-in image generation",
+      "width": 832,
+      "height": 760,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "temple-of-jam",
+      "file": "mythology/temple-of-jam.webp",
+      "master": "docs/mythology/temple-of-jam.png",
+      "source": "Generated original Mythology of Music menu art; built-in image generation",
+      "width": 772,
+      "height": 760,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "lute-serenade",
+      "file": "mythology/lute-serenade.webp",
+      "master": "docs/mythology/lute-serenade.png",
+      "source": "Generated original Mythology of Music menu art; built-in image generation",
+      "width": 760,
+      "height": 760,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "jazz-oracle",
+      "file": "mythology/jazz-oracle.webp",
+      "master": "docs/mythology/jazz-oracle.png",
+      "source": "Generated original Mythology of Music menu art; built-in image generation",
+      "width": 760,
+      "height": 760,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "crossroads-duel",
+      "file": "mythology/crossroads-duel.webp",
+      "master": "docs/mythology/crossroads-duel.png",
+      "source": "Generated original Mythology of Music menu art; built-in image generation",
+      "width": 967,
+      "height": 760,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "valkyrie-bassist",
+      "file": "mythology/valkyrie-bassist.webp",
+      "master": "docs/mythology/valkyrie-bassist.png",
+      "source": "Generated original Mythology of Music menu art; built-in image generation",
+      "width": 760,
+      "height": 760,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "creation-of-riff",
+      "file": "mythology/creation-of-riff.webp",
+      "master": "docs/mythology/creation-of-riff.png",
+      "source": "Generated original Mythology of Music menu art; built-in image generation",
+      "width": 1000,
+      "height": 333,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "flying-pig",
+      "file": "rehearsal/flying-pig.webp",
+      "source": "Preserved from supplied Rehearsal Room build",
+      "width": 414,
+      "height": 426,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "winged-imp",
+      "file": "rehearsal/winged-imp.webp",
+      "source": "Preserved from supplied Rehearsal Room build",
+      "width": 292,
+      "height": 262,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "skeleton-hand",
+      "file": "rehearsal/skeleton-hand.webp",
+      "source": "Preserved from supplied Rehearsal Room build",
+      "width": 438,
+      "height": 510,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "roadie-cable",
+      "file": "rehearsal/roadie-cable.webp",
+      "source": "Preserved from supplied Rehearsal Room build",
+      "width": 582,
+      "height": 380,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "amp-imp",
+      "file": "rehearsal/amp-imp.webp",
+      "source": "Preserved from supplied Rehearsal Room build",
+      "width": 402,
+      "height": 302,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "riff-rocker",
+      "file": "rehearsal/riff-rocker.webp",
+      "source": "Preserved from supplied Rehearsal Room build",
+      "width": 700,
+      "height": 355,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "tech-roadie",
+      "file": "rehearsal/tech-roadie.webp",
+      "source": "Preserved from supplied Rehearsal Room build",
+      "width": 352,
+      "height": 318,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "flight-case",
+      "file": "rehearsal/flight-case.webp",
+      "source": "Preserved from supplied Rehearsal Room build",
+      "width": 448,
+      "height": 390,
+      "alpha": true,
+      "role": "decoration only"
+    },
+    {
+      "id": "case-towel",
+      "file": "rehearsal/case-towel.webp",
+      "source": "Preserved from supplied Rehearsal Room build",
+      "width": 432,
+      "height": 442,
+      "alpha": true,
+      "role": "decoration only"
+    }
+  ],
+  "placements": {
+    "play": [
+      "temple-of-jam",
+      "creation-of-riff",
+      "winged-imp",
+      "valkyrie-bassist",
+      "amp-cherub",
+      "lute-serenade",
+      "amp-imp"
+    ],
+    "songs": [
+      "lute-serenade",
+      "jazz-oracle",
+      "crossroads-duel",
+      "skull-cassette",
+      "riff-reaper",
+      "valkyrie-bassist",
+      "creation-of-riff"
+    ],
+    "tones": [
+      "glass-cherub",
+      "amp-imp",
+      "roadie-cable",
+      "amp-cherub",
+      "winged-imp"
+    ],
+    "discover": [
+      "crossroads-duel",
+      "jazz-oracle",
+      "lute-serenade",
+      "valkyrie-bassist",
+      "pick-goblin",
+      "flying-pig",
+      "creation-of-riff"
+    ],
+    "progress": [
+      "valkyrie-bassist",
+      "lute-serenade",
+      "practice-beast",
+      "temple-of-jam",
+      "jazz-oracle"
+    ],
+    "greenroom": [
+      "winged-imp",
+      "backstage-kraken",
+      "roadie-cable",
+      "tech-roadie",
+      "riff-rocker",
+      "glass-cherub",
+      "amp-imp"
+    ],
+    "sidebar-play": [
+      "skeleton-hand",
+      "skeleton-pick",
+      "roadie-cable",
+      "pick-goblin",
+      "flying-pig"
+    ],
+    "empty-play": [
+      "glass-cherub",
+      "jazz-oracle",
+      "amp-imp",
+      "backstage-kraken",
+      "riff-reaper"
+    ],
+    "sidebar-songs": [
+      "skeleton-hand",
+      "skeleton-pick",
+      "winged-imp",
+      "roadie-cable",
+      "pick-goblin"
+    ],
+    "empty-songs": [
+      "glass-cherub",
+      "amp-imp",
+      "backstage-kraken",
+      "practice-beast",
+      "temple-of-jam"
+    ],
+    "sidebar-tones": [
+      "skeleton-hand",
+      "skeleton-pick",
+      "pick-goblin",
+      "flying-pig",
+      "case-towel"
+    ],
+    "empty-tones": [
+      "jazz-oracle",
+      "lute-serenade",
+      "valkyrie-bassist",
+      "backstage-kraken",
+      "riff-reaper"
+    ],
+    "sidebar-discover": [
+      "skeleton-hand",
+      "skeleton-pick",
+      "winged-imp",
+      "roadie-cable",
+      "amp-imp"
+    ],
+    "empty-discover": [
+      "glass-cherub",
+      "backstage-kraken",
+      "riff-reaper",
+      "practice-beast",
+      "temple-of-jam"
+    ],
+    "sidebar-progress": [
+      "skeleton-hand",
+      "skeleton-pick",
+      "winged-imp",
+      "roadie-cable",
+      "pick-goblin"
+    ],
+    "empty-progress": [
+      "glass-cherub",
+      "amp-imp",
+      "backstage-kraken",
+      "riff-reaper"
+    ],
+    "sidebar-greenroom": [
+      "skeleton-hand",
+      "skeleton-pick",
+      "pick-goblin",
+      "flying-pig",
+      "case-towel"
+    ],
+    "empty-greenroom": [
+      "jazz-oracle",
+      "lute-serenade",
+      "valkyrie-bassist",
+      "riff-reaper",
+      "practice-beast"
+    ],
+    "settings": [
+      "tech-roadie",
+      "backstage-kraken",
+      "roadie-cable",
+      "amp-imp",
+      "glass-cherub",
+      "lute-serenade"
+    ],
+    "guide": [
+      "valkyrie-bassist",
+      "jazz-oracle",
+      "lute-serenade",
+      "winged-imp",
+      "practice-beast"
+    ]
+  },
+  "policy": "Session-stable shuffle bags. No status/album/identity rotation. Masters are not shipped by Electron.",
+  "venues": [
+    {
+      "id": "soundcheck",
+      "file": "../venues/soundcheck.jpg",
+      "thumbnail": "../venues/soundcheck-thumb.jpg",
+      "master": "docs/identity/art-masters/soundcheck.png",
+      "source": "Generated for this redesign",
+      "horizon": 0.45,
+      "role": "Atmosphere behind the unchanged real-instrument highway"
+    }
+  ]
+}

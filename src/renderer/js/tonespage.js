@@ -1,3 +1,4 @@
+import { decorativeImage } from './menu-art.js';
 import { did } from './rewards.js';
 import {cabinetFor} from './cabinets.js';
 /**
@@ -21,7 +22,7 @@ import { h, icon, esc, toast, showMenu, confirmDialog } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { loadGear } from './gearspec.js';
 import { readingBar, tonelib, byId, useTone, saveTone, removeTone, assignSlot, SLOT_GELS, SLOT_COUNT, TYPE_GELS, TYPE_NAMES, knobsOf, orderedGear, shortGearName, gelOf, chainText, songToneLibrary, bySlot, activeSlot } from './tonelib.js';
-import { chainEl, rotaryKnob, fmtKnob, gearSummary, demoButton, stopDemo } from './rigui.js';
+import { chainEl, gearLineup, gearFaceplate, rotaryKnob, fmtKnob, gearSummary, demoButton, stopDemo } from './rigui.js';
 import { realAmpStrip, realBadge, getAllRealAmps, batch } from './realamps.js';
 import { caps, ampOf, packForCurated, resolveCapture } from './captures.js';
 import { slotChange, slotChangeText, isChanged } from './toneslots.js';
@@ -46,7 +47,7 @@ const T = {
   by: load('stagehand.tonesBy', 'song') === 'artist' ? 'artist' : 'song',
   kind: 'all',
   char: 'all',
-  advanced: load('stagehand.toneEdit', '0') === '1',
+  advanced: false,
   sel: null,
   draft: null, // what you're hearing and editing
   saved: null, // the same tone as it was picked (Revert goes back to it)
@@ -616,7 +617,7 @@ function renderEditor() {
   const d = T.draft;
   if (!d) {
     root.classList.remove('simple');
-    editCol.append(h('div.tones-empty', null, h('h2', { text: 'Pick a tone' }), h('p', { text: 'Click a key, one of your tones or one from your songs to hear it on your guitar. Picking a tone never changes your keys.' })));
+    editCol.append(h('div.tones-empty', null, decorativeImage('empty-tones'), h('h2', { text: 'Pick a tone' }), h('p', { text: 'Click a key, one of your tones or one from your songs to hear it on your guitar. Picking a tone never changes your keys.' })));
     return;
   }
   const gel = gelOf(d);
@@ -730,6 +731,8 @@ function renderAdvanced(d) {
       );
     }
     if (!knobs.childNodes.length) knobs.append(h('span', { text: 'No knobs on this one.', style: { color: 'var(--ink-3)' } }));
+    const faceplate = gearFaceplate(g.key, knobs);
+    if (faceplate) card.append(faceplate);
     card.append(knobs);
     row.append(card);
   }
@@ -819,9 +822,29 @@ function cabCard(d) {
 
 // --------------------------------------------------------------- render --
 function setAdvanced(on) {
-  T.advanced = !!on;
-  keep('stagehand.toneEdit', on ? '1' : '0');
+  // 4.6: editing opens the rig (the board with cables, the piece, the gear wall)
+  T.advanced = false;
+  keep('stagehand.toneEdit', '0');
+  if (on) return openEditRig();
   renderEditor();
+}
+
+async function openEditRig(pickKey = null) {
+  const d = T.draft;
+  if (!d) return;
+  const { openRig } = await import('./rigroom.js');
+  const tone = { ...clone(d), id: d.mine ? d.id : null, slot: d.mine ? d.slot : null };
+  await openRig({
+    tone,
+    onSaved: (saved) => {
+      T.sel = `mine:${saved.id}`;
+      T.draft = { ...clone(saved), id: saved.id, mine: true };
+      T.saved = clone(T.draft);
+      T.live = false;
+      render();
+    },
+  });
+  void pickKey;
 }
 
 /**
@@ -848,6 +871,7 @@ function renderSimple(d) {
     'div.ts-simple',
     null,
     h('div.ts-what', null, h('span.inst-tag', { text: kind }), realBadge(d) || '', h('span.ts-chain', { text: chain || 'No gear yet' })),
+    (d.gear && d.gear.length) ? gearLineup(d, { onPick: (_i, g) => { T.block = d.gear.indexOf(g); setAdvanced(true); } }) : '',
     h('div.ts-actions', null, use, edit),
     h('h3.ts-h', { text: 'Put it on a key' }),
     h('p.ts-note', { text: 'Press its number while you play (on the highway or in Jam) to switch. Key 1 always follows the song’s own tones. If a key already holds a tone, you’re asked first, and you can undo it.' }),

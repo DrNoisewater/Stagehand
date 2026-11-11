@@ -8,16 +8,16 @@
 
 :root {
   /* House lights are down: deep blue-hour stage, warm tungsten for focus. */
-  --house: #131826;
-  --deck: #171d2d;
-  --deck-2: #1c2337;
-  --riser: #242c44;
-  --riser-2: #2c3552;
-  --rule: #2a3350;
-  --rule-soft: #20283e;
+  --house: #131517;
+  --deck: #1a1d20;
+  --deck-2: #22262a;
+  --riser: #2c3135;
+  --riser-2: #363d42;
+  --rule: #3b4248;
+  --rule-soft: #2b3035;
   --ink: #eceef6;
-  --ink-2: #a3aac2;
-  --ink-3: #6e7693;
+  --ink-2: #bac3c7;
+  --ink-3: #97a3aa;
   --tungsten: #ffb547;
   --tungsten-hi: #ffc978;
   --tungsten-ink: #2a1c05;
@@ -185,7 +185,7 @@ svg.i.fill {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 calc(100vw - env(titlebar-area-width, calc(100vw - 150px)) - env(titlebar-area-x, 0px) + 8px) 0 14px;
+  padding: 0 0 0 14px; /* 4.5: the window buttons are ours now (.win-ctl), flush right */
   -webkit-app-region: drag;
   background: var(--house);
 }
@@ -1310,7 +1310,7 @@ kbd {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
-  background: #0f1320;
+  background: #131517;
 }
 .stage-head {
   display: grid;
@@ -3572,7 +3572,7 @@ ol.how-steps li b {
   height: 22px;
   padding: 0 7px;
   border: 0;
-  background: #1c2337;
+  background: #22262a;
   color: var(--ink-3);
   font-size: 10.5px;
   font-weight: 650;
@@ -3662,7 +3662,7 @@ ol.how-steps li b {
   padding: 0 4px 0 10px;
   border-radius: 8px;
   border: 1px solid var(--rule-soft);
-  background: #171d2d;
+  background: #1a1d20;
 }
 .stem-chip .dot {
   width: 8px;
@@ -3856,7 +3856,7 @@ ol.how-steps li b {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid var(--rule-soft);
-  background: #171d2d;
+  background: #1a1d20;
   text-align: left;
   color: var(--ink);
 }
@@ -3959,7 +3959,7 @@ ol.how-steps li b {
 .tn-strobe {
   height: 18px;
   border-radius: 4px;
-  background-color: #151b2b;
+  background-color: #1c2023;
   background-image: repeating-linear-gradient(90deg, rgba(255, 181, 71, 0.85) 0 12px, transparent 12px 24px);
   transition: opacity 0.2s;
 }
@@ -4008,7 +4008,7 @@ ol.how-steps li b {
 }
 .tn-strings button.on {
   background: var(--c);
-  color: #131826;
+  color: #131517;
 }
 .tn-strings button.locked {
   box-shadow: 0 0 0 2px var(--ink);
@@ -4292,3 +4292,18 @@ ol.how-steps li b {
 @media (prefers-reduced-motion: reduce) {
   .hw-top, .hw-bottom, .hw-dock { transition: none; }
 }
+
+/* ------------------------------------------------- window buttons (4.5) --
+   Stagehand's own minimize / maximize / close in place of the Windows ones. */
+.win-ctl { display: flex; align-self: stretch; align-items: center; gap: 2px; margin-left: 4px; padding: 0 8px 0 10px; -webkit-app-region: no-drag; }
+.win-ctl[hidden] { display: none; }
+.win-btn { display: grid; place-items: center; width: 34px; height: 30px; padding: 0; border: 0; border-radius: var(--r-md, 6px); background: transparent; color: var(--ink-2); cursor: pointer; transition: background .12s, color .12s, box-shadow .12s; }
+.win-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.win-btn:hover { color: var(--ink); background: rgba(255,255,255,.07); }
+.win-btn:active { transform: translateY(1px); }
+.win-btn:focus-visible { outline: 2px solid var(--focus, #ffb547); outline-offset: 1px; }
+.win-close:hover { color: #fff; background: #c8352a; }
+.win-max .when-max { display: none; }
+html[data-win='max'] .win-max .when-normal { display: none; }
+html[data-win='max'] .win-max .when-max { display: block; }
+html[data-win='full'] .win-ctl { display: none; }

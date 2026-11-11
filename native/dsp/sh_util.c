@@ -133,6 +133,14 @@ int kn_exact(const sh_gear *g, const char *name, sh_knob *out) {
     }
   return 0;
 }
+/* 4.5.x: the first knob whose name is exactly one of `names` (NULL-terminated), else 0.
+   kn_find("mid freq") alone also matches "Low-Mid Freq.", which hid the real Mid Frequency. */
+int kn_any_exact(const sh_gear *g, const char *const *names, sh_knob *out) {
+  for (; *names; names++)
+    if (kn_exact(g, *names, out)) return 1;
+  return 0;
+}
+
 float kn_pos(const sh_gear *g, const char *needle, float def) {
   sh_knob k;
   if (!kn_find(g, needle, &k)) return def;

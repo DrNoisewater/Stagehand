@@ -1,3 +1,4 @@
+import { decorativeImage } from './menu-art.js';
 /**
  * Left menu (Stagehand 3): Play, Songs (with its lists, setlists, tunings,
  * artists and folders), Tones, Progress, Discover, and
@@ -160,6 +161,7 @@ export function render() {
   const songsSub = h('div.nav-sub');
   top.append(songsSub);
   top.append(section({ page: 'tones', label: 'Tones', iconName: 'tones', gel: 'var(--gel-bass)' }));
+  top.append(section({ page: 'gear', label: 'Gear', iconName: 'amp', gel: 'var(--gel-lead, #ff6b3d)' }));
   top.append(section({ page: 'progress', label: 'Progress', iconName: 'chart', gel: 'var(--gel-piano)' }));
   top.append(
     section({
@@ -185,6 +187,9 @@ export function render() {
   top.append(section({ page: 'guide', label: 'Getting started', iconName: 'info', gel: 'var(--gel-other)', onClick: () => import('./guide.js').then((g) => g.openGuide()) }));
 
   root.append(top);
+  root.append(h('div.roadshow-sticker', { 'aria-hidden': 'true' },
+    decorativeImage(`sidebar-${state.page}`, 'roadshow-side-art'),
+    h('span', { text:'PICKS VANISH. RIFFS REMAIN.' })));
   // section highlight follows the page, not the Songs list
   for (const b of top.querySelectorAll('.nav-section')) b.setAttribute('aria-current', 'false');
   // (by page name, not position: Getting started opens a window, not a page)

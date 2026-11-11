@@ -1,3 +1,4 @@
+import { decorativeImage } from './menu-art.js';
 /**
  * Getting started (4.1.2, grown into a full tour in 4.1.6): a skippable
  * walk-through in three parts.
@@ -55,6 +56,7 @@ export function openGuide({ step = null } = {}) {
   let at = step ?? 0;
   const side = h('nav.gs-steps');
   const body = h('div.gs-body');
+  const cameo = decorativeImage('guide', 'roadshow-guide-art', {next:true});
   const back = btn('Back', { cls: 'ghost' });
   const next = btn('Next', { cls: 'primary' });
   const skip = btn('Not now', { cls: 'ghost' });
@@ -70,7 +72,7 @@ export function openGuide({ step = null } = {}) {
       api.settings.set({ ui: { guideSeen: true } }).catch(() => {});
     },
   });
-  m.el?.classList?.add('gs-modal');
+  m.el?.classList?.add('gs-modal', 'panel-modal');
   skip.onclick = () => m.close();
   back.onclick = () => go(at - 1);
   next.onclick = () => (at >= PAGES.length - 1 ? m.close() : go(at + 1));
@@ -92,6 +94,7 @@ export function openGuide({ step = null } = {}) {
       b.onclick = () => go(j);
       side.append(b);
     });
+    side.append(cameo);
     body.innerHTML = '';
     body.scrollTop = 0;
     const ctx = { close: () => m.close(), go, at };

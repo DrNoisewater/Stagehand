@@ -178,7 +178,9 @@ ok(rig.dropAmount() === 1, 'an A425 song, then an A440 E♭ song: the Drop is �
 const src = (await import('node:fs')).readFileSync(new URL('../src/renderer/js/practice.js', import.meta.url), 'utf8');
 ok(/!s\.drop && !rig\.dropAmount\(\) && s\.tuning\)/.test(src) && /practice\.session\.drop = st/.test(src), 'learning your tuning checks the Drop as it was while you played');
 const hw = (await import('node:fs')).readFileSync(new URL('../src/renderer/js/highway.js', import.meta.url), 'utf8');
-ok((hw.match(/hw-drop-match/g) || []).length === 1, 'the highway Drop box has one "Match the song" button');
+// 4.5: the highway and the Play page share one Drop console (dropui.js) with one "Match the song"
+const dui = (await import('node:fs')).readFileSync(new URL('../src/renderer/js/dropui.js', import.meta.url), 'utf8');
+ok((dui.match(/dc-pill\.dc-match/g) || []).length === 1 && /dropConsole\(/.test(hw) && !/hw-drop-match/.test(hw), 'the highway Drop box has one "Match the song" button');
 ok(!/rig\.setSongTuning\(H\.tab\.tuning, instrument\(\)\);/.test(hw), 'the highway passes each song’s own reference pitch');
 
 if (bad) process.exit(1);

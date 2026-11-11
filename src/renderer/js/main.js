@@ -1,4 +1,5 @@
 import { did } from './rewards.js';
+import './devmenu.js'; // 4.5: Ctrl+Shift+F12, only in developer mode
 import { api } from './api.js';
 import { state, emit, on, loadLibrary, upsertSongs, bump, loadRocksmith } from './store.js';
 import './sidebar.js';
@@ -11,10 +12,12 @@ import * as discover from './discover.js';
 import * as searchbox from './searchbox.js';
 import { isTyping, topModal, debounce, toast, modal, h } from './ui.js';
 import './shell.js';
+import './identity.js';
 import './play.js';
 import './practice.js';
 import './nowpanel.js';
 import './tonespage.js';
+import './showroom.js';
 import './progress.js';
 import './room.js';
 import './greenroom.js';
@@ -72,6 +75,31 @@ document.addEventListener('keydown', (e) => {
     back();
   }
 }, true);
+
+// 4.5: our own minimize / maximize / close (the Windows overlay buttons are gone)
+{
+  const ctl = document.querySelector('.titlebar .win-ctl');
+  const winApi = api.app;
+  if (ctl && winApi && winApi.minimize) {
+    const paint = (st) => {
+      const max = !!(st && st.maximized);
+      document.documentElement.dataset.win = st && st.fullscreen ? 'full' : max ? 'max' : 'normal';
+      const b = ctl.querySelector('.win-max');
+      b.title = max ? 'Restore' : 'Maximize';
+      b.setAttribute('aria-label', b.title);
+    };
+    ctl.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-win]');
+      if (!b) return;
+      const act = { min: winApi.minimize, max: winApi.maximize, close: winApi.close }[b.dataset.win];
+      if (act) act().catch(() => {});
+    });
+    // double-click on the bar itself is Windows' own maximize (drag region); keep the buttons out of it
+    ctl.addEventListener('dblclick', (e) => e.stopPropagation());
+    try { api.on('win:state', paint); } catch {}
+    if (winApi.winState) winApi.winState().then(paint).catch(() => paint(null));
+  } else if (ctl) ctl.hidden = true;
+}
 
 // the version, small, after the name in the title bar
 api.app

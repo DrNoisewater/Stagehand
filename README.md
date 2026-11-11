@@ -59,6 +59,8 @@ Double-click a song, or press **Play along**.
 
 ### 🔊 Tones and real amps
 
+- **Gear.** Every amp, cabinet, pedal and rack unit as a photo you can play with: turn the knobs right on the picture, hear it, compare it, play it with your guitar, start a tone with it.
+- **Create a tone** on a real-looking pedalboard: your guitar, pedals, amp, cabinet and rack joined by cables that light up as you play. Pick gear from the wall beside it, turn any knob, stomp pedals on and off, undo anything, and move the mic in front of the speaker.
 - **My tones, From my songs, Presets.** ▶ plays a demo riff through any tone. Edit the pedals, amp, cabinet and mic, or load your own cabinet file (IR).
 - **Real amps.** Play your tones through recordings of real amps instead of simulated ones. Almost every Rocksmith amp has a real match. Press **Get the real amp**, or **Get all** for every amp your songs use. Set it up once in **Settings › Real amps** (a free [TONE3000](https://www.tone3000.com) account).
 - **Real cabinets** to go with them: **Download amp + cab**.
@@ -170,6 +172,8 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.6:** a Gear page with every piece of gear as a photo you can turn the knobs on, and Create a tone rebuilt as a pedalboard with cables that light up as you play. Every knob on every piece now changes the sound, and the cabinet has a mic you can move (center to edge, close or back, angled, plus a room mic).
+- **4.5:** the Road to 100. Levels now go to 100 (about a year of regular playing), venues open all along the way (Valhalla, a new legendary venue, at 100; Mandala rebuilt as a stained-glass rose window), achievements in six tiers up to Legendary, song mastery from First play to Mastered, and a redesigned Progress page (Overview, Career stats, Achievements, Song mastery, History). Your lifetime stats (every chord and note) are kept apart from levels and backed up every day. A new Drop console, steady-size Settings, badges on songs, album art that no longer blinks, and Stagehand's own window buttons. Venues you already had in 4.4 stay yours.
 - **4.4.1:** stems split again, quickly, like before 4.4 (4.4.0 could sit on a countdown and never split).
 - **4.4:** levels: earn points for playing well, with daily and weekly challenges, trophies, titles, pass styles and venues to unlock. Stems split faster, are ready before the song starts, can be stored smaller, and live in folders named after the song. A VIP pass on a lanyard and a neon sign in Backstage.
 - **4.3:** Backstage replaces Recordings and friend codes: show a clip and everyone with Stagehand can watch it, with its song, part and tone. The Drop now holds from song to song and says plainly whether it's on, and turning the guitar or bass part off stays off for every song.

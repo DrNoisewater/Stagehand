@@ -12,7 +12,7 @@ enum { CLIP_SOFT, CLIP_ASYM, CLIP_HARD, CLIP_FUZZ, CLIP_GERM };
 typedef struct {
   os4_t os;
   float pre;
-  bq_t hp, mid, tone, tone2, post_lp, eq[3];
+  bq_t hp, mid, tone, tone2, post_lp, eq[4];
   int neq;
   int clip;
   float level, blend;
@@ -102,6 +102,8 @@ static int drive_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
     if (kn_exact(g, "bass", &kk)) bq_set(&d->eq[d->neq++], BQ_LSHELF, sr, 150, 0.7, ((kk.v - kk.lo) / (kk.hi - kk.lo) - 0.5) * 18);
     if (kn_exact(g, "mid", &kk)) bq_set(&d->eq[d->neq++], BQ_PEAK, sr, 800, 0.8, ((kk.v - kk.lo) / (kk.hi - kk.lo) - 0.5) * 18);
     if (kn_exact(g, "treble", &kk)) bq_set(&d->eq[d->neq++], BQ_HSHELF, sr, 2500, 0.7, ((kk.v - kk.lo) / (kk.hi - kk.lo) - 0.5) * 18);
+    /* 4.5.x: Deep: a resonant low boost after the clipping, as on the real pedal (0..+12 dB) */
+    if (kn_exact(g, "deep", &kk)) bq_set(&d->eq[d->neq++], BQ_PEAK, sr, 85, 1.1, (kk.v - kk.lo) / (kk.hi - kk.lo) * 12);
     tone = 0.5f;
   } else if (sh_has(k, "ShredZone")) { /* metal zone: huge gain, active EQ */
     lo_db = 20, hi_db = 50, hp = 150, d->clip = CLIP_HARD, lp = 7500;
@@ -166,6 +168,9 @@ static int boost_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
 typedef struct {
   float thr, ratio, makeup, knee;
   env_t env;
+  /* 4.5.x: MB Comp: two bands split at the Transition Band; only the low band is compressed */
+  int mb;
+  bq_t xlo, xlo2;
   int gate;
   float gate_thr, gate_g, gate_rel, gate_att;
   int hold, holdn;
@@ -176,6 +181,22 @@ typedef struct {
 
 static void dyn_proc(sh_block *b, float *L, float *R, int n) {
   dyn_t *d = (dyn_t *)b->st;
+  if (d->mb && !R) {
+    for (int i = 0; i < n; i++) {
+      float x = L[i];
+      float lo = bq_run(&d->xlo2, bq_run(&d->xlo, x)); /* 4th-order low band */
+      float hi = x - lo;
+      float db = sh_lin2db_fast(env_run(&d->env, lo));
+      float over = db - d->thr, red = 0;
+      if (over > d->knee) red = over * (1.f - 1.f / d->ratio);
+      else if (over > -d->knee) {
+        float t = over + d->knee;
+        red = (1.f - 1.f / d->ratio) * t * t / (4.f * d->knee);
+      }
+      L[i] = lo * sh_db2lin_fast(-red) * d->makeup + hi;
+    }
+    return;
+  }
   for (int i = 0; i < n; i++) {
     float x = R ? 0.5f * (L[i] + R[i]) : L[i];
     float e = env_run(&d->env, x);
@@ -276,6 +297,14 @@ static int dyn_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
     float rel = sh_has(k, "MBComp") ? 60 + 400 * (1 - P(g, "recovery", 0.4f)) : RAW(g, "release", 200);
     env_set(&d->env, sr, att, rel);
     d->makeup = (float)sh_db2lin(-d->thr * (1 - 1 / d->ratio) * 0.55);
+    if (sh_has(k, "MBComp")) {
+      float xo = RAW(g, "transition band", 600);
+      if (xo < 60) xo = 60;
+      d->mb = 1;
+      bq_set(&d->xlo, BQ_LP, sr, xo, 0.707, 0);
+      bq_set(&d->xlo2, BQ_LP, sr, xo, 0.707, 0);
+      d->makeup = (float)sh_db2lin(-d->thr * (1 - 1 / d->ratio) * 0.45);
+    }
   }
   b->st = d, b->process = dyn_proc, b->name = "dynamics";
   return 1;
@@ -334,7 +363,12 @@ static int eq_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
     sh_knob q;
     int narrow = kn_find(g, "low-mid \"q\"", &q) && q.v > 0.5f;
     eq_add(e, BQ_PEAK, sr, RAW(g, "low-mid freq", 800), narrow ? 2.5 : 0.8, RAW(g, "low-mid", 0));
-    if (kn_exact(g, "mid", &kk)) eq_add(e, BQ_PEAK, sr, RAW(g, "mid freq", 0.6f) * 1000 + 200, 1.0, kk.v);
+    if (kn_exact(g, "mid", &kk)) {
+      sh_knob mf;
+      static const char *const MF[] = {"mid freq.", "mid freq", "mid frequency", NULL};
+      double hz = kn_any_exact(g, MF, &mf) ? (mf.hi <= 20 ? mf.v * 1000 : mf.v) : 800;
+      eq_add(e, BQ_PEAK, sr, hz < 100 ? 100 : hz, 1.0, kk.v);
+    }
     narrow = kn_find(g, "high-mid \"q\"", &q) && q.v > 0.5f;
     float hm = RAW(g, "high-mid freq", 5);
     eq_add(e, BQ_PEAK, sr, hm <= 10 ? (hm < 0.5f ? 0.5f : hm) * 1000 : hm, narrow ? 2.5 : 0.8, RAW(g, "high-mid", 0));
@@ -370,6 +404,7 @@ typedef struct {
   float pos, sens, lo, hi, q, mix;
   int cnt;
   double sr;
+  float floor_db; /* 4.5.x: auto mode: dB where the sweep starts */
 } filt_t;
 static void filt_proc(sh_block *b, float *L, float *R, int n) {
   filt_t *f = (filt_t *)b->st;
@@ -377,7 +412,7 @@ static void filt_proc(sh_block *b, float *L, float *R, int n) {
     float x = R ? 0.5f * (L[i] + R[i]) : L[i];
     float e = env_run(&f->env, x);
     if ((f->cnt++ & 15) == 0) {
-      float p = f->autom ? sh_clampf(e * f->sens * 12.f, 0, 1) : f->pos;
+      float p = f->autom ? sh_clampf((sh_lin2db_fast(e) - f->floor_db) / 30.f, 0, 1) : f->pos;
       double hz = f->lo * sh_pow(f->hi / f->lo, p);
       svf_set(&f->f[0], f->sr, hz, f->q);
       f->f[1].g = f->f[0].g, f->f[1].k = f->f[0].k;
@@ -414,6 +449,7 @@ static int filt_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
     f->lo = 150, f->hi = 3500, f->q = sh_has(k, "Bob") ? 5 : 3;
     env_set(&f->env, sr, RAW(g, "attack speed", 16) * 0.2 + 0.5, RAW(g, "release speed", 120));
   }
+  f->floor_db = -48 + 30 * (1 - f->sens); /* more sensitivity: opens on quieter playing */
   svf_set(&f->f[0], sr, 800, f->q);
   f->f[1] = f->f[0];
   b->st = f, b->process = filt_proc, b->name = "filter";
@@ -429,6 +465,10 @@ typedef struct {
   double sr;
   int vibe;
   op_t lp[2];
+  op_t hp[2];   /* 4.5.x: LoFilter: the wet signal's low cut */
+  int use_hp;
+  float spread; /* 4.5.x: Stereo: right LFO phase offset (0..0.5) */
+  float wave;   /* 4.5.x: Supervibe Wave: 0 = sine, 1 = the lopsided "throb" of a photocell vibe */
 } mod_t;
 static void mod_proc(sh_block *b, float *L, float *R, int n) {
   mod_t *m = (mod_t *)b->st;
@@ -440,11 +480,16 @@ static void mod_proc(sh_block *b, float *L, float *R, int n) {
     for (int c = 0; c < (R ? 2 : 1); c++) {
       float *s = c ? R : L;
       float x = s[i];
-      float lfo = sh_sin01(m->ph + (c ? 0.25f : 0.f));
+      float lfo = sh_sin01(m->ph + (c ? m->spread : 0.f));
+      if (m->wave > 0) { /* throb: a fast rise and a slow fall, like a lamp in a photocell vibe */
+        float sk = sh_sin01(2.f * (m->ph + (c ? m->spread : 0.f)) + 0.25f);
+        lfo = sh_clampf(lfo + m->wave * 0.45f * sk, -1, 1);
+      }
       float dt = (m->base + m->depth * (0.5f + 0.5f * lfo)) * (float)m->sr;
       dl_push(&m->d[c], x + m->last[c] * m->fb);
       float w = dl_tapf(&m->d[c], dt);
       w = op_lp(&m->lp[c], w);
+      if (m->use_hp) w = op_hp(&m->hp[c], w);
       m->last[c] = w;
       s[i] = m->vibe ? x * (1 - mix) + w * mix : x * (1 - mix * 0.5f) + w * mix;
     }
@@ -477,6 +522,16 @@ static int mod_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int 
     m->base = 0.007f, m->depth = 0.006f * depth;
   }
   m->rate = (float)(hz / sr);
+  m->spread = 0.25f;
+  sh_knob kx;
+  if (kn_exact(g, "stereo", &kx)) m->spread = 0.5f * (kx.v - kx.lo) / (kx.hi - kx.lo);
+  if (kn_exact(g, "delay", &kx)) m->base = 0.002f + 0.02f * (kx.v - kx.lo) / (kx.hi - kx.lo);
+  if (kn_exact(g, "lofilter", &kx) || kn_exact(g, "lo filter", &kx) || kn_exact(g, "low filter", &kx)) {
+    m->use_hp = 1;
+    op_lp_set(&m->hp[0], sr, 30 * sh_pow(25, (kx.v - kx.lo) / (kx.hi - kx.lo)));
+    m->hp[1] = m->hp[0];
+  }
+  if (sh_has(k, "Supervibe") && kn_exact(g, "wave", &kx)) m->wave = (kx.v - kx.lo) / (kx.hi - kx.lo);
   float tone = sh_has(k, "StudioFlanger") ? P(g, "tone", 0.6f) : P(g, "hifilter", P(g, "filter", 0.7f));
   op_lp_set(&m->lp[0], sr, 2000 * sh_pow(8, tone));
   m->lp[1] = m->lp[0];
@@ -490,6 +545,8 @@ static int mod_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int 
 /* ================================================================ phaser == */
 typedef struct {
   float z[2][8];
+  op_t hp[2]; /* 4.5.x: Filter: only the sound above this goes through the phaser */
+  int use_hp;
   int stages;
   float ph, rate, depth, fb, mix, last[2], minf, maxf;
   double sr;
@@ -504,7 +561,10 @@ static void phase_proc(sh_block *b, float *L, float *R, int n) {
       float *s = c ? R : L;
       float lfo = 0.5f + 0.5f * sh_sin01(p->ph + (c ? 0.25f : 0));
       float fhz = p->minf * sh_exp2f_fast(lfo * p->depth * 5.f);
-      float y = s[i] + p->last[c] * p->fb;
+      float in0 = s[i];
+      float lowpart = 0;
+      if (p->use_hp) { float hp = op_hp(&p->hp[c], in0); lowpart = in0 - hp; in0 = hp; }
+      float y = in0 + p->last[c] * p->fb;
       for (int k = 0; k < p->stages; k++) {
         float w = (float)(SH_PI * fhz * p->spread[k] / p->sr);
         float a1 = (1 - w) / (1 + w);
@@ -513,7 +573,7 @@ static void phase_proc(sh_block *b, float *L, float *R, int n) {
         y = out;
       }
       p->last[c] = y;
-      s[i] = s[i] * (1 - p->mix * 0.5f) + y * p->mix * 0.7f;
+      s[i] = p->use_hp ? lowpart + in0 * (1 - p->mix * 0.5f) + y * p->mix * 0.7f : s[i] * (1 - p->mix * 0.5f) + y * p->mix * 0.7f;
     }
   }
 }
@@ -533,6 +593,12 @@ static int phase_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
   if (sh_has(k, "OmniMod")) p->stages = 6;
   if (sh_has(k, "Pedal_Phaser")) p->depth = 0.8f, p->mix = 0.8f;
   for (int i = 0; i < 8; i++) p->spread[i] = 1.f + 0.35f * i * (sh_has(k, "Vibe") ? 1.5f : 0.3f);
+  sh_knob fk;
+  if (kn_exact(g, "filter", &fk)) {
+    p->use_hp = 1;
+    op_lp_set(&p->hp[0], sr, 40 * sh_pow(20, (fk.v - fk.lo) / (fk.hi - fk.lo)));
+    p->hp[1] = p->hp[0];
+  }
   b->st = p, b->process = phase_proc, b->flags = BLK_FX, b->name = "phaser";
   return 1;
 }
@@ -595,6 +661,7 @@ typedef struct {
   float ph, rate, depth, mix;
   op_t xo;
   double sr;
+  float horn, drum; /* 4.5.x: Balance: horn (top) vs drum (bottom) */
 } rot_t;
 static void rot_proc(sh_block *b, float *L, float *R, int n) {
   rot_t *r = (rot_t *)b->st;
@@ -608,7 +675,7 @@ static void rot_proc(sh_block *b, float *L, float *R, int n) {
     float dop = dl_tapf(&r->d[0], (float)(r->sr * (0.002f + 0.0012f * r->depth * (1 + s))));
     float horn_l = dop * (1.f + 0.6f * r->depth * s), horn_r = dop * (1.f - 0.6f * r->depth * s);
     float drum = lo * (1.f + 0.2f * r->depth * c);
-    float wl = horn_l + drum, wr = horn_r + drum;
+    float wl = horn_l * r->horn + drum * r->drum, wr = horn_r * r->horn + drum * r->drum;
     L[i] = L[i] * (1 - r->mix) + wl * r->mix;
     if (R) R[i] = R[i] * (1 - r->mix) + wr * r->mix;
   }
@@ -619,6 +686,11 @@ static int rot_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
   r->sr = sr;
   r->rate = (float)((0.7 + 6.0 * P(g, "rate", 0.8f)) / sr);
   r->depth = P(g, "depth", 0.6f), r->mix = P(g, "mix", 0.6f);
+  {
+    float bal = P(g, "balance", 0.5f);
+    r->horn = 2.f * bal > 1.f ? 1.f : 2.f * bal + 0.0f;
+    r->drum = 2.f * (1 - bal) > 1.f ? 1.f : 2.f * (1 - bal);
+  }
   op_lp_set(&r->xo, sr, 800);
   if (!dl_init(&r->d[0], a, (int)(sr * 0.01)) || !dl_init(&r->d[1], a, 16)) return 0;
   b->st = r, b->process = rot_proc, b->flags = BLK_FX, b->name = "rotary";
@@ -719,6 +791,10 @@ static int delay_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, in
   if (sh_has(k, "Filter")) lp = (float)(600 * sh_pow(8, 1 - P(g, "low filter", 0.2f))), hp = 120;
   if (kn_find(g, "hi filter", 0)) lp = (float)(1500 * sh_pow(8, P(g, "hi filter", 0.68f)));
   if (sh_has(k, "StudioDelay")) lp = (float)(2000 * sh_pow(6, 1 - P(g, "filter", 0.3f))), d->pingpong = 0;
+  {
+    sh_knob lf;
+    if (kn_exact(g, "lo filter", &lf)) hp = lf.v < 0.5f ? 30 : lf.v < 1.5f ? 140 : 420;
+  }
   op_lp_set(&d->lp[0], sr, lp), d->lp[1] = d->lp[0];
   op_lp_set(&d->hp[0], sr, hp), d->hp[1] = d->hp[0];
   int len = (int)(sr * 2.1);
@@ -732,6 +808,9 @@ static int delay_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, in
 /* ================================================================ pitch == */
 typedef struct {
   dl_t d;
+  bq_t body;     /* 4.5.x: Bass Emulator Body */
+  int use_body;
+  float panl, panr; /* 4.5.x: Studio Pitch Pan (stereo racks) */
   float ratio, ph, win, mix;
   op_t lp, hp;
   int rect;
@@ -756,8 +835,9 @@ static void pitch_proc(sh_block *b, float *L, float *R, int n) {
       float g1 = 1 - sh_fabsf(p->ph * 2 - 1), g2 = 1 - sh_fabsf(p2 * 2 - 1);
       w = op_lp(&p->lp, a1 * g1 + a2 * g2);
     }
-    L[i] = L[i] * (1 - p->mix * 0.6f) + w * p->mix;
-    if (R) R[i] = R[i] * (1 - p->mix * 0.6f) + w * p->mix;
+    if (p->use_body) w = bq_run(&p->body, w);
+    L[i] = L[i] * (1 - p->mix * 0.6f) + w * p->mix * (R ? p->panl : 1.f);
+    if (R) R[i] = R[i] * (1 - p->mix * 0.6f) + w * p->mix * p->panr;
   }
 }
 static int pitch_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
@@ -776,6 +856,18 @@ static int pitch_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
   }
   p->ratio = (float)sh_pow(2, semis / 12.0);
   p->win = (float)(sr * 0.045);
+  {
+    sh_knob kx;
+    p->panl = p->panr = 1;
+    if (kn_exact(g, "pan", &kx)) { /* constant power, 50 = centre */
+      float t = (kx.v - kx.lo) / (kx.hi - kx.lo);
+      p->panl = (float)sh_sqrt(2 * (1 - t)), p->panr = (float)sh_sqrt(2 * t);
+    }
+    if (kn_exact(g, "body", &kx)) {
+      p->use_body = 1;
+      bq_set(&p->body, BQ_PEAK, sr, 110, 0.8, ((kx.v - kx.lo) / (kx.hi - kx.lo) - 0.3) * 14);
+    }
+  }
   float tone = P(g, "tone", 0.5f);
   op_lp_set(&p->lp, sr, (sh_has(k, "Sub") || sh_has(k, "BassEmulator") ? 400 : 1500) * sh_pow(6, tone));
   if (!dl_init(&p->d, a, (int)(sr * 0.1))) return 0;
@@ -818,6 +910,8 @@ static int crush_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
 int fx_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int stereo) {
   const char *k = g->key;
   if (sh_has(k, "Verb") || sh_has(k, "Chamber") || sh_has(k, "Plate") || sh_has(k, "Spring")) return rev_build(b, g, a, sr, stereo);
+  /* 4.5.x: chorus first: "VintageChorus" contains "echo" and used to be built as a delay */
+  if (sh_has(k, "Chorus")) return mod_build(b, g, a, sr, stereo);
   if (sh_has(k, "Delay") || sh_has(k, "Echo")) return delay_build(b, g, a, sr, stereo);
   if (sh_has(k, "NoiseGate") || sh_has(k, "Compress") || sh_has(k, "Limiter") || sh_has(k, "Swole") || sh_has(k, "MBComp")) return dyn_build(b, g, a, sr);
   if (sh_has(k, "RangeBooster")) return boost_build(b, g, a, sr);

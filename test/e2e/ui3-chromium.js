@@ -69,13 +69,23 @@ wav16(songWav, 48000, 2, 48000 * SECS, (i) => {
 const guitarWav = path.join(tmp, 'guitar.wav');
 wav16(guitarWav, 48000, 1, 48000 * 2, (i) => 0.25 * Math.exp(-(i % 48000) / 12000) * Math.sin((2 * Math.PI * 110 * i) / 48000));
 
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.wav': 'audio/wav', '.css': 'text/css', '.ttf': 'font/ttf', '.png': 'image/png', '.svg': 'image/svg+xml' };
-const server = http.createServer((req, res) => {
+const TYPES = { '.mjs':'text/javascript', '.webp':'image/webp', '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.wav': 'audio/wav', '.css': 'text/css', '.ttf': 'font/ttf', '.png': 'image/png', '.svg': 'image/svg+xml' };
+let identityAPI = null;
+const server = http.createServer(async (req, res) => {
+  if (process.env.SH_IDENTITY_SERVE && req.url === '/identity-api' && req.method === 'POST') {
+    let body = ''; for await (const b of req) body += b;
+    try { const {name,args} = JSON.parse(body); const value = identityAPI[name] ? await identityAPI[name](...args) : null; res.setHeader('content-type','application/json'); return res.end(JSON.stringify({__sh:true,ok:true,value:value ?? null})); }
+    catch(e) {return res.end(JSON.stringify({__sh:true,ok:false,error:e.message}));}
+  }
+  if (process.env.SH_IDENTITY_SERVE && req.url === '/identity-preload.js') {
+    res.setHeader('content-type','text/javascript'); return res.end(fs.readFileSync(path.join(__dirname,'identity-preload.js')));
+  }
   const u = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  const file = u === '/song.wav' ? songWav : path.join(ROOT, u);
+  const file = u === '/song.wav' ? songWav : u.startsWith('/before/') ? path.join(ROOT, '../evidence/before-source', u.slice(8)) : path.join(ROOT, u === '/' ? '/src/renderer/index.html' : u);
   fs.readFile(file, (err, data) => {
     if (err) return res.writeHead(404).end();
     res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' });
+    if (process.env.SH_IDENTITY_SERVE && file.endsWith('/renderer/index.html')) data = Buffer.from(data.toString().replace('<script type="module"', '<script src="/identity-preload.js"></script><script type="module"'));
     res.end(data);
   });
 });
@@ -141,7 +151,7 @@ class FakePortMain extends EventEmitter {
 }
 
 (async () => {
-  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  await new Promise((r) => server.listen(process.env.SH_IDENTITY_SERVE ? Number(process.env.PORT || (process.argv.includes('--port') ? process.argv[process.argv.indexOf('--port') + 1] : null) || 4173) : 0, '0.0.0.0', r));
   const base = `http://127.0.0.1:${server.address().port}`;
   process.env.STAGEHAND_AUDIO_HELPER = helper;
   const relay = new RigAudio({ log: () => {}, appRoot: ROOT });
@@ -296,6 +306,57 @@ class FakePortMain extends EventEmitter {
     'songs.played': (id) => library.markPlayed(id),
   };
 
+  // 4.5: levels, lifetime statistics, backups and the developer menu, from the real services
+  {
+    if (process.env.SH_CAREER_AUDIT) {
+      // a believable career: four months of playing on most days, getting better
+      const ids = library.snapshot().songs.map((x) => x.id);
+      let r = 7;
+      const rnd = () => ((r = (r * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+      for (let d = 120; d >= 1; d--) {
+        if (rnd() < 0.35) continue;
+        for (let i = 0; i < 4; i++) {
+          const acc = Math.min(1, 0.55 + (120 - d) / 300 + rnd() * 0.2);
+          const notes = 250 + Math.floor(rnd() * 400);
+          stats.log({ songId: ids[(d + i) % ids.length], part: i === 3 ? 'bass' : 'lead', seconds: 220 + Math.floor(rnd() * 120), accuracy: acc, notes, hit: Math.round(notes * acc), full: rnd() < 0.8, tuning: ['E Standard', 'Drop D', 'Eb Standard'][i % 3], at: Date.now() - d * 86400000 + i * 400000, bestStreak: Math.round(acc * 120), kinds: { chord: [Math.round(notes * acc * 0.3), Math.round(notes * 0.3)], bend: [Math.round(notes * acc * 0.05), Math.round(notes * 0.05)], slide: [8, 10], legato: [12, 16] }, sections: [['Intro', 18, 20], ['Verse', Math.round(40 * acc), 40], ['Chorus', 30, 30], ['Solo', Math.round(36 * acc), 36]] });
+        }
+      }
+      await stats.flush();
+    }
+    const { CareerBackups } = require('../../src/main/services/profile-backup');
+    const { lifetime } = require('../../src/main/services/lifetime');
+    const backups = new CareerBackups({ dataDir: tmp, dir: path.join(tmp, 'Backups', 'Career') });
+    await backups.auto();
+    const levels = new (require('../../src/main/services/levels').Levels)({file:path.join(tmp,'levels.json'),sessions:()=>stats.data.sessions,songs:()=>Object.fromEntries(library.snapshot().songs.map(x=>[x.id,x])),backups});
+    await levels.load();
+    API['levels.state'] = () => levels.state();
+    API['levels.did'] = id => levels.did(id);
+    API['levels.title'] = id => levels.setTitle(id);
+    API['career.lifetime'] = () => lifetime({ sessions: stats.data.sessions, archive: stats.data.archive, songs: Object.fromEntries(library.snapshot().songs.map((x) => [x.id, x])) });
+    API['career.backups'] = () => backups.list();
+    API['career.backup'] = () => backups.backup('manual');
+    API['career.export'] = () => null;
+    API['dev.enabled'] = () => !!process.env.SH_CAREER_AUDIT;
+    API['dev.levels'] = (op, ...args) => levels[op](...args);
+    API['dev.integrity'] = () => backups.integrity({ sessions: stats.data.sessions });
+    API['dev.balance'] = (days) => require('../../src/main/services/progression-sim').balanceReport({ days: Math.min(120, days || 120) });
+    API['dev.testRecovery'] = () => ({ ok: true, sessions: 50 });
+    API['dev.clearRecent'] = () => ({ removed: 0 });
+    API['dev.restore'] = (id) => backups.restore(id, ['stats.json', 'levels.json']);
+    API['dev.eraseLifetime'] = () => { throw new Error('not in tests'); };
+    global.__levels = levels;
+  }
+  if (process.env.SH_IDENTITY_SERVE) {
+    API['stems.queue'] = () => [];
+    API['updates.check'] = () => null;
+    await settings.set({ui:{guideSeen:true,guideVersion:2}});
+  }
+  if (process.env.SH_IDENTITY_SERVE) {
+    identityAPI = API;
+    API['rig.available'] = () => false;
+    console.log('IDENTITY renderer: '+base+'/src/renderer/index.html');
+    return;
+  }
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--autoplay-policy=no-user-gesture-required','--single-process','--no-zygote','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1600, height: process.env.SH_PICTURES311?1100:950 } });
   page.setDefaultTimeout(60000);
@@ -381,6 +442,24 @@ class FakePortMain extends EventEmitter {
   await page.goto(`${base}/src/renderer/index.html`);
   await page.waitForTimeout(3500);
   const shot = (n) => process.env.SH_NO_PICS?Promise.resolve():(console.log('SHOT', n), page.screenshot({ path: path.join(outDir, `v3-${n}.png`) }));
+  if (process.env.SH_CAREER_AUDIT) {
+    await require('./career-audit.js')({ page, outDir, check });
+    fs.writeFileSync(path.join(outDir, 'results.json'), JSON.stringify({ results, logs }, null, 2));
+    await browser.close(); relay.quit(); server.close();
+    process.exit(results.some(r => !r.ok) ? 1 : 0);
+  }
+  if (process.env.SH_GEAR_AUDIT) {
+    await require('./gear-audit.js')({ page, outDir, check });
+    fs.writeFileSync(path.join(outDir, 'results.json'), JSON.stringify({ results, logs }, null, 2));
+    await browser.close(); relay.quit(); server.close();
+    process.exit(results.some(r => !r.ok) ? 1 : 0);
+  }
+  if (process.env.SH_IDENTITY_AUDIT) {
+    await require('./identity-audit.js')({ page, outDir, check, baseline: process.env.SH_IDENTITY_AUDIT === 'before' });
+    fs.writeFileSync(path.join(outDir, 'results.json'), JSON.stringify({ results, logs }, null, 2));
+    await browser.close(); relay.quit(); server.close();
+    process.exit(results.some(r => !r.ok) ? 1 : 0);
+  }
   // 4.1.9: Tones: keys on top (a click picks, never assigns), your tones, find a tone; edits are a draft
   const slotsNow = () => page.evaluate(async () => { const { tonelib } = await import('/src/renderer/js/tonelib.js'); return JSON.stringify(tonelib.list.map((t) => [t.id, t.slot || null]).sort()); });
   const tonesOverhaul = async () => {
@@ -450,29 +529,21 @@ class FakePortMain extends EventEmitter {
     if (await mineRow.count()) {
       await mineRow.click();
       await page.waitForTimeout(600);
-      if (!(await page.locator('.tones-edit .knobs3').count())) await page.locator('.tones-edit button:has-text("Edit tone")').click();
-      await page.waitForTimeout(500);
+      await page.locator('.tones-edit button:has-text("Edit tone")').click();
+      await page.waitForTimeout(1200);
       const id = await page.evaluate(() => window.__rig.toneId);
-      const knob = page.locator('.tones-edit .knobs3 .rknob').first();
+      const knob = page.locator('.rr-inspect .gb-strip .rknob').first();
       await knob.focus();
       for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowUp');
       await page.waitForTimeout(600);
-      check(!(await page.locator('.te-dirty').isHidden()) && (await page.evaluate(() => window.__rig.mode)) === 'live', 'a knob turn is heard live and marked not saved');
-      check((await page.locator('.te-revert').isVisible()) && (await page.locator('.te-save').textContent()) === 'Save changes', 'with Save changes and Revert');
+      check((await page.evaluate(() => window.__rig.mode)) === 'live' && (await page.locator('.rr-save').textContent()) === 'Save changes', 'a knob turn in the rig is heard live, with Save changes');
       await shot('52-tones-unsaved');
-      await page.locator('.te-revert').click();
-      await page.waitForTimeout(600);
-      check((await page.locator('.te-dirty').isHidden()) && (await page.evaluate(() => window.__rig.mode)) === 'preset', 'Revert goes back to the saved tone (and you hear it)');
-      await page.locator('.tones-edit .knobs3 .rknob').first().focus();
-      for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowUp');
-      await page.waitForTimeout(500);
-      await page.locator('.nav-section:has-text("Jam")').first().click();
-      await page.waitForTimeout(600);
+      await page.locator('.rr-close').click();
+      await page.waitForTimeout(400);
+      await page.locator('.modal button:has-text("Close")').last().click();
+      await page.waitForTimeout(800);
       const back = await page.evaluate(() => ({ mode: window.__rig.mode, id: window.__rig.toneId }));
-      check(back.mode === 'preset' && back.id === id && (await page.locator('.toast:has-text("weren’t saved")').count()) >= 1, `leaving Tones without saving goes back to the saved tone (${back.mode})`);
-      await page.locator('.nav-section:has-text("Tones")').click();
-      await page.waitForTimeout(600);
-      check(await page.locator('.te-dirty').isHidden(), 'and Tones shows the saved tone again');
+      check(back.mode === 'preset' && back.id === id && (await page.locator('.modal.rig-room').count()) === 0, `closing the rig without saving goes back to the saved tone (${back.mode})`);
     }
     // song tones: one row per tone, described, grouped, filtered
     await page.locator('.tones-tabs button:has-text("In my songs")').click();
@@ -502,6 +573,8 @@ class FakePortMain extends EventEmitter {
     await page.locator('.nav-section[data-page="play"]').click();
     await page.waitForTimeout(600);
     await page.locator('#page-play button:has-text("Create tone")').click();
+    await page.waitForTimeout(1200);
+    await page.locator('.rr-guide').click(); // 4.6: Create tone opens the rig; the old helper is one click away
     await page.waitForTimeout(800);
     await page.locator('.tw-card:has-text("Guitar")').first().click();
     await page.waitForTimeout(400);
@@ -983,12 +1056,15 @@ class FakePortMain extends EventEmitter {
   check((await page.locator('.tones-edit .ts-keys .ts-key').count()) === 8 && (await page.locator('.tones-edit .knobs3').count()) === 0, 'Tones opens a tone simply: keys 2–9 to put it on, no knobs in the way');
   await shot('7a-tones-simple');
   await page.locator('.tones-edit button:has-text("Edit tone")').click();
-  await page.waitForTimeout(500);
-  check((await page.locator('.tones-edit .chain, .tones-edit .knobs3').count()) > 0, 'Edit tone opens the full editor');
+  await page.waitForTimeout(1200);
+  check((await page.locator('.modal.rig-room .rb-piece').count()) > 0, 'Edit tone opens the rig');
   await shot('7b-tones-song');
-  await page.locator('.te-save').click();
+  await page.locator('.rr-name').fill('Song tone copy');
+  await page.locator('.rr-save').click();
   await page.waitForTimeout(800);
-  check(/in your tones|Saved/.test((await page.locator('.toast').last().textContent().catch(() => '')) || ''), 'saving a song tone makes your own copy');
+  check(await page.evaluate(async () => { const { tonelib } = await import('/src/renderer/js/tonelib.js'); return tonelib.list.some((t) => t.name === 'Song tone copy'); }), 'saving a song tone makes your own copy');
+  await page.locator('.rr-close').click();
+  await page.waitForTimeout(600);
   await page.locator('.tones-edit .demo-btn').first().click();
   await page.waitForTimeout(1500);
   check((await page.locator('.tones-edit .demo-btn[aria-pressed="true"]').count()) === 1, 'demo riff plays through the tone');
@@ -1016,7 +1092,13 @@ class FakePortMain extends EventEmitter {
   check(await page.locator('.take').count() >= 1, 'the saved loop is in your takes');
   await page.locator('.nav-section:has-text("Progress")').click();
   await page.waitForTimeout(1200);
-  check((await page.locator('.pnext .btn').count()) === 1 && (await page.locator('.pmastery .pm-key').count()) === 4, `Progress suggests what to practise next and shows your songs by mastery (“${((await page.locator('.pnext h2').textContent().catch(() => '')) || '').slice(0, 50)}”)`);
+  // 4.5: the library-by-score bar moved to Progress › Song mastery
+  const pnextN = await page.locator('.pnext .btn').count();
+  await page.locator('.pg-tabs [data-tab="songs"]').click().catch(() => {});
+  await page.waitForTimeout(800);
+  const pmN = await page.locator('.pmastery .pm-key').count();
+  await page.locator('.pg-tabs [data-tab="overview"]').click().catch(() => {});
+  check(pnextN === 1 && pmN === 4, `Progress suggests what to practise next and shows your songs by mastery (“${((await page.locator('.pnext h2').textContent().catch(() => '')) || '').slice(0, 50)}”)`);
   await shot('8b-progress-top');
   // Settings › Stems: lossless FLAC (the default) or smaller Opus (4.4)
   await page.keyboard.press('Control+Comma');
@@ -1104,6 +1186,15 @@ class FakePortMain extends EventEmitter {
   await page.locator('.find-items .tone-item .ti-main:has-text("Crunch")').first().click();
   await page.waitForTimeout(2500);
   check((await page.locator('.tone-item:has(.ti-main:has-text("Crunch")) > .real-badge').count()) >= 1, 'the tone list marks it REAL');
+  // 4.6: the amp's real/modelled strip lives in the rig (Edit tone)
+  const closeRig = async () => {
+    await page.locator('.rr-close').click();
+    await page.waitForTimeout(400);
+    if (await page.locator('.modal:not(.rig-room) button:has-text("Close")').count()) await page.locator('.modal:not(.rig-room) button:has-text("Close")').last().click();
+    await page.waitForTimeout(600);
+  };
+  await page.locator('.tones-edit button:has-text("Edit tone")').click();
+  await page.waitForTimeout(1500);
   check((await page.locator('.ra-strip.real .ra-ladder i').count()) === 3 && (await page.locator('.ra-strip.real .ra-ladder i.on').count()) === 1, 'the amp card shows the three gain captures, one lit');
   await shot('14-tones-real-amp');
   await page.locator('.ra-seg button:has-text("Modelled")').click();
@@ -1112,13 +1203,17 @@ class FakePortMain extends EventEmitter {
   await page.locator('.ra-seg button:has-text("Real")').click();
   await until(() => page.evaluate(() => !!window.__rig.capture));
   check(!!(await page.evaluate(() => window.__rig.capture)), 'Real switches it back');
+  await closeRig();
   await page.locator('.find-items .tone-item .ti-main:has-text("Metal")').first().click();
+  await page.waitForTimeout(1000);
+  await page.locator('.tones-edit button:has-text("Edit tone")').click();
   await page.waitForTimeout(2000);
   check((await page.locator('.ra-offer .ra-get').count()) === 1 && (await page.locator('.ra-offer :text("Mesa Dual Rectifier")').count()) === 1, 'a Cali-100 tone offers the real Rectifier');
   await shot('15-tones-get-real-amp');
   await page.locator('.ra-offer .ra-get').click();
   await page.waitForTimeout(800);
   check((await page.locator('.toast:has-text("Connect TONE3000 first")').count()) === 1, 'without a TONE3000 key it points you to the one-time setup');
+  await closeRig();
   await page.keyboard.press('Control+Comma');
   await page.waitForTimeout(800);
   await page.locator('.modal button:has-text("Real amps")').first().click();
@@ -1375,8 +1470,14 @@ class FakePortMain extends EventEmitter {
   await page.mouse.move(300, 300);
   await shot('25-jam');
   // 3.12: Jam's look picker: Fluid and the four scenes
-  check((await page.getByLabel('Jam look').locator('option').count()) === 5, 'Jam offers Fluid and four scenes');
-  for (const id of ['nebula', 'swarm', 'mandala', 'strings']) {
+  check((await page.getByLabel('Jam look').locator('option').count()) === 6, 'Jam offers Fluid and five scenes (4.5: Valhalla)');
+  // 4.5: scenes open with levels; a new player sees them locked, then (developer unlock) all of them
+  await page.getByLabel('Jam look').focus();
+  check(await page.evaluate(() => [...document.querySelector('select[aria-label="Jam look"]').options].some((o) => o.disabled && /level/.test(o.textContent))), 'Jam shows locked scenes with their level');
+  await global.__levels.unlockAll(true);
+  await page.evaluate(async () => (await import('/src/renderer/js/rewards.js')).loadLevels());
+  await page.getByLabel('Jam look').focus();
+  for (const id of ['nebula', 'swarm', 'mandala', 'strings', 'valhalla']) {
     await page.getByLabel('Jam look').selectOption(id);
     await page.waitForTimeout(2500);
     check(await page.evaluate(() => !!document.querySelector('.jam canvas.hw-visual') && !document.querySelector('.jam iframe.hw-fluid')), `Jam shows ${id}`);
@@ -1477,8 +1578,11 @@ class FakePortMain extends EventEmitter {
   await page.locator('.nav-section[data-page="play"]').click();
   await page.waitForTimeout(600);
   await page.locator('#page-play button:has-text("Create tone")').click();
+  await page.waitForTimeout(1200);
+  check((await page.locator('.modal.rig-room .rr-live').count()) === 1, 'Create tone opens the rig with your guitar live');
+  await page.locator('.rr-guide').click();
   await page.waitForTimeout(800);
-  check((await page.locator('.tw-modal .tw-live').count()) === 1, 'Create tone opens with your guitar live');
+  check((await page.locator('.tw-modal .tw-live').count()) === 1, 'Step by step instead opens the helper, live too');
   await page.locator('.tw-card:has-text("Guitar")').click();
   await page.waitForTimeout(400);
   await page.locator('.tw-card:has-text("Heavy metal")').click();

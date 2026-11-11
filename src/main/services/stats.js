@@ -18,17 +18,90 @@ function dayKey(ms) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** 4.5: the most sessions kept one by one; older ones are folded into `archive` (totals), never thrown away. */
+const KEEP_SESSIONS = 50000;
+
+/** Adds sessions into the archive's running totals (the lifetime numbers keep them). */
+function foldIntoArchive(archive, list) {
+  const a = archive || emptyArchive();
+  const songs = new Set(a.songs);
+  const days = new Set(a.days);
+  for (const s of list) {
+    if (!s) continue;
+    a.count++;
+    a.seconds += Number(s.seconds) || 0;
+    a.notes += Number(s.notes) || 0;
+    a.hit += Number(s.hit) || 0;
+    if (s.full) a.full++;
+    if (s.songId && s.seconds >= 30) songs.add(s.songId);
+    if (s.at) {
+      days.add(dayKey(s.at));
+      a.firstAt = a.firstAt ? Math.min(a.firstAt, s.at) : s.at;
+      a.lastAt = Math.max(a.lastAt || 0, s.at);
+    }
+    for (const [k, v] of Object.entries(s.kinds || {})) {
+      const o = (a.kinds[k] = a.kinds[k] || [0, 0]);
+      o[0] += Number(v[0]) || 0;
+      o[1] += Number(v[1]) || 0;
+    }
+    if (s.full && (s.speed || 1) >= 0.999 && s.notes >= 50 && s.accuracy !== null && s.accuracy !== undefined) a.bestAcc = Math.max(a.bestAcc || 0, s.accuracy);
+    a.bestStreak = Math.max(a.bestStreak || 0, Number(s.bestStreak) || 0);
+  }
+  a.songs = [...songs];
+  a.days = [...days].sort();
+  return a;
+}
+const emptyArchive = () => ({ count: 0, seconds: 0, notes: 0, hit: 0, full: 0, kinds: {}, songs: [], days: [], firstAt: 0, lastAt: 0, bestAcc: 0, bestStreak: 0 });
+
 class Stats {
-  constructor(file) {
+  /**
+   * @param {string} file stats.json
+   * @param {object} [o]
+   * @param {object} [o.backups] CareerBackups, to recover a damaged file
+   * @param {Function} [o.log]
+   */
+  constructor(file, { backups = null, log = () => {} } = {}) {
     this.file = file;
+    this.backups = backups;
+    this._log = log; // (not `log`: that's the method that logs a session)
     this.data = { sessions: [] };
     this._timer = null;
+    this.recovered = null;
   }
 
   async load() {
-    const d = await readJson(this.file, null);
-    if (d && Array.isArray(d.sessions)) this.data = { sessions: d.sessions };
+    // 4.5: a file that won't read is never written over: it's set aside and the newest backup is used
+    let d;
+    if (this.backups) {
+      const r = await this.backups.safeRead(this.file, null);
+      d = r.data;
+      if (r.corrupt) this.recovered = { corrupt: r.corrupt, from: r.recovered };
+    } else d = await readJson(this.file, null);
+    if (d && Array.isArray(d.sessions)) {
+      this.data = { sessions: d.sessions };
+      if (d.archive && typeof d.archive === 'object') this.data.archive = { ...emptyArchive(), ...d.archive };
+    }
     return true;
+  }
+
+  /** Removes sessions (for the developer menu: test data). Returns how many went. */
+  removeWhere(pred) {
+    const before = this.data.sessions.length;
+    this.data.sessions = this.data.sessions.filter((s) => !pred(s));
+    const n = before - this.data.sessions.length;
+    if (n) this.saveSoon();
+    return n;
+  }
+
+  /** Drops sessions logged twice (same time, song, part and length). Returns how many went. */
+  dedupe() {
+    const seen = new Set();
+    return this.removeWhere((s) => {
+      const k = `${s.at}|${s.songId}|${s.part}|${s.seconds}`;
+      if (seen.has(k)) return true;
+      seen.add(k);
+      return false;
+    });
   }
 
   log(s) {
@@ -53,8 +126,14 @@ class Stats {
     // 4.4: for levels: played start to finish, and the tuning's name
     if (s.full === true) e.full = true;
     if (typeof s.tuning === 'string' && s.tuning) e.tuning = s.tuning.slice(0, 40);
+    // 4.5: the same session twice in a row (a double checkpoint) is not counted again
+    const prev = this.data.sessions[this.data.sessions.length - 1];
+    if (prev && prev.at === e.at && prev.songId === e.songId && prev.part === e.part && prev.seconds === e.seconds && prev.notes === e.notes) return prev;
     this.data.sessions.push(e);
-    if (this.data.sessions.length > 20000) this.data.sessions.splice(0, this.data.sessions.length - 20000);
+    if (this.data.sessions.length > KEEP_SESSIONS) {
+      const old = this.data.sessions.splice(0, this.data.sessions.length - KEEP_SESSIONS);
+      this.data.archive = foldIntoArchive(this.data.archive, old);
+    }
     this.saveSoon();
     return e;
   }
@@ -380,4 +459,4 @@ class Takes {
   }
 }
 
-module.exports = { Stats, Takes, dayKey, aboutClip };
+module.exports = { foldIntoArchive, emptyArchive, KEEP_SESSIONS, Stats, Takes, dayKey, aboutClip };

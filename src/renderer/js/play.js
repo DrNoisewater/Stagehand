@@ -6,11 +6,12 @@ import { did } from './rewards.js';
 import { state, on, setPage, emit } from './store.js';
 import { openJam, registerJamControls, jamOpen, backingControls, recordControl } from './jam.js';
 import { tuningName, myTuning, setMyTuning, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
+import { dropConsole } from './dropui.js';
 import { h, icon, esc, toast, showMenu, holdButton } from './ui.js';
 import { rig } from './rig.js';
 import { api } from './api.js';
 import { tonelib, bySlot, byId, useSlot, useTone, SLOT_GELS, SLOT_COUNT, nowPlayingTone, kindLabel, saveTone, freeSlot, knobsOf, orderedGear, TYPE_GELS, TYPE_NAMES, shortGearName, gelOf } from './tonelib.js';
-import { chainEl, rotaryKnob, fmtKnob, gearSummary } from './rigui.js';
+import { chainEl, gearFaceplate, rotaryKnob, fmtKnob, gearSummary } from './rigui.js';
 import { createTuner } from './tuner.js';
 import { drums, PATTERNS } from './drums.js';
 import { looper } from './looper.js';
@@ -256,6 +257,8 @@ function renderRig() {
     );
   }
   if(rig.autoSong)for(const k of knobs.querySelectorAll('button')){k.disabled=true;k.title='Automatic Song Tone is read-only';}
+  const faceplate = gearFaceplate(g.key, knobs);
+  if (faceplate) well.append(faceplate);
   well.append(knobs);
   rigCard.append(well);
   const slider = (name, label, gelc) => {
@@ -361,46 +364,18 @@ let lastTempoNotice=0;drums.addEventListener('tempo-locked',()=>{if(Date.now()-l
 // ----------------------------------------------------------------- drop --
 const DROP_STEPS = [1, 2, 3, 4, 5, 6, 7, 12];
 const TUNE_NAMES = { 1: 'E♭ Standard', 2: 'D Standard', 3: 'C♯ Standard', 4: 'C Standard', 5: 'B Standard', 6: 'B♭ Standard', 7: 'A Standard', 12: 'an octave down' };
+let changingDropFace = false;
 export function renderDrop() {
-  const d = rig.drop;
-  const amt = rig.dropAmount();
+  if (changingDropFace) return;
+  // 4.5: one Drop console (dropui.js), no pedal photo; it keeps itself up to date in place
+  const kind = rig.songKind === 'bass' ? 'bass' : 'guitar';
+  const cur = dropCard.querySelector('.dc');
+  if (cur && cur.dataset.kind === kind) return cur.update();
   dropCard.innerHTML = '';
-  dropCard.classList.toggle('on', d.on);
-  const sw = h('button.drop-switch', { type: 'button', 'aria-pressed': String(d.on), title: `${d.on ? 'Turn the Drop off' : 'Turn the Drop on'} (D)` }, h('span.led'));
-  sw.onclick = () => (rig.setDrop({ on: !d.on }), rig.drop.on && did('drop'));
-  // 4.3: one clear line, whether it's working right now and by how much
-  const ds = rig.dropStatus();
-  dropCard.classList.toggle('idle', ds.state === 'idle');
-  dropCard.append(h('div.card-head', null, h('h2', { text: 'Drop' }), h('span.grow'), sw));
-  dropCard.append(h('p.drop-line', { text: ds.line }));
-  if (ds.state === 'on' && ds.warn) dropCard.append(h('p.drop-warn', { text: ds.warn }));
-  const chips = h('div.drop-steps', { role: 'group', 'aria-label': 'How far to drop' });
-  for (const st of DROP_STEPS) {
-    const b = h('button', { type: 'button', text: st === 12 ? 'Oct' : `−${st}`, 'aria-pressed': String(d.on && !d.match && d.st === st), title: `Sound like ${TUNE_NAMES[st]}` });
-    b.onclick = () => (rig.setDrop({ st, match: false, on: true }), did('drop'));
-    chips.append(b);
-  }
-  dropCard.append(chips);
-  const songSt = rig.dropSong;
-  const kind = rig.songKind || 'guitar';
-  const songName = rig.songTuning && rig.songTuning.length ? tuningName(rig.songTuning, kind) : '';
-  const match = h('label.check.drop-match', null, h('input', { type: 'checkbox', checked: d.on && d.match ? true : null }), h('span', { text: songSt ? `Match the song (${songName}: −${songSt})` : 'Match the song’s tuning' }));
-  // unticking keeps the sound as it is: the Drop stays at the step it was on (or goes off if it did nothing)
-  match.querySelector('input').onchange = (e) => (e.target.checked && did('drop'), rig.setDrop(e.target.checked ? { match: true, on: true } : amt ? { match: false, st: amt } : { match: false, on: false }));
-  dropCard.append(match);
-  // 3.7: what your instrument is actually tuned to (Stagehand also learns it from your playing)
-  const mine = h('select.input.drop-mine', { 'aria-label': `Your ${kind} is tuned to` });
-  const cur = myTuning(kind).join(',');
-  const opts = kind === 'bass' ? MY_TUNINGS_BASS : MY_TUNINGS;
-  for (const o of opts) mine.append(h('option', { value: o.join(','), text: tuningName(o, kind), selected: o.join(',') === cur ? true : null }));
-  if (!opts.some((o) => o.join(',') === cur)) mine.append(h('option', { value: cur, text: tuningName(myTuning(kind), kind), selected: true }));
-  mine.onchange = () => {
-    setMyTuning(kind, mine.value.split(',').map(Number));
-    if (rig.songTuning) rig.setSongTuning(rig.songTuning, kind);
-    renderDrop();
-  };
-  dropCard.append(h('label.drop-mine-row', null, h('span', { text: `Your ${kind} is in` }), mine));
-  dropCard.append(h('p.drop-fine', { text: 'Play songs tuned lower than your instrument without retuning, like a DigiTech Drop. Scoring follows it. When a song needs it, Stagehand offers the Drop or tells you which strings to retune.' }));
+  dropCard.classList.remove('on', 'idle');
+  const c = dropConsole({ kind });
+  c.dataset.kind = kind;
+  dropCard.append(c, h('p.drop-fine', { text: 'Play songs tuned lower than your instrument without retuning, like a DigiTech Drop. Scoring follows it. When a song needs it, Stagehand offers the Drop or tells you which strings to retune.' }));
 }
 rig.addEventListener('drop', () => state.page === 'play' && renderDrop());
 

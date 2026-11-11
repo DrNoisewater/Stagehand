@@ -16,9 +16,11 @@ const H = 3600 * 1000;
 const song = (id, extra = {}) => ({ songId: id, part: 'lead', seconds: 240, accuracy: 0.7, notes: 300, hit: 210, speed: 1, at: NOW - 2 * H, ...extra });
 
 test('levels and passes', () => {
-  assert.deepStrictEqual([xpFor(1), xpFor(2), xpFor(3), xpFor(5), xpFor(10)], [0, 100, 300, 1000, 4500]);
-  assert.deepStrictEqual([levelOf(0), levelOf(99), levelOf(100), levelOf(4500)], [1, 1, 2, 10]);
-  assert.deepStrictEqual([tierOf(1).id, tierOf(5).id, tierOf(14).id, tierOf(20).id, tierOf(42).id], ['roadie', 'opener', 'headliner', 'legend', 'hof']);
+  // 4.5: the Road to 100 (progression-config.js)
+  assert.deepStrictEqual([xpFor(1), xpFor(2), xpFor(3)], [0, 540, 1095]);
+  assert.deepStrictEqual([levelOf(0), levelOf(539), levelOf(540), levelOf(xpFor(10)), levelOf(1e9)], [1, 1, 2, 10, 100]);
+  for (let l = 2; l < 100; l++) assert.ok(xpFor(l + 1) - xpFor(l) >= xpFor(l) - xpFor(l - 1), `each level costs at least as much as the one before (${l})`);
+  assert.deepStrictEqual([tierOf(1).id, tierOf(5).id, tierOf(14).id, tierOf(20).id, tierOf(42).id, tierOf(80).id, tierOf(100).id], ['roadie', 'garage', 'opener', 'headliner', 'rockstar', 'hof', 'immortal']);
 });
 
 test('nothing yet: level 1, four challenges, three weekly, things to try', () => {
@@ -30,7 +32,7 @@ test('nothing yet: level 1, four challenges, three weekly, things to try', () =>
   assert.strictEqual(st.weekly.length, 3);
   assert.ok(st.trophies.every((t) => t.tier === -1) && st.titles.every((t) => !t.earned) && st.title === null);
   assert.ok(st.firsts.length > 15 && st.firsts.every((f) => !f.done));
-  assert.strictEqual(st.next.level, UNLOCKS[0].level);
+  assert.strictEqual(st.next.level, UNLOCKS.find((u) => u.level > 1).level);
 });
 
 test('doing well is worth the most', () => {
@@ -51,8 +53,8 @@ test('new songs, new tunings, a personal best, parts', () => {
   ] });
   const why = st.recent.map((a) => a.why);
   assert.strictEqual(why.filter((w) => w === 'A new song').length, 1);
-  assert.strictEqual(why.filter((w) => w === 'A new song (x1.1)').length, 1, 'the second day in a row earns x1.1');
-  assert.ok(why.includes('A new tuning: Drop D (x1.1)') && !why.some((w) => /E Standard/.test(w)), 'your first tuning is just your tuning');
+  assert.strictEqual(why.filter((w) => w === 'A new song (x1.04)').length, 1, 'two days played this week earns x1.04');
+  assert.ok(why.includes('A new tuning: Drop D (x1.04)') && !why.some((w) => /E Standard/.test(w)), 'your first tuning is just your tuning');
   assert.ok(why.includes('A new best: 80%'));
   assert.ok(why.includes('Play a bass part') && why.includes('Play a lead part'));
 });
@@ -143,18 +145,20 @@ test('this week: the song of the week and weekly progress', () => {
   assert.deepStrictEqual(st4.weeklyAsked, { 'w-acc90': 3, 'w-full15': 3, 'w-days5': 3, 'w-hours3': 12, 'w-new5': 3, 'w-pb3': 0, 'w-tunings3': 0, 'w-streak300': 0, 'w-sections25': 0 });
 });
 
-test('days in a row multiply what playing earns, up to x1.5', () => {
-  assert.deepStrictEqual([1, 2, 3, 6, 20].map(multFor), [1, 1.1, 1.2, 1.5, 1.5]);
+test('4.5: days played this week add a little (no streak to lose), up to x1.15', () => {
+  assert.deepStrictEqual([1, 2, 3, 6, 20].map(multFor), [1, 1.04, 1.08, 1.15, 1.15]);
   const mine = (st) => st.recent.filter((a) => a.key.startsWith(`s:${NOW - 2 * H}:a`)).reduce((n, a) => n + a.xp, 0);
   const one = mine(compute({ now: NOW, sessions: [song('a', { full: true, accuracy: 0.9 })] }));
   const days = Array.from({ length: 8 }, (_, i) => song('z', { seconds: 60, at: NOW - (8 - i) * 24 * H, accuracy: null }));
   const st = compute({ now: NOW, sessions: [...days, song('a', { full: true, accuracy: 0.9 })] });
   const todayXp = mine(st);
-  assert.ok(Math.abs(todayXp - one * 1.5) < 4, `${todayXp} vs ${one} x1.5`);
-  assert.deepStrictEqual({ days: st.streak.days, mult: st.streak.mult, today: st.streak.today }, { days: 9, mult: 1.5, today: true });
-  // played yesterday, not yet today: the streak is still alive
+  assert.ok(Math.abs(todayXp - one * 1.15) < 4, `${todayXp} vs ${one} x1.15`);
+  assert.deepStrictEqual({ days: st.streak.days, mult: st.rhythm.mult, today: st.rhythm.today, week: st.rhythm.days }, { days: 9, mult: 1.15, today: true, week: 7 });
   const y = compute({ now: NOW, sessions: days });
-  assert.ok(y.streak.days === 8 && !y.streak.today && y.streak.nextMult === 1.5);
+  assert.ok(!y.rhythm.today && y.rhythm.days === 6 && y.rhythm.nextMult === 1.15);
+  // a gap costs nothing already earned: the same XP with or without later days off
+  const gap = compute({ now: NOW + 5 * 24 * H, sessions: [...days, song('a', { full: true, accuracy: 0.9 })] });
+  assert.strictEqual(gap.xp, st.xp);
 });
 
 test('trophies: tiers from your playing, each tier’s XP once', () => {
@@ -171,12 +175,16 @@ test('trophies: tiers from your playing, each tier’s XP once', () => {
   assert.strictEqual(new Set(tro.map((a) => a.key)).size, tro.length, 'each tier once');
   // playing more of the same doesn't give the same tier again
   const more = compute({ now: NOW, sessions: [...runs, ...runs.map((s) => ({ ...s, at: s.at + 60000 }))] });
-  assert.strictEqual(more.recent.filter((a) => a.key === 't:full:0').length, 1);
+  assert.ok(more.recent.filter((a) => a.key.startsWith('t:')).every((a, i, l) => l.findIndex((x) => x.key === a.key) === i), 'no tier twice');
+  assert.strictEqual(more.trophies.find((x) => x.id === 'full').tier, 0, '24 whole songs: still bronze (silver needs 50)');
   // kept trophies stay, even if the playing that earned them is gone
   const kept = compute({ now: NOW, trophies: st.reached });
   assert.strictEqual(kept.trophies.find((x) => x.id === 'acc95').tier, 1);
-  assert.strictEqual(kept.xp, tro.reduce((n, a) => n + a.xp, 0));
-  assert.ok(TROPHIES.length >= 15 && TROPHIES.every((x) => x.tiers.length === 4));
+  const { TROPHY_XP } = require('../src/main/services/progression-config');
+  const want = st.trophies.filter((x) => x.xp).reduce((n, x) => n + TROPHY_XP.slice(0, x.tier + 1).reduce((a, v) => a + (x.kind === 'play' ? v : Math.round(v / 2)), 0), 0);
+  assert.strictEqual(kept.xp, want, 'kept achievements keep exactly their XP');
+  assert.ok(TROPHIES.length >= 20 && TROPHIES.every((x) => x.tiers.length === 6 || x.kind));
+  for (const x of TROPHIES) for (let i = 1; i < x.tiers.length; i++) assert.ok(x.tiers[i] > x.tiers[i - 1], `${x.id} tiers rise`);
 });
 
 test('titles: earned from trophies and levels, worn only once earned', () => {
@@ -242,7 +250,7 @@ test('an old levels.json still works; trophies and titles are kept in it', async
   assert.strictEqual(st.weekSong, 't1', 'the song of the week comes from your library');
   await new Promise((r) => setTimeout(r, 100)); // (it saves in the background)
   const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
-  assert.ok(saved.v === 2 && saved.done[`${yday}:full5`] && saved.did.looper && saved.trophies['acc95:1'] && saved.weekSong[weekKey(NOW)] === 't1');
+  assert.ok(saved.v === 3 && saved.done[`${yday}:full5`] && saved.did.looper && saved.trophies['acc95:1'] && saved.weekSong[weekKey(NOW)] === 't1');
   // titles: only earned ones can be worn; the choice is saved
   st = await lv.setTitle('shred-lord', NOW);
   assert.strictEqual(st.title, null, 'Shred Lord needs gold');

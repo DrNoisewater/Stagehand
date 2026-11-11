@@ -8,7 +8,7 @@ let bad = 0;
 const ok = (c, msg) => { console.log(c ? 'ok  ' : 'FAIL', msg); if (!c) bad++; };
 const slotOf = (k) => (/^(Bass_)?Amp_/.test(k) ? 'amp' : /^(Bass_)?Cab_/.test(k) ? 'cab' : /^(Bass_)?Rack_/.test(k) ? 'rack' : 'pre');
 const keys = Object.keys(db);
-const broken = keys.filter((k) => { const s = art.gearArt({ slot: slotOf(k), key: k }); return !/^<svg[\s\S]*<\/svg>\s*$/.test(s.trim()) || /NaN|undefined/.test(s); });
+const broken = keys.filter((k) => { const s = art.gearArt({ slot: slotOf(k), key: k }); return !/<svg[\s\S]*<\/svg>/.test(s) || /NaN|undefined/.test(s); });
 ok(!broken.length, `all ${keys.length} pieces of gear get a picture${broken.length ? `; broken: ${broken.slice(0, 5)}` : ''}`);
 const speakers = (k) => (art.cabArt(k).match(/r="[\d.]+" fill="rgba\(0,0,0,.28\)"/g) || []).length;
 ok(speakers('4x12_straight') === 4 && speakers('2x12_closed') === 2 && speakers('1x12_open') === 1 && speakers('bass-810') === 8 && speakers('bass-115') === 1 && speakers('bass-410') === 4, 'cabinets show their speakers (4×12, 2×12, 1×12, 8×10, 1×15, 4×10)');

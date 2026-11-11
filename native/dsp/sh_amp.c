@@ -259,7 +259,8 @@ static void amp_eq_active(amp_st *s, const sh_gear *g, float ub, float um, float
   float mdb = kn_exact(g, "mid", &k) ? DBOF(k) : 0;
   float tdb = kn_exact(g, "treble", &k) ? DBOF(k) : 0;
   float mid_hz = 650;
-  if (kn_find(g, "mid freq", &k) || kn_find(g, "mid-freq", &k) || kn_find(g, "mid frequency", &k) || kn_find(g, "mid. freq", &k)) {
+  static const char *const MIDF[] = {"mid frequency", "mid freq.", "mid freq", "mid-frequency", "mid-freq", "mid. freq.", "mid. freq. select", NULL};
+  if (kn_any_exact(g, MIDF, &k)) {
     if (k.hi <= 5) mid_hz = 220.f * sh_pow(10.f / 2.2f, (k.v - k.lo) / (k.hi - k.lo)); /* select switch */
     else if (k.hi <= 20) mid_hz = k.v * 1000.f;
     else if (k.hi <= 100 && k.lo >= 1) mid_hz = (float)(200.0 * sh_pow(10, (k.v - k.lo) / (k.hi - k.lo)));
@@ -267,6 +268,8 @@ static void amp_eq_active(amp_st *s, const sh_gear *g, float ub, float um, float
   }
   int lowshift = kn_find(g, "low-shift", &k) && k.v > 0.5f;
   int highshift = kn_find(g, "high-shift", &k) && k.v > 0.5f;
+  /* 4.5.x: Eden WT D.I. switches: Mid-Shift moves the mid control down an octave */
+  if (kn_exact(g, "mid-shift", &k) && k.v > 0.5f) mid_hz *= 0.5f;
   bq_set(&s->eq[s->neq++], BQ_LSHELF, sr, lowshift ? 60 : 110, 0.7, bdb + off_b);
   bq_set(&s->eq[s->neq++], BQ_PEAK, sr, mid_hz, 0.8, mdb + off_m);
   bq_set(&s->eq[s->neq++], BQ_HSHELF, sr, highshift ? 5000 : 2800, 0.7, tdb + off_t);
@@ -303,8 +306,33 @@ static void amp_eq_active(amp_st *s, const sh_gear *g, float ub, float um, float
     bq_set(&s->eq[s->neq++], BQ_PEAK, sr, 500, 0.6, -8 * e);
   }
   if (kn_find(g, "punch", &k) && s->neq < MAX_EQ) bq_set(&s->eq[s->neq++], BQ_PEAK, sr, 120, 0.9, (k.v - 50) * 0.12f);
+  /* 4.5.x: Eden Bass Boost switch: the deep shelf of the real D.I. */
+  if (kn_exact(g, "bass boost", &k) && k.v > 0.5f && s->neq < MAX_EQ) bq_set(&s->eq[s->neq++], BQ_LSHELF, sr, 60, 0.8, 5);
   if (kn_exact(g, "tone", &k) && s->neq < MAX_EQ) bq_set(&s->eq[s->neq++], BQ_HSHELF, sr, 1500, 0.6, ((k.v - k.lo) / (k.hi - k.lo) - 0.5f) * 14);
 #undef DBOF
+}
+
+/* 4.5.x: a passive (Fender/Marshall/Vox) stack with extra controls the stack itself
+   doesn't have: a Mid-Frequency knob (Hughes & Kettner-style) moves where the mid knob
+   pushes or cuts; Punch (Orange OR) is a tight low-mid thump. */
+static void amp_eq_passive_extras(amp_st *s, const sh_gear *g, float mid) {
+  double sr = s->sr;
+  sh_knob k;
+  s->neq = 0;
+  static const char *const MIDF[] = {"mid frequency", "mid freq.", "mid freq", "mid-frequency", "mid-freq", NULL};
+  if (kn_any_exact(g, MIDF, &k) && s->neq < MAX_EQ) {
+    float t = (k.v - k.lo) / (k.hi - k.lo);
+    float hz = (float)(250.0 * sh_pow(8, t)); /* 250 Hz .. 2 kHz */
+    bq_set(&s->eq[s->neq++], BQ_PEAK, sr, hz, 1.1, (mid - 0.5f) * 14);
+  }
+  /* DI Tube Pre: a three-way mid frequency switch (500 / 800 / 1.6k) for the mid knob */
+  if (kn_exact(g, "mid. freq. select", &k) && s->neq < MAX_EQ)
+    bq_set(&s->eq[s->neq++], BQ_PEAK, sr, k.v < 0.5f ? 500 : k.v < 1.5f ? 800 : 1600, 1.0, (mid - 0.5f) * 14);
+  if (kn_exact(g, "punch", &k) && s->neq < MAX_EQ) {
+    float t = (k.v - k.lo) / (k.hi - k.lo);
+    bq_set(&s->eq[s->neq++], BQ_PEAK, sr, 140, 1.0, (t - 0.5f) * 10);
+    bq_set(&s->eq[s->neq++], BQ_PEAK, sr, 600, 0.9, -(t - 0.5f) * 4);
+  }
 }
 
 static void amp_proc(sh_block *b, float *L, float *R, int n) {
@@ -364,6 +392,7 @@ static void amp_apply_user(amp_st *s, float ug, float ub, float um, float ut) {
   float bass = sh_clampf(s->b0 + (ub - off), 0, 1), mid = sh_clampf(s->m0 + (um - off), 0, 1), tre = sh_clampf(s->t0 + (ut - off), 0, 1);
   amp_coeffs(s, g, bass, mid, tre);
   if (s->p.stack == STK_ACTIVE) amp_eq_active(s, &s->gear, ub, um, ut);
+  else amp_eq_passive_extras(s, &s->gear, mid);
 }
 
 void amp_user(sh_block *b, float gain, float bass, float mid, float treble) {

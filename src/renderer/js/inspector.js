@@ -1,4 +1,5 @@
 /** Right pane: song details, metadata editor (single and batch). */
+import { artImg, harvest } from './artkeep.js';
 import { api } from './api.js';
 import { state, on, emit, selectedSongs, upsertSongs, setView } from './store.js';
 import { h, icon, esc, fmtDuration, fmtBytes, fmtDate, toast } from './ui.js';
@@ -49,7 +50,7 @@ function sortable(s) {
 function cover(song, size = 256) {
   const c = h('div.insp-cover');
   if (song && song.art) {
-    const img = h('img', { src: api.artUrl(song, size), alt: '', draggable: 'false' });
+    const img = artImg(api.artUrl(song, size), { alt: '', draggable: 'false' }); // 4.5: no reload on every refresh
     img.onerror = () => {
       img.remove();
       c.insertAdjacentHTML('afterbegin', icon('music'));
@@ -78,6 +79,7 @@ function section(title, ...children) {
 
 // --------------------------------------------------------------- views --
 function renderEmpty() {
+  harvest(root);
   root.innerHTML = '';
   const total = state.songs.size;
   root.append(
@@ -91,6 +93,7 @@ function renderEmpty() {
 }
 
 function renderOne(s) {
+  harvest(root);
   root.innerHTML = '';
   const c = cover(s);
   const play = h('button.play', { type: 'button', title: 'Play', html: icon('play') });
@@ -183,6 +186,7 @@ function renderOne(s) {
 }
 
 function renderMany(songs) {
+  harvest(root);
   root.innerHTML = '';
   const stack = h('div.stack');
   songs.slice(0, 3).forEach((s, i) => {
@@ -244,6 +248,7 @@ function fieldEl(key, label, value, { placeholder = '', inputmode } = {}) {
 
 function renderEdit(songs) {
   state.editing = true;
+  harvest(root);
   root.innerHTML = '';
   const batch = songs.length > 1;
   const common = (k) => {

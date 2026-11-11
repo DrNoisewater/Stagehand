@@ -1,6 +1,6 @@
 /**
  * Moving backgrounds drawn on the graphics card (3.12): Nebula, Swarm,
- * Mandala and Strings. They sit behind the highway or fill the Jam screen,
+ * Mandala, Strings and (4.5) Valhalla. They sit behind the highway or fill the Jam screen,
  * and move with the music you hear and what you play (music-features.js).
  *
  * Each frame: the scene draws into a picture that also sees its own last
@@ -16,8 +16,10 @@ import { STRING_RGB } from './music-features.js';
 export const SCENES = [
   { id: 'nebula', name: 'Nebula', desc: 'Glowing gas clouds, lightning on the hits' },
   { id: 'swarm', name: 'Swarm', desc: 'Thousands of sparks flowing like smoke' },
-  { id: 'mandala', name: 'Mandala', desc: 'A kaleidoscope that breathes with the beat' },
+  { id: 'mandala', name: 'Mandala', desc: 'A stained-glass rose window lit from behind by the music' },
   { id: 'strings', name: 'Strings', desc: 'Six ribbons of light you pluck as you play' },
+  // 4.5: the level-100 venue
+  { id: 'valhalla', name: 'Valhalla', desc: 'The end of the road: aurora, stadium beams, a sea of lighters, pyro on the kicks' },
 ];
 
 const VERT = `#version 300 es
@@ -124,54 +126,99 @@ void main() {
 }`;
 
 // ----------------------------------------------------------- Mandala --
+/*
+ * 4.5 rebuild (the user: the weakest scene). Was a feedback kaleidoscope that smeared into
+ * mush. Now a stained-glass rose window, drawn sharp every frame:
+ *  - rings of glass petals, each ring a different count, bass in the middle, highs outside;
+ *    each ring's glass is lit from behind by its own band of the music;
+ *  - dark lead lines between the panes, gold tracery (star polygons) that draws itself in on
+ *    the bar and turns a notch on each beat (rings turn opposite ways);
+ *  - the song's waveform as the rose at the centre;
+ *  - your notes light the pane of their string's ring at their fret's angle;
+ *  - only a soft glow is carried over from the last frame (no smear).
+ */
 const MANDALA = HEAD + `
-uniform float uFold;
-vec2 fold(vec2 p, float n) {
-  float a = atan(p.y, p.x), r = length(p);
-  float seg = 2.0 * PI / n;
-  a = mod(a, seg);
-  a = abs(a - seg * 0.5);
-  return vec2(cos(a), sin(a)) * r;
+uniform float uFold, uTurn, uDraw;
+// petal cell of a ring: (angle index, angle within the cell 0-1)
+vec2 cell(float a, float n, float off) {
+  float u = (a / (2.0 * PI) + 0.5) * n + off;
+  return vec2(floor(u), fract(u));
 }
+float lead(float d, float w) { return smoothstep(w, w * 0.35, d); }
 void main() {
-  vec2 p = cen(gl_FragCoord.xy);
-  float bass = uBands.x;
-  // last frame, folded, turned and zoomed: everything drifts outward and spins
-  vec2 pp = fold(p, uFold) * rot(0.004 + uKick * 0.05 + sin(uPhase * 0.2) * 0.01);
-  pp *= 0.985 - uKick * 0.035 - bass * 0.008;
-  pp += vec2(sin(uPhase * 0.31), cos(uPhase * 0.23)) * 0.004;
-  pp += (vec2(noise(pp * 6.0 + uPhase * 0.4), noise(pp * 6.0 - uPhase * 0.4 + 3.0)) - 0.5) * 0.006;
-  vec2 uv = pp * vec2(uRes.y / uRes.x, 1.0) + 0.5;
-  vec3 prev = texture(uPrev, uv).rgb;
-  // slowly turn the old colours so it keeps changing
-  float cs = cos(0.025), sn = sin(0.025);
-  prev = vec3(prev.r * cs + prev.g * sn * 0.6, prev.g * cs + prev.b * sn * 0.6, prev.b * cs + prev.r * sn * 0.6);
-  prev *= 0.9 - 0.04 * uHighway;
-  // fresh light: the waveform as a ring, the spectrum as petals
+  vec2 p = cen(gl_FragCoord.xy) * 1.12;
+  p.y -= 0.06 * uHighway;
   float r = length(p), a = atan(p.y, p.x);
-  float ring = 0.16 + bass * 0.12 + uKick * 0.06;
-  float w = wave(a / (2.0 * PI) + 0.5) * (0.05 + uEnergy * 0.06);
-  float line = exp(-abs(r - ring - w) * 160.0);
-  vec2 fp = fold(p, uFold);
-  float fa = atan(fp.y, fp.x) / (PI / uFold);
-  float sv = spec(0.05 + fa * 0.7);
-  float petal = exp(-abs(r - (0.34 + sv * 0.28)) * 70.0) * sv;
-  vec3 c1 = pal(0.1 + uPhase * 0.03 + r);
-  vec3 c2 = pal(0.55 + fa * 0.3 + uPhase * 0.02);
-  float inner = exp(-abs(r - 0.07 - bass * 0.04 - w * 0.5) * 220.0);
-  vec3 col = c1 * (line + inner * 0.6) * (0.25 + uEnergy * 0.5) + c2 * petal * 0.35;
-  // your notes: sparks on the fold lines, in the note's colour
-  float ga = uGuitar.y * uGuitar.w;
-  col += hue(uGuitar.z) * exp(-length(fp - vec2(0.22 + uGuitar.x * 0.2, 0.0)) * 30.0) * ga * 3.0;
+  float beatTurn = uTurn; // eased quarter-steps on beats, from the page
+  vec3 col = vec3(0.0);
+  float lit = 0.0;
+  // rings: inner radius, outer radius, panes, which band lights it
+  const int RINGS = 5;
+  float edges[6] = float[6](0.07, 0.15, 0.24, 0.34, 0.46, 0.62);
+  float counts[5] = float[5](6.0, 8.0, 12.0, 16.0, 24.0);
+  float leadMask = 0.0;
+  for (int k = 0; k < RINGS; k++) {
+    float r0 = edges[k], r1 = edges[k + 1];
+    if (r < r0 - 0.01 || r > r1 + 0.01) continue;
+    float n = counts[k] * (k == 2 ? uFold / 6.0 : 1.0);
+    float dir = (k % 2 == 0) ? 1.0 : -1.0;
+    float ar = mod(a + dir * beatTurn * (0.5 + float(k) * 0.12) * (2.0 * PI / n) + PI, 2.0 * PI) - PI; // wrapped: no seam
+    vec2 c = cell(ar, n, 0.0);
+    float t = (r - r0) / (r1 - r0);
+    // a pointed petal (gothic arch) inside each pane
+    float x = c.y * 2.0 - 1.0;
+    float arch = 1.0 - pow(abs(x), 1.6 + float(k) * 0.2);
+    float inside = step(t, arch * 0.92 + 0.04);
+    float band = spec(0.03 + float(k) * 0.19 + 0.04 * hash(vec2(c.x, float(k))));
+    // the glass: jewel colours by ring and pane, slowly turning with the palette
+    float hk = fract(0.08 * float(k) + 0.5 * hash(vec2(c.x * 1.3, float(k) + 3.0)) * 0.6 + uHue * 0.5);
+    vec3 glass = mix(pal(hk), vec3(1.0, 0.78, 0.35), 0.18);
+    // a chase of light round the ring on the beat
+    float chase = exp(-abs(fract((c.x + float(k)) / n - uBeats * 0.125) - 0.5) * 18.0) * uKick;
+    float light = 0.12 + band * 1.3 + uEnergy * 0.25 + chase * 1.5;
+    // glass texture: a little mottling and a brighter middle
+    float mott = 0.75 + 0.25 * noise(p * 40.0 + float(k) * 7.0);
+    col += glass * inside * light * mott * (0.55 + 0.45 * (1.0 - abs(x)));
+    lit += inside * light;
+    // lead lines: between panes, along the arch, at the ring edges
+    float dPane = min(c.y, 1.0 - c.y) * r * 2.0 * PI / n;
+    float dArch = abs(t - (arch * 0.92 + 0.04)) * (r1 - r0);
+    float dRing = min(abs(r - r0), abs(r - r1));
+    leadMask = max(leadMask, max(lead(dPane, 0.006), max(lead(dArch, 0.005), lead(dRing, 0.006))));
+  }
+  // the rose at the centre: the waveform, folded
+  if (r < edges[0] + 0.01) {
+    float w = wave(a / (2.0 * PI) + 0.5) * (0.02 + uEnergy * 0.03);
+    float rose = exp(-abs(r - 0.045 - w - uBands.x * 0.012) * 260.0);
+    col += pal(0.1 + uPhase * 0.02) * rose * (0.6 + uEnergy) + vec3(1.0, 0.85, 0.5) * exp(-r * 40.0) * (0.3 + uKick);
+  }
+  // gold tracery: a star polygon that draws in over the bar
+  float n2 = uFold;
+  float seg = 2.0 * PI / n2;
+  float aa = mod(a + beatTurn * 0.25, seg) - seg * 0.5;
+  vec2 q = vec2(cos(aa), sin(aa)) * r;
+  float star = abs(q.x * cos(PI / n2 * 2.0) + abs(q.y) * sin(PI / n2 * 2.0) - 0.40);
+  float drawn = step(fract(a / (2.0 * PI) + 0.5), uDraw);
+  float gold = exp(-star * 300.0) * drawn * step(r, 0.62);
+  float circ = exp(-abs(r - 0.66) * 260.0) + exp(-abs(r - 0.70 - uBands.w * 0.02) * 400.0) * 0.6;
+  vec3 brass = vec3(1.0, 0.76, 0.36);
+  col += brass * (gold * (0.55 + uKick * 0.8) + circ * (0.25 + uBands.w * 0.8));
+  // your notes: the pane of the string's ring at the fret's angle
   for (int i = 0; i < 8; i++) {
     vec4 h = uHits[i];
-    if (h.z > 0.5) continue;
-    float rr = 0.12 + h.x * 0.45;
-    col += stringRGB(h.y) * exp(-length(fp - vec2(rr, 0.03 * h.y)) * 45.0) * exp(-h.z * 8.0) * 1.5;
+    if (h.z > 0.8) continue;
+    int k = int(clamp(5.0 - h.y, 0.0, 4.0));
+    float rr = (edges[k] + edges[k + 1]) * 0.5;
+    float ang = (h.x - 0.5) * 2.0 * PI;
+    vec2 hp = vec2(cos(ang), sin(ang)) * rr;
+    col += stringRGB(h.y) * exp(-length(p - hp) * 22.0) * exp(-h.z * 4.0) * (1.2 + h.w);
   }
-  // a soft heart that pulses with the kick
-  col += pal(uPhase * 0.05) * exp(-r * 12.0) * uKick * 0.35;
-  o = vec4(prev + col, 1.0);
+  // dark leading over everything, then a halo of light leaking around the window
+  col *= 1.0 - leadMask * 0.92;
+  col += vec3(0.9, 0.6, 0.3) * exp(-max(0.0, r - 0.62) * 9.0) * step(0.62, r) * (0.05 + uEnergy * 0.08);
+  // the glow only (never the shapes) carries over
+  vec3 prev = texture(uPrev, vUv).rgb;
+  o = vec4(max(col, prev * 0.55), 1.0);
 }`;
 
 // ----------------------------------------------------------- Strings --
@@ -207,14 +254,111 @@ void main() {
       y += sin((abs(x - x0) - h.z * 0.9) * 40.0) * env * (0.03 + 0.03 * h.w);
       amp += env;
     }
+    // 4.5: the string rings as a real string does: a standing wave with nodes at the frets
+    y += sin(x * 9.0 * (1.0 + s * 0.15)) * sin(uTime * (31.0 + s * 7.0)) * band * band * 0.025;
     float d = abs(p.y - y);
     float glow = exp(-d * 320.0) * 1.0 + exp(-d * 55.0) * 0.12;
+    // sparks run along a plucked string
+    float run = 0.0;
+    for (int i = 0; i < 8; i++) {
+      vec4 h = uHits[i];
+      if (h.z > 0.9 || abs(h.y - s) > 0.5) continue;
+      float x0 = (h.x - 0.5) * aspect * 0.9;
+      run += exp(-abs(abs(x - x0) - h.z * 1.4) * 60.0) * exp(-h.z * 3.0) * exp(-d * 120.0);
+    }
+    col += vec3(1.0, 0.95, 0.85) * run * 1.6;
     float bright = 0.18 + band * 0.9 + uKick * 0.25 + amp * 2.5;
     // your guitar lights the string that fits the note you play
     float mine = uGuitar.w * uGuitar.x * exp(-abs(clamp((uGuitar.z * 12.0), 0.0, 12.0) / 2.0 - s) * 1.2);
     col += stringRGB(s) * glow * (bright + mine * 1.5);
   }
+  // 4.5: fret wires behind, flashing on the beat, so it reads as a neck, not lines
+  float fx = p.x * 7.0 + 0.5;
+  float wire = exp(-abs(fract(fx) - 0.5) * 2.0 * 140.0 / 7.0);
+  float span = smoothstep(gap * 3.4, gap * 2.6, abs(p.y - top));
+  col += vec3(0.75, 0.7, 0.6) * wire * span * (0.03 + uKick * 0.12);
+  // inlay dots at 3, 5, 7, 9 and the double at 12
+  vec2 g = vec2(fract(fx) - 0.5, p.y - top);
+  float fi = floor(fx) + 7.0;
+  float dotOn = (mod(fi, 12.0) == 3.0 || mod(fi, 12.0) == 5.0 || mod(fi, 12.0) == 7.0 || mod(fi, 12.0) == 9.0) ? 1.0 : 0.0;
+  col += vec3(0.9, 0.85, 0.7) * dotOn * exp(-length(g * vec2(7.0, 1.0)) * 90.0) * (0.08 + uBands.x * 0.3);
   o = vec4(prev + col * 0.4, 1.0);
+}`;
+
+// ---------------------------------------------------------- Valhalla --
+/*
+ * 4.5: the legendary venue, level 100. An open-air stage at the end of the world:
+ * aurora curtains moving with the mids, stadium light beams that sweep and strike on the
+ * beat, a sea of lighters and raised hands that brightens when the song lifts, pyro embers
+ * rising on the kicks, lightning on the snares, and your notes as golden sparks on stage.
+ */
+const VALHALLA = HEAD + `
+uniform float uSweep;
+float beam(vec2 p, vec2 o, float ang, float w) {
+  vec2 d = p - o;
+  float a = atan(d.x, d.y) - ang;
+  // a cone of light going up from the stage, fading with height
+  return exp(-a * a / (w * w)) * smoothstep(-0.01, 0.06, d.y) * exp(-d.y * 1.2);
+}
+void main() {
+  vec2 p = cen(gl_FragCoord.xy);
+  float aspect = uRes.x / uRes.y;
+  float horizon = -0.18 + 0.2 * uHighway;
+  // sky: deep blue to black, a faint gold dawn at the horizon
+  vec3 col = mix(vec3(0.05, 0.03, 0.02), vec3(0.01, 0.015, 0.05), smoothstep(horizon, 0.6, p.y));
+  col += vec3(0.5, 0.28, 0.08) * exp(-(p.y - horizon) * 7.0) * step(horizon, p.y) * (0.25 + uEnergy * 0.3);
+  // aurora: curtains that ripple with the mids, colour turning with the palette
+  float t = uPhase * 0.08;
+  float sky = smoothstep(horizon + 0.05, 0.55, p.y);
+  float curtain = fbm(vec2(p.x * 1.6 + t, p.y * 0.4 - t * 0.3));
+  float fold_ = sin(p.x * 6.0 + curtain * 6.0 + t * 3.0) * 0.5 + 0.5;
+  float aur = pow(fold_, 5.0) * smoothstep(0.1, 0.45, p.y - horizon) * (1.0 - smoothstep(0.45, 0.7, p.y));
+  vec3 ac = mix(vec3(0.2, 1.0, 0.6), vec3(0.6, 0.3, 1.0), 0.5 + 0.5 * sin(uHue * 6.2831 + p.x));
+  col += ac * aur * sky * (0.25 + uBands.z * 1.2 + uBands.y * 0.4);
+  // stars
+  vec2 g = p * 60.0; vec2 id = floor(g);
+  float st = hash(id);
+  col += vec3(1.0, 0.95, 0.85) * smoothstep(0.992, 1.0, st) * exp(-length(fract(g) - 0.5) * 10.0) * sky * (0.4 + uBands.w);
+  // stadium beams: six from the stage, sweeping with the bars, flaring on the beat
+  vec2 stage = vec2(0.0, horizon - 0.02);
+  for (int i = 0; i < 6; i++) {
+    float fi = float(i);
+    float side = fi < 3.0 ? -1.0 : 1.0;
+    vec2 o = vec2(side * (0.18 + mod(fi, 3.0) * 0.17) * aspect * 0.7, horizon - 0.02);
+    float ang = side * (0.15 + 0.12 * mod(fi, 3.0)) + sin(uSweep + fi * 1.7) * 0.35;
+    float b = beam(p, o, ang, 0.035 + uKick * 0.02);
+    vec3 bc = mix(vec3(1.0, 0.85, 0.55), pal(fi * 0.17 + uPhase * 0.01), 0.35);
+    col += bc * b * (0.18 + uKick * 0.6 + uEnergy * 0.25);
+  }
+  // the crowd: hands and heads against the light, and lighters
+  float cy = horizon - 0.02;
+  float heads = cy - 0.035 - 0.02 * noise(vec2(p.x * 40.0, 1.0)) - 0.03 * smoothstep(0.6, 1.0, noise(vec2(p.x * 18.0, floor(uBeats) * 0.37))) * (0.4 + uEnergy);
+  float crowd = step(p.y, heads);
+  vec3 crowdLight = vec3(0.6, 0.35, 0.12) * exp(-(heads - p.y) * 8.0) * (0.3 + uEnergy);
+  col = mix(col, vec3(0.012, 0.008, 0.006) + crowdLight * 0.2, crowd);
+  vec2 lg = vec2(p.x * 90.0, (p.y - cy + 0.2) * 70.0);
+  vec2 lid = floor(lg);
+  float lh = hash(lid);
+  float lighter = smoothstep(0.93, 1.0, lh) * exp(-length(fract(lg) - vec2(0.5, 0.3)) * 6.0) * crowd * step(cy - 0.32, p.y);
+  float flick = 0.6 + 0.4 * sin(uTime * (6.0 + lh * 9.0) + lh * 50.0);
+  col += vec3(1.0, 0.7, 0.3) * lighter * flick * (0.35 + uEnergy * 1.4);
+  // lightning on the snares
+  float ridge = 1.0 - abs(fbm(vec2(p.x * 3.0 + uBeats, p.y * 1.5)) * 2.0 - 1.0);
+  col += vec3(0.8, 0.85, 1.0) * pow(ridge, 30.0) * uSnap * 2.0 * sky;
+  // your notes: golden sparks on stage
+  for (int i = 0; i < 8; i++) {
+    vec4 h = uHits[i];
+    if (h.z > 1.2) continue;
+    vec2 hp = vec2((h.x - 0.5) * aspect * 0.8, horizon + 0.02 + h.z * 0.25);
+    col += mix(stringRGB(h.y), vec3(1.0, 0.8, 0.4), 0.5) * exp(-length(p - hp) * 30.0) * exp(-h.z * 3.0) * (1.0 + h.w);
+  }
+  // embers: the last frame drifts up and cools; kicks throw new ones from the stage
+  vec2 uv = vUv + vec2((noise(p * 4.0 + uPhase * 0.3) - 0.5) * 0.002, -0.0035);
+  vec3 prev = texture(uPrev, uv).rgb * vec3(0.94, 0.9, 0.84);
+  vec2 eg = vec2(p.x * 50.0, p.y * 50.0 + uTime * 3.0);
+  float ember = smoothstep(0.985, 1.0, hash(floor(eg) + floor(uTime * 8.0))) * step(p.y, horizon + 0.05) * step(horizon - 0.05, p.y);
+  vec3 fire = vec3(1.0, 0.5, 0.15) * ember * uKick * 3.0;
+  o = vec4(col + max(prev - col, 0.0) * 0.65 + fire, 1.0);
 }`;
 
 // ------------------------------------------------------------- Swarm --
@@ -342,6 +486,10 @@ export function createVisuals(host, { highway = false } = {}) {
   let last = 0;
   let fold = 6;
   let foldBeat = 0;
+  let turn = 0;
+  let turnTo = 0;
+  let lastBeat = -1;
+  let sweep = 0;
   const specBytes = new Uint8Array(64);
   const waveBytes = new Uint8Array(512);
   const hits = new Float32Array(32);
@@ -601,9 +749,21 @@ export function createVisuals(host, { highway = false } = {}) {
           // the number of folds changes every 32 kicks
           if (F.beats - foldBeat >= 32) {
             foldBeat = F.beats;
-            fold = [5, 6, 7, 8, 10][Math.floor(Math.random() * 5)];
+            fold = [6, 8, 10, 12][Math.floor(Math.random() * 4)];
           }
-          pass('mandala', MANDALA, F, now, dt, (u) => gl.uniform1f(u.uFold, fold));
+          // 4.5: the rings turn a notch on each beat (eased), the tracery draws in over each bar
+          const beat = Math.floor(F.beats);
+          if (beat !== lastBeat) (lastBeat = beat), (turnTo += 1);
+          turn += (turnTo - turn) * Math.min(1, dt * 7);
+          const bar = (F.beats % 4) / 4;
+          pass('mandala', MANDALA, F, now, dt, (u) => {
+            gl.uniform1f(u.uFold, fold);
+            gl.uniform1f(u.uTurn, turn);
+            gl.uniform1f(u.uDraw, Math.min(1, bar * 1.6 + 0.05));
+          });
+        } else if (id === 'valhalla') {
+          sweep += dt * (0.35 + F.drive * 0.8) + F.kick * dt * 3;
+          pass('valhalla', VALHALLA, F, now, dt, (u) => gl.uniform1f(u.uSweep, sweep));
         } else if (id === 'strings') pass('strings', STRINGS, F, now, dt);
         else pass('nebula', NEBULA, F, now, dt);
         finish(F, now);

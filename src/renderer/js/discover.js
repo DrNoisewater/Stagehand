@@ -1,3 +1,5 @@
+import { badgesHtml } from './songbadges.js';
+import { decorativeImage } from './menu-art.js';
 /**
  * Discover: search MusicBrainz, see what each artist's albums have that your
  * library doesn't, keep a Wanted list, and import what you download.
@@ -114,7 +116,7 @@ function iconBtn(name, title, onClick, cls = '') {
 }
 
 function emptyBox(title, text, actionsEls = []) {
-  return h('div.dv-empty', null, h('h2', { text: title }), h('p', { html: text }), actionsEls.length ? h('div.actions', null, ...actionsEls) : null);
+  return h('div.dv-empty', null, decorativeImage('empty-discover'), h('h2', { text: title }), h('p', { html: text }), actionsEls.length ? h('div.actions', null, ...actionsEls) : null);
 }
 
 // ------------------------------------------------------------ navigation --
@@ -435,7 +437,11 @@ function runBar() {
 
 // ------------------------------------------------------------------ rows --
 function statusChip(t, { quietMissing = false } = {}) {
-  if (t.have) return h('span.state.have', { html: `${icon('check')}<span>In your library</span>` });
+  if (t.have) {
+    // 4.5: what you've done with it, at a glance
+    const song = t.songId ? state.songs.get(t.songId) : null;
+    return h('span.state.have', { html: `${icon('check')}<span>In your library</span>${song ? badgesHtml(song) : ''}` });
+  }
   if (t.wanted) return h('span.state.want', { html: `${icon('star', 'fill')}<span>Wanted</span>` });
   return quietMissing ? null : h('span.state.miss', { text: 'Not in your library' });
 }

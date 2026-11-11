@@ -1,3 +1,4 @@
+import { decorativeImage } from './menu-art.js';
 /** Settings, stem engine setup, file renaming, backups and the activity pill. */
 import { api } from './api.js';
 import { state, on, emit, bump, loadLibrary, upsertSongs, loadRocksmith } from './store.js';
@@ -167,6 +168,7 @@ export async function settings(tab = 'library') {
   const wrap = h('div.settings', null, nav, section);
   const tabs = [
     ['library', 'Library'],
+    ['appearance', 'Appearance'],
     ['guitar', 'Guitar & audio'],
     ['amps', 'Real amps'],
     ['playback', 'Playback'],
@@ -177,6 +179,7 @@ export async function settings(tab = 'library') {
   ];
   const m = modal({ title: 'Settings', body: wrap, wide: true });
   m.body.style.padding = '0';
+  m.el.classList.add('panel-modal', 'settings-modal'); // 4.5: one steady size for every section
   const show = async (key) => {
     nav.querySelectorAll('.nav-item').forEach((b) => b.setAttribute('aria-current', String(b.dataset.tab === key)));
     section.innerHTML = '';
@@ -188,10 +191,13 @@ export async function settings(tab = 'library') {
     b.onclick = () => show(k);
     nav.append(b);
   }
+  nav.append(decorativeImage('settings', 'roadshow-settings-art', {next:true}),
+    h('p.roadshow-caption', {text:'The roadie handles the details.'}));
   show(tab);
 }
 
 const PANES = {
+  async appearance(el) { (await import('./identity.js')).appearancePane(el); },
   async guitar(el) {
     await (await import('./guitarsettings.js')).pane(el, setting);
   },
@@ -565,7 +571,7 @@ const PANES = {
   async about(el) {
     const vg = (await api.tools.vgmstream().catch(() => null)) || {};
     el.append(
-      h('div.about-brand', null, h('img', { src: 'splash/logo-256.png', alt: 'Noisewater Labs', title: 'Noisewater Labs', width: '44', height: '44' }), h('div', { style: { lineHeight: '1.5' } }, h('div', { style: { fontSize: '20px', fontWeight: '750', fontStretch: '118%', color: 'var(--ink)' }, text: 'Stagehand' }), h('div', { text: `Version ${state.info.version} · Noisewater Labs` })))
+      h('div.about-brand', null, h('img', { src: 'splash/logo-256.png', alt: 'Noisewater Labs', title: 'Noisewater Labs', width: '44', height: '44' }), h('div', { style: { lineHeight: '1.5' } }, h('div', { style: { fontSize: '20px', fontWeight: '750', fontStretch: '118%', color: 'var(--ink)' }, text: 'Stagehand' }), aboutVersion()))
     );
     el.append(...(await (await import('./updates.js')).aboutRows(setting, toggleCtl, saveSettings)));
     el.append(setting('Audio decoder', vg.path ? esc(vg.path) : 'Not installed yet. It installs the first time you play a song.', h('span', { class: `status-pill ${vg.path ? 'ok' : 'warn'}`, text: vg.path ? 'Installed' : 'Missing' })));
@@ -936,4 +942,27 @@ export async function duplicates() {
       toast({ title: 'Couldn’t move the copies', message: err.message, kind: 'err' });
     }
   };
+}
+
+/**
+ * 4.5: the version line in Settings › About. Clicking it seven times turns developer mode on
+ * (or off): the developer menu (Ctrl+Shift+F12) only works while it's on.
+ */
+function aboutVersion() {
+  let clicks = 0;
+  let timer = null;
+  const el = h('div', { text: `Version ${state.info.version} · Noisewater Labs`, style: { cursor: 'default', userSelect: 'none' } });
+  el.addEventListener('click', async () => {
+    clicks++;
+    clearTimeout(timer);
+    timer = setTimeout(() => (clicks = 0), 1500);
+    if (clicks < 7) return;
+    clicks = 0;
+    const cur = !!(state.settings && state.settings.developer);
+    try {
+      state.settings = await api.settings.set({ developer: !cur });
+      toast({ title: cur ? 'Developer mode off' : 'Developer mode on', message: cur ? '' : 'Ctrl+Shift+F12 opens the developer menu.', kind: 'info' });
+    } catch (_) {}
+  });
+  return el;
 }

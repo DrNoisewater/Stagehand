@@ -1,4 +1,5 @@
-import { did, venueLock } from './rewards.js';
+import { VenueRotation } from './venue-rotation.mjs';
+import { did, venueLock, venueXpLeft, L as LV } from './rewards.js';
 import { APPROACH_UNITS, approachDepth, chordSpan, isChordRepeat } from './highway-layout.js';
 /**
  * Note highway: the part coming toward you down a 3D fretboard, Rocksmith
@@ -25,6 +26,7 @@ import { createRenderer3D, col, mix } from './highway3d.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { tuningGuide } from './tuning-check.js';
+import { dropConsole } from './dropui.js';
 import { createTuner } from './tuner.js';
 import { breakdown, cheer } from './scorecard.js';
 import { StruggleWatch, nearestPick } from './struggle.js';
@@ -58,6 +60,10 @@ function load() {
   }
 }
 const prefs = load();
+let artStorage;
+try { artStorage = localStorage; } catch (_) {}
+const venueRotation = new VenueRotation({ storage: artStorage });
+const appearance = () => { try { return JSON.parse(localStorage.getItem('stagehand.appearance.v1') || '{}') || {}; } catch (_) { return {}; } };
 const save = () => {
   try {
     localStorage.setItem('stagehand.highway', JSON.stringify(prefs));
@@ -237,23 +243,45 @@ export function createHighway(stage) {
     };
     return b;
   }
+  let venuePreview = null; // 4.5: a locked venue you clicked, previewed under the list
   function venuePicker() {
-    const cur = VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse';
+    const cur = H.decorVenue || VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse';
     const grid = h('div.hw-venues');
-    for (const v of VENUES) {
+    // 4.5: in the order they unlock along the Road to 100
+    const order = new Map(((LV.st && LV.st.venues) || []).map((v, i) => [v.venue, i]));
+    const list = [...VENUES].sort((a, b) => (order.has(a.id) ? order.get(a.id) : 99) - (order.has(b.id) ? order.get(b.id) : 99));
+    for (const v of list) {
       const th = venueThumb(v);
-      // 4.4: some venues open up with levels (the one you're in always stays yours)
       const lock = cur === v.id ? 0 : venueLock(v.id);
-      const b = h(`button.hw-venue${lock ? '.locked' : ''}`, { type: 'button', title: lock ? `${v.name}: reach level ${lock} to play here` : v.name, 'aria-pressed': String(cur === v.id), ...(lock ? { 'data-lock': `LV ${lock}` } : {}) }, th ? h('img', { src: th, alt: '' }) : h(v.scene ? `i.fluid.sc-${v.scene}` : v.fluid ? 'i.fluid' : 'i.plain'), h('span', { text: v.name }));
+      const b = h(`button.hw-venue${lock ? '.locked' : ''}`, { type: 'button', title: lock ? `${v.name}: opens at level ${lock}. Click for a preview.` : v.name, 'aria-pressed': String(cur === v.id), ...(lock ? { 'data-lock': `LV ${lock}` } : {}) }, th ? h('img', { src: th, alt: '' }) : h(v.scene ? `i.fluid.sc-${v.scene}` : v.fluid ? 'i.fluid' : 'i.plain'), h('span', { text: v.name }));
       b.onclick = () => {
-        if (lock) return toast({ title: `${v.name} opens at level ${lock}`, message: 'Play songs, do today’s challenges and try new things to level up. Your level is on the Progress page.', kind: 'info' });
+        if (lock) {
+          venuePreview = venuePreview === v.id ? null : v.id;
+          return renderOpts();
+        }
+        venuePreview = null;
         setPref('venue', v.id);
         did('venue');
         renderOpts();
       };
       grid.append(b);
     }
-    return h('div.hw-opt-row', null, h('span.hw-opt-label', { text: 'Venue' }), grid);
+    const row = h('div.hw-opt-row', null, h('span.hw-opt-label', { text: 'Venue' }), grid);
+    const pv = venuePreview && VENUES.find((x) => x.id === venuePreview);
+    if (pv && venueLock(pv.id)) {
+      const lvl = venueLock(pv.id);
+      const st = LV.st;
+      const left = venueXpLeft(pv.id);
+      const lx = (st && st.levelXp) || [];
+      const k = st && lx[lvl] ? Math.max(0, Math.min(1, st.xp / lx[lvl])) : 0;
+      const th = venueThumb(pv);
+      row.append(h('div.hw-venue-preview', { role: 'status' },
+        h('span.pv-pic', null, th ? h('img', { src: th.replace('-thumb', ''), alt: '' }) : h(`i.vsw.sc-${pv.id}`)),
+        h('div', null, h('b', { text: `${pv.name} · opens at level ${lvl}` }), h('p', { text: pv.desc || 'A stage to earn on the Road to 100.' }),
+          h('div.pv-bar', null, h('i', { style: { width: `${Math.round(k * 100)}%` } })),
+          h('small', { text: st ? `You’re level ${st.level}. ${left.toLocaleString()} XP to go.` : '' }))));
+    }
+    return row;
   }
   function renderOpts() {
     opts.innerHTML = '';
@@ -280,57 +308,22 @@ export function createHighway(stage) {
   // the Drop and your tuning, right here (3.9: there was nowhere to drop on the highway)
   const dropBox = h('div.hw-drop.drop3', {style:{'--gel':'var(--gel-bass)'}});
   function renderDropBox() {
+    // 4.5: the same Drop console as the Play page (dropui.js), plus what this song needs
     dropBox.innerHTML = '';
-    dropBox.classList.toggle('on',rig.drop.on);
-    const d = rig.drop;
     const kind = instrument() === 'bass' ? 'bass' : 'guitar';
     const songT = H.tab && H.tab.tuning ? `${tuningName(H.tab.tuning, kind)}${refLabel(H.tab.cents) ? ` ${refLabel(H.tab.cents)}` : ''}` : '';
     const mine = myTuning(kind);
     const plan = H.tab ? tuningPlan(H.tab.tuning, kind, mine, H.tab.cents || 0) : { same: true };
-    // 4.3: one clear line, whether it's working right now and by how much
-    const ds = rig.dropStatus();
-    dropBox.classList.toggle('idle', ds.state === 'idle');
-    const head = h('div.hw-drop-head', null, h('div', null, h('b', { text: 'Drop' }), h('small.drop-line', { text: ds.line })));
-    const sw = h('button.drop-switch', { type: 'button', 'aria-pressed': String(d.on), title: 'The Drop on or off (D)' }, h('span.led'));
-    sw.style.setProperty('--gel', '#8c7bff');
-    sw.onclick = () => (rig.setDrop({ on: !d.on }), rig.drop.on && did('drop'));
-    head.append(sw);
-    dropBox.append(head);
-    // on, but not what this song wants (the line below says what it needs)
-    if (ds.state === 'on' && ds.warn) dropBox.append(h('div.drop-warn', { text: ds.warn }));
-    let need = '';
-    if (H.tab) need = plan.same ? `${songT}: your ${kind} is ready` : plan.drop ? `${songT} song, your ${kind} is in ${tuningName(mine, kind)}: Drop −${plan.drop}` : plan.retune.length ? `${songT}: retune ${plan.retune.map((r) => `${r.from}→${r.to}`).join(', ')}${plan.ref ? ` (to ${plan.ref})` : ''}` : `${songT}: retune every string a little (to ${plan.ref})`;
-    if (need) dropBox.append(h(`div.hw-drop-need${plan.same ? '.ok' : ''}`, { text: need }));
-    // 4.0.6: the string-by-string tuning guide (with a live tuner), any time
+    const extra = [];
     if (H.tab) {
-      const g = h('button.hw-chip.hw-drop-guide', { type: 'button', text: plan.same ? 'Check my tuning' : 'Tuning guide' });
+      const need = plan.same ? `${songT}: your ${kind} is ready` : plan.drop ? `${songT} song, your ${kind} is in ${tuningName(mine, kind)}: Drop −${plan.drop}` : plan.retune.length ? `${songT}: retune ${plan.retune.map((r) => `${r.from}→${r.to}`).join(', ')}${plan.ref ? ` (to ${plan.ref})` : ''}` : `${songT}: retune every string a little (to ${plan.ref})`;
+      const g = h('button.dc-pill', { type: 'button', text: plan.same ? 'Check my tuning' : 'Tuning guide' });
       g.onclick = () => tuningGuide({ ...H.tab, type: kind === 'bass' ? 'bass' : H.tab.type }, H.song, stage.engine);
-      dropBox.append(g);
+      extra.push(h(`div.dc-need${plan.same ? '.ok' : ''}`, null, h('span', { text: need }), g));
     }
-    // one "match the song" (4.3: there were two), then the fixed steps
-    const matchT = h('button.hw-chip.hw-drop-match', { type: 'button', text: `Match the song${plan.drop ? ` (−${plan.drop})` : ''}`, title: 'Follow each song’s tuning', 'aria-pressed': String(d.on && d.match) });
-    matchT.onclick = () => (rig.setDrop({ on: true, match: true }), did('drop'));
-    dropBox.append(matchT);
-    const steps = h('div.drop-steps');
-    for (const st of [1, 2, 3, 4, 5, 6, 7, 12]) {
-      const b = h('button', { type: 'button', text: st === 12 ? 'Oct' : `−${st}`, 'aria-pressed': String(d.on && !d.match && d.st === st) });
-      b.onclick = () => (rig.setDrop({ st, match: false, on: true }), did('drop'));
-      steps.append(b);
-    }
-    dropBox.append(steps);
-    const sel = h('select.input.hw-drop-mine', { 'aria-label': `Your ${kind} is tuned to` });
-    const cur = mine.join(',');
-    const list = kind === 'bass' ? MY_TUNINGS_BASS : MY_TUNINGS;
-    for (const o of list) sel.append(h('option', { value: o.join(','), text: tuningName(o, kind), selected: o.join(',') === cur ? true : null }));
-    if (!list.some((o) => o.join(',') === cur)) sel.append(h('option', { value: cur, text: tuningName(mine, kind), selected: true }));
-    sel.onchange = () => {
-      setMyTuning(kind, sel.value.split(',').map(Number));
-      if (H.tab) rig.setSongTuning(H.tab.tuning, kind, H.tab.cents || 0);
-      renderDropBox();
-    };
-    dropBox.append(h('label.hw-drop-mine-row', null, h('span', { text: `Your ${kind} is in` }), sel));
+    dropBox.append(dropConsole({ kind, compact: true, extra, onTuningChange: () => H.tab && rig.setSongTuning(H.tab.tuning, kind, H.tab.cents || 0) }));
   }
-  rig.addEventListener('drop', () => H.open && mixOpen && renderDropBox());
+  // (the console updates itself on Drop changes; it's rebuilt only when the song changes)
 
   // --------------------------------------------------------- score card --
   // 3.9: when a song ends, how it went: your accuracy (and whether it's a new
@@ -940,12 +933,17 @@ export function createHighway(stage) {
   }
 
   // 4.2: string order lives in Settings › Playback; it tells the highway here
+  // 4.5: the developer menu's venue tour shows each venue for a moment (nothing is saved)
+  window.addEventListener('stagehand:preview-venue', (e) => {
+    if (e.detail) H.decorVenue = e.detail;
+  });
   window.addEventListener('stagehand:highway-pref', (e) => {
     const d = e.detail || {};
     if (d.key === 'lowTop') setPref('lowTop', !!d.value);
   });
   function setPref(k, v) {
     prefs[k] = v;
+    if (k === 'venue') { H.decorVenue = v; venueRotation.use(v); }
     if (k === 'offsetMs') prefs.syncChecked = true; // 4.1.6: you've done a timing check
     save();
     if (k === 'detect') resetJudge();
@@ -1053,6 +1051,13 @@ export function createHighway(stage) {
     // Only the newest request may fill the highway: a slow answer for an older song
     // (or part) must never put its notes under the new song's title.
     const token = (H.loadToken = (H.loadToken || 0) + 1);
+    H.decorVenue = venueRotation.forSong(song.id, {
+      enabled: !!appearance().rotateVenues,
+      eligible: VENUES.filter(v => v.photo && !venueLock(v.id)).map(v => v.id),
+      fallback: VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse',
+    });
+    // 4.5: a venue that's locked now (a progression reset) falls back to the warehouse
+    if (venueLock(H.decorVenue)) H.decorVenue = 'warehouse';
     H.song = song;
     H.tab = null;
     H.targets = [];
@@ -1775,7 +1780,7 @@ export function createHighway(stage) {
     H.heat = (H.heat || 0) + (want - (H.heat || 0)) * (want < (H.heat || 0) ? 0.08 : 0.03);
     G.heat = prefs.fx ? H.heat : 0;
     G.pulse = beatPulse(t || 0);
-    const v = VENUES.find((x) => x.id === (VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse'));
+    const v = VENUES.find((x) => x.id === (H.decorVenue || VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse'));
     // the picture's floor line goes where the highway's far end meets the floor; it drifts a little with the camera
     const vpY = H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 0.8)[1] : HH * 0.4;
     R3.setVenue(v && (v.photo || v.fluid) ? v : null, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
