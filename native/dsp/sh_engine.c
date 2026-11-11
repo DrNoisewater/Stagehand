@@ -245,7 +245,7 @@ static void run_chain(slot_t *s, float *L, float *R, int n) {
 /* How much stronger the lows (around 120 Hz, or 70 Hz for bass) come out
    than the mids (around 1 kHz), relative to what went in, in dB. */
 static double low_vs_mid_db(slot_t *s, const float *x, int n, double sr, int bass, float *L, float *R) {
-  bq_t il[2], ol[2], im[2], om[2];
+  bq_t il[2] = {{0}}, ol[2] = {{0}}, im[2] = {{0}}, om[2] = {{0}}; /* filters start from silence */
   for (int k = 0; k < 2; k++) {
     bq_set(&il[k], BQ_BP, sr, bass ? 70 : 120, 0.8, 0), bq_set(&ol[k], BQ_BP, sr, bass ? 70 : 120, 0.8, 0);
     bq_set(&im[k], BQ_BP, sr, 1000, 1.0, 0), bq_set(&om[k], BQ_BP, sr, 1000, 1.0, 0);

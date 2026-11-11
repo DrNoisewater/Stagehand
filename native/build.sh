@@ -7,7 +7,7 @@
 set -e
 cd "$(dirname "$0")"
 TC=${SH_TOOLCHAIN:-/home/claude/tc}
-DSP="dsp/sh_util.c dsp/sh_amp.c dsp/sh_cab.c dsp/sh_fx.c dsp/sh_rev.c dsp/sh_engine.c dsp/sh_nam.c"
+DSP="dsp/sh_util.c dsp/sh_amp.c dsp/sh_cab.c dsp/sh_fx.c dsp/sh_drive.c dsp/sh_pitch.c dsp/sh_rev.c dsp/sh_engine.c dsp/sh_nam.c"
 mkdir -p build bin
 CF="-O3 -ffp-contract=fast -fno-math-errno -Wall -Wno-unused-function"
 cc $CF -o build/dsp_bench test/dsp_bench.c $DSP -lm

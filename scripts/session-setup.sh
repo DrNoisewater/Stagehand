@@ -31,7 +31,7 @@ get "$(uv_url)" "$DEPS/uv.zip" &
 # the fake-device audio helper for the UI tests (the shipped .exe is in native/bin; rebuild it
 # with native/build.sh only when native/ changes)
 cd "$ROOT/native" && mkdir -p build
-DSP="dsp/sh_util.c dsp/sh_amp.c dsp/sh_cab.c dsp/sh_fx.c dsp/sh_rev.c dsp/sh_engine.c dsp/sh_nam.c"
+DSP="dsp/sh_util.c dsp/sh_amp.c dsp/sh_cab.c dsp/sh_fx.c dsp/sh_drive.c dsp/sh_pitch.c dsp/sh_rev.c dsp/sh_engine.c dsp/sh_nam.c"
 cc -O3 -ffp-contract=fast -fno-math-errno -Wno-unused-function -pthread -o build/stagehand-audio-fake host/host.c host/io_fake.c $DSP -lm
 wait
 "$LM/bin/x86_64-w64-mingw32-clang" --version | head -1

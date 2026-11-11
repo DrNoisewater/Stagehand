@@ -33,7 +33,7 @@ node --test test/instrument.test.mjs   # guitar-or-bass sensing (also in npm tes
 # Linux helper with a fake audio device, needed by the e2e rig/UI tests (native/build/ is git-ignored)
 cd native && mkdir -p build && cc -O3 -ffp-contract=fast -fno-math-errno -Wno-unused-function -pthread \
   -o build/stagehand-audio-fake host/host.c host/io_fake.c \
-  dsp/sh_util.c dsp/sh_amp.c dsp/sh_cab.c dsp/sh_fx.c dsp/sh_rev.c dsp/sh_engine.c dsp/sh_nam.c -lm && cd ..
+  dsp/sh_util.c dsp/sh_amp.c dsp/sh_cab.c dsp/sh_fx.c dsp/sh_drive.c dsp/sh_pitch.c dsp/sh_rev.c dsp/sh_engine.c dsp/sh_nam.c -lm && cd ..
 
 # the rig end to end in Chromium (real rig.js + WebAssembly + relay + fake helper); ends with "all passed"
 node test/e2e/rig-chromium.js native/build/stagehand-audio-fake <outDir>
