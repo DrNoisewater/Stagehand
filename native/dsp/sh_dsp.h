@@ -188,6 +188,22 @@ int pitch_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr);  /* sh_p
    It opens above max(thr_db, floor + 12) + offset and closes 6 dB lower. */
 int gate_build_default(sh_block *b, sh_arena *a, double sr, float thr_db, float *live);
 
+/* Yeh & Smith bass/mid/treble tone stack from real part values (sh_amp.c). kind: 0 Fender, 1 Marshall, 2 Vox.
+   Controls 0..1; bass uses a log taper. */
+typedef struct {
+  double b[4], a[4];
+  double z[3];
+} tmb_t;
+void ts_design(tmb_t *ts, int kind, double sr, double tre, double mid, double bas);
+static inline float tmb_run(tmb_t *t, float xf) {
+  double x = xf;
+  double y = t->b[0] * x + t->z[0];
+  t->z[0] = t->b[1] * x - t->a[1] * y + t->z[1];
+  t->z[1] = t->b[2] * x - t->a[2] * y + t->z[2];
+  t->z[2] = t->b[3] * x - t->a[3] * y;
+  return (float)y;
+}
+
 /* FFT (complex, in-place, n power of two) */
 void sh_fft(double *re, double *im, int n, int inverse);
 

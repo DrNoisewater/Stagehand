@@ -19,8 +19,20 @@ make the drive, fuzz and pitch pedals realistic in the C engine.
 - The committed stagehand-audio.exe was the 4.5 engine (4.6 couldn't rebuild it). This session's network
   allows llvm-mingw, so it is rebuilt with each step.
 
+- Aliasing at 4x was worse than the old soft curves (Muff -41 vs -87 dB at 660 Hz): real clipping edges are that
+  sharp. Fixed by running the circuits at 8x (an 11-tap half-band inside the 4x stage): Muff -56, RAT -79.
+- Denormals after a note fades made the RAT cost 18% of a core in silence: 1e-15 guard + FTZ/DAZ, now ~1%.
+- sh_log2f_fast is too rough for the transistor equations: sh_drive.c has its own `lnf`.
+- Levels: calibrated with a riff against the old pedals at default knobs (within 0.1 dB); the engine normalises each
+  tone's loudness anyway, so the level mainly sets how hard the amp is pushed.
+- The tone-recipe sustain check (hairlead >= 2 s) flips between 1.7 and 2.28 s because the echo refills the note;
+  the hair lead's TS Tone went 55 -> 70 to keep it passing (no pedal at all also gives 1.7).
+- Pitch: shifting up needs room for the old head to finish its fade (dmin grows with the ratio, shorter fades);
+  the splice search compares only samples already written.
+
 ## Status
 - [x] split files, bug fix, exe + wasm rebuilt, npm test ok
-- [ ] drives and fuzzes
-- [ ] pitch pedals
-- [ ] tests, gear coverage, HANDOFF/README, version bump
+- [x] drives and fuzzes (8x, calibrated, tone ranges widened on Fuzz Was He / Germanium / Custom)
+- [x] pitch pedals
+- [x] tests (test/pedals-wasm.cjs), gear coverage 671/671, HANDOFF/README, version 4.7.0
+- [ ] the user's ears: ask how each pedal feels

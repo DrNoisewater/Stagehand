@@ -133,7 +133,7 @@ export const STYLES = {
       bass: 0.5,
       mid: 0.72,
       treble: 0.6,
-      pre: [P('Pedal_SuperDrive', { Gain: 35, Tone: 55 })],
+      pre: [P('Pedal_SuperDrive', { Gain: 35, Tone: 70 })],
       post: [P('Pedal_Chorus20', { Rate: 0.6, Depth: 25, Mix: 20 }), P('Pedal_AnalogueDelay', { Time: 420, Feedback: 28, Mix: 24 })],
       reverb: 0.35,
     },

@@ -558,6 +558,10 @@ static void floor_frame(sh_engine *e, float db) {
 
 void sh_engine_process(sh_engine *e, const float *in, float *outL, float *outR, int n) {
   if (n > SH_MAX_BLOCK) n = SH_MAX_BLOCK;
+#if defined(__SSE__) || defined(__x86_64__)
+  /* tiny numbers left as a sound dies away are very slow on x86: treat them as zero (this thread) */
+  __builtin_ia32_ldmxcsr(__builtin_ia32_stmxcsr() | 0x8040);
+#endif
   for (int i = 0; i < n; i++) {
     e->in_g += 0.002f * (e->in_g_t - e->in_g);
     float x = op_hp(&e->dc, in[i]) * e->in_g;

@@ -172,6 +172,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.7:** the overdrive, distortion, fuzz and booster pedals are now built like the real circuits: they clean up when you play softer and react to how hard you dig in. The pitch pedals hold a clean, steady note instead of warbling.
 - **4.6.1:** the window buttons (minimize, maximize, close) come back after you leave the highway or Jam.
 - **4.6:** a Gear page with every piece of gear as a photo you can turn the knobs on, and Create a tone rebuilt as a pedalboard with cables that light up as you play. Every knob on every piece now changes the sound, and the cabinet has a mic you can move (center to edge, close or back, angled, plus a room mic).
 - **4.5:** the Road to 100. Levels now go to 100 (about a year of regular playing), venues open all along the way (Valhalla, a new legendary venue, at 100; Mandala rebuilt as a stained-glass rose window), achievements in six tiers up to Legendary, song mastery from First play to Mastered, and a redesigned Progress page (Overview, Career stats, Achievements, Song mastery, History). Your lifetime stats (every chord and note) are kept apart from levels and backed up every day. A new Drop console, steady-size Settings, badges on songs, album art that no longer blinks, and Stagehand's own window buttons. Venues you already had in 4.4 stay yours.
