@@ -1,3 +1,10 @@
+# 4.6.1 — window buttons come back after the highway (2026-11-11)
+
+User (screenshot): after opening the highway, the minimize/maximize/close buttons were gone. Cause: on Windows,
+`isFullScreen()` can still be true inside Electron's 'leave-full-screen', so main sent `fullscreen: true` and the page kept
+`html[data-win='full']` (which hides `.win-ctl`). Now main.js sends `fullscreen: false` on 'leave-full-screen' and re-checks
+after 250 ms and 1 s; the page also re-asks `win:state` after any window resize. Ask the user to confirm on their PC.
+
 # 4.6.0 — Gear showroom, Create a Tone rig with cables, engine: every knob live + a movable mic (2026-11-11)
 
 The user sent the remaining gear photos (Amps, Cabinets, Pedals, Rack-effects, Previously-included zips) and a

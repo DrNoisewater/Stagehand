@@ -394,8 +394,16 @@ function createWindow() {
   win.on('app-command', (_e, cmd) => {
     if (cmd === 'browser-backward') send('nav:back');
   });
-  const winState = () => send('win:state', { maximized: win.isMaximized(), fullscreen: win.isFullScreen() });
-  for (const ev of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) win.on(ev, winState);
+  const winState = () => win && !win.isDestroyed() && send('win:state', { maximized: win.isMaximized(), fullscreen: win.isFullScreen() });
+  for (const ev of ['maximize', 'unmaximize']) win.on(ev, winState);
+  // 4.6.1: on Windows, isFullScreen() can still say true inside 'leave-full-screen', so the page
+  // kept hiding the window buttons after the highway closed. Say what happened, then check again.
+  win.on('enter-full-screen', () => send('win:state', { maximized: win.isMaximized(), fullscreen: true }));
+  win.on('leave-full-screen', () => {
+    send('win:state', { maximized: win.isMaximized(), fullscreen: false });
+    setTimeout(winState, 250);
+    setTimeout(winState, 1000);
+  });
   win.on('resize', saveBounds);
   win.on('move', saveBounds);
   win.on('closed', () => (win = null));

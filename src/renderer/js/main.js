@@ -97,7 +97,16 @@ document.addEventListener('keydown', (e) => {
     // double-click on the bar itself is Windows' own maximize (drag region); keep the buttons out of it
     ctl.addEventListener('dblclick', (e) => e.stopPropagation());
     try { api.on('win:state', paint); } catch {}
-    if (winApi.winState) winApi.winState().then(paint).catch(() => paint(null));
+    if (winApi.winState) {
+      winApi.winState().then(paint).catch(() => paint(null));
+      // 4.6.1: leaving full screen (the highway, Jam) resizes the window: ask again then,
+      // so the buttons never stay hidden on a stale "full screen"
+      let t = 0;
+      window.addEventListener('resize', () => {
+        clearTimeout(t);
+        t = setTimeout(() => winApi.winState().then(paint).catch(() => {}), 200);
+      });
+    }
   } else if (ctl) ctl.hidden = true;
 }
 
