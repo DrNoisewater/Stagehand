@@ -1,3 +1,4 @@
+import { decorativeImage } from './menu-art.js';
 /**
  * Backstage (4.3): the page just above Getting started on the left menu. It replaces the
  * Recordings window and Friends (with their codes).
@@ -295,7 +296,7 @@ function renderRoom() {
   const people = st.people;
   if (V.who && !people.some((p) => p.addr === V.who)) V.who = null;
   if (!people.length) {
-    panel.append(h('div.gr-empty', null, h('span.gr-orb', { html: icon('people') }), h('b', { text: 'Nobody else is here right now' }), h('p', { text: 'People show up here while their Stagehand is open, with the clips they choose to show. Record a clip on the highway or in Jam, then show it from My clips.' })));
+    panel.append(h('div.gr-empty', null, decorativeImage('empty-greenroom'), h('b', { text: 'Nobody else is here right now' }), h('p', { text: 'People show up here while their Stagehand is open, with the clips they choose to show. Record a clip on the highway or in Jam, then show it from My clips.' })));
     return;
   }
   // who's here: a chip each (pick one to see just their clips)
@@ -645,7 +646,7 @@ async function renderMine() {
   const line = !st || !st.joined ? 'Show a video backstage and everyone can watch it while your Stagehand is open.' : showing ? `${showing} clip${showing === 1 ? '' : 's'} backstage. People can watch ${showing === 1 ? 'it' : 'them'} while your Stagehand is open.` : 'Nothing backstage yet. Press Show on a video to put it there.';
   panel.append(h('div.gr-minehead', null, h('span.gr-share-ic', { html: icon('people') }), h('span.grow', { text: line }), folder));
   if (!all.length) {
-    panel.append(h('div.gr-empty', null, h('span.gr-orb', { html: icon('record') }), h('b', { text: 'Nothing recorded yet' }), h('p', { text: 'Record a video on the highway (Tools › Record a video clip) or in Jam, or use the looper and Record take.' })));
+    panel.append(h('div.gr-empty', null, decorativeImage('empty-greenroom'), h('b', { text: 'Nothing recorded yet' }), h('p', { text: 'Record a video on the highway (Tools › Record a video clip) or in Jam, or use the looper and Record take.' })));
     return;
   }
   const list = h('div.gr-list');

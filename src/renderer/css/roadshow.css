@@ -1,0 +1,191 @@
+/* ROADSHOW — scoped to application chrome and non-highway overlays.
+   No root tokens, gameplay selectors, canvas changes or animation loops. */
+#app {
+  --house:#171514; --deck:#201e1b; --deck-2:#282521; --riser:#34302b;
+  --card:#24211e; --card-line:#514b40; --well:#171614;
+  --ink:#f5edda; --ink-2:#cec4b1; --ink-3:#aea393;
+  --rule:#514b40; --rule-soft:#3a352e; --focus:#ffe478;
+  --select:#f4d36c; --poster:#f4d36c; --poster-alt:#dc6650;
+  background:#171514;
+}
+#app[data-mood='play'] { --poster:#edbf58; --poster-alt:#ed6849; --show-wash:#35231c; }
+#app[data-mood='songs'] { --poster:#74d5ca; --poster-alt:#e786ae; --show-wash:#173331; }
+#app[data-mood='tones'] { --poster:#c5a1ed; --poster-alt:#c6d76c; --show-wash:#302038; }
+#app[data-mood='discover'] { --poster:#e99950; --poster-alt:#7ed2c8; --show-wash:#39291b; }
+#app[data-mood='progress'] { --poster:#cbd66b; --poster-alt:#e8b164; --show-wash:#30341e; }
+#app[data-mood='greenroom'] { --poster:#eb9bb5; --poster-alt:#a99ce3; --show-wash:#382330; }
+#app .titlebar { background:#191715 url('../art/roadshow/flight-case.webp') center/760px; border-bottom:2px solid #625647; }
+#app .brand > span:not(.brand-ver) { color:#f3e7cb; font-stretch:65%; font-weight:900; font-size:25px; transform:rotate(-2deg) skew(-9deg); text-shadow:2px 2px #000; }
+#app .search { border-radius:2px; background:#151413; border-color:#6b6051; box-shadow:inset 0 2px 6px #0008; }
+#app .workspace { grid-template-rows:158px minmax(0,1fr); }
+#app .identity-banner {
+  padding:14px 32px; border-bottom:3px solid #81735f;
+  background:linear-gradient(100deg,var(--show-wash) 0%,#191715d9 62%,#19171555),url('../art/roadshow/flight-case.webp') center/850px;
+}
+#app .identity-banner::before { inset:0 15% 0 auto; width:38%; transform:skew(-18deg); opacity:.32; background:repeating-linear-gradient(90deg,transparent 0 37px,var(--poster) 37px 40px); }
+#app .identity-banner::after { inset:auto 0 0; height:5px; width:auto; background:var(--poster); clip-path:polygon(0 40%,5% 0,14% 55%,25% 10%,38% 65%,51% 0,68% 70%,79% 0,91% 60%,100% 20%,100% 100%,0 100%); }
+#app .identity-title { color:#f6ebd3; font-size:58px; font-stretch:62%; line-height:1; letter-spacing:-.045em; transform:rotate(-1.4deg); transform-origin:left; text-shadow:3px 3px #0c0a09,5px 5px #0005; margin:7px 0 5px; }
+#app .identity-kicker { color:#211b13; font-size:10px; font-weight:900; letter-spacing:.14em; transform:rotate(-1deg); }
+#app .identity-kicker::before { background:var(--poster); clip-path:polygon(2% 0,98% 5%,100% 85%,94% 93%,2% 100%,0 65%); box-shadow:none; }
+#app .identity-line { color:#d5c9b2; font-size:12px; }
+#app .identity-art { flex-basis:300px; width:300px; height:158px; object-fit:contain; transform:rotate(3deg); filter:drop-shadow(3px 5px 0 #0007); }
+#app .identity-options { border-radius:1px; color:#e5d5b9; background:#29241d; border-color:#77644e; }
+#app .sidebar { background:linear-gradient(#171512e8,#171512ee),url('../art/roadshow/flight-case.webp') center/600px; border-right:3px double #6c5f4d; }
+#app .nav-section { height:43px; border-radius:1px; font-size:14px; font-weight:850; font-stretch:80%; text-transform:uppercase; letter-spacing:.025em; }
+#app .nav-section[aria-current='page'] { color:#201b14; border-color:#e5d19b; background:var(--poster); box-shadow:3px 3px #0009; transform:rotate(-1.2deg); }
+#app .nav-section[aria-current='page'] svg { color:#292016; }
+#app .nav-section:hover:not([aria-current='page']) { background:#393126; color:#f6e9cf; }
+#app .nav-item[aria-current='true'] { background:#3b3428; color:#f7df9f; border-left:2px solid #d4b45e; }
+#app .nav-group-label { font-weight:850; letter-spacing:.12em; color:#c8b78d; }
+#app .roadshow-sticker { display:flex; align-items:center; gap:8px; margin:16px 6px 8px; padding:7px; border-block:1px dashed #796951; color:#cfbea0; pointer-events:none; }
+#app .roadshow-sticker img { width:64px; height:76px; object-fit:contain; transform:rotate(-9deg); }
+#app .roadshow-sticker span { max-width:90px; font-size:11px; font-weight:900; line-height:1.2; letter-spacing:.04em; transform:rotate(-3deg); }
+#app .guitar-card { border-radius:2px; background:#26241f; border:1px solid #70644f; box-shadow:inset 0 0 0 2px #15130f; }
+#app .page { background:linear-gradient(#191714ee,#191714f5),url('../art/roadshow/flight-case.webp') center/950px; }
+#app :is(.card,.slot,.tk-card,.tones-sec,.dis-card,.gr-card,.goal-card) { border-radius:2px; border-color:#554a3b; background-color:#26221d; box-shadow:3px 4px 0 #08070666,inset 0 0 0 1px #ffffff06; }
+#app .card { background-image:radial-gradient(circle at 6px 6px,#a4916f 0 1px,#14120f 1px 2px,transparent 3px),radial-gradient(circle at calc(100% - 6px) 6px,#a4916f 0 1px,#14120f 1px 2px,transparent 3px); }
+#app :is(.card-head h2,.card > h2,.tones-sec h3,.progress-head h1,.play-head h1,.gr-head h1,.discover h1) { text-transform:uppercase; font-weight:900; font-stretch:70%; letter-spacing:.02em; color:#f1dfbb; }
+#app :is(.card-head h2,.card > h2) { font-size:15px; }
+#app :is(.btn,.gseg,.seg,.input,select,textarea,input[type='search'],input[type='text']) { border-radius:2px; }
+#app .btn { font-weight:750; }
+#app .btn.soft { border-color:#685c49; background:#302a21; color:#e5d8bf; box-shadow:0 2px #100e0b; }
+#app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary) { color:#241c0d; background:#f1ce68; border-color:#ffe4a0; box-shadow:2px 3px #080704; }
+#app :is(.btn.primary,.btn.glow-primary):hover { background:#ffe38d; transform:translateY(-1px); }
+#app .btn.danger { background:#4b2220; color:#ffc9bf; border-color:#b86356; }
+#app :is(.btn.rec.on,.btn.rec.recording) { background:#672923; color:#fff1e9; border-color:#ff7863; }
+#app :is(.gseg,.seg) { background:#171510; border-color:#665a47; }
+#app :is(.gseg,.seg) button[aria-pressed='true'] { background:#54452b; color:#ffe7ac; box-shadow:inset 0 -2px #e4bd61; }
+#app .nowbar { background:#171410 url('../art/roadshow/flight-case.webp') center/850px; border-top:3px double #72634b; }
+#app .round-play { color:#22180b; background:#f0ca63; border:2px solid #ffe9ac; box-shadow:2px 2px #000; }
+#app .lib-head { background:#242c27; border-bottom:2px solid #5c8073; }
+#app .lib-head h1 { font-stretch:66%; text-transform:uppercase; color:#d9f0dc; font-size:27px; }
+#app .table-head { background:#29271f; color:#dfcfa9; border-bottom:2px solid #796647; }
+#app .scroller { background:#1b1a16; }
+#app .row:hover { background:#302f25; }
+#app .row.sel { background:#30413a; box-shadow:inset 3px 0 #91d8b8; }
+#app .row.sel .t { color:#f2f4db; }
+#app .tile .cover { border-radius:1px; border:3px solid #b7a68a; box-shadow:4px 5px #08070588; }
+#app .tile.sel .cover { border-color:#8bd2bb; box-shadow:4px 5px #08070588,0 0 0 2px #8bd2bb; }
+#app .inspector { background:#201e18; border-left:2px solid #655843; }
+#app .insp-cover { border-radius:1px; border:4px solid #cebea0; box-shadow:4px 5px #0007; }
+#app .tones-list { background:#201a24; border-right:2px solid #675572; }
+#app .tones-edit { background:linear-gradient(#201c21ed,#201c21f5),url('../art/roadshow/flight-case.webp') center/750px; }
+#app .tk-card.on,#app .slot.on { border-color:var(--poster); box-shadow:inset 0 -3px var(--poster),3px 3px #0008; }
+#app .knob-well { background:#151413; border:2px solid #544b3f; border-radius:2px; box-shadow:inset 0 3px 8px #0008; }
+#app .rknob .ring { filter:drop-shadow(2px 3px 2px #0008); }
+#app .bk { border-radius:2px; border-color:#74654c; background:#302a20; }
+#app .bk-art { height:74px; }
+#app .dis-tabs { border-bottom:2px solid #85613e; }
+#app .dis-card { border-radius:2px; border-color:#65503a; }
+#app .goal-card.earned { border-color:#b9c45e; background:#2c301d; animation:none; }
+#app .gr-hero { background:#36232d; border:1px solid #775165; border-radius:2px; }
+#app .gr-hero h1 { font-stretch:65%; text-transform:uppercase; }
+/* All dialogs, wizards, settings panes, downloads and menus inherit the same
+   treatment, except while the highway is visible (including its own dialogs). */
+body:not(:has(.highway:not([hidden]))) #overlays { --ink:#f4e8d0; --ink-2:#cec0a6; --ink-3:#b4a68f; --card:#29241e; --rule:#635541; --well:#171410; --focus:#f2d16e; }
+body:not(:has(.highway:not([hidden]))) #overlays .modal { border-radius:3px; background:#24201b; border:2px solid #887558; box-shadow:7px 9px 0 #0008,0 20px 80px #000b; }
+body:not(:has(.highway:not([hidden]))) #overlays .modal > header { min-height:64px; border-bottom:3px solid #b49352; background:linear-gradient(90deg,#38291de8,#1d1813d9),url('../art/roadshow/flight-case.webp') center/700px; }
+body:not(:has(.highway:not([hidden]))) #overlays .modal > header h2 { color:#f1deb4; font-size:25px; text-transform:uppercase; font-stretch:65%; font-weight:900; letter-spacing:.025em; transform:rotate(-1deg); }
+body:not(:has(.highway:not([hidden]))) #overlays .modal > footer { background:#191610; border-color:#6f5e44; }
+body:not(:has(.highway:not([hidden]))) #overlays :is(.btn,.input,select,textarea,.pb-pedal,.pb-choice,.tw-card,.gs-card) { border-radius:2px; }
+body:not(:has(.highway:not([hidden]))) #overlays .btn.primary { background:#edcb70; color:#231c0f; border-color:#ffe1a0; box-shadow:2px 2px #0008; }
+body:not(:has(.highway:not([hidden]))) #overlays .btn.soft { background:#382f22; border-color:#7a6748; color:#edddbd; }
+body:not(:has(.highway:not([hidden]))) #overlays .settings nav { background:#191611; border-right:2px solid #66553d; }
+body:not(:has(.highway:not([hidden]))) #overlays .settings .nav-item[aria-current='true'] { background:#d9bd74; color:#261b0e; font-weight:850; border-radius:1px; }
+body:not(:has(.highway:not([hidden]))) #overlays .settings h3 { font-stretch:75%; text-transform:uppercase; color:#edd49b; }
+body:not(:has(.highway:not([hidden]))) #overlays .settings .roadshow-settings-art { display:block; width:128px; height:126px; object-fit:contain; margin:16px auto 6px; pointer-events:none; }
+body:not(:has(.highway:not([hidden]))) #overlays .roadshow-caption { color:#cdb68a; font-size:11px; font-weight:850; text-align:center; margin:0 10px 16px; text-transform:uppercase; }
+body:not(:has(.highway:not([hidden]))) #overlays .pb-chain { background:#17130f; border:2px solid #716047; border-radius:2px; }
+body:not(:has(.highway:not([hidden]))) #overlays :is(.pb-pedal,.pb-choice) { background:#2b261f; border-color:#766347; }
+body:not(:has(.highway:not([hidden]))) #overlays .pb-art { height:98px; }
+body:not(:has(.highway:not([hidden]))) #overlays .gs-steps { background:#201a13; border-color:#735d40; }
+body:not(:has(.highway:not([hidden]))) #overlays .gs { background:#28211a; }
+body:not(:has(.highway:not([hidden]))) :is(.menu,.context-menu,.toast) { background:#292219; color:#f1e1c4; border-color:#806b49; border-radius:2px; }
+/* Jam's visualizer keeps its moving scene; its controls become stage hardware. */
+.jam .jam-top { background:linear-gradient(#211a12f5,#211a12cc); border-bottom:2px solid #9b7940; }
+.jam :is(.jam-chip,.jam-back) { border-radius:2px; background:#2d251a; border-color:#826b46; color:#efdcba; }
+.jam .jam-drawer { background:#282119f5; border:2px solid #8c724c; border-radius:2px; }
+/* Photo is an alternate rendering, legacy SVG retained for the highway. */
+.gear-photo { display:none; }
+#app .gear-photo,body:not(:has(.highway:not([hidden]))) #overlays .gear-photo,.jam .gear-photo { display:block; width:100%; height:100%; object-fit:contain; filter:drop-shadow(1px 3px 2px #0008); }
+#app .gear-picture > .gear-art,body:not(:has(.highway:not([hidden]))) #overlays .gear-picture > .gear-art,.jam .gear-picture > .gear-art { display:none; }
+.gear-picture { display:block; width:100%; height:100%; }
+.gear-faceplate { width:100%; max-width:740px; margin:4px auto 12px; text-align:center; }
+.gear-faceplate.portrait { max-width:310px; }
+.gear-face { width:100%; position:relative; isolation:isolate; }
+.gear-face > img { width:100%; height:100%; display:block; object-fit:contain; pointer-events:none; }
+.gear-face .gear-hotspot { position:absolute; width:var(--knob-size); min-width:22px; aspect-ratio:1; height:auto; padding:0; transform:translate(-50%,-50%); display:block; border:0; background:none; touch-action:none; cursor:ns-resize; }
+.gear-face .gear-hotspot .ring { width:100%; height:100%; border:1px solid #ddc58b; border-radius:50%; background:radial-gradient(circle,#b7a06c 0 40%,#1d1b17 45% 75%,#0c0c0b 80%); box-shadow:1px 2px 3px #000b; }
+.gear-face .gear-hotspot .cap { inset:14%; background:radial-gradient(circle at 35% 25%,#e4d29c,#94805a 80%); }
+.gear-face .gear-hotspot .ptr { background:#20180e; }
+.gear-face .gear-hotspot:focus-visible { outline:3px solid #ffe073; outline-offset:4px; z-index:5; }
+.gear-face .gear-hotspot:is(:hover,:focus-visible) { z-index:4; }
+.gear-face .gear-hotspot :is(.kn-name,.kn-val) { display:none; }
+.gear-face .gear-hotspot:is(:hover,:focus-visible) .kn-name { display:block; position:absolute; bottom:calc(100% + 25px); left:50%; transform:translateX(-50%); padding:4px 9px; background:#0b0907; color:#f5e6c8; white-space:nowrap; font-size:12px; border:1px solid #c7a564; border-radius:2px; pointer-events:none; }
+.gear-face .gear-hotspot:is(:hover,:focus-visible) .kn-val { display:block; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); color:#ffe286; background:#0b0907; padding:2px 7px; font-size:12px; pointer-events:none; }
+.gear-face-help { display:block; color:#c9bda4; font-size:10px; line-height:1.5; margin:2px 0 7px; }
+.gear-faceplate .gear-enlarge { margin-inline:auto; }
+.gear-face .gear-hotspot:disabled { cursor:not-allowed; opacity:.45; }
+.gear-faceplate[hidden] { display:none; }
+.drop-pedal-face { position:relative; width:155px; aspect-ratio:936/1681; margin:4px auto 8px; }
+.drop-pedal-face > img { width:100%; height:100%; object-fit:contain; pointer-events:none; }
+.drop-pedal-face .drop-photo-knob { position:absolute; left:49.5%; top:18.5%; width:27%; height:42px; display:block; padding:0; transform:translate(-50%,-50%); touch-action:none; z-index:2; }
+.drop-pedal-face .drop-photo-knob .ring { width:43px; height:43px; background:#1d1b18; border:2px solid #bdb6a4; }
+.drop-pedal-face .drop-photo-knob .kn-name { display:none; }
+.drop-pedal-face .drop-photo-knob .kn-val { position:absolute; top:100%; left:50%; transform:translateX(-50%); background:#17120f; padding:2px 6px; border-radius:2px; color:#fff0d1; white-space:nowrap; }
+.drop-pedal-face .drop-foot { position:absolute; left:49.5%; top:82.7%; transform:translate(-50%,-50%); width:33px; height:33px; border-radius:50%; background:radial-gradient(circle at 35% 30%,#fff,#aaa 40%,#454545 65%,#ddd 70%); border:2px solid #d2d0c7; box-shadow:2px 3px #0008; }
+.drop-pedal-face .drop-foot[aria-pressed='true'] { outline:2px solid #f6c751; outline-offset:3px; }
+.drop-pedal-face .drop-photo-led { position:absolute; left:49.5%; top:71.3%; width:8px; height:8px; transform:translate(-50%,-50%); border-radius:50%; background:#49211b; border:1px solid #210d09; }
+.drop-pedal-face.on .drop-photo-led { background:#ff6444; box-shadow:0 0 7px #ff412e; }
+#app .gear-picture.photo-failed > .gear-art,body:not(:has(.highway:not([hidden]))) #overlays .gear-picture.photo-failed > .gear-art,.jam .gear-picture.photo-failed > .gear-art { display:block; }
+.gear-picture.photo-failed > .gear-photo { display:none !important; }
+html[data-decoration='reduced'] #app :is(.identity-art,.roadshow-sticker) { display:none; }
+html[data-decoration='reduced'] #app :is(.identity-banner,.sidebar,.titlebar,.page,.nowbar,.tones-edit) { background-image:none; }
+html[data-decoration='reduced'] #app .identity-banner::before { display:none; }
+html[data-decoration='reduced'] #app .identity-kicker { color:var(--poster); }
+html[data-decoration='reduced'] #overlays :is(.roadshow-settings-art,.roadshow-caption) { display:none !important; }
+@media(max-width:1100px) {
+  #app .identity-title { font-size:48px; }
+  #app .identity-art { width:220px; flex-basis:220px; }
+  #app .identity-banner { padding-inline:22px; }
+  #app .roadshow-sticker img { width:46px; }
+}
+@media(max-width:800px) {
+  #app .identity-art { width:140px; flex-basis:140px; height:120px; }
+  #app .identity-title { font-size:40px; }
+  #app .identity-line { font-size:11px; }
+  #app .identity-banner { padding-inline:16px; gap:6px; }
+  #app.page-songs .workspace { grid-template-rows:140px minmax(200px,1fr) minmax(170px,.65fr); }
+  #app .roadshow-sticker { display:none; }
+}
+@media(max-height:760px) {
+  #app .workspace { grid-template-rows:112px minmax(0,1fr); }
+  #app .identity-art { height:108px; }
+  #app .identity-title { font-size:40px; }
+  #app .roadshow-sticker { display:none; }
+  #app.page-songs .workspace { grid-template-rows:112px minmax(0,1fr); }
+}
+@media(prefers-reduced-motion:reduce) { #app .btn:hover { transform:none; } }
+
+.drop-position {position:absolute;width:4.8%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#47100d;pointer-events:none;}
+.drop-position.lit {background:#fff1b3;box-shadow:0 0 5px 2px #ff452a;}
+.drop-momentary {position:absolute;left:79%;top:28.8%;transform:translate(-50%,-50%);width:24px;height:28px;border:1px solid #d5d1c6;border-radius:50%;background:linear-gradient(100deg,#595959,#eee,#535353);}
+.drop-momentary::after {content:'';position:absolute;left:9px;top:11px;width:5px;height:15px;background:linear-gradient(90deg,#aaa,#fff,#777);border:1px solid #555;border-radius:2px;transform-origin:top;}
+.drop-momentary[aria-pressed='true']::after {transform:rotate(180deg);}
+
+@media(max-width:800px) and (max-height:760px) {
+  #app.page-songs .workspace { grid-template-rows:112px minmax(200px,1fr) minmax(170px,.65fr); }
+}
+
+/* Quiet, non-interactive cameos in menu whitespace. Never overlay gameplay. */
+.menu-spot-art { display:none; }
+#app .menu-spot-art { display:block; width:clamp(96px,14vw,180px); height:140px; object-fit:contain; margin:0 auto 14px; pointer-events:none; filter:drop-shadow(3px 4px 0 #0006); }
+#app .pspot-empty .menu-spot-art { width:110px; height:100px; margin:0; flex:0 0 110px; }
+html[data-decoration='reduced'] #app .menu-spot-art { display:none; }
+body:has(.highway:not([hidden])) .roadshow-settings-art,
+body:has(.highway:not([hidden])) .roadshow-caption { display:none !important; }
+@media(max-height:760px) { #app .menu-spot-art { height:92px; } }
+
+.roadshow-guide-art { display:none; }
+body:not(:has(.highway:not([hidden]))) #overlays .roadshow-guide-art { display:block; width:120px; height:105px; object-fit:contain; margin:12px auto; pointer-events:none; }
+html[data-decoration='reduced'] #overlays .roadshow-guide-art { display:none !important; }

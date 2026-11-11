@@ -16,6 +16,8 @@
 (function () {
   if (customElements.get('noisewater-splash')) return;
 
+  const roadshowArt = new URL('../art/roadshow/', document.currentScript.src).href;
+  const mythologyArt = new URL('../art/mythology/', document.currentScript.src).href;
   const ANIM_MS = 5200;   // last essential beat (sheen sweep) ends here at speed 1
   const FADE_MS = 600;
 
@@ -104,7 +106,13 @@
 :host([transparent]) .bloom{display:none}
 :host(.nw-out){opacity:0}
 :host([skippable]){cursor:pointer}
-.stage{position:absolute;inset:0;display:grid;place-items:center}
+.stage{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(#18120edb,#100d0be8),url('${roadshowArt}flight-case.webp') center/900px}
+.stage::before,.stage::after{content:'';position:absolute;top:35%;height:150px;width:150px;background:center/contain no-repeat;pointer-events:none;opacity:.8}
+.stage::before{left:1%;background-image:var(--guest-left,url('${roadshowArt}riff-reaper.webp'));transform:rotate(-9deg)}
+.stage::after{right:1%;background-image:var(--guest-right,url('${roadshowArt}amp-cherub.webp'));transform:rotate(7deg)}
+.stage[data-decoration="reduced"]::before,.stage[data-decoration="reduced"]::after{display:none}
+.roadshow-splash-caption{position:absolute;bottom:4%;left:10%;right:10%;text-align:center;color:#edcf8a;font:900 17px system-ui;letter-spacing:.16em;text-transform:uppercase}
+@media(max-width:850px){.stage::before,.stage::after{opacity:.35;width:96px;height:96px}.roadshow-splash-caption{font-size:12px}}
 svg{display:block;width:min(78%,82vmin);height:auto;max-height:86%;overflow:visible}
 ${`.draw{stroke-dasharray:1 2;stroke-dashoffset:1.01;animation:nw-draw var(--d,1.2s) cubic-bezier(.65,0,.35,1) var(--t,0s) both}
 @keyframes nw-draw{to{stroke-dashoffset:0}}
@@ -153,7 +161,18 @@ ${`.draw{stroke-dasharray:1 2;stroke-dashoffset:1.01;animation:nw-draw var(--d,1
       this._clear();
       this.classList.remove('nw-out');
       this._done = false;
-      this._stage.innerHTML = SVG;
+      const guests = ['temple-of-jam','lute-serenade','jazz-oracle','glass-cherub','crossroads-duel','valkyrie-bassist'];
+      let previous = [], appearance = {};
+      try { previous = JSON.parse(localStorage.getItem('stagehand.splash.guests') || '[]'); appearance = JSON.parse(localStorage.getItem('stagehand.appearance.v1') || '{}') || {}; } catch {}
+      if (!Array.isArray(previous)) previous = [];
+      const available = guests.filter(id => !previous.includes(id));
+      const pick = () => available.splice(Math.floor(Math.random()*available.length),1)[0];
+      const pair = available.length >= 2 ? [pick(),pick()] : guests.slice(0,2);
+      try { localStorage.setItem('stagehand.splash.guests',JSON.stringify(pair)); } catch {}
+      this._stage.style.setProperty('--guest-left', `url("${mythologyArt}${pair[0]}.webp")`);
+      this._stage.style.setProperty('--guest-right', `url("${mythologyArt}${pair[1]}.webp")`);
+      this._stage.dataset.decoration = appearance.reduced ? 'reduced' : 'full';
+      this._stage.innerHTML = SVG + '<span class="roadshow-splash-caption">Stagehand · Let there be riffs</span>';
       void this._stage.offsetWidth;                      // let CSS animations start
       const rate = this.speed;
       this.shadowRoot.getAnimations().forEach((a) => (a.playbackRate = rate));

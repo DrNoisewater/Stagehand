@@ -9,7 +9,7 @@ import { h, icon } from './ui.js';
 import { rig } from './rig.js';
 import { pedalArt, ampArt } from './gearart.js';
 import { PEDALS, pedalFor, newPedal, pedalKnob, movePedal } from './tonerecipes.js';
-import { rotaryKnob } from './rigui.js';
+import { rotaryKnob, gearFaceplate } from './rigui.js';
 
 const GROUPS = [
   ['drive', 'Drive, distortion and fuzz'],
@@ -68,8 +68,10 @@ export function pedalBoard({ kind, board, ampKey, onChange }) {
         })
       );
     }
+    const faceplate = gearFaceplate(p.key, knobs);
     c.append(
       h('div.pb-top', null, h('div.pb-art', { html: pedalArt(p.key) }), h('div.pb-name', null, h('b', { text: info.name }), h('span', { text: info.what }))),
+      faceplate,
       knobs,
       h('div.pb-tools', null, led, h('span.grow'), left, right, del)
     );

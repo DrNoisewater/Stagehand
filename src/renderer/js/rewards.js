@@ -11,7 +11,7 @@ import { api } from './api.js';
 import { on, emit } from './store.js';
 import { h, toast } from './ui.js';
 
-export const L = { st: null };
+export const L = { st: null, previewAll: false };
 const seen = new Set(); // points already shown
 let ready = false;
 const asked = new Set(); // ids sent this run (so a busy feature doesn't call home every time)
@@ -42,12 +42,27 @@ export async function wearTitle(id) {
   take(await api.levels.title(id || null));
 }
 
-/** Whether a highway venue is open at your level (everything is, until levels have loaded). */
+/**
+ * Whether a highway venue is open (0) or the level it opens at. 4.5: venues kept from before,
+ * and developer overrides, come from the state's `venues` list. Everything is open until
+ * levels have loaded (or with the developer menu's "preview locked content").
+ */
 export function venueLock(id) {
   const st = L.st;
-  if (!st || !st.unlocks) return 0;
-  const u = st.unlocks.find((x) => x.venue === id);
+  if (!st || L.previewAll) return 0;
+  if (st.venues) {
+    const v = st.venues.find((x) => x.venue === id);
+    return v && !v.unlocked ? v.level : 0;
+  }
+  const u = (st.unlocks || []).find((x) => x.venue === id);
   return u && st.level < u.level ? u.level : 0;
+}
+/** XP still needed before a venue opens (0 when it's open). */
+export function venueXpLeft(id) {
+  const st = L.st;
+  const v = st && st.venues && st.venues.find((x) => x.venue === id);
+  if (!v || v.unlocked || !st.levelXp) return 0;
+  return Math.max(0, (st.levelXp[v.level] || 0) - st.xp);
 }
 
 function take(st) {
@@ -68,7 +83,7 @@ function take(st) {
       toast({ title: `+${xp} XP`, message: why.slice(0, 3).join(' · ') + (why.length > 3 ? ' …' : ''), kind: 'ok', timeout: 4200 });
     }
     for (const a of trophies.slice(0, 2)) trophyCard(a, st);
-    if (trophies.length > 2) trophyToast(`${trophies.length - 2} more trophies`, 'See them in the trophy case in Progress');
+    if (trophies.length > 2) trophyToast(`${trophies.length - 2} more achievements`, 'See them in Progress › Achievements');
   }
   ready = true;
   emit('levels', st);
@@ -110,34 +125,45 @@ function showCard(make, ms) {
 }
 
 /** A new trophy (or a better metal on one): a smaller card than a level up. */
-function trophyCard(a, st) {
+export function trophyCard(a, st) {
   const [, id, i] = a.key.split(':');
   const t = (st.trophies || []).find((x) => x.id === id);
   if (!t) return;
-  const metal = ['bronze', 'silver', 'gold', 'platinum'][Number(i)] || 'bronze';
+  const metal = ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'legendary'][Number(i)] || 'bronze';
   const title = (st.titles || []).find((x) => x.earned && x.how === `${metal[0].toUpperCase()}${metal.slice(1)} in ${t.name}`);
   showCard(() => h(`div.lvup.lv-trophy-up.metal-${metal}`, { role: 'status' },
     h('div.lvup-card', null,
       h('span.lv-cup', { html: CUP }),
-      h('small', { text: 'Trophy unlocked' }),
+      h('small', { text: 'Achievement unlocked' }),
       h('b.lv-tname', { text: t.name }),
       h('span.lvup-tier', { text: `${metal[0].toUpperCase()}${metal.slice(1)} · +${a.xp} XP` }),
       title ? h('span.lvup-new', { text: `New title: ${title.name}. Wear it on your pass in Progress.` }) : null,
       h('button.btn.small.primary', { type: 'button', text: 'Nice' }))), 5000);
 }
 
-/** The big moment: the new level, the pass it comes with, anything it opens up. */
-function levelUp(was, st) {
-  const opened = (st.unlocks || []).filter((u) => u.level > was.level && u.level <= st.level);
+/**
+ * The big moment: the new level, the pass it comes with, anything it opens up.
+ * 4.5: milestone levels (5, 10, 20, 25 … 100) get a bigger stage: a poster, lights and,
+ * at 100, the legendary card. Exported for the developer menu's "trigger celebration".
+ */
+const MILESTONE_WORDS = { 5: 'Out of the garage', 10: 'First real gig', 20: 'Headlining the bar circuit', 25: 'Quarter of the way', 30: 'Tour bus booked', 40: 'Big rooms now', 50: 'Halfway to legend', 60: 'Arena sound', 70: 'Festival main stage', 75: 'Hall of Fame pass', 80: 'Stadium lights', 90: 'Elite company', 100: 'Legendary' };
+export function levelUp(was, st) {
+  const opened = (st.venues || st.unlocks || []).filter((u) => u.level > was.level && u.level <= st.level);
   const newTier = st.tier.id !== was.tier.id;
-  showCard(() => h(`div.lvup.tier-${st.tier.id}`, { role: 'status' },
+  const milestones = [5, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100];
+  const big = milestones.filter((m) => m > was.level && m <= st.level).pop();
+  const legendary = st.level >= 100 && was.level < 100;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  showCard(() => h(`div.lvup.tier-${st.tier.id}${big ? '.milestone' : ''}${legendary ? '.legendary' : ''}${reduced ? '.calm' : ''}`, { role: 'status' },
     h('div.lvup-burst'),
+    big ? h('div.lvup-lights', { 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('i')) : null,
     h('div.lvup-card', null,
-      h('small', { text: 'Level up!' }),
+      h('small', { text: legendary ? 'Level 100. You made it.' : big ? `Milestone · ${MILESTONE_WORDS[big] || 'Level up!'}` : 'Level up!' }),
       h('b.lvup-n', { text: String(st.level) }),
       h('span.lvup-tier', { text: newTier ? `New pass: ${st.tier.name}` : st.tier.name }),
       opened.length ? h('span.lvup-new', { text: `Unlocked: ${opened.map((u) => `${u.name} venue`).join(', ')}` }) : null,
-      h('button.btn.small.primary', { type: 'button', text: 'Rock on' }))), 6500);
+      legendary ? h('span.lvup-new', { text: 'Valhalla is open. A year of playing, right here.' }) : null,
+      h('button.btn.small.primary', { type: 'button', text: legendary ? 'Take a bow' : 'Rock on' }))), big ? 9000 : 6500);
 }
 
 on('stats', () => loadLevels());

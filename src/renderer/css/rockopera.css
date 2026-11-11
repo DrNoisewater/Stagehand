@@ -1,0 +1,469 @@
+/* REHEARSAL ROOM look (experimental, 2026-11-10; internal name data-look="opera")
+   Down to earth and a bit grimy: torn flyers, gaffer and masking tape, worn tolex, scuffed gear,
+   one amp-pilot-light red. Deadpan guitar-trope jokes. A new picture, sticker and entrance on
+   every visit to a page.
+   Scope: html[data-look='opera'] #app (menus, pages, backgrounds), dialogs and toasts.
+   Never touched: the note highway, the Jam visualizer, anything else appended outside #app. */
+
+@font-face { font-family:'Typewriter Stagehand'; src:url('../fonts/LiberationMono-Bold.ttf') format('truetype'); font-weight:700; font-display:swap; }
+
+html[data-look='opera'] {
+  --rr-black:#0d0c0b; --rr-tolex:#151311; --rr-card:#1a1714; --rr-line:#2f2a25;
+  --rr-bone:#e6dfcf; --rr-bone-2:#bdb3a1; --rr-bone-3:#8f8676;
+  --rr-brass:#a88d57; --rr-brass-dim:#a88d5744;
+  --rr-pilot:#d23a2c; --rr-pilot-glow:#ff4a2e66;
+  --rr-cream:#e3d8bf; --rr-masking:#d9cba5; --rr-gaffer:#2a2a29;
+  --rr-mono:'Typewriter Stagehand', 'Liberation Mono', 'Courier New', monospace;
+  --rr-grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --rr-specks:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 .12  0 0 0 0 .09  0 0 0 0 .06  0 0 0 -7 3.3'/></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>");
+  --rr-stains:radial-gradient(18% 22% at 82% 70%,#00000038,transparent 70%),radial-gradient(14% 18% at 12% 85%,#3a2a1a2a,transparent 70%),radial-gradient(22% 16% at 55% 10%,#00000030,transparent 70%);
+  --rr-wall:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='184' height='92'><rect width='184' height='92' fill='%2318161a'/><g fill='%23221f22'><rect x='2' y='2' width='88' height='42' rx='2'/><rect x='94' y='2' width='88' height='42' rx='2' fill='%231f1c1f'/><rect x='-44' y='48' width='88' height='42' rx='2' fill='%23201d20'/><rect x='48' y='48' width='88' height='42' rx='2'/><rect x='140' y='48' width='88' height='42' rx='2' fill='%23201d20'/></g></svg>");
+  --rr-paper-grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .2  0 0 0 0 .16  0 0 0 0 .1  0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --rr-cloth:repeating-linear-gradient(45deg,#ffffff07 0 1px,transparent 1px 3px),repeating-linear-gradient(-45deg,#00000030 0 1px,transparent 1px 3px);
+}
+
+html[data-look='opera'] #app {
+  --house:var(--rr-black); --deck:#121110; --deck-2:#191715; --riser:#221e1b; --riser-2:#2b2622;
+  --card:var(--rr-card); --card-line:var(--rr-line); --well:#0e0d0c;
+  --ink:var(--rr-bone); --ink-2:var(--rr-bone-2); --ink-3:var(--rr-bone-3);
+  --rule:#2d2823; --rule-soft:#211d1a; --focus:var(--rr-cream); --select:var(--rr-pilot);
+  --titlebar-h:58px;
+  isolation:isolate;
+  background:var(--rr-stains),var(--rr-grain),var(--rr-black);
+  color:var(--rr-bone);
+}
+/* page accents: muted, decoration only */
+html[data-look='opera'] #app[data-mood='play'] { --poster:#a4473b; }
+html[data-look='opera'] #app[data-mood='songs'] { --poster:#5f7d8e; }
+html[data-look='opera'] #app[data-mood='tones'] { --poster:#b3923e; }
+html[data-look='opera'] #app[data-mood='discover'] { --poster:#7f8f62; }
+html[data-look='opera'] #app[data-mood='progress'] { --poster:#a88d57; }
+html[data-look='opera'] #app[data-mood='greenroom'] { --poster:#a8646a; }
+
+/* ---------------------------------------------------------------- top bar */
+html[data-look='opera'] #app .titlebar {
+  position:relative; z-index:40;
+  background:var(--rr-grain),linear-gradient(180deg,#1d1a17,#121010);
+  border-bottom:1px solid #000;
+  box-shadow:0 1px 0 var(--rr-brass-dim),0 8px 18px #000a;
+  padding-inline:16px 18px;
+}
+html[data-look='opera'] #app .brand { gap:10px; min-width:206px; }
+html[data-look='opera'] #app .brand-mark { width:30px; height:30px; filter:drop-shadow(0 2px 2px #000); }
+html[data-look='opera'] #app .brand > span:not(.brand-ver) {
+  font-size:21px; font-weight:850; font-stretch:88%; letter-spacing:.01em; text-transform:none;
+  color:var(--rr-bone); transform:none; background:none; -webkit-text-stroke:0; filter:none;
+  text-shadow:0 1px 0 #000,0 -1px 0 #ffffff10;
+}
+html[data-look='opera'] #app .brand-ver { color:var(--rr-bone-3); font-family:var(--rr-mono); font-size:10px; }
+html[data-look='opera'] #app .search {
+  flex:0 1 620px; height:38px; border-radius:6px;
+  background:#0b0a09; border:1px solid #3a342e;
+  box-shadow:inset 0 2px 6px #000,0 1px 0 #ffffff0c;
+}
+html[data-look='opera'] #app .search:focus-within { border-color:var(--rr-cream); box-shadow:inset 0 2px 6px #000,0 0 0 2px #e3d8bf22; }
+html[data-look='opera'] #app .search input { font-size:14px; color:var(--rr-bone); }
+html[data-look='opera'] #app .search input::placeholder { color:#7f776b; }
+html[data-look='opera'] #app .search .i { color:var(--rr-bone-2); }
+html[data-look='opera'] #app .search kbd { background:#1c1916; border-color:#3a342e; color:#9a9183; font-family:var(--rr-mono); }
+html[data-look='opera'] #app .titlebar .icon-btn { color:var(--rr-bone-2); }
+html[data-look='opera'] #app .titlebar .icon-btn:hover { color:#fff; background:#ffffff0d; }
+
+/* 4.5: window buttons as a small screwed-on amp control plate; close = the pilot light */
+html[data-look='opera'] #app .titlebar { padding-right:10px; }
+html[data-look='opera'] #app .win-ctl {
+  align-self:center; height:38px; gap:3px; margin-left:10px; padding:0 5px;
+  border-radius:6px; border:1px solid #000;
+  background:var(--rr-grain),linear-gradient(180deg,#26221e,#161412);
+  box-shadow:inset 0 1px 0 #ffffff12,inset 0 -1px 0 #0008,0 1px 0 var(--rr-brass-dim),0 2px 6px #0009;
+  position:relative;
+}
+html[data-look='opera'] #app .win-ctl::before { content:''; position:absolute; left:-9px; top:50%; width:1px; height:24px; transform:translateY(-50%); background:linear-gradient(#0000,var(--rr-brass-dim),#0000); }
+html[data-look='opera'] #app .win-btn {
+  width:32px; height:28px; border-radius:4px; color:var(--rr-bone-2);
+  background:linear-gradient(180deg,#1c1916,#100f0d); border:1px solid #2f2a25;
+  box-shadow:inset 0 1px 0 #ffffff0f,0 1px 0 #000;
+}
+html[data-look='opera'] #app .win-btn svg { width:14px; height:14px; stroke-width:2.1; filter:drop-shadow(0 1px 0 #000); }
+html[data-look='opera'] #app .win-btn:hover { color:var(--rr-cream); border-color:#4a4239; background:linear-gradient(180deg,#26221e,#161412); }
+html[data-look='opera'] #app .win-btn:active { box-shadow:inset 0 2px 4px #000; transform:translateY(1px); }
+html[data-look='opera'] #app .win-close:hover {
+  color:#fff1e8; border-color:#7a2219;
+  background:radial-gradient(70% 90% at 50% 40%,#e2493a,#9e2a1f);
+  box-shadow:inset 0 1px 0 #ffffff30,0 0 12px var(--rr-pilot-glow);
+}
+html[data-look='opera'] #app .win-btn:focus-visible { outline:2px solid var(--rr-cream); outline-offset:1px; }
+
+html[data-look='opera'] #app .workspace { grid-template-rows:172px minmax(0,1fr); }
+
+/* ------------------------------------------------------------ the banner:
+   a rehearsal-room wall with a torn flyer, tape, a sticker and a character */
+html[data-look='opera'] #app .identity-banner {
+  overflow:visible; z-index:45; padding:12px 30px 14px; gap:26px; align-items:center;
+  border-bottom:0;
+  background:
+    radial-gradient(38% 120% at 14% -10%,#ffd9a024,transparent 70%),
+    radial-gradient(70% 90% at 50% 50%,transparent 40%,#000000b0 100%),
+    var(--rr-stains),var(--rr-grain),var(--rr-wall);
+  background-size:auto,auto,auto,auto,184px 92px;
+  box-shadow:inset 0 -1px 0 #000,0 1px 0 #ffffff08,0 10px 24px #000b;
+}
+html[data-look='opera'] #app .identity-banner::before,
+html[data-look='opera'] #app .identity-banner::after { display:none; }
+
+html[data-look='opera'] .opera-fx { position:absolute; inset:0; overflow:hidden; z-index:-1; pointer-events:none; }
+html:not([data-look='opera']) :is(.opera-fx,.opera-sticker) { display:none; }
+/* a bare bulb that's seen better days */
+html[data-look='opera'] .opera-fx .bulb { position:absolute; left:11%; top:-60px; width:300px; height:220px; border-radius:50%; background:radial-gradient(closest-side,#ffe2b02e,transparent); animation:rr-flicker 9s steps(1) infinite; }
+@keyframes rr-flicker { 0%,61%,64%,66%,100% { opacity:1; } 62%,65% { opacity:.45; } }
+html[data-look='opera'] .opera-fx .tape { position:absolute; height:22px; background:#cfc3a3cc; box-shadow:0 1px 2px #0008; clip-path:polygon(0.0% 0.0%,7.1% 0.0%,14.3% 0.0%,21.4% 0.0%,28.6% 0.0%,35.7% 0.0%,42.9% 0.0%,50.0% 0.0%,57.1% 0.0%,64.3% 0.0%,71.4% 0.0%,78.6% 0.0%,85.7% 0.0%,92.9% 0.0%,100.0% 0.0%,99.6% 16.7%,99.6% 33.3%,99.9% 50.0%,99.0% 66.7%,98.8% 83.3%,100.0% 100.0%,92.9% 100.0%,85.7% 100.0%,78.6% 100.0%,71.4% 100.0%,64.3% 100.0%,57.1% 100.0%,50.0% 100.0%,42.9% 100.0%,35.7% 100.0%,28.6% 100.0%,21.4% 100.0%,14.3% 100.0%,7.1% 100.0%,0.0% 100.0%,0.6% 83.3%,0.6% 66.7%,0.1% 50.0%,0.1% 33.3%,0.4% 16.7%); }
+html[data-look='opera'] .opera-fx .t1 { width:120px; right:30%; top:18px; transform:rotate(-7deg); opacity:.35; }
+html[data-look='opera'] .opera-fx .t2 { width:80px; left:46%; bottom:14px; transform:rotate(4deg); opacity:.25; }
+html[data-look='opera'] .opera-fx .stain { position:absolute; right:40%; top:30%; width:140px; height:110px; border-radius:50%; background:radial-gradient(closest-side,transparent 55%,#3a2a1a40 62%,transparent 72%); }
+html[data-look='opera'] .opera-fx .dust i { position:absolute; width:2px; height:2px; border-radius:50%; background:#f2e6cc; opacity:0; animation:rr-dust 11s linear infinite; }
+html[data-look='opera'] .opera-fx .dust i:nth-child(1) { left:12%; top:70%; }
+html[data-look='opera'] .opera-fx .dust i:nth-child(2) { left:18%; top:40%; animation-delay:-3s; animation-duration:13s; }
+html[data-look='opera'] .opera-fx .dust i:nth-child(3) { left:24%; top:80%; animation-delay:-6s; }
+html[data-look='opera'] .opera-fx .dust i:nth-child(4) { left:9%; top:55%; animation-delay:-8s; animation-duration:15s; }
+html[data-look='opera'] .opera-fx .dust i:nth-child(5) { left:30%; top:60%; animation-delay:-2s; animation-duration:12s; }
+html[data-look='opera'] .opera-fx .dust i:nth-child(6) { left:15%; top:30%; animation-delay:-10s; }
+html[data-look='opera'] .opera-fx .dust i:nth-child(7) { left:21%; top:20%; animation-delay:-5s; animation-duration:14s; }
+html[data-look='opera'] .opera-fx .dust i:nth-child(8) { left:27%; top:45%; animation-delay:-7s; }
+@keyframes rr-dust { 0% { transform:translate(0,0); opacity:0; } 15% { opacity:.55; } 85% { opacity:.4; } 100% { transform:translate(40px,-70px); opacity:0; } }
+
+/* the torn flyer that holds the page name */
+html[data-look='opera'] #app .identity-copy {
+  position:relative; z-index:2; flex:0 1 auto; max-width:640px; padding:24px 30px 16px 26px;
+  --paper:#d9d3c4;
+  background:radial-gradient(circle at 86% 78%,transparent 0 30px,#7a50283a 31px 34px,transparent 36px),radial-gradient(60% 50% at 10% 100%,#5a3a1a22,transparent 70%),var(--rr-paper-grain),linear-gradient(170deg,#ffffff18,transparent 40%,#00000014),var(--paper);
+  clip-path:polygon(0.0% 1.3%,3.3% 0.6%,6.7% 2.6%,10.0% 0.3%,13.3% 2.1%,16.7% 1.5%,20.0% 0.2%,23.3% 2.0%,26.7% 0.1%,30.0% 1.7%,33.3% 0.3%,36.7% 0.4%,40.0% 1.7%,43.3% 3.3%,46.7% 0.5%,50.0% 0.9%,53.3% 2.5%,56.7% 3.8%,60.0% 2.3%,63.3% 1.6%,66.7% 3.9%,70.0% 0.2%,73.3% 3.4%,76.7% 1.2%,80.0% 0.6%,83.3% 0.5%,86.7% 1.2%,90.0% 3.3%,93.3% 0.7%,96.7% 2.3%,100.0% 2.6%,99.6% 16.7%,99.3% 33.3%,99.9% 50.0%,99.9% 66.7%,99.8% 83.3%,100.0% 97.3%,96.7% 98.3%,93.3% 98.7%,90.0% 97.7%,86.7% 98.2%,83.3% 98.8%,80.0% 96.8%,76.7% 97.2%,73.3% 99.0%,70.0% 97.7%,66.7% 97.9%,63.3% 96.5%,60.0% 97.1%,56.7% 98.8%,53.3% 96.1%,50.0% 99.5%,46.7% 98.3%,43.3% 97.0%,40.0% 99.4%,36.7% 98.0%,33.3% 99.8%,30.0% 97.3%,26.7% 96.9%,23.3% 97.7%,20.0% 96.5%,16.7% 98.7%,13.3% 97.2%,10.0% 97.6%,6.7% 97.7%,3.3% 98.2%,0.0% 96.6%,1.1% 83.3%,0.6% 66.7%,0.8% 50.0%,0.1% 33.3%,0.8% 16.7%);
+  transform:rotate(-1.2deg);
+  filter:drop-shadow(0 6px 8px #000c);
+  animation:rr-paper-in .45s cubic-bezier(.2,.9,.3,1.3) both;
+}
+html[data-look='opera'] #app .identity-banner[data-paper='pink'] .identity-copy { --paper:#dcb8b0; transform:rotate(.8deg); }
+html[data-look='opera'] #app .identity-banner[data-paper='yellow'] .identity-copy { --paper:#dccf98; transform:rotate(-2deg); clip-path:polygon(0.0% 3.2%,3.3% 5.0%,6.7% 4.1%,10.0% 1.4%,13.3% 1.9%,16.7% 3.3%,20.0% 0.1%,23.3% 2.3%,26.7% 0.8%,30.0% 0.6%,33.3% 0.3%,36.7% 3.8%,40.0% 0.6%,43.3% 1.2%,46.7% 2.0%,50.0% 4.4%,53.3% 0.4%,56.7% 2.2%,60.0% 2.7%,63.3% 4.4%,66.7% 4.1%,70.0% 4.3%,73.3% 1.4%,76.7% 2.1%,80.0% 1.8%,83.3% 4.4%,86.7% 4.8%,90.0% 0.8%,93.3% 0.9%,96.7% 1.2%,100.0% 1.2%,99.4% 16.7%,99.3% 33.3%,99.7% 50.0%,100.0% 66.7%,99.5% 83.3%,100.0% 98.2%,96.7% 97.2%,93.3% 95.2%,90.0% 96.5%,86.7% 97.4%,83.3% 96.9%,80.0% 96.6%,76.7% 99.7%,73.3% 95.5%,70.0% 96.1%,66.7% 95.6%,63.3% 96.0%,60.0% 98.0%,56.7% 98.0%,53.3% 99.5%,50.0% 96.8%,46.7% 99.7%,43.3% 99.7%,40.0% 99.0%,36.7% 99.2%,33.3% 98.3%,30.0% 99.7%,26.7% 100.0%,23.3% 99.2%,20.0% 99.5%,16.7% 98.2%,13.3% 99.9%,10.0% 95.6%,6.7% 96.9%,3.3% 99.3%,0.0% 98.7%,0.0% 83.3%,0.0% 66.7%,0.0% 50.0%,0.0% 33.3%,0.0% 16.7%); }
+html[data-look='opera'] #app .identity-banner[data-paper='kraft'] .identity-copy { --paper:#b3956b; transform:rotate(1.4deg); clip-path:polygon(0.0% 1.1%,5.6% 3.3%,11.1% 0.6%,16.7% 0.1%,22.2% 3.8%,27.8% 2.1%,33.3% 0.6%,38.9% 2.2%,44.4% 0.1%,50.0% 2.1%,55.6% 3.9%,61.1% 3.5%,66.7% 2.8%,72.2% 1.0%,77.8% 1.5%,83.3% 0.7%,88.9% 3.1%,94.4% 2.1%,100.0% 3.1%,99.6% 16.7%,99.7% 33.3%,99.0% 50.0%,98.8% 66.7%,99.0% 83.3%,100.0% 96.8%,94.4% 96.7%,88.9% 97.0%,83.3% 99.1%,77.8% 97.9%,72.2% 98.6%,66.7% 99.9%,61.1% 99.9%,55.6% 98.9%,50.0% 99.0%,44.4% 97.2%,38.9% 96.2%,33.3% 98.2%,27.8% 96.3%,22.2% 96.0%,16.7% 96.2%,11.1% 98.5%,5.6% 99.1%,0.0% 99.1%,0.2% 83.3%,0.2% 66.7%,0.7% 50.0%,1.1% 33.3%,1.0% 16.7%); }
+html[data-look='opera'] #app .identity-banner[data-paper='white'] .identity-copy { --paper:#e6e2d8; transform:rotate(-.6deg); clip-path:polygon(0.0% 3.2%,3.3% 5.0%,6.7% 4.1%,10.0% 1.4%,13.3% 1.9%,16.7% 3.3%,20.0% 0.1%,23.3% 2.3%,26.7% 0.8%,30.0% 0.6%,33.3% 0.3%,36.7% 3.8%,40.0% 0.6%,43.3% 1.2%,46.7% 2.0%,50.0% 4.4%,53.3% 0.4%,56.7% 2.2%,60.0% 2.7%,63.3% 4.4%,66.7% 4.1%,70.0% 4.3%,73.3% 1.4%,76.7% 2.1%,80.0% 1.8%,83.3% 4.4%,86.7% 4.8%,90.0% 0.8%,93.3% 0.9%,96.7% 1.2%,100.0% 1.2%,99.4% 16.7%,99.3% 33.3%,99.7% 50.0%,100.0% 66.7%,99.5% 83.3%,100.0% 98.2%,96.7% 97.2%,93.3% 95.2%,90.0% 96.5%,86.7% 97.4%,83.3% 96.9%,80.0% 96.6%,76.7% 99.7%,73.3% 95.5%,70.0% 96.1%,66.7% 95.6%,63.3% 96.0%,60.0% 98.0%,56.7% 98.0%,53.3% 99.5%,50.0% 96.8%,46.7% 99.7%,43.3% 99.7%,40.0% 99.0%,36.7% 99.2%,33.3% 98.3%,30.0% 99.7%,26.7% 100.0%,23.3% 99.2%,20.0% 99.5%,16.7% 98.2%,13.3% 99.9%,10.0% 95.6%,6.7% 96.9%,3.3% 99.3%,0.0% 98.7%,0.0% 83.3%,0.0% 66.7%,0.0% 50.0%,0.0% 33.3%,0.0% 16.7%); }
+@keyframes rr-paper-in { from { opacity:0; translate:0 -10px; scale:1.04; } to { opacity:1; translate:0 0; scale:1; } }
+html[data-look='opera'] #app .identity-kicker {
+  display:inline-block; position:relative; margin:0 0 4px -6px; padding:3px 12px;
+  font-family:var(--rr-mono); font-size:11px; font-weight:700; letter-spacing:.08em; font-style:normal;
+  color:#2a231c; background:#d6c79fe6; clip-path:polygon(0.0% 0.0%,7.1% 0.0%,14.3% 0.0%,21.4% 0.0%,28.6% 0.0%,35.7% 0.0%,42.9% 0.0%,50.0% 0.0%,57.1% 0.0%,64.3% 0.0%,71.4% 0.0%,78.6% 0.0%,85.7% 0.0%,92.9% 0.0%,100.0% 0.0%,99.6% 16.7%,99.6% 33.3%,99.9% 50.0%,99.0% 66.7%,98.8% 83.3%,100.0% 100.0%,92.9% 100.0%,85.7% 100.0%,78.6% 100.0%,71.4% 100.0%,64.3% 100.0%,57.1% 100.0%,50.0% 100.0%,42.9% 100.0%,35.7% 100.0%,28.6% 100.0%,21.4% 100.0%,14.3% 100.0%,7.1% 100.0%,0.0% 100.0%,0.6% 83.3%,0.6% 66.7%,0.1% 50.0%,0.1% 33.3%,0.4% 16.7%); transform:rotate(-1.5deg);
+  box-shadow:none; text-shadow:none;
+}
+html[data-look='opera'] #app .identity-kicker::before { display:none; }
+html[data-look='opera'] #app .identity-title {
+  position:relative; margin:2px 0 4px; font-size:72px; line-height:.88; font-weight:900; font-stretch:62%;
+  letter-spacing:-.005em; text-transform:uppercase; font-style:normal;
+  color:#151210; background:none; -webkit-text-stroke:0; filter:none; transform:none;
+  /* a cheap two-colour print, slightly out of register */
+  text-shadow:2px 1px 0 color-mix(in srgb,var(--poster) 70%,transparent);
+}
+html[data-look='opera'] #app .identity-title::after { content:none; }
+html[data-look='opera'] #app .identity-line {
+  max-width:560px; margin:0; color:#2c2620; font-family:var(--rr-mono); font-size:12.5px; font-weight:700; font-style:normal; text-shadow:none; line-height:1.35;
+}
+
+/* a sticker slapped on the wall: a different joke every visit */
+html[data-look='opera'] #app .opera-sticker {
+  position:relative; z-index:3; align-self:flex-start; margin-top:20px; max-width:220px; padding:9px 14px;
+  font-family:var(--rr-mono); font-size:12px; font-weight:700; letter-spacing:.06em; line-height:1.25; text-align:center;
+  color:var(--rr-bone); background:#121110; border:2px solid var(--rr-bone); border-radius:6px;
+  box-shadow:0 0 0 3px #121110,0 4px 8px #000a;
+  transform:rotate(var(--tilt,-3deg));
+  animation:rr-slap .35s .15s cubic-bezier(.2,.9,.3,1.4) both;
+}
+html[data-look='opera'] #app .opera-sticker::after { content:''; position:absolute; inset:0; border-radius:4px; background:var(--rr-grain); opacity:.6; mix-blend-mode:multiply; pointer-events:none; }
+@keyframes rr-slap { from { opacity:0; scale:1.6; } 70% { opacity:1; scale:.95; } to { scale:1; } }
+
+/* the character breaks out of the banner up into the top bar */
+html[data-look='opera'] #app .identity-art-wrap { position:relative; flex:0 0 300px; margin-left:auto; margin-right:64px; align-self:stretch; z-index:50; pointer-events:none; }
+html:not([data-look='opera']) .identity-art-wrap { display:contents; }
+html[data-look='opera'] #app .identity-art-wrap .identity-art {
+  position:absolute; right:0; bottom:-10px; width:300px; height:226px; flex:none; object-fit:contain; object-position:50% 100%;
+  transform:rotate(2deg); transform-origin:50% 100%;
+  filter:drop-shadow(0 0 1px #000) drop-shadow(3px 6px 0 #0009) saturate(.9);
+}
+html[data-look='opera'] #app .identity-banner[data-enter='slap'] .identity-art { animation:rr-art-slap .4s cubic-bezier(.2,.9,.3,1.4) both; }
+html[data-look='opera'] #app .identity-banner[data-enter='drop'] .identity-art { animation:rr-art-drop .7s cubic-bezier(.3,1.5,.5,1) both; }
+html[data-look='opera'] #app .identity-banner[data-enter='peel'] .identity-art { animation:rr-art-peel .6s cubic-bezier(.2,.8,.3,1.2) both; }
+html[data-look='opera'] #app .identity-banner[data-enter='slide'] .identity-art { animation:rr-art-slide .5s cubic-bezier(.2,.8,.3,1.1) both; }
+html[data-look='opera'] #app .identity-banner[data-enter='rumble'] .identity-art { animation:rr-art-rumble .7s linear both; }
+@keyframes rr-art-slap { from { opacity:0; transform:rotate(-10deg) scale(1.45); } to { opacity:1; transform:rotate(2deg) scale(1); } }
+@keyframes rr-art-drop { from { opacity:0; transform:translateY(-120%) rotate(-6deg); } 40% { opacity:1; } to { transform:translateY(0) rotate(2deg); } }
+@keyframes rr-art-peel { from { opacity:0; transform:rotate(-38deg) translateX(-20px); transform-origin:0 100%; } to { opacity:1; transform:rotate(2deg); } }
+@keyframes rr-art-slide { from { opacity:0; transform:translateX(70%) rotate(8deg); } to { opacity:1; transform:translateX(0) rotate(2deg); } }
+@keyframes rr-art-rumble { 0% { opacity:0; transform:rotate(2deg); } 10% { opacity:1; } 20%,40%,60%,80% { transform:translate(-3px,1px) rotate(1deg); } 30%,50%,70%,90% { transform:translate(3px,-1px) rotate(3deg); } 100% { transform:rotate(2deg); } }
+html[data-look='opera'] #app .identity-options { position:absolute; top:10px; right:14px; z-index:60; border-radius:4px; background:#000a; border-color:#ffffff22; color:var(--rr-bone-2); }
+
+/* ---------------------------------------------- sidebar: gaffer tape labels */
+html[data-look='opera'] #app .sidebar {
+  background:var(--rr-grain),linear-gradient(180deg,#141210,#0e0d0c);
+  border-right:1px solid #000; box-shadow:inset -1px 0 0 var(--rr-brass-dim); padding:18px 12px 12px 10px;
+}
+html[data-look='opera'] #app .nav-sections { gap:6px; }
+html[data-look='opera'] #app .nav-section {
+  height:42px; padding-inline:14px; position:relative; white-space:nowrap; border:0; border-radius:0;
+  font-size:14.5px; font-weight:800; font-stretch:72%; font-style:normal; text-transform:uppercase; letter-spacing:.06em;
+  color:#d2c9b8; background:var(--rr-cloth),linear-gradient(180deg,#323130,var(--rr-gaffer));
+  clip-path:polygon(0.0% 0.0%,7.1% 0.0%,14.3% 0.0%,21.4% 0.0%,28.6% 0.0%,35.7% 0.0%,42.9% 0.0%,50.0% 0.0%,57.1% 0.0%,64.3% 0.0%,71.4% 0.0%,78.6% 0.0%,85.7% 0.0%,92.9% 0.0%,100.0% 0.0%,99.6% 16.7%,99.6% 33.3%,99.9% 50.0%,99.0% 66.7%,98.8% 83.3%,100.0% 100.0%,92.9% 100.0%,85.7% 100.0%,78.6% 100.0%,71.4% 100.0%,64.3% 100.0%,57.1% 100.0%,50.0% 100.0%,42.9% 100.0%,35.7% 100.0%,28.6% 100.0%,21.4% 100.0%,14.3% 100.0%,7.1% 100.0%,0.0% 100.0%,0.6% 83.3%,0.6% 66.7%,0.1% 50.0%,0.1% 33.3%,0.4% 16.7%); box-shadow:none; transform:none;
+  transition:transform .12s, background .12s, color .12s;
+}
+html[data-look='opera'] #app .nav-section svg { color:#9b9282; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { color:#fff; background:var(--rr-cloth),linear-gradient(180deg,#3d3c3a,#2f2e2d); transform:translateX(2px); }
+html[data-look='opera'] #app .nav-section[aria-current='page'] {
+  color:#1b1612; text-shadow:none; box-shadow:none;
+  background:var(--rr-grain),linear-gradient(180deg,#e3d6b1,#cdbf98);
+  transform:rotate(-1.4deg) translateX(3px);
+}
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#3a2f24; filter:none; }
+/* the amp's pilot light: this page is on */
+html[data-look='opera'] #app .nav-section[aria-current='page']::after {
+  content:''; position:absolute; right:14px; top:50%; width:9px; height:9px; margin-top:-4.5px; border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#ffb3a0,var(--rr-pilot) 55%,#6a120c); box-shadow:0 0 8px 2px var(--rr-pilot-glow);
+  clip-path:none; filter:none; left:auto; animation:none;
+}
+html[data-look='opera'] #app .nav-item { border-radius:2px; color:#cbc2b2; }
+html[data-look='opera'] #app .nav-item:hover { background:#ffffff0a; color:#fff; }
+html[data-look='opera'] #app .nav-item[aria-current='true'] { background:#ffffff10; color:var(--rr-bone); border-left:3px solid var(--rr-pilot); }
+html[data-look='opera'] #app .nav-group-label { color:var(--rr-bone-3); font-family:var(--rr-mono); font-weight:700; font-style:normal; letter-spacing:.08em; font-size:10px; }
+html[data-look='opera'] #app .roadshow-sticker { border-block:1px dashed #3d362f; color:var(--rr-bone-2); }
+html[data-look='opera'] #app .roadshow-sticker span { font-family:var(--rr-mono); font-style:normal; text-shadow:none; }
+html[data-look='opera'] #app .guitar-card { border-radius:3px; background:#151311; border:1px solid #2f2a25; box-shadow:inset 0 1px 0 #ffffff08; }
+
+/* ------------------------------------------------------------ pages */
+html[data-look='opera'] #app :is(.page,.library,.discover) {
+  background:radial-gradient(60% 40% at 20% 0%,#ffd9a00c,transparent 70%),var(--rr-stains),var(--rr-grain),linear-gradient(180deg,#121110,#0c0b0a);
+}
+/* cards: worn tolex, faded piping, scuffed corner protectors */
+html[data-look='opera'] #app :is(.card,.tones-sec,.dis-card,.gr-card,.goal-card) {
+  border-radius:3px; border:1px solid #2c2722; background-color:var(--rr-card);
+  background-image:
+    radial-gradient(circle at 0 0,#8c877e 0 2.5px,#3a3734 3px 8px,transparent 8.5px),
+    radial-gradient(circle at 100% 0,#8c877e 0 2.5px,#3a3734 3px 8px,transparent 8.5px),
+    radial-gradient(40% 30% at 80% 90%,#ffffff06,transparent),
+    var(--rr-grain),
+    linear-gradient(180deg,#1c1916,#161412);
+  box-shadow:inset 0 0 0 3px #0c0b0a,inset 0 0 0 4px #a88d5726,0 8px 20px #0009;
+}
+html[data-look='opera'] #app :is(.card-head h2,.card > h2,.tones-sec h3) {
+  font-size:14px; font-weight:800; font-stretch:78%; font-style:normal; text-transform:uppercase; letter-spacing:.1em;
+  color:var(--rr-bone); background:none; -webkit-text-stroke:0; filter:none;
+}
+html[data-look='opera'] #app :is(.page-title,.progress-head h1,.play-head h1,.gr-head h1,.tones-titlebar h1,.lib-head h1,.dv-title h1,.discover h1) {
+  font-weight:900; font-stretch:64%; font-style:normal; text-transform:uppercase; letter-spacing:.005em;
+  color:var(--rr-bone); background:none; -webkit-text-stroke:0; filter:none; text-shadow:0 2px 0 #000;
+}
+html[data-look='opera'] #app .play-head h1 { font-size:38px; }
+html[data-look='opera'] #app .page-title { font-size:34px; }
+html[data-look='opera'] #app :is(.eyebrow,.play-head .eyebrow) { color:var(--rr-bone-3); font-family:var(--rr-mono); font-weight:700; letter-spacing:.12em; }
+
+/* buttons: cream amp-panel switches and black tolex */
+html[data-look='opera'] #app :is(.btn,.gseg,.seg) { border-radius:3px; }
+html[data-look='opera'] #app .btn { font-weight:750; transition:transform .08s, filter .12s, background .12s; }
+html[data-look='opera'] #app .btn.soft { color:var(--rr-bone); border:1px solid #3d3630; background:linear-gradient(180deg,#26221e,#1a1714); box-shadow:inset 0 1px 0 #ffffff0c,0 2px 0 #000; }
+html[data-look='opera'] #app .btn.soft:hover { border-color:#6a5f52; background:linear-gradient(180deg,#2e2924,#201c18); }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary) {
+  color:#1d1814; border:1px solid #8a7d63; font-weight:850; text-transform:none; font-style:normal; letter-spacing:.01em; text-shadow:none;
+  background:var(--rr-grain),linear-gradient(180deg,#ece2cb,#d6c9aa);
+  box-shadow:inset 0 1px 0 #fff8,inset 0 -2px 0 #0002,0 2px 0 #000,0 4px 8px #0006;
+}
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary):hover { transform:translateY(-1px); filter:brightness(1.05); box-shadow:inset 0 1px 0 #fff8,inset 0 -2px 0 #0002,0 3px 0 #000,0 6px 10px #0007; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.btn.soft):active { transform:translateY(2px); box-shadow:inset 0 2px 3px #0006; }
+html[data-look='opera'] #app .btn.danger { background:linear-gradient(#4a1814,#331210); color:#f2c9c0; border-color:#8c2a22; }
+html[data-look='opera'] #app :is(.gseg,.seg) { background:#0b0a09; border:1px solid #302a24; box-shadow:inset 0 2px 5px #000; }
+html[data-look='opera'] #app :is(.gseg,.seg) button { color:var(--rr-bone-2); }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'] { color:#1d1814; background:linear-gradient(180deg,#e6dbc2,#d2c4a2); box-shadow:inset 0 -2px 0 #0002; }
+html[data-look='opera'] #app :is(.input,select,textarea,input[type='text'],input[type='number']) { background:#0b0a09; border-color:#352f29; color:var(--rr-bone); box-shadow:inset 0 2px 4px #000; }
+html[data-look='opera'] #app :is(.input,select,textarea,input[type='text']):focus { border-color:var(--rr-cream); }
+html[data-look='opera'] #app :focus-visible { outline:2px solid var(--rr-cream); outline-offset:3px; }
+html[data-look='opera'] ::selection { background:#8c2a22; color:#fff; }
+html[data-look='opera'] #app ::-webkit-scrollbar { width:10px; height:10px; }
+html[data-look='opera'] #app ::-webkit-scrollbar-track { background:#0c0b0a; }
+html[data-look='opera'] #app ::-webkit-scrollbar-thumb { border-radius:5px; border:3px solid #0c0b0a; background:repeating-linear-gradient(180deg,#8f8676 0 2px,#5d564c 2px 3px); }
+
+html[data-look='opera'] #app .nowbar { background:var(--rr-grain),linear-gradient(180deg,#171512,#0e0d0c); border-top:1px solid #000; box-shadow:0 -1px 0 var(--rr-brass-dim),0 -8px 20px #0008; }
+html[data-look='opera'] #app .nowbar .nb-empty { color:var(--rr-bone-3); font-family:var(--rr-mono); font-size:12px; font-style:normal; }
+html[data-look='opera'] #app .round-play { color:#1d1814; border:1px solid #8a7d63; background:linear-gradient(180deg,#ece2cb,#d6c9aa); box-shadow:0 2px 0 #000; }
+
+/* ------------------------------------------------------------- Songs */
+html[data-look='opera'] #app .lib-head { background:var(--rr-grain),linear-gradient(180deg,#171513,#121110); border-bottom:1px solid #000; box-shadow:0 1px 0 #ffffff08; }
+html[data-look='opera'] #app .lib-head h1 { font-size:30px; }
+html[data-look='opera'] #app .table-head { background:#151311; color:var(--rr-bone-3); border-bottom:1px solid #2d2823; font-family:var(--rr-mono); font-weight:700; font-style:normal; letter-spacing:.06em; font-size:10px; box-shadow:none; }
+html[data-look='opera'] #app .scroller { background:transparent; }
+html[data-look='opera'] #app .row { border-bottom:1px solid #ffffff07; }
+html[data-look='opera'] #app .row:hover { background:#ffffff07; box-shadow:none; }
+html[data-look='opera'] #app .row.sel { background:linear-gradient(90deg,#d23a2c1c,#d23a2c06 40%,transparent); box-shadow:inset 3px 0 var(--rr-pilot); }
+html[data-look='opera'] #app .row .t { font-weight:750; }
+html[data-look='opera'] #app .row.sel .t { color:#fff; text-shadow:none; }
+html[data-look='opera'] #app .tile .cover { border-radius:2px; border:0; box-shadow:0 0 0 1px #000,3px 4px 0 #0009; filter:saturate(.92) contrast(1.02); transition:transform .15s; }
+html[data-look='opera'] #app .tile:hover .cover { transform:rotate(-1deg) translateY(-2px); }
+html[data-look='opera'] #app .tile.sel .cover { box-shadow:0 0 0 2px var(--rr-cream),3px 4px 0 #0009; }
+html[data-look='opera'] #app .inspector { background:var(--rr-grain),linear-gradient(180deg,#141210,#0e0d0c); border-left:1px solid #000; box-shadow:inset 1px 0 0 #ffffff08; }
+html[data-look='opera'] #app .insp-cover { border-radius:2px; border:0; box-shadow:0 0 0 1px #000,4px 5px 0 #0009; }
+
+/* ------------------------------------------------------------- Jam + rig */
+html[data-look='opera'] #app .slot { border-radius:3px; border:1px solid #2f2a25; background:var(--rr-grain),linear-gradient(180deg,#1d1a17,#151311); box-shadow:inset 0 1px 0 #ffffff08,0 2px 0 #000; }
+html[data-look='opera'] #app .slot:hover { border-color:#4a4239; }
+html[data-look='opera'] #app .slot.on { border-color:#5a5045; background:linear-gradient(180deg,#26211c,#191613); box-shadow:inset 0 -3px 0 var(--gel),0 2px 0 #000; transform:none; }
+html[data-look='opera'] #app .slot .num { border-radius:3px; font-weight:800; font-family:var(--rr-mono); box-shadow:none; }
+html[data-look='opera'] #app .rig-card { border-top:0; }
+html[data-look='opera'] #app .chain { gap:6px; padding:8px 4px 14px; align-items:flex-end; }
+html[data-look='opera'] #app .block {
+  border-radius:3px; border:1px solid #2f2a25; min-width:178px;
+  background:var(--rr-grain),linear-gradient(180deg,#00000000 55%,#00000080),linear-gradient(180deg,#1f1b18,#171411);
+  box-shadow:0 4px 0 #000,inset 0 1px 0 #ffffff0a;
+}
+html[data-look='opera'] #app .block:hover { border-color:#564c41; }
+html[data-look='opera'] #app :is(.block.lit,.block[aria-pressed='true']) { border-color:var(--rr-cream); box-shadow:0 4px 0 #000,0 0 0 1px #000,inset 0 1px 0 #ffffff12; }
+html[data-look='opera'] #app .block .bk-art { height:96px; position:relative; }
+html[data-look='opera'] #app .block .gear-photo { filter:drop-shadow(0 6px 6px #000); }
+html[data-look='opera'] #app .block .bk-kind { color:var(--rr-bone-3); font-family:var(--rr-mono); font-weight:700; font-style:normal; letter-spacing:.06em; }
+html[data-look='opera'] #app .block .bk-name { color:var(--rr-bone); font-weight:800; }
+html[data-look='opera'] #app .block .led { background:var(--rr-pilot); box-shadow:0 0 6px var(--rr-pilot-glow); }
+html[data-look='opera'] #app .block.bypass .led { background:#3a1f1c; box-shadow:none; }
+html[data-look='opera'] #app .cable { height:5px; border-radius:3px; background:linear-gradient(180deg,#2a2a2a,#0e0e0e); box-shadow:none; }
+html[data-look='opera'] #app .knob-well { border-radius:3px; border:1px solid #2c2722; background:#0e0d0c; box-shadow:inset 0 3px 10px #000; }
+html[data-look='opera'] #app .rknob .kn-name { color:var(--rr-bone-2); font-weight:750; text-transform:uppercase; font-size:10.5px; letter-spacing:.06em; }
+html[data-look='opera'] #app .rknob .kn-val { color:var(--rr-bone); font-family:var(--rr-mono); }
+
+/* -------------------------------------------- gear photos with live knobs */
+html[data-look='opera'] .gear-faceplate {
+  position:relative; padding:18px 18px 12px; margin:6px auto 14px; border-radius:3px; max-width:820px;
+  background:radial-gradient(50% 60% at 50% 15%,#ffe1b01c,transparent 70%),var(--rr-grain),linear-gradient(180deg,#121110,#080707);
+  box-shadow:inset 0 0 0 1px #24201c,inset 0 -30px 40px #000;
+}
+html[data-look='opera'] .gear-faceplate.portrait { max-width:380px; }
+html[data-look='opera'] .gear-faceplate.enlarged { max-width:none; }
+html[data-look='opera'] .gear-faceplate.enlarged.portrait { max-width:560px; }
+html[data-look='opera'] .gear-face > img { filter:drop-shadow(0 16px 16px #000); }
+html[data-look='opera'] .gear-face-help { color:var(--rr-bone-3); font-family:var(--rr-mono); font-size:10.5px; font-style:normal; }
+.gear-face .gear-hotspot.turns { min-width:0; }
+.gear-face .gear-hotspot.turns .ring { position:absolute; inset:0; width:auto; height:auto; border:0; border-radius:50%; background:none; box-shadow:none; filter:none; overflow:visible; }
+.gear-face .gear-hotspot.turns .cap,
+.gear-face .gear-hotspot.turns .ptr { display:none; }
+.gear-face .photo-cap {
+  position:absolute; inset:0; border-radius:50%; display:block; background-repeat:no-repeat;
+  transform:rotate(calc(var(--rot, 0deg) - var(--a0, 0deg)));
+  box-shadow:inset 0 0 0 1px #0008,inset 0 0 2px 1px #0005; transition:transform .06s linear; will-change:transform;
+}
+.gear-face .gear-hotspot.turns:is(:hover,:focus-visible) .photo-cap { box-shadow:inset 0 0 0 .5px #0005,0 0 0 1.5px #e3d8bfcc; }
+.gear-face .gear-hotspot.turns:active .photo-cap { box-shadow:inset 0 0 0 .5px #0005,0 0 0 1.5px #d23a2ccc,0 0 8px 1px #d23a2c66; transition:none; }
+.gear-face .gear-hotspot.turns:focus-visible { outline:none; }
+.gear-face .gear-hotspot.turns:is(:hover,:focus-visible,:active) :is(.kn-name,.kn-val) { display:block; }
+/* the value on a scrap of masking tape */
+.gear-face .gear-hotspot.turns .kn-name { bottom:calc(100% + 27px) !important; font-family:'Typewriter Stagehand',monospace; font-size:11px !important; background:#d9cba5 !important; color:#231d17 !important; border:0 !important; border-radius:0 !important; }
+.gear-face .gear-hotspot.turns .kn-val { font-family:'Typewriter Stagehand',monospace; font-weight:700; font-size:13px !important; color:#231d17 !important; background:#e6dfcf !important; border:0 !important; border-radius:0 !important; padding:2px 8px !important; }
+.gear-face .gear-hotspot.turns[data-max='true'] .kn-val::after { content:'  (wish it went to 11)'; font-size:10px; white-space:nowrap; }
+html[data-look='opera'] .gear-faceplate .gear-enlarge { margin-top:2px; }
+
+/* ------------------------------------------------------------- Tones */
+html[data-look='opera'] #app .tones-list { background:var(--rr-grain),linear-gradient(180deg,#141210,#0e0d0c); border-right:1px solid #000; box-shadow:inset -1px 0 0 #ffffff08; }
+html[data-look='opera'] #app .tones-edit { background:var(--rr-stains),var(--rr-grain),linear-gradient(180deg,#121110,#0c0b0a); }
+html[data-look='opera'] #app :is(.tk-card,.tone-item) { border-radius:3px; border:1px solid #2c2722; background:linear-gradient(180deg,#1d1a17,#151311); box-shadow:0 2px 0 #000,inset 0 1px 0 #ffffff08; }
+html[data-look='opera'] #app :is(.tk-card,.tone-item):hover { border-color:#4a4239; }
+html[data-look='opera'] #app :is(.tk-card.on,.tone-item.on) { border-color:var(--rr-cream); box-shadow:0 0 0 1px #000,inset 3px 0 0 var(--rr-pilot); }
+
+/* the tone's gear set up in the rehearsal room */
+.gear-lineup { display:none; }
+html[data-look='opera'] #app .gear-lineup {
+  display:flex; align-items:flex-end; justify-content:center; gap:22px; flex-wrap:wrap;
+  margin:14px 0 18px; padding:30px 24px 0; min-height:220px; position:relative; border-radius:3px; overflow:hidden;
+  background:
+    radial-gradient(35% 55% at 40% 0%,#ffe1b026,transparent 70%),
+    linear-gradient(180deg,transparent 0 72%,#00000000 72%),
+    var(--rr-stains),
+    linear-gradient(180deg,#0000 0 72%,#2a1f17 72%,#1b140f 100%),
+    var(--rr-wall);
+  background-size:auto,auto,auto,auto,184px 92px;
+  box-shadow:inset 0 0 0 1px #24201c,inset 0 -30px 30px -20px #000,0 8px 20px #0009;
+}
+html[data-look='opera'] #app .gear-lineup::after { content:''; position:absolute; left:0; right:0; top:72%; height:2px; background:#0008; }
+html[data-look='opera'] #app :is(.lineup-floor,.lineup-rack) { display:flex; align-items:flex-end; gap:10px; position:relative; z-index:1; padding-bottom:16px; }
+html[data-look='opera'] #app .lineup-stack { display:flex; flex-direction:column; align-items:center; position:relative; z-index:1; padding-bottom:10px; }
+html[data-look='opera'] #app .lineup-piece { display:flex; flex-direction:column; align-items:center; gap:4px; padding:0; border:0; background:none; color:var(--rr-bone); cursor:pointer; transition:transform .15s; }
+html[data-look='opera'] #app .lineup-piece .lp-art { display:block; filter:drop-shadow(0 10px 8px #000); }
+html[data-look='opera'] #app .lineup-piece .lp-art .gear-art { width:100%; height:100%; }
+html[data-look='opera'] #app .lineup-piece.amp .lp-art { width:220px; height:132px; }
+html[data-look='opera'] #app .lineup-piece.cab .lp-art { width:220px; height:190px; }
+html[data-look='opera'] #app .lineup-stack .lineup-piece.amp { margin-bottom:-22px; position:relative; z-index:2; }
+html[data-look='opera'] #app .lineup-stack .lineup-piece.amp .lp-name { display:none; }
+html[data-look='opera'] #app .lineup-piece.pedal .lp-art { width:72px; height:104px; }
+html[data-look='opera'] #app .lineup-piece.rack .lp-art { width:130px; height:70px; }
+html[data-look='opera'] #app .lineup-piece .lp-name { font-family:var(--rr-mono); font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1px 6px; color:#231d17; background:#d9cba5; clip-path:polygon(0.0% 0.0%,7.1% 0.0%,14.3% 0.0%,21.4% 0.0%,28.6% 0.0%,35.7% 0.0%,42.9% 0.0%,50.0% 0.0%,57.1% 0.0%,64.3% 0.0%,71.4% 0.0%,78.6% 0.0%,85.7% 0.0%,92.9% 0.0%,100.0% 0.0%,99.6% 16.7%,99.6% 33.3%,99.9% 50.0%,99.0% 66.7%,98.8% 83.3%,100.0% 100.0%,92.9% 100.0%,85.7% 100.0%,78.6% 100.0%,71.4% 100.0%,64.3% 100.0%,57.1% 100.0%,50.0% 100.0%,42.9% 100.0%,35.7% 100.0%,28.6% 100.0%,21.4% 100.0%,14.3% 100.0%,7.1% 100.0%,0.0% 100.0%,0.6% 83.3%,0.6% 66.7%,0.1% 50.0%,0.1% 33.3%,0.4% 16.7%); max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+html[data-look='opera'] #app .lineup-piece:hover { transform:translateY(-3px) rotate(-.5deg); }
+html[data-look='opera'] #app .lineup-piece:focus-visible { outline:2px solid var(--rr-cream); outline-offset:4px; }
+html[data-look='opera'] #app .lineup-piece.bypass { opacity:.45; }
+
+/* ------------------------------------------------------------ Progress */
+/* a tortoiseshell pick for your level */
+html[data-look='opera'] #app .lv-medal {
+  width:104px; height:116px; border:0; display:grid; place-content:center; text-align:center; position:relative; box-shadow:none;
+  clip-path:path('M52 0 C86 0 104 13 104 37 C104 69 76 100 52 116 C28 100 0 69 0 37 C0 13 18 0 52 0 Z');
+  background:radial-gradient(30% 25% at 30% 30%,#d79a4a,transparent 70%),radial-gradient(30% 30% at 70% 60%,#c07a32,transparent 70%),radial-gradient(25% 20% at 45% 80%,#e0a65a,transparent 70%),linear-gradient(160deg,#5a2a10,#2a1206);
+  filter:drop-shadow(0 4px 4px #000a);
+}
+html[data-look='opera'] #app .lv-medal::before { display:none; }
+html[data-look='opera'] #app .lv-medal small { color:#f3e2c2; font-family:var(--rr-mono); font-weight:700; letter-spacing:.14em; font-size:10px; text-shadow:0 1px 0 #000; }
+html[data-look='opera'] #app .lv-medal b { font-size:52px; line-height:1; font-weight:900; font-stretch:62%; color:#f3e2c2; background:none; -webkit-text-stroke:0; text-shadow:0 2px 0 #000; }
+html[data-look='opera'] #app .lv-bar { height:12px; border-radius:2px; background:#0b0a09; border:1px solid #302a24; box-shadow:inset 0 2px 4px #000; }
+html[data-look='opera'] #app .lv-bar i { border-radius:1px; background:repeating-linear-gradient(90deg,var(--rr-brass) 0 6px,#8a7346 6px 8px); box-shadow:none; }
+html[data-look='opera'] #app .lv-title { font-weight:850; text-transform:uppercase; letter-spacing:.02em; font-style:normal; }
+html[data-look='opera'] #app .goal-card.earned { border-color:#6a5f4a; box-shadow:inset 0 0 0 3px #0c0b0a,inset 0 0 0 4px #a88d5766; }
+
+/* ----------------------------------------------------------- dialogs, toasts */
+html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .modal { border-radius:3px; border:1px solid #2f2a25; background:var(--rr-grain),linear-gradient(180deg,#1a1714,#11100e); box-shadow:inset 0 0 0 3px #0c0b0a,inset 0 0 0 4px #a88d5726,0 30px 80px #000; }
+html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .modal > header h2 { font-size:20px; font-weight:900; font-stretch:68%; text-transform:uppercase; letter-spacing:.02em; color:var(--rr-bone); background:none; -webkit-text-stroke:0; }
+html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .modal :is(.btn.primary,.btn.glow-primary) { color:#1d1814; border:1px solid #8a7d63; background:linear-gradient(180deg,#ece2cb,#d6c9aa); box-shadow:inset 0 1px 0 #fff8,0 2px 0 #000; }
+html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .modal .btn.soft { color:var(--rr-bone); border:1px solid #3d3630; background:linear-gradient(180deg,#26221e,#1a1714); }
+html[data-look='opera'] .toasts .toast { border-radius:2px; border:0; background:var(--rr-grain),#e6dfcf; color:#211b16; box-shadow:0 10px 24px #000c; transform:rotate(-.6deg); }
+html[data-look='opera'] .toasts .toast :is(b,strong,.t) { color:#211b16; }
+html[data-look='opera'] .toasts .toast .icon-btn { color:#4a4036; }
+
+/* ------------------------------------------- calm / less decoration */
+html[data-look='opera'][data-decoration='reduced'] :is(.opera-fx,.opera-sticker),
+html[data-look='opera'][data-decoration='reduced'] #app .identity-art-wrap { display:none; }
+html[data-look='opera'][data-calm='true'] :is(.opera-fx *,.identity-art,.identity-copy,.opera-sticker) { animation:none !important; }
+@media (prefers-reduced-motion: reduce) {
+  html[data-look='opera'] :is(.opera-fx *,.identity-art,.identity-copy,.opera-sticker) { animation:none !important; }
+}
+
+/* fix (both looks): the tone editor's gear chain was squeezed to a sliver by the column */
+.tones-edit .chain { flex-shrink:0; }
+html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .modal > header { background:var(--rr-grain),linear-gradient(180deg,#1d1a17,#151311) !important; border-bottom:1px solid #2f2a25 !important; }
+html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .modal > footer { background:#121110 !important; border-top:1px solid #2f2a25 !important; }
+html[data-look='opera'] .toasts .toast * { color:#2a221b !important; }
+
+/* printed sticker or note slapped on the wall (cut from the user's mockups) */
+html:not([data-look='opera']) .opera-sticker-img { display:none; }
+html[data-look='opera'] #app .opera-sticker-img {
+  position:relative; z-index:3; align-self:center; width:auto; height:auto; max-width:190px; max-height:140px;
+  transform:rotate(var(--tilt,-3deg)); filter:drop-shadow(2px 4px 4px #000c);
+  animation:rr-slap .35s .15s cubic-bezier(.2,.9,.3,1.4) both;
+}
+html[data-look='opera'] #app .opera-sticker-img[hidden], html[data-look='opera'] #app .opera-sticker[hidden] { display:none; }
+html[data-look='opera'][data-decoration='reduced'] .opera-sticker-img { display:none; }
+
+/* Mythology of Music: compact spot illustrations, not dominating hero scenes. */
+html[data-look='opera'] #app .identity-art-wrap { flex-basis:180px; margin-right:24px; }
+html[data-look='opera'] #app .identity-art-wrap .identity-art { width:180px; height:144px; bottom:4px; }
+html[data-look='opera'] #app .identity-art-wrap:has([data-art='creation-of-riff']) { flex-basis:240px; }
+html[data-look='opera'] #app .identity-art-wrap .identity-art[data-art='creation-of-riff'] { width:240px; height:112px; }
+#app .identity-art { width:180px; height:140px; flex-basis:180px; }
+#app .menu-spot-art { width:104px; height:104px; margin-bottom:10px; }
+#app .pspot-empty .menu-spot-art { width:80px; height:80px; flex-basis:80px; }
+#app .roadshow-sticker img { width:54px; height:60px; }
+body:not(:has(.highway:not([hidden]))) #overlays .roadshow-settings-art { width:100px; height:110px; object-fit:contain; }
+body:not(:has(.highway:not([hidden]))) #overlays .roadshow-guide-art { width:88px; height:88px; }
+@media(max-width:1100px) {
+ html[data-look='opera'] #app .identity-art-wrap { flex-basis:140px; margin-right:12px; }
+ html[data-look='opera'] #app .identity-art-wrap .identity-art { width:140px; height:124px; }
+ html[data-look='opera'] #app .identity-art-wrap:has([data-art='creation-of-riff']) { flex-basis:200px; }
+ html[data-look='opera'] #app .identity-art-wrap .identity-art[data-art='creation-of-riff'] { width:200px; height:96px; }
+}
+@media(max-width:800px) {
+ html[data-look='opera'] #app .identity-art-wrap { flex-basis:100px; margin-right:8px; }
+ html[data-look='opera'] #app .identity-art-wrap .identity-art { width:100px; height:100px; }
+ html[data-look='opera'] #app .identity-art-wrap:has([data-art='creation-of-riff']) { display:none; }
+}

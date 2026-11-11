@@ -17,6 +17,8 @@ cc $CF -march=x86-64-v2 -o build/nam_test test/nam_test.c $DSP -lm
 cc $CF -march=x86-64-v2 -o build/nam_engine_test test/nam_engine_test.c $DSP -lm
 cc $CF -o build/rs_test test/rs_test.c $(echo $DSP | sed 's#dsp/sh_nam.c##') -lm
 cc $CF -pthread -o build/stagehand-audio-fake host/host.c host/io_fake.c $DSP -lm
+# 4.6: every amp, pedal and rack and each knob, through the engine (node test/gear-coverage.js)
+cc -O2 -Wall -Wno-unused-function -o build/gear_cover_test test/gear_cover_test.c $DSP -lm
 clang --target=wasm32 -O3 -msimd128 -nostdlib -fno-builtin -Wl,--no-entry -Wl,--initial-memory=67108864 -Wl,--max-memory=134217728 -Wl,--strip-all \
   -o ../src/renderer/worklets/rig-dsp.wasm $DSP dsp/sh_wasm.c
 LM=${SH_LLVM_MINGW:-/home/claude/llvm-mingw}

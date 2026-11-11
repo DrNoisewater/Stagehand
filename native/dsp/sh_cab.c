@@ -102,10 +102,22 @@ static spk_t speaker_for(const char *key, int bass_kind) {
   return s;
 }
 
-static double mic_db(const char *key, double f) {
+/* 4.6: the movable mic. pos 0 (center of the cone) .. 1 (edge), ang 0 (straight on) .. 1 (45°
+ * away), dist 0 (on the grille) .. 1 (a foot or more back). pos < 0: the named position in the key. */
+typedef struct { double pos, ang, dist, room; } mic_place;
+
+static double mic_db(const char *key, double f, const mic_place *mp) {
   double lf = sh_log(f / 1000.0) / SH_LN2; /* octaves from 1k */
   double d = 0;
-  int edge = sh_has(key, "_Edge"), off = sh_has(key, "OffAxis");
+  double edge = sh_has(key, "_Edge"), off = sh_has(key, "OffAxis");
+  double cone = !edge && !off && sh_has(key, "_Cone");
+  if (mp && mp->pos >= 0) {
+    /* continuous: the cone's bright center fades into the edge's warmth */
+    double e = sh_clamp((mp->pos - 0.12) / 0.6, 0, 1);
+    edge = e * e * (3 - 2 * e);
+    cone = 1 - edge;
+    off = mp->ang;
+  }
   if (sh_has(key, "_57_")) {
     d += 4 * sh_exp(-0.5 * ((lf - 2.3) / 0.6) * ((lf - 2.3) / 0.6)); /* presence ~5k */
     d += 2 * sh_exp(-0.5 * ((lf + 2.8) / 0.7) * ((lf + 2.8) / 0.7)); /* proximity ~150 */
@@ -118,10 +130,24 @@ static double mic_db(const char *key, double f) {
     d += 1.5 * sh_exp(-0.5 * ((lf + 2.0) / 0.8) * ((lf + 2.0) / 0.8));
     d += f > 4000 ? -3 * (1 - 1 / (1 + (f - 4000) / 4000)) : 0;
   }
-  if (edge) d += f > 1500 ? -6 * (1 - 1 / (1 + (f - 1500) / 2000)) : 0, d += 1.0 * sh_exp(-0.5 * ((lf + 1.3) / 0.8) * ((lf + 1.3) / 0.8));
-  if (off) d += f > 2500 ? -4 * (1 - 1 / (1 + (f - 2500) / 2500)) : 0, d -= 2.5 * sh_exp(-0.5 * ((lf - 2.6) / 0.25) * ((lf - 2.6) / 0.25));
-  if (!edge && !off && sh_has(key, "_Cone")) d += 1.5 * sh_exp(-0.5 * ((lf - 1.8) / 0.7) * ((lf - 1.8) / 0.7));
+  if (edge > 0) d += edge * ((f > 1500 ? -6 * (1 - 1 / (1 + (f - 1500) / 2000)) : 0) + 1.0 * sh_exp(-0.5 * ((lf + 1.3) / 0.8) * ((lf + 1.3) / 0.8)));
+  if (off > 0) d += off * ((f > 2500 ? -4 * (1 - 1 / (1 + (f - 2500) / 2500)) : 0) - 2.5 * sh_exp(-0.5 * ((lf - 2.6) / 0.25) * ((lf - 2.6) / 0.25)));
+  if (cone > 0 && (mp && mp->pos >= 0 ? 1 : !off)) d += cone * (1 - off) * 1.5 * sh_exp(-0.5 * ((lf - 1.8) / 0.7) * ((lf - 1.8) / 0.7));
+  if (mp && mp->dist > 0) {
+    /* backing off: less proximity bass, the speaker's beam narrows the top a touch */
+    d -= mp->dist * 5.0 / (1 + (f / 180) * (f / 180));
+    d += f > 5000 ? -mp->dist * 3 * (1 - 1 / (1 + (f - 5000) / 4000)) : 0;
+  }
   return d;
+}
+
+static void mic_from_knobs(const sh_gear *g, mic_place *mp) {
+  sh_knob k;
+  mp->pos = kn_exact(g, "mic position", &k) ? sh_clamp(k.v / 100.0, 0, 1) : -1;
+  mp->ang = kn_exact(g, "mic angle", &k) ? sh_clamp(k.v / 100.0, 0, 1) : 0;
+  mp->dist = kn_exact(g, "mic distance", &k) ? sh_clamp(k.v / 100.0, 0, 1) : 0;
+  mp->room = kn_exact(g, "room mic", &k) ? sh_clamp(k.v / 100.0, 0, 1) : 0;
+  if (mp->pos < 0 && (mp->ang > 0 || mp->dist > 0)) mp->pos = sh_has(g->key, "_Edge") ? 0.72 : sh_has(g->key, "OffAxis") ? 0.4 : 0.08;
 }
 
 static double speaker_db(const spk_t *s, double f, uint32_t seed) {
@@ -234,8 +260,13 @@ int cab_build_ir(sh_block *b, const float *ir, int len, sh_arena *a) {
 int cab_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int bass_kind) {
   spk_t s = speaker_for(g->key, bass_kind);
   int bass = sh_has(g->key, "Bass_Cab") || bass_kind;
+  mic_place mp;
+  mic_from_knobs(g, &mp);
   int len = (int)(sr * (bass ? 0.032 : 0.022));
   if (len > CAB_FFT / 2) len = CAB_FFT / 2;
+  /* the room: a floor bounce that comes sooner the closer the mic, and a few early reflections */
+  int tail = (mp.dist > 0 || mp.room > 0) ? (int)(sr * 0.012) : 0;
+  if (len + tail > CAB_FFT / 2) tail = CAB_FFT / 2 - len;
   /* scratch from the arena: re, im (double) */
   size_t mark = a->used;
   double *re = (double *)ar_alloc(a, sizeof(double) * CAB_FFT);
@@ -247,12 +278,12 @@ int cab_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int bass_ki
   double ref = 0;
   {
     double f = 1000;
-    ref = speaker_db(&s, f, seed) + mic_db(g->key, f);
+    ref = speaker_db(&s, f, seed) + mic_db(g->key, f, &mp);
   }
   for (int i = 0; i <= CAB_FFT / 2; i++) {
     double f = (double)i * sr / CAB_FFT;
     if (f < 10) f = 10;
-    double db = speaker_db(&s, f, seed) + mic_db(g->key, f) - ref;
+    double db = speaker_db(&s, f, seed) + mic_db(g->key, f, &mp) - ref;
     if (db < -90) db = -90;
     re[i] = db * 0.11512925464970228; /* ln|H| */
     im[i] = 0;
@@ -280,6 +311,25 @@ int cab_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int bass_ki
   for (int i = 0; i < len; i++) {
     double w = i < len - fade ? 1 : 0.5 + 0.5 * sh_cos(SH_PI * (i - (len - fade)) / fade);
     re[i] *= w;
+  }
+  if (tail > 0) {
+    /* reflections: copies of the speaker's own response, later and quieter (im[] is free now) */
+    static const double TAP_MS[6] = { 0, 2.3, 4.1, 6.4, 8.2, 10.5 };
+    static const double TAP_G[6] = { 0, 0.55, -0.42, 0.33, -0.27, 0.2 };
+    for (int i = 0; i < len + tail; i++) im[i] = i < len ? re[i] : 0;
+    double floor_ms = 0.25 + 2.6 * mp.dist; /* the floor bounce: further back, later */
+    int fd = (int)(sr * floor_ms / 1000.0);
+    double fg = 0.45 * mp.dist;
+    for (int i = 0; i < len; i++)
+      if (i + fd < len + tail) im[i + fd] += fg * re[i];
+    for (int t = 1; t < 6; t++) {
+      int dly = (int)(sr * (TAP_MS[t] + 1.5 * mp.dist) / 1000.0);
+      double gn = TAP_G[t] * mp.room;
+      for (int i = 0; i < len && i + dly < len + tail; i++) im[i + dly] += gn * re[i];
+    }
+    len += tail;
+    int fade2 = tail / 3;
+    for (int i = 0; i < len; i++) re[i] = im[i] * (i < len - fade2 ? 1 : 0.5 + 0.5 * sh_cos(SH_PI * (i - (len - fade2)) / fade2));
   }
   /* normalise: unity gain at 1 kHz */
   double cr = 0, ci = 0;

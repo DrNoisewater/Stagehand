@@ -3,7 +3,8 @@
  * signal chain of gear blocks, and tone demos (a riff played through a tone).
  */
 import { gearArt } from './gearart.js';
-import { h, esc, icon, toast } from './ui.js';
+import { gearPhotoInfo } from './gear-photos.js';
+import { h, esc, icon, toast, modal } from './ui.js';
 import { rig } from './rig.js';
 import { engine } from './stage.js';
 import { TYPE_GELS, TYPE_NAMES, orderedGear, knobsOf, shortGearName } from './tonelib.js';
@@ -36,18 +37,29 @@ export function rotaryKnob({ name, min = 0, max = 1, value, def, gel = 'var(--tu
     val.textContent = fmt ? fmt(v) : String(Math.round(v * 100) / 100);
     el.setAttribute('aria-valuenow', String(v));
     el.setAttribute('aria-valuetext', val.textContent);
+    el.setAttribute('data-max', String(t >= 1));
   };
   const set = (nv, final) => {
+    if (el.disabled || !Number.isFinite(Number(nv))) return;
     nv = Math.max(min, Math.min(max, nv));
-    nv = Math.round(nv / st) * st;
+    nv = Math.max(min, Math.min(max, min + Math.round((nv - min) / st) * st));
     if (nv === v && !final) return;
     v = nv;
     show();
     if (onInput) onInput(v);
     if (final && onChange) onChange(v);
+    el.dispatchEvent(new CustomEvent('knobinput', { detail: v }));
+  };
+  // Linked faceplate controls update the same values without rebuilding the
+  // editor (which would lose pointer capture midway through a drag).
+  el.setValue = (nv, { emit = false, final = false } = {}) => {
+    if (emit) return set(nv, final);
+    if (!Number.isFinite(Number(nv))) return;
+    v = Math.max(min, Math.min(max, Number(nv))); show();
   };
   el.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || el.disabled) return;
+    el.focus({preventScroll:true});
     el.setPointerCapture(e.pointerId);
     let y = e.clientY;
     const move = (ev) => {
@@ -59,11 +71,13 @@ export function rotaryKnob({ name, min = 0, max = 1, value, def, gel = 'var(--tu
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
       el.removeEventListener('pointercancel', up);
+      el.removeEventListener('lostpointercapture', up);
       set(v, true);
     };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', up);
+    el.addEventListener('lostpointercapture', up);
     e.preventDefault();
   });
   el.addEventListener('wheel', (e) => {
@@ -83,6 +97,96 @@ export function rotaryKnob({ name, min = 0, max = 1, value, def, gel = 'var(--tu
   el.addEventListener('dblclick', () => def !== undefined && set(Number(def), true));
   show();
   return el;
+}
+
+/** An enlarged gear face with real linked controls placed over its knobs.
+ * Unmapped controls remain in the labeled control row; no fake physical knob.
+ * The supplied controls own audio, draft, save and undo semantics. */
+export function gearFaceplate(key, controls, { enlarged = false } = {}) {
+  const item = gearPhotoInfo(key);
+  if (!item) return null;
+  const wrap = h('div.gear-faceplate');
+  wrap.classList.toggle('portrait',item.height>item.width);
+  const face = h('div.gear-face', {style:{aspectRatio:`${item.width} / ${item.height}`}});
+  const photo = h('img', {src:`art/gear/${item.file}`,alt:`${item.name} gear face`,draggable:false});
+  photo.onerror = () => { wrap.hidden = true; };
+  face.append(photo);
+  wrap.classList.toggle('enlarged', !!enlarged);
+  const src = `art/gear/${item.file}`;
+  const ratio = item.height / item.width;
+  let count = 0;
+  const cleanup = [];
+  for (const original of controls.querySelectorAll('.rknob')) {
+    const name = original.getAttribute('aria-label');
+    const pos = item.knobs?.[name.toLowerCase()];
+    if (!pos) continue;
+    const overlay = rotaryKnob({name,
+      min:Number(original.getAttribute('aria-valuemin')),
+      max:Number(original.getAttribute('aria-valuemax')),
+      value:Number(original.getAttribute('aria-valuenow')),
+      step: item.steps?.[name.toLowerCase()],
+      onInput:v=>original.setValue(v,{emit:true}),
+      onChange:v=>original.setValue(v,{emit:true,final:true})});
+    overlay.classList.add('gear-hotspot');
+    overlay.style.left=pos[0]+'%'; overlay.style.top=pos[1]+'%';
+    if (item.turn && pos.length >= 4) {
+      // Rock Opera: the knob face is cut from the photo itself and turned, so the real knob moves.
+      const [x, y, r, a0] = pos;
+      const d = 2 * r;                       // face size, % of the photo's width
+      const sw = 100 / d, sh = sw * ratio;    // photo size in face widths
+      const ox = (x - r) / d, oy = (y * ratio - r) / d;
+      overlay.classList.add('turns');
+      overlay.style.setProperty('--knob-size', d + '%');
+      const cap = h('span.photo-cap', { style: {
+        backgroundImage: `url("${src}")`,
+        backgroundSize: `${(sw * 100).toFixed(3)}% ${(sh * 100).toFixed(3)}%`,
+        backgroundPosition: `${(ox / (sw - 1) * 100).toFixed(3)}% ${(oy / (sh - 1) * 100).toFixed(3)}%`,
+        '--a0': `${a0}deg`,
+      } });
+      const ring = overlay.children && overlay.children[0];
+      if (ring && ring.append) ring.append(cap);
+    } else {
+      overlay.style.setProperty('--knob-size',(pos[2] ? pos[2] * 2 : 5)+'%');
+    }
+    overlay.title=`${name}: drag up or down (Shift for fine), double-click to reset`;
+    overlay.disabled=original.disabled;
+    const sync=e=>overlay.setValue(e.detail);
+    original.addEventListener('knobinput',sync);
+    cleanup.push(()=>original.removeEventListener('knobinput',sync));
+    overlay.addEventListener('dblclick',()=>original.dispatchEvent(new MouseEvent('dblclick')));
+    face.append(overlay); count++;
+  }
+  wrap.append(face,h('small.gear-face-help',{text:count ? 'Grab a knob and drag up or down · Shift for fine · double-click to reset' : 'Set this one with the knobs below'}));
+  if (!enlarged) {
+    const zoom = h('button.btn.small.soft.gear-enlarge',{type:'button',text:'Get up close',title:'Open this gear big, with the same live knobs'});
+    zoom.onclick=()=>{const large=gearFaceplate(key,controls,{enlarged:true});modal({title:item.name,wide:true,body:large,onClose:()=>large.dispose()});};
+    wrap.append(zoom);
+  }
+  wrap.dispose=()=>cleanup.forEach(fn=>fn());
+  return wrap;
+}
+
+/** Rock Opera: the tone's gear set up on a stage. Pedals on the floor, the amp head
+ * stacked on its cabinet, rack units off to the side. Click a piece to open it. */
+export function gearLineup(tone, { onPick } = {}) {
+  const box = h('div.gear-lineup', { role: 'list', 'aria-label': 'The gear in this tone' });
+  const gear = orderedGear(tone);
+  const piece = (g, i, extra = '') => {
+    const b = h(`button.lineup-piece.${g.slot}${extra}${g.bypass ? '.bypass' : ''}`, { type: 'button', role: 'listitem', title: `${shortGearName(g.key)}${g.bypass ? ' (off)' : ''}` });
+    b.append(h('span.lp-art', { html: gearArt(g), 'aria-hidden': 'true' }), h('span.lp-name', { text: shortGearName(g.key) }));
+    b.onclick = () => onPick && onPick(i, g);
+    return b;
+  };
+  const pre = h('div.lineup-floor.pre'), post = h('div.lineup-floor.post'), racks = h('div.lineup-rack');
+  const stack = h('div.lineup-stack');
+  gear.forEach((g, i) => {
+    if (g.slot === 'amp') stack.prepend(piece(g, i));
+    else if (g.slot === 'cab') stack.append(piece(g, i));
+    else if (g.slot === 'rack') racks.append(piece(g, i));
+    else (g.slot === 'pre' ? pre : post).append(piece(g, i, '.pedal'));
+  });
+  for (const part of [pre, stack, post, racks]) if (part.children.length) box.append(part);
+  return box;
 }
 
 /** The signal chain: gear blocks joined by glowing cables. */

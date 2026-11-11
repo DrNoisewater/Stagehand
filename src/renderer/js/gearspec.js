@@ -59,6 +59,9 @@ export function toSpec(tone) {
         if (v === undefined || !Number.isFinite(Number(v))) v = def;
         lines.push(`k\t${clean(name)}\t${Number(v)}\t${min}\t${max}`);
       }
+      // 4.6: the movable mic in front of a cabinet (Mic Position / Distance / Angle, Room Mic)
+      if (g.slot === 'cab')
+        for (const [k, v] of Object.entries(given)) if (/^(Mic (Position|Distance|Angle)|Room Mic)$/.test(k) && Number.isFinite(Number(v))) lines.push(`k\t${k}\t${Number(v)}\t0\t100`);
     } else {
       for (const [k, v] of Object.entries(given)) {
         if (!Number.isFinite(Number(v))) continue;

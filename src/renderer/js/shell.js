@@ -2,6 +2,7 @@
  * Stagehand 3 shell: which page shows, the bottom now-playing bar, and the
  * guitar status card at the foot of the left menu.
  */
+import { artImg, seen, harvest } from './artkeep.js';
 import { api } from './api.js';
 import { state, on, emit, setPage } from './store.js';
 import { h, icon, esc, toast } from './ui.js';
@@ -11,7 +12,7 @@ import { overview, drawBars, fmtTime } from './wave.js';
 import * as stage from './stage.js';
 
 const app = document.getElementById('app');
-const PAGES = ['play', 'songs', 'discover', 'tones', 'progress', 'now', 'greenroom'];
+const PAGES = ['play', 'songs', 'discover', 'tones', 'gear', 'progress', 'now', 'greenroom'];
 
 /** One colour per song, from the stem gels, so a song looks the same everywhere. */
 export const SONG_GELS = ['#ff6b3d', '#8c7bff', '#ff4d8d', '#33c8e0', '#9bdb5a', '#ffb547'];
@@ -28,7 +29,10 @@ export function initials(song) {
 export function coverEl(song, size = 128, cls = '') {
   const el = h(`div.cover.gelled${cls ? `.${cls}` : ''}`, { style: { '--gel': songGel(song) } }, h('span', { text: initials(song) }));
   if (song && song.art) {
-    const img = h('img', { src: api.artUrl(song, size), alt: '', loading: 'lazy' });
+    // 4.5: a picture that has loaded before shows at once (no initials, no reload)
+    const src = api.artUrl(song, size);
+    const img = artImg(src, { alt: '', loading: 'lazy', decoding: 'async' });
+    if (seen.has(src) && img.complete && img.naturalWidth) el.classList.add('has-img');
     img.onload = () => el.classList.add('has-img');
     img.onerror = () => img.remove();
     el.append(img);
@@ -109,7 +113,7 @@ function renderBar() {
   empty.hidden = has;
   if (!has) return;
   const key=song.id+'|'+String(song.art||'');
-  if(art.dataset.key!==key){art.dataset.key=key;art.replaceChildren(h('span.halo',{style:{'--gel':songGel(song)}}),coverEl(song,96));}
+  if(art.dataset.key!==key){art.dataset.key=key;harvest(art);art.replaceChildren(h('span.halo',{style:{'--gel':songGel(song)}}),coverEl(song,96));}
   const part = stage.partLabel();
   text.innerHTML = `<b>${esc(song.title)}</b><span>${esc(song.artist || '')}${part ? ` · ${esc(part)}` : ''}</span>`;
   draw();

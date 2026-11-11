@@ -1,3 +1,94 @@
+# 4.6.0 — Gear showroom, Create a Tone rig with cables, engine: every knob live + a movable mic (2026-11-11)
+
+The user sent the remaining gear photos (Amps, Cabinets, Pedals, Rack-effects, Previously-included zips) and a
+pedalboard photo (braided tan cables, chrome jacks) and asked for: a section that shows all the gear off with knobs
+you can turn; all of the effects; Create a Tone overhauled (everything visible, no jumping menus, cords between the
+gear in use); the engine making these features work together; "one step beyond cab and NAM files".
+
+**Done (tested):**
+- **Photos:** 209 pieces → `art/gear/full/<key>.webp` (≤1100 px) + `thumb/` (≤320 px) via `tools/gear/convert.py`
+  (trims in `tools/gear/trims.json`). Old `art/gear/*.webp` and `face/` removed (the Previously-included set is the
+  same pictures; hand-calibrated knob data is remapped by the trim). 13 rack units have no photo (drawing + strip).
+- **Knobs on photos:** `tools/gear/detect_knobs.py` (Tesseract labels + Hough circles; resumable, OCR timeout) →
+  `tools/gear/knobs.json`; `tools/gear/fixes.json` + `fixrows.py` (hand rows: rough x/y, refined on the picture's
+  rim contrast, or `exact`) → `overrides.json`; `tools/gear/build_photos.py` merges hand data (`gear-photos.base.js`,
+  the 4.5 table), detection and overrides into `js/gear-photos.js`. **533 of 611 knobs sit on their photos**; the
+  rest (switches, knobs not in the picture, sliders on the EQ pedals) are on the control strip only, never faked.
+  Detected pointer angles are not trusted (a0 = 0). QA: contact sheets of every item were checked by eye.
+- **Gear page** (`js/showroom.js`, sidebar "Gear", `#page-gear`, banner lines in identity.js): 11 shelves, All /
+  Guitar / Bass, search, big photo with turning knobs beside the control strip (help text per knob,
+  `knobHelp()`), Hear it (demo riff through a test rig: clean amp + cab around the piece, or the amp on its cab),
+  Compare A/B (with/without a pedal; for amps/cabs against the last one you looked at), Play it with my guitar
+  (live, restored when leaving the page), New tone with it / Add to <current tone>.
+- **Create a Tone = the rig room** (`js/rigroom.js`, `css/rig.css`; `openToneWizard()` now opens it; the 4.4 helper
+  is `openStepByStep()` behind "Step by step instead"). Full window, fixed layout: steps strip (Amp, Cabinet, Pedals,
+  Knobs, Hear it, Save) · the board (`rigBoard()` in `js/gearbench.js`: guitar → pre pedals → amp head on its cab →
+  loop pedals → cab → rack → out, braided SVG cables with chrome plugs, a light running along them driven by the
+  input level, paused when silent, reduced-motion aware) · the piece (photo + strip side by side, on/off footswitch,
+  earlier/later, Swap (pick on the wall, no menu), remove) · the gear wall (always open, shelves + search).
+  Undo/redo (Ctrl+Z / Ctrl+Shift+Z, knob drags coalesce), Reset, key picker, Save (Ctrl+S), close asks if unsaved.
+  Tones › Edit tone opens the same rig with the tone; saving a song/preset tone makes your own copy. Same tone
+  format as before (saved tones, song tones, keys 1–9, engine spec).
+- **Engine** (`native/dsp`): `test/gear-coverage.js` runs every amp/pedal/rack and each knob min vs max through the
+  C engine (`native/build/gear_cover_test`): 163 pieces, **671 of 671 knobs change the sound** (4 pieces are silent
+  at their defaults by design: flat EQs, the gate). Bugs fixed on the way: Vintage Chorus built as a delay; substring
+  knob lookups (mid freq matched Low-Mid Freq.) → `kn_any_exact`; passive amps ignored mid frequency/punch; many
+  unimplemented knobs (Deep, Wave, Balance, Body, LoFilter, Stereo, Delay, Pan, Transition Band, Tape Echo Lo
+  Filter, auto-wah attack, Bass Phaser Filter, Eden switches, Tube Pre select). Writes `data/gear-live.json`.
+- **Beyond cab and NAM files: the movable mic.** Cab gear entries may carry `Mic Position` (center→edge),
+  `Mic Distance` (proximity bass drops, floor bounce moves), `Mic Angle` (off-axis), `Room Mic` (early reflections);
+  `toSpec` sends them for cabs; `sh_cab.c` builds the speaker+mic response continuously (no knobs = the old named
+  positions exactly, −120 dB difference). UI: drag the mic across the speaker (`micPanel`), pick the mic type, turn
+  distance/angle/room. "Recorded cabinet" (autoCab IR) vs "Mic it yourself" (modelled, autoCab=false).
+- Tests: `npm test` all ok; `SH_GEAR_AUDIT=1 node test/e2e/ui3-chromium.js <fake> <out>` (`test/e2e/gear-audit.js`,
+  29 checks, screenshots); ui3 updated for the rig (Create tone, Edit tone, step-by-step).
+
+**NOT rebuilt: `native/bin/stagehand-audio.exe`** (the live Windows engine). No network in the session, so no
+llvm-mingw. The wasm engine (`worklets/rig-dsp.wasm`: demos, the in-app engine) has every fix and the mic. Next session
+with network: `sh scripts/session-setup.sh` then `sh native/build.sh`, re-package. Until then the live guitar on the
+fast engine uses 4.5 DSP (mic knobs are ignored there, harmlessly).
+
+**Next ideas:** smooth blending between a NAM pack's gain captures; a second mic blend; dragging pedals on the board.
+
+# 4.5.0 — Road to 100, career, merge, window buttons (2026-11-10)
+
+The user attached a long spec ("Progression, Gear Studio & UI/UX Overhaul", 17 sections) and the
+Mythology of Music build (= Rehearsal Room 4.4.1 + menu art, verified purely additive) and said the
+spec had been ignored. This session merged, then did spec phases 1–3 and part of 5.
+
+**Done (tested):**
+- **Window buttons:** `titleBarOverlay` gone; `.win-ctl` in index.html, IPC `win:minimize/maximize/close/state`, event `win:state` → `html[data-win]`.
+- **Progression config** `services/progression-config.js`: curve (BASE 540, STEP 15, CURVE 0.005, POW 2.75; 166,064 XP to 100), XP values, weekly rhythm (replaces the days-in-a-row ×1.5 that punished gaps), 8 passes (Immortal at 100), milestone levels, 17 venues by level, 23 achievements × 6 tiers (Bronze…Legendary; explorer/crew 4), titles, mastery tiers.
+- **Simulation** `services/progression-sim.js` (seeded, real `compute()`): regular player (4.5 days/wk, 45 min) L100 on day 364; heavy (6 d, 90 min) day 168; casual (2 d, 30 min) L44 at a year. `test/progression-sim.test.js` guards it. Table in docs/progression.md.
+- **levels.js rebuilt** on the config (old file kept as `levels-legacy.js` for migration only). Anti-farming: short arrangements scale by notes/150, same song+part full repeats same day ×1/.6/.35/.2/.1, idle sessions (scored, <5% hit) ×0.1 and not "real", past 60 min/day ×0.5. Song mastery XP. `resetAt`/`trophySince` (resets never delete sessions), `legacy` venues (4.4 players keep every venue they could use; migrate() backs up first and records `legacyLevel`), `dev` adjustments (xp, venues, unlockAll), dev log, career `timeline` + `levelAt`. Challenges skip ones the library can't do (`capsOf`).
+- **Lifetime stats** `services/lifetime.js` from all sessions + `stats.archive`; never reset with levels. **stats.js:** keeps 50,000 sessions then folds older ones into `archive` (was: deleted past 20,000); exact double logs ignored; damaged file → moved aside, newest backup used. NB: `this._log` (a `this.log` property shadowed the log() method — caught by tests).
+- **Backups** `services/profile-backup.js`: `%LOCALAPPDATA%\Stagehand\Backups\Career\<stamp>-<reason>`; auto once per 20 h at start-up (15 kept + monthly for a year), before migration/resets/restores/dedupe/erase; restore (dev) puts back stats.json + levels.json only; integrity check.
+- **IPC** `career:lifetime/backups/backup/export`, `dev:*` (each checks developer mode in main). Developer mode: Settings › About, click the version 7×, or `STAGEHAND_DEV=1`. Menu: Ctrl+Shift+F12 (`js/devmenu.js`).
+- **Progress page** rewritten (`js/progress.js`, `css/career.css`): Overview / Career stats / Achievements / Song mastery / History; redraws only when data changes.
+- **Venues:** locked previews in the highway picker (`venuePreview`), picker in unlock order, locked current venue falls back to warehouse. Mandala rebuilt (stained-glass rose window), Strings improved (standing waves, fret wires, sparks), new **Valhalla** scene. `test/e2e/scenes-chromium.js` renders them (SwiftShader stills only: **ask how they move on the GTX 1080 Ti**).
+- **Milestone celebrations** (levels 5,10,20,25…100; legendary card at 100), `levelUp`/`trophyCard` exported.
+- **Flicker:** `js/artkeep.js` pool keeps decoded <img> nodes across rebuilds (rows/tiles on `best`/`library`, inspector on `stems`/`library`, nowbar, Progress); Now playing thumb not rebuilt for the same picture. `test/e2e/artkeep-chromium.js`.
+- **Song badges** `js/songbadges.js` (Song of the week, New best, Nearly mastered, Never played, New) in Songs rows/tiles and Discover.
+- **Drop console** `js/dropui.js`, shared by Play and the highway; the photo pedal is gone.
+- **Settings / Getting started / Create a tone** windows: one steady size (`.panel-modal`, Create a tone `.panel-xl`), only the content scrolls.
+- e2e: `SH_CAREER_AUDIT=1 node test/e2e/ui3-chromium.js …` (`test/e2e/career-audit.js`) seeds 4 months of play.
+
+**Not done yet (next):** Create a Tone overhaul (visual signal chain with real gear photos, cables with a signal-driven pulse, interactive knobs on the photos, Gear Library/showroom), Backstage polish, deeper Discover work (search speed, filters), Year-in-review page, gig posters. Spec is in the user's message of 2026-11-10.
+
+# Mythology of Music update
+
+Based on the supplied Rehearsal Room app. See docs/mythology/README.md for changes and validation. Gear corrections deferred; highway preserved.
+
+# Roadshow visual pass — 2026-11-10
+
+This pass extends Soundcheck into a rugged illustrated rock identity across Jam, Songs, Tones, Discover, Progress, Backstage, settings, dialogs and the splash. Highway rendering and native DSP were not redesigned.
+
+See `docs/roadshow/README.md` for scope, control behavior, validation and remaining work.
+
+# Soundcheck visual identity — 2026-11-10
+
+Isolated design branch based on 4.4.1. See `docs/identity/README.md` and `COVERAGE.md` for the implemented system, rotation behavior, artwork provenance, renderer evidence and validation limits. No native DSP or note judging changes. New Appearance settings and opt-in between-song venue rotation. Full existing tests and identity tests passed; Windows hardware/recording and WebGL visualizers remain acceptance checks.
+
 # Stagehand handoff (v4.4.1, 2026-11-09): stems split again; 4.4.0: levels, fast stems, VIP pass; 4.3: Backstage, the Drop holds, guitar/bass off sticks
 
 Paste this into a new session and attach `stagehand-source.zip`. Unzip it; the project is in `stagehand/`.

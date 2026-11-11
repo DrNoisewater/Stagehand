@@ -1,0 +1,950 @@
+{
+ "Amp_AT20": {
+  "rows": [
+   [
+    17,
+    [
+     39.3,
+     55,
+     70.5
+    ],
+    [
+     "gain",
+     "bass",
+     "treble"
+    ],
+    3.6
+   ]
+  ]
+ },
+ "Amp_BT45": {
+  "rows": [
+   [
+    73,
+    [
+     29.3,
+     41.3,
+     53,
+     65
+    ],
+    [
+     "gain",
+     "bass",
+     "mid",
+     "treble"
+    ],
+    3
+   ]
+  ]
+ },
+ "Amp_EN30": {
+  "rows": [
+   [
+    80,
+    [
+     31,
+     41.5,
+     52,
+     62.8,
+     73.5,
+     84
+    ],
+    [
+     "gain",
+     "bass",
+     "treble",
+     "mid",
+     "bright",
+     "presence"
+    ],
+    2.8
+   ]
+  ]
+ },
+ "Amp_EN50": {
+  "rows": [
+   [
+    74,
+    [
+     35.8,
+     46.5,
+     57.3,
+     68,
+     78.8
+    ],
+    [
+     "gain",
+     "bass",
+     "mid",
+     "treble",
+     "bright"
+    ],
+    2.8
+   ]
+  ]
+ },
+ "Amp_EpiphoneElectricHawaiian": {
+  "rows": [
+   [
+    84.5,
+    [
+     36.8,
+     65
+    ],
+    [
+     "gain",
+     "tone"
+    ],
+    4
+   ]
+  ]
+ },
+ "Amp_EpiphoneZephyr": {
+  "rows": [
+   [
+    84,
+    [
+     28.8,
+     52.8,
+     76.5
+    ],
+    [
+     "speaker",
+     "bass",
+     "treble"
+    ],
+    4.2
+   ]
+  ]
+ },
+ "Amp_GibsonGA88": {
+  "rows": [
+   [
+    71,
+    [
+     "volume",
+     "treble",
+     "bass",
+     null
+    ]
+   ]
+  ],
+  "xr": [
+   25,
+   51
+  ]
+ },
+ "Amp_OrangeJimmyBean": {
+  "rows": [
+   [
+    68,
+    [
+     41.8,
+     51.3,
+     60.5,
+     70,
+     79.3
+    ],
+    [
+     "volume",
+     "treble",
+     "mid",
+     "bass",
+     null
+    ],
+    2.3
+   ]
+  ]
+ },
+ "Amp_OrangeOR100": {
+  "rows": [
+   [
+    72,
+    [
+     "gain",
+     "bass",
+     "mid",
+     "treble"
+    ]
+   ]
+  ],
+  "xr": [
+   55,
+   80
+  ]
+ },
+ "Amp_TW22": {
+  "rows": [
+   [
+    20.6,
+    [
+     23.8,
+     38,
+     52,
+     66.3
+    ],
+    [
+     "gain",
+     "bass",
+     "mid",
+     "treble"
+    ],
+    3.5
+   ]
+  ]
+ },
+ "Amp_TW26": {
+  "rows": [
+   [
+    19,
+    [
+     "gain",
+     "bass",
+     "mid",
+     "treble",
+     "presence"
+    ]
+   ]
+  ],
+  "xr": [
+   26,
+   84
+  ]
+ },
+ "Bass_Amp_BT600B": {
+  "rows": [
+   [
+    60,
+    [
+     17.5,
+     89
+    ],
+    [
+     "gain",
+     "bass",
+     "180hz",
+     "340hz",
+     "mid",
+     "1.2khz",
+     "2.6khz",
+     "treble",
+     "compression"
+    ],
+    3.2
+   ]
+  ]
+ },
+ "Bass_Amp_CH350B": {
+  "rows": [
+   [
+    60,
+    [
+     15.7,
+     24.5,
+     32,
+     39.5,
+     47,
+     54.5,
+     62,
+     69.5,
+     76.5,
+     83.8
+    ],
+    [
+     "gain",
+     "bass",
+     "treble",
+     "30hz",
+     "90hz",
+     "250hz",
+     "800hz",
+     "2.5khz",
+     "7.5khz",
+     "15khz"
+    ],
+    2.3
+   ]
+  ]
+ },
+ "Bass_Amp_CS300B": {
+  "rows": [
+   [
+    52,
+    [
+     "gain",
+     "bass",
+     "lo mid",
+     "hi mid",
+     "treble"
+    ]
+   ]
+  ],
+  "xr": [
+   24,
+   94
+  ]
+ },
+ "Bass_Amp_HT100B": {
+  "rows": [
+   [
+    55,
+    [
+     33.8,
+     47,
+     60,
+     72.8,
+     85.5
+    ],
+    [
+     "gain",
+     "bass",
+     "mid",
+     "treble",
+     "presence"
+    ],
+    3.5
+   ]
+  ]
+ },
+ "Bass_Amp_LT25B": {
+  "rows": [
+   [
+    57,
+    [
+     "gain",
+     "bass",
+     "mid",
+     "mid-frequency",
+     "treble",
+     "high-shift",
+     "low-shift"
+    ]
+   ]
+  ],
+  "xr": [
+   18,
+   97
+  ]
+ },
+ "Bass_Pedal_BassFilterDelay": {
+  "rows": [
+   [
+    14,
+    [
+     "time",
+     "feedback"
+    ]
+   ],
+   [
+    40,
+    [
+     "mix",
+     "low filter"
+    ]
+   ]
+  ]
+ },
+ "Bass_Pedal_BassFilterEcho": {
+  "rows": [
+   [
+    19,
+    [
+     "time",
+     "feedback"
+    ]
+   ],
+   [
+    43,
+    [
+     "mix",
+     "low filter"
+    ]
+   ]
+  ]
+ },
+ "Pedal_AcousticEmulator": {
+  "rows": [
+   [
+    17.5,
+    [
+     26,
+     73.6
+    ],
+    [
+     "body",
+     "mid-range"
+    ],
+    12.7
+   ],
+   [
+    41,
+    [
+     26,
+     73.6
+    ],
+    [
+     "mid frequency",
+     "tone"
+    ],
+    12.7
+   ]
+  ]
+ },
+ "Pedal_80sFlanger": {
+  "rows": [
+   [
+    19,
+    [
+     null,
+     "depth",
+     "rate",
+     null
+    ]
+   ]
+  ],
+  "xr": [
+   10,
+   92
+  ]
+ },
+ "Pedal_AmpEQ": {
+  "rows": [
+   [
+    17,
+    [
+     17.5,
+     50,
+     82.5
+    ],
+    [
+     "bass",
+     "midrange",
+     "treble"
+    ],
+    10
+   ],
+   [
+    40.8,
+    [
+     17.5,
+     50,
+     82.5
+    ],
+    [
+     "bass freq.",
+     "mid freq. shift",
+     "treble freq."
+    ],
+    10
+   ]
+  ]
+ },
+ "Pedal_AmpTrem": {
+  "rows": [
+   [
+    24.5,
+    [
+     26,
+     74.4
+    ],
+    [
+     "speed",
+     "mix"
+    ],
+    14,
+    "exact"
+   ]
+  ]
+ },
+ "Pedal_AutoVibe": {
+  "rows": [
+   [
+    14,
+    [
+     "sensitivity",
+     "mix"
+    ]
+   ],
+   [
+    37,
+    [
+     "attack speed",
+     "release speed"
+    ]
+   ]
+  ]
+ },
+ "Pedal_BakedRotatoe": {
+  "rows": [
+   [
+    18.8,
+    [
+     26.7,
+     74.7
+    ],
+    [
+     "rate",
+     "depth"
+    ],
+    13
+   ],
+   [
+    42,
+    [
+     26.7,
+     74.7
+    ],
+    [
+     "mix",
+     "balance"
+    ],
+    13
+   ]
+  ]
+ },
+ "Pedal_BassEmulator": {
+  "rows": [
+   [
+    24,
+    [
+     "body",
+     "tone"
+    ]
+   ]
+  ]
+ },
+ "Pedal_BitCruncher": {
+  "rows": [
+   [
+    18.8,
+    [
+     25.8,
+     73.4
+    ],
+    [
+     "mix",
+     "filter"
+    ],
+    12
+   ],
+   [
+    41,
+    [
+     17,
+     50,
+     82.7
+    ],
+    [
+     "downsample",
+     "bit depth",
+     "rectify"
+    ],
+    10.5
+   ]
+  ]
+ },
+ "Pedal_CosmicEcho": {
+  "rows": [
+   [
+    19,
+    [
+     "time",
+     "feedback"
+    ]
+   ],
+   [
+    40,
+    [
+     "mix"
+    ]
+   ]
+  ]
+ },
+ "Pedal_Enbiggenator": {
+  "rows": [
+   [
+    18.8,
+    [
+     22.6,
+     76.6
+    ],
+    [
+     "rate",
+     "depth"
+    ],
+    12.8
+   ],
+   [
+    40,
+    [
+     49.4
+    ],
+    [
+     "mix"
+    ],
+    12.8
+   ]
+  ]
+ },
+ "Pedal_Limiter": {
+  "rows": [
+   [
+    24,
+    [
+     "limit",
+     "speed"
+    ]
+   ]
+  ]
+ },
+ "Pedal_LineDrive": {
+  "rows": [
+   [
+    19,
+    [
+     "gain",
+     "tone"
+    ]
+   ]
+  ]
+ },
+ "Pedal_ModernWah": {
+  "rows": [
+   [
+    43.8,
+    [
+     21
+    ],
+    [
+     "sensitivity"
+    ],
+    6
+   ],
+   [
+    63.8,
+    [
+     21
+    ],
+    [
+     "speed"
+    ],
+    6
+   ],
+   [
+    83,
+    [
+     21
+    ],
+    [
+     "pedal (auto=off)"
+    ],
+    6
+   ]
+  ]
+ },
+ "Pedal_MultiTrem": {
+  "rows": [
+   [
+    15,
+    [
+     28.2,
+     71.4
+    ],
+    [
+     "speed",
+     "mix"
+    ],
+    12.4,
+    "exact"
+   ],
+   [
+    43.8,
+    [
+     49.4
+    ],
+    [
+     "waveform"
+    ],
+    12.4
+   ]
+  ]
+ },
+ "Pedal_MultiVibe": {
+  "rows": [
+   [
+    19,
+    [
+     "speed",
+     "mix"
+    ]
+   ],
+   [
+    41,
+    [
+     "waveform"
+    ]
+   ]
+  ]
+ },
+ "Pedal_NPNDelay": {
+  "rows": [
+   [
+    13,
+    [
+     24.5,
+     76
+    ],
+    [
+     "time",
+     "feedback"
+    ],
+    12.7
+   ],
+   [
+    24.5,
+    [
+     50.5
+    ],
+    [
+     "mix"
+    ],
+    9.8
+   ]
+  ]
+ },
+ "Pedal_MarshallGuvnorPlus": {
+  "rows": [
+   [
+    16.8,
+    [
+     20.6,
+     41.5,
+     62,
+     83.4
+    ],
+    [
+     "gain",
+     "bass",
+     "treble",
+     null
+    ],
+    8,
+    "exact"
+   ]
+  ]
+ },
+ "Pedal_MarshallSupervibe": {
+  "rows": [
+   [
+    19.5,
+    [
+     19.3,
+     40.2,
+     60,
+     78.8
+    ],
+    [
+     "speed",
+     "depth",
+     "filter",
+     null
+    ],
+    7.5,
+    "exact"
+   ]
+  ]
+ },
+ "Pedal_OmniMod": {
+  "rows": [
+   [
+    18.8,
+    [
+     23.6,
+     75
+    ],
+    [
+     "rate",
+     "depth"
+    ],
+    13.6
+   ],
+   [
+    39.5,
+    [
+     50
+    ],
+    [
+     "mix"
+    ],
+    13.6
+   ]
+  ]
+ },
+ "Pedal_PlanePhase": {
+  "rows": [
+   [
+    14.5,
+    [
+     26,
+     74.3
+    ],
+    [
+     "rate",
+     "depth"
+    ],
+    11.2
+   ],
+   [
+    35.8,
+    [
+     50.2
+    ],
+    [
+     "mix"
+    ],
+    11.2
+   ]
+  ]
+ },
+ "Pedal_PlateVerb": {
+  "rows": [
+   [
+    18,
+    [
+     26.8,
+     73.2
+    ],
+    [
+     "time",
+     "depth"
+    ],
+    13
+   ],
+   [
+    43,
+    [
+     27.2,
+     73.7
+    ],
+    [
+     "mix",
+     "voice"
+    ],
+    13
+   ]
+  ]
+ },
+ "Pedal_RangeBooster": {
+  "rows": [
+   [
+    20,
+    [
+     50
+    ],
+    [
+     "boost!"
+    ],
+    16
+   ]
+  ]
+ },
+ "Pedal_RingMod": {
+  "rows": [
+   [
+    16.8,
+    [
+     25.5,
+     74
+    ],
+    [
+     "rate",
+     "depth"
+    ],
+    13.9
+   ],
+   [
+    40.8,
+    [
+     25.9,
+     74
+    ],
+    [
+     "mix",
+     "funk"
+    ],
+    13.9
+   ]
+  ]
+ },
+ "Pedal_TremOle": {
+  "rows": [
+   [
+    13,
+    [
+     25.8,
+     74.2
+    ],
+    [
+     "sensitivity",
+     "mix"
+    ],
+    12.9
+   ],
+   [
+    36.8,
+    [
+     25.8,
+     74.2
+    ],
+    [
+     "attack speed",
+     "release speed"
+    ],
+    12.9
+   ]
+  ]
+ },
+ "Pedal_VintageFlanger": {
+  "rows": [
+   [
+    15,
+    [
+     27,
+     73
+    ],
+    [
+     "rate",
+     "depth"
+    ],
+    13.3
+   ],
+   [
+    38.8,
+    [
+     50
+    ],
+    [
+     "mix"
+    ],
+    13.3
+   ]
+  ]
+ },
+ "Rack_StudioWahFilter": {
+  "drop": [
+   "auto-mode"
+  ]
+ },
+ "Bass_Pedal_BassEQ8": {
+  "clear": true
+ },
+ "Pedal_EQ8": {
+  "clear": true
+ },
+ "Amp_EpiphoneElectarCentury": {
+  "clear": true
+ },
+ "Amp_GibsonGA8": {
+  "clear": true
+ }
+}

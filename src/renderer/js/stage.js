@@ -730,9 +730,19 @@ export function requestDraw() {
 // --------------------------------------------------------------- loading --
 function setHead(song) {
   const thumb = np.querySelector('.thumb');
+  // 4.5: same picture as before: leave it (it used to be rebuilt, and blinked)
+  const src = song && song.art ? api.artUrl(song, 128) : '';
+  const cur = thumb.querySelector('img');
+  if (src && cur && cur.getAttribute('src') === src) {
+    np.querySelector('.np-title').textContent = song.title;
+    np.querySelector('.np-artist').textContent = song.artist;
+    np.classList.toggle('idle', false);
+    timecode.lastChild.textContent = ` / ${fmtTime(song.length || 0)}`;
+    return;
+  }
   thumb.innerHTML = '';
   if (song && song.art) {
-    const img = h('img', { src: api.artUrl(song, 128), alt: '' });
+    const img = h('img', { src, alt: '' });
     img.onerror = () => (thumb.innerHTML = icon('music'));
     thumb.append(img);
   } else thumb.innerHTML = icon('music');

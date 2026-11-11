@@ -9,6 +9,17 @@
  * the pedals, cabinets and amps."
  */
 import { gearInfo } from './gearspec.js';
+import { gearPhotoInfo } from './gear-photos.js';
+
+function photoOrDrawing(key, drawing) {
+  const item = gearPhotoInfo(key);
+  if (!item) return drawing;
+  return `<span class="gear-picture"><img class="gear-photo" src="art/gear/${item.thumb || item.file}" alt="" loading="lazy" decoding="async" draggable="false"/>${drawing}</span>`;
+}
+export const ampArt = (key, opts) => photoOrDrawing(key, ampDrawing(key, opts));
+export const cabArt = key => photoOrDrawing(key, cabDrawing(key));
+export const pedalArt = key => photoOrDrawing(key, pedalDrawing(key));
+export const rackArt = key => photoOrDrawing(key, rackDrawing(key));
 
 // amp looks: tolex, front panel, grille cloth, piping/trim, knob colour, combo or head
 const LOOKS = {
@@ -53,7 +64,7 @@ const knobRow = (n, x0, x1, y, r, fill, cap) => {
 
 let uid = 0;
 /** An amp: a head, or a combo with its grille. knobs: how many (from the gear). */
-export function ampArt(key, { knobs = null } = {}) {
+function ampDrawing(key, { knobs = null } = {}) {
   const { look, combo } = ampLook(key);
   const L = LOOKS[look];
   const n = Math.max(3, Math.min(8, knobs || ((gearInfo(key) && gearInfo(key).k) || []).length || 5));
@@ -102,7 +113,7 @@ function cabLayout(key) {
 }
 
 /** A speaker cabinet with its speakers showing through the grille. */
-export function cabArt(key) {
+function cabDrawing(key) {
   const L = cabLayout(key);
   const cols = L.n === 8 ? 2 : L.n === 1 ? 1 : 2;
   const rows = L.n === 8 ? 4 : L.n === 4 ? 2 : 1;
@@ -156,7 +167,7 @@ function pedalColour(key) {
 }
 
 /** A stompbox: its colour says what it does; as many knobs as the real one (up to 4). */
-export function pedalArt(key) {
+function pedalDrawing(key) {
   const c = pedalColour(key);
   const n = Math.max(1, Math.min(4, ((gearInfo(key) && gearInfo(key).k) || []).length || 2));
   const light = /#c9ccd4|#e9e6de|#e6c93a/.test(c);
@@ -173,7 +184,7 @@ export function pedalArt(key) {
 }
 
 /** A rack unit (studio reverbs, EQs). */
-export function rackArt(key) {
+function rackDrawing(key) {
   const c = /reverb|plate|hall|room|spring/i.test(key) ? '#2f6c8f' : '#3c414b';
   return `<svg viewBox="0 0 120 40" class="gear-art rack" aria-hidden="true">
     <rect x="2" y="4" width="116" height="32" rx="3" fill="#1d1f24"/>

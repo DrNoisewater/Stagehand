@@ -1,0 +1,8131 @@
+{
+ "Amp_AT120": {
+  "w": 1400,
+  "h": 1120,
+  "knobs": {
+   "gain": [
+    36.536,
+    18.705,
+    1.914,
+    -144
+   ],
+   "bass": [
+    48.679,
+    18.616,
+    1.957,
+    48
+   ],
+   "mid": [
+    60.536,
+    18.705,
+    1.957,
+    -141
+   ],
+   "treble": [
+    72.536,
+    18.616,
+    1.95,
+    -147
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "bx",
+   "ss",
+   "ss",
+   "os",
+   "ee",
+   "at120",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "est",
+   "fel",
+   "sea",
+   "a.",
+   "est",
+   "pee",
+   "bas",
+   "ary",
+   "253",
+   "sy",
+   "sot",
+   "aa",
+   "sed",
+   "ott",
+   "ae",
+   "se",
+   "ry",
+   "ree",
+   "ye",
+   "ise"
+  ]
+ },
+ "Amp_AT20": {
+  "w": 1400,
+  "h": 1120,
+  "knobs": {
+   "bass": [
+    55.25,
+    35.312,
+    4.014,
+    96
+   ],
+   "treble": [
+    68.179,
+    33.438,
+    3.621,
+    -132
+   ]
+  },
+  "params": 3,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "ay",
+   "pat",
+   "55",
+   "igs",
+   "st",
+   "spurs",
+   "wy",
+   "gain",
+   "bass",
+   "treble",
+   "naf",
+   "nw",
+   "vt",
+   "na",
+   "at20",
+   "yt",
+   "23",
+   "as",
+   "a.",
+   "om",
+   "ee",
+   "oon.",
+   "es",
+   "ee",
+   "eee",
+   "ee",
+   "sa",
+   "ie",
+   "ee",
+   "bornes"
+  ]
+ },
+ "Amp_BT15": {
+  "w": 1400,
+  "h": 717,
+  "knobs": {
+   "gain": [
+    33.321,
+    68.689,
+    2.986,
+    3
+   ],
+   "bass": [
+    47.393,
+    68.689,
+    2.957,
+    0
+   ],
+   "mid": [
+    61.536,
+    68.828,
+    3.05,
+    0
+   ],
+   "treble": [
+    75.679,
+    68.689,
+    2.971,
+    3
+   ]
+  },
+  "params": 4,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "kee",
+   "re",
+   "reet",
+   "pere",
+   "sce",
+   "seer",
+   "btq15",
+   "lk",
+   "gain",
+   "bass",
+   "mid",
+   "sete",
+   "rts",
+   "oy",
+   "kee",
+   "ree",
+   "ee",
+   "sco",
+   "seer",
+   "btq15",
+   "eee",
+   "gain",
+   "bass",
+   "mid",
+   "nee",
+   "pee",
+   "qne",
+   "oy"
+  ]
+ },
+ "Amp_BT30": {
+  "w": 1400,
+  "h": 597,
+  "knobs": {
+   "gain": [
+    39.464,
+    78.643,
+    2.5,
+    3
+   ],
+   "bass": [
+    51.75,
+    78.643,
+    2.536,
+    3
+   ],
+   "mid": [
+    64.25,
+    78.308,
+    2.8,
+    6
+   ],
+   "treble": [
+    76.536,
+    78.308,
+    2.793,
+    9
+   ]
+  },
+  "params": 4,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "gain",
+   "bass",
+   "son",
+   "bens",
+   "iis",
+   "btq30",
+   "lea",
+   "ae",
+   "le",
+   "area",
+   "rors",
+   "oe",
+   "sy",
+   "gain",
+   "bass",
+   "son",
+   "iis",
+   "btq30",
+   "dme",
+   "oo",
+   "lea",
+   "ae",
+   "le",
+   "carl",
+   "rors"
+  ]
+ },
+ "Amp_BT45": {
+  "w": 1400,
+  "h": 717,
+  "knobs": {},
+  "params": 4,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "ee",
+   "sa",
+   "ae",
+   "sas",
+   "seeds",
+   "men",
+   "oe",
+   "iw",
+   "eo",
+   "or",
+   "ws",
+   "eee",
+   "ere",
+   "ore",
+   "oe",
+   "oe",
+   "delete",
+   "eat",
+   "os",
+   "ee",
+   "tr",
+   "ot",
+   "sf",
+   "ve",
+   "ee",
+   "es",
+   "ar",
+   "ar",
+   "are",
+   "eee"
+  ]
+ },
+ "Amp_CA100": {
+  "w": 1400,
+  "h": 597,
+  "knobs": {
+   "gain": [
+    33.25,
+    69.765,
+    2.429,
+    -3
+   ],
+   "bass": [
+    43.179,
+    69.765,
+    2.393,
+    0
+   ],
+   "mid": [
+    52.964,
+    69.765,
+    1.943,
+    3
+   ],
+   "treble": [
+    62.821,
+    69.933,
+    1.964,
+    6
+   ],
+   "presence": [
+    72.679,
+    69.765,
+    2.443,
+    6
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "re",
+   "bers",
+   "ie",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "presence",
+   "cali100",
+   "mt",
+   "ci",
+   "wren",
+   "vot",
+   "oe",
+   "chk",
+   "ers",
+   "ie",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "presence",
+   "cali100",
+   "re",
+   "ma",
+   "ipl",
+   "ce",
+   "et",
+   "wren",
+   "vot"
+  ]
+ },
+ "Amp_CA38": {
+  "w": 1400,
+  "h": 700,
+  "knobs": {
+   "gain": [
+    30.679,
+    70.929,
+    2.564,
+    -3
+   ],
+   "bass": [
+    43.679,
+    70.786,
+    3.193,
+    0
+   ],
+   "treble": [
+    69.75,
+    70.929,
+    3.15,
+    6
+   ],
+   "mid": [
+    56.75,
+    70.786,
+    2.557,
+    -3
+   ]
+  },
+  "params": 4,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "big",
+   "bs",
+   "ease",
+   "serre",
+   "ww",
+   "sirt",
+   "fat",
+   "bass",
+   "gain",
+   "mie",
+   "treble",
+   "oo",
+   "cops",
+   "dillon",
+   "of",
+   "ens",
+   "wip",
+   "sy",
+   "ms",
+   "isds",
+   "be",
+   "ease",
+   "ere",
+   "ea",
+   "ww",
+   "pe",
+   "irate",
+   "yy",
+   "bass",
+   "gain"
+  ]
+ },
+ "Amp_CA85": {
+  "w": 1400,
+  "h": 597,
+  "knobs": {
+   "gain": [
+    30.536,
+    75.126,
+    2.743,
+    0
+   ],
+   "bass": [
+    44.75,
+    75.293,
+    2.736,
+    0
+   ],
+   "mid": [
+    58.893,
+    75.126,
+    2.75,
+    0
+   ],
+   "treble": [
+    73.107,
+    75.126,
+    2.2,
+    0
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "0.",
+   "oo",
+   "oq",
+   "gain",
+   "bass",
+   "treble",
+   "mid",
+   "0.",
+   "gag",
+   "oo",
+   "gain",
+   "bass",
+   "treble",
+   "mid"
+  ]
+ },
+ "Amp_CS100": {
+  "w": 1400,
+  "h": 597,
+  "knobs": {
+   "gain": [
+    40.107,
+    75.796,
+    2.493,
+    3
+   ],
+   "bass": [
+    51.536,
+    75.628,
+    2.564,
+    0
+   ],
+   "mid": [
+    62.964,
+    75.963,
+    2.479,
+    3
+   ],
+   "treble": [
+    74.321,
+    75.963,
+    2.45,
+    3
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "pe",
+   "3s",
+   "ss",
+   "re",
+   "ai",
+   "ps",
+   "ae",
+   "looe",
+   "sa",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "ss",
+   "ea",
+   "abe",
+   "rs",
+   "see",
+   "pe",
+   "3s",
+   "ss",
+   "re",
+   "eger",
+   "pss",
+   "ae",
+   "looe",
+   "on",
+   "gain",
+   "bass",
+   "mid"
+  ]
+ },
+ "Amp_CS120": {
+  "w": 1400,
+  "h": 700,
+  "knobs": {
+   "gain": [
+    44.893,
+    70.357,
+    2.414,
+    3
+   ],
+   "bass": [
+    56.536,
+    70.214,
+    2.357,
+    -3
+   ],
+   "mid": [
+    67.607,
+    70.5,
+    2.55,
+    3
+   ],
+   "treble": [
+    79.179,
+    70.5,
+    2.336,
+    3
+   ]
+  },
+  "params": 4,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "je",
+   "acas",
+   "ss",
+   "sir",
+   "as",
+   "ena",
+   "pi",
+   "ine",
+   "ss",
+   "one",
+   "oe",
+   "gain",
+   "bass",
+   "md",
+   "tre",
+   "ble",
+   "apes",
+   "af.",
+   "re",
+   "se",
+   "hi",
+   "rt",
+   "en",
+   "je",
+   "ss",
+   "sir",
+   "as",
+   "ena",
+   "pi",
+   "ine"
+  ]
+ },
+ "Amp_CS90": {
+  "w": 1400,
+  "h": 700,
+  "knobs": {
+   "gain": [
+    30.464,
+    71.643,
+    2.75,
+    3
+   ],
+   "bass": [
+    44.607,
+    71.5,
+    2.843,
+    0
+   ],
+   "mid": [
+    58.679,
+    72.071,
+    2.714,
+    -3
+   ],
+   "treble": [
+    72.321,
+    71.929,
+    2.779,
+    0
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "es",
+   "ang",
+   "be",
+   "ns",
+   "shits",
+   "ss",
+   "90",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "pre",
+   "gs",
+   "mel",
+   "cae",
+   "sa",
+   "dy",
+   "vy",
+   "cc",
+   "ang",
+   "ns",
+   "ss",
+   "90",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "ae",
+   "pre",
+   "gs"
+  ]
+ },
+ "Amp_EN30": {
+  "w": 1400,
+  "h": 700,
+  "knobs": {
+   "gain": [
+    31.75,
+    46.357,
+    4.879,
+    -21
+   ],
+   "bass": [
+    41.75,
+    52.214,
+    4.329,
+    30
+   ],
+   "treble": [
+    52.821,
+    52.929,
+    3.779,
+    141
+   ],
+   "bright": [
+    72.821,
+    43.929,
+    4.879,
+    69
+   ]
+  },
+  "params": 6,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "be",
+   "ss",
+   "srr",
+   "es",
+   "ae",
+   "ty",
+   "lae",
+   "we",
+   "ay",
+   "ns",
+   "an",
+   "wn",
+   "ny",
+   "ss",
+   "ss",
+   "th",
+   "tt",
+   "sy",
+   "ey",
+   "ad",
+   "ff",
+   "me",
+   "me",
+   "ne",
+   "fo",
+   "of",
+   "ig",
+   "ff",
+   "iy",
+   "vs"
+  ]
+ },
+ "Amp_EN50": {
+  "w": 1400,
+  "h": 700,
+  "knobs": {
+   "gain": [
+    37.179,
+    47.214,
+    4.329,
+    30
+   ],
+   "bass": [
+    47.25,
+    47.5,
+    4.329,
+    -27
+   ],
+   "mid": [
+    56.607,
+    45.786,
+    4.879,
+    147
+   ],
+   "treble": [
+    68.321,
+    49.214,
+    4.879,
+    150
+   ],
+   "bright": [
+    76.75,
+    50.5,
+    3.857,
+    6
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "sy",
+   "mw",
+   "nva",
+   "yy",
+   "if",
+   "zr",
+   "ie",
+   "ax",
+   "ve",
+   "vs",
+   "ny",
+   "hie",
+   "fi",
+   "ne",
+   "she",
+   "ans",
+   "mw",
+   "af",
+   "ye",
+   "yf",
+   "on",
+   "bss",
+   "aes",
+   "le",
+   "ans",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "bright"
+  ]
+ },
+ "Amp_EpiphoneElectarCentury": {
+  "w": 1312,
+  "h": 1199,
+  "knobs": {
+   "volume": [
+    55.831,
+    22.06,
+    4.909,
+    -90
+   ]
+  },
+  "params": 1,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "43",
+   "na",
+   "ae",
+   "sa",
+   "pot",
+   "aon",
+   "es",
+   "ne",
+   "ee",
+   "he",
+   "am",
+   "es",
+   "oe",
+   "es",
+   "ty",
+   "hk",
+   "electar",
+   "iy",
+   "eo",
+   "eae",
+   "ae",
+   "23",
+   "sees",
+   "bes",
+   "sts",
+   "mes",
+   "ot",
+   "aten",
+   "tt",
+   "at."
+  ]
+ },
+ "Amp_EpiphoneElectarM": {
+  "w": 1312,
+  "h": 1199,
+  "knobs": {},
+  "params": 1,
+  "how": "none",
+  "cands": 0,
+  "words": []
+ },
+ "Amp_EpiphoneElectricHawaiian": {
+  "w": 1330,
+  "h": 1182,
+  "knobs": {},
+  "params": 2,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "ai",
+   "if",
+   "ss",
+   "tae",
+   "ate.",
+   "af",
+   "res",
+   "wor",
+   "electric",
+   "hawaiian",
+   "ry",
+   "1935",
+   "ue",
+   "pasts",
+   "sce",
+   "2375",
+   "mm",
+   "te",
+   "eed",
+   "or",
+   "ai",
+   "tes.",
+   "fst",
+   "se",
+   "a5",
+   "ft",
+   "es",
+   "eos",
+   "st",
+   "fi"
+  ]
+ },
+ "Amp_EpiphoneZephyr": {
+  "w": 1312,
+  "h": 1199,
+  "knobs": {
+   "speaker": [
+    28.163,
+    61.843,
+    4.825,
+    168
+   ],
+   "bass": [
+    51.258,
+    61.343,
+    4.238,
+    90
+   ],
+   "treble": [
+    73.133,
+    59.675,
+    4.405,
+    180
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "sere",
+   "eel",
+   "er",
+   "ele",
+   "nme",
+   "ees",
+   "rc",
+   "ce",
+   "res",
+   "na",
+   "hg",
+   "aa",
+   "we",
+   "ns",
+   "af",
+   "cees",
+   "eet",
+   "oles",
+   "ow",
+   "is",
+   "038",
+   "40",
+   "eels.",
+   "bes",
+   "sre",
+   "sacl",
+   "wie",
+   "ots",
+   "ae",
+   "ee"
+  ]
+ },
+ "Amp_GB100": {
+  "w": 1400,
+  "h": 560,
+  "knobs": {
+   "bass": [
+    36.464,
+    71.339,
+    2.564,
+    -3
+   ],
+   "mid": [
+    47.321,
+    71.339,
+    2.514,
+    0
+   ],
+   "presence": [
+    69.536,
+    71.518,
+    2.557,
+    6
+   ],
+   "gain": [
+    25.464,
+    71.339,
+    2.536,
+    -3
+   ],
+   "treble": [
+    58.536,
+    70.982,
+    2.4,
+    -3
+   ]
+  },
+  "params": 5,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "ie",
+   "pee",
+   "gbc1h",
+   "bass",
+   "mid",
+   "can",
+   "presence",
+   "od",
+   "ie",
+   "pee",
+   "gbc1h",
+   "bass",
+   "mid",
+   "presence"
+  ]
+ },
+ "Amp_GB38": {
+  "w": 1400,
+  "h": 700,
+  "knobs": {
+   "gain": [
+    24.321,
+    73.786,
+    2.871,
+    -6
+   ],
+   "bass": [
+    36.679,
+    73.786,
+    2.914,
+    -3
+   ],
+   "mid": [
+    49.107,
+    74.071,
+    2.593,
+    -3
+   ],
+   "treble": [
+    61.25,
+    73.929,
+    2.929,
+    3
+   ],
+   "presence": [
+    73.893,
+    74.071,
+    2.779,
+    0
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ae",
+   "gant",
+   "wx",
+   "se",
+   "in",
+   "fee",
+   "as",
+   "ds",
+   "ch",
+   "sf",
+   "ak",
+   "he",
+   "ane",
+   "bc38",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "presence",
+   "ae",
+   "ss",
+   "ae",
+   "gant",
+   "or",
+   "wx",
+   "se",
+   "in",
+   "fe",
+   "as",
+   "ds"
+  ]
+ },
+ "Amp_GB50": {
+  "w": 1400,
+  "h": 700,
+  "knobs": {
+   "gain": [
+    25.107,
+    71.786,
+    2.757,
+    0
+   ],
+   "bass": [
+    37.75,
+    71.786,
+    2.757,
+    -3
+   ],
+   "treble": [
+    62.464,
+    71.786,
+    2.7,
+    12
+   ],
+   "presence": [
+    75.179,
+    71.786,
+    2.779,
+    6
+   ],
+   "mid": [
+    50.036,
+    71.643,
+    2.764,
+    3
+   ]
+  },
+  "params": 5,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "ee",
+   "ap",
+   "nse",
+   "trad",
+   "rs",
+   "bas",
+   "dt",
+   "se",
+   "vi",
+   "aol",
+   "hee",
+   "gain",
+   "bass",
+   "treble",
+   "presence",
+   "alt",
+   "ers",
+   "ee",
+   "ee",
+   "nse",
+   "pee",
+   "pnas",
+   "rs",
+   "bas",
+   "vi",
+   "saal",
+   "al",
+   "he",
+   "gain",
+   "bass"
+  ]
+ },
+ "Amp_GibsonGA79": {
+  "w": 1400,
+  "h": 933,
+  "knobs": {
+   "volume 1": [
+    42.107,
+    26.956,
+    2.857,
+    3
+   ],
+   "bass": [
+    56.179,
+    26.956,
+    2.836,
+    -3
+   ],
+   "treble": [
+    70.036,
+    26.956,
+    2.857,
+    3
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "soe",
+   "se",
+   "ss",
+   "ho",
+   "16",
+   "xx",
+   "ee",
+   "as",
+   "ks",
+   "gs",
+   "volume",
+   "bass",
+   "treble",
+   "re",
+   "ga79",
+   "stereo",
+   "10",
+   "10",
+   "10",
+   "ty",
+   "se",
+   "oe",
+   "yr",
+   "73",
+   "ve",
+   "laer",
+   "er",
+   "ie",
+   "cr",
+   "ter"
+  ]
+ },
+ "Amp_GibsonGA8": {
+  "w": 1312,
+  "h": 1199,
+  "knobs": {
+   "loudness": [
+    25.343,
+    41.493,
+    4.825,
+    -12
+   ],
+   "bass": [
+    39.977,
+    43.745,
+    4.238,
+    -18
+   ],
+   "treble": [
+    64.748,
+    45.496,
+    4.825,
+    -90
+   ]
+  },
+  "params": 3,
+  "how": "row",
+  "cands": 0,
+  "words": []
+ },
+ "Amp_GibsonGA88": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {},
+  "params": 3,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "pe",
+   "tt",
+   "pues",
+   "ae",
+   "ie",
+   "limnos",
+   "ne",
+   "ne",
+   "can",
+   "point",
+   "nee",
+   "moe",
+   "ee",
+   "nner",
+   "ae",
+   "268",
+   "es",
+   "et",
+   "on.",
+   "once",
+   "sony",
+   "stil",
+   "see",
+   "aa",
+   "cine",
+   "spee",
+   "ni",
+   "nine",
+   "my",
+   "we"
+  ]
+ },
+ "Amp_HG100": {
+  "w": 1400,
+  "h": 597,
+  "knobs": {
+   "gain": [
+    28.25,
+    76.131,
+    2.414,
+    0
+   ],
+   "bass": [
+    42.75,
+    75.796,
+    2.514,
+    0
+   ],
+   "mid": [
+    56.821,
+    75.796,
+    2.493,
+    3
+   ],
+   "treble": [
+    71.179,
+    75.963,
+    2.414,
+    -3
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ex.",
+   "lees",
+   "ye",
+   "ea",
+   "hg100",
+   "ee",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "onde",
+   "cr",
+   "es",
+   "tnt",
+   "be",
+   "pw",
+   "ex.",
+   "lees",
+   "ye",
+   "rs",
+   "wy",
+   "me",
+   "ea",
+   "hg100",
+   "ee",
+   "ee",
+   "gain",
+   "bass",
+   "mid",
+   "treble"
+  ]
+ },
+ "Amp_HG180": {
+  "w": 1400,
+  "h": 700,
+  "knobs": {
+   "gain": [
+    41.821,
+    75.071,
+    2.629,
+    0
+   ],
+   "bass": [
+    53.536,
+    75.071,
+    2.614,
+    0
+   ],
+   "mid": [
+    65.321,
+    75.214,
+    2.493,
+    3
+   ],
+   "treble": [
+    76.75,
+    74.929,
+    2.593,
+    9
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "too",
+   "ae",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "hg180",
+   "en",
+   "ror",
+   "sree",
+   "ae",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "hg180",
+   "nn",
+   "ro",
+   "tone",
+   "sree"
+  ]
+ },
+ "Amp_HG500": {
+  "w": 1400,
+  "h": 597,
+  "knobs": {
+   "bass": [
+    46.821,
+    72.948,
+    2.493,
+    3
+   ],
+   "mid": [
+    58.75,
+    72.446,
+    2.693,
+    6
+   ],
+   "treble": [
+    82.393,
+    72.446,
+    2.75,
+    9
+   ],
+   "gain": [
+    34.893,
+    72.446,
+    2.671,
+    -3
+   ],
+   "mid-frequency": [
+    70.75,
+    72.781,
+    2.536,
+    0
+   ]
+  },
+  "params": 5,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "sy",
+   "ne",
+   "mh",
+   "ay",
+   "es",
+   "dy",
+   "ae",
+   "ae",
+   "gal",
+   "bass",
+   "mid",
+   "midfrequency",
+   "treble",
+   "hg500",
+   "or",
+   "pa",
+   "pyle",
+   "lat",
+   "ae",
+   "woe",
+   "ier",
+   "pee",
+   "nar",
+   "se",
+   "wom",
+   "dsa",
+   "day",
+   "vor",
+   "tk",
+   "se"
+  ]
+ },
+ "Amp_Marshall1962Bluesbreaker": {
+  "w": 1400,
+  "h": 933,
+  "knobs": {},
+  "params": 5,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "ke",
+   "sets",
+   "ne",
+   "s35",
+   "4s.",
+   "oy",
+   "aon",
+   "jre",
+   "yh",
+   "ve",
+   "ber",
+   "bike",
+   "at",
+   "brea",
+   "ne",
+   "et",
+   "cee",
+   "aes",
+   "ss",
+   "chit",
+   "poet",
+   "te",
+   "ood",
+   "ae",
+   "we",
+   "ee",
+   "pease",
+   "eh",
+   "seu",
+   "ay"
+  ]
+ },
+ "Amp_MarshallDSL100H": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "gain": [
+    70.25,
+    71.842,
+    1.264,
+    -93
+   ],
+   "bass": [
+    52.75,
+    71.842,
+    1.086,
+    0
+   ],
+   "mid": [
+    60.679,
+    71.842,
+    1.086,
+    0
+   ],
+   "presence": [
+    48.893,
+    71.842,
+    1.029,
+    0
+   ]
+  },
+  "params": 6,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "re",
+   "master",
+   "ig",
+   "reverb",
+   "se",
+   "lead",
+   "rhythm",
+   "bos",
+   "fo",
+   "oo",
+   "00s",
+   "10",
+   "cleah",
+   "input",
+   "power",
+   "standby",
+   "master",
+   "rhythm",
+   "lead",
+   "rhythm",
+   "presence",
+   "bass",
+   "middle",
+   "treble",
+   "volume",
+   "gain",
+   "volume",
+   "gain",
+   "ns",
+   "te"
+  ]
+ },
+ "Amp_MarshallDSL15H": {
+  "w": 1400,
+  "h": 560,
+  "knobs": {
+   "gain": [
+    63.607,
+    73.125,
+    1.643,
+    0
+   ],
+   "bass": [
+    36.393,
+    73.125,
+    1.586,
+    3
+   ],
+   "mid": [
+    42.607,
+    72.946,
+    1.621,
+    3
+   ],
+   "treble": [
+    48.679,
+    72.589,
+    1.8,
+    12
+   ],
+   "presence": [
+    30.464,
+    72.946,
+    2.036,
+    -3
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ultra",
+   "channel",
+   "classic",
+   "channel",
+   "power",
+   "presence",
+   "bass",
+   "middle",
+   "treble",
+   "volume",
+   "gain",
+   "volume",
+   "gain",
+   "input",
+   "dsl15h",
+   "rt",
+   "10",
+   "10",
+   "oo",
+   "oooo",
+   "vix",
+   "wr",
+   "di",
+   "ultra",
+   "channel",
+   "classic",
+   "channel",
+   "power",
+   "presence",
+   "bass"
+  ]
+ },
+ "Amp_MarshallJCM800": {
+  "w": 1095,
+  "h": 571,
+  "knobs": {
+   "preamp": [
+    76.758,
+    76.62,
+    2.301,
+    126
+   ],
+   "bass": [
+    45.16,
+    77.496,
+    2.046,
+    54
+   ],
+   "mid": [
+    52.831,
+    76.97,
+    1.918,
+    60
+   ],
+   "treble": [
+    60.776,
+    76.97,
+    2.046,
+    51
+   ],
+   "presence": [
+    37.58,
+    77.671,
+    1.945,
+    57
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "eee",
+   "on",
+   "ae",
+   "nae",
+   "ps",
+   "ay",
+   "nn",
+   "ries",
+   "wes",
+   "master",
+   "preamp",
+   "presence",
+   "bass",
+   "middle",
+   "treble",
+   "volume",
+   "high",
+   "ad",
+   "a4",
+   "jcm",
+   "800",
+   "lead",
+   "series",
+   "10",
+   "2203",
+   "10",
+   "10",
+   "tama",
+   "power",
+   "standby"
+  ]
+ },
+ "Amp_MarshallJTM45": {
+  "w": 1092,
+  "h": 593,
+  "knobs": {
+   "bass": [
+    42.079,
+    73.272,
+    2.308,
+    -108
+   ],
+   "mid": [
+    50.87,
+    73.609,
+    1.795,
+    3
+   ],
+   "treble": [
+    57.83,
+    72.766,
+    2.308,
+    -78
+   ],
+   "presence": [
+    34.478,
+    73.272,
+    2.207,
+    -99
+   ]
+  },
+  "params": 5,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "ea",
+   "ve",
+   "ae",
+   "cs",
+   "ts",
+   "has",
+   "inputs",
+   "presence",
+   "bass",
+   "middle",
+   "treble",
+   "volume",
+   "volume",
+   "ii",
+   "off",
+   "standby",
+   "ts",
+   "on",
+   "on",
+   "10",
+   "10",
+   "10",
+   "40",
+   "10",
+   "10",
+   "prue",
+   "ss",
+   "sot",
+   "ald",
+   "tf"
+  ]
+ },
+ "Amp_MarshallJVM410H": {
+  "w": 1114,
+  "h": 621,
+  "knobs": {
+   "bass": [
+    72.935,
+    46.779,
+    4.381,
+    168
+   ],
+   "treble": [
+    81.553,
+    46.94,
+    3.582,
+    -177
+   ]
+  },
+  "params": 5,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "os",
+   "ene",
+   "aw",
+   "we",
+   "eed",
+   "iy.",
+   "zar",
+   "ae",
+   "ns",
+   "odp1",
+   "treble",
+   "can",
+   "master",
+   "gan",
+   "yolume",
+   "bass",
+   "trebu",
+   "master",
+   "fx",
+   "loop",
+   "ay",
+   "coe",
+   "wn",
+   "10",
+   "10",
+   "10",
+   "10",
+   "70",
+   "op4",
+   "003"
+  ]
+ },
+ "Amp_MarshallPlexi": {
+  "w": 1127,
+  "h": 554,
+  "knobs": {
+   "loudness 1": [
+    28.882,
+    49.007,
+    4.916,
+    -24
+   ],
+   "loudness 2": [
+    39.352,
+    40.523,
+    4.428,
+    -150
+   ],
+   "bass": [
+    57.897,
+    48.285,
+    4.916,
+    15
+   ],
+   "mid": [
+    68.19,
+    44.675,
+    4.525,
+    21
+   ],
+   "treble": [
+    80.701,
+    44.675,
+    4.623,
+    75
+   ],
+   "presence": [
+    94.277,
+    48.285,
+    3.744,
+    132
+   ]
+  },
+  "params": 6,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "ss",
+   "ss",
+   "sl",
+   "ss",
+   "suse",
+   "ao",
+   "volume",
+   "of",
+   "super",
+   "lead",
+   "inputs",
+   "100w",
+   "cococ",
+   "jmp",
+   "ee",
+   "ee",
+   "so",
+   "co",
+   "ss",
+   "sl",
+   "az",
+   "volume",
+   "eine",
+   "of",
+   "super",
+   "lead",
+   "inputs",
+   "100w",
+   "cococ",
+   "jmp"
+  ]
+ },
+ "Amp_OrangeAD50": {
+  "w": 1020,
+  "h": 640,
+  "knobs": {
+   "bass": [
+    53.775,
+    72.422,
+    4.294,
+    57
+   ],
+   "treble": [
+    73.186,
+    72.422,
+    4.186,
+    75
+   ],
+   "presence": [
+    44.069,
+    72.422,
+    4.275,
+    57
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "zz",
+   "ae",
+   "ae",
+   "sat",
+   "eee",
+   "rs",
+   "fong",
+   "se",
+   "ee",
+   "sat",
+   "aol.",
+   "sere",
+   "seed",
+   "ks",
+   "eo",
+   "we",
+   "se",
+   "pny",
+   "te",
+   "rgb",
+   "ies",
+   "625",
+   "ads50",
+   "twin",
+   "channel",
+   "lz",
+   "nora",
+   "gain",
+   "master",
+   "presence"
+  ]
+ },
+ "Amp_OrangeJimmyBean": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "volume": [
+    39.321,
+    30.942,
+    4.957,
+    90
+   ],
+   "bass": [
+    69.107,
+    43.576,
+    4.329,
+    -24
+   ],
+   "mid": [
+    57.821,
+    32.655,
+    4.879,
+    -141
+   ],
+   "treble": [
+    13.179,
+    42.505,
+    4.879,
+    -15
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ane",
+   "ps",
+   "we",
+   "ae",
+   "ee",
+   "eae",
+   "pe",
+   "eae",
+   "sp",
+   "iy",
+   "on",
+   "vases",
+   "om",
+   "me",
+   "ee",
+   "ne",
+   "ae",
+   "gis",
+   "sf",
+   "fi",
+   "figs",
+   "ke",
+   "a7",
+   "ah",
+   "al",
+   "iy",
+   "12",
+   "ony",
+   "vy",
+   "yy"
+  ]
+ },
+ "Amp_OrangeOR100": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {},
+  "params": 4,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "or100",
+   "be",
+   "32",
+   "eal",
+   "range",
+   "clean",
+   "dirty",
+   "power",
+   "standby",
+   "lp",
+   "on",
+   "on",
+   "eee",
+   "ahs",
+   "rs",
+   "or100",
+   "be",
+   "32",
+   "eal",
+   "range",
+   "clean",
+   "dirty",
+   "power",
+   "standby",
+   "nid",
+   "on",
+   "on"
+  ]
+ },
+ "Amp_OrangeOR50H": {
+  "w": 1400,
+  "h": 597,
+  "knobs": {
+   "gain": [
+    36.393,
+    67.923,
+    2.929,
+    3
+   ],
+   "bass": [
+    45.964,
+    67.755,
+    2.85,
+    0
+   ],
+   "mid": [
+    55.393,
+    67.588,
+    2.907,
+    0
+   ],
+   "treble": [
+    64.75,
+    67.755,
+    2.85,
+    6
+   ],
+   "punch": [
+    74.321,
+    67.755,
+    2.829,
+    3
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ea",
+   "eed",
+   "ors0h",
+   "amplifier",
+   "head",
+   "on",
+   "wy",
+   "ange",
+   "power",
+   "standby",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "punch",
+   "input",
+   "bg",
+   "oo",
+   "on",
+   "on",
+   "fe",
+   "oy",
+   "oe",
+   "see",
+   "ea",
+   "gene",
+   "ed",
+   "ors0h",
+   "amplifier",
+   "head"
+  ]
+ },
+ "Amp_OrangeRockerverb": {
+  "w": 1047,
+  "h": 655,
+  "knobs": {
+   "gain": [
+    57.163,
+    72.595,
+    2.407,
+    30
+   ],
+   "bass": [
+    51.624,
+    72.748,
+    2.407,
+    30
+   ],
+   "mid": [
+    46.371,
+    73.359,
+    2.111,
+    21
+   ],
+   "treble": [
+    40.64,
+    72.901,
+    2.426,
+    30
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ed",
+   "ae",
+   "ye",
+   "rockerverb",
+   "50",
+   "pg",
+   "range",
+   "we",
+   "et",
+   "dirty",
+   "channel",
+   "clean",
+   "channel",
+   "sst",
+   "ee",
+   "ls",
+   "ke",
+   "nis",
+   "standby",
+   "reverb",
+   "volume",
+   "treble",
+   "middle",
+   "bass",
+   "gain",
+   "volume",
+   "treble",
+   "middle",
+   "bass",
+   "power"
+  ]
+ },
+ "Amp_OrangeTinyTerror": {
+  "w": 1087,
+  "h": 758,
+  "knobs": {
+   "gain": [
+    77.783,
+    81.464,
+    4.811,
+    48
+   ],
+   "tone": [
+    61.132,
+    81.464,
+    4.71,
+    48
+   ]
+  },
+  "params": 2,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ee",
+   "ss",
+   "es",
+   "ss",
+   "od",
+   "ey",
+   "tiny",
+   "ce",
+   "ka",
+   "eo",
+   "so",
+   "terror",
+   "ge",
+   "th",
+   "tone",
+   "gain",
+   "output",
+   "volume",
+   "ee",
+   "si",
+   "15",
+   "watts",
+   "input",
+   "ors",
+   "on",
+   "watts",
+   "ee",
+   "ss",
+   "ees",
+   "ad"
+  ]
+ },
+ "Amp_TW22": {
+  "w": 1374,
+  "h": 1145,
+  "knobs": {
+   "gain": [
+    11.9,
+    61.179,
+    4.905,
+    12
+   ],
+   "bass": [
+    22.162,
+    58.384,
+    4.905,
+    72
+   ],
+   "mid": [
+    29.949,
+    62.314,
+    4.665,
+    93
+   ],
+   "treble": [
+    71.215,
+    59.694,
+    4.665,
+    -90
+   ]
+  },
+  "params": 4,
+  "how": "row",
+  "cands": 0,
+  "words": []
+ },
+ "Amp_TW26": {
+  "w": 1379,
+  "h": 1141,
+  "knobs": {
+   "gain": [
+    23.241,
+    87.686,
+    4.888,
+    147
+   ],
+   "bass": [
+    36.657,
+    88.738,
+    4.648,
+    -126
+   ],
+   "mid": [
+    43.038,
+    90.316,
+    4.489,
+    66
+   ],
+   "treble": [
+    51.45,
+    88.913,
+    4.888,
+    129
+   ],
+   "presence": [
+    71.465,
+    90.228,
+    4.648,
+    -66
+   ]
+  },
+  "params": 5,
+  "how": "row",
+  "cands": 0,
+  "words": []
+ },
+ "Amp_TW40": {
+  "w": 1400,
+  "h": 1112,
+  "knobs": {
+   "gain": [
+    32.75,
+    20.908,
+    2.636,
+    18
+   ],
+   "bass": [
+    43.464,
+    20.998,
+    2.629,
+    18
+   ],
+   "mid": [
+    54.393,
+    20.908,
+    2.636,
+    18
+   ],
+   "treble": [
+    64.964,
+    20.998,
+    2.479,
+    27
+   ],
+   "presence": [
+    76.036,
+    20.818,
+    2.514,
+    24
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "oar",
+   "mtw40",
+   "ll",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "presence",
+   "pe",
+   "oo",
+   "one",
+   "ie",
+   "wim",
+   "eee",
+   "re",
+   "elven",
+   "nese",
+   "jen",
+   "eon",
+   "sew",
+   "ow",
+   "we",
+   "meee",
+   "slee",
+   "ede",
+   "eae",
+   "eum",
+   "oe",
+   "oa",
+   "eevee"
+  ]
+ },
+ "Bass_Amp_BT600B": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {},
+  "params": 9,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "xe",
+   "eee",
+   "iie",
+   "er",
+   "sex",
+   "es.",
+   "pes",
+   "ps",
+   "se",
+   "et",
+   "he",
+   "hy",
+   "il",
+   "in",
+   "180",
+   "oh",
+   "ck",
+   "ren",
+   "le",
+   "fe",
+   "hz",
+   "6k",
+   "77",
+   "bens",
+   "ne",
+   "sl",
+   "an",
+   "yay",
+   "oy",
+   "im"
+  ]
+ },
+ "Bass_Amp_BT880B": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "gain": [
+    13.321,
+    60.707,
+    2.929,
+    -12
+   ],
+   "bass": [
+    22.464,
+    60.493,
+    2.571,
+    -3
+   ],
+   "low-mid": [
+    59.607,
+    60.707,
+    2.493,
+    0
+   ],
+   "treble": [
+    87.607,
+    60.921,
+    2.414,
+    0
+   ],
+   "low-mid freq.": [
+    31.679,
+    60.278,
+    2.636,
+    3
+   ],
+   "mid": [
+    40.821,
+    60.278,
+    2.714,
+    3
+   ],
+   "mid frequency": [
+    50.393,
+    60.278,
+    2.721,
+    -3
+   ],
+   "high-mid": [
+    68.821,
+    60.707,
+    2.879,
+    6
+   ],
+   "high-mid freq.": [
+    78.25,
+    60.707,
+    2.471,
+    0
+   ]
+  },
+  "params": 9,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "fas",
+   "se",
+   "re",
+   "pat",
+   "oi",
+   "pes",
+   "oa",
+   "bh880b",
+   "lowmid",
+   "mid",
+   "highmid",
+   "gain",
+   "bass",
+   "lowmid",
+   "mid",
+   "highmid",
+   "treble",
+   "freq.",
+   "frequency",
+   "freq.",
+   "li",
+   "oa",
+   "mi",
+   "ao",
+   "an",
+   "aby",
+   "ot",
+   "aa",
+   "ee",
+   "cas"
+  ]
+ },
+ "Bass_Amp_BT975B": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "bass": [
+    43.821,
+    58.565,
+    3.014,
+    3
+   ],
+   "mid": [
+    56.679,
+    58.565,
+    3.05,
+    0
+   ],
+   "high-shift": [
+    69.321,
+    59.85,
+    3.457,
+    6
+   ],
+   "low-shift": [
+    30.964,
+    59.636,
+    3.479,
+    -3
+   ],
+   "gain": [
+    18.107,
+    59.85,
+    3.486,
+    0
+   ],
+   "treble": [
+    82.25,
+    58.994,
+    2.986,
+    6
+   ]
+  },
+  "params": 6,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "sse",
+   "mrl",
+   "ms",
+   "he",
+   "re",
+   "fy",
+   "ae",
+   "aad",
+   "975b",
+   "mid",
+   "ain",
+   "lowshift",
+   "bass",
+   "highshift",
+   "ae",
+   "ew",
+   "nae",
+   "ex",
+   "dt",
+   "sa",
+   "fai",
+   "eo",
+   "sa",
+   "sse",
+   "meng",
+   "ner",
+   "he",
+   "re",
+   "fy",
+   "ae"
+  ]
+ },
+ "Bass_Amp_CH300B": {
+  "w": 1400,
+  "h": 477,
+  "knobs": {
+   "gain": [
+    22.393,
+    59.644,
+    3.186,
+    -6
+   ],
+   "bass": [
+    33.393,
+    59.853,
+    3.186,
+    0
+   ],
+   "mid": [
+    44.464,
+    59.853,
+    3.186,
+    3
+   ],
+   "treble": [
+    66.679,
+    59.434,
+    3.15,
+    9
+   ],
+   "enhance": [
+    77.679,
+    59.644,
+    3.164,
+    12
+   ],
+   "mid-frequency": [
+    55.821,
+    58.805,
+    2.871,
+    0
+   ]
+  },
+  "params": 6,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "rete",
+   "clh300b",
+   "ye",
+   "mid",
+   "treble",
+   "enhanc",
+   "gain",
+   "bass",
+   "midfrequency",
+   "fh",
+   "3s",
+   "ss",
+   "wv",
+   "rete",
+   "clh300b",
+   "se",
+   "mid",
+   "treble",
+   "enhanc",
+   "gain",
+   "bass",
+   "midfrequency",
+   "ee",
+   "ss",
+   "ss",
+   "wv"
+  ]
+ },
+ "Bass_Amp_CH350B": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "90hz": [
+    47.393,
+    60.064,
+    2.536,
+    -6
+   ],
+   "250hz": [
+    54.321,
+    58.137,
+    2.279,
+    15
+   ],
+   "800hz": [
+    62.036,
+    58.351,
+    2.571,
+    6
+   ],
+   "2.5khz": [
+    69.321,
+    58.565,
+    2.557,
+    6
+   ],
+   "7.5khz": [
+    76.607,
+    58.779,
+    1.914,
+    0
+   ],
+   "15khz": [
+    83.536,
+    58.565,
+    2.579,
+    15
+   ]
+  },
+  "params": 10,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "eee",
+   "28",
+   "ses",
+   "ory",
+   "ata",
+   "ones",
+   "ap",
+   "ss",
+   "save",
+   "fp.",
+   "as",
+   "fss",
+   "das",
+   "ay",
+   "clh350b",
+   "90hz",
+   "250hz",
+   "800hz",
+   "2.5khz",
+   "15khz",
+   "7.5khz",
+   "at",
+   "se",
+   "ge",
+   "in",
+   "oa",
+   "ore",
+   "moi",
+   "eee",
+   "isin"
+  ]
+ },
+ "Bass_Amp_CH600B": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "gain": [
+    11.179,
+    58.137,
+    2.593,
+    -3
+   ],
+   "treble": [
+    28.893,
+    58.137,
+    2.593,
+    3
+   ],
+   "30hz": [
+    37.536,
+    58.994,
+    2.771,
+    0
+   ],
+   "90hz": [
+    45.893,
+    58.565,
+    2.443,
+    0
+   ],
+   "250hz": [
+    54.536,
+    57.923,
+    2.636,
+    -3
+   ],
+   "800hz": [
+    62.821,
+    58.994,
+    2.671,
+    9
+   ],
+   "2.5khz": [
+    71.679,
+    58.351,
+    2.536,
+    0
+   ],
+   "compression": [
+    89.036,
+    58.994,
+    2.814,
+    6
+   ],
+   "bass": [
+    20.179,
+    58.994,
+    2.771,
+    0
+   ],
+   "7.5khz": [
+    80.393,
+    58.779,
+    2.593,
+    -3
+   ]
+  },
+  "params": 10,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "cy",
+   "clh600b",
+   "gain",
+   "30hz",
+   "90hz",
+   "250hz",
+   "800hz",
+   "2.5khz",
+   "treble",
+   "compression",
+   "lee",
+   "ay",
+   "ai",
+   "hb",
+   "6a",
+   "gd",
+   "ga",
+   "ga",
+   "4a",
+   "ga",
+   "10",
+   "10",
+   "10",
+   "10",
+   "10",
+   "10",
+   "10",
+   "10",
+   "10",
+   "na"
+  ]
+ },
+ "Bass_Amp_CS240B": {
+  "w": 1400,
+  "h": 597,
+  "knobs": {
+   "gain": [
+    37.179,
+    51.173,
+    3.836,
+    -6
+   ],
+   "bass": [
+    52.893,
+    51.508,
+    4.086,
+    0
+   ],
+   "treble": [
+    69.25,
+    51.173,
+    3.829,
+    3
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "lp",
+   "os",
+   "er",
+   "rz",
+   "xh",
+   "oe",
+   "235",
+   "oe",
+   "pe",
+   "nf",
+   "et",
+   "ss",
+   "oie",
+   "tap",
+   "ve",
+   "dp",
+   "ay",
+   "sen",
+   "ws",
+   "ke",
+   "soe",
+   "ex",
+   "as",
+   "wi",
+   "as",
+   "say",
+   "aoa",
+   "is",
+   "ae",
+   "om"
+  ]
+ },
+ "Bass_Amp_CS300B": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {},
+  "params": 5,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "iis",
+   "beaters",
+   "bk",
+   "es",
+   "wa",
+   "les",
+   "ae",
+   "eee",
+   "ae",
+   "22",
+   "as",
+   "al",
+   "gain",
+   "na",
+   "oo",
+   "ae",
+   "en",
+   "ort",
+   "iis",
+   "bearers",
+   "bk",
+   "es",
+   "wa",
+   "eee",
+   "ae",
+   "eee",
+   "22",
+   "aa",
+   "int",
+   "gain"
+  ]
+ },
+ "Bass_Amp_CS75B": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "gain": [
+    25.607,
+    53.426,
+    3.05,
+    0
+   ],
+   "bass": [
+    38.964,
+    53.212,
+    3.107,
+    0
+   ],
+   "mid": [
+    52.321,
+    52.998,
+    3.171,
+    0
+   ],
+   "treble": [
+    65.393,
+    53.212,
+    3.071,
+    3
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "mi",
+   "css75b",
+   "aes",
+   "on",
+   "owen",
+   "ad",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "prea",
+   "mi",
+   "css75b",
+   "armes",
+   "pres",
+   "on"
+  ]
+ },
+ "Bass_Amp_EdenE300": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "gain": [
+    26.679,
+    53.212,
+    3.093,
+    3
+   ],
+   "bass": [
+    45.25,
+    52.57,
+    3.214,
+    0
+   ],
+   "mid": [
+    54.679,
+    52.998,
+    3.207,
+    -3
+   ],
+   "treble": [
+    64.036,
+    52.784,
+    3.229,
+    3
+   ],
+   "enhance": [
+    35.893,
+    52.784,
+    3.207,
+    0
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "mene",
+   "mee",
+   "on",
+   "eee",
+   "gain",
+   "enhance",
+   "bass",
+   "mid",
+   "treble",
+   "master",
+   "e300",
+   "eden",
+   "mene",
+   "mee",
+   "on",
+   "gain",
+   "enhance",
+   "bass",
+   "mid",
+   "treble",
+   "master",
+   "e300",
+   "eden",
+   "es"
+  ]
+ },
+ "Bass_Amp_EdenWT550": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "gain": [
+    25.036,
+    58.351,
+    2.893,
+    -6
+   ],
+   "bass": [
+    45.25,
+    57.923,
+    2.993,
+    -3
+   ],
+   "low-mid": [
+    65.607,
+    57.709,
+    2.943,
+    6
+   ],
+   "treble": [
+    75.821,
+    57.923,
+    2.971,
+    3
+   ],
+   "enhance": [
+    35.107,
+    57.923,
+    3.014,
+    3
+   ]
+  },
+  "params": 10,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "world",
+   "bass",
+   "amptifier",
+   "semiparametric",
+   "mid",
+   "gain",
+   "enhance",
+   "bass",
+   "id",
+   "level",
+   "mid",
+   "freq",
+   "treble",
+   "master",
+   "eden",
+   "10",
+   "10",
+   "10",
+   "15",
+   "100",
+   "10",
+   "10",
+   "input",
+   "in",
+   "as",
+   "world",
+   "bass",
+   "ampptirier",
+   "semiparametric",
+   "mid"
+  ]
+ },
+ "Bass_Amp_EdenWT800": {
+  "w": 1095,
+  "h": 456,
+  "knobs": {
+   "low-mid": [
+    53.744,
+    79.276,
+    2.63,
+    36
+   ],
+   "treble": [
+    60.685,
+    79.934,
+    2.037,
+    3
+   ]
+  },
+  "params": 10,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "wt800",
+   "world",
+   "tour",
+   "800",
+   "watt",
+   "bass",
+   "amplifier",
+   "professional",
+   "bass",
+   "amplifier",
+   "eden",
+   "power",
+   "ae",
+   "treble",
+   "master",
+   "bess",
+   "mc",
+   "mid",
+   "effects",
+   "loop",
+   "input",
+   "send",
+   "return",
+   "15",
+   "15",
+   "15",
+   "15",
+   "15",
+   "wt800",
+   "world"
+  ]
+ },
+ "Bass_Amp_HT100B": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "presence": [
+    16.179,
+    28.158,
+    4.879,
+    -171
+   ],
+   "mid": [
+    84.821,
+    53.854,
+    3.814,
+    6
+   ]
+  },
+  "params": 5,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "pre",
+   "sz",
+   "cry",
+   "se",
+   "er",
+   "esr",
+   "reg",
+   "ae",
+   "ss",
+   "oe",
+   "taye",
+   "te",
+   "xe",
+   "a5",
+   "wee",
+   "33",
+   "cote",
+   "pa",
+   "cs",
+   "es",
+   "ae",
+   "se",
+   "oe",
+   "te",
+   "ts",
+   "ae",
+   "we",
+   "enone",
+   "mes",
+   "as"
+  ]
+ },
+ "Bass_Amp_HT300B": {
+  "w": 1400,
+  "h": 477,
+  "knobs": {
+   "gain": [
+    15.964,
+    57.757,
+    2.643,
+    3
+   ],
+   "bass": [
+    27.821,
+    57.757,
+    2.871,
+    -9
+   ],
+   "mid": [
+    38.893,
+    57.547,
+    3.05,
+    0
+   ],
+   "treble": [
+    61.464,
+    57.757,
+    2.643,
+    0
+   ],
+   "high-shift": [
+    72.679,
+    57.338,
+    3.05,
+    6
+   ],
+   "low-shift": [
+    84.321,
+    57.757,
+    2.643,
+    0
+   ],
+   "mid-frequency": [
+    50.107,
+    57.128,
+    2.814,
+    0
+   ]
+  },
+  "params": 7,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "ee",
+   "av",
+   "he",
+   "ve",
+   "hw300b",
+   "gain",
+   "bass",
+   "mid",
+   "midfrequency",
+   "treble",
+   "highshift",
+   "lowshift",
+   "kiel",
+   "in",
+   "ai",
+   "ey",
+   "or",
+   "ees",
+   "avon",
+   "es.",
+   "poy",
+   "er",
+   "penne",
+   "re",
+   "vss",
+   "av",
+   "ve",
+   "pel",
+   "ve",
+   "hw300b"
+  ]
+ },
+ "Bass_Amp_HT400B": {
+  "w": 1400,
+  "h": 560,
+  "knobs": {
+   "gain": [
+    17.679,
+    60.268,
+    3.25,
+    3
+   ],
+   "bass": [
+    31.036,
+    60.625,
+    3.114,
+    3
+   ],
+   "mid": [
+    44.25,
+    60.982,
+    3.564,
+    3
+   ],
+   "treble": [
+    57.179,
+    60.804,
+    3.05,
+    -3
+   ],
+   "high-shift": [
+    70.179,
+    60.804,
+    3.05,
+    3
+   ],
+   "low-shift": [
+    83.464,
+    60.625,
+    3.107,
+    3
+   ]
+  },
+  "params": 6,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "pees",
+   "om",
+   "hw400b",
+   "gain",
+   "bass",
+   "mid",
+   "treble",
+   "highshift",
+   "lowshift",
+   "as",
+   "ae",
+   "vile",
+   "is",
+   "is.",
+   "as",
+   "ieee",
+   "sy",
+   "mares",
+   "id",
+   "ied",
+   "po",
+   "pees",
+   "by",
+   "oo",
+   "om",
+   "hw400b",
+   "gain",
+   "bass",
+   "mid",
+   "treble"
+  ]
+ },
+ "Bass_Amp_LT25B": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "mid": [
+    46.893,
+    55.782,
+    3.493,
+    -3
+   ],
+   "bass": [
+    67.393,
+    55.139,
+    3.386,
+    0
+   ]
+  },
+  "params": 7,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "as",
+   "es",
+   "ay",
+   "rs",
+   "ps",
+   "ete",
+   "as",
+   "aa",
+   "mid",
+   "id",
+   "requ",
+   "fe",
+   "neo",
+   "ig",
+   "vv",
+   "aff",
+   "pts",
+   "ow",
+   "ai",
+   "ai",
+   "bs",
+   "ua",
+   "iz",
+   "eae",
+   "elle",
+   "de",
+   "pad",
+   "ols",
+   "ole",
+   "pm"
+  ]
+ },
+ "Bass_Amp_LT85B": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "mid": [
+    57.821,
+    53.212,
+    3.071,
+    6
+   ],
+   "high-shift": [
+    85.036,
+    53.854,
+    2.829,
+    3
+   ],
+   "gain": [
+    30.75,
+    54.069,
+    3.3,
+    3
+   ],
+   "bass": [
+    44.321,
+    53.426,
+    2.971,
+    3
+   ],
+   "treble": [
+    71.679,
+    53.64,
+    2.907,
+    -3
+   ]
+  },
+  "params": 5,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "tg",
+   "ot",
+   "ee",
+   "re",
+   "ree",
+   "sa",
+   "we",
+   "see",
+   "sete",
+   "tap",
+   "itz",
+   "343",
+   "io",
+   "se",
+   "a4",
+   "ee",
+   "fe.",
+   "al",
+   "mid",
+   "highshift",
+   "es.",
+   "aig",
+   "ise",
+   "as",
+   "se",
+   "as",
+   "gas",
+   "ri",
+   "figs",
+   "aos"
+  ]
+ },
+ "Bass_Amp_OrangeAD200B": {
+  "w": 999,
+  "h": 623,
+  "knobs": {
+   "gain": [
+    78.929,
+    70.706,
+    4.074,
+    57
+   ],
+   "mid": [
+    59.309,
+    71.027,
+    3.964,
+    51
+   ],
+   "treble": [
+    49.6,
+    71.027,
+    3.834,
+    51
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ae",
+   "oe",
+   "eae",
+   "fae",
+   "ame",
+   "se",
+   "as",
+   "bys",
+   "an",
+   "eae",
+   "sss",
+   "as",
+   "ma",
+   "tn",
+   "ss",
+   "ss",
+   "ad200b",
+   "ve",
+   "bass",
+   "amplifier",
+   "range",
+   "2s",
+   "tt",
+   "gain",
+   "power",
+   "standby",
+   "master",
+   "treble",
+   "middle",
+   "input"
+  ]
+ },
+ "Bass_Pedal_BassAutoFilter": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "filter type": [
+    49.4,
+    70.75,
+    10.33,
+    -45
+   ]
+  },
+  "params": 5,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "dry",
+   "decay",
+   "sens.",
+   "mxr",
+   "bass",
+   "innovations",
+   "bass",
+   "envelope",
+   "filter",
+   "ee",
+   "dry",
+   "decay",
+   "sens.",
+   "mxr",
+   "bass",
+   "innovations",
+   "bass",
+   "envelope",
+   "filter",
+   "ee"
+  ]
+ },
+ "Bass_Pedal_BassChorus": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "rate": [
+    58.996,
+    19.55,
+    6.402,
+    3
+   ],
+   "depth": [
+    76.387,
+    19.55,
+    6.402,
+    6
+   ],
+   "low filter": [
+    41.154,
+    19.15,
+    6.567,
+    0
+   ],
+   "mix": [
+    23.613,
+    19.75,
+    7.451,
+    3
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "e.level",
+   "low",
+   "filter",
+   "rate",
+   "depth",
+   "min",
+   "max",
+   "cut",
+   "flat",
+   "min",
+   "max",
+   "min",
+   "max",
+   "af",
+   "output",
+   "mono",
+   "input",
+   "output",
+   "bass",
+   "chorus",
+   "ds",
+   "e.level",
+   "low",
+   "filter",
+   "rate",
+   "depth",
+   "min",
+   "max",
+   "cut",
+   "flat"
+  ]
+ },
+ "Bass_Pedal_BassDistortion": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "gain": [
+    69.04,
+    34.65,
+    7.181,
+    0
+   ],
+   "tone": [
+    32.459,
+    33.85,
+    8.561,
+    -6
+   ]
+  },
+  "params": 3,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "dry",
+   "wer",
+   "an",
+   "tone",
+   "dist",
+   "mxr",
+   "bass",
+   "innovations",
+   "bass",
+   "distortion",
+   "dry",
+   "wer",
+   "an",
+   "tone",
+   "dist",
+   "mxr",
+   "bass",
+   "innovations",
+   "bass",
+   "distortion",
+   "m85"
+  ]
+ },
+ "Bass_Pedal_BassEQ8": {
+  "w": 1400,
+  "h": 1120,
+  "knobs": {
+   "30hz": [
+    26.536,
+    31.384,
+    7.071,
+    -3
+   ],
+   "1.1khz": [
+    57.393,
+    52.723,
+    11.086,
+    27
+   ],
+   "6.8khz": [
+    74.393,
+    29.42,
+    8.057,
+    171
+   ]
+  },
+  "params": 8,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "es",
+   "30hz",
+   "75hz",
+   "185hz",
+   "460hz",
+   "1.1khz",
+   "2.7khz",
+   "6.8khz",
+   "16khz",
+   "13",
+   "ii",
+   "8band",
+   "bass",
+   "8band",
+   "bass",
+   "eq",
+   "wf",
+   "es",
+   "30hz",
+   "75hz",
+   "185hz",
+   "460hz",
+   "1.1khz",
+   "2.7khz",
+   "6.8khz",
+   "16khz",
+   "ie",
+   "8band",
+   "bass",
+   "8band"
+  ]
+ },
+ "Bass_Pedal_BassEnbig": {
+  "w": 1199,
+  "h": 1312,
+  "knobs": {
+   "rate": [
+    34.57,
+    14.748,
+    7.364,
+    -3
+   ],
+   "depth": [
+    34.821,
+    40.434,
+    9.116,
+    0
+   ],
+   "filter": [
+    65.763,
+    39.901,
+    7.356,
+    -3
+   ],
+   "mix": [
+    65.847,
+    14.672,
+    7.515,
+    -3
+   ]
+  },
+  "params": 4,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "rate",
+   "ix",
+   "depth",
+   "filter",
+   "bass",
+   "enbiggenator",
+   "yr",
+   "as",
+   "iy",
+   "aa",
+   "rate",
+   "ix",
+   "depth",
+   "filter",
+   "bass",
+   "enbiggenator",
+   "yr.",
+   "ax",
+   "iy"
+  ]
+ },
+ "Bass_Pedal_BassFilterDelay": {
+  "w": 1400,
+  "h": 933,
+  "knobs": {
+   "time": [
+    39.75,
+    41.104,
+    5.407,
+    3
+   ],
+   "feedback": [
+    60.107,
+    40.568,
+    5.321,
+    0
+   ],
+   "low filter": [
+    49.75,
+    83.869,
+    5.093,
+    39
+   ]
+  },
+  "params": 4,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "time",
+   "feedback",
+   "mix",
+   "low",
+   "filter",
+   "bass",
+   "filter",
+   "delay",
+   "ey",
+   "time",
+   "feedback",
+   "mix",
+   "low",
+   "filter",
+   "bass",
+   "filter",
+   "delay"
+  ]
+ },
+ "Bass_Pedal_BassFilterEcho": {
+  "w": 1199,
+  "h": 1312,
+  "knobs": {
+   "time": [
+    35.822,
+    42.264,
+    7.957,
+    0
+   ],
+   "low filter": [
+    63.928,
+    42.95,
+    8.007,
+    3
+   ]
+  },
+  "params": 4,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "es",
+   "time",
+   "mix",
+   "low",
+   "filter",
+   "bass",
+   "filter",
+   "echo",
+   "time",
+   "mix",
+   "low",
+   "filter",
+   "bass",
+   "filter",
+   "echo"
+  ]
+ },
+ "Bass_Pedal_BassFlanger": {
+  "w": 1140,
+  "h": 1380,
+  "knobs": {
+   "rate": [
+    33.114,
+    16.993,
+    8.325,
+    6
+   ],
+   "depth": [
+    66.36,
+    17.283,
+    8.518,
+    3
+   ],
+   "mix": [
+    32.939,
+    41.703,
+    8.211,
+    6
+   ],
+   "filter": [
+    66.623,
+    41.703,
+    8.263,
+    3
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "rate",
+   "depth",
+   "ay",
+   "mix",
+   "filter",
+   "bass",
+   "flange",
+   "rate",
+   "depth",
+   "ay",
+   "fi",
+   "mix",
+   "filter",
+   "bass",
+   "flange"
+  ]
+ },
+ "Bass_Pedal_BassFuzz": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "gain": [
+    49.55,
+    32.25,
+    10.225,
+    0
+   ]
+  },
+  "params": 3,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "bass",
+   "boost",
+   "norm",
+   "bass",
+   "electr",
+   "made",
+   "in",
+   "nyc",
+   "usa",
+   "nar",
+   "onix",
+   "bass",
+   "boost",
+   "norm",
+   "bass",
+   "electr",
+   "made",
+   "in",
+   "nyc",
+   "usa",
+   "nar",
+   "onix"
+  ]
+ },
+ "Bass_Pedal_BassOverdrive": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "gain": [
+    24.513,
+    19.95,
+    6.327,
+    -3
+   ],
+   "tone": [
+    41.604,
+    20.25,
+    6.822,
+    0
+   ],
+   "blend": [
+    58.996,
+    19.85,
+    6.237,
+    -3
+   ],
+   "filter": [
+    76.087,
+    19.75,
+    6.282,
+    -3
+   ]
+  },
+  "params": 4,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "ae",
+   "level",
+   "balance",
+   "gain",
+   "eq",
+   "min",
+   "max",
+   "cur",
+   "dry",
+   "op",
+   "min",
+   "max",
+   "low",
+   "output",
+   "input",
+   "sass",
+   "over",
+   "drive",
+   "odb3",
+   "oo",
+   "ee",
+   "level",
+   "balance",
+   "gain",
+   "oe",
+   "min",
+   "max",
+   "cur",
+   "boost",
+   "dry"
+  ]
+ },
+ "Bass_Pedal_BassPhase": {
+  "w": 1199,
+  "h": 1312,
+  "knobs": {
+   "rate": [
+    34.404,
+    20.236,
+    8.582,
+    0
+   ],
+   "depth": [
+    65.43,
+    43.102,
+    8.59,
+    6
+   ],
+   "mix": [
+    65.763,
+    20.541,
+    8.157,
+    -3
+   ],
+   "filter": [
+    34.404,
+    43.026,
+    8.574,
+    0
+   ]
+  },
+  "params": 4,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "ae",
+   "aig",
+   "rate",
+   "depth",
+   "pt",
+   "a.",
+   "filter",
+   "bass",
+   "phase",
+   "is",
+   "ae",
+   "aig.",
+   "rate",
+   "depth",
+   "pt",
+   "el",
+   "filter",
+   "bass",
+   "phase",
+   "se",
+   "uy"
+  ]
+ },
+ "Bass_Pedal_BassSubOctave": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "mix": [
+    30.81,
+    15.95,
+    5.967,
+    -36
+   ],
+   "tone": [
+    68.741,
+    15.95,
+    5.967,
+    -36
+   ]
+  },
+  "params": 2,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "check",
+   "direct",
+   "oct",
+   "oct",
+   "eee",
+   "ve",
+   "output",
+   "input",
+   "ay",
+   "octave",
+   "oc2",
+   "la",
+   "er",
+   "er",
+   "wee",
+   "san",
+   "check",
+   "direct",
+   "oct",
+   "oct",
+   "ee",
+   "ve",
+   "output",
+   "input",
+   "ay",
+   "octave",
+   "oc2",
+   "la",
+   "san"
+  ]
+ },
+ "Bass_Pedal_BassWah": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {},
+  "params": 4,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "xr",
+   "es",
+   "ee",
+   "ee",
+   "we",
+   "sa",
+   "hi",
+   "lo",
+   "ery",
+   "baby",
+   "xr",
+   "we",
+   "sa",
+   "hi",
+   "lo",
+   "ery",
+   "baby"
+  ]
+ },
+ "Bass_Pedal_EdenWTDI": {
+  "w": 892,
+  "h": 805,
+  "knobs": {
+   "enhance": [
+    52.747,
+    83.168,
+    7.646,
+    21
+   ],
+   "compression": [
+    53.307,
+    80.932,
+    7.265,
+    -135
+   ]
+  },
+  "params": 8,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "eno",
+   "ao",
+   "non",
+   "rn",
+   "pnr",
+   "et",
+   "bass",
+   "guitar",
+   "pre",
+   "amplifier",
+   "direct",
+   "box",
+   "vb",
+   "ay",
+   "eden",
+   "eq",
+   "15",
+   "15",
+   "10",
+   "ass",
+   "mid",
+   "bypass",
+   "treble",
+   "gain",
+   "lift",
+   "comp",
+   "bypass",
+   "gnd",
+   "10",
+   "10"
+  ]
+ },
+ "Bass_Pedal_MBComp": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "transition band": [
+    49.85,
+    76.15,
+    9.46,
+    6
+   ]
+  },
+  "params": 3,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "complimit",
+   "gain",
+   "mode",
+   "tubesim",
+   "normal",
+   "true",
+   "dual",
+   "band",
+   "compressor",
+   "95",
+   "ime",
+   "complimit",
+   "gain",
+   "mode",
+   "tubesim",
+   "vp",
+   "normal",
+   "true",
+   "dual",
+   "band",
+   "compressor",
+   "05",
+   "ime"
+  ]
+ },
+ "DI_Amp_BassDriver": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "gain": [
+    16.25,
+    50.857,
+    4.721,
+    3
+   ],
+   "presence": [
+    50.607,
+    51.071,
+    4.643,
+    -3
+   ],
+   "treble": [
+    67.25,
+    50.857,
+    4.957,
+    0
+   ],
+   "blend": [
+    83.964,
+    51.285,
+    4.564,
+    0
+   ],
+   "bass": [
+    33.536,
+    51.927,
+    4.343,
+    3
+   ]
+  },
+  "params": 5,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "ne",
+   "di.",
+   "bass",
+   "driver",
+   "ns",
+   "kd",
+   "gain",
+   "bass",
+   "presence",
+   "treble",
+   "blend",
+   "ae",
+   "ne",
+   "di.",
+   "bass",
+   "driver",
+   "ne",
+   "ls",
+   "kd",
+   "gain",
+   "bass",
+   "presence",
+   "treble",
+   "blend",
+   "ae"
+  ]
+ },
+ "DI_Amp_MixerPre": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "gain": [
+    18.036,
+    58.779,
+    4.457,
+    -3
+   ],
+   "bass": [
+    34.179,
+    59.422,
+    3.836,
+    3
+   ],
+   "mid": [
+    50.25,
+    59.422,
+    3.836,
+    0
+   ],
+   "treble": [
+    66.25,
+    59.208,
+    3.836,
+    0
+   ],
+   "tone": [
+    82.393,
+    58.351,
+    4.471,
+    0
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "di.",
+   "mixer.",
+   "gain",
+   "mid",
+   "treble",
+   "tone",
+   "bass",
+   "at",
+   "di.",
+   "mixer.",
+   "gain",
+   "mid",
+   "treble",
+   "tone",
+   "bass",
+   "at"
+  ]
+ },
+ "DI_Amp_TubePre": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "gain": [
+    18.607,
+    52.355,
+    4.407,
+    -3
+   ],
+   "bass": [
+    34.25,
+    52.784,
+    4.393,
+    3
+   ],
+   "mid": [
+    49.464,
+    51.285,
+    3.929,
+    12
+   ],
+   "treble": [
+    65.607,
+    52.784,
+    4.4,
+    3
+   ],
+   "mid. freq. select": [
+    81.321,
+    52.784,
+    4.614,
+    3
+   ]
+  },
+  "params": 5,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "os",
+   "di.",
+   "pre",
+   "tube",
+   "bass",
+   "mid",
+   "treble",
+   "gain",
+   "mid.",
+   "freq",
+   "select",
+   "ae",
+   "dane",
+   "di.",
+   "pre",
+   "tube",
+   "bass",
+   "mid",
+   "treble",
+   "gain",
+   "mid.",
+   "freq",
+   "select",
+   "ae",
+   "fa"
+  ]
+ },
+ "Pedal_80sFlanger": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {},
+  "params": 3,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "check",
+   "manual",
+   "res",
+   "perm",
+   "output",
+   "input",
+   "bf2",
+   "check",
+   "manual",
+   "res",
+   "output",
+   "input",
+   "bf2",
+   "eee",
+   "an"
+  ]
+ },
+ "Pedal_AcousticEmulator": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "body": [
+    32.714,
+    19.893,
+    9.486,
+    0
+   ],
+   "tone": [
+    67.095,
+    41.536,
+    9.41,
+    3
+   ]
+  },
+  "params": 4,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "es",
+   "oe",
+   "body",
+   "midrange",
+   "mid",
+   "tone",
+   "frequency",
+   "acoustic",
+   "ig",
+   "ay",
+   "kg",
+   "es",
+   "ssb",
+   "mef",
+   "es",
+   "se",
+   "oe",
+   "body",
+   "midrange",
+   "al",
+   "mid",
+   "tone",
+   "frequency",
+   "acoustic",
+   "ig",
+   "eg",
+   "ssb",
+   "een"
+  ]
+ },
+ "Pedal_AmpEQ": {
+  "w": 1217,
+  "h": 1293,
+  "knobs": {
+   "bass": [
+    26.5,
+    18.755,
+    6.245,
+    6
+   ],
+   "midrange": [
+    50.0,
+    19.064,
+    7.592,
+    -3
+   ],
+   "mid freq. shift": [
+    50.082,
+    40.874,
+    7.362,
+    3
+   ],
+   "treble": [
+    74.076,
+    18.523,
+    6.565,
+    -12
+   ]
+  },
+  "params": 6,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "ie",
+   "aie",
+   "bea",
+   "te",
+   "tan",
+   "wi",
+   "ils",
+   "as",
+   "bass",
+   "midrange",
+   "treble",
+   "ss",
+   "mari",
+   "bass",
+   "freq.",
+   "treble",
+   "freq.",
+   "mid",
+   "freq.",
+   "shift",
+   "ae",
+   "ne",
+   "am",
+   "deq",
+   "ax",
+   "ss",
+   "end",
+   "xe",
+   "we",
+   "af"
+  ]
+ },
+ "Pedal_AmpTrem": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "speed": [
+    49.571,
+    78.964,
+    8.905,
+    -21
+   ]
+  },
+  "params": 2,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "es",
+   "at",
+   "speed",
+   "mix",
+   "amp",
+   "trem",
+   "ay",
+   "ee",
+   "es",
+   "speed",
+   "mix",
+   "amp",
+   "trem",
+   "ay",
+   "ee"
+  ]
+ },
+ "Pedal_AmpVibe": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "speed": [
+    30.171,
+    23.964,
+    12.369,
+    3
+   ],
+   "mix": [
+    69.507,
+    24.107,
+    12.444,
+    6
+   ]
+  },
+  "params": 2,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "cs",
+   "ie",
+   "yaar",
+   "ie",
+   "cs",
+   "ie"
+  ]
+ },
+ "Pedal_AnalogueDelay": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "time": [
+    72.339,
+    30.35,
+    12.054,
+    9
+   ],
+   "feedback": [
+    25.862,
+    13.65,
+    14.483,
+    -72
+   ],
+   "mix": [
+    53.148,
+    16.85,
+    15.802,
+    -15
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "mop",
+   "mix",
+   "gl",
+   "regen",
+   "delay",
+   "carbon",
+   "copy",
+   "analog",
+   "delay",
+   "ao",
+   "alle",
+   "dip",
+   "von",
+   "yi",
+   "mix",
+   "regen",
+   "delay",
+   "if",
+   "carbon",
+   "copy",
+   "analog",
+   "delay",
+   "ao",
+   "call"
+  ]
+ },
+ "Pedal_AutoFilter": {
+  "w": 1199,
+  "h": 1312,
+  "knobs": {
+   "attack speed": [
+    50.167,
+    19.322,
+    7.164,
+    -3
+   ],
+   "release speed": [
+    71.351,
+    19.474,
+    6.989,
+    0
+   ],
+   "filter type": [
+    36.239,
+    43.102,
+    6.831,
+    3
+   ],
+   "mix": [
+    63.511,
+    43.026,
+    7.048,
+    0
+   ],
+   "sensitivity": [
+    28.649,
+    19.093,
+    6.897,
+    0
+   ]
+  },
+  "params": 5,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "sens",
+   "attack",
+   "release",
+   "speed",
+   "speed",
+   "of",
+   "fi",
+   "er",
+   "mix",
+   "ps",
+   "type",
+   "at",
+   "auto",
+   "filter",
+   "ame",
+   "ly",
+   "ip",
+   "ey",
+   "2a",
+   "sa",
+   "sens",
+   "attack",
+   "release",
+   "speed",
+   "speed",
+   "of",
+   "fi",
+   "er",
+   "mix",
+   "type"
+  ]
+ },
+ "Pedal_AutoVibe": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "sensitivity": [
+    32.333,
+    39.179,
+    9.81,
+    0
+   ],
+   "mix": [
+    67.0,
+    39.25,
+    9.819,
+    3
+   ]
+  },
+  "params": 4,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "sensitivity",
+   "mix",
+   "attack",
+   "re",
+   "ease",
+   "speed",
+   "speed",
+   "auto",
+   "vibe",
+   "oe",
+   "sensitivity",
+   "mix",
+   "attack",
+   "re",
+   "ease",
+   "speed",
+   "speed",
+   "auto",
+   "roe"
+  ]
+ },
+ "Pedal_BakedRotatoe": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "rate": [
+    33.19,
+    42.393,
+    10.619,
+    3
+   ],
+   "depth": [
+    66.905,
+    42.393,
+    10.667,
+    6
+   ],
+   "mix": [
+    49.571,
+    83.179,
+    10.219,
+    -30
+   ]
+  },
+  "params": 4,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "pe",
+   "te",
+   "ee",
+   "bie",
+   "ee",
+   "wre",
+   "ox",
+   "mn.",
+   "le",
+   "ut",
+   "ed",
+   "yo",
+   "fe",
+   "ee",
+   "og",
+   "ve",
+   "oe",
+   "rate",
+   "depth",
+   "as",
+   "pa",
+   "pe",
+   "om",
+   "hy",
+   "ran",
+   "balance",
+   "mix",
+   "iy",
+   "ant",
+   "baked"
+  ]
+ },
+ "Pedal_BassEmulator": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "body": [
+    49.762,
+    79.321,
+    11.238,
+    15
+   ]
+  },
+  "params": 2,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "ae",
+   "rs",
+   "ss.",
+   "ne",
+   "wy",
+   "ve",
+   "ae",
+   "na",
+   "ey",
+   "ee.",
+   "ss",
+   "sexy",
+   "we",
+   "tone",
+   "body",
+   "ma",
+   "tt",
+   "ww",
+   "vo",
+   "ij",
+   "guitarbas",
+   "ae",
+   "emulator",
+   "oh",
+   "ad",
+   "ae",
+   "arenes",
+   "oq",
+   "we",
+   "poe"
+  ]
+ },
+ "Pedal_BitCruncher": {
+  "w": 1199,
+  "h": 1312,
+  "knobs": {
+   "mix": [
+    34.404,
+    19.55,
+    8.249,
+    0
+   ],
+   "filter": [
+    74.27,
+    14.367,
+    8.24,
+    -153
+   ],
+   "downsample": [
+    28.732,
+    41.349,
+    7.723,
+    3
+   ],
+   "bit depth": [
+    49.666,
+    81.898,
+    8.065,
+    -33
+   ],
+   "rectify": [
+    71.018,
+    41.273,
+    7.598,
+    6
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ys",
+   "gg",
+   "mix",
+   "filter",
+   "ri",
+   "rectify",
+   "downsample",
+   "bit",
+   "depth",
+   "we",
+   "nx",
+   "ttm",
+   "gg",
+   "mix",
+   "filter",
+   "ri",
+   "rectify",
+   "downsample",
+   "bit",
+   "depth",
+   "ae",
+   "nx",
+   "kk",
+   "it",
+   "ttm"
+  ]
+ },
+ "Pedal_BobFilter": {
+  "w": 1120,
+  "h": 1400,
+  "knobs": {
+   "attack speed": [
+    49.598,
+    26.679,
+    8.527,
+    6
+   ],
+   "release speed": [
+    73.884,
+    26.75,
+    8.455,
+    9
+   ],
+   "filter type": [
+    34.777,
+    50.25,
+    7.536,
+    3
+   ],
+   "sensitivity": [
+    25.938,
+    26.75,
+    8.366,
+    -3
+   ],
+   "mix": [
+    66.027,
+    50.107,
+    8.527,
+    9
+   ]
+  },
+  "params": 5,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "attack",
+   "release",
+   "spee",
+   "speed",
+   "iter",
+   "type",
+   "analog",
+   "filter",
+   "attack",
+   "release",
+   "spee",
+   "speed",
+   "pa",
+   "iter",
+   "type",
+   "analog",
+   "filter"
+  ]
+ },
+ "Pedal_BuzzOne": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "gain": [
+    78.786,
+    23.75,
+    8.951,
+    12
+   ],
+   "tone": [
+    50.6,
+    23.75,
+    9.265,
+    3
+   ]
+  },
+  "params": 2,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "amplifier",
+   "input",
+   "volume",
+   "tone",
+   "sustain",
+   "ete",
+   "electroharmonix",
+   "ee",
+   "ey",
+   "amplifier",
+   "input",
+   "volume",
+   "tone",
+   "sustain",
+   "ete",
+   "electroharmonix",
+   "ee",
+   "ey"
+  ]
+ },
+ "Pedal_BuzzToo": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "gain": [
+    31.886,
+    26.321,
+    11.876,
+    0
+   ],
+   "tone": [
+    68.65,
+    26.464,
+    11.726,
+    0
+   ]
+  },
+  "params": 2,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "gain",
+   "tone",
+   "an",
+   "eee",
+   "gain",
+   "tone",
+   "an"
+  ]
+ },
+ "Pedal_CaptFuzzle": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "gain": [
+    31.029,
+    26.107,
+    11.865,
+    3
+   ],
+   "tone": [
+    69.078,
+    26.107,
+    11.758,
+    3
+   ]
+  },
+  "params": 2,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "gain",
+   "tone",
+   "tain",
+   "cap",
+   "le",
+   "uzz",
+   "at",
+   "ten",
+   "gain",
+   "tone",
+   "tain",
+   "cap",
+   "le",
+   "at",
+   "ee",
+   "rk",
+   "ee"
+  ]
+ },
+ "Pedal_Chorus": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "rate": [
+    49.762,
+    25.536,
+    11.876,
+    3
+   ],
+   "depth": [
+    25.476,
+    27.536,
+    3.476,
+    -21
+   ]
+  },
+  "params": 3,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "9v",
+   "fan",
+   "output",
+   "depth",
+   "rate",
+   "small",
+   "clone",
+   "ae",
+   "4600",
+   "fullchorus",
+   "waal",
+   "electro",
+   "harmonix",
+   "made",
+   "in",
+   "usa",
+   "9v",
+   "fe",
+   "output",
+   "depth",
+   "rate",
+   "small",
+   "clone",
+   "ae",
+   "4600",
+   "fullchorus",
+   "waal",
+   "electro",
+   "harmonix",
+   "made"
+  ]
+ },
+ "Pedal_Chorus20": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "rate": [
+    32.309,
+    18.15,
+    11.469,
+    -3
+   ],
+   "depth": [
+    68.591,
+    18.15,
+    11.394,
+    3
+   ]
+  },
+  "params": 3,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "check",
+   "rate",
+   "depth",
+   "if",
+   "output",
+   "input",
+   "ce2",
+   "ee",
+   "check",
+   "rate",
+   "qo",
+   "depth",
+   "if",
+   "output",
+   "input",
+   "ce2",
+   "tne"
+  ]
+ },
+ "Pedal_ClassicFlanger": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "rate": [
+    22.714,
+    27.35,
+    9.61,
+    0
+   ],
+   "depth": [
+    49.55,
+    27.45,
+    9.775,
+    3
+   ],
+   "mix": [
+    76.687,
+    27.45,
+    9.88,
+    6
+   ]
+  },
+  "params": 3,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "flanged",
+   "out",
+   "direct",
+   "out",
+   "input",
+   "color",
+   "range",
+   "rate",
+   "alaael",
+   "aoe",
+   "eos",
+   "ed",
+   "aa",
+   "flanger",
+   "made",
+   "in",
+   "nyc",
+   "usa",
+   "flanged",
+   "out",
+   "direct",
+   "out",
+   "input",
+   "color",
+   "range",
+   "rate",
+   "ae",
+   "bw",
+   "eos",
+   "ed"
+  ]
+ },
+ "Pedal_Compression": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "compression": [
+    15.667,
+    47.85,
+    7.946,
+    -54
+   ],
+   "attack": [
+    38.156,
+    48.55,
+    7.916,
+    75
+   ],
+   "release": [
+    63.793,
+    47.95,
+    7.181,
+    -72
+   ]
+  },
+  "params": 3,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "ola",
+   "vs",
+   "hel",
+   "it",
+   "tp",
+   "wh",
+   "lll",
+   "vs",
+   "hel",
+   "tp",
+   "if"
+  ]
+ },
+ "Pedal_CosmicEcho": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "time": [
+    22.347,
+    89.464,
+    9.711,
+    -117
+   ],
+   "feedback": [
+    62.326,
+    90.036,
+    9.303,
+    -45
+   ],
+   "mix": [
+    81.618,
+    91.321,
+    7.245,
+    138
+   ]
+  },
+  "params": 3,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "area",
+   "ee",
+   "if",
+   "gi",
+   "hs",
+   "fee",
+   "ack",
+   "fi",
+   "4p",
+   "he",
+   "echo",
+   "cosmonaut",
+   "nj",
+   "ww",
+   "ee",
+   "if",
+   "fee",
+   "ack",
+   "fi",
+   "4p",
+   "he",
+   "echo",
+   "cosmonaut",
+   "nj",
+   "ww",
+   "he"
+  ]
+ },
+ "Pedal_CustomDrive": {
+  "w": 1400,
+  "h": 933,
+  "knobs": {
+   "gain": [
+    24.25,
+    27.278,
+    6.721,
+    0
+   ],
+   "tone": [
+    50.107,
+    27.17,
+    6.779,
+    6
+   ],
+   "voicing": [
+    76.107,
+    27.063,
+    6.864,
+    6
+   ]
+  },
+  "params": 3,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "gain",
+   "treble",
+   "klon",
+   "centaur",
+   "ied",
+   "bc",
+   "bi",
+   "gain",
+   "treble",
+   "klon",
+   "centaur",
+   "bc",
+   "bi"
+  ]
+ },
+ "Pedal_DigitalChorus": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "rate": [
+    57.381,
+    21.464,
+    6.286,
+    0
+   ],
+   "depth": [
+    72.238,
+    21.25,
+    5.076,
+    0
+   ],
+   "mix": [
+    28.143,
+    21.393,
+    5.095,
+    -3
+   ]
+  },
+  "params": 5,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "check",
+   "e.level",
+   "eq",
+   "rate",
+   "depth",
+   "me",
+   "hi",
+   "min",
+   "max",
+   "min",
+   "max",
+   "output",
+   "imono",
+   "output",
+   "input",
+   "super",
+   "saat",
+   "ees",
+   "oss",
+   "oss",
+   "os",
+   "ce",
+   "ie",
+   "xk",
+   "check",
+   "e.level",
+   "eq",
+   "rate",
+   "depth",
+   "lo"
+  ]
+ },
+ "Pedal_DigitalVerb": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "time": [
+    55.359,
+    19.464,
+    6.752,
+    -3
+   ],
+   "tone": [
+    38.532,
+    19.393,
+    6.549,
+    0
+   ],
+   "mix": [
+    21.811,
+    19.393,
+    6.549,
+    0
+   ]
+  },
+  "params": 4,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "check",
+   "e.level",
+   "tone",
+   "time",
+   "mode",
+   "room",
+   "hall",
+   "plate",
+   "sprin",
+   "modulati",
+   "delay",
+   "min",
+   "max",
+   "min",
+   "max",
+   "min",
+   "max",
+   "sumer",
+   "dynamic",
+   "al",
+   "ao",
+   "nena",
+   "eq",
+   "output",
+   "output",
+   "rv6",
+   "kw",
+   "check",
+   "e.level",
+   "tone"
+  ]
+ },
+ "Pedal_Distortion": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "gain": [
+    49.571,
+    26.393,
+    8.328,
+    0
+   ],
+   "tone": [
+    30.386,
+    16.393,
+    11.2,
+    0
+   ]
+  },
+  "params": 2,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "check",
+   "level",
+   "tone",
+   "output",
+   "input",
+   "distortion",
+   "eee",
+   "sone",
+   "check",
+   "level",
+   "tone",
+   "output",
+   "input",
+   "distortion",
+   "eee",
+   "we.",
+   "eo",
+   "sha",
+   "cl",
+   "sent"
+  ]
+ },
+ "Pedal_EQ5": {
+  "w": 800,
+  "h": 533,
+  "knobs": {
+   "750hz": [
+    49.938,
+    80.957,
+    4.912,
+    -21
+   ]
+  },
+  "params": 5,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "pips",
+   "12",
+   "ee",
+   "ee",
+   "12",
+   "in",
+   "our",
+   "80hz",
+   "240hz",
+   "750hz",
+   "2.2khz",
+   "6.6khz",
+   "bar",
+   "12",
+   "ee",
+   "12",
+   "in",
+   "our",
+   "80hz",
+   "240hz",
+   "750hz",
+   "2.2khz",
+   "6.6khz",
+   "sy"
+  ]
+ },
+ "Pedal_EQ8": {
+  "w": 1200,
+  "h": 1311,
+  "knobs": {
+   "200hz": [
+    31.458,
+    43.822,
+    13.567,
+    -15
+   ],
+   "1.6khz": [
+    63.708,
+    39.703,
+    10.533,
+    -15
+   ],
+   "3.2khz": [
+    71.792,
+    46.186,
+    10.875,
+    -15
+   ],
+   "800hz": [
+    57.375,
+    31.465,
+    13.108,
+    -21
+   ],
+   "100hz": [
+    28.958,
+    23.532,
+    9.408,
+    174
+   ]
+  },
+  "params": 8,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "eo",
+   "sates",
+   "tris",
+   "rec",
+   "100h2",
+   "200hz",
+   "400hz",
+   "s800hz",
+   "1.6khz",
+   "3.2khz",
+   "6.4khz",
+   "ie",
+   "loo",
+   "ie",
+   "ie",
+   "12",
+   "wi",
+   "8band",
+   "graphic",
+   "ee",
+   "sate",
+   "tri",
+   "200hz",
+   "400hz",
+   "s800hz",
+   "1.6khz",
+   "3.2khz",
+   "6.4khz",
+   "12",
+   "loo"
+  ]
+ },
+ "Pedal_Enbiggenator": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "rate": [
+    50.048,
+    40.393,
+    10.467,
+    0
+   ],
+   "mix": [
+    49.857,
+    58.107,
+    3.467,
+    177
+   ]
+  },
+  "params": 3,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "ree",
+   "eo",
+   "le",
+   "aie",
+   "ae",
+   "ot",
+   "rate",
+   "depth",
+   "mix",
+   "ss",
+   "enbiggenator",
+   "sf",
+   "ee",
+   "as",
+   "ss",
+   "ye",
+   "fo",
+   "da",
+   "en",
+   "wm",
+   "nen",
+   "be",
+   "ree",
+   "le",
+   "aie",
+   "ot",
+   "rate",
+   "depth",
+   "mix",
+   "ss"
+  ]
+ },
+ "Pedal_FuzzWasHe": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "gain": [
+    34.858,
+    23.95,
+    9.685,
+    9
+   ],
+   "tone": [
+    63.793,
+    21.55,
+    7.706,
+    -39
+   ]
+  },
+  "params": 2,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "ou",
+   "ai",
+   "ae",
+   "on",
+   "pay",
+   "oes",
+   "ag",
+   "at",
+   "fyzt",
+   "fag",
+   "ee",
+   "pe",
+   "is",
+   "ou",
+   "aie",
+   "ae",
+   "sr",
+   "pay",
+   "oes",
+   "at",
+   "su",
+   "fyzt",
+   "fag",
+   "pe",
+   "is"
+  ]
+ },
+ "Pedal_GermaniumDrive": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "gain": [
+    30.815,
+    24.679,
+    12.186,
+    0
+   ],
+   "tone": [
+    69.185,
+    24.75,
+    12.09,
+    6
+   ]
+  },
+  "params": 2,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "mg",
+   "tone",
+   "gain",
+   "tt",
+   "di",
+   "um",
+   "drive",
+   "me",
+   "mg",
+   "tone",
+   "gain",
+   "tt",
+   "di",
+   "um",
+   "drive",
+   "me"
+  ]
+ },
+ "Pedal_Limiter": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "limit": [
+    49.762,
+    78.607,
+    7.581,
+    -21
+   ]
+  },
+  "params": 2,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "ees",
+   "star",
+   "oe",
+   "7a",
+   "ry",
+   "limit",
+   "speed",
+   "te",
+   "or",
+   "oe",
+   "ben",
+   "rs",
+   "nw",
+   "of",
+   "as",
+   "fy.",
+   "ae",
+   "aes",
+   "fag",
+   "v7",
+   "etary",
+   "oe",
+   "7a",
+   "xu",
+   "limit",
+   "speed",
+   "te",
+   "spaces",
+   "or",
+   "ea"
+  ]
+ },
+ "Pedal_LineDrive": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "gain": [
+    35.638,
+    77.607,
+    13.901,
+    36
+   ],
+   "tone": [
+    63.076,
+    78.536,
+    14.137,
+    147
+   ]
+  },
+  "params": 2,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "lp",
+   "al",
+   "od",
+   "ts9",
+   "tube",
+   "screamer",
+   "rere",
+   "nee",
+   "rene",
+   "were",
+   "oe",
+   "ae",
+   "me",
+   "aw",
+   "em",
+   "me",
+   "sf",
+   "oe",
+   "eos",
+   "ss",
+   "fg",
+   "al",
+   "me",
+   "ad",
+   "ts9",
+   "tube",
+   "screamer",
+   "rere",
+   "ear",
+   "rene"
+  ]
+ },
+ "Pedal_LoFiFilter": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "hi cut": [
+    32.905,
+    25.893,
+    11.943,
+    3
+   ],
+   "lo cut": [
+    66.619,
+    25.893,
+    11.81,
+    3
+   ]
+  },
+  "params": 2,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "tae",
+   "ty",
+   "gf",
+   "kh",
+   "su",
+   "ts",
+   "hi",
+   "ofi",
+   "filter",
+   "ee",
+   "xk",
+   "ss",
+   "fat",
+   "ange",
+   "tame",
+   "ty",
+   "kh",
+   "su",
+   "ts",
+   "hi",
+   "ofi",
+   "filter",
+   "ee",
+   "37"
+  ]
+ },
+ "Pedal_MarshallGuvnorPlus": {
+  "w": 639,
+  "h": 915,
+  "knobs": {
+   "gain": [
+    20.266,
+    18.087,
+    8.028,
+    54
+   ],
+   "bass": [
+    41.549,
+    17.65,
+    9.077,
+    45
+   ],
+   "treble": [
+    60.172,
+    17.978,
+    7.371,
+    96
+   ]
+  },
+  "params": 5,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "gain",
+   "bass",
+   "treble",
+   "volume",
+   "10",
+   "10",
+   "10",
+   "10",
+   "fh",
+   "et",
+   "guvnor",
+   "plus",
+   "distortion",
+   "ee",
+   "gain",
+   "bass",
+   "treble",
+   "volume",
+   "10",
+   "10",
+   "10",
+   "10",
+   "fh",
+   "et",
+   "guvnor",
+   "plus",
+   "distortion",
+   "eee"
+  ]
+ },
+ "Pedal_MarshallSupervibe": {
+  "w": 744,
+  "h": 906,
+  "knobs": {
+   "speed": [
+    21.438,
+    22.241,
+    8.616,
+    -75
+   ],
+   "depth": [
+    42.406,
+    23.455,
+    6.989,
+    -54
+   ]
+  },
+  "params": 4,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "marshall",
+   "sy.14",
+   "speed",
+   "depth",
+   "tone",
+   "level",
+   "wupervibe",
+   "ews",
+   "marshall",
+   "speed",
+   "depth",
+   "tone",
+   "level",
+   "wupervibe",
+   "em",
+   "ews"
+  ]
+ },
+ "Pedal_MetalDistortion": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "gain": [
+    29.528,
+    22.321,
+    13.226,
+    -3
+   ],
+   "tone": [
+    69.614,
+    22.607,
+    13.869,
+    9
+   ]
+  },
+  "params": 2,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "gain",
+   "tone",
+   "alloy",
+   "distortion",
+   "re",
+   "gain",
+   "tone",
+   "alloy",
+   "distortion",
+   "re"
+  ]
+ },
+ "Pedal_ModDelay": {
+  "w": 1400,
+  "h": 933,
+  "knobs": {
+   "time": [
+    58.679,
+    25.777,
+    5.6,
+    -3
+   ],
+   "feedback": [
+    44.607,
+    25.67,
+    5.514,
+    -3
+   ],
+   "mix": [
+    15.679,
+    25.67,
+    5.521,
+    0
+   ],
+   "mod depth": [
+    86.464,
+    25.884,
+    5.479,
+    6
+   ]
+  },
+  "params": 5,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "input",
+   "direct",
+   "out",
+   "effect",
+   "out",
+   "9vdc",
+   "as",
+   "ae",
+   "blend",
+   "level",
+   "feedback",
+   "delay",
+   "chorus",
+   "depth",
+   "vibrato",
+   "expand",
+   "chorus",
+   "beg",
+   "ee",
+   "cc",
+   "vibrato",
+   "noise",
+   "filter",
+   "emory",
+   "harmonix",
+   "input",
+   "direct",
+   "out",
+   "effect",
+   "out"
+  ]
+ },
+ "Pedal_ModernFlanger": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "rate": [
+    25.381,
+    19.607,
+    5.952,
+    0
+   ],
+   "depth": [
+    41.762,
+    20.25,
+    6.457,
+    3
+   ],
+   "mix": [
+    58.048,
+    19.607,
+    5.952,
+    3
+   ],
+   "regen.": [
+    74.619,
+    19.607,
+    5.838,
+    -3
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "check",
+   "rate",
+   "depth",
+   "mix",
+   "regen",
+   "min",
+   "max",
+   "min",
+   "max",
+   "min",
+   "max",
+   "min",
+   "max",
+   "esr",
+   "rory",
+   "output",
+   "guitar",
+   "in",
+   "output",
+   "mono",
+   "bass",
+   "in",
+   "bes",
+   "qa",
+   "sa",
+   "ke",
+   "ae",
+   "wii",
+   "ii",
+   "check"
+  ]
+ },
+ "Pedal_ModernWah": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "sensitivity": [
+    23.526,
+    13.107,
+    15.906,
+    93
+   ],
+   "speed": [
+    23.312,
+    44.893,
+    15.198,
+    -6
+   ],
+   "pedal (auto=off)": [
+    17.417,
+    26.607,
+    9.614,
+    96
+   ]
+  },
+  "params": 4,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "pee",
+   "modern",
+   "wah",
+   "automode",
+   "ee",
+   "off",
+   "on",
+   "ee",
+   "ee",
+   "sensitivity",
+   "ren",
+   "10",
+   "ee",
+   "speed",
+   "se",
+   "re",
+   "ee",
+   "eee",
+   "eee",
+   "10",
+   "pedal",
+   "iy",
+   "ey",
+   "min",
+   "max",
+   "bs",
+   "ie",
+   "pee",
+   "modern",
+   "wah"
+  ]
+ },
+ "Pedal_MultiPitch": {
+  "w": 1120,
+  "h": 1400,
+  "knobs": {
+   "pitch 1": [
+    32.545,
+    18.464,
+    7.759,
+    0
+   ],
+   "mix": [
+    67.366,
+    18.536,
+    7.964,
+    0
+   ],
+   "tone": [
+    49.955,
+    39.393,
+    7.723,
+    0
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "eu",
+   "ee",
+   "oy",
+   "al",
+   "pitch",
+   "mix",
+   "at",
+   "ji",
+   "tone",
+   "multipitch",
+   "fs",
+   "eon",
+   "eu",
+   "iy",
+   "al",
+   "pitch",
+   "mix",
+   "dt",
+   "ji",
+   "tone",
+   "multipitch",
+   "fs",
+   "eon",
+   "ak"
+  ]
+ },
+ "Pedal_MultiTrem": {
+  "w": 1073,
+  "h": 1400,
+  "knobs": {
+   "speed": [
+    32.852,
+    17.464,
+    9.87,
+    3
+   ],
+   "waveform": [
+    49.627,
+    82.607,
+    7.288,
+    0
+   ],
+   "mix": [
+    66.869,
+    17.179,
+    9.581,
+    3
+   ]
+  },
+  "params": 3,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "ole",
+   "at",
+   "vl",
+   "speed",
+   "wa",
+   "waveform",
+   "multit",
+   "at",
+   "oe",
+   "vl",
+   "speed",
+   "ot",
+   "kl",
+   "waveform",
+   "multit",
+   "ats"
+  ]
+ },
+ "Pedal_MultiVibe": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "speed": [
+    29.636,
+    21.821,
+    11.297,
+    3
+   ],
+   "mix": [
+    69.507,
+    21.893,
+    11.318,
+    0
+   ]
+  },
+  "params": 3,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "ng",
+   "speed",
+   "mix",
+   "rie",
+   "wa",
+   "irm",
+   "multi",
+   "vibe",
+   "zf",
+   "ny",
+   "ss",
+   "ea",
+   "dy",
+   "ng",
+   "speed",
+   "mix",
+   "rie",
+   "wa",
+   "irm",
+   "multi",
+   "vibe",
+   "zf",
+   "ny",
+   "ss",
+   "ea"
+  ]
+ },
+ "Pedal_NPNDelay": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {},
+  "params": 3,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "lol",
+   "iee",
+   "ae",
+   "oe",
+   "if",
+   "in",
+   "ess",
+   "ald",
+   "aa",
+   "nee",
+   "dee",
+   "an",
+   "xi",
+   "is",
+   "ss",
+   "ff",
+   "cti",
+   "nw",
+   "wens",
+   "aban",
+   "see",
+   "en",
+   "ade",
+   "re",
+   "ooo",
+   "lie",
+   "een",
+   "oe",
+   "if",
+   "in"
+  ]
+ },
+ "Pedal_NoFiEcho": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "time": [
+    33.095,
+    21.036,
+    10.495,
+    -3
+   ],
+   "feedback": [
+    67.095,
+    20.964,
+    10.419,
+    3
+   ],
+   "mix": [
+    50.048,
+    42.179,
+    10.476,
+    0
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ad",
+   "be",
+   "yay",
+   "er",
+   "en",
+   "time",
+   "feedback",
+   "ap",
+   "ss",
+   "fj",
+   "mix",
+   "echo",
+   "44",
+   "yy",
+   "sa",
+   "ay",
+   "nias",
+   "tne",
+   "si",
+   "ea",
+   "ad",
+   "be",
+   "yay",
+   "en",
+   "time",
+   "feedback",
+   "ap",
+   "ss",
+   "mix",
+   "echo"
+  ]
+ },
+ "Pedal_NoiseGate": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "threshold": [
+    39.505,
+    18.55,
+    6.147,
+    3
+   ]
+  },
+  "params": 2,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "reduction",
+   "blea",
+   "threshold",
+   "decay",
+   "min",
+   "max",
+   "min",
+   "max",
+   "mode",
+   "reduction",
+   "output",
+   "input",
+   "send",
+   "return",
+   "mm",
+   "noise",
+   "suppressor",
+   "wii",
+   "reduction",
+   "threshold",
+   "decay",
+   "min",
+   "max",
+   "min",
+   "max",
+   "mode",
+   "reduction",
+   "output",
+   "input",
+   "send"
+  ]
+ },
+ "Pedal_OctaveUp": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "tone": [
+    68.143,
+    23.464,
+    8.467,
+    3
+   ],
+   "octave-up!": [
+    33.381,
+    23.464,
+    8.39,
+    6
+   ]
+  },
+  "params": 2,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ae",
+   "al",
+   "ag",
+   "tone",
+   "octaveup",
+   "taveup",
+   "pe",
+   "ny",
+   "dm",
+   "as",
+   "ws",
+   "ae",
+   "we",
+   "ae",
+   "al",
+   "ag",
+   "tone",
+   "octaveup",
+   "taveup",
+   "pe",
+   "ny",
+   "oy",
+   "dm",
+   "as",
+   "ee",
+   "la",
+   "ws",
+   "ae",
+   "ay",
+   "pe"
+  ]
+ },
+ "Pedal_Octavius": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "mix": [
+    31.136,
+    24.464,
+    12.004,
+    0
+   ],
+   "tone": [
+    68.864,
+    24.536,
+    12.122,
+    3
+   ]
+  },
+  "params": 2,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "trs",
+   "ae",
+   "mix",
+   "tone",
+   "octavius",
+   "ts",
+   "goze",
+   "ay",
+   "be",
+   "wee",
+   "hs",
+   "einer",
+   "ss",
+   "cs",
+   "tn",
+   "trl",
+   "ec",
+   "we",
+   "ae",
+   "mix",
+   "tone",
+   "octavius",
+   "oa",
+   "ay",
+   "ax",
+   "hs",
+   "ss",
+   "tn"
+  ]
+ },
+ "Pedal_OilCanEcho": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "time": [
+    33.095,
+    20.393,
+    9.448,
+    -3
+   ],
+   "feedback": [
+    67.381,
+    20.25,
+    9.486,
+    3
+   ],
+   "mix": [
+    50.048,
+    39.821,
+    9.486,
+    3
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "time",
+   "feedback",
+   "mix",
+   "oilcan",
+   "echo",
+   "wy",
+   "time",
+   "feedback",
+   "mix",
+   "oilcan",
+   "echo",
+   "wy"
+  ]
+ },
+ "Pedal_OmniMod": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "rate": [
+    32.143,
+    20.464,
+    10.343,
+    0
+   ],
+   "depth": [
+    67.857,
+    20.464,
+    10.333,
+    3
+   ],
+   "mix": [
+    49.952,
+    83.179,
+    8.276,
+    30
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "seu",
+   "rate",
+   "depth",
+   "rs",
+   "ts",
+   "net",
+   "mix",
+   "omnimod",
+   "be",
+   "195",
+   "ned",
+   "ie",
+   "rate",
+   "depth",
+   "rs",
+   "ts",
+   "net",
+   "mix",
+   "omnimod",
+   "te",
+   "19",
+   "ned"
+  ]
+ },
+ "Pedal_Phaser": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "rate": [
+    49.4,
+    70.15,
+    8.426,
+    63
+   ]
+  },
+  "params": 1,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "speed",
+   "it",
+   "phase",
+   "9o",
+   "ere",
+   "speed",
+   "it",
+   "phase",
+   "9o",
+   "neler."
+  ]
+ },
+ "Pedal_PlanePhase": {
+  "w": 1132,
+  "h": 1389,
+  "knobs": {
+   "rate": [
+    51.723,
+    80.598,
+    6.581,
+    -39
+   ]
+  },
+  "params": 3,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "al",
+   "sana",
+   "iw",
+   "plane",
+   "phase",
+   "by",
+   "mate",
+   "roe",
+   "oa",
+   "es",
+   "oe",
+   "cp",
+   "ray",
+   "ss",
+   "sith",
+   "rk",
+   "to",
+   "wt",
+   "al",
+   "iw",
+   "hi",
+   "plane",
+   "phase",
+   "by",
+   "an",
+   "ate",
+   "oa",
+   "ee",
+   "oe",
+   "ce"
+  ]
+ },
+ "Pedal_PlateVerb": {
+  "w": 1079,
+  "h": 1400,
+  "knobs": {
+   "time": [
+    34.893,
+    19.107,
+    8.508,
+    -3
+   ],
+   "depth": [
+    66.867,
+    18.964,
+    8.35,
+    -9
+   ],
+   "voice": [
+    66.589,
+    42.179,
+    7.841,
+    3
+   ],
+   "mix": [
+    49.537,
+    81.75,
+    6.932,
+    -81
+   ]
+  },
+  "params": 4,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "eee",
+   "a.",
+   "ae",
+   "rede",
+   "yu",
+   "fp",
+   "as",
+   "ss",
+   "th",
+   "xe",
+   "time",
+   "depth",
+   "fee",
+   "1x",
+   "voice",
+   "oo",
+   "plate",
+   "reverb",
+   "fc",
+   "te",
+   "of",
+   "ae",
+   "ca",
+   "new",
+   "we",
+   "ye",
+   "eee",
+   "ae.",
+   "ss",
+   "ae"
+  ]
+ },
+ "Pedal_RangeBooster": {
+  "w": 1083,
+  "h": 1400,
+  "knobs": {
+   "boost!": [
+    49.815,
+    76.679,
+    6.288,
+    150
+   ]
+  },
+  "params": 1,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "xo",
+   "oad",
+   "an",
+   "boost",
+   "ih",
+   "bs",
+   "z4",
+   "tog",
+   "od",
+   "ange",
+   "booster",
+   "aoa",
+   "ea",
+   "ss",
+   "sn",
+   "pg",
+   "ee",
+   "xo",
+   "rae",
+   "an",
+   "di",
+   "pa",
+   "ge",
+   "boost",
+   "bs",
+   "ao",
+   "tog",
+   "od",
+   "ange",
+   "booster"
+  ]
+ },
+ "Pedal_RingMod": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "rate": [
+    33.286,
+    41.393,
+    9.714,
+    0
+   ],
+   "depth": [
+    66.619,
+    41.25,
+    9.686,
+    6
+   ],
+   "mix": [
+    50.143,
+    81.75,
+    9.019,
+    33
+   ]
+  },
+  "params": 4,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "sso",
+   "perle",
+   "jo",
+   "ts",
+   "rate",
+   "depth",
+   "ss",
+   "mix",
+   "funk",
+   "ring",
+   "mod",
+   "ee",
+   "is",
+   "as",
+   "ss",
+   "ys",
+   "we",
+   "do",
+   "ote",
+   "aero",
+   "aa",
+   "sos",
+   "is",
+   "se",
+   "oa",
+   "soe",
+   "ts",
+   "rate",
+   "depth",
+   "me"
+  ]
+ },
+ "Pedal_SendInTheClones": {
+  "w": 933,
+  "h": 1400,
+  "knobs": {
+   "clones!": [
+    29.1,
+    16.25,
+    8.864,
+    3
+   ],
+   "depth": [
+    71.222,
+    16.464,
+    8.928,
+    0
+   ],
+   "mix": [
+    49.464,
+    38.821,
+    11.243,
+    6
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "clones",
+   "depth",
+   "mix",
+   "it",
+   "nd",
+   "in",
+   "the",
+   "ones",
+   "ci",
+   "ie",
+   "se",
+   "seas",
+   "clones",
+   "depth",
+   "mix",
+   "it",
+   "nd",
+   "in",
+   "the",
+   "ones",
+   "ci",
+   "nme",
+   "se"
+  ]
+ },
+ "Pedal_ShaverPhaser": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "rate": [
+    33.857,
+    24.964,
+    9.971,
+    0
+   ],
+   "depth": [
+    66.524,
+    25.107,
+    10.095,
+    3
+   ]
+  },
+  "params": 2,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "ae",
+   "depth",
+   "shaver",
+   "phaser",
+   "ae",
+   "depth",
+   "shaver",
+   "phaser"
+  ]
+ },
+ "Pedal_ShredZone": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "gain": [
+    79.835,
+    8.05,
+    7.151,
+    84
+   ],
+   "treble": [
+    59.145,
+    19.05,
+    5.322,
+    6
+   ],
+   "bass": [
+    40.555,
+    19.05,
+    5.382,
+    3
+   ],
+   "mid": [
+    22.714,
+    18.65,
+    6.357,
+    6
+   ]
+  },
+  "params": 4,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "check",
+   "level",
+   "iz",
+   "equalizer",
+   "dist",
+   "sr",
+   "min",
+   "max",
+   "15",
+   "15",
+   "sy",
+   "min",
+   "max",
+   "ow",
+   "hig",
+   "200",
+   "id",
+   "freq",
+   "output",
+   "ee",
+   "metal",
+   "zone",
+   "ne",
+   "check",
+   "level",
+   "equalizer",
+   "all",
+   "dist",
+   "fras",
+   "ss"
+  ]
+ },
+ "Pedal_SpringReverb": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "mix": [
+    29.31,
+    37.65,
+    7.706,
+    3
+   ],
+   "time": [
+    70.69,
+    19.95,
+    9.31,
+    6
+   ]
+  },
+  "params": 3,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "mod",
+   "late",
+   "spring",
+   "hall",
+   "reverse",
+   "room",
+   "ee",
+   "level",
+   "decay",
+   "kz",
+   "mix",
+   "on",
+   "nae",
+   "ye",
+   "if",
+   "polara",
+   "reverb",
+   "ff",
+   "ee",
+   "coe",
+   "eo",
+   "mod",
+   "late",
+   "spring",
+   "reverse",
+   "room",
+   "ee",
+   "level",
+   "decay",
+   "lz"
+  ]
+ },
+ "Pedal_SuperDrive": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "gain": [
+    32.309,
+    17.05,
+    10.765,
+    0
+   ],
+   "tone": [
+    67.541,
+    17.15,
+    10.825,
+    0
+   ]
+  },
+  "params": 2,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "check",
+   "90",
+   "we",
+   "drive",
+   "output",
+   "input",
+   "super",
+   "over",
+   "forive",
+   "check",
+   "90",
+   "drive",
+   "output",
+   "input",
+   "super",
+   "over",
+   "forive"
+  ]
+ },
+ "Pedal_Swole": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "smash": [
+    33.381,
+    24.25,
+    11.038,
+    0
+   ],
+   "rate": [
+    66.714,
+    24.393,
+    11.114,
+    6
+   ]
+  },
+  "params": 2,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "rvs",
+   "in",
+   "smash",
+   "rate",
+   "swole",
+   "ee",
+   "oe",
+   "in",
+   "smash",
+   "rate",
+   "swole",
+   "ee",
+   "gs"
+  ]
+ },
+ "Pedal_TremOle": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "sensitivity": [
+    32.905,
+    37.821,
+    8.943,
+    3
+   ],
+   "mix": [
+    66.238,
+    37.964,
+    8.876,
+    3
+   ],
+   "attack speed": [
+    49.381,
+    80.464,
+    9.4,
+    -45
+   ]
+  },
+  "params": 4,
+  "how": "partial",
+  "cands": 0,
+  "words": [
+   "es",
+   "oa",
+   "sensitivity",
+   "mix",
+   "rs",
+   "pe",
+   "attack",
+   "speed",
+   "release",
+   "speed",
+   "tremole",
+   "oi",
+   "atte",
+   "woe",
+   "sensitivity",
+   "mix",
+   "iy",
+   "pe",
+   "co",
+   "attack",
+   "speed",
+   "release",
+   "speed",
+   "tremole",
+   "pe",
+   "wi",
+   "atte",
+   "pre"
+  ]
+ },
+ "Pedal_Tremolo": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "speed": [
+    31.409,
+    15.45,
+    11.139,
+    0
+   ],
+   "mix": [
+    69.34,
+    15.55,
+    11.484,
+    0
+   ]
+  },
+  "params": 2,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "check",
+   "output",
+   "input",
+   "tremolo",
+   "ane",
+   "ae",
+   "wee",
+   "check",
+   "ss",
+   "ae",
+   "output",
+   "input",
+   "tremolo",
+   "ane",
+   "ae",
+   "weed"
+  ]
+ },
+ "Pedal_TubeSpring": {
+  "w": 983,
+  "h": 1400,
+  "knobs": {
+   "mix": [
+    30.468,
+    25.821,
+    11.607,
+    3
+   ],
+   "depth": [
+    69.43,
+    25.893,
+    11.719,
+    3
+   ]
+  },
+  "params": 2,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "cen",
+   "wee.",
+   "oir.",
+   "of",
+   "vs",
+   "pen",
+   "ies",
+   "ot",
+   "pss",
+   "v4",
+   "1x",
+   "zi",
+   "depth",
+   "ba",
+   "tt",
+   "tube",
+   "bs",
+   "rev",
+   "ty",
+   "19",
+   "ze",
+   "te",
+   "eae",
+   "jag",
+   "ae",
+   "as",
+   "weer",
+   "cen",
+   "wee.",
+   "oir."
+  ]
+ },
+ "Pedal_UKWah": {
+  "w": 700,
+  "h": 1400,
+  "knobs": {},
+  "params": 4,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "va",
+   "sss",
+   "yy",
+   "hs",
+   "fy",
+   "oe",
+   "mi",
+   "ul",
+   "5a",
+   "or",
+   "nm",
+   "itt",
+   "ta",
+   "fe",
+   "if",
+   "ij",
+   "ih",
+   "st",
+   "ei",
+   "al",
+   "be",
+   "sta",
+   "ee",
+   "ja",
+   "ves",
+   "sss",
+   "yyy",
+   "hs",
+   "fe",
+   "ric"
+  ]
+ },
+ "Pedal_USWah": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {},
+  "params": 4,
+  "how": "none",
+  "cands": 0,
+  "words": [
+   "ty",
+   "it",
+   "43",
+   "ory",
+   "bab",
+   "gcb95",
+   "if",
+   "tes",
+   "tok",
+   "ih",
+   "ty",
+   "it",
+   "43",
+   "ory",
+   "bab",
+   "gcb95",
+   "if",
+   "tes",
+   "tok",
+   "ih"
+  ]
+ },
+ "Pedal_ValveEcho": {
+  "w": 1199,
+  "h": 1312,
+  "knobs": {
+   "time": [
+    27.148,
+    26.715,
+    8.724,
+    -3
+   ],
+   "feedback": [
+    50.083,
+    26.715,
+    8.766,
+    0
+   ],
+   "mix": [
+    72.769,
+    26.562,
+    8.799,
+    9
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "aan",
+   "ss",
+   "tg",
+   "time",
+   "feedback",
+   "mix",
+   "valve",
+   "echo",
+   "qo",
+   "sos",
+   "iain",
+   "tet",
+   "ss",
+   "ss",
+   "time",
+   "feedback",
+   "mix",
+   "valve",
+   "echo",
+   "oq",
+   "il",
+   "gos",
+   "pn",
+   "tain",
+   "ane",
+   "sc",
+   "sis"
+  ]
+ },
+ "Pedal_VintageChorus": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "rate": [
+    31.286,
+    17.893,
+    10.238,
+    6
+   ],
+   "mix": [
+    67.952,
+    17.964,
+    10.105,
+    6
+   ],
+   "depth": [
+    49.571,
+    37.464,
+    10.21,
+    6
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "yt",
+   "rate",
+   "mix",
+   "depth",
+   "ii",
+   "vintage",
+   "chorus",
+   "tks",
+   "al",
+   "ny",
+   "tis",
+   "ee",
+   "ns",
+   "za",
+   "say",
+   "rate",
+   "mix",
+   "depth",
+   "ii",
+   "vintage",
+   "chorus",
+   "ks",
+   "al",
+   "ny",
+   "ee",
+   "pale",
+   "nios"
+  ]
+ },
+ "Pedal_VintageDistortion": {
+  "w": 667,
+  "h": 1000,
+  "knobs": {
+   "gain": [
+    42.504,
+    23.95,
+    8.036,
+    -78
+   ],
+   "tone": [
+    57.796,
+    25.25,
+    10.03,
+    -90
+   ]
+  },
+  "params": 2,
+  "how": "row",
+  "cands": 0,
+  "words": [
+   "ae",
+   "ai",
+   "rat",
+   "ae",
+   "rat"
+  ]
+ },
+ "Pedal_VintageFlanger": {
+  "w": 1050,
+  "h": 1400,
+  "knobs": {
+   "rate": [
+    32.143,
+    18.964,
+    10.61,
+    -3
+   ],
+   "depth": [
+    67.571,
+    19.036,
+    10.581,
+    0
+   ],
+   "mix": [
+    49.571,
+    80.179,
+    9.676,
+    -24
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "ia",
+   "ra",
+   "vi",
+   "li",
+   "j4",
+   "ni",
+   "rate",
+   "if",
+   "depth",
+   "mix",
+   "vintage",
+   "flanger",
+   "fx",
+   "ite",
+   "wy.",
+   "ay",
+   "eo",
+   "pa",
+   "fn",
+   "ig",
+   "iat",
+   "ra",
+   "gf",
+   "vn",
+   "vi",
+   "li",
+   "ni",
+   "ne",
+   "rate",
+   "depth"
+  ]
+ },
+ "Rack_StereoAnalogVibe": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "speed": [
+    48.321,
+    51.499,
+    2.879,
+    42
+   ],
+   "mix": [
+    64.893,
+    51.927,
+    2.75,
+    39
+   ],
+   "waveform": [
+    81.821,
+    54.925,
+    2.643,
+    -3
+   ]
+  },
+  "params": 3,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "mix",
+   "waveform",
+   "speed",
+   "joes",
+   "stereo",
+   "analog",
+   "vibrato",
+   "fl",
+   "10",
+   "hz",
+   "dry",
+   "wet",
+   "hz",
+   "mix",
+   "waveform",
+   "speed",
+   "joel",
+   "wlan",
+   "stereo",
+   "analog",
+   "vibrato",
+   "10",
+   "hz",
+   "dry",
+   "wet",
+   "hz"
+  ]
+ },
+ "Rack_StudioChorus": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "rate": [
+    30.25,
+    53.64,
+    2.157,
+    0
+   ],
+   "mix": [
+    39.821,
+    52.998,
+    2.243,
+    3
+   ],
+   "depth": [
+    49.536,
+    53.426,
+    2.214,
+    -3
+   ],
+   "stereo": [
+    59.179,
+    53.426,
+    2.3,
+    3
+   ],
+   "delay": [
+    68.75,
+    53.212,
+    2.236,
+    3
+   ],
+   "lofilter": [
+    78.25,
+    53.426,
+    2.25,
+    3
+   ],
+   "hifilter": [
+    87.75,
+    53.64,
+    2.157,
+    3
+   ]
+  },
+  "params": 7,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "rate",
+   "mix",
+   "depth",
+   "stereo",
+   "delay",
+   "lofilter",
+   "hifilter",
+   "studio",
+   "chorus",
+   "yas",
+   "oe",
+   "tt",
+   "rate",
+   "mix",
+   "depth",
+   "stereo",
+   "delay",
+   "lofilter",
+   "hifilter",
+   "studio",
+   "chorus",
+   "yas",
+   "oe",
+   "alos",
+   "ap"
+  ]
+ },
+ "Rack_StudioGraphicEQ": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "bass": [
+    18.893,
+    56.424,
+    2.4,
+    0
+   ],
+   "bass freq.": [
+    42.536,
+    56.424,
+    2.157,
+    3
+   ],
+   "low-mid": [
+    50.393,
+    56.424,
+    2.407,
+    3
+   ],
+   "treble": [
+    81.75,
+    56.424,
+    2.4,
+    3
+   ],
+   "low-mid freq.": [
+    27.036,
+    56.424,
+    2.093,
+    6
+   ],
+   "mid": [
+    34.821,
+    56.424,
+    2.414,
+    3
+   ],
+   "mid freq.": [
+    58.036,
+    55.996,
+    2.257,
+    0
+   ],
+   "high-mid": [
+    65.964,
+    56.424,
+    2.414,
+    -3
+   ],
+   "high-mid freq.": [
+    73.75,
+    56.424,
+    2.093,
+    6
+   ],
+   "treble freq.": [
+    89.393,
+    55.782,
+    2.336,
+    3
+   ]
+  },
+  "params": 10,
+  "how": "labels+row",
+  "cands": 0,
+  "words": [
+   "studio",
+   "paragraphie",
+   "eq",
+   "bass",
+   "bass",
+   "freq.",
+   "lowmid",
+   "lowmid",
+   "freq",
+   "mid",
+   "mid",
+   "freq.",
+   "freq",
+   "treble",
+   "treble",
+   "freq",
+   "nol",
+   "seley",
+   "nr",
+   "aa",
+   "and",
+   "vi",
+   "xe",
+   "ea",
+   "hee",
+   "20",
+   "hz",
+   "250",
+   "250",
+   "hz"
+  ]
+ },
+ "Rack_StudioWahFilter": {
+  "w": 1400,
+  "h": 467,
+  "knobs": {
+   "sensitivity": [
+    45.607,
+    53.64,
+    1.993,
+    33
+   ],
+   "attack": [
+    55.821,
+    53.64,
+    1.986,
+    -27
+   ],
+   "release": [
+    66.036,
+    52.57,
+    2.079,
+    48
+   ],
+   "pedal": [
+    76.464,
+    52.784,
+    2.0,
+    42
+   ],
+   "auto-mode": [
+    35.964,
+    52.141,
+    2.057,
+    -45
+   ]
+  },
+  "params": 5,
+  "how": "labels",
+  "cands": 0,
+  "words": [
+   "attack",
+   "release",
+   "pedal",
+   "automode",
+   "sensitivity",
+   "cy",
+   "mn",
+   "studio",
+   "wah",
+   "filter",
+   "ax",
+   "64",
+   "to",
+   "to",
+   "to",
+   "10",
+   "ea",
+   "ee",
+   "attack",
+   "release",
+   "pedal",
+   "automode",
+   "sensitivity",
+   "cy",
+   "ees",
+   "mn",
+   "studio",
+   "wah",
+   "filter",
+   "pz"
+  ]
+ }
+}

@@ -9,6 +9,7 @@ import { SCENES } from './visuals.js';
 // fraction of the picture's height; it's lined up with the highway's
 // vanishing point so the highway lies on that floor.
 export const VENUES = [
+  { id: 'soundcheck', name: 'Soundcheck', photo: 'soundcheck', horizon: 0.45 },
   { id: 'warehouse', name: 'Warehouse', photo: 'warehouse', horizon: 0.49 },
   { id: 'jazz', name: 'Jazz club', photo: 'jazz', horizon: 0.45 },
   { id: 'cellar', name: 'Cellar', photo: 'cellar', horizon: 0.45 },

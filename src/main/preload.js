@@ -8,7 +8,7 @@ async function call(channel, ...args) {
   return { __sh: true, ...(r || { ok: false, error: 'Something went wrong' }) };
 }
 
-const EVENTS = new Set(['nav:back', 
+const EVENTS = new Set(['nav:back', 'win:state', 
   'library:reset',
   'library:songs',
   'scan:progress',
@@ -41,6 +41,10 @@ contextBridge.exposeInMainWorld('stagehand', {
     log: () => call('app:log'),
     titleBar: (colors) => call('win:titlebar', colors),
     fullscreen: (on) => call('win:fullscreen', on),
+    minimize: () => call('win:minimize'),
+    maximize: () => call('win:maximize'),
+    close: () => call('win:close'),
+    winState: () => call('win:state'),
     activity: (text) => call('app:activity', text),
     crashNote: () => call('app:crashNote'),
   },
@@ -109,6 +113,22 @@ contextBridge.exposeInMainWorld('stagehand', {
     log: (session) => call('stats:log', session),
     summary: (period) => call('stats:summary', period),
     best: () => call('stats:best'),
+  },
+  career: {
+    lifetime: () => call('career:lifetime'),
+    backups: () => call('career:backups'),
+    backup: () => call('career:backup'),
+    export: () => call('career:export'),
+  },
+  dev: {
+    enabled: () => call('dev:enabled'),
+    levels: (op, ...args) => call('dev:levels', op, ...args),
+    integrity: (fix) => call('dev:integrity', fix),
+    balance: (days) => call('dev:balance', days),
+    restore: (id) => call('dev:restore', id),
+    testRecovery: () => call('dev:testRecovery'),
+    clearRecent: (minutes) => call('dev:clearRecent', minutes),
+    eraseLifetime: (phrase) => call('dev:eraseLifetime', phrase),
   },
   levels: {
     state: () => call('levels:state'),
