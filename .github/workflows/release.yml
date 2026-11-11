@@ -97,7 +97,7 @@ jobs:
         working-directory: native
         run: |
           $lm = Join-Path $env:RUNNER_TEMP 'llvm-mingw\bin'
-          $dsp = 'dsp/sh_util.c','dsp/sh_amp.c','dsp/sh_cab.c','dsp/sh_fx.c','dsp/sh_rev.c','dsp/sh_engine.c','dsp/sh_nam.c'
+          $dsp = 'dsp/sh_util.c','dsp/sh_amp.c','dsp/sh_cab.c','dsp/sh_fx.c','dsp/sh_drive.c','dsp/sh_pitch.c','dsp/sh_rev.c','dsp/sh_engine.c','dsp/sh_nam.c'
           # replaces the committed prebuilt .exe in this runner's copy only, so the zip matches the tagged source
           & "$lm\x86_64-w64-mingw32-clang.exe" -O3 -ffp-contract=fast -fno-math-errno -Wall -Wno-unused-function `
             -march=x86-64-v2 -mtune=generic -static '-Wl,--subsystem,console' `

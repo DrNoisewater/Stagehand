@@ -245,7 +245,7 @@ static void run_chain(slot_t *s, float *L, float *R, int n) {
 /* How much stronger the lows (around 120 Hz, or 70 Hz for bass) come out
    than the mids (around 1 kHz), relative to what went in, in dB. */
 static double low_vs_mid_db(slot_t *s, const float *x, int n, double sr, int bass, float *L, float *R) {
-  bq_t il[2], ol[2], im[2], om[2];
+  bq_t il[2] = {{0}}, ol[2] = {{0}}, im[2] = {{0}}, om[2] = {{0}}; /* filters start from silence */
   for (int k = 0; k < 2; k++) {
     bq_set(&il[k], BQ_BP, sr, bass ? 70 : 120, 0.8, 0), bq_set(&ol[k], BQ_BP, sr, bass ? 70 : 120, 0.8, 0);
     bq_set(&im[k], BQ_BP, sr, 1000, 1.0, 0), bq_set(&om[k], BQ_BP, sr, 1000, 1.0, 0);
@@ -558,6 +558,10 @@ static void floor_frame(sh_engine *e, float db) {
 
 void sh_engine_process(sh_engine *e, const float *in, float *outL, float *outR, int n) {
   if (n > SH_MAX_BLOCK) n = SH_MAX_BLOCK;
+#if defined(__SSE__) || defined(__x86_64__)
+  /* tiny numbers left as a sound dies away are very slow on x86: treat them as zero (this thread) */
+  __builtin_ia32_ldmxcsr(__builtin_ia32_stmxcsr() | 0x8040);
+#endif
   for (int i = 0; i < n; i++) {
     e->in_g += 0.002f * (e->in_g_t - e->in_g);
     float x = op_hp(&e->dc, in[i]) * e->in_g;

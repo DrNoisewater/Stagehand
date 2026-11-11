@@ -1,3 +1,43 @@
+# 4.7.0 — the drive, fuzz and pitch pedals rebuilt as real circuits; live engine rebuilt (2026-11-11)
+
+User: "I don't really have any pedals. I was hoping you could code these in to the engine" (after asking whether the
+pedals were realistic: the time and modulation effects were, the drives and fuzzes were one generic recipe, the
+pitch pedals warbled, and the live .exe was still the 4.5 engine).
+
+**Done (tested on synthesised playing only: ask the user how each one feels and sounds):**
+- **Drives and fuzzes** (`native/dsp/sh_drive.c`, moved out of sh_fx.c): each pedal is its circuit with real part
+  values, solved sample by sample at 8x the sample rate (4x FIR + an 11-tap half-band, -94 dB) so hard clipping
+  doesn't add grit. Building blocks: a diode clipper (silicon, germanium, MOSFET; solved with Newton), an op-amp
+  stage (gain legs, bandwidth, slew, soft rails), a transistor stage, the Big Muff tone, the amps' TMB stack.
+  Overdrive/SuperDrive = Tube Screamer; Vintage Distortion = RAT; Distortion = DS-1; Buzz One/Too, Capt Fuzzle,
+  Bass Fuzz = Big Muff variants; Fuzz Was He = Fuzz Face (bias shifts as you dig in); Germanium Drive; Line Drive
+  (transistor boost); Custom Drive (voicing switch: MOSFET vs uneven silicon); Guv'nor (Marshall stack + Deep);
+  Shred Zone (Metal Zone); Metal Distortion; Bass Distortion/Overdrive (clean lows blended under); Range Booster.
+  Gain knobs follow a real audio taper. Default loudness matches the old pedals within 0.1 dB (each pedal's level
+  sets how hard it pushes the amp). Behaviour checked: they clean up when you play softer (TS, Fuzz Face,
+  Germanium, Guv'nor, Range), gain adds distortion, tone adds treble (Fuzz Was He, Germanium and Custom tone
+  ranges widened so the knob is useful). Grit (aliasing) equal or lower than before on all but Capt Fuzzle/Bass
+  Fuzz (a few dB, still about -35 dB). CPU: about 2 to 5% of one core per pedal on this container (the Muffs are the heaviest; the old ones were under 1%).
+- **Pitch pedals** (`native/dsp/sh_pitch.c`): Multi Pitch, Studio Pitch, Octavius, Bass Sub Octave, Bass Emulator
+  now use the Drop's method (splice where the waveform lines up, unity-sum fades), up and down, -24 to +24. The old
+  ones smeared a held note into a cluster of wrong pitches; now it's one clean note, steady within 0.1 dB. Delay
+  about 4 to 45 ms. Octave Up stays the rectifier. Loudness same as before (within 0.1 dB).
+- **Engine fixes:** `low_vs_mid_db()` measuring filters started from leftover memory, so a tone could build slightly
+  differently each time (found with valgrind; fixed). Tiny numbers as a note dies away made the drives cost 10x
+  more CPU in silence: a 1e-15 guard signal in the drives plus flush-to-zero in `sh_engine_process` (x86).
+- **The live engine `native/bin/stagehand-audio.exe` is rebuilt** (this session's network allows llvm-mingw), with
+  every 4.6 fix and the mic as well.
+- Starting sound "80s hair-metal lead": Tube Screamer Tone 55 -> 70 (the new pedal is a little darker at the same
+  number; the sustain check wanted 2 s).
+- Tests: `test/pedals-wasm.cjs` (in npm test): loud notes stay finite and die away, clean-up, gain, tone, pitch
+  accuracy and steadiness for every drive and pitch pedal, through the shipped wasm. `node test/gear-coverage.js`:
+  671 of 671 knobs live (the Bass Overdrive's Filter was lost in the rebuild and put back).
+- Working notes: `docs/notes/pedal-rebuild.md`.
+
+**Ask the user:** play each drive and fuzz with the guitar's volume knob down and up (they should clean up), and say
+whether any pedal is too loud/quiet, too fizzy, or feels wrong under the fingers; whether the pitch pedals track
+chords and fast playing without flutter, and if the delay (latency) on them bothers them.
+
 # 4.6.1 — window buttons come back after the highway (2026-11-11)
 
 User (screenshot): after opening the highway, the minimize/maximize/close buttons were gone. Cause: on Windows,

@@ -143,12 +143,9 @@ static amp_prof prof_for(int fam) {
 
 /* ----------------------------------------------------------- tone stack -- */
 /* Yeh & Smith closed-form TMB tone stack, discretised by bilinear transform. */
-typedef struct {
-  double b[4], a[4];
-  double z[3];
-} ts_t;
+typedef tmb_t ts_t; /* shared with the pedals (sh_dsp.h) */
 
-static void ts_design(ts_t *ts, int kind, double sr, double tre, double mid, double bas) {
+void ts_design(ts_t *ts, int kind, double sr, double tre, double mid, double bas) {
   double R1, R2, R3, R4, C1, C2, C3;
   if (kind == STK_FENDER) R1 = 250e3, R2 = 1e6, R3 = 25e3, R4 = 56e3, C1 = 250e-12, C2 = 20e-9, C3 = 20e-9;
   else if (kind == STK_VOX) R1 = 1e6, R2 = 1e6, R3 = 10e3, R4 = 100e3, C1 = 50e-12, C2 = 22e-9, C3 = 22e-9;
@@ -178,14 +175,7 @@ static void ts_design(ts_t *ts, int kind, double sr, double tre, double mid, dou
   ts->b[0] = B0 / A0, ts->b[1] = B1 / A0, ts->b[2] = B2 / A0, ts->b[3] = B3 / A0;
   ts->a[0] = 1, ts->a[1] = A1 / A0, ts->a[2] = A2 / A0, ts->a[3] = A3 / A0;
 }
-static inline float ts_run(ts_t *t, float xf) {
-  double x = xf;
-  double y = t->b[0] * x + t->z[0];
-  t->z[0] = t->b[1] * x - t->a[1] * y + t->z[1];
-  t->z[1] = t->b[2] * x - t->a[2] * y + t->z[2];
-  t->z[2] = t->b[3] * x - t->a[3] * y;
-  return (float)y;
-}
+#define ts_run tmb_run
 
 /* ---------------------------------------------------------------- state -- */
 #define MAX_EQ 10
