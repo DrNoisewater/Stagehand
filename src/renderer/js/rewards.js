@@ -8,6 +8,7 @@
  *   L.st                      // { xp, level, tier, challenges, firsts, unlocks, … } or null
  */
 import { api } from './api.js';
+import { cameo } from './cameo.js';
 import { on, emit } from './store.js';
 import { h, toast } from './ui.js';
 
@@ -133,6 +134,7 @@ export function trophyCard(a, st) {
   const title = (st.titles || []).find((x) => x.earned && x.how === `${metal[0].toUpperCase()}${metal.slice(1)} in ${t.name}`);
   showCard(() => h(`div.lvup.lv-trophy-up.metal-${metal}`, { role: 'status' },
     h('div.lvup-card', null,
+      cameo('event-trophy', { enter: 'slide-r', cls: 'lv-cameo', delay: 250 }),
       h('span.lv-cup', { html: CUP }),
       h('small', { text: 'Achievement unlocked' }),
       h('b.lv-tname', { text: t.name }),
@@ -158,6 +160,8 @@ export function levelUp(was, st) {
     h('div.lvup-burst'),
     big ? h('div.lvup-lights', { 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('i')) : null,
     h('div.lvup-card', null,
+      // 4.9: a character rises out from behind the card (a bigger one for milestones)
+      cameo(legendary ? 'event-legendary' : big ? 'event-milestone' : 'event-levelup', { enter: big ? 'rise' : 'any', cls: 'lv-cameo', delay: 200 }),
       h('small', { text: legendary ? 'Level 100. You made it.' : big ? `Milestone · ${MILESTONE_WORDS[big] || 'Level up!'}` : 'Level up!' }),
       h('b.lvup-n', { text: String(st.level) }),
       h('span.lvup-tier', { text: newTier ? `New pass: ${st.tier.name}` : st.tier.name }),

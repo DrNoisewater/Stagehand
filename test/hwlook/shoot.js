@@ -5,7 +5,7 @@ const path = require('path');
 const { chromium } = require(process.env.PLAYWRIGHT || '/opt/npm-tools/node_modules/playwright');
 const R = path.join(__dirname, '..', '..', 'src', 'renderer');
 const STUBS = ['api.js', 'rig.js', 'tab.js', 'tonelib.js', 'captures.js', 'realamps.js', 'drums.js'];
-const types = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.ttf': 'font/ttf', '.json': 'application/json', '.svg': 'image/svg+xml' };
+const types = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.ttf': 'font/ttf', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 const srv = http.createServer((req, res) => {
   let u = decodeURIComponent(req.url.split('?')[0]);
   let f;
@@ -155,7 +155,7 @@ const srv = http.createServer((req, res) => {
         const T = H.targets;
         let next = 0;
         const j = { state: new Map(), events: [], streak: 0, hits: 0, judged: 0, accuracy: null,
-          push() {}, reset() {}, rewind() {},
+          push() {}, reset() {}, rewind() {}, setPace() {},
           tick(t) {
             while (next < T.length && T[next].t <= t) {
               const tg = T[next++];
@@ -242,7 +242,7 @@ const srv = http.createServer((req, res) => {
     }
     await page.waitForTimeout(play === 'p' ? 2600 : 2200);
     if (process.env.TUNER) { await page.keyboard.press('u'); await page.waitForTimeout(300); }
-    if (process.env.CARD) await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.showCard(); });
+    if (process.env.CARD) { await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.showCard(); }); await page.waitForTimeout(Number(process.env.CARD_WAIT || 0)); }
     if (process.env.MASTER) { await page.evaluate(() => document.querySelector('.hw-dock.collapsed .hw-dock-tab') && document.querySelector('.hw-dock-tab').click()); await page.waitForTimeout(500); }
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `${scene}_${(file||'').replace('.json','')}_${t}${play === 'p' ? 'p' : ''}${hits || ''}.png`) });

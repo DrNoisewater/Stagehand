@@ -1,4 +1,5 @@
 import { decorativeImage } from './menu-art.js';
+import { scrap } from './cameo.js';
 /**
  * Getting started (4.1.2, grown into a full tour in 4.1.6): a skippable
  * walk-through in three parts.
@@ -147,11 +148,11 @@ function showMe(show, from, closeGuide) {
   setTimeout(() => {
     const find = (a) => (typeof a === 'function' ? a() : document.querySelector(a));
     const el = [].concat(show.at).map(find).find((x) => x && x.getClientRects().length);
-    const ring = h('div.gs-ring');
+    const ring = h('div.gs-ring.marker'); // 4.9: a blue marker circle drawn round it
     const tip = h('div.gs-tip', { role: 'dialog', 'aria-label': 'Getting started' });
     const backBtn = btn('Back to the guide', { cls: 'ghost', onClick: () => (clearSpot(), openGuide({ step: from })) });
     const done = btn(show.next === false ? 'Got it' : 'Next step', { cls: 'primary', onClick: () => (clearSpot(), show.next === false ? null : openGuide({ step: Math.min(from + 1, PAGES.length - 1) })) });
-    tip.append(h('b', { text: show.title || PAGES[from].title }), h('p', { text: show.tip }), h('div.gs-tip-actions', null, backBtn, done));
+    tip.append(scrap('white-chalk-arrow', { cls: 'gs-arrow', enter: 'slap', delay: 400 }) || '', h('b', { text: show.title || PAGES[from].title }), h('p', { text: show.tip }), h('div.gs-tip-actions', null, backBtn, done));
     document.body.append(ring, tip);
     const place = () => {
       const r = el ? el.getBoundingClientRect() : null;
@@ -163,9 +164,11 @@ function showMe(show, from, closeGuide) {
         Object.assign(tip.style, { left: `${(window.innerWidth - tw) / 2}px`, top: '90px' });
         return;
       }
-      const below = r.bottom + 14 + 170 < window.innerHeight;
+      const below = r.bottom + 70 + 170 < window.innerHeight;
       const left = Math.max(12, Math.min(window.innerWidth - tw - 12, r.left + r.width / 2 - tw / 2));
-      const top = below ? r.bottom + 14 : Math.max(12, r.top - 14 - tip.offsetHeight);
+      const top = below ? r.bottom + 70 : Math.max(12, r.top - 70 - tip.offsetHeight);
+      tip.dataset.side = below ? 'below' : 'above';
+      tip.style.setProperty('--ax', `${Math.round(Math.max(30, Math.min(tw - 30, r.left + r.width / 2 - left)))}px`);
       Object.assign(tip.style, { left: `${left}px`, top: `${top}px` });
     };
     if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });

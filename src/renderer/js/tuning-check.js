@@ -11,6 +11,7 @@
  * Or: Skip (keep going as you are; not asked again for this song this session),
  * the Drop (when the song is the same tuning, just lower), or "I'm already in it".
  */
+import { cameo, scrap } from './cameo.js';
 import { h, modal, toast } from './ui.js';
 import { rig } from './rig.js';
 import { tuningPlan, tuningName, myTuning, myCents, myTuningFrom, setMyTuning, refLabel, howFar, whichString, dropAlways, setDropAlways, dropCovers } from './tuning.js';
@@ -70,6 +71,8 @@ function show({ tab, song, kind, plan, key, songName, myName, what, sc, engine }
   if (paused) eng.pause();
   const done = new Set();
   const body = h('div.tcheck');
+  // 4.9: the masking-tape note, and the possessed tuner keeping an eye on you
+  body.append(scrap('tune-first', { cls: 'tc-tape', enter: 'slap' }) || '', cameo('event-tuning', { cls: 'tc-cameo', enter: 'peek', delay: 300 }) || '');
   const intro = h('p.tcheck-intro');
   intro.innerHTML = '';
   intro.append(

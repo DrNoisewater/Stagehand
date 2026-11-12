@@ -1,3 +1,44 @@
+# 4.9.0 — the art pack: 56 Mythology of Music characters, 30 UI scraps, cameos at the big moments (2026-11-12)
+
+User attached `Stagehand-Mythology-of-Music-56.zip` (56 transparent character stickers) and
+`Stagehand-UI-Assets-30.zip` (tapes, papers, marker marks, 12 captioned notes): "consider each one, how we can use
+them, where to place … some animated in, a slide or transition … keep the guitar hero style. Add to a TODO: add
+guitar riff sounds for events." Mid-session: **"not a fan of the images on the end score card"** → the highway
+score card has no pictures (don't add any back without asking).
+
+**Done (checked in Chromium screenshots: ask the user how it looks on their PC):**
+- **Pipeline** (`tools/art/`): `add_pack.py <png dir> <art subfolder> <max px> "<source>" [id prefix]` trims the
+  transparent margin, writes WebP (`art/myth2/` 560 px, `art/scraps/` 720 px, ids `scrap-<name>`) and registers
+  them in `art/manifest.json`; `placements.json` says which pool each goes in; `build_js.py` merges it and
+  regenerates `js/identity-art.js` (`ART`, `PLACEMENTS`, new `EVENTS`). Masters are NOT in the repo (158 MB of PNG):
+  they're the user's two zips. Menu pools (≥3 each, tested) vs `event-*` pools (manifest `events`, any size).
+- **Menu art:** every page's banner, sidebar, empty-state, Settings and Getting started pool got matching
+  characters (Jam: temple, cave jam, mushroom band…; Songs: riff manuscript, jazz cat, skull choir…; Tones:
+  angel/devil, 11 cherub, amp king; Gear: enormous amp, cable cobra, possessed tuner…; Discover: UFO bass
+  abduction, black-hole fishing, raccoon roadie…; Progress: trophy, string mountain, pick Excalibur, phoenix…;
+  Backstage: kraken bassist, swamp creature, pick gargoyle…). Gear now has real pools (identity.js fallback stays).
+- **Cameos** (`js/cameo.js` `cameo(pool)`, `scrap(name)`, `stamp(host, el)`; `css/cameo.css`; entrances rise,
+  drop, slide, slap, peek, spin, wipe, draw, then a slow bob; hidden by Less decoration, still with Calmer
+  interface / reduced motion): level up (`event-levelup`), milestones (`event-milestone`), level 100 (phoenix),
+  achievement cards (`event-trophy`), the tuning card ("Tune first. Summon demons later." tape + possessed tuner),
+  timing check intro (boxing metronome), its result (stained-glass tempo when steady; rough-run character when
+  too few notes), the stems wait card (`event-stems`), the update window (magic guitar case), the crash note
+  (haunted speaker), Create a Tone save (an "Approved by absolutely no sound engineers" / "DO NOT TOUCH MY EQ"
+  sticker slapped on the board). Getting started's Show me: a blue marker circle drawn round the control and a
+  white chalk arrow from the tip (`gs-ring.marker`, `gs-tip[data-side]`, `--ax`).
+- **Rehearsal Room banner** (identity.js, cameo.css bottom): real tape on the flyer's corner (`data-tape`
+  masking/gaffer/duct/clear, placed in `layoutArt`), the old drawn tape strips now real tape, a scrap on the wall
+  (`data-wall` flyer/sticky/tag/notebook), a marker on the title (`data-mark` highlighter/pick underline/star/
+  circle), two new papers (`setlist`, `notebook`), and the page's hand-written note 60% of visits (`PAGE_NOTES`:
+  pentatonics/root note/bend it/groove on Jam, EQ sign on Tones…). Roadshow look unchanged.
+- **TODO.md** (new): guitar riff sounds for events, with notes.
+- Tests: `npm test` ok (identity test also checks event pools). `SH_AUDIT=test/e2e/cameo-audit.js node
+  test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>` (12 checks, `cameo-*.png`). hwlook: index.html
+  loads stagechrome.css + cameo.css, serves .webp, fake judge has `setPace` (it threw since 4.x), `CARD_WAIT`.
+
+**Ask the user:** do the characters feel right per page? Are the banner notes/tape/marks too busy? Cameo sizes on
+the level-up and tuning cards? Any picture they'd rather not see (pull it from `tools/art/placements.json`)?
+
 # 4.8.0 — highway restyle, the real Drop pedal, banner art in the top bar, faster pages (2026-11-12)
 
 User (calls the current version 4.7.1; GitHub says 4.7.0): restyle everything around the 3D highway in the app's

@@ -1,4 +1,5 @@
 /** Bottom pane: transport, timeline, full-mix lane and per-stem lanes. */
+import { cameo } from './cameo.js';
 import { did } from './rewards.js';
 import { api } from './api.js';
 import { state, on, emit, upsertSongs, setPage } from './store.js';
@@ -1207,6 +1208,10 @@ async function stemsFirst(song, token) {
 function startWaiting(token) {
   S.waitPlay = token;
   renderWaiting(S.waitStatus || S.status);
+  // 4.9: someone keeps you company while the stems split (a new one each song)
+  waitBox.querySelector('.sw-cameo')?.remove();
+  const who = cameo('event-stems', { enter: 'peek', cls: 'sw-cameo', delay: 200 });
+  if (who) waitBox.append(who);
   emit('stage-waiting', true);
   emit('stage-phase');
   renderStemsCall();
