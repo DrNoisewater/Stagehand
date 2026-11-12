@@ -133,14 +133,23 @@ export function fmtBytes(n) {
   return `${(n / 1024 ** 3).toFixed(1)} GB`;
 }
 
+// 4.7: one date formatter kept (making one per date was slow in long lists: Collection gaps, Wanted)
+let dateFmt = null;
+let dateTimeFmt = null;
 export function fmtDate(ms) {
   if (!ms) return '';
-  return new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return d.toLocaleDateString();
+  dateFmt = dateFmt || new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return dateFmt.format(d);
 }
 
 export function fmtDateTime(ms) {
   if (!ms) return '';
-  return new Date(ms).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return d.toLocaleString();
+  dateTimeFmt = dateTimeFmt || new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return dateTimeFmt.format(d);
 }
 
 // ------------------------------------------------------------------ menus --

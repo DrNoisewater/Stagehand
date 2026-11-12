@@ -11,10 +11,19 @@ export const appearancePrefs = saved && typeof saved === 'object' && !Array.isAr
 const visits = new MenuArtVisits(director);
 const enter = () => visits.enter(state.page, PLACEMENTS, { rotate: appearancePrefs.rotateMenus !== false });
 on('page', enter); enter();
+// 4.7: the menu and empty pages are redrawn often (a play count, a new best…): the same picture
+// keeps its loaded element instead of a new one that blinks while it decodes.
+const lastImg = new Map(); // pool -> its last <img>
 export function decorativeImage(pool, className = 'menu-spot-art', { next = false } = {}) {
   const id = director.choose(pool, PLACEMENTS[pool] || [], { next: next && appearancePrefs.rotateMenus !== false });
   const item = ART.find(a => a.id === id);
+  const old = lastImg.get(pool);
+  if (old && item && !old.isConnected && !old.hidden && old.complete && old.naturalWidth && old.getAttribute('src') === `art/${item.file}`) {
+    old.className = className;
+    return old;
+  }
   const img = h(`img.${className}`, { alt:'', 'aria-hidden':'true', decoding:'async', loading:'lazy' });
+  lastImg.set(pool, img);
   img.dataset.menuPool = pool;
   if (item) { img.src = `art/${item.file}`; img.dataset.art = id; }
   else img.hidden = true;

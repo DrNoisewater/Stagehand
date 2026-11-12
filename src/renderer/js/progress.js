@@ -10,7 +10,7 @@
  *   History       the career timeline: levels, venues, firsts, bests, mastery
  */
 import { decorativeImage } from './menu-art.js';
-import { harvest } from './artkeep.js';
+import { harvest, artImg } from './artkeep.js';
 import { api } from './api.js';
 import { state, on, setPage, setView, accBand } from './store.js';
 import { h, icon, esc, toast } from './ui.js';
@@ -45,7 +45,16 @@ function fmtTime(sec) {
   return `${Math.floor(m / 60)} h ${m % 60} m`;
 }
 const fmtHours = (sec) => (sec >= 360000 ? n(Math.round(sec / 3600)) : (sec / 3600).toFixed(sec >= 36000 ? 0 : 1));
-const fmtDate = (ms, o = { year: 'numeric', month: 'short', day: 'numeric' }) => (ms ? new Date(ms).toLocaleDateString(undefined, o) : '—');
+// 4.7: date formatters are kept (one per style): making one per date was slow on long histories
+const dateFmts = new Map();
+function dateText(d, o) {
+  if (Number.isNaN(d.getTime())) return d.toLocaleDateString(undefined, o);
+  const k = o ? JSON.stringify(o) : '';
+  let f = dateFmts.get(k);
+  if (!f) dateFmts.set(k, (f = new Intl.DateTimeFormat(undefined, o)));
+  return f.format(d);
+}
+const fmtDate = (ms, o = { year: 'numeric', month: 'short', day: 'numeric' }) => (ms ? dateText(new Date(ms), o) : '—');
 
 async function load() {
   try {
@@ -127,7 +136,7 @@ function render() {
 function venuePic(v, locked) {
   const rv = VENUE_LIST.find((x) => x.id === v.venue);
   const th = rv ? venueThumb(rv) : null;
-  return h(`span.pg-vpic${locked ? '.locked' : ''}`, null, th ? h('img', { src: th, alt: '', loading: 'lazy', decoding: 'async' }) : h(`i.vsw.sc-${v.venue}`), locked ? h('span.pg-vlock', { html: LOCK }) : null);
+  return h(`span.pg-vpic${locked ? '.locked' : ''}`, null, th ? artImg(th, { alt: '', loading: 'lazy', decoding: 'async' }) : h(`i.vsw.sc-${v.venue}`), locked ? h('span.pg-vlock', { html: LOCK }) : null);
 }
 
 function hero(st) {
@@ -137,7 +146,7 @@ function hero(st) {
   const medal = h(`div.pg-level.tier-${st.tier.id}`, { title: `${st.tier.name} pass` }, h('small', { text: 'LEVEL' }), h('b.pg-level-n', { text: String(st.level) }), h('span', { text: `of ${st.max || 100}` }));
   const rh = st.rhythm || { days: 0, mult: 1, week: [] };
   const dayNames = [];
-  for (let i = 6; i >= 0; i--) dayNames.push(new Date(Date.now() - i * 864e5).toLocaleDateString(undefined, { weekday: 'narrow' }));
+  for (let i = 6; i >= 0; i--) dayNames.push(dateText(new Date(Date.now() - i * 864e5), { weekday: 'narrow' }));
   const dots = h('div.pg-rhythm', { title: 'Days you played in the last seven. More days this week = a little more XP for playing. Missing a day never takes anything away.' },
     ...rh.week.map((on, i) => h(`span${on ? '.on' : ''}${i === 6 ? '.today' : ''}`, null, h('i'), h('small', { text: dayNames[i] }))),
     h('b', { text: `×${rh.mult.toFixed(2)}` }),
@@ -257,8 +266,8 @@ function trendsCard(d) {
   const today = list.length - 1;
   list.forEach((x, i) => {
     const dt = new Date(x.at);
-    const lab = list.length <= 7 ? dt.toLocaleDateString(undefined, { weekday: 'short' }) : i % 5 === 4 || i === today ? String(dt.getDate()) : '';
-    bars.append(h(`div.bar${i === today ? '.today' : ''}${x.minutes ? '' : '.zero'}`, { title: `${dt.toLocaleDateString()}: ${x.minutes} min` }, h('span.m', { text: x.minutes && list.length <= 7 ? `${x.minutes}m` : '' }), h('i', { style: { height: `${Math.max(3, Math.round((x.minutes / top) * 110))}px` } }), h('span.d', { text: lab })));
+    const lab = list.length <= 7 ? dateText(dt, { weekday: 'short' }) : i % 5 === 4 || i === today ? String(dt.getDate()) : '';
+    bars.append(h(`div.bar${i === today ? '.today' : ''}${x.minutes ? '' : '.zero'}`, { title: `${dateText(dt)}: ${x.minutes} min` }, h('span.m', { text: x.minutes && list.length <= 7 ? `${x.minutes}m` : '' }), h('i', { style: { height: `${Math.max(3, Math.round((x.minutes / top) * 110))}px` } }), h('span.d', { text: lab })));
   });
   card.append(bars);
   return card;
@@ -276,7 +285,7 @@ function takesCard() {
     const play = h('button.round-play.sm', { type: 'button', 'aria-label': on ? 'Stop' : 'Play', html: icon(on ? 'stop' : 'play') });
     play.onclick = () => (t.kind === 'video' ? import('./greenroom.js').then((r) => r.openGreenRoom({ tab: 'mine', focus: t.id })) : playTake(t));
     const when = new Date(t.at);
-    const meta = `${t.kind === 'video' ? 'Video · ' : ''}${when.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${Math.floor((t.seconds || 0) / 60)}:${String(Math.round((t.seconds || 0) % 60)).padStart(2, '0')}`;
+    const meta = `${t.kind === 'video' ? 'Video · ' : ''}${dateText(when, { weekday: 'short', month: 'short', day: 'numeric' })} · ${Math.floor((t.seconds || 0) / 60)}:${String(Math.round((t.seconds || 0) % 60)).padStart(2, '0')}`;
     grid.append(h(`div.take${on ? '.on' : ''}`, null, play, h('div.tk-text', null, h('b', { text: t.name }), h('span', { text: meta }))));
   }
   card.append(grid);
@@ -331,7 +340,7 @@ function career(body, st) {
     h('div', null, h('b', { text: n(y.days) }), h('small', { text: 'days' }))));
   const months = h('div.pg-months');
   const top = Math.max(60, ...(l.months || []).map((m) => m.minutes));
-  for (const m of l.months || []) months.append(h(`div${m.minutes ? '' : '.zero'}`, { title: `${new Date(m.at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}: ${fmtTime(m.minutes * 60)}` }, h('i', { style: { height: `${Math.max(3, Math.round((m.minutes / top) * 90))}px` } }), h('small', { text: new Date(m.at).toLocaleDateString(undefined, { month: 'narrow' }) })));
+  for (const m of l.months || []) months.append(h(`div${m.minutes ? '' : '.zero'}`, { title: `${dateText(new Date(m.at), { month: 'long', year: 'numeric' })}: ${fmtTime(m.minutes * 60)}` }, h('i', { style: { height: `${Math.max(3, Math.round((m.minutes / top) * 90))}px` } }), h('small', { text: dateText(new Date(m.at), { month: 'narrow' }) })));
   yr.append(h('div.pspot-label', { text: 'Minutes a month, the last 12' }), months);
   const tech = h('section.card.pg-tech', { 'aria-label': 'Techniques' }, h('div.card-head', null, h('h2', { text: 'By kind of note' })));
   const kinds = Object.entries(l.kinds || {}).filter(([, v]) => v[1] >= 10).sort((a, b) => b[1][1] - a[1][1]);
@@ -467,7 +476,7 @@ function history(body, st) {
   if (!evs.length) card.append(h('p.np-fine', { text: 'Play a few songs and your story starts here.' }));
   let month = '';
   for (const e of evs) {
-    const m = new Date(e.at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const m = dateText(new Date(e.at), { month: 'long', year: 'numeric' });
     if (m !== month) (month = m), card.append(h('div.pg-month', { text: m }));
     card.append(eventRow(e));
   }

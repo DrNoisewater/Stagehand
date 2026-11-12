@@ -11,6 +11,7 @@ import { decorativeImage } from './menu-art.js';
 import { did } from './rewards.js';
 import { api } from './api.js';
 import { state, on, emit, setView, rsListIds, rsListLabel, loadRocksmith, upsertSongs, loadLibrary } from './store.js';
+import { artImg, harvest } from './artkeep.js';
 import { h, icon, esc, toast, showMenu, fmtDuration, fmtDate, fmtDateTime, modal, debounce } from './ui.js';
 import * as actions from './actions.js';
 
@@ -39,6 +40,8 @@ state.discover = D;
 
 const GELS = ['#ff6b3d', '#8c7bff', '#ff4d8d', '#33c8e0', '#9bdb5a', '#ffb547'];
 const isDiscover = () => state.view.kind === 'discover';
+// 4.7: Discover stays the current list when you go to another page; it only draws while it shows
+const shown = () => isDiscover() && state.page === 'discover';
 const sub = () => (isDiscover() ? state.view.id : null);
 const keyOf = (artist, title) => `${String(artist).toLowerCase()}|${String(title).toLowerCase()}`;
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -73,9 +76,11 @@ function cover(groupId, title, cls = '') {
   el.style.setProperty('--gel', GELS[hash(title) % GELS.length]);
   el.append(h('span', { text: initials(title) }));
   if (groupId) {
-    const img = h('img', { src: api.coverUrl(groupId, cls.includes('lg') ? 500 : 250), alt: '', loading: 'lazy', decoding: 'async' });
-    img.addEventListener('error', () => img.remove());
-    img.addEventListener('load', () => (img.naturalWidth <= 1 ? img.remove() : el.classList.add('has-img')));
+    // 4.7: a cover that has loaded before moves over from the last draw (no reload, no blink)
+    const img = artImg(api.coverUrl(groupId, cls.includes('lg') ? 500 : 250), { alt: '', loading: 'lazy', decoding: 'async' });
+    if (img.complete && img.naturalWidth > 1) el.classList.add('has-img');
+    img.onerror = () => img.remove();
+    img.onload = () => (img.naturalWidth <= 1 ? img.remove() : el.classList.add('has-img'));
     el.append(img);
   }
   return el;
@@ -1398,6 +1403,7 @@ export function render() {
     lastSub = null;
     return;
   }
+  if (!shown()) return; // drawn again when you come back (the page change sends 'view')
   did('discover');
   const id = sub();
   const keepScroll = id === lastSub ? scroll.scrollTop : 0;
@@ -1409,6 +1415,7 @@ export function render() {
   else if (id === 'wanted') renderWanted(page);
   else if (id === 'imports') renderImports(page);
   else renderSearch(page);
+  harvest(scroll);
   scroll.replaceChildren(page);
   scroll.scrollTop = keepScroll;
   renderSelBar();

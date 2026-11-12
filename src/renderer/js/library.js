@@ -123,6 +123,11 @@ let list = [];
 let rowEls = new Map();
 let tileEls = new Map();
 
+// 4.7: while another page shows, changes (play counts, bests, stems…) only mark the list as
+// out of date; it's drawn once when you come back, not on every change in the background.
+let stale = 0; // 0 drawn, 1 needs a draw, 2 needs its rows rebuilt
+const libShown = () => state.page === 'songs';
+
 function thumbHtml(s, size) {
   const src = s.art ? api.artUrl(s, size) : null;
   return src ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async" draggable="false">` : icon('music');
@@ -261,6 +266,10 @@ function decorate(el, s) {
 let geometry = { cols: 1, tileW: 180, tileH: 240 };
 
 function renderWindow() {
+  if (!libShown()) {
+    stale = Math.max(stale, 1);
+    return;
+  }
   const top = scroller.scrollTop;
   const hgt = scroller.clientHeight || 600;
   if (state.layout === 'list') {
@@ -327,7 +336,7 @@ function renderWindow() {
         if (!el.isConnected) gridEl.append(el);
       }
     }
-    for (const [id, el] of tileEls) if (!keep.has(id)) el.remove();
+    for (const [id, el] of tileEls) if (!keep.has(id)) drop(el); // 4.7: keep its picture for scrolling back
     tileEls = keep;
   }
 }
@@ -432,6 +441,11 @@ function emptyHint() {
 }
 
 export function render() {
+  if (!libShown()) {
+    stale = Math.max(stale, 1);
+    return;
+  }
+  stale = 0;
   list = visibleSongs();
   const q = state.search.trim();
   titleEl.querySelector('h1').textContent = q ? `“${q}”` : viewTitle();
@@ -495,6 +509,10 @@ function setScope(all) {
 }
 
 function rebuild() {
+  if (!libShown()) {
+    stale = 2;
+    return;
+  }
   rowEls.forEach(drop);
   rowEls.clear();
   tileEls.forEach(drop);
@@ -730,7 +748,10 @@ on('view', () => {
   // the page may only just be shown again: set it once more after layout
   requestAnimationFrame(() => shownNow() && restoreTop());
 });
-on('page', () => requestAnimationFrame(() => shownNow() && restoreTop()));
+on('page', () => {
+  if (libShown() && stale) stale === 2 ? rebuild() : render();
+  requestAnimationFrame(() => shownNow() && restoreTop());
+});
 on('selection', refreshDecorations);
 on('playing', refreshDecorations);
 on('stems', debounce(() => {
@@ -765,16 +786,6 @@ on('levels', (st) => {
   const k = st ? `${st.weekSong}|${(st.timeline || []).filter((e) => e.type === 'best').length}|${(st.weekly || []).map((c) => c.done).join()}` : '';
   if (k === badgeKey) return;
   badgeKey = k;
-  rowEls.forEach(drop);
-  rowEls.clear();
-  tileEls.forEach(drop);
-  tileEls.clear();
-  render();
+  rebuild();
 });
-on('best', () => {
-  rowEls.forEach(drop);
-  rowEls.clear();
-  tileEls.forEach(drop);
-  tileEls.clear();
-  render();
-});
+on('best', rebuild);
