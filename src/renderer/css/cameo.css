@@ -57,7 +57,7 @@ html[data-calm='true'] .cameo { animation:none !important; }
 
 /* ------------------------------------------------- Getting started: marker ring -- */
 .gs-ring.marker { border-color:transparent; box-shadow:0 0 0 4000px rgba(5,8,16,.45); animation:none; }
-.gs-ring.marker::after { content:''; position:absolute; inset:-16px -22px; background:url('../art/scraps/marker-double-circle.webp') center/100% 100% no-repeat;
+.gs-ring.marker::after { content:''; position:absolute; inset:-16px -22px; background:url('../art/scraps/marker-double-circle.avif') center/100% 100% no-repeat;
   filter:drop-shadow(0 0 6px #4a7dff88); animation:cameo-draw .7s ease-out both, gs-wobble 2.4s .7s ease-in-out infinite; }
 @keyframes gs-wobble { 0%,100% { rotate:0deg; scale:1; } 50% { rotate:1.5deg; scale:1.03; } }
 .gs-tip .cameo-scrap.gs-arrow { position:absolute; --size:76px; left:var(--ax,50%); margin-left:-38px; filter:drop-shadow(0 0 4px #000); }
@@ -72,43 +72,43 @@ html[data-decoration='reduced'] .gs-ring.marker::after { display:none; }
 /* ------------------------------------- Rehearsal Room banner: the UI pack's scraps -- */
 /* real tape on the flyer's corner (data-tape picked each visit) */
 html[data-look='opera'] #app .opera-tape { position:absolute; z-index:4; width:118px; height:40px; pointer-events:none; rotate:-32deg;
-  background:url('../art/scraps/cream-masking-tape.webp') center/100% 100% no-repeat; filter:drop-shadow(0 2px 2px #0007);
+  background:url('../art/scraps/cream-masking-tape.avif') center/100% 100% no-repeat; filter:drop-shadow(0 2px 2px #0007);
   animation:rr-slap .3s .35s cubic-bezier(.2,.9,.3,1.4) both; }
 html:not([data-look='opera']) .opera-tape { display:none; }
-html[data-look='opera'] #app .identity-banner[data-tape='gaffer'] .opera-tape { background-image:url('../art/scraps/black-gaffer-tape.webp'); height:52px; }
-html[data-look='opera'] #app .identity-banner[data-tape='duct'] .opera-tape { background-image:url('../art/scraps/silver-duct-tape.webp'); }
-html[data-look='opera'] #app .identity-banner[data-tape='clear'] .opera-tape { background-image:url('../art/scraps/translucent-tape.webp'); }
+html[data-look='opera'] #app .identity-banner[data-tape='gaffer'] .opera-tape { background-image:url('../art/scraps/black-gaffer-tape.avif'); height:52px; }
+html[data-look='opera'] #app .identity-banner[data-tape='duct'] .opera-tape { background-image:url('../art/scraps/silver-duct-tape.avif'); }
+html[data-look='opera'] #app .identity-banner[data-tape='clear'] .opera-tape { background-image:url('../art/scraps/translucent-tape.avif'); }
 /* the old drawn tape strips on the wall become real tape, faded */
-html[data-look='opera'] .opera-fx .tape { clip-path:none; box-shadow:none; height:30px; background:url('../art/scraps/cream-masking-tape.webp') center/100% 100% no-repeat; }
+html[data-look='opera'] .opera-fx .tape { clip-path:none; box-shadow:none; height:30px; background:url('../art/scraps/cream-masking-tape.avif') center/100% 100% no-repeat; }
 html[data-look='opera'] .identity-banner[data-tape='masking'] .opera-fx .t2,
-html[data-look='opera'] .identity-banner[data-tape='duct'] .opera-fx .t1 { background-image:url('../art/scraps/silver-duct-tape.webp'); }
-html[data-look='opera'] .identity-banner[data-tape='gaffer'] .opera-fx .t2 { background-image:url('../art/scraps/black-gaffer-tape.webp'); opacity:.45; }
+html[data-look='opera'] .identity-banner[data-tape='duct'] .opera-fx .t1 { background-image:url('../art/scraps/silver-duct-tape.avif'); }
+html[data-look='opera'] .identity-banner[data-tape='gaffer'] .opera-fx .t2 { background-image:url('../art/scraps/black-gaffer-tape.avif'); opacity:.45; }
 
 /* something else stuck on the wall behind the flyer */
 html[data-look='opera'] .opera-fx .wall { position:absolute; display:none; right:31%; top:10px; width:150px; height:96px; opacity:.5; rotate:7deg;
   background:center/contain no-repeat; filter:saturate(.75) brightness(.8); }
-html[data-look='opera'] .identity-banner[data-wall='flyer'] .opera-fx .wall { display:block; background-image:url('../art/scraps/concert-flyer-scrap.webp'); width:190px; }
-html[data-look='opera'] .identity-banner[data-wall='sticky'] .opera-fx .wall { display:block; background-image:url('../art/scraps/pink-sticky-note.webp'); width:90px; height:66px; rotate:-9deg; top:auto; bottom:12px; right:36%; }
-html[data-look='opera'] .identity-banner[data-wall='tag'] .opera-fx .wall { display:block; background-image:url('../art/scraps/backstage-pass-tag.webp'); width:110px; height:80px; rotate:14deg; }
-html[data-look='opera'] .identity-banner[data-wall='notebook'] .opera-fx .wall { display:block; background-image:url('../art/scraps/lined-notebook-corner.webp'); width:140px; rotate:-5deg; top:auto; bottom:6px; }
+html[data-look='opera'] .identity-banner[data-wall='flyer'] .opera-fx .wall { display:block; background-image:url('../art/scraps/concert-flyer-scrap.avif'); width:190px; }
+html[data-look='opera'] .identity-banner[data-wall='sticky'] .opera-fx .wall { display:block; background-image:url('../art/scraps/pink-sticky-note.avif'); width:90px; height:66px; rotate:-9deg; top:auto; bottom:12px; right:36%; }
+html[data-look='opera'] .identity-banner[data-wall='tag'] .opera-fx .wall { display:block; background-image:url('../art/scraps/backstage-pass-tag.avif'); width:110px; height:80px; rotate:14deg; }
+html[data-look='opera'] .identity-banner[data-wall='notebook'] .opera-fx .wall { display:block; background-image:url('../art/scraps/lined-notebook-corner.avif'); width:140px; rotate:-5deg; top:auto; bottom:6px; }
 
 /* marker on the flyer: a highlighter swipe, a pick underline, a star or a circle (data-mark) */
 html[data-look='opera'] #app .identity-title { isolation:isolate; width:fit-content; }
 html[data-look='opera'] #app .identity-banner[data-mark] .identity-title::before { content:none; position:absolute; z-index:-1; pointer-events:none; background:center/100% 100% no-repeat; }
 html[data-look='opera'] #app .identity-banner[data-mark='highlight'] .identity-title::before { content:''; left:-10px; right:-14px; top:28%; height:62%;
-  background-image:url('../art/scraps/yellow-highlighter-swipe.webp'); opacity:.62; mix-blend-mode:multiply; animation:cameo-wipe .5s .45s cubic-bezier(.6,.1,.3,1) both; }
+  background-image:url('../art/scraps/yellow-highlighter-swipe.avif'); opacity:.62; mix-blend-mode:multiply; animation:cameo-wipe .5s .45s cubic-bezier(.6,.1,.3,1) both; }
 html[data-look='opera'] #app .identity-banner[data-mark='underline'] .identity-title::before { content:''; left:-4px; right:-30px; bottom:-3px; height:12px;
-  background-image:url('../art/scraps/pick-underline.webp'); animation:cameo-wipe .45s .45s cubic-bezier(.6,.1,.3,1) both; }
+  background-image:url('../art/scraps/pick-underline.avif'); animation:cameo-wipe .45s .45s cubic-bezier(.6,.1,.3,1) both; }
 html[data-look='opera'] #app .identity-banner[data-mark='star'] .identity-title::before { content:''; z-index:1; right:-46px; top:-14px; width:46px; height:38px;
-  background-image:url('../art/scraps/scribbled-star.webp'); background-size:contain; animation:cameo-spin .45s .5s cubic-bezier(.2,.9,.3,1.25) both; }
+  background-image:url('../art/scraps/scribbled-star.avif'); background-size:contain; animation:cameo-spin .45s .5s cubic-bezier(.2,.9,.3,1.25) both; }
 html[data-look='opera'] #app .identity-banner[data-mark='circle'] .identity-title::before { content:''; inset:-10px -22px -6px -18px;
-  background-image:url('../art/scraps/marker-double-circle.webp'); opacity:.85; animation:cameo-draw .55s .45s ease-out both; }
+  background-image:url('../art/scraps/marker-double-circle.avif'); opacity:.85; animation:cameo-draw .55s .45s ease-out both; }
 
 /* two more papers for the flyer: a torn setlist and a page out of a notebook */
 html[data-look='opera'] #app .identity-banner[data-paper='setlist'] .identity-copy { clip-path:none; rotate:.6deg; transform:none; padding:30px 40px 24px 34px;
-  background:url('../art/scraps/ripped-setlist-paper.webp') center/100% 100% no-repeat; }
+  background:url('../art/scraps/ripped-setlist-paper.avif') center/100% 100% no-repeat; }
 html[data-look='opera'] #app .identity-banner[data-paper='notebook'] .identity-copy { clip-path:none; transform:none; rotate:-1.6deg; padding:22px 140px 34px 74px;
-  background:url('../art/scraps/lined-notebook-corner.webp') center/100% 100% no-repeat; }
+  background:url('../art/scraps/lined-notebook-corner.avif') center/100% 100% no-repeat; }
 
 /* the page's hand-made note (wider than the printed stickers) */
 html[data-look='opera'] #app .opera-sticker-img.note { max-width:250px; max-height:110px; }

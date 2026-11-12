@@ -106,10 +106,10 @@
 :host([transparent]) .bloom{display:none}
 :host(.nw-out){opacity:0}
 :host([skippable]){cursor:pointer}
-.stage{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(#18120edb,#100d0be8),url('${roadshowArt}flight-case.webp') center/900px}
+.stage{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(#18120edb,#100d0be8),url('${roadshowArt}flight-case.avif') center/900px}
 .stage::before,.stage::after{content:'';position:absolute;top:35%;height:150px;width:150px;background:center/contain no-repeat;pointer-events:none;opacity:.8}
-.stage::before{left:1%;background-image:var(--guest-left,url('${roadshowArt}riff-reaper.webp'));transform:rotate(-9deg)}
-.stage::after{right:1%;background-image:var(--guest-right,url('${roadshowArt}amp-cherub.webp'));transform:rotate(7deg)}
+.stage::before{left:1%;background-image:var(--guest-left,url('${roadshowArt}riff-reaper.avif'));transform:rotate(-9deg)}
+.stage::after{right:1%;background-image:var(--guest-right,url('${roadshowArt}amp-cherub.avif'));transform:rotate(7deg)}
 .stage[data-decoration="reduced"]::before,.stage[data-decoration="reduced"]::after{display:none}
 .roadshow-splash-caption{position:absolute;bottom:4%;left:10%;right:10%;text-align:center;color:#edcf8a;font:900 17px system-ui;letter-spacing:.16em;text-transform:uppercase}
 @media(max-width:850px){.stage::before,.stage::after{opacity:.35;width:96px;height:96px}.roadshow-splash-caption{font-size:12px}}
@@ -169,8 +169,8 @@ ${`.draw{stroke-dasharray:1 2;stroke-dashoffset:1.01;animation:nw-draw var(--d,1
       const pick = () => available.splice(Math.floor(Math.random()*available.length),1)[0];
       const pair = available.length >= 2 ? [pick(),pick()] : guests.slice(0,2);
       try { localStorage.setItem('stagehand.splash.guests',JSON.stringify(pair)); } catch {}
-      this._stage.style.setProperty('--guest-left', `url("${mythologyArt}${pair[0]}.webp")`);
-      this._stage.style.setProperty('--guest-right', `url("${mythologyArt}${pair[1]}.webp")`);
+      this._stage.style.setProperty('--guest-left', `url("${mythologyArt}${pair[0]}.avif")`);
+      this._stage.style.setProperty('--guest-right', `url("${mythologyArt}${pair[1]}.avif")`);
       this._stage.dataset.decoration = appearance.reduced ? 'reduced' : 'full';
       this._stage.innerHTML = SVG + '<span class="roadshow-splash-caption">Stagehand · Let there be riffs</span>';
       void this._stage.offsetWidth;                      // let CSS animations start

@@ -3,7 +3,7 @@
   "assets": [
     {
       "id": "vinyl-crate",
-      "file": "vinyl-crate.webp",
+      "file": "vinyl-crate.avif",
       "master": "docs/identity/art-masters/vinyl-crate.png",
       "source": "Generated for this redesign",
       "width": 720,
@@ -13,7 +13,7 @@
     },
     {
       "id": "pedal-bloom",
-      "file": "pedal-bloom.webp",
+      "file": "pedal-bloom.avif",
       "master": "docs/identity/art-masters/pedal-bloom.png",
       "source": "Generated for this redesign",
       "width": 600,
@@ -23,7 +23,7 @@
     },
     {
       "id": "bass-orbit",
-      "file": "bass-orbit.webp",
+      "file": "bass-orbit.avif",
       "master": "docs/identity/art-masters/bass-orbit.png",
       "source": "Generated for this redesign",
       "width": 720,
@@ -33,7 +33,7 @@
     },
     {
       "id": "pick-rescue",
-      "file": "pick-rescue.webp",
+      "file": "pick-rescue.avif",
       "master": "docs/identity/art-masters/pick-rescue.png",
       "source": "Generated for this redesign",
       "width": 720,
@@ -43,7 +43,7 @@
     },
     {
       "id": "encore-patch",
-      "file": "encore-patch.webp",
+      "file": "encore-patch.avif",
       "master": "docs/identity/art-masters/encore-patch.png",
       "source": "Generated for this redesign",
       "width": 591,
@@ -53,7 +53,7 @@
     },
     {
       "id": "pedal-tower",
-      "file": "pedal-tower.webp",
+      "file": "pedal-tower.avif",
       "master": "docs/identity/art-masters/pedal-tower.png",
       "source": "Selected from user-provided art pack",
       "width": 591,
@@ -63,7 +63,7 @@
     },
     {
       "id": "pick-cushion",
-      "file": "pick-cushion.webp",
+      "file": "pick-cushion.avif",
       "master": "docs/identity/art-masters/pick-cushion.png",
       "source": "Selected from user-provided art pack",
       "width": 720,
@@ -73,7 +73,7 @@
     },
     {
       "id": "broken-string",
-      "file": "broken-string.webp",
+      "file": "broken-string.avif",
       "master": "docs/identity/art-masters/broken-string.png",
       "source": "Selected from user-provided art pack",
       "width": 720,
@@ -83,7 +83,7 @@
     },
     {
       "id": "winged-pick",
-      "file": "winged-pick.webp",
+      "file": "winged-pick.avif",
       "master": "docs/identity/art-masters/winged-pick.png",
       "source": "Selected from user-provided art pack",
       "width": 591,
@@ -93,7 +93,7 @@
     },
     {
       "id": "chrome-bolt",
-      "file": "chrome-bolt.webp",
+      "file": "chrome-bolt.avif",
       "master": "docs/identity/art-masters/chrome-bolt.png",
       "source": "Selected from user-provided art pack",
       "width": 493,
@@ -103,7 +103,7 @@
     },
     {
       "id": "tour-patch",
-      "file": "tour-patch.webp",
+      "file": "tour-patch.avif",
       "master": "docs/identity/art-masters/tour-patch.png",
       "source": "Selected from user-provided art pack",
       "width": 540,
@@ -113,7 +113,7 @@
     },
     {
       "id": "cyan-paper",
-      "file": "cyan-paper.webp",
+      "file": "cyan-paper.avif",
       "master": "docs/identity/art-masters/cyan-paper.png",
       "source": "Selected from user-provided art pack",
       "width": 720,
@@ -123,7 +123,7 @@
     },
     {
       "id": "pink-paper",
-      "file": "pink-paper.webp",
+      "file": "pink-paper.avif",
       "master": "docs/identity/art-masters/pink-paper.png",
       "source": "Selected from user-provided art pack",
       "width": 720,
@@ -133,7 +133,7 @@
     },
     {
       "id": "setlist-paper",
-      "file": "setlist-paper.webp",
+      "file": "setlist-paper.avif",
       "master": "docs/identity/art-masters/setlist-paper.png",
       "source": "Selected from user-provided art pack",
       "width": 432,
@@ -143,7 +143,7 @@
     },
     {
       "id": "lime-note",
-      "file": "lime-note.webp",
+      "file": "lime-note.avif",
       "master": "docs/identity/art-masters/lime-note.png",
       "source": "Selected from user-provided art pack",
       "width": 432,
@@ -153,7 +153,7 @@
     },
     {
       "id": "orange-tape",
-      "file": "orange-tape.webp",
+      "file": "orange-tape.avif",
       "master": "docs/identity/art-masters/orange-tape.png",
       "source": "Selected from user-provided art pack",
       "width": 720,
@@ -163,7 +163,7 @@
     },
     {
       "id": "checker-tape",
-      "file": "checker-tape.webp",
+      "file": "checker-tape.avif",
       "master": "docs/identity/art-masters/checker-tape.png",
       "source": "Selected from user-provided art pack",
       "width": 720,
@@ -173,7 +173,7 @@
     },
     {
       "id": "blue-ticket",
-      "file": "blue-ticket.webp",
+      "file": "blue-ticket.avif",
       "master": "docs/identity/art-masters/blue-ticket.png",
       "source": "Selected from user-provided art pack",
       "width": 720,
@@ -183,7 +183,7 @@
     },
     {
       "id": "backstage-arrow",
-      "file": "backstage-arrow.webp",
+      "file": "backstage-arrow.avif",
       "master": "docs/identity/art-masters/backstage-arrow.png",
       "source": "Selected from user-provided art pack",
       "width": 720,
@@ -193,7 +193,7 @@
     },
     {
       "id": "access-pass",
-      "file": "access-pass.webp",
+      "file": "access-pass.avif",
       "master": "docs/identity/art-masters/access-pass.png",
       "source": "Selected from user-provided art pack",
       "width": 360,
@@ -203,7 +203,7 @@
     },
     {
       "id": "skeleton-pick",
-      "file": "roadshow/skeleton-pick.webp",
+      "file": "roadshow/skeleton-pick.avif",
       "master": "docs/roadshow/skeleton-pick.png",
       "source": "Generated original Roadshow character",
       "width": 700,
@@ -213,7 +213,7 @@
     },
     {
       "id": "riff-reaper",
-      "file": "roadshow/riff-reaper.webp",
+      "file": "roadshow/riff-reaper.avif",
       "master": "docs/roadshow/riff-reaper.png",
       "source": "Generated original Roadshow character",
       "width": 700,
@@ -223,7 +223,7 @@
     },
     {
       "id": "pick-goblin",
-      "file": "roadshow/pick-goblin.webp",
+      "file": "roadshow/pick-goblin.avif",
       "master": "docs/roadshow/pick-goblin.png",
       "source": "Generated original Roadshow character",
       "width": 700,
@@ -233,7 +233,7 @@
     },
     {
       "id": "backstage-kraken",
-      "file": "roadshow/backstage-kraken.webp",
+      "file": "roadshow/backstage-kraken.avif",
       "master": "docs/roadshow/backstage-kraken.png",
       "source": "Generated original Roadshow character",
       "width": 700,
@@ -243,7 +243,7 @@
     },
     {
       "id": "skull-cassette",
-      "file": "roadshow/skull-cassette.webp",
+      "file": "roadshow/skull-cassette.avif",
       "master": "docs/roadshow/skull-cassette.png",
       "source": "Generated original Roadshow character",
       "width": 700,
@@ -253,7 +253,7 @@
     },
     {
       "id": "practice-beast",
-      "file": "roadshow/practice-beast.webp",
+      "file": "roadshow/practice-beast.avif",
       "master": "docs/roadshow/practice-beast.png",
       "source": "Generated original Roadshow character",
       "width": 700,
@@ -263,7 +263,7 @@
     },
     {
       "id": "amp-cherub",
-      "file": "roadshow/amp-cherub.webp",
+      "file": "roadshow/amp-cherub.avif",
       "master": "docs/roadshow/amp-cherub.png",
       "source": "Generated original Roadshow character",
       "width": 900,
@@ -273,7 +273,7 @@
     },
     {
       "id": "glass-cherub",
-      "file": "mythology/glass-cherub.webp",
+      "file": "mythology/glass-cherub.avif",
       "master": "docs/mythology/glass-cherub.png",
       "source": "Generated original Mythology of Music menu art; built-in image generation",
       "width": 832,
@@ -283,7 +283,7 @@
     },
     {
       "id": "temple-of-jam",
-      "file": "mythology/temple-of-jam.webp",
+      "file": "mythology/temple-of-jam.avif",
       "master": "docs/mythology/temple-of-jam.png",
       "source": "Generated original Mythology of Music menu art; built-in image generation",
       "width": 772,
@@ -293,7 +293,7 @@
     },
     {
       "id": "lute-serenade",
-      "file": "mythology/lute-serenade.webp",
+      "file": "mythology/lute-serenade.avif",
       "master": "docs/mythology/lute-serenade.png",
       "source": "Generated original Mythology of Music menu art; built-in image generation",
       "width": 760,
@@ -303,7 +303,7 @@
     },
     {
       "id": "jazz-oracle",
-      "file": "mythology/jazz-oracle.webp",
+      "file": "mythology/jazz-oracle.avif",
       "master": "docs/mythology/jazz-oracle.png",
       "source": "Generated original Mythology of Music menu art; built-in image generation",
       "width": 760,
@@ -313,7 +313,7 @@
     },
     {
       "id": "crossroads-duel",
-      "file": "mythology/crossroads-duel.webp",
+      "file": "mythology/crossroads-duel.avif",
       "master": "docs/mythology/crossroads-duel.png",
       "source": "Generated original Mythology of Music menu art; built-in image generation",
       "width": 967,
@@ -323,7 +323,7 @@
     },
     {
       "id": "valkyrie-bassist",
-      "file": "mythology/valkyrie-bassist.webp",
+      "file": "mythology/valkyrie-bassist.avif",
       "master": "docs/mythology/valkyrie-bassist.png",
       "source": "Generated original Mythology of Music menu art; built-in image generation",
       "width": 760,
@@ -333,7 +333,7 @@
     },
     {
       "id": "creation-of-riff",
-      "file": "mythology/creation-of-riff.webp",
+      "file": "mythology/creation-of-riff.avif",
       "master": "docs/mythology/creation-of-riff.png",
       "source": "Generated original Mythology of Music menu art; built-in image generation",
       "width": 1000,
@@ -343,7 +343,7 @@
     },
     {
       "id": "flying-pig",
-      "file": "rehearsal/flying-pig.webp",
+      "file": "rehearsal/flying-pig.avif",
       "source": "Preserved from supplied Rehearsal Room build",
       "width": 414,
       "height": 426,
@@ -352,7 +352,7 @@
     },
     {
       "id": "winged-imp",
-      "file": "rehearsal/winged-imp.webp",
+      "file": "rehearsal/winged-imp.avif",
       "source": "Preserved from supplied Rehearsal Room build",
       "width": 292,
       "height": 262,
@@ -361,7 +361,7 @@
     },
     {
       "id": "skeleton-hand",
-      "file": "rehearsal/skeleton-hand.webp",
+      "file": "rehearsal/skeleton-hand.avif",
       "source": "Preserved from supplied Rehearsal Room build",
       "width": 438,
       "height": 510,
@@ -370,7 +370,7 @@
     },
     {
       "id": "roadie-cable",
-      "file": "rehearsal/roadie-cable.webp",
+      "file": "rehearsal/roadie-cable.avif",
       "source": "Preserved from supplied Rehearsal Room build",
       "width": 582,
       "height": 380,
@@ -379,7 +379,7 @@
     },
     {
       "id": "amp-imp",
-      "file": "rehearsal/amp-imp.webp",
+      "file": "rehearsal/amp-imp.avif",
       "source": "Preserved from supplied Rehearsal Room build",
       "width": 402,
       "height": 302,
@@ -388,7 +388,7 @@
     },
     {
       "id": "riff-rocker",
-      "file": "rehearsal/riff-rocker.webp",
+      "file": "rehearsal/riff-rocker.avif",
       "source": "Preserved from supplied Rehearsal Room build",
       "width": 700,
       "height": 355,
@@ -397,7 +397,7 @@
     },
     {
       "id": "tech-roadie",
-      "file": "rehearsal/tech-roadie.webp",
+      "file": "rehearsal/tech-roadie.avif",
       "source": "Preserved from supplied Rehearsal Room build",
       "width": 352,
       "height": 318,
@@ -406,7 +406,7 @@
     },
     {
       "id": "flight-case",
-      "file": "rehearsal/flight-case.webp",
+      "file": "rehearsal/flight-case.avif",
       "source": "Preserved from supplied Rehearsal Room build",
       "width": 448,
       "height": 390,
@@ -415,7 +415,7 @@
     },
     {
       "id": "case-towel",
-      "file": "rehearsal/case-towel.webp",
+      "file": "rehearsal/case-towel.avif",
       "source": "Preserved from supplied Rehearsal Room build",
       "width": 432,
       "height": 442,
@@ -424,7 +424,7 @@
     },
     {
       "id": "sacred-pick",
-      "file": "myth2/sacred-pick.webp",
+      "file": "myth2/sacred-pick.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "01-sacred-pick.png",
       "width": 353,
@@ -434,7 +434,7 @@
     },
     {
       "id": "eleven-cherub",
-      "file": "myth2/eleven-cherub.webp",
+      "file": "myth2/eleven-cherub.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "02-eleven-cherub.png",
       "width": 560,
@@ -444,7 +444,7 @@
     },
     {
       "id": "stained-glass-cherub",
-      "file": "myth2/stained-glass-cherub.webp",
+      "file": "myth2/stained-glass-cherub.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "03-stained-glass-cherub.png",
       "width": 548,
@@ -454,7 +454,7 @@
     },
     {
       "id": "angel-guitar",
-      "file": "myth2/angel-guitar.webp",
+      "file": "myth2/angel-guitar.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "04-angel-guitar.png",
       "width": 560,
@@ -464,7 +464,7 @@
     },
     {
       "id": "devil-guitar",
-      "file": "myth2/devil-guitar.webp",
+      "file": "myth2/devil-guitar.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "05-devil-guitar.png",
       "width": 560,
@@ -474,7 +474,7 @@
     },
     {
       "id": "creation-of-rock",
-      "file": "myth2/creation-of-rock.webp",
+      "file": "myth2/creation-of-rock.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "06-creation-of-rock.png",
       "width": 560,
@@ -484,7 +484,7 @@
     },
     {
       "id": "shoulder-advisers",
-      "file": "myth2/shoulder-advisers.webp",
+      "file": "myth2/shoulder-advisers.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "07-shoulder-advisers.png",
       "width": 560,
@@ -494,7 +494,7 @@
     },
     {
       "id": "balcony-serenade",
-      "file": "myth2/balcony-serenade.webp",
+      "file": "myth2/balcony-serenade.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "08-balcony-serenade.png",
       "width": 533,
@@ -504,7 +504,7 @@
     },
     {
       "id": "temple-of-rock",
-      "file": "myth2/temple-of-rock.webp",
+      "file": "myth2/temple-of-rock.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "09-temple-of-rock.png",
       "width": 548,
@@ -514,7 +514,7 @@
     },
     {
       "id": "amp-king",
-      "file": "myth2/amp-king.webp",
+      "file": "myth2/amp-king.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "10-amp-king.png",
       "width": 560,
@@ -524,7 +524,7 @@
     },
     {
       "id": "guitar-valkyrie",
-      "file": "myth2/guitar-valkyrie.webp",
+      "file": "myth2/guitar-valkyrie.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "11-guitar-valkyrie.png",
       "width": 560,
@@ -534,7 +534,7 @@
     },
     {
       "id": "lightning-chord",
-      "file": "myth2/lightning-chord.webp",
+      "file": "myth2/lightning-chord.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "12-lightning-chord.png",
       "width": 560,
@@ -544,7 +544,7 @@
     },
     {
       "id": "demonic-duel",
-      "file": "myth2/demonic-duel.webp",
+      "file": "myth2/demonic-duel.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "13-demonic-duel.png",
       "width": 560,
@@ -554,7 +554,7 @@
     },
     {
       "id": "guitar-worship",
-      "file": "myth2/guitar-worship.webp",
+      "file": "myth2/guitar-worship.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "14-guitar-worship.png",
       "width": 533,
@@ -564,7 +564,7 @@
     },
     {
       "id": "enormous-amp",
-      "file": "myth2/enormous-amp.webp",
+      "file": "myth2/enormous-amp.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "15-enormous-amp.png",
       "width": 560,
@@ -574,7 +574,7 @@
     },
     {
       "id": "skeleton-bassist",
-      "file": "myth2/skeleton-bassist.webp",
+      "file": "myth2/skeleton-bassist.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "16-skeleton-bassist.png",
       "width": 517,
@@ -584,7 +584,7 @@
     },
     {
       "id": "jazz-cat",
-      "file": "myth2/jazz-cat.webp",
+      "file": "myth2/jazz-cat.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "17-jazz-cat.png",
       "width": 556,
@@ -594,7 +594,7 @@
     },
     {
       "id": "pick-excalibur",
-      "file": "myth2/pick-excalibur.webp",
+      "file": "myth2/pick-excalibur.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "18-pick-excalibur.png",
       "width": 534,
@@ -604,7 +604,7 @@
     },
     {
       "id": "magic-guitar-case",
-      "file": "myth2/magic-guitar-case.webp",
+      "file": "myth2/magic-guitar-case.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "19-magic-guitar-case.png",
       "width": 560,
@@ -614,7 +614,7 @@
     },
     {
       "id": "band-trophy",
-      "file": "myth2/band-trophy.webp",
+      "file": "myth2/band-trophy.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "20-band-trophy.png",
       "width": 560,
@@ -624,7 +624,7 @@
     },
     {
       "id": "cable-horns",
-      "file": "myth2/cable-horns.webp",
+      "file": "myth2/cable-horns.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "21-cable-horns.png",
       "width": 552,
@@ -634,7 +634,7 @@
     },
     {
       "id": "cable-wrestler",
-      "file": "myth2/cable-wrestler.webp",
+      "file": "myth2/cable-wrestler.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "22-cable-wrestler.png",
       "width": 540,
@@ -644,7 +644,7 @@
     },
     {
       "id": "skull-choir",
-      "file": "myth2/skull-choir.webp",
+      "file": "myth2/skull-choir.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "23-skull-choir.png",
       "width": 560,
@@ -654,7 +654,7 @@
     },
     {
       "id": "string-mountain",
-      "file": "myth2/string-mountain.webp",
+      "file": "myth2/string-mountain.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "24-string-mountain.png",
       "width": 560,
@@ -664,7 +664,7 @@
     },
     {
       "id": "raccoon-roadie",
-      "file": "myth2/raccoon-roadie.webp",
+      "file": "myth2/raccoon-roadie.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "25-raccoon-roadie.png",
       "width": 560,
@@ -674,7 +674,7 @@
     },
     {
       "id": "possessed-tuner",
-      "file": "myth2/possessed-tuner.webp",
+      "file": "myth2/possessed-tuner.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "26-possessed-tuner.png",
       "width": 462,
@@ -684,7 +684,7 @@
     },
     {
       "id": "whammy-wizard",
-      "file": "myth2/whammy-wizard.webp",
+      "file": "myth2/whammy-wizard.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "27-whammy-wizard.png",
       "width": 560,
@@ -694,7 +694,7 @@
     },
     {
       "id": "kraken-bassist",
-      "file": "myth2/kraken-bassist.webp",
+      "file": "myth2/kraken-bassist.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "28-kraken-bassist.png",
       "width": 560,
@@ -704,7 +704,7 @@
     },
     {
       "id": "pick-dragon",
-      "file": "myth2/pick-dragon.webp",
+      "file": "myth2/pick-dragon.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "29-pick-dragon.png",
       "width": 560,
@@ -714,7 +714,7 @@
     },
     {
       "id": "boxing-metronome",
-      "file": "myth2/boxing-metronome.webp",
+      "file": "myth2/boxing-metronome.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "30-boxing-metronome.png",
       "width": 556,
@@ -724,7 +724,7 @@
     },
     {
       "id": "pick-pigeon",
-      "file": "myth2/pick-pigeon.webp",
+      "file": "myth2/pick-pigeon.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "31-pick-pigeon.png",
       "width": 560,
@@ -734,7 +734,7 @@
     },
     {
       "id": "ukulele-werewolf",
-      "file": "myth2/ukulele-werewolf.webp",
+      "file": "myth2/ukulele-werewolf.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "32-ukulele-werewolf.png",
       "width": 538,
@@ -744,7 +744,7 @@
     },
     {
       "id": "bass-abduction",
-      "file": "myth2/bass-abduction.webp",
+      "file": "myth2/bass-abduction.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "33-bass-abduction.png",
       "width": 478,
@@ -754,7 +754,7 @@
     },
     {
       "id": "delicate-executioner",
-      "file": "myth2/delicate-executioner.webp",
+      "file": "myth2/delicate-executioner.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "34-delicate-executioner.png",
       "width": 560,
@@ -764,7 +764,7 @@
     },
     {
       "id": "haunted-speaker",
-      "file": "myth2/haunted-speaker.webp",
+      "file": "myth2/haunted-speaker.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "35-haunted-speaker.png",
       "width": 560,
@@ -774,7 +774,7 @@
     },
     {
       "id": "runaway-pick",
-      "file": "myth2/runaway-pick.webp",
+      "file": "myth2/runaway-pick.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "36-runaway-pick.png",
       "width": 559,
@@ -784,7 +784,7 @@
     },
     {
       "id": "guitar-peacock",
-      "file": "myth2/guitar-peacock.webp",
+      "file": "myth2/guitar-peacock.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "37-guitar-peacock.png",
       "width": 560,
@@ -794,7 +794,7 @@
     },
     {
       "id": "beer-swamp-creature",
-      "file": "myth2/beer-swamp-creature.webp",
+      "file": "myth2/beer-swamp-creature.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "38-beer-swamp-creature.png",
       "width": 560,
@@ -804,7 +804,7 @@
     },
     {
       "id": "levitating-bass-monk",
-      "file": "myth2/levitating-bass-monk.webp",
+      "file": "myth2/levitating-bass-monk.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "39-levitating-bass-monk.png",
       "width": 496,
@@ -814,7 +814,7 @@
     },
     {
       "id": "pick-gargoyle",
-      "file": "myth2/pick-gargoyle.webp",
+      "file": "myth2/pick-gargoyle.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "40-pick-gargoyle.png",
       "width": 557,
@@ -824,7 +824,7 @@
     },
     {
       "id": "mushroom-band",
-      "file": "myth2/mushroom-band.webp",
+      "file": "myth2/mushroom-band.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "41-mushroom-band.png",
       "width": 558,
@@ -834,7 +834,7 @@
     },
     {
       "id": "cable-cobra",
-      "file": "myth2/cable-cobra.webp",
+      "file": "myth2/cable-cobra.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "42-cable-cobra.png",
       "width": 506,
@@ -844,7 +844,7 @@
     },
     {
       "id": "armored-barre-chord",
-      "file": "myth2/armored-barre-chord.webp",
+      "file": "myth2/armored-barre-chord.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "43-armored-barre-chord.png",
       "width": 560,
@@ -854,7 +854,7 @@
     },
     {
       "id": "reaper-string-trimmer",
-      "file": "myth2/reaper-string-trimmer.webp",
+      "file": "myth2/reaper-string-trimmer.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "44-reaper-string-trimmer.png",
       "width": 560,
@@ -864,7 +864,7 @@
     },
     {
       "id": "black-hole-fishing",
-      "file": "myth2/black-hole-fishing.webp",
+      "file": "myth2/black-hole-fishing.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "45-black-hole-fishing.png",
       "width": 560,
@@ -874,7 +874,7 @@
     },
     {
       "id": "offended-octopus",
-      "file": "myth2/offended-octopus.webp",
+      "file": "myth2/offended-octopus.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "46-offended-octopus.png",
       "width": 542,
@@ -884,7 +884,7 @@
     },
     {
       "id": "walking-practice-amp",
-      "file": "myth2/walking-practice-amp.webp",
+      "file": "myth2/walking-practice-amp.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "47-walking-practice-amp.png",
       "width": 537,
@@ -894,7 +894,7 @@
     },
     {
       "id": "fader-surfer",
-      "file": "myth2/fader-surfer.webp",
+      "file": "myth2/fader-surfer.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "48-fader-surfer.png",
       "width": 544,
@@ -904,7 +904,7 @@
     },
     {
       "id": "rock-hieroglyphs",
-      "file": "myth2/rock-hieroglyphs.webp",
+      "file": "myth2/rock-hieroglyphs.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "49-rock-hieroglyphs.png",
       "width": 559,
@@ -914,7 +914,7 @@
     },
     {
       "id": "cave-jam",
-      "file": "myth2/cave-jam.webp",
+      "file": "myth2/cave-jam.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "50-cave-jam.png",
       "width": 560,
@@ -924,7 +924,7 @@
     },
     {
       "id": "sacred-riff-manuscript",
-      "file": "myth2/sacred-riff-manuscript.webp",
+      "file": "myth2/sacred-riff-manuscript.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "51-sacred-riff-manuscript.png",
       "width": 560,
@@ -934,7 +934,7 @@
     },
     {
       "id": "practice-commandment",
-      "file": "myth2/practice-commandment.webp",
+      "file": "myth2/practice-commandment.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "52-practice-commandment.png",
       "width": 526,
@@ -944,7 +944,7 @@
     },
     {
       "id": "stained-glass-bass-saint",
-      "file": "myth2/stained-glass-bass-saint.webp",
+      "file": "myth2/stained-glass-bass-saint.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "53-stained-glass-bass-saint.png",
       "width": 486,
@@ -954,7 +954,7 @@
     },
     {
       "id": "stained-glass-riff-phoenix",
-      "file": "myth2/stained-glass-riff-phoenix.webp",
+      "file": "myth2/stained-glass-riff-phoenix.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "54-stained-glass-riff-phoenix.png",
       "width": 560,
@@ -964,7 +964,7 @@
     },
     {
       "id": "stained-glass-sacred-tempo",
-      "file": "myth2/stained-glass-sacred-tempo.webp",
+      "file": "myth2/stained-glass-sacred-tempo.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "55-stained-glass-sacred-tempo.png",
       "width": 550,
@@ -974,7 +974,7 @@
     },
     {
       "id": "stained-glass-celestial-band",
-      "file": "myth2/stained-glass-celestial-band.webp",
+      "file": "myth2/stained-glass-celestial-band.avif",
       "source": "Mythology of Music art pack (56), user-supplied 2026-11-11",
       "original": "56-stained-glass-celestial-band.png",
       "width": 560,
@@ -984,7 +984,7 @@
     },
     {
       "id": "scrap-cream-masking-tape",
-      "file": "scraps/cream-masking-tape.webp",
+      "file": "scraps/cream-masking-tape.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "01-cream-masking-tape.png",
       "width": 720,
@@ -994,7 +994,7 @@
     },
     {
       "id": "scrap-black-gaffer-tape",
-      "file": "scraps/black-gaffer-tape.webp",
+      "file": "scraps/black-gaffer-tape.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "02-black-gaffer-tape.png",
       "width": 720,
@@ -1004,7 +1004,7 @@
     },
     {
       "id": "scrap-silver-duct-tape",
-      "file": "scraps/silver-duct-tape.webp",
+      "file": "scraps/silver-duct-tape.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "03-silver-duct-tape.png",
       "width": 720,
@@ -1014,7 +1014,7 @@
     },
     {
       "id": "scrap-translucent-tape",
-      "file": "scraps/translucent-tape.webp",
+      "file": "scraps/translucent-tape.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "04-translucent-tape.png",
       "width": 720,
@@ -1024,7 +1024,7 @@
     },
     {
       "id": "scrap-lined-notebook-corner",
-      "file": "scraps/lined-notebook-corner.webp",
+      "file": "scraps/lined-notebook-corner.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "05-lined-notebook-corner.png",
       "width": 720,
@@ -1034,7 +1034,7 @@
     },
     {
       "id": "scrap-ripped-setlist-paper",
-      "file": "scraps/ripped-setlist-paper.webp",
+      "file": "scraps/ripped-setlist-paper.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "06-ripped-setlist-paper.png",
       "width": 720,
@@ -1044,7 +1044,7 @@
     },
     {
       "id": "scrap-pink-sticky-note",
-      "file": "scraps/pink-sticky-note.webp",
+      "file": "scraps/pink-sticky-note.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "07-pink-sticky-note.png",
       "width": 656,
@@ -1054,7 +1054,7 @@
     },
     {
       "id": "scrap-concert-flyer-scrap",
-      "file": "scraps/concert-flyer-scrap.webp",
+      "file": "scraps/concert-flyer-scrap.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "08-concert-flyer-scrap.png",
       "width": 720,
@@ -1064,7 +1064,7 @@
     },
     {
       "id": "scrap-peeling-sticker-frame",
-      "file": "scraps/peeling-sticker-frame.webp",
+      "file": "scraps/peeling-sticker-frame.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "09-peeling-sticker-frame.png",
       "width": 720,
@@ -1074,7 +1074,7 @@
     },
     {
       "id": "scrap-backstage-pass-tag",
-      "file": "scraps/backstage-pass-tag.webp",
+      "file": "scraps/backstage-pass-tag.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "10-backstage-pass-tag.png",
       "width": 720,
@@ -1084,7 +1084,7 @@
     },
     {
       "id": "scrap-black-curved-arrow",
-      "file": "scraps/black-curved-arrow.webp",
+      "file": "scraps/black-curved-arrow.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "11-black-curved-arrow.png",
       "width": 720,
@@ -1094,7 +1094,7 @@
     },
     {
       "id": "scrap-red-hooked-arrow",
-      "file": "scraps/red-hooked-arrow.webp",
+      "file": "scraps/red-hooked-arrow.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "12-red-hooked-arrow.png",
       "width": 720,
@@ -1104,7 +1104,7 @@
     },
     {
       "id": "scrap-white-chalk-arrow",
-      "file": "scraps/white-chalk-arrow.webp",
+      "file": "scraps/white-chalk-arrow.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "13-white-chalk-arrow.png",
       "width": 720,
@@ -1114,7 +1114,7 @@
     },
     {
       "id": "scrap-guitar-cable-arrow",
-      "file": "scraps/guitar-cable-arrow.webp",
+      "file": "scraps/guitar-cable-arrow.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "14-guitar-cable-arrow.png",
       "width": 720,
@@ -1124,7 +1124,7 @@
     },
     {
       "id": "scrap-marker-double-circle",
-      "file": "scraps/marker-double-circle.webp",
+      "file": "scraps/marker-double-circle.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "15-marker-double-circle.png",
       "width": 706,
@@ -1134,7 +1134,7 @@
     },
     {
       "id": "scrap-yellow-highlighter-swipe",
-      "file": "scraps/yellow-highlighter-swipe.webp",
+      "file": "scraps/yellow-highlighter-swipe.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "16-yellow-highlighter-swipe.png",
       "width": 720,
@@ -1144,7 +1144,7 @@
     },
     {
       "id": "scrap-scribbled-star",
-      "file": "scraps/scribbled-star.webp",
+      "file": "scraps/scribbled-star.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "17-scribbled-star.png",
       "width": 569,
@@ -1154,7 +1154,7 @@
     },
     {
       "id": "scrap-pick-underline",
-      "file": "scraps/pick-underline.webp",
+      "file": "scraps/pick-underline.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "18-pick-underline.png",
       "width": 720,
@@ -1164,7 +1164,7 @@
     },
     {
       "id": "scrap-major-pentatonic",
-      "file": "scraps/major-pentatonic.webp",
+      "file": "scraps/major-pentatonic.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "19-major-pentatonic.png",
       "width": 720,
@@ -1174,7 +1174,7 @@
     },
     {
       "id": "scrap-minor-pentatonic",
-      "file": "scraps/minor-pentatonic.webp",
+      "file": "scraps/minor-pentatonic.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "20-minor-pentatonic.png",
       "width": 720,
@@ -1184,7 +1184,7 @@
     },
     {
       "id": "scrap-root-note",
-      "file": "scraps/root-note.webp",
+      "file": "scraps/root-note.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "21-root-note.png",
       "width": 720,
@@ -1194,7 +1194,7 @@
     },
     {
       "id": "scrap-bend-it",
-      "file": "scraps/bend-it.webp",
+      "file": "scraps/bend-it.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "22-bend-it.png",
       "width": 720,
@@ -1204,7 +1204,7 @@
     },
     {
       "id": "scrap-groove",
-      "file": "scraps/groove.webp",
+      "file": "scraps/groove.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "23-groove.png",
       "width": 720,
@@ -1214,7 +1214,7 @@
     },
     {
       "id": "scrap-clean-first",
-      "file": "scraps/clean-first.webp",
+      "file": "scraps/clean-first.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "24-clean-first.png",
       "width": 720,
@@ -1224,7 +1224,7 @@
     },
     {
       "id": "scrap-wrong-note",
-      "file": "scraps/wrong-note.webp",
+      "file": "scraps/wrong-note.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "25-wrong-note.png",
       "width": 720,
@@ -1234,7 +1234,7 @@
     },
     {
       "id": "scrap-tune-first",
-      "file": "scraps/tune-first.webp",
+      "file": "scraps/tune-first.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "26-tune-first.png",
       "width": 720,
@@ -1244,7 +1244,7 @@
     },
     {
       "id": "scrap-other-pick",
-      "file": "scraps/other-pick.webp",
+      "file": "scraps/other-pick.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "27-other-pick.png",
       "width": 720,
@@ -1254,7 +1254,7 @@
     },
     {
       "id": "scrap-one-more-run",
-      "file": "scraps/one-more-run.webp",
+      "file": "scraps/one-more-run.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "28-one-more-run.png",
       "width": 720,
@@ -1264,7 +1264,7 @@
     },
     {
       "id": "scrap-eq-sign",
-      "file": "scraps/eq-sign.webp",
+      "file": "scraps/eq-sign.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "29-eq-sign.png",
       "width": 720,
@@ -1274,7 +1274,7 @@
     },
     {
       "id": "scrap-engineers-inspection",
-      "file": "scraps/engineers-inspection.webp",
+      "file": "scraps/engineers-inspection.avif",
       "source": "Rehearsal Room UI assets (30), user-supplied 2026-11-11",
       "original": "30-engineers-inspection.png",
       "width": 720,

@@ -14,13 +14,13 @@
 #app[data-mood='discover'] { --poster:#e99950; --poster-alt:#7ed2c8; --show-wash:#39291b; }
 #app[data-mood='progress'] { --poster:#cbd66b; --poster-alt:#e8b164; --show-wash:#30341e; }
 #app[data-mood='greenroom'] { --poster:#eb9bb5; --poster-alt:#a99ce3; --show-wash:#382330; }
-#app .titlebar { background:#191715 url('../art/roadshow/flight-case.webp') center/760px; border-bottom:2px solid #625647; }
+#app .titlebar { background:#191715 url('../art/roadshow/flight-case.avif') center/760px; border-bottom:2px solid #625647; }
 #app .brand > span:not(.brand-ver) { color:#f3e7cb; font-stretch:65%; font-weight:900; font-size:25px; transform:rotate(-2deg) skew(-9deg); text-shadow:2px 2px #000; }
 #app .search { border-radius:2px; background:#151413; border-color:#6b6051; box-shadow:inset 0 2px 6px #0008; }
 #app .workspace { grid-template-rows:158px minmax(0,1fr); }
 #app .identity-banner {
   padding:14px 32px; border-bottom:3px solid #81735f;
-  background:linear-gradient(100deg,var(--show-wash) 0%,#191715d9 62%,#19171555),url('../art/roadshow/flight-case.webp') center/850px;
+  background:linear-gradient(100deg,var(--show-wash) 0%,#191715d9 62%,#19171555),url('../art/roadshow/flight-case.avif') center/850px;
 }
 #app .identity-banner::before { inset:0 15% 0 auto; width:38%; transform:skew(-18deg); opacity:.32; background:repeating-linear-gradient(90deg,transparent 0 37px,var(--poster) 37px 40px); }
 #app .identity-banner::after { inset:auto 0 0; height:5px; width:auto; background:var(--poster); clip-path:polygon(0 40%,5% 0,14% 55%,25% 10%,38% 65%,51% 0,68% 70%,79% 0,91% 60%,100% 20%,100% 100%,0 100%); }
@@ -30,7 +30,7 @@
 #app .identity-line { color:#d5c9b2; font-size:12px; }
 #app .identity-art { transform:rotate(3deg); filter:drop-shadow(3px 5px 0 #0007); }
 #app .identity-options { border-radius:1px; color:#e5d5b9; background:#29241d; border-color:#77644e; }
-#app .sidebar { background:linear-gradient(#171512e8,#171512ee),url('../art/roadshow/flight-case.webp') center/600px; border-right:3px double #6c5f4d; }
+#app .sidebar { background:linear-gradient(#171512e8,#171512ee),url('../art/roadshow/flight-case.avif') center/600px; border-right:3px double #6c5f4d; }
 #app .nav-section { height:43px; border-radius:1px; font-size:14px; font-weight:850; font-stretch:80%; text-transform:uppercase; letter-spacing:.025em; }
 #app .nav-section[aria-current='page'] { color:#201b14; border-color:#e5d19b; background:var(--poster); box-shadow:3px 3px #0009; transform:rotate(-1.2deg); }
 #app .nav-section[aria-current='page'] svg { color:#292016; }
@@ -41,7 +41,7 @@
 #app .roadshow-sticker img { width:64px; height:76px; object-fit:contain; transform:rotate(-9deg); }
 #app .roadshow-sticker span { max-width:90px; font-size:11px; font-weight:900; line-height:1.2; letter-spacing:.04em; transform:rotate(-3deg); }
 #app .guitar-card { border-radius:2px; background:#26241f; border:1px solid #70644f; box-shadow:inset 0 0 0 2px #15130f; }
-#app .page { background:linear-gradient(#191714ee,#191714f5),url('../art/roadshow/flight-case.webp') center/950px; }
+#app .page { background:linear-gradient(#191714ee,#191714f5),url('../art/roadshow/flight-case.avif') center/950px; }
 #app :is(.card,.slot,.tk-card,.tones-sec,.dis-card,.gr-card,.goal-card) { border-radius:2px; border-color:#554a3b; background-color:#26221d; box-shadow:3px 4px 0 #08070666,inset 0 0 0 1px #ffffff06; }
 #app .card { background-image:radial-gradient(circle at 6px 6px,#a4916f 0 1px,#14120f 1px 2px,transparent 3px),radial-gradient(circle at calc(100% - 6px) 6px,#a4916f 0 1px,#14120f 1px 2px,transparent 3px); }
 #app :is(.card-head h2,.card > h2,.tones-sec h3,.progress-head h1,.play-head h1,.gr-head h1,.discover h1) { text-transform:uppercase; font-weight:900; font-stretch:70%; letter-spacing:.02em; color:#f1dfbb; }
@@ -55,7 +55,7 @@
 #app :is(.btn.rec.on,.btn.rec.recording) { background:#672923; color:#fff1e9; border-color:#ff7863; }
 #app :is(.gseg,.seg) { background:#171510; border-color:#665a47; }
 #app :is(.gseg,.seg) button[aria-pressed='true'] { background:#54452b; color:#ffe7ac; box-shadow:inset 0 -2px #e4bd61; }
-#app .nowbar { background:#171410 url('../art/roadshow/flight-case.webp') center/850px; border-top:3px double #72634b; }
+#app .nowbar { background:#171410 url('../art/roadshow/flight-case.avif') center/850px; border-top:3px double #72634b; }
 #app .round-play { color:#22180b; background:#f0ca63; border:2px solid #ffe9ac; box-shadow:2px 2px #000; }
 #app .lib-head { background:#242c27; border-bottom:2px solid #5c8073; }
 #app .lib-head h1 { font-stretch:66%; text-transform:uppercase; color:#d9f0dc; font-size:27px; }
@@ -69,7 +69,7 @@
 #app .inspector { background:#201e18; border-left:2px solid #655843; }
 #app .insp-cover { border-radius:1px; border:4px solid #cebea0; box-shadow:4px 5px #0007; }
 #app .tones-list { background:#201a24; border-right:2px solid #675572; }
-#app .tones-edit { background:linear-gradient(#201c21ed,#201c21f5),url('../art/roadshow/flight-case.webp') center/750px; }
+#app .tones-edit { background:linear-gradient(#201c21ed,#201c21f5),url('../art/roadshow/flight-case.avif') center/750px; }
 #app .tk-card.on,#app .slot.on { border-color:var(--poster); box-shadow:inset 0 -3px var(--poster),3px 3px #0008; }
 #app .knob-well { background:#151413; border:2px solid #544b3f; border-radius:2px; box-shadow:inset 0 3px 8px #0008; }
 #app .rknob .ring { filter:drop-shadow(2px 3px 2px #0008); }
@@ -84,7 +84,7 @@
    treatment, except while the highway is visible (including its own dialogs). */
 body:not(:has(.highway:not([hidden]))) #overlays { --ink:#f4e8d0; --ink-2:#cec0a6; --ink-3:#b4a68f; --card:#29241e; --rule:#635541; --well:#171410; --focus:#f2d16e; }
 body:not(:has(.highway:not([hidden]))) #overlays .modal { border-radius:3px; background:#24201b; border:2px solid #887558; box-shadow:7px 9px 0 #0008,0 20px 80px #000b; }
-body:not(:has(.highway:not([hidden]))) #overlays .modal > header { min-height:64px; border-bottom:3px solid #b49352; background:linear-gradient(90deg,#38291de8,#1d1813d9),url('../art/roadshow/flight-case.webp') center/700px; }
+body:not(:has(.highway:not([hidden]))) #overlays .modal > header { min-height:64px; border-bottom:3px solid #b49352; background:linear-gradient(90deg,#38291de8,#1d1813d9),url('../art/roadshow/flight-case.avif') center/700px; }
 body:not(:has(.highway:not([hidden]))) #overlays .modal > header h2 { color:#f1deb4; font-size:25px; text-transform:uppercase; font-stretch:65%; font-weight:900; letter-spacing:.025em; transform:rotate(-1deg); }
 body:not(:has(.highway:not([hidden]))) #overlays .modal > footer { background:#191610; border-color:#6f5e44; }
 body:not(:has(.highway:not([hidden]))) #overlays :is(.btn,.input,select,textarea,.pb-pedal,.pb-choice,.tw-card,.gs-card) { border-radius:2px; }

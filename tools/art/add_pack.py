@@ -28,8 +28,9 @@ for png in sorted(src.glob('*.png')):
         box = (max(0, box[0] - pad), max(0, box[1] - pad), min(im.width, box[2] + pad), min(im.height, box[3] + pad))
         im = im.crop(box)
     im.thumbnail((side, side), Image.Resampling.LANCZOS)
-    file = f'{folder}/{stem}.webp'
-    im.save(out / f'{stem}.webp', 'WEBP', quality=86, method=6)
+    # 4.9.1: AVIF, same pixels, about half a WebP's size (see to_avif.py)
+    file = f'{folder}/{stem}.avif'
+    im.save(out / f'{stem}.avif', 'AVIF', quality=60, speed=4)
     by_id[aid] = {'id': aid, 'file': file, 'source': note, 'original': png.name,
                   'width': im.width, 'height': im.height, 'alpha': True, 'role': 'decoration only'}
     print(aid, im.size)

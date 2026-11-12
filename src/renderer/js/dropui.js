@@ -46,8 +46,8 @@ export function setDropLook(v) {
 /** The Drop is doing something right now (on, and dropping). */
 export const dropInUse = () => !!rig.drop.on && rig.dropAmount() > 0;
 
-// where things are on the photo (art/gear/full/digitech-drop.webp, 546 x 931)
-const PHOTO = { w: 546, h: 931, src: 'art/gear/full/digitech-drop.webp' };
+// where things are on the photo (art/gear/full/digitech-drop.avif, 546 x 931)
+const PHOTO = { w: 546, h: 931, src: 'art/gear/full/digitech-drop.avif' };
 const KNOB = { x: 270, y: 147, r: 75 };
 // the lights under the knob: 1 to 7, OCT, OCT+DRY (the last isn't on Stagehand's Drop)
 const LEDS = [[84, 212], [131, 240], [177, 266], [222, 295], [269, 322], [313, 350], [360, 379], [405, 408], [462, 408]];

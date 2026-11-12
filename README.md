@@ -172,6 +172,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.9.1:** the pictures take up much less room (the art went from 45 MB to 27 MB) and look exactly the same on screen.
 - **4.9:** 56 new Mythology of Music characters around the app, and characters that show up for the big moments: level ups, milestones, achievements, the tuning and timing checks, stems splitting and saving a tone. The Rehearsal Room banner gets real tape, marker scribbles, new papers and hand-written notes for each page. Getting started circles what it's showing you.
 - **4.8:** the screens around the highway, the Tab view and the Waveform view match the rest of Stagehand. The Drop is now the real DigiTech Drop pedal, and it pops open by itself when you use it. Page pictures reach up into the top bar again, and Songs, Discover and Progress are quicker with no blinking pictures.
 - **4.7:** the overdrive, distortion, fuzz and booster pedals are now built like the real circuits: they clean up when you play softer and react to how hard you dig in. The pitch pedals hold a clean, steady note instead of warbling.

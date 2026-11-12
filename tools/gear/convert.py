@@ -1,4 +1,4 @@
-"""4.5.x: gear photos -> app assets. art/gear/full/<key>.webp (<=1100 px), art/gear/thumb/<key>.webp (<=320 px).
+"""4.5.x: gear photos -> app assets. art/gear/full/<key>.avif (<=1100 px), art/gear/thumb/<key>.webp (<=320 px).
 Cabinet photos keep one picture per family (mic variants share it).  python3 tools/gear/convert.py <gear dir>"""
 import os, sys, glob, re
 from PIL import Image
@@ -29,8 +29,14 @@ for k, f in sorted(seen.items()):
     for sub, size, q in (('full', 1100, 78), ('thumb', 320, 78)):
         t = im.copy()
         t.thumbnail((size, size), Image.LANCZOS)
-        p = os.path.join(OUT, sub, f'{k}.webp')
-        t.save(p, 'WEBP', quality=q, method=5)
+        # 4.9.1: full-size photos are AVIF (same pixels, about half the size); thumbnails stay WebP,
+        # which decodes faster when the gear wall shows 200 of them at once
+        if sub == 'full':
+            p = os.path.join(OUT, sub, f'{k}.avif')
+            t.save(p, 'AVIF', quality=60, speed=4)
+        else:
+            p = os.path.join(OUT, sub, f'{k}.webp')
+            t.save(p, 'WEBP', quality=q, method=5)
         total += os.path.getsize(p)
     print(k, im.size, flush=True)
 json.dump(trims, open(os.path.join(ROOT, 'tools/gear/trims.json'), 'w'), indent=0)
