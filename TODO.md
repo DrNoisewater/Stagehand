@@ -33,6 +33,8 @@ Ideas and requests not built yet. Newest first.
   needs the mic picked in Settings › Guitar & audio and "Vocals" switched on for the song.
 - **Progress/levels:** a vocals accuracy per song, XP like a guitar part, its own bests.
 
+**The build plan is in `docs/vocals-handoff.md`** (one session to build, one to tune).
+
 Suggested order: (1) keep the charted pitches and show the vocal lane with pitch bars; (2) mic input in the
 page + scoring + difficulties; (3) pitches from the vocals stem for songs without them; (4) voice through
 the engine (monitoring, clips) if wanted. Each is about a session.
