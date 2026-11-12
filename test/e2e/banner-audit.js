@@ -59,8 +59,9 @@ module.exports = async ({ page, outDir, check }) => {
         check(m.blocked.length === 0, `${tag}: search, top-bar buttons and options stay clickable` + (m.blocked.length ? ' (' + m.blocked.join(', ') + ')' : ''));
         if (m.art) {
           for (const k of ['search', 'actions', 'win', 'options']) check(!hit(m.art, m[k]), `${tag}: picture clear of ${k}`);
-          // wide pictures may sit inside the banner when the free stretch is narrow; at full HD every picture rises
-          if (w >= 1900 || m.rise === 'rise') check(m.rise === 'rise' && m.drawn.y < m.title.b - 8, `${tag}: picture rises into the top bar (${m.rise}, ${Math.round(m.drawn.y)} < ${Math.round(m.title.b)})`);
+          // tall pictures rise into the top bar; wide ones stay in the banner (one size budget for all art)
+          check(m.drawn.w <= 382 && m.drawn.h <= 202 && m.drawn.w * m.drawn.h <= 190 * 190 * 1.08, `${tag}: picture stays within its size budget (${Math.round(m.drawn.w)}x${Math.round(m.drawn.h)})`);
+          if (m.rise === 'rise') check(m.drawn.y < m.title.b - 8, `${tag}: picture rises into the top bar (${Math.round(m.drawn.y)} < ${Math.round(m.title.b)})`);
           else check(m.rise === 'inside' && m.drawn.y >= m.banner.y - 1, `${tag}: no room to rise, the picture sits in the banner`);
         }
         if (shots.has(`${w}x${hgt}`)) await snap(`${look}-${name}-${w}`);

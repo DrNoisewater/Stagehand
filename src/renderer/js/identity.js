@@ -164,6 +164,8 @@ const textRight = (el) => {
 };
 const boxRight = (el, b) => (el.hidden || !el.offsetWidth ? -Infinity : b.left + el.offsetLeft + el.offsetWidth);
 let lastBox = '';
+// the biggest a banner picture gets: about 190 px tall, 360 px wide, and no more area than a 190 px square
+const ART_MAX = { w: 360, h: 190, area: 190 * 190 };
 function layoutArt() {
   if (!banner || banner.hidden || !titlebar) return;
   const b = banner.getBoundingClientRect();
@@ -180,7 +182,8 @@ function layoutArt() {
   const fit = (left, right, top) => {
     const w = right - left, hgt = bottom - top;
     if (w <= 0 || hgt <= 0) return null;
-    const pw = Math.min(w, hgt * artAspect), ph = pw / artAspect;
+    // one size budget for every picture, whatever its shape, so new art never takes over the screen
+    const pw = Math.min(w, hgt * artAspect, ART_MAX.w, ART_MAX.h * artAspect, Math.sqrt(ART_MAX.area * artAspect)), ph = pw / artAspect;
     return { x: left + (w - pw) / 2, y: bottom - ph, w: pw, h: ph };
   };
   let mode = 'rise';
