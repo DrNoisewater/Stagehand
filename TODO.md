@@ -2,7 +2,7 @@
 
 Ideas and requests not built yet. Newest first.
 
-## Sing along: vocals for you or a second player (asked 2026-11-12; looked into, not built)
+## Sing along, as an add-on: vocals for you or a second player (asked 2026-11-12; looked into, not built)
 
 **Can it be done? Yes.** What's already there and what it would take:
 

@@ -9,6 +9,16 @@ start from the latest `main`, and check `package.json`'s version against GitHub 
 the audio and have different difficulties like easy, medium or hard. Would this be able to capture audio from a
 second microphone?" Then: "We wanna do it really smart and efficient, hopefully it doesn't take four sessions."
 
+**Where it sits (the user, same day): "The singing will be like an add-on. The main focus of the app is playing
+guitar right now."** So:
+- It is **off until you switch it on** (the Sing chip, per song; no microphone is opened and nothing is analysed
+  before that). With it off, the app looks and behaves exactly as it does today: no new menu item, no new page,
+  no prompts, no microphone question at first run.
+- Guitar and bass come first everywhere: singing never changes the guitar's sound path, its delay, note
+  detection, the highway, or guitar scoring, and it must cost nothing while a song is played without it.
+- Keep it small: the plan below is the whole of it. No new sections of the app, no settings beyond the mic picker
+  and the look. If time is short, guitar work wins and this waits.
+
 Standing rules that apply: visual first (see it, don't read it); the note highway's neck, notes, timing and scoring
 are off limits; anything with more than one look gets a setting; plain words in the app.
 
