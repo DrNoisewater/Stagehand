@@ -69,7 +69,7 @@ wav16(songWav, 48000, 2, 48000 * SECS, (i) => {
 const guitarWav = path.join(tmp, 'guitar.wav');
 wav16(guitarWav, 48000, 1, 48000 * 2, (i) => 0.25 * Math.exp(-(i % 48000) / 12000) * Math.sin((2 * Math.PI * 110 * i) / 48000));
 
-const TYPES = { '.mjs':'text/javascript', '.webp':'image/webp', '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.wav': 'audio/wav', '.css': 'text/css', '.ttf': 'font/ttf', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const TYPES = { '.mjs':'text/javascript', '.webp':'image/webp', '.avif':'image/avif', '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.wav': 'audio/wav', '.css': 'text/css', '.ttf': 'font/ttf', '.png': 'image/png', '.svg': 'image/svg+xml' };
 let identityAPI = null;
 const server = http.createServer(async (req, res) => {
   if (process.env.SH_IDENTITY_SERVE && req.url === '/identity-api' && req.method === 'POST') {

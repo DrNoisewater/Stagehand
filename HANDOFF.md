@@ -1,3 +1,22 @@
+# 4.9.1 — pictures in AVIF: 45 MB of art down to 27 MB, same look (2026-11-12)
+
+User: "we have a lot of images in the program now, can we shrink them down to not take up space but still have
+the quality at their shown resolution?"
+
+- `tools/art/to_avif.py`: every .webp under `src/renderer/art` except `gear/thumb/` → AVIF at the **same pixel
+  size**, quality 60, speed 4 (348 files, 44.1 → 24.7 MB), and rewrites references in src (manifest,
+  identity-art.js, gear-photos.js, CSS, dropui.js, identity.js, the splash). Probes (12 samples per folder, PSNR at
+  the shown size, plus a side-by-side by eye): AVIF q60 at full size beat smaller WebPs; downscaling cost more
+  quality than it saved, so nothing was made smaller in pixels (high-DPI screens keep their sharpness).
+- Gear thumbnails stay WebP (2.9 MB): the gear wall decodes ~200 at once and WebP decodes faster.
+- New art and gear photos come out as AVIF: `tools/art/add_pack.py`, `tools/gear/convert.py` (full only),
+  `build_photos.py`, `fixrows.py`. `main.js serve()` sets `Content-Type: image/avif` for app .avif files.
+- Tests: `npm test`; `SH_AUDIT=test/e2e/avif-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>`
+  (loads all 339 pictures the app names, Gear page photo); cameo-audit all 12 ok. ui3 and hwlook serve image/avif.
+- Venue photos (JPEG, 2.2 MB) left alone.
+
+**Ask the user:** do any pictures look softer than before on their screen (the gear photos up close most of all)?
+
 # 4.9.0 — the art pack: 56 Mythology of Music characters, 30 UI scraps, cameos at the big moments (2026-11-12)
 
 User attached `Stagehand-Mythology-of-Music-56.zip` (56 transparent character stickers) and

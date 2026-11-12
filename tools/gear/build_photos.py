@@ -50,7 +50,7 @@ def ok(v):
 photos = {}
 stats = {'hand': 0, 'detected': 0, 'none': 0}
 for f in sorted(os.listdir(os.path.join(ART, 'full'))):
-    if not f.endswith('.webp'):
+    if not f.endswith(('.webp', '.avif')):
         continue
     key = f[:-5]
     t = trims.get(key)
@@ -58,7 +58,7 @@ for f in sorted(os.listdir(os.path.join(ART, 'full'))):
     info = GEAR.get(key) or {}
     name = info.get('n') or cab_names.get(key) or key
     params = {k[0].lower() for k in info.get('k', [])}
-    e = {'file': f'full/{key}.webp', 'thumb': f'thumb/{key}.webp', 'name': name, 'width': w, 'height': h, 'knobs': {}}
+    e = {'file': f'full/{key}.avif', 'thumb': f'thumb/{key}.webp', 'name': name, 'width': w, 'height': h, 'knobs': {}}
     o = ovr.get(key, {})
     if key in old and not o.get('redo'):
         src = old[key]

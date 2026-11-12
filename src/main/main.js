@@ -342,6 +342,12 @@ async function serve(req) {
     headers.set('Content-Type', 'image/png');
     return new Response(res.body, { status: 200, headers });
   }
+  if (u.host === 'app' && file.endsWith('.avif')) {
+    // 4.9.1: the pictures are AVIF; say so plainly rather than rely on the file loader's guess
+    const headers = new Headers(res.headers);
+    headers.set('Content-Type', 'image/avif');
+    return new Response(res.body, { status: res.status, headers });
+  }
   if (u.host === 'take') {
     // 4.1.2: the Recordings window sends a recording's sound into the sound engine,
     // which a browser only allows when the file says the app's own page may read it

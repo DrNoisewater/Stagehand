@@ -122,7 +122,7 @@ for key, fx in fixes.items():
     elif fx.get('drop'):
         o = {'drop': fx['drop']}
     else:
-        im = Image.open(os.path.join(FULL, key + '.webp')).convert('RGBA')
+        im = Image.open(os.path.join(FULL, key + '.avif')).convert('RGBA')
         a = np.array(im); rgb = a[:, :, :3].copy(); rgb[a[:, :, 3] < 128] = 128
         gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
         H, W = gray.shape

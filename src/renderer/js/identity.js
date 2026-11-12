@@ -68,7 +68,7 @@ const MARKS = ['highlight', 'underline', 'star', 'circle', 'none', 'none'];
 const TAPES = ['masking', 'gaffer', 'duct', 'clear'];
 const WALL = ['flyer', 'sticky', 'tag', 'notebook', 'none', 'none'];
 // printed stickers and notes, shown instead of the typed sticker about half the time
-const STICKER_ART = ["rehearsal/s-goes-to-11.webp", "rehearsal/s-no-stairway-fine.webp", "rehearsal/s-no-stairway-exceptions.webp", "rehearsal/s-just-one-more.webp", "rehearsal/s-one-more-riff.webp", "rehearsal/s-world-tour.webp", "rehearsal/s-another-pedal.webp", "rehearsal/s-pick-of-destiny.webp", "rehearsal/s-pick.webp"];
+const STICKER_ART = ["rehearsal/s-goes-to-11.avif", "rehearsal/s-no-stairway-fine.avif", "rehearsal/s-no-stairway-exceptions.avif", "rehearsal/s-just-one-more.avif", "rehearsal/s-one-more-riff.avif", "rehearsal/s-world-tour.avif", "rehearsal/s-another-pedal.avif", "rehearsal/s-pick-of-destiny.avif", "rehearsal/s-pick.avif"];
 const ENTRANCES = ['slap', 'drop', 'peel', 'slide', 'rumble'];
 const PAPERS = ['news', 'pink', 'yellow', 'kraft', 'white', 'setlist', 'notebook'];
 const pick = (list, avoid) => { const opts = list.length > 1 ? list.filter(x => x !== avoid) : list; return opts[Math.floor(Math.random() * opts.length)]; };

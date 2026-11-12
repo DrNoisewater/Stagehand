@@ -81,7 +81,7 @@
   --sc-ink:#f5edda; --sc-ink-2:#d2c7b2; --sc-ink-3:#a99e8c;
   --sc-gold:#f1ce68; --sc-gold-hi:#ffe4a0; --sc-gold-ink:#241c0d; --sc-gold-soft:#f1ce6826; --sc-red:#dc6650;
   --sc-mono:'Typewriter Stagehand','Liberation Mono','Courier New',monospace;
-  --sc-tex:url('../art/roadshow/flight-case.webp');
+  --sc-tex:url('../art/roadshow/flight-case.avif');
   --sc-panel:linear-gradient(180deg,#1a1815f4,#121110f7),var(--sc-tex) center/720px;
   --sc-screws:radial-gradient(circle at 7px 7px,#a4916f 0 1.3px,#14120f 1.3px 2.3px,transparent 3px),radial-gradient(circle at calc(100% - 7px) 7px,#a4916f 0 1.3px,#14120f 1.3px 2.3px,transparent 3px);
 }
