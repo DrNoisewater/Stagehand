@@ -1,3 +1,26 @@
+# Unreleased (after 4.7.0) — highway restyle and the real Drop pedal (2026-11-12)
+
+User (calls the current version 4.7.1; GitHub says 4.7.0): restyle everything around the 3D highway in the app's
+style (the 3D highway itself must not change); Tab and Waveform views to match; the highway Drop as the real
+DigiTech Drop photo (round button works the footswitch, knob sets the amount, keep Match the song and the rest),
+with an option to switch its look; the Drop folds away and pops open by itself when in use, and can be closed.
+
+**Done (checked in Chromium screenshots only: ask the user how it looks and feels on their PC):**
+- `dropui.js`: `pedalPhoto` lays working controls over `art/gear/full/digitech-drop.webp` (knob: drag, wheel, click,
+  arrow keys; the 9 lights; the latch/momentary toggle; the footswitch). `dropSection` is the fold: opens by
+  itself when the Drop starts working or a song wants it. Look switch "Pedal view / Panel view" saved in
+  localStorage `stagehand.dropLook`.
+- `highway.js`: the fold in Sound & settings, plus a small Drop pop-out (`.hw-droppop`) that appears without
+  opening the whole panel; × hides it until the Drop starts working again.
+- `css/stagechrome.css` (new, loaded last): road-case look for the highway top bar, Tools, Sound & settings,
+  cards, the pop-up menus while a song is open, and the Tab/Waveform page (`.np-*`). Tab canvas (`tab.js`),
+  ruler (`stage.js`) and waveform (`wave.js`) colours moved from navy to warm. No change to the 3D highway.
+- Not in this merge yet: banner art back in the top bar + flicker fix, and Discover/Progress speed-ups
+  (helpers still working; notes in `docs/notes/highway-restyle.md`).
+
+**Ask the user:** does the Drop pedal feel right (knob, footswitch, pop-out opening and closing)? Do the Tab and
+Waveform screens fit the rest of the app?
+
 # 4.7.0 — the drive, fuzz and pitch pedals rebuilt as real circuits; live engine rebuilt (2026-11-11)
 
 User: "I don't really have any pedals. I was hoping you could code these in to the engine" (after asking whether the

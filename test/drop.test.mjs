@@ -180,7 +180,11 @@ ok(/!s\.drop && !rig\.dropAmount\(\) && s\.tuning\)/.test(src) && /practice\.ses
 const hw = (await import('node:fs')).readFileSync(new URL('../src/renderer/js/highway.js', import.meta.url), 'utf8');
 // 4.5: the highway and the Play page share one Drop console (dropui.js) with one "Match the song"
 const dui = (await import('node:fs')).readFileSync(new URL('../src/renderer/js/dropui.js', import.meta.url), 'utf8');
-ok((dui.match(/dc-pill\.dc-match/g) || []).length === 1 && /dropConsole\(/.test(hw) && !/hw-drop-match/.test(hw), 'the highway Drop box has one "Match the song" button');
+ok((dui.match(/dc-pill\.dc-match/g) || []).length === 1 && /dropSection\(/.test(hw) && /dropConsole\(/.test(dui) && !/hw-drop-match/.test(hw), 'the highway Drop box has one "Match the song" button');
+// 4.8: the highway Drop folds away and pops open by itself when it starts working
+ok(/export function dropSection/.test(dui) && /setOpen\(true, 'auto'\)/.test(dui), 'the Drop fold opens by itself when the Drop starts working');
+ok(/hw-droppop/.test(hw) && /syncDropPop/.test(hw), 'the highway has a Drop pop-out that is not the whole Sound panel');
+ok(/stagehand\.dropLook/.test(dui) && /'console'/.test(dui), 'the Drop can show the pedal photo or the plain panel');
 ok(!/rig\.setSongTuning\(H\.tab\.tuning, instrument\(\)\);/.test(hw), 'the highway passes each song’s own reference pitch');
 
 if (bad) process.exit(1);

@@ -1,7 +1,8 @@
 export const TONES = [{ id: 'clean', name: 'Clean', kind: 'guitar' }];
-class R extends EventTarget { constructor(){super(); this.on = true; this.muted=false; this.knobs={volume:0.7}; this.latencyMs=0; this.sampleRate=48000; this.mode='preset'; this.toneId='clean'; this.drop={on:false,st:2,match:false};}
+class R extends EventTarget { constructor(){super(); this.on = true; this.muted=false; this.knobs={volume:0.7}; this.latencyMs=0; this.sampleRate=48000; this.mode='preset'; this.toneId='clean'; this.drop={on:false,st:2,match:false,momentary:false}; this.dropSong=0;}
+  dropStatus(){const a=this.drop.on?this.dropAmount():0;return a?{state:"on",line:"Working: your guitar sounds "+a+" lower"}:{state:"idle",line:this.drop.on?"Nothing to drop for this song":""}}
   setDrop(p){Object.assign(this.drop,p||{});this.dispatchEvent(new Event('drop'))} setSongTuning(){}
-  samples(){return null} levels(){return {}} prepareTones(){} setSongTone(){} setTone(){} findTone(){return null} dropAmount(){return 0} setSink(){} async start(){return true} setMuted(m){this.muted=m} }
+  samples(){return null} levels(){return {}} prepareTones(){} setSongTone(){} setTone(){} findTone(){return null} dropAmount(){return this.drop.on?(this.drop.match?this.dropSong:this.drop.st):0} setSink(){} async start(){return true} setMuted(m){this.muted=m} }
 export const rig = new R();
 
 export const TUNINGS=[{id:"e-std",name:"E Standard",o:[0,0,0,0,0,0]}];

@@ -26,7 +26,7 @@ import { createRenderer3D, col, mix } from './highway3d.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { tuningGuide } from './tuning-check.js';
-import { dropConsole } from './dropui.js';
+import { dropSection, dropInUse } from './dropui.js';
 import { createTuner } from './tuner.js';
 import { breakdown, cheer } from './scorecard.js';
 import { StruggleWatch, nearestPick } from './struggle.js';
@@ -321,9 +321,52 @@ export function createHighway(stage) {
       g.onclick = () => tuningGuide({ ...H.tab, type: kind === 'bass' ? 'bass' : H.tab.type }, H.song, stage.engine);
       extra.push(h(`div.dc-need${plan.same ? '.ok' : ''}`, null, h('span', { text: need }), g));
     }
-    dropBox.append(dropConsole({ kind, compact: true, extra, onTuningChange: () => H.tab && rig.setSongTuning(H.tab.tuning, kind, H.tab.cents || 0) }));
+    // 4.8: folded under its own head; it opens by itself when the Drop is in use. Folding it
+    // yourself holds while this song is open (Sound & settings rebuilds often).
+    const sid = H.song && H.song.id;
+    if (dropFold.song !== sid) dropFold = { song: sid, open: undefined };
+    dropBox.append(dropSection({ kind, compact: true, extra, open: dropFold.open, onOpen: (v, why) => why !== 'start' && (dropFold.open = v), onTuningChange: () => H.tab && rig.setSongTuning(H.tab.tuning, kind, H.tab.cents || 0) }));
   }
-  // (the console updates itself on Drop changes; it's rebuilt only when the song changes)
+  let dropFold = { song: undefined, open: undefined };
+  // (the console updates itself on Drop changes)
+
+  // 4.8: the Drop pops out on the highway on its own when it's in use or the song wants it,
+  // without opening all of Sound & settings. Fold it to its head, or × to hide it until it
+  // starts working again. Hidden while Sound & settings is open (the Drop is in there).
+  const dropPop = h('div.hw-droppop', { hidden: true });
+  let pop = { song: undefined, kind: null, el: null, closed: false, seen: false };
+  function renderDropPop() {
+    const kind = instrument() === 'bass' ? 'bass' : 'guitar';
+    const sid = H.song && H.song.id;
+    if (!dropPop.isConnected) root.insertBefore(dropPop, dock);
+    if (!pop.el || pop.song !== sid || pop.kind !== kind) {
+      pop = { song: sid, kind, el: null, closed: false, seen: false };
+      dropPop.innerHTML = '';
+      const x = h('button.hw-droppop-x', { type: 'button', title: 'Hide the Drop (it comes back when it starts working)', 'aria-label': 'Hide the Drop', html: icon('x') });
+      x.onclick = () => {
+        pop.closed = true;
+        syncDropPop();
+      };
+      const el = dropSection({
+        kind,
+        compact: true,
+        onOpen: (v, why) => {
+          if (why === 'auto') pop.closed = false;
+          syncDropPop();
+        },
+      });
+      el.querySelector('.dc-fold-head').append(x);
+      pop.el = el;
+      dropPop.append(el);
+    }
+    syncDropPop();
+  }
+  function syncDropPop() {
+    if (!pop.el) return;
+    if (dropInUse() || (!!rig.dropSong && !!H.tab)) pop.seen = true;
+    dropPop.hidden = !(H.open && !mixOpen && !pop.closed && pop.seen && !H.training);
+  }
+  rig.addEventListener('drop', () => H.open && renderDropPop());
 
   // --------------------------------------------------------- score card --
   // 3.9: when a song ends, how it went: your accuracy (and whether it's a new
@@ -814,6 +857,7 @@ export function createHighway(stage) {
     mixTab.setAttribute('aria-expanded', String(on));
     mixTab.innerHTML = `${icon(on ? 'chevronRight' : 'chevronLeft')}<span>Sound &amp; settings</span>`;
     if (!on && typeof hwTuner !== 'undefined') hwTuner.hide(); // closed: stop listening
+    if (typeof syncDropPop === 'function') syncDropPop();
     else if (on && tunerOn && H.open) hwTuner.show();
     renderMix();
   }
@@ -2733,6 +2777,7 @@ export function createHighway(stage) {
   rep.addEventListener('change', () => H.open && renderLoop(true));
 
   function renderControls() {
+    if (H.open) renderDropPop();
     const t = H.tab;
     titleBox.innerHTML = H.song ? `<b>${esc(H.song.title)}</b><span>${esc(H.song.artist)}${t ? ` · ${esc(t.tuningName || '')}${t.capo ? `, capo ${t.capo}` : ''}` : ''}</span>` : '';
     parts.innerHTML = '';
