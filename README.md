@@ -172,6 +172,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.10.0:** Create a Tone’s board is tidy: your gear stands in order with short cables between the jacks, and you can drag a piece to shift it or swap it with its neighbour. Every knob on the gear photos was checked so it turns from where it really points, the graphic EQs have sliders you can grab, and eight photos were replaced with straight-on ones.
 - **4.9.1:** the pictures take up much less room (the art went from 45 MB to 27 MB) and look exactly the same on screen.
 - **4.9:** 56 new Mythology of Music characters around the app, and characters that show up for the big moments: level ups, milestones, achievements, the tuning and timing checks, stems splitting and saving a tone. The Rehearsal Room banner gets real tape, marker scribbles, new papers and hand-written notes for each page. Getting started circles what it's showing you.
 - **4.8:** the screens around the highway, the Tab view and the Waveform view match the rest of Stagehand. The Drop is now the real DigiTech Drop pedal, and it pops open by itself when you use it. Page pictures reach up into the top bar again, and Songs, Discover and Progress are quicker with no blinking pictures.

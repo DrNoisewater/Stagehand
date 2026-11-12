@@ -1,3 +1,59 @@
+# 4.10.0 — the tidy board, a full knob and slider audit, 8 straight-on photos, tape with words (2026-11-12)
+
+User (with a screenshot of the Create a Tone board: cables looping all over, the amp far from the pedals):
+"some of them looked kind of wonky and from the side" (new zip: 8 straight-on photos) · "a full knob and slider
+audit to make sure some of these knobs aren't in a goofy spot when you turn them" · "sliders … we can actually
+interact with" · "any part of the gear that can be interacted with should be" · the board "looks ridiculous. It
+needs to be very clean, able to move things around, and the cables should connect in a smart fashion … put the
+things in order and allow the user to move them around slightly" · "images of tape pieces, signs, and arrows …
+let's try to use everything … words could be added to tape".
+
+**Done (checked in Chromium screenshots and tests: ask the user how it looks and feels on their PC):**
+- **8 new photos** (JCM800, JTM45, Amp EQ, Range Booster, Eden WTDI, Supervibe, Guv'nor Plus, Acoustic Emulator)
+  replace the angled ones (`art/gear/full` + `thumb`; trims.json entries are identity for these).
+- **Knob audit** (`tools/gear/knob_audit.py`, result in `tools/gear/audit.json`, which now has the last word in
+  `build_photos.py`): every one of the 532 photo knobs was re-fitted to the circle that really turns and its
+  **pointer angle read from the photo** (before, everything but the 38 hand-made entries assumed noon, so a knob
+  photographed at 1 o'clock showed the wrong setting and swung to odd places). Review sheets show each knob as
+  photo | turned fully down | fully up; all 10 sheets were gone through by eye. Hand fixes: both new Marshall
+  amps, Jimmy Bean, Rockerverb, AD200B, Eden WT800, EN30 presence, TW26 treble, the Bass Sub Octave / Distortion /
+  Super Drive (the whole knob turns now, not just its silver cap), NPN Delay mix. The Chorus's Depth is a toggle in
+  the photo, so it's on the strip only. To fix one: edit audit.json → `python3 tools/gear/build_photos.py` →
+  `python3 tools/gear/knob_audit.py sheets <out> <key>`.
+- **Sliders on the photos** (`photoSlider` in rigui.js; `sliders` in gear-photos.js): the 5-band, 8-band and
+  8-band bass EQs (21 sliders). The cap is cut from the photo and slides in its slot (drag, click the slot, wheel,
+  arrows, Shift for fine, double-click resets); a clear piece of the same slot covers where the photo shows the
+  cap. Same control as the strip knob, both ways. 553 of 611 controls are now on their photos.
+- **Switches and selectors click** between positions (`stepFor`: a range of 4 or less steps by 1) on the photo
+  and on the strip (Bright, Low/High-Shift, Filter Type, Waveform, Voicing…).
+- **The board** (`rigBoard` in gearbench.js, rewritten; `css/rig.css`): seen from where you stand, **guitar on the
+  right, signal runs right to left** (a pedal's input is on its right, as printed on the Boss photos): in → pedals
+  → amp head on its cab → loop pedals → rack → out, all on one floor line. Neighbours get a short patch cable jack
+  to jack; the loop's return and the cab's mic line lie flat along the floor (with gaffer tape across them); the
+  speaker lead is a short black loop down the side of the stack. A rig too wide for the window is made smaller
+  rather than scrolling. **Drag** a piece: a little = nudge (±24 px sideways, 34 up, 10 down; saved with the tone
+  as `gear[].at`, undoable), past its neighbour = swap places, across the amp = into/out of the loop
+  (`onMove`/`onNudge` → `moveBy` in rigroom.js). Alt+←/→ moves the focused pedal. A click still opens the piece.
+- **Scraps in use on the board:** names typed on masking tape, group labels on gaffer tape, Out on duct tape,
+  "Guitar in" on the backstage tag, the tone's name in the peeling sticker frame, the chalk arrow showing which
+  way the signal runs, the highlighter behind the piece you picked, "DO NOT TOUCH MY EQ" taped above an EQ pedal,
+  the notebook corner + red arrow as a one-time "drag gear" hint (localStorage `stagehand.rigDragHint`), a
+  scribbled star slapped on gear you just added, the pick underline under the piece's name. All hidden or plain
+  with Less decoration.
+- Tests: `npm test` ok (gear-controls adds slider checks); `SH_AUDIT=test/e2e/board-audit.js node
+  test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>` (26 checks: signal order, one floor line, no
+  overlaps, cable length, nudge, swap, undo, across the amp, sliders, pointer angle, save keeps nudges; shots
+  `board-*.png`); `SH_GEAR_AUDIT=1` still passes (cable count check relaxed: the loop return and speaker lead are
+  extra cables).
+
+**Not done:** the wah treadles and the Modern Wah's Auto toggle aren't workable on the photo yet (strip only);
+footswitches on pedal photos don't stomp (the round switch under each pedal on the board does). 13 rack units still
+have no photo. No native change, so no engine rebuild.
+
+**Ask the user:** is right-to-left the way they want it (it matches real pedals; flipping it is one layout
+change)? Do any knobs still look off when turned (name the piece)? Do the EQ sliders feel right? Is the tape/sign
+dressing on the board too much or about right? Should a nudge be allowed further?
+
 # 4.9.1 — pictures in AVIF: 45 MB of art down to 27 MB, same look (2026-11-12)
 
 User: "we have a lot of images in the program now, can we shrink them down to not take up space but still have

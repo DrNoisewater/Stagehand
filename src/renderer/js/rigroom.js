@@ -206,6 +206,16 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
     R.sel = R.t.gear.map((g, i) => [g, i]).filter(([g]) => g.key === it.key && g.slot === slot).pop()[1];
     drawAll();
     boardWrap.querySelector(`.rb-piece[data-i="${R.sel}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    // 4.10: a star slapped on the piece you just put on the board
+    const b = board;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const w = b === board && b.where(R.sel);
+      const st = w && scrap('scribbled-star', { cls: 'added-star' });
+      if (!st) return;
+      st.style.left = `${w.x + w.w * 0.32}px`;
+      st.style.top = `${w.y - w.h * 0.38}px`;
+      stamp(b, st, 1200);
+    }));
   }
   const keyFor = (it, old) => {
     if (it.t !== 'cab') return it.key;
@@ -260,6 +270,19 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
     R.sel = R.t.gear.indexOf(g);
     drawAll();
   }
+  /** drag on the board: `steps` places later (+) or earlier (−) in the chain */
+  function moveBy(i, steps) {
+    const g = R.t.gear[i];
+    if (!g) return;
+    for (let n = Math.abs(steps); n > 0; n--) {
+      const before = `${g.slot}:${g.order}`;
+      move(R.t.gear.indexOf(g), Math.sign(steps));
+      if (`${g.slot}:${g.order}` === before) break;
+    }
+    delete g.at; // it stands square in its new place
+    R.sel = R.t.gear.indexOf(g);
+    drawAll();
+  }
   function toggle(i) {
     const g = R.t.gear[i];
     if (!g) return;
@@ -277,6 +300,7 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
   const nameIn = h('input.input.rr-name', { placeholder: 'Name your tone', 'aria-label': 'Tone name', maxlength: '80' });
   nameIn.oninput = () => {
     R.t.name = nameIn.value;
+    if (board && board.setName) board.setName(R.t.name);
     drawTop();
   };
   const undoB = h('button.icon-btn.rr-undo', { type: 'button', title: 'Undo (Ctrl+Z)', 'aria-label': 'Undo', html: UNDO });
@@ -371,6 +395,14 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
         drawInspect();
       },
       onBypass: (i) => toggle(i),
+      onMove: (i, steps) => moveBy(i, steps),
+      // a nudge is part of the tone (saved with it, undone like anything else) but changes no sound
+      onNudge: (i, at) => {
+        const g = R.t.gear[i];
+        if (!g) return;
+        change(() => (at ? (g.at = at) : delete g.at), { structure: false, sound: false });
+        R.touched = true;
+      },
     });
     const f = document.activeElement && document.activeElement.closest && document.activeElement.closest('.rb-piece');
     const refocus = f && boardWrap.contains(f) ? [f.dataset.i, document.activeElement.classList.contains('rb-switch') ? '.rb-switch' : '.rb-art'] : null;

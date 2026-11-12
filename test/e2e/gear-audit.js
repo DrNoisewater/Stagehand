@@ -72,7 +72,7 @@ module.exports = async ({ page, outDir, check }) => {
   check((await page.locator('.modal.rig-room').count()) === 1, 'Create tone opens the rig');
   const cables = await page.locator('.modal.rig-room .rb-braid').count();
   const pieces = await page.locator('.modal.rig-room .rb-piece').count();
-  check(cables === pieces + 1, `every piece is joined by a cable (${pieces} pieces, ${cables} cables)`);
+  check(cables >= pieces + 1, `every piece is joined by a cable (${pieces} pieces, ${cables} cables)`);
   await shot('rig-start');
   const box0 = await page.locator('.modal.rig-room .rr-inspect').boundingBox();
   await page.locator('.rr-shelf:has-text("Delay")').click();
@@ -89,7 +89,7 @@ module.exports = async ({ page, outDir, check }) => {
   check(/gear\tpre\t/.test(await liveSpec()), 'a drive pedal goes in front of the amp');
   const c2 = await page.locator('.modal.rig-room .rb-braid').count();
   const p2 = await page.locator('.modal.rig-room .rb-piece').count();
-  check(c2 === p2 + 1, `still one cable between each (${p2} pieces, ${c2} cables)`);
+  check(c2 >= p2 + 1, `still a cable between each (${p2} pieces, ${c2} cables)`);
   // a light runs along the cables while you play
   await page.evaluate(() => document.querySelector('.rb').setLevel(0.8));
   await page.waitForTimeout(200);

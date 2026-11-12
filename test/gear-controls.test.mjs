@@ -42,3 +42,22 @@ for(const [key,item]of Object.entries(GEAR_PHOTOS)){
 }
 assert.equal(gearPhotoInfo('Cab_Marshall1960a_57_Cone'),gearPhotoInfo('Cab_Marshall1960a_Condenser_Cone'),'microphone variants share the same physical cabinet');
 console.log('gear controls: live updates, keyboard, reset, limits, read-only mode, linked faceplates and asset integrity passed');
+// 4.10: a slider on the photo is the same control as its strip knob, both ways
+{
+  let eq = 0;
+  const band = rotaryKnob({ name: '200HZ', min: -15, max: 15, value: -8, def: 0, onInput: (v) => (eq = v) });
+  const eqFace = gearFaceplate('Pedal_EQ8', h('div', null, band));
+  const slider = eqFace.querySelectorAll('.gear-slider')[0];
+  assert(slider, 'the 8-band EQ has its sliders on the photo');
+  assert.equal(Number(slider.getAttribute('aria-valuenow')), -8, 'the slider starts where the tone has it');
+  event(slider, 'keydown', { key: 'End' });
+  assert.equal(eq, 15, 'moving the slider changes the real control');
+  assert.equal(Number(band.getAttribute('aria-valuenow')), 15);
+  band.setValue(-3, { emit: true });
+  assert.equal(Number(slider.getAttribute('aria-valuenow')), -3, 'and the strip moves the slider');
+  for (const [key, item] of Object.entries(GEAR_PHOTOS)) {
+    for (const [name, v] of Object.entries(item.sliders || {})) assert(v.length === 7 && v[1] < v[2] && v[4] > 0 && v[5] > 0 && !(item.knobs || {})[name], `${key} ${name} slider is sane`);
+    for (const [name, v] of Object.entries(item.knobs || {})) assert(Math.abs(v[3]) <= 180 && v[2] > 0.3 && v[2] < 30, `${key} ${name} knob is sane`);
+  }
+  console.log('gear sliders: photo and strip stay together; every knob and slider entry is sane');
+}

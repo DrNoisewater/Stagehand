@@ -99,6 +99,95 @@ export function rotaryKnob({ name, min = 0, max = 1, value, def, gel = 'var(--tu
   return el;
 }
 
+/** Switches and selectors (a range of 4 or less) click from one position to the next. */
+export function stepFor(min, max) {
+  return max - min <= 4 ? 1 : undefined;
+}
+
+// a piece of the photo, w% x h% big and centred on (x%, y%), as an element's background
+const photoPiece = (src, x, y, w, h) => ({
+  backgroundImage: `url("${src}")`,
+  backgroundSize: `${(10000 / w).toFixed(2)}% ${(10000 / h).toFixed(2)}%`,
+  backgroundPosition: `${(((x - w / 2) / (100 - w)) * 100).toFixed(3)}% ${(((y - h / 2) / (100 - h)) * 100).toFixed(3)}%`,
+});
+
+/** A slider on a gear photo, tied to the strip control `original` (same value, same undo). */
+function photoSlider(src, [x, top, bot, cy, w, hh, py], original, name) {
+  const min = Number(original.getAttribute('aria-valuemin')), max = Number(original.getAttribute('aria-valuemax'));
+  let v = Number(original.getAttribute('aria-valuenow'));
+  const patch = h('span.photo-patch', { 'aria-hidden': 'true', style: { left: `${x - w / 2}%`, top: `${cy - hh / 2}%`, width: `${w}%`, height: `${hh}%`, ...photoPiece(src, x, py, w, hh) } });
+  const lane = bot - top + hh; // the cap's whole travel, top edge to bottom edge
+  const el = h('button.gear-slider', { type: 'button', role: 'slider', 'aria-orientation': 'vertical', 'aria-label': name, 'aria-valuemin': String(min), 'aria-valuemax': String(max),
+    title: `${name}: drag up or down (Shift for fine), double-click to reset`, style: { left: `${x - w / 2}%`, top: `${top - hh / 2}%`, width: `${w}%`, height: `${lane}%` } });
+  const cap = h('span.photo-slide', { style: { height: `${(hh / lane) * 100}%`, ...photoPiece(src, x, cy, w, hh) } });
+  const tip = h('span.gsl-tip');
+  el.append(cap, tip);
+  el.disabled = original.disabled;
+  const show = () => {
+    const t = (v - min) / (max - min || 1);
+    cap.style.top = `${(1 - t) * (1 - hh / lane) * 100}%`;
+    const txt = (max - min >= 20 ? Math.round(v) : Math.round(v * 10) / 10);
+    tip.textContent = `${name} ${v > 0 && min < 0 ? '+' : ''}${txt}`;
+    el.setAttribute('aria-valuenow', String(v));
+    el.setAttribute('aria-valuetext', tip.textContent);
+  };
+  const push = (nv, final) => {
+    if (el.disabled) return;
+    v = Math.max(min, Math.min(max, nv));
+    show();
+    original.setValue(v, { emit: true, final });
+  };
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || el.disabled) return;
+    el.focus({ preventScroll: true });
+    el.setPointerCapture(e.pointerId);
+    const r = el.getBoundingClientRect();
+    const travel = r.height * (1 - hh / lane) || 1;
+    const capR = cap.getBoundingClientRect();
+    // grab the cap where you touch it; a click on the slot brings the cap there
+    const on = e.clientY >= capR.top && e.clientY <= capR.bottom;
+    const grab = on ? e.clientY - (capR.top + capR.height / 2) : 0;
+    let fineY = e.clientY, fineV = v;
+    const at = (ev) => {
+      if (ev.shiftKey) { fineV = Math.max(min, Math.min(max, fineV - ((ev.clientY - fineY) / travel / 4) * (max - min))); fineY = ev.clientY; return fineV; }
+      fineY = ev.clientY;
+      const t = 1 - (ev.clientY - grab - r.top - capR.height / 2) / travel;
+      return (fineV = min + Math.max(0, Math.min(1, t)) * (max - min));
+    };
+    if (!on) push(at(e), false);
+    const move = (ev) => push(at(ev), false);
+    const up = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+      el.removeEventListener('lostpointercapture', up);
+      push(v, true);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    el.addEventListener('lostpointercapture', up);
+    e.preventDefault();
+  });
+  const st = max - min >= 20 ? 1 : (max - min) / 100;
+  el.addEventListener('wheel', (e) => { e.preventDefault(); push(v - Math.sign(e.deltaY) * st * (e.shiftKey ? 1 : 3), true); }, { passive: false });
+  el.addEventListener('keydown', (e) => {
+    const k = e.key;
+    if (k === 'ArrowUp' || k === 'ArrowRight') push(v + st * (e.shiftKey ? 10 : 1), true);
+    else if (k === 'ArrowDown' || k === 'ArrowLeft') push(v - st * (e.shiftKey ? 10 : 1), true);
+    else if (k === 'Home') push(min, true);
+    else if (k === 'End') push(max, true);
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  el.addEventListener('dblclick', () => original.dispatchEvent(new MouseEvent('dblclick')));
+  const sync = (e) => { v = Number(e.detail); show(); };
+  original.addEventListener('knobinput', sync);
+  show();
+  return { el, patch, dispose: () => original.removeEventListener('knobinput', sync) };
+}
+
 /** An enlarged gear face with real linked controls placed over its knobs.
  * Unmapped controls remain in the labeled control row; no fake physical knob.
  * The supplied controls own audio, draft, save and undo semantics. */
@@ -124,7 +213,7 @@ export function gearFaceplate(key, controls, { enlarged = false } = {}) {
       min:Number(original.getAttribute('aria-valuemin')),
       max:Number(original.getAttribute('aria-valuemax')),
       value:Number(original.getAttribute('aria-valuenow')),
-      step: item.steps?.[name.toLowerCase()],
+      step: item.steps?.[name.toLowerCase()] || stepFor(Number(original.getAttribute('aria-valuemin')), Number(original.getAttribute('aria-valuemax'))),
       onInput:v=>original.setValue(v,{emit:true}),
       onChange:v=>original.setValue(v,{emit:true,final:true})});
     overlay.classList.add('gear-hotspot');
@@ -156,7 +245,19 @@ export function gearFaceplate(key, controls, { enlarged = false } = {}) {
     overlay.addEventListener('dblclick',()=>original.dispatchEvent(new MouseEvent('dblclick')));
     face.append(overlay); count++;
   }
-  wrap.append(face,h('small.gear-face-help',{text:count ? 'Grab a knob and drag up or down · Shift for fine · double-click to reset' : 'Set this one with the knobs below'}));
+  // 4.10: sliders (the graphic EQs). The cap is cut from the photo and slides in its slot; a clear
+  // piece of the same slot is painted over the place where the photo shows the cap.
+  let slides = 0;
+  for (const original of controls.querySelectorAll('.rknob')) {
+    const name = original.getAttribute('aria-label');
+    const sp = item.sliders?.[name.toLowerCase()];
+    if (!sp) continue;
+    const sl = photoSlider(src, sp, original, name);
+    cleanup.push(sl.dispose);
+    face.append(sl.patch, sl.el); slides++; count++;
+  }
+  const helpText = !count ? 'Set this one with the knobs below' : slides === count ? 'Grab a slider and move it · Shift for fine · double-click to reset' : slides ? 'Grab a knob or a slider and drag · Shift for fine · double-click to reset' : 'Grab a knob and drag up or down · Shift for fine · double-click to reset';
+  wrap.append(face,h('small.gear-face-help',{text:helpText}));
   if (!enlarged) {
     const zoom = h('button.btn.small.soft.gear-enlarge',{type:'button',text:'Get up close',title:'Open this gear big, with the same live knobs'});
     zoom.onclick=()=>{const large=gearFaceplate(key,controls,{enlarged:true});modal({title:item.name,wide:true,body:large,onClose:()=>large.dispose()});};
