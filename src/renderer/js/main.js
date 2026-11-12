@@ -1,4 +1,5 @@
 import { did } from './rewards.js';
+import { cameo } from './cameo.js';
 import './devmenu.js'; // 4.5: Ctrl+Shift+F12, only in developer mode
 import { api } from './api.js';
 import { state, emit, on, loadLibrary, upsertSongs, bump, loadRocksmith } from './store.js';
@@ -187,6 +188,7 @@ document.addEventListener('keydown', (e) => {
 function crashNotice(n) {
   if (!n) return;
   const body = h('div');
+  body.append(cameo('event-crash', { enter: 'peek', cls: 'modal-cameo' }) || '');
   body.append(h('p', { text: `Stagehand’s window stopped because ${n.words}${n.activity ? `, while: ${n.activity}` : ''}. It has been reloaded, so you can carry on.` }));
   const recs = h('div');
   const showRec = (r) => {

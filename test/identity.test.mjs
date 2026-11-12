@@ -17,6 +17,7 @@ assert.equal(a.choose('empty',[]),null);assert.equal(a.choose('only',['amp'],{ne
 const broken={getItem(){throw Error('denied')},setItem(){throw Error('full')}}; const d=new ArtDirector({storage:broken,session:broken});const stable=d.choose('jam',ids);assert.equal(d.choose('jam',ids),stable);
 const v=new VenueRotation({storage:memory(),random:()=>.2});const opts={enabled:true,eligible:['studio','cellar'],fallback:'warehouse'};const room=v.forSong('one',opts);for(let i=0;i<100;i++)assert.equal(v.forSong('one',opts),room);assert.notEqual(v.forSong('two',opts),room);v.use('studio');assert.equal(v.forSong('two',opts),'studio');assert.equal(v.forSong('three',{...opts,enabled:false}),'warehouse');
 const m=JSON.parse(readFileSync(new URL('../src/renderer/art/manifest.json',import.meta.url)));for(const art of m.assets)assert(existsSync(new URL('../src/renderer/art/'+art.file,import.meta.url)));for(const placement of Object.values(m.placements)){assert(placement.length>=3);for(const id of placement)assert(m.assets.some(a=>a.id===id));}
+for(const [pool,list] of Object.entries(m.events||{})){assert(list.length>=1,pool);for(const id of list)assert(m.assets.some(a=>a.id===id),`${pool}: ${id}`);}
 console.log('identity: session stability, shuffle cycles, pins, unavailable storage, venue song boundaries and asset manifest all passed');
 
 const corrupt=memory();corrupt.setItem('stagehand.art.v1:jam','null');assert(ids.includes(new ArtDirector({storage:corrupt}).choose('jam',ids)));

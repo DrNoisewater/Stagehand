@@ -17,6 +17,7 @@
  * sizes. Every change is heard at once (live input), undo/redo/reset work on everything, and
  * the saved tone is the same tone as before (saved tones, song tones, keys 1–9, the engine).
  */
+import { scrap, stamp } from './cameo.js';
 import { h, icon, toast, modal, confirmDialog, topModal } from './ui.js';
 import { rig } from './rig.js';
 import { did } from './rewards.js';
@@ -542,6 +543,8 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
       useTone(t.id);
       fillKeys();
       drawTop();
+      // 4.9: the inspection sticker slapped on the board
+      stamp(boardWrap, scrap(Math.random() < 0.75 ? 'engineers-inspection' : 'eq-sign', { cls: 'saved-stamp' }));
       toast({ title: `Saved “${t.name}”`, message: t.slot ? `On key ${t.slot}: press ${t.slot} while you play.` : 'It’s in Tones › Your tones.', kind: 'ok', timeout: 3000 });
       if (onSaved) onSaved(t);
     } catch (err) {

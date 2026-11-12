@@ -5,6 +5,7 @@
  * closes and Setup opens the new version by itself, in a few seconds.
  * The work happens in the main process (services/updates.js).
  */
+import { cameo } from './cameo.js';
 import { api } from './api.js';
 import { state, emit } from './store.js';
 import { h, icon, esc, modal, toast } from './ui.js';
@@ -48,6 +49,7 @@ export function openUpdate() {
   const draw = (phase, extra = {}) => {
     body.innerHTML = '';
     if (phase === 'ready') {
+      if (st.available) body.append(cameo('event-update', { enter: 'drop', cls: 'modal-cameo' }) || '');
       body.append(h('p', { text: `You have ${st.current}. The update takes a few seconds: Stagehand closes, updates, and opens again by itself. Your songs, tones, recordings and settings stay as they are.` }));
       if (st.notes && st.notes.length) body.append(h('div.up-new', null, h('b', { text: 'What’s new' }), h('ul', null, ...st.notes.map((n) => h('li', { text: n })))));
       if (!st.canInstall) body.append(h('p.np-fine', { text: 'On this computer, download the new Setup from the release page and run it.' }));

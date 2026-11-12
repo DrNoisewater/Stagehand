@@ -1,0 +1,214 @@
+{
+  "_note": "4.9: where the Mythology of Music pack (56) goes. Merged into art/manifest.json placements by build_js.py (added to each pool, existing art kept). event-* pools are the animated moments (js/cameo.js).",
+  "play": [
+    "temple-of-rock",
+    "guitar-worship",
+    "cave-jam",
+    "mushroom-band",
+    "lightning-chord",
+    "eleven-cherub",
+    "magic-guitar-case",
+    "stained-glass-celestial-band",
+    "creation-of-rock"
+  ],
+  "songs": [
+    "sacred-riff-manuscript",
+    "balcony-serenade",
+    "skull-choir",
+    "jazz-cat",
+    "stained-glass-bass-saint",
+    "rock-hieroglyphs",
+    "skeleton-bassist",
+    "creation-of-rock"
+  ],
+  "tones": [
+    "eleven-cherub",
+    "angel-guitar",
+    "devil-guitar",
+    "shoulder-advisers",
+    "haunted-speaker",
+    "whammy-wizard",
+    "amp-king"
+  ],
+  "gear": [
+    "enormous-amp",
+    "walking-practice-amp",
+    "possessed-tuner",
+    "cable-cobra",
+    "cable-wrestler",
+    "magic-guitar-case",
+    "fader-surfer",
+    "amp-king",
+    "haunted-speaker"
+  ],
+  "discover": [
+    "bass-abduction",
+    "black-hole-fishing",
+    "raccoon-roadie",
+    "pick-pigeon",
+    "rock-hieroglyphs",
+    "guitar-peacock",
+    "ukulele-werewolf",
+    "cave-jam"
+  ],
+  "progress": [
+    "band-trophy",
+    "string-mountain",
+    "pick-excalibur",
+    "armored-barre-chord",
+    "practice-commandment",
+    "stained-glass-riff-phoenix",
+    "guitar-valkyrie",
+    "boxing-metronome",
+    "stained-glass-sacred-tempo"
+  ],
+  "greenroom": [
+    "raccoon-roadie",
+    "mushroom-band",
+    "beer-swamp-creature",
+    "kraken-bassist",
+    "offended-octopus",
+    "pick-gargoyle",
+    "skull-choir",
+    "shoulder-advisers"
+  ],
+  "sidebar-play": [
+    "sacred-pick",
+    "cable-horns",
+    "eleven-cherub"
+  ],
+  "sidebar-songs": [
+    "sacred-pick",
+    "runaway-pick",
+    "jazz-cat"
+  ],
+  "sidebar-tones": [
+    "cable-horns",
+    "possessed-tuner",
+    "devil-guitar"
+  ],
+  "sidebar-gear": [
+    "skeleton-hand",
+    "skeleton-pick",
+    "cable-cobra",
+    "possessed-tuner",
+    "cable-horns",
+    "pick-goblin"
+  ],
+  "sidebar-discover": [
+    "pick-pigeon",
+    "runaway-pick",
+    "pick-dragon"
+  ],
+  "sidebar-progress": [
+    "pick-excalibur",
+    "band-trophy",
+    "sacred-pick"
+  ],
+  "sidebar-greenroom": [
+    "pick-gargoyle",
+    "raccoon-roadie",
+    "cable-horns"
+  ],
+  "empty-play": [
+    "runaway-pick",
+    "levitating-bass-monk",
+    "ukulele-werewolf"
+  ],
+  "empty-songs": [
+    "runaway-pick",
+    "pick-dragon",
+    "magic-guitar-case",
+    "black-hole-fishing"
+  ],
+  "empty-tones": [
+    "haunted-speaker",
+    "shoulder-advisers",
+    "whammy-wizard"
+  ],
+  "empty-discover": [
+    "black-hole-fishing",
+    "bass-abduction",
+    "pick-pigeon"
+  ],
+  "empty-progress": [
+    "string-mountain",
+    "armored-barre-chord",
+    "boxing-metronome"
+  ],
+  "empty-greenroom": [
+    "pick-gargoyle",
+    "offended-octopus",
+    "levitating-bass-monk",
+    "beer-swamp-creature"
+  ],
+  "settings": [
+    "possessed-tuner",
+    "fader-surfer",
+    "delicate-executioner",
+    "reaper-string-trimmer",
+    "boxing-metronome",
+    "walking-practice-amp"
+  ],
+  "guide": [
+    "practice-commandment",
+    "sacred-riff-manuscript",
+    "jazz-cat",
+    "levitating-bass-monk",
+    "angel-guitar",
+    "raccoon-roadie"
+  ],
+  "event-levelup": [
+    "guitar-valkyrie",
+    "lightning-chord",
+    "string-mountain",
+    "pick-excalibur",
+    "guitar-worship",
+    "eleven-cherub"
+  ],
+  "event-milestone": [
+    "band-trophy",
+    "stained-glass-riff-phoenix",
+    "amp-king",
+    "stained-glass-celestial-band"
+  ],
+  "event-legendary": [
+    "stained-glass-riff-phoenix"
+  ],
+  "event-trophy": [
+    "band-trophy",
+    "pick-excalibur",
+    "pick-gargoyle",
+    "armored-barre-chord"
+  ],
+  "event-rough": [
+    "offended-octopus",
+    "runaway-pick",
+    "boxing-metronome",
+    "beer-swamp-creature",
+    "delicate-executioner"
+  ],
+  "event-tuning": [
+    "possessed-tuner"
+  ],
+  "event-timing": [
+    "boxing-metronome",
+    "stained-glass-sacred-tempo"
+  ],
+  "event-update": [
+    "magic-guitar-case",
+    "raccoon-roadie"
+  ],
+  "event-crash": [
+    "haunted-speaker",
+    "walking-practice-amp"
+  ],
+  "event-stems": [
+    "reaper-string-trimmer",
+    "skull-choir",
+    "mushroom-band"
+  ],
+  "event-sync-good": [
+    "stained-glass-sacred-tempo"
+  ]
+}

@@ -52,10 +52,25 @@ const STICKERS = ['NO STAIRWAY', 'TURN IT DOWN? NO.', 'TUNED IT LAST TUESDAY', '
   'FEEDBACK IS A FEATURE', 'STRINGS CHANGED: 2019', 'BASSISTS ARE PEOPLE TOO', 'ONE MORE TAKE', 'WHO TOOK MY CAPO',
   'IT SOUNDED BETTER IN THE BASEMENT', 'IF IT’S TOO LOUD, YOU’RE TOO CLOSE', 'MY OTHER AMP IS A STACK', 'THIS SIDE UP. PROBABLY.',
   'SOLO GOES HERE', 'PLAYS WELL WITH OTHERS (LOUDLY)', 'NO NOODLING IN THE SHOP', 'PICK COUNT: 0'];
+// 4.9: hand-made notes from the UI pack, each on the pages where its joke lands
+const PAGE_NOTES = {
+  play: ['major-pentatonic', 'minor-pentatonic', 'root-note', 'bend-it', 'groove', 'tune-first', 'clean-first'],
+  songs: ['one-more-run', 'other-pick', 'wrong-note', 'clean-first'],
+  tones: ['eq-sign', 'engineers-inspection', 'tune-first'],
+  gear: ['engineers-inspection', 'eq-sign'],
+  discover: ['other-pick', 'one-more-run', 'wrong-note'],
+  progress: ['clean-first', 'one-more-run', 'bend-it'],
+  greenroom: ['engineers-inspection', 'other-pick', 'groove'],
+};
+const noteFile = (n) => (ART.find((a) => a.id === `scrap-${n}`) || {}).file;
+// the marks on the flyer, the tape that holds it up, and what else is stuck on the wall
+const MARKS = ['highlight', 'underline', 'star', 'circle', 'none', 'none'];
+const TAPES = ['masking', 'gaffer', 'duct', 'clear'];
+const WALL = ['flyer', 'sticky', 'tag', 'notebook', 'none', 'none'];
 // printed stickers and notes, shown instead of the typed sticker about half the time
 const STICKER_ART = ["rehearsal/s-goes-to-11.webp", "rehearsal/s-no-stairway-fine.webp", "rehearsal/s-no-stairway-exceptions.webp", "rehearsal/s-just-one-more.webp", "rehearsal/s-one-more-riff.webp", "rehearsal/s-world-tour.webp", "rehearsal/s-another-pedal.webp", "rehearsal/s-pick-of-destiny.webp", "rehearsal/s-pick.webp"];
 const ENTRANCES = ['slap', 'drop', 'peel', 'slide', 'rumble'];
-const PAPERS = ['news', 'pink', 'yellow', 'kraft', 'white'];
+const PAPERS = ['news', 'pink', 'yellow', 'kraft', 'white', 'setlist', 'notebook'];
 const pick = (list, avoid) => { const opts = list.length > 1 ? list.filter(x => x !== avoid) : list; return opts[Math.floor(Math.random() * opts.length)]; };
 const lastPick = {};
 const pickFor = (key, list) => (lastPick[key] = pick(list, lastPick[key]));
@@ -77,12 +92,14 @@ const line = h('p.identity-line');
 const prefsButton = h('button.identity-options', { type: 'button', title: 'Artwork and appearance', 'aria-label': 'Artwork and appearance', html: icon('more') });
 prefsButton.onclick = () => import('./dialogs.js').then(d => d.settings('appearance'));
 const fx = h('div.opera-fx', { 'aria-hidden': 'true', html:
-  '<i class="bulb"></i><i class="tape t1"></i><i class="tape t2"></i><i class="stain"></i>' +
+  '<i class="bulb"></i><i class="tape t1"></i><i class="tape t2"></i><i class="stain"></i><i class="wall"></i>' +
   '<span class="dust"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>' });
 const sticker = h('span.opera-sticker', { 'aria-hidden': 'true' });
 const stickerImg = h('img.opera-sticker-img', { alt: '', 'aria-hidden': 'true', decoding: 'async' });
 const artWrap = h('div.identity-art-wrap', null, art);
-if (banner) banner.append(fx, h('div.identity-copy', null, label, title, line), sticker, stickerImg, artWrap, prefsButton);
+// 4.9: a strip of real tape holding the flyer to the wall (placed on its corner by layoutArt)
+const flyerTape = h('i.opera-tape', { 'aria-hidden': 'true' });
+if (banner) banner.append(fx, h('div.identity-copy', null, label, title, line), flyerTape, sticker, stickerImg, artWrap, prefsButton);
 let shown = null;
 let freshVisit = true;
 let lastPaint = -1e9;
@@ -135,13 +152,21 @@ function paintArt(next = false) {
     banner.dataset.enter = pickFor('enter', ENTRANCES);
     banner.dataset.paper = pickFor('paper', PAPERS);
     sticker.textContent = pickFor('sticker', STICKERS);
-    const useImg = Math.random() < 0.5;
+    banner.dataset.mark = pickFor('mark', MARKS);
+    banner.dataset.tape = pickFor('tape', TAPES);
+    banner.dataset.wall = pickFor('wall', WALL);
+    // a hand-made note for this page (60%), else a printed sticker or the typed one
+    const notes = (PAGE_NOTES[shown] || []).filter(noteFile);
+    const r = Math.random();
+    const useNote = notes.length && r < 0.6;
+    const useImg = useNote || r < 0.8;
     sticker.hidden = useImg; stickerImg.hidden = !useImg;
-    if (useImg) stickerImg.src = `art/${pickFor('stickerImg', STICKER_ART)}`;
+    stickerImg.classList.toggle('note', !!useNote);
+    if (useImg) stickerImg.src = useNote ? `art/${noteFile(pickFor('note:' + shown, notes))}` : `art/${pickFor('stickerImg', STICKER_ART)}`;
     stickerImg.style.setProperty('--tilt', `${(Math.random() * 14 - 7).toFixed(1)}deg`);
     sticker.style.setProperty('--tilt', `${(Math.random() * 10 - 5).toFixed(1)}deg`);
     // restart the entrance animations (a new picture starts its own when it goes in)
-    restartEntrance([sticker, stickerImg, title]);
+    restartEntrance([sticker, stickerImg, title, flyerTape]);
   }
   const item = ART.find(a => a.id === id);
   banner.dataset.pinned = String(!!director.pinned(shown));
@@ -191,6 +216,9 @@ function layoutArt() {
   // too narrow to reach well up: keep it in the banner instead
   if (!box || box.y > tb.bottom - 20 || box.w < 110) { mode = 'inside'; box = fit(content, opt, b.top + 8); }
   if (!box || box.w < 80 || box.h < 50) mode = 'none';
+  // the tape sits on the flyer's top-left corner
+  flyerTape.style.left = `${Math.round(copy.offsetLeft - 60)}px`;
+  flyerTape.style.top = `${Math.round(copy.offsetTop - 12)}px`;
   const key = mode === 'none' ? mode : [mode, box.x, box.y, box.w, box.h].map(v => (typeof v === 'number' ? Math.round(v) : v)).join();
   if (key === lastBox) return;
   lastBox = key;

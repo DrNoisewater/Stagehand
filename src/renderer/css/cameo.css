@@ -1,0 +1,118 @@
+/* 4.9: cameos (js/cameo.js): characters and paper scraps that make an entrance at moments
+   that matter. Where each one sits is set next to the thing it decorates (bottom of this file). */
+
+.cameo { pointer-events:none; user-select:none; width:var(--size,140px); height:auto; filter:drop-shadow(0 6px 10px #000b);
+  rotate:var(--tilt,0deg); animation:var(--enter-anim,cameo-rise) .6s var(--delay,0ms) cubic-bezier(.2,.9,.3,1.25) both, cameo-bob 4.5s calc(var(--delay,0ms) + .7s) ease-in-out infinite; }
+.cameo-scrap { width:var(--size,220px); filter:drop-shadow(1px 3px 3px #000a); animation:var(--enter-anim,cameo-slap) .38s var(--delay,0ms) cubic-bezier(.2,.9,.3,1.5) both; }
+.cameo[data-enter='rise'] { --enter-anim:cameo-rise; }
+.cameo[data-enter='drop'] { --enter-anim:cameo-drop; }
+.cameo[data-enter='slide-l'] { --enter-anim:cameo-slide-l; }
+.cameo[data-enter='slide-r'] { --enter-anim:cameo-slide-r; }
+.cameo[data-enter='slap'] { --enter-anim:cameo-slap; }
+.cameo[data-enter='peek'] { --enter-anim:cameo-peek; }
+.cameo[data-enter='spin'] { --enter-anim:cameo-spin; }
+.cameo[data-enter='wipe'] { --enter-anim:cameo-wipe; animation-duration:.55s; animation-timing-function:cubic-bezier(.6,.1,.3,1); }
+.cameo[data-enter='draw'] { --enter-anim:cameo-draw; animation-duration:.7s; animation-timing-function:ease-out; }
+@keyframes cameo-rise { from { opacity:0; translate:0 45%; scale:.75; } 60% { opacity:1; } to { opacity:1; translate:0 0; scale:1; } }
+@keyframes cameo-drop { 0% { opacity:0; translate:0 -120%; } 55% { opacity:1; translate:0 6%; } 75% { translate:0 -3%; } to { opacity:1; translate:0 0; } }
+@keyframes cameo-slide-l { from { opacity:0; translate:-120% 0; rotate:calc(var(--tilt,0deg) - 18deg); } to { opacity:1; translate:0 0; } }
+@keyframes cameo-slide-r { from { opacity:0; translate:120% 0; rotate:calc(var(--tilt,0deg) + 18deg); } to { opacity:1; translate:0 0; } }
+@keyframes cameo-slap { 0% { opacity:0; scale:1.7; } 60% { opacity:1; scale:.94; } to { opacity:1; scale:1; } }
+@keyframes cameo-peek { 0% { opacity:0; translate:0 70%; } 50% { opacity:1; translate:0 18%; } 70% { translate:0 22%; } to { opacity:1; translate:0 0; } }
+@keyframes cameo-spin { from { opacity:0; scale:.1; rotate:-220deg; } to { opacity:1; scale:1; } }
+@keyframes cameo-wipe { from { clip-path:inset(0 100% 0 0); } to { clip-path:inset(0 0 0 0); } }
+@keyframes cameo-draw { from { opacity:0; clip-path:circle(0% at 50% 50%); rotate:calc(var(--tilt,0deg) - 90deg); } to { opacity:1; clip-path:circle(75% at 50% 50%); } }
+@keyframes cameo-bob { 0%,100% { translate:0 0; } 50% { translate:0 -4px; } }
+.cameo-scrap, .cameo[data-enter='wipe'], .cameo[data-enter='draw'] { animation-iteration-count:1; }
+.cameo.out { animation:cameo-out .4s ease-in both !important; }
+@keyframes cameo-out { to { opacity:0; translate:0 30%; scale:.85; } }
+
+/* settings and accessibility */
+html[data-decoration='reduced'] .cameo { display:none !important; }
+html[data-calm='true'] .cameo { animation:none !important; }
+@media (prefers-reduced-motion: reduce) { .cameo { animation:none !important; } }
+
+/* -------------------------------------------------- level up, milestones, trophies -- */
+.lvup-card { position:relative; }
+.lvup .cameo.lv-cameo { position:absolute; left:50%; bottom:calc(100% - 26px); margin-left:calc(var(--size,170px) / -2); --size:170px; z-index:1; }
+.lvup.milestone .cameo.lv-cameo { --size:210px; }
+.lvup.legendary .cameo.lv-cameo { --size:240px; }
+.lvup.lv-trophy-up .cameo.lv-cameo { --size:120px; left:auto; right:-70px; bottom:auto; top:-50px; margin-left:0; z-index:1; }
+
+/* --------------------------------------------------------- tuning check, timing -- */
+.tcheck { position:relative; }
+.tcheck .cameo-scrap.tc-tape { display:block; margin:-6px auto 6px; --size:230px; }
+.tcheck .cameo.tc-cameo { position:absolute; right:-6px; top:-10px; --size:84px; }
+.hw-syncbox .cameo.sync-cameo { display:block; margin:0 auto 6px; --size:116px; }
+.hw-syncbox:has(.sync-cameo) .hw-sync-ring { display:none; }
+
+/* ------------------------------------------------------------- stems, updates -- */
+.stem-wait .cameo.sw-cameo { position:absolute; left:-30px; bottom:calc(100% - 30px); --size:96px; }
+.modal .cameo.modal-cameo { float:right; margin:0 0 6px 12px; --size:110px; }
+
+/* ----------------------------------------------------------- rig room: saved -- */
+.rr-board { position:relative; }
+.cameo-stamp { position:absolute; z-index:30; }
+.rr-board .cameo-scrap.saved-stamp { right:24px; top:18px; --size:260px; }
+
+/* ------------------------------------------------- Getting started: marker ring -- */
+.gs-ring.marker { border-color:transparent; box-shadow:0 0 0 4000px rgba(5,8,16,.45); animation:none; }
+.gs-ring.marker::after { content:''; position:absolute; inset:-16px -22px; background:url('../art/scraps/marker-double-circle.webp') center/100% 100% no-repeat;
+  filter:drop-shadow(0 0 6px #4a7dff88); animation:cameo-draw .7s ease-out both, gs-wobble 2.4s .7s ease-in-out infinite; }
+@keyframes gs-wobble { 0%,100% { rotate:0deg; scale:1; } 50% { rotate:1.5deg; scale:1.03; } }
+.gs-tip .cameo-scrap.gs-arrow { position:absolute; --size:76px; left:var(--ax,50%); margin-left:-38px; filter:drop-shadow(0 0 4px #000); }
+/* the chalk arrow points left: turned to point at the circled control */
+.gs-tip[data-side='below'] .cameo-scrap.gs-arrow { bottom:calc(100% + 30px); rotate:90deg; }
+.gs-tip[data-side='above'] .cameo-scrap.gs-arrow { top:calc(100% + 30px); rotate:-90deg; }
+.gs-tip:not([data-side]) .cameo-scrap.gs-arrow { display:none; }
+html[data-calm='true'] .gs-ring.marker::after { animation:none; }
+html[data-decoration='reduced'] .gs-ring.marker { border-color:var(--tungsten); }
+html[data-decoration='reduced'] .gs-ring.marker::after { display:none; }
+
+/* ------------------------------------- Rehearsal Room banner: the UI pack's scraps -- */
+/* real tape on the flyer's corner (data-tape picked each visit) */
+html[data-look='opera'] #app .opera-tape { position:absolute; z-index:4; width:118px; height:40px; pointer-events:none; rotate:-32deg;
+  background:url('../art/scraps/cream-masking-tape.webp') center/100% 100% no-repeat; filter:drop-shadow(0 2px 2px #0007);
+  animation:rr-slap .3s .35s cubic-bezier(.2,.9,.3,1.4) both; }
+html:not([data-look='opera']) .opera-tape { display:none; }
+html[data-look='opera'] #app .identity-banner[data-tape='gaffer'] .opera-tape { background-image:url('../art/scraps/black-gaffer-tape.webp'); height:52px; }
+html[data-look='opera'] #app .identity-banner[data-tape='duct'] .opera-tape { background-image:url('../art/scraps/silver-duct-tape.webp'); }
+html[data-look='opera'] #app .identity-banner[data-tape='clear'] .opera-tape { background-image:url('../art/scraps/translucent-tape.webp'); }
+/* the old drawn tape strips on the wall become real tape, faded */
+html[data-look='opera'] .opera-fx .tape { clip-path:none; box-shadow:none; height:30px; background:url('../art/scraps/cream-masking-tape.webp') center/100% 100% no-repeat; }
+html[data-look='opera'] .identity-banner[data-tape='masking'] .opera-fx .t2,
+html[data-look='opera'] .identity-banner[data-tape='duct'] .opera-fx .t1 { background-image:url('../art/scraps/silver-duct-tape.webp'); }
+html[data-look='opera'] .identity-banner[data-tape='gaffer'] .opera-fx .t2 { background-image:url('../art/scraps/black-gaffer-tape.webp'); opacity:.45; }
+
+/* something else stuck on the wall behind the flyer */
+html[data-look='opera'] .opera-fx .wall { position:absolute; display:none; right:31%; top:10px; width:150px; height:96px; opacity:.5; rotate:7deg;
+  background:center/contain no-repeat; filter:saturate(.75) brightness(.8); }
+html[data-look='opera'] .identity-banner[data-wall='flyer'] .opera-fx .wall { display:block; background-image:url('../art/scraps/concert-flyer-scrap.webp'); width:190px; }
+html[data-look='opera'] .identity-banner[data-wall='sticky'] .opera-fx .wall { display:block; background-image:url('../art/scraps/pink-sticky-note.webp'); width:90px; height:66px; rotate:-9deg; top:auto; bottom:12px; right:36%; }
+html[data-look='opera'] .identity-banner[data-wall='tag'] .opera-fx .wall { display:block; background-image:url('../art/scraps/backstage-pass-tag.webp'); width:110px; height:80px; rotate:14deg; }
+html[data-look='opera'] .identity-banner[data-wall='notebook'] .opera-fx .wall { display:block; background-image:url('../art/scraps/lined-notebook-corner.webp'); width:140px; rotate:-5deg; top:auto; bottom:6px; }
+
+/* marker on the flyer: a highlighter swipe, a pick underline, a star or a circle (data-mark) */
+html[data-look='opera'] #app .identity-title { isolation:isolate; width:fit-content; }
+html[data-look='opera'] #app .identity-banner[data-mark] .identity-title::before { content:none; position:absolute; z-index:-1; pointer-events:none; background:center/100% 100% no-repeat; }
+html[data-look='opera'] #app .identity-banner[data-mark='highlight'] .identity-title::before { content:''; left:-10px; right:-14px; top:28%; height:62%;
+  background-image:url('../art/scraps/yellow-highlighter-swipe.webp'); opacity:.62; mix-blend-mode:multiply; animation:cameo-wipe .5s .45s cubic-bezier(.6,.1,.3,1) both; }
+html[data-look='opera'] #app .identity-banner[data-mark='underline'] .identity-title::before { content:''; left:-4px; right:-30px; bottom:-3px; height:12px;
+  background-image:url('../art/scraps/pick-underline.webp'); animation:cameo-wipe .45s .45s cubic-bezier(.6,.1,.3,1) both; }
+html[data-look='opera'] #app .identity-banner[data-mark='star'] .identity-title::before { content:''; z-index:1; right:-46px; top:-14px; width:46px; height:38px;
+  background-image:url('../art/scraps/scribbled-star.webp'); background-size:contain; animation:cameo-spin .45s .5s cubic-bezier(.2,.9,.3,1.25) both; }
+html[data-look='opera'] #app .identity-banner[data-mark='circle'] .identity-title::before { content:''; inset:-10px -22px -6px -18px;
+  background-image:url('../art/scraps/marker-double-circle.webp'); opacity:.85; animation:cameo-draw .55s .45s ease-out both; }
+
+/* two more papers for the flyer: a torn setlist and a page out of a notebook */
+html[data-look='opera'] #app .identity-banner[data-paper='setlist'] .identity-copy { clip-path:none; rotate:.6deg; transform:none; padding:30px 40px 24px 34px;
+  background:url('../art/scraps/ripped-setlist-paper.webp') center/100% 100% no-repeat; }
+html[data-look='opera'] #app .identity-banner[data-paper='notebook'] .identity-copy { clip-path:none; transform:none; rotate:-1.6deg; padding:22px 140px 34px 74px;
+  background:url('../art/scraps/lined-notebook-corner.webp') center/100% 100% no-repeat; }
+
+/* the page's hand-made note (wider than the printed stickers) */
+html[data-look='opera'] #app .opera-sticker-img.note { max-width:250px; max-height:110px; }
+
+html[data-look='opera'][data-decoration='reduced'] :is(.opera-tape, .opera-fx .wall) { display:none !important; }
+html[data-look='opera'][data-decoration='reduced'] #app .identity-banner .identity-title::before { content:none !important; }
+html[data-calm='true'] .opera-tape, html[data-calm='true'] .identity-title::before { animation:none !important; }

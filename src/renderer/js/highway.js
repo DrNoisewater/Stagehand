@@ -29,6 +29,7 @@ import { tuningGuide } from './tuning-check.js';
 import { dropSection, dropInUse } from './dropui.js';
 import { createTuner } from './tuner.js';
 import { breakdown, cheer } from './scorecard.js';
+import { cameo } from './cameo.js';
 import { StruggleWatch, nearestPick } from './struggle.js';
 import { state, on } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
@@ -555,6 +556,7 @@ export function createHighway(stage) {
         toast({ title: 'Any time you like', message: 'The timing check is under Tools › Timing check on the highway.', kind: 'info', timeout: 6000 });
       };
       syncBox.append(
+        cameo('event-timing', { enter: 'rise', cls: 'sync-cameo' }) || '',
         h('div.hw-sync-ring', { html: icon('clock') }),
         h('h3', { text: 'First, a 30-second timing check' }),
         h('p', { text: 'Every PC plays sound a little late, some more than others. This lines Stagehand up with your PC and how you play, so notes you hit on time count as hits. You only do it once.' }),
@@ -564,6 +566,7 @@ export function createHighway(stage) {
       );
     } else {
       syncBox.append(
+        cameo('event-timing', { enter: 'rise', cls: 'sync-cameo' }) || '',
         h('div.hw-sync-ring', { html: icon('guitar') }),
         h('h3', { text: 'Timing check' }),
         h('p', { text: 'A short, easy song, about 30 seconds. Drumsticks count you in, then the notes come down the highway like any song.' }),
@@ -751,6 +754,7 @@ export function createHighway(stage) {
       const cancel = h('button.btn.ghost', { type: 'button', text: 'Cancel' });
       cancel.onclick = () => closeSync();
       syncBox.append(
+        cameo('event-rough', { enter: 'peek', cls: 'sync-cameo' }) || '',
         h('div.hw-sync-ring', { html: icon('alert') }),
         h('h3', { text: 'Not enough notes heard' }),
         h('p', { text: `Only ${offs.length} of ${N} notes were heard near the strings. Pick a little harder, one note at a time, as each one arrives.` }),
@@ -791,6 +795,7 @@ export function createHighway(stage) {
     const steady = spread < 25 ? 'Nice and steady.' : spread < 45 ? 'A bit uneven: try again for a surer result.' : 'Quite uneven: try again, picking just as each note reaches the strings.';
     const said = use === 0 ? 'You play right on the notes: nothing to change.' : `You play ${Math.abs(use)} ms ${use > 0 ? 'after' : 'before'} the notes reach the strings. The notes will move to match how you play. ${steady}`;
     syncBox.append(
+      cameo(spread < 25 ? 'event-sync-good' : 'event-timing', { enter: spread < 25 ? 'spin' : 'rise', cls: 'sync-cameo' }) || '',
       h('div.hw-sync-eyebrow', { text: hits !== null ? `Timing check · ${hits} of ${N} notes hit` : 'Timing check' }),
       h('div.hw-sync-big', { text: `${use > 0 ? '+' : ''}${use} ms` }),
       h('p', { text: said }),
