@@ -178,11 +178,9 @@ html[data-look='opera'] #app .opera-sticker::after { content:''; position:absolu
 @keyframes rr-slap { from { opacity:0; scale:1.6; } 70% { opacity:1; scale:.95; } to { scale:1; } }
 
 /* the character breaks out of the banner up into the top bar */
-html[data-look='opera'] #app .identity-art-wrap { position:relative; flex:0 0 300px; margin-left:auto; margin-right:64px; align-self:stretch; z-index:50; pointer-events:none; }
-html:not([data-look='opera']) .identity-art-wrap { display:contents; }
+/* (identity.css places the box, identity.js measures the free stretch of the top bar) */
 html[data-look='opera'] #app .identity-art-wrap .identity-art {
-  position:absolute; right:0; bottom:-10px; width:300px; height:226px; flex:none; object-fit:contain; object-position:50% 100%;
-  transform:rotate(2deg); transform-origin:50% 100%;
+  transform:rotate(2deg);
   filter:drop-shadow(0 0 1px #000) drop-shadow(3px 6px 0 #0009) saturate(.9);
 }
 html[data-look='opera'] #app .identity-banner[data-enter='slap'] .identity-art { animation:rr-art-slap .4s cubic-bezier(.2,.9,.3,1.4) both; }
@@ -446,24 +444,8 @@ html[data-look='opera'] #app .opera-sticker-img[hidden], html[data-look='opera']
 html[data-look='opera'][data-decoration='reduced'] .opera-sticker-img { display:none; }
 
 /* Mythology of Music: compact spot illustrations, not dominating hero scenes. */
-html[data-look='opera'] #app .identity-art-wrap { flex-basis:180px; margin-right:24px; }
-html[data-look='opera'] #app .identity-art-wrap .identity-art { width:180px; height:144px; bottom:4px; }
-html[data-look='opera'] #app .identity-art-wrap:has([data-art='creation-of-riff']) { flex-basis:240px; }
-html[data-look='opera'] #app .identity-art-wrap .identity-art[data-art='creation-of-riff'] { width:240px; height:112px; }
-#app .identity-art { width:180px; height:140px; flex-basis:180px; }
 #app .menu-spot-art { width:104px; height:104px; margin-bottom:10px; }
 #app .pspot-empty .menu-spot-art { width:80px; height:80px; flex-basis:80px; }
 #app .roadshow-sticker img { width:54px; height:60px; }
 body:not(:has(.highway:not([hidden]))) #overlays .roadshow-settings-art { width:100px; height:110px; object-fit:contain; }
 body:not(:has(.highway:not([hidden]))) #overlays .roadshow-guide-art { width:88px; height:88px; }
-@media(max-width:1100px) {
- html[data-look='opera'] #app .identity-art-wrap { flex-basis:140px; margin-right:12px; }
- html[data-look='opera'] #app .identity-art-wrap .identity-art { width:140px; height:124px; }
- html[data-look='opera'] #app .identity-art-wrap:has([data-art='creation-of-riff']) { flex-basis:200px; }
- html[data-look='opera'] #app .identity-art-wrap .identity-art[data-art='creation-of-riff'] { width:200px; height:96px; }
-}
-@media(max-width:800px) {
- html[data-look='opera'] #app .identity-art-wrap { flex-basis:100px; margin-right:8px; }
- html[data-look='opera'] #app .identity-art-wrap .identity-art { width:100px; height:100px; }
- html[data-look='opera'] #app .identity-art-wrap:has([data-art='creation-of-riff']) { display:none; }
-}

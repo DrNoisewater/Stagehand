@@ -32,7 +32,14 @@
 .identity-kicker { display:block; font-size:10px; font-weight:750; letter-spacing:.18em; color:var(--poster); }
 .identity-title { font-size:42px; line-height:1.04; font-weight:900; font-stretch:70%; letter-spacing:-.035em; margin:4px 0; text-transform:uppercase; }
 .identity-line { font-size:12.5px; color:var(--ink-2); margin:0; }
-.identity-art { flex:0 0 240px; width:240px; height:112px; object-fit:contain; pointer-events:none; filter:drop-shadow(0 6px 4px #0005); }
+.identity-art { pointer-events:none; filter:drop-shadow(0 6px 4px #0005); }
+/* The picture breaks out of the banner up into the top bar's empty middle. identity.js (layoutArt)
+   measures the free stretch between the search box and the top-bar buttons and places this box;
+   it is fixed so the banner's own clipping can't box it in, and never takes clicks. */
+.identity-art-wrap { position:fixed; left:var(--art-x,0); top:var(--art-y,0); width:var(--art-w,0); height:var(--art-h,0); margin:0; z-index:50; pointer-events:none; }
+.identity-banner:not([data-rise='rise'],[data-rise='inside']) .identity-art-wrap { visibility:hidden; }
+#app .identity-art-wrap .identity-art { position:absolute; inset:0; width:100%; height:100%; max-width:none; flex:none; object-fit:contain; object-position:50% 100%; transform-origin:50% 100%; }
+html[data-decoration='reduced'] .identity-art-wrap { display:none; }
 .identity-options { align-self:flex-start; display:grid; place-items:center; flex:none; width:28px; height:28px; padding:5px; border:1px solid #495157; border-radius:4px; background:#202529; color:var(--ink-2); }
 .identity-options svg { width:16px; height:16px; }
 .identity-options:hover { color:var(--ink); border-color:var(--focus); }
@@ -192,7 +199,6 @@ html[data-calm='true'] *, html[data-calm='true'] *::before, html[data-calm='true
   .page { padding:18px; }
   .play-grid { gap:14px; }
   .identity-banner { padding-inline:20px; }
-  .identity-art { flex-basis:210px; width:210px; }
 }
 @media (max-width:1050px) {
   :root { --sidebar-w:164px; --inspector-w:224px; }
@@ -203,7 +209,6 @@ html[data-calm='true'] *, html[data-calm='true'] *::before, html[data-calm='true
   .slot { padding:7px; }
   .slot .kind { display:none; }
   .lib-head { flex-wrap:wrap; padding:14px; }
-  .identity-art { flex-basis:180px; width:180px; }
   .identity-title { font-size:36px; }
 }
 @media (max-width:800px) {
@@ -213,7 +218,6 @@ html[data-calm='true'] *, html[data-calm='true'] *::before, html[data-calm='true
   #app.page-tones #page-tones { flex-direction:column; overflow-y:auto; }
   .tones-list,.tones-edit { flex:none; overflow:visible; min-height:auto; }
   .tones-list { border-right:0; border-bottom:1px solid var(--rule); }
-  .identity-art { flex-basis:120px; width:120px; }
   .identity-line { max-width:260px; font-size:11px; }
   .slots { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .nowbar .nb-prog { min-width:80px; }
@@ -225,7 +229,6 @@ html[data-calm='true'] *, html[data-calm='true'] *::before, html[data-calm='true
 }
 @media (max-height:760px) {
   .workspace { grid-template-rows:92px minmax(0,1fr); }
-  .identity-art { height:88px; }
   .identity-title { font-size:32px; }
   .identity-banner { padding-block:8px; }
 }

@@ -69,7 +69,8 @@ const opera = () => prefs.look !== 'roadshow';
 const moodsNow = () => (opera() ? operaMoods : roadshowMoods);
 const moods = new Proxy({}, { get: (_t, k) => moodsNow()[k] });
 const banner = document.getElementById('identity-banner');
-const art = h('img.identity-art', { alt: '', width: 240, height: 112, decoding: 'async', 'aria-hidden': 'true' });
+// the banner picture; replaced by a fresh, already decoded <img> on every change (see swapArt)
+let art = h('img.identity-art', { alt: '', 'aria-hidden': 'true', hidden: true });
 const label = h('span.identity-kicker');
 const title = h('h1.identity-title');
 const line = h('p.identity-line');
@@ -99,6 +100,33 @@ function save() {
   document.documentElement.dataset.calm = prefs.calm ? 'true' : 'false';
   document.documentElement.dataset.look = opera() ? 'opera' : 'roadshow';
 }
+function restartEntrance(els) {
+  for (const el of els) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
+}
+// Swap the picture only once the new one is loaded and decoded, as a new element: no blank frame,
+// no old picture flashing through the start of the entrance, and a quick page change can't land
+// a stale picture (the token). The same picture again keeps its element.
+let artToken = 0;
+let artAspect = 1;
+function swapArt(file, id) {
+  const token = ++artToken;
+  const url = `art/${file}`;
+  if (art.dataset.art === id && art.getAttribute('src') === url && art.naturalWidth) {
+    art.hidden = false; layoutArt();
+    if (opera()) restartEntrance([art]);
+    return;
+  }
+  const next = h('img.identity-art', { alt: '', 'aria-hidden': 'true', decoding: 'sync' });
+  next.dataset.art = id;
+  next.src = url;
+  const ready = next.decode ? next.decode() : new Promise((ok, no) => { next.onload = ok; next.onerror = no; });
+  ready.then(() => {
+    if (token !== artToken) return;
+    artAspect = next.naturalWidth / next.naturalHeight || 1;
+    art.replaceWith(next); art = next;
+    layoutArt();
+  }, () => { if (token === artToken) art.hidden = true; });
+}
 function paintArt(next = false) {
   if (!banner || !shown) return;
   const pool = PLACEMENTS[shown] || [];
@@ -112,14 +140,82 @@ function paintArt(next = false) {
     if (useImg) stickerImg.src = `art/${pickFor('stickerImg', STICKER_ART)}`;
     stickerImg.style.setProperty('--tilt', `${(Math.random() * 14 - 7).toFixed(1)}deg`);
     sticker.style.setProperty('--tilt', `${(Math.random() * 10 - 5).toFixed(1)}deg`);
-    // restart the entrance animations
-    for (const el of [art, sticker, stickerImg, title]) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
+    // restart the entrance animations (a new picture starts its own when it goes in)
+    restartEntrance([sticker, stickerImg, title]);
   }
   const item = ART.find(a => a.id === id);
-  if (!item) { art.hidden = true; return; }
-  art.hidden = false; art.src = `art/${item.file}`; art.dataset.art = id;
   banner.dataset.pinned = String(!!director.pinned(shown));
+  if (!item) { artToken++; art.hidden = true; return; }
+  swapArt(item.file, id);
 }
+/* The picture rises out of the banner into the top bar's empty middle: between the search box
+   and the top-bar buttons, never over them, the banner's words or its options button. When that
+   stretch is too narrow it sits inside the banner, and with no room at all it stays hidden. */
+const GAP = 16;
+const titlebar = document.querySelector('.titlebar');
+const searchBox = titlebar && titlebar.querySelector('.search');
+const tbActions = titlebar && titlebar.querySelector('.titlebar-actions');
+const winCtl = titlebar && titlebar.querySelector('.win-ctl');
+const copy = label.parentElement;
+const textRight = (el) => {
+  if (!el.firstChild) return -Infinity;
+  const r = document.createRange(); r.selectNodeContents(el);
+  return r.getBoundingClientRect().right;
+};
+const boxRight = (el, b) => (el.hidden || !el.offsetWidth ? -Infinity : b.left + el.offsetLeft + el.offsetWidth);
+let lastBox = '';
+function layoutArt() {
+  if (!banner || banner.hidden || !titlebar) return;
+  const b = banner.getBoundingClientRect();
+  if (!b.width) return;
+  const tb = titlebar.getBoundingClientRect();
+  // the banner's own words, flyer and sticker
+  const words = opera() ? boxRight(copy, b) : Math.max(textRight(label), textRight(title), textRight(line));
+  const content = Math.max(b.left, words, boxRight(sticker, b), boxRight(stickerImg, b)) + GAP;
+  const opt = prefsButton.offsetWidth ? prefsButton.getBoundingClientRect().left - GAP : b.right - GAP;
+  const sr = searchBox && searchBox.offsetWidth ? searchBox.getBoundingClientRect().right : tb.left;
+  const visible = [tbActions, winCtl].filter(el => el && el.offsetWidth);
+  const ar = visible.length ? Math.min(...visible.map(el => el.getBoundingClientRect().left)) : tb.right;
+  const bottom = b.bottom + (opera() ? 6 : -3);
+  const fit = (left, right, top) => {
+    const w = right - left, hgt = bottom - top;
+    if (w <= 0 || hgt <= 0) return null;
+    const pw = Math.min(w, hgt * artAspect), ph = pw / artAspect;
+    return { x: left + (w - pw) / 2, y: bottom - ph, w: pw, h: ph };
+  };
+  let mode = 'rise';
+  let box = fit(Math.max(sr + GAP, content), Math.min(ar - GAP, opt), tb.top + 6);
+  // too narrow to reach well up: keep it in the banner instead
+  if (!box || box.y > tb.bottom - 20 || box.w < 110) { mode = 'inside'; box = fit(content, opt, b.top + 8); }
+  if (!box || box.w < 80 || box.h < 50) mode = 'none';
+  const key = mode === 'none' ? mode : [mode, box.x, box.y, box.w, box.h].map(v => (typeof v === 'number' ? Math.round(v) : v)).join();
+  if (key === lastBox) return;
+  lastBox = key;
+  banner.dataset.rise = mode;
+  if (mode === 'none') return;
+  const set = (x, y) => {
+    artWrap.style.setProperty('--art-x', `${x}px`); artWrap.style.setProperty('--art-y', `${y}px`);
+  };
+  artWrap.style.setProperty('--art-w', `${Math.round(box.w)}px`); artWrap.style.setProperty('--art-h', `${Math.round(box.h)}px`);
+  set(Math.round(box.x), Math.round(box.y));
+  // if something above ever becomes the fixed box's frame, correct for where it really landed
+  const got = artWrap.getBoundingClientRect();
+  if (got.width && (Math.abs(got.left - Math.round(box.x)) > 1 || Math.abs(got.top - Math.round(box.y)) > 1)) {
+    set(Math.round(2 * box.x - got.left), Math.round(2 * box.y - got.top));
+  }
+}
+let layoutQueued = false;
+const queueLayout = () => {
+  if (layoutQueued) return;
+  layoutQueued = true;
+  requestAnimationFrame(() => { layoutQueued = false; layoutArt(); });
+};
+if (banner && typeof ResizeObserver === 'function') {
+  const ro = new ResizeObserver(queueLayout);
+  for (const el of [titlebar, searchBox, tbActions, winCtl, banner, copy, sticker, stickerImg, prefsButton]) if (el) ro.observe(el);
+}
+addEventListener('resize', queueLayout);
+document.fonts?.ready?.then(queueLayout);
 function show() {
   const mood = moods[state.page];
   document.getElementById('app').dataset.mood = state.page;
@@ -131,9 +227,8 @@ function show() {
   shown = state.page;
   [title.textContent, label.textContent, line.textContent] = mood;
   title.dataset.text = mood[0];
-  banner.dataset.placement = shown; paintArt(); refreshDecorations();
+  banner.dataset.placement = shown; paintArt(); refreshDecorations(); queueLayout();
 }
-art.onerror = () => { art.hidden = true; };
 document.addEventListener('error', e => {
   if (e.target?.classList?.contains('gear-photo')) e.target.parentElement.classList.add('photo-failed');
 }, true);

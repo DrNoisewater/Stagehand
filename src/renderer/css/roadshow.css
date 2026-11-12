@@ -28,7 +28,7 @@
 #app .identity-kicker { color:#211b13; font-size:10px; font-weight:900; letter-spacing:.14em; transform:rotate(-1deg); }
 #app .identity-kicker::before { background:var(--poster); clip-path:polygon(2% 0,98% 5%,100% 85%,94% 93%,2% 100%,0 65%); box-shadow:none; }
 #app .identity-line { color:#d5c9b2; font-size:12px; }
-#app .identity-art { flex-basis:300px; width:300px; height:158px; object-fit:contain; transform:rotate(3deg); filter:drop-shadow(3px 5px 0 #0007); }
+#app .identity-art { transform:rotate(3deg); filter:drop-shadow(3px 5px 0 #0007); }
 #app .identity-options { border-radius:1px; color:#e5d5b9; background:#29241d; border-color:#77644e; }
 #app .sidebar { background:linear-gradient(#171512e8,#171512ee),url('../art/roadshow/flight-case.webp') center/600px; border-right:3px double #6c5f4d; }
 #app .nav-section { height:43px; border-radius:1px; font-size:14px; font-weight:850; font-stretch:80%; text-transform:uppercase; letter-spacing:.025em; }
@@ -146,12 +146,10 @@ html[data-decoration='reduced'] #app .identity-kicker { color:var(--poster); }
 html[data-decoration='reduced'] #overlays :is(.roadshow-settings-art,.roadshow-caption) { display:none !important; }
 @media(max-width:1100px) {
   #app .identity-title { font-size:48px; }
-  #app .identity-art { width:220px; flex-basis:220px; }
   #app .identity-banner { padding-inline:22px; }
   #app .roadshow-sticker img { width:46px; }
 }
 @media(max-width:800px) {
-  #app .identity-art { width:140px; flex-basis:140px; height:120px; }
   #app .identity-title { font-size:40px; }
   #app .identity-line { font-size:11px; }
   #app .identity-banner { padding-inline:16px; gap:6px; }
@@ -160,7 +158,6 @@ html[data-decoration='reduced'] #overlays :is(.roadshow-settings-art,.roadshow-c
 }
 @media(max-height:760px) {
   #app .workspace { grid-template-rows:112px minmax(0,1fr); }
-  #app .identity-art { height:108px; }
   #app .identity-title { font-size:40px; }
   #app .roadshow-sticker { display:none; }
   #app.page-songs .workspace { grid-template-rows:112px minmax(0,1fr); }
