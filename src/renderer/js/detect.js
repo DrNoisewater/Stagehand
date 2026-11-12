@@ -416,11 +416,19 @@ export class Judge {
     if (!ne) return null;
     const top = this._strongest(ne);
     if (top <= 0) return null;
-    const r = this._chordIn(ne, top, tg, 0);
-    return r === null && instrumentShift.st ? this._chordIn(ne, top, tg, instrumentShift.st) : r;
+    // A settled look at the chord once all its strings ring, to tell a fret off. A strum's
+    // strings start a little apart, so the next chord is the next onset 0.1 s on or later.
+    const end = Math.min(onsetT + 0.2, this.onsets.find((o) => o.t > onsetT + 0.1)?.t ?? Infinity);
+    let late = null;
+    for (const f of this.frames) if (f.spec && f.t >= onsetT + 0.09 && f.t <= end && (!late || f.t > late.t)) late = f;
+    // Too early to tell yet: wait rather than pass it.
+    if (!late && end >= onsetT + 0.09 && this.frames.length && this.frames[this.frames.length - 1].t < onsetT + 0.09) return null;
+    const look = late && { mag: late.spec, binHz: late.binHz, before: this._frameNear(onsetT - 0.07) };
+    const r = this._chordIn(ne, top, tg, 0, look);
+    return r === null && instrumentShift.st ? this._chordIn(ne, top, tg, instrumentShift.st, look) : r;
   }
 
-  _chordIn(ne, top, tg, shift) {
+  _chordIn(ne, top, tg, shift, look) {
     const midis = [...new Set(tg.notes.filter((x) => !x.mute).map((x) => Math.round((x.midi + shift) * 100) / 100))];
     let present = 0;
     // Chords ring with many loud partials; judge each tone on harmonics spaced
@@ -431,8 +439,89 @@ export class Judge {
       const rival = Math.max(sal(m - 1), sal(m + 1), sal(m - 2), sal(m + 2));
       if (sv >= 0.1 * top && sv >= 0.8 * rival) present++;
     }
-    const need = Math.max(1, Math.ceil(midis.length * 0.6));
-    return present >= need ? present / midis.length : null;
+    // Half the strings is enough (a light strum, a string missed); a wrong chord is caught below.
+    if (present < Math.max(1, Math.ceil(midis.length * 0.5))) return null;
+    if (look && this._wrongFret(look, midis)) return null;
+    return present / midis.length;
+  }
+
+  /**
+   * True when one of the chord's notes was clearly fretted wrong: none of its strings show it,
+   * and a note a fret or two away, one the chord doesn't have, rings in its place (E minor played
+   * for E major). Forgiving on purpose: a note that's just quiet or missed is fine, a note whose
+   * partials all sit under other notes can't be told and is fine, and a note heard clearly on any
+   * of its strings is fine even if another of its strings slipped a fret.
+   */
+  _wrongFret(look, midis) {
+    const pk = this._peaks(look);
+    if (!pk.length) return false;
+    const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    const near = (f, g) => Math.abs(1200 * Math.log2(f / g)) < 30;
+    const pc = (m) => ((Math.round(m) % 12) + 12) % 12;
+    const names = new Set(midis.map(pc));
+    // a frequency one of these notes' first 12 harmonics explains
+    const explained = (f, notes) => notes.some((o) => {
+      const g = hz(o);
+      const k = Math.round(f / g);
+      return k >= 1 && k <= 12 && near(f, g * k);
+    });
+    // How strongly a note shows on the harmonics only it has (none of `others` shares them),
+    // from the first harmonic where a semitone is two bins wide. `fresh`: only peaks that are new.
+    const ev = (m, others, fresh) => {
+      const f0 = hz(m);
+      const h0 = Math.max(1, Math.ceil((2 * look.binHz) / (f0 * 0.0595)));
+      let s = 0, n = 0;
+      for (let h = h0; h < h0 + 6 && f0 * h < 4000; h++) {
+        const f = f0 * h;
+        if (explained(f, others)) continue;
+        n++;
+        let a = 0;
+        for (const p of pk) if (p.a > a && near(p.f, f) && (!fresh || p.fresh)) a = p.a;
+        s += a / Math.sqrt(h);
+      }
+      return { s, n };
+    };
+    for (const name of names) {
+      const same = midis.filter((x) => pc(x) === name);
+      const others = midis.filter((x) => pc(x) !== name);
+      let wrong = true;
+      for (const m of same) {
+        const mine = ev(m, others, false);
+        // can't tell, or heard clearly: fine
+        if (mine.n === 0 || mine.s >= 0.1 * pk.top) { wrong = false; break; }
+        let beaten = false;
+        for (const d of [-2, -1, 1, 2]) {
+          if (names.has(pc(m + d))) continue;
+          // the same slip on this note's other strings doesn't count as more proof
+          const alt = ev(m + d, [...others, ...same.filter((o) => o !== m).map((o) => o + d)], true);
+          if (alt.n >= 2 && alt.s >= 0.15 * pk.top && alt.s >= 2 * mine.s) beaten = true;
+        }
+        if (!beaten) { wrong = false; break; }
+      }
+      if (wrong) return true;
+    }
+    return false;
+  }
+
+  /** Peaks of a spectrum, 60 Hz to 4 kHz: real peaks only, not the spill-over beside a loud one. */
+  _peaks(look) {
+    if (look.peaks) return look.peaks;
+    const m = look.mag, b = look.before && look.before.spec && look.before.spec.length === m.length ? look.before.spec : null;
+    const all = [];
+    let top = 0;
+    const lo = Math.max(2, Math.floor(60 / look.binHz)), hi = Math.min(m.length - 2, Math.ceil(4000 / look.binHz));
+    for (let k = lo; k <= hi; k++) {
+      if (m[k] <= m[k - 1] || m[k] < m[k + 1]) continue;
+      const d = (m[k - 1] - m[k + 1]) / (2 * (m[k - 1] - 2 * m[k] + m[k + 1]) || 1);
+      // fresh: at least twice what was ringing there before the strum
+      const was = b ? Math.max(b[k - 1], b[k], b[k + 1]) : 0;
+      all.push({ f: (k + (Number.isFinite(d) ? d : 0)) * look.binHz, a: m[k], fresh: m[k] > 2 * was });
+      if (m[k] > top) top = m[k];
+    }
+    const side = 3.5 * look.binHz;
+    look.peaks = all.filter((p) => p.a >= 0.02 * top && !all.some((q) => q.a >= 4 * p.a && Math.abs(q.f - p.f) < side));
+    look.peaks.top = top;
+    return look.peaks;
   }
 
   _judge(t) {

@@ -29,6 +29,7 @@ python3 -m pip install cryptography
 
 npm test                        # the whole suite (~1 min); must pass before committing
 node test/detect.test.mjs       # note detection on synthesised playing (~20 s); NOT in npm test: a few assertions can be flaky
+node test/chords.test.mjs       # chord scoring: wrong chords miss, messy right strums count (~40 s); NOT in npm test
 node --test test/instrument.test.mjs   # guitar-or-bass sensing (also in npm test)
 
 # Linux helper with a fake audio device, needed by the e2e rig/UI tests (native/build/ is git-ignored)
