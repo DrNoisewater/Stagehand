@@ -281,6 +281,28 @@ export function appearancePane(el) {
   toggle('reduced', 'Less decoration', 'Hide illustrations and poster textures. Keep all controls and page labels.');
   toggle('rotateVenues', 'A different room for the next song', 'Shuffle unlocked photo venues only when a different song loads. Turn this off to keep your chosen venue.');
   toggle('calm', 'Calmer interface', 'Stop decorative interface motion. The note highway and music visualizers keep their playback behavior.');
+  // 4.11: anything that comes in more than one look is yours to pick, in one place
+  el.append(h('h3', { text: 'Pick your look' }), h('p', { text: 'Where Stagehand has more than one look for something, choose the one you like. Each also has its own switch where it lives.' }));
+  const pick = (name, note) => {
+    const seg = h('span.seg', { role: 'group', 'aria-label': name });
+    el.append(h('div.looks-row', null, h('b', { text: name }), seg, note ? h('small', { text: note }) : null));
+    return (options, get, set) => {
+      const draw = () => {
+        seg.innerHTML = '';
+        for (const [id, label, tip] of options) {
+          const b = h('button', { type: 'button', text: label, title: tip || label, 'aria-pressed': String(get() === id) });
+          b.onclick = async () => (await set(id), draw());
+          seg.append(b);
+        }
+      };
+      draw();
+    };
+  };
+  const tunerRow = pick('Tuner', 'U opens the tuner anywhere');
+  import('./tuner.js').then(({ TUNER_LOOKS, tunerLook, setTunerLook }) => tunerRow(TUNER_LOOKS, tunerLook, setTunerLook)).catch(() => {});
+  const songsRow = pick('Songs');
+  Promise.all([import('./store.js'), import('./library.js')]).then(([{ state }, { setSongLayout }]) => songsRow([['list', 'List', 'Rows with every detail'], ['grid', 'Tiles', 'Album covers']], () => (state.layout === 'list' ? 'list' : 'grid'), (v) => setSongLayout(v))).catch(() => {});
+  el.append(h('p', { text: 'The highway’s venue and string order are in its Sound & settings panel (and Settings › Playback); Jam’s moving background is picked on the Jam page.' }));
   const section = shown || 'play';
   const preview = h('img.identity-preview',{alt:'Current decorative artwork',width:220,height:140});
   const pin = h('button.btn', {type:'button'});

@@ -108,6 +108,11 @@ function buildHead() {
   });
 }
 
+/** 4.11: also from Settings › Appearance › Pick your look */
+export function setSongLayout(l) {
+  setLayout(l === 'list' ? 'list' : 'grid');
+}
+
 function setLayout(l) {
   state.layout = l;
   persistUi();
@@ -194,7 +199,8 @@ function bestBadge(s) {
 function noAudioBadge(s) {
   // 4.0.4: a small dim seal, not a word: it was too loud next to every title
   if (isOfficial(s)) return '<span class="official" title="Official Rocksmith DLC" aria-label="Official Rocksmith DLC"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6"/><path d="M3.9 6.1l1.4 1.4 2.8-2.9"/></svg></span>';
-  return s.audioEntry === null && !s.audioFrom ? '<sup class="noaudio" title="No song audio in this file: it can’t play">no audio</sup>' : '';
+  // 4.11: only after its audio was looked for (in its file, then in Rocksmith's folder) and not found
+  return s.audioEntry === null && !s.audioFrom && s.audioFail ? `<sup class="noaudio" title="${esc(s.audioFail.message || 'Its audio wasn’t found')} Open it to look again.">audio not found</sup>` : '';
 }
 
 function buildRow(s) {

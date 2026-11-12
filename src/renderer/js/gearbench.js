@@ -15,7 +15,7 @@ import { h, esc } from './ui.js';
 import { gearInfo, gearName } from './gearspec.js';
 import { gearPhotoInfo, GEAR_PHOTOS } from './gear-photos.js';
 import { gearArt } from './gearart.js';
-import { rotaryKnob, fmtKnob, gearFaceplate } from './rigui.js';
+import { rotaryKnob, fmtKnob, gearFaceplate, stepFor } from './rigui.js';
 import { knobsOf, orderedGear } from './tonelib.js';
 
 export const CAB_RE = /^(.*)_(57|Condenser|Ribbon|Tube)_(Cone|Edge|OffAxis)$/;
@@ -160,7 +160,7 @@ export function gearPanel(g, { gel = '#c9a560', onKnob, disabled = false } = {})
   const strip = h('div.gb-strip', { role: 'group', 'aria-label': `${gearName(g.key)} controls` });
   const ks = knobsOf(g);
   const photo = gearPhotoInfo(g.key);
-  const onPhoto = new Set(Object.keys((photo && photo.knobs) || {}));
+  const onPhoto = new Set([...Object.keys((photo && photo.knobs) || {}), ...Object.keys((photo && photo.sliders) || {})]);
   for (const k of ks) {
     const knob = rotaryKnob({
       name: k.name,
@@ -169,6 +169,7 @@ export function gearPanel(g, { gel = '#c9a560', onKnob, disabled = false } = {})
       value: k.value,
       def: k.def,
       gel,
+      step: stepFor(k.min, k.max),
       fmt: (v) => fmtKnob(k, v),
       onInput: (v) => onKnob && onKnob(k.key, v, false),
       onChange: (v) => onKnob && onKnob(k.key, v, true),
@@ -184,7 +185,7 @@ export function gearPanel(g, { gel = '#c9a560', onKnob, disabled = false } = {})
     face.querySelector('.gear-face-help')?.remove();
     box.append(h('div.gb-photo', { style: { '--ar': String(photo.width / photo.height) } }, face));
   } else box.append(h('div.gb-photo.drawing', { html: gearArt(g) }));
-  const note = !ks.length ? '' : onPhoto.size === ks.length ? 'Turn the knobs on the photo or on the strip: they’re the same knobs.' : onPhoto.size ? 'Knobs you can’t see on the photo are on the strip below.' : 'Set it with the knobs on the strip.';
+  const note = !ks.length ? '' : onPhoto.size === ks.length ? 'Work the controls on the photo or on the strip: they’re the same controls.' : onPhoto.size ? 'Controls you can’t see on the photo are on the strip.' : 'Set it with the knobs on the strip.';
   box.append(h('div.gb-strip-wrap', null, note ? h('small.gb-note', { text: note }) : '', strip));
   box.dispose = () => face && face.dispose && face.dispose();
   return box;
@@ -311,141 +312,427 @@ export function micPanel(g, family, { on, disabled = false, reason = '' } = {}) 
 
 // ------------------------------------------------------------ the board --
 /**
- * The rig as a pedalboard: your guitar → pedals → amp head (on its cabinet) → loop pedals →
- * cabinet → rack → your speakers, joined by braided cables. Every cable carries a light pulse
- * driven by the level you play at (setLevel), moving in the signal's direction.
+ * The rig set up the way a real one is, seen from where you stand: your guitar comes in on the
+ * right, the signal runs right to left (a pedal's input is on its right, its output on its
+ * left), through the pedals into the amp head sitting on its cabinet, out through the amp's
+ * loop pedals and back, then from the cabinet's mic through the rack to your speakers.
  *
- * o.selected: index into orderedGear(tone); o.onPick(i), o.onBypass(i)
+ * 4.10: everything stands in signal order on one floor line. Neighbours are joined by short patch
+ * cables, jack to jack; the two long runs (back from the loop, and from the cabinet's mic past
+ * the loop pedals) lie flat along the floor under gaffer tape. Pieces can be dragged: a little
+ * to nudge them (the cables follow), or past a neighbour to change the order.
+ *
+ * o.selected: index into orderedGear(tone); o.onPick(i), o.onBypass(i),
+ * o.onMove(i, steps) (steps > 0 = later in the chain), o.onNudge(i, [dx, dy])
  */
-export function rigBoard(tone, { selected = -1, onPick, onBypass, kind = 'guitar' } = {}) {
+const NUDGE = { x: 24, up: 34, down: 10 };
+const HINT_KEY = 'stagehand.rigDragHint';
+
+export function rigBoard(tone, { selected = -1, onPick, onBypass, onMove, onNudge, kind = 'guitar' } = {}) {
   const gear = orderedGear(tone);
-  const board = h('div.rb', { role: 'list', 'aria-label': 'Your rig, in signal order' });
+  const board = h('div.rb', { role: 'list', 'aria-label': 'Your rig, in signal order: your guitar is on the right' });
   const svgNS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNS, 'svg');
   svg.setAttribute('class', 'rb-cables');
   svg.setAttribute('aria-hidden', 'true');
-  const lane = h('div.rb-lane');
-  const jackIn = h('div.rb-jack.in', { title: `Your ${kind}` }, h('span.rb-jack-ico', { html: GUITAR_SVG }), h('small', { text: `Your ${kind}` }));
-  const jackOut = h('div.rb-jack.out', { title: 'Out to your speakers or headphones' }, h('span.rb-jack-ico', { html: SPEAKER_SVG }), h('small', { text: 'Out' }));
-  const pieces = new Map(); // index → element
-  const piece = (g, i) => {
-    const p = h(`div.rb-piece.${g.slot}${g.bypass ? '.off' : ''}${i === selected ? '.sel' : ''}`, { role: 'listitem', 'data-i': String(i) });
-    const art = h('button.rb-art', { type: 'button', title: `${gearName(g.key)}${g.bypass ? ' (off)' : ''}: click to open its knobs`, 'aria-pressed': String(i === selected) }, gearThumb(g.key, g.slot, { full: g.slot === 'amp' || g.slot === 'cab' }));
-    art.onclick = () => onPick && onPick(i);
-    p.append(art);
-    const tape = h('span.rb-tape', { text: gearName(g.key).replace(/\s*\((Dynamic|Condenser|Ribbon|Tube)[^)]*\)/i, '') });
-    if (g.slot !== 'cab' && g.slot !== 'amp') {
-      const sw = h('button.rb-switch', { type: 'button', title: g.bypass ? 'Off: click to turn it on' : 'On: click to switch it off', 'aria-label': `${gearName(g.key)} on or off`, 'aria-pressed': String(!g.bypass) }, h('span.rb-led'));
-      sw.onclick = (e) => (e.stopPropagation(), onBypass && onBypass(i));
-      p.append(h('div.rb-foot', null, sw, tape));
-    } else p.append(tape);
-    pieces.set(i, p);
-    return p;
-  };
-  const group = (cls, label) => h(`div.rb-group.${cls}`, { 'data-label': label });
-  const pre = group('pre', 'Before the amp');
-  const post = group('post', 'Amp’s loop');
-  const rack = group('rack', 'Rack');
-  const stack = h('div.rb-stack');
-  let ampI = -1, cabI = -1;
-  gear.forEach((g, i) => {
-    if (g.slot === 'pre') pre.append(piece(g, i));
-    else if (g.slot === 'post') post.append(piece(g, i));
-    else if (g.slot === 'rack') rack.append(piece(g, i));
-    else if (g.slot === 'amp') (ampI = i), stack.prepend(piece(g, i));
-    else if (g.slot === 'cab') (cabI = i), stack.append(piece(g, i));
-  });
-  if (ampI < 0) stack.prepend(h('div.rb-empty.amp', { text: 'No amp: pick one from the gear below' }));
-  if (cabI < 0) stack.append(h('div.rb-empty.cab', { text: 'No cabinet' }));
-  lane.append(jackIn);
-  for (const part of [pre, stack, post, rack]) if (part === stack || part.children.length) lane.append(part);
-  lane.append(jackOut);
-  board.append(lane, svg);
-
-  // signal order: in → pre… → amp → post… → cab → rack… → out
-  const order = [];
+  const deco = h('div.rb-deco', { 'aria-hidden': 'true' });
+  const jackIn = h('div.rb-jack.in', { title: `Your ${kind} plugs in here` }, h('span.rb-jack-ico', { html: GUITAR_SVG }), h('span.rb-tag', { text: kind === 'bass' ? 'Bass in' : 'Guitar in' }));
+  const jackOut = h('div.rb-jack.out', { title: 'Out to your speakers or headphones' }, h('span.rb-jack-ico', { html: SPEAKER_SVG }), h('span.rb-tape.duct', { text: 'Out' }));
   const idx = (slot) => gear.map((g, i) => (g.slot === slot ? i : -1)).filter((i) => i >= 0);
-  order.push({ el: jackIn, side: 'jack' });
-  for (const i of idx('pre')) order.push({ i });
-  if (ampI >= 0) order.push({ i: ampI });
-  for (const i of idx('post')) order.push({ i });
-  if (cabI >= 0) order.push({ i: cabI, cab: true });
-  for (const i of idx('rack')) order.push({ i });
-  order.push({ el: jackOut, side: 'jack' });
+  const pre = idx('pre'), post = idx('post'), racks = idx('rack');
+  const ampI = idx('amp')[0] ?? -1, cabI = idx('cab')[0] ?? -1;
+  const short = (key) => gearName(key).replace(/\s*\((Dynamic|Condenser|Ribbon|Tube)[^)]*\)/i, '');
 
-  const draw = () => {
-    if (!board.isConnected) return;
-    const B = board.getBoundingClientRect();
-    if (!B.width) return;
-    svg.setAttribute('viewBox', `0 0 ${B.width} ${B.height}`);
-    svg.setAttribute('width', String(B.width));
-    svg.setAttribute('height', String(B.height));
-    const pt = (o, which) => {
-      const el = o.el || (pieces.get(o.i) && pieces.get(o.i).querySelector('.rb-art img, .rb-art .gb-drawing')) || (pieces.get(o.i) && pieces.get(o.i).querySelector('.rb-art'));
-      if (!el) return null;
-      const r = drawn(el);
-      const g = o.i >= 0 ? gear[o.i] : null;
-      const yf = !g ? 0.42 : g.slot === 'amp' ? 0.5 : g.slot === 'cab' ? (which === 'in' ? 0.28 : 0.62) : g.slot === 'rack' ? 0.5 : 0.3;
-      // the cabinet takes its cable on its right side (round the back) and sends from there too
-      const x = !g ? (which === 'out' ? r.right - 6 : r.left + 6) : g.slot === 'cab' ? r.right - 2 : which === 'in' ? r.left + 2 : r.right - 2;
-      return { x: x - B.left, y: r.top + r.height * yf - B.top, back: g && g.slot === 'cab' && which === 'in' };
-    };
-    let paths = '';
-    let plugs = '';
-    let glow = '';
-    for (let k = 0; k < order.length - 1; k++) {
-      const a = pt(order[k], 'out');
-      const b = pt(order[k + 1], 'in');
-      if (!a || !b) continue;
-      const ga = order[k].i >= 0 ? gear[order[k].i] : null;
-      const gb = order[k + 1].i >= 0 ? gear[order[k + 1].i] : null;
-      const off = (ga && ga.bypass) || (gb && gb.bypass);
-      const dx = b.x - a.x;
-      const sag = 26 + Math.min(70, Math.abs(dx) * 0.18);
-      let c1x, c1y, c2x, c2y;
-      if (dx > 8 && !b.back) {
-        c1x = a.x + dx * 0.45; c1y = a.y + sag;
-        c2x = b.x - dx * 0.45; c2y = b.y + sag;
-      } else {
-        // going back to the cabinet: out of the last loop pedal, down under the pedals, in from the right
-        const floor = B.height - 14;
-        const reach = Math.max(36, Math.abs(dx) * 0.3);
-        c1x = a.x + 40; c1y = floor + 30;
-        c2x = b.x + reach; c2y = floor + 20;
-      }
-      const d = `M${a.x.toFixed(1)},${a.y.toFixed(1)} C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${b.x.toFixed(1)},${b.y.toFixed(1)}`;
-      const cls = off ? ' off' : '';
-      paths += `<path class="rb-shadow${cls}" d="${d}" transform="translate(2 4)"/><path class="rb-braid${cls}" d="${d}"/><path class="rb-weave${cls}" d="${d}"/><path class="rb-sheen${cls}" d="${d}"/>`;
-      glow += `<path class="rb-pulse${cls}" d="${d}" style="animation-delay:${(-0.18 * k).toFixed(2)}s"/>`;
-      plugs += plug(a, c1x, c1y) + plug(b, c2x, c2y);
+  // ---- the pieces
+  const P = new Map(); // gear index → { el, art, pic, g, w, h, x, y, at }
+  const aspect = (g) => {
+    const ph = gearPhotoInfo(g.key);
+    if (ph && ph.width && ph.height) return ph.width / ph.height;
+    return g.slot === 'amp' ? 2.4 : g.slot === 'cab' ? 1.25 : g.slot === 'rack' ? 4.2 : 0.62;
+  };
+  const piece = (g, i) => {
+    const el = h(`div.rb-piece.${g.slot}${g.bypass ? '.off' : ''}${i === selected ? '.sel' : ''}`, { role: 'listitem', 'data-i': String(i) });
+    const pic = gearThumb(g.key, g.slot, { full: g.slot === 'amp' || g.slot === 'cab' });
+    const canMove = g.slot === 'pre' || g.slot === 'post' || g.slot === 'rack';
+    const art = h('button.rb-art', { type: 'button', title: `${short(g.key)}${g.bypass ? ' (off)' : ''}: click for its knobs${canMove ? ', drag to move it' : ''}`, 'aria-pressed': String(i === selected) }, pic);
+    const foot = h('div.rb-foot');
+    if (g.slot !== 'cab' && g.slot !== 'amp') {
+      const sw = h('button.rb-switch', { type: 'button', title: g.bypass ? 'Off: click to turn it on' : 'On: click to switch it off', 'aria-label': `${short(g.key)} on or off`, 'aria-pressed': String(!g.bypass) }, h('span.rb-led'));
+      sw.onclick = (e) => (e.stopPropagation(), onBypass && onBypass(i));
+      foot.append(sw);
     }
-    svg.innerHTML = `<g class="rb-wires">${paths}</g><g class="rb-glow">${glow}</g><g class="rb-plugs">${plugs}</g>`;
+    foot.append(h('span.rb-tape', { text: short(g.key) }));
+    el.append(art, foot);
+    const at = Array.isArray(g.at) ? [Number(g.at[0]) || 0, Number(g.at[1]) || 0] : [0, 0];
+    P.set(i, { el, art, pic, foot, g, i, at, canMove });
+    board.append(el);
+    drag(P.get(i));
   };
-  // the picture's own box (an <img> with object-fit: contain can be wider than what it shows)
-  const drawn = (el) => {
-    const r = el.getBoundingClientRect();
-    if (el.tagName !== 'IMG' || !el.naturalWidth) return r;
-    const ar = el.naturalWidth / el.naturalHeight;
-    let w = r.width, hh = r.height;
-    if (w / hh > ar) w = hh * ar;
-    else hh = w / ar;
-    const left = r.left + (r.width - w) / 2, top = r.top + (r.height - hh) / 2;
-    return { left, top, right: left + w, bottom: top + hh, width: w, height: hh };
+  gear.forEach((g, i) => piece(g, i));
+  const noAmp = ampI < 0 ? h('div.rb-empty.amp', { text: 'No amp yet: pick one from the gear wall' }) : null;
+  const noCab = cabI < 0 ? h('div.rb-empty.cab', { text: 'No cabinet' }) : null;
+  if (noAmp) board.append(noAmp);
+  if (noCab) board.append(noCab);
+  board.append(jackIn, jackOut, deco, svg);
+
+  // ---- the furniture: tape labels, the chalk arrow, the tone's sticker (decoration only)
+  const groupTape = (text) => h('span.rb-gaffer', { text });
+  const tapes = { pre: pre.length ? groupTape('Before the amp') : null, post: post.length ? groupTape('Amp’s loop') : null, rack: racks.length ? groupTape('Rack') : null };
+  for (const t of Object.values(tapes)) if (t) deco.append(t);
+  const chalk = h('span.rb-chalk', null, h('img', { src: 'art/scraps/white-chalk-arrow.avif', alt: '', draggable: false }), h('small', { text: 'signal' }));
+  const sticker = h('span.rb-sticker', null, h('b', { text: (tone && tone.name) || 'New tone' }));
+  deco.append(chalk, sticker);
+  const eqI = gear.findIndex((g) => /EQ/.test(g.key) && g.slot !== 'amp' && g.slot !== 'cab');
+  const eqSign = eqI >= 0 ? h('img.rb-eqsign', { src: 'art/scraps/eq-sign.avif', alt: '', draggable: false }) : null;
+  if (eqSign) deco.append(eqSign);
+  const runTapes = [h('img.rb-runtape', { src: 'art/scraps/black-gaffer-tape.avif', alt: '', draggable: false }), h('img.rb-runtape', { src: 'art/scraps/black-gaffer-tape.avif', alt: '', draggable: false })];
+  deco.append(...runTapes);
+  let hint = null;
+  const hintSeen = () => { try { return localStorage.getItem(HINT_KEY) === '1'; } catch { return true; } };
+  if (!hintSeen() && pre.length + post.length + racks.length > 0) {
+    hint = h('span.rb-hint', null, h('span', { text: 'Drag gear to shift it. Drag it past its neighbour to swap places.' }), h('img', { src: 'art/scraps/red-hooked-arrow.avif', alt: '', draggable: false }));
+    deco.append(hint);
+  }
+  const hintDone = () => {
+    if (!hint) return;
+    hint.remove();
+    hint = null;
+    try { localStorage.setItem(HINT_KEY, '1'); } catch { /* private mode */ }
   };
-  // a chrome jack: a short barrel along the cable's end direction, with a collar
-  const plug = (p, cx, cy) => {
-    let ux = cx - p.x, uy = cy - p.y;
+
+  // ---- where everything stands
+  let L = null; // the last layout: { base, runA, runB, W, H }
+  let S = 1; // how much smaller than full size the rig is drawn (cables and plugs follow)
+  const place = (n) => {
+    n.el.style.left = `${Math.round(n.x + n.at[0])}px`;
+    n.el.style.top = `${Math.round(n.y + n.at[1])}px`;
+  };
+  const layout = () => {
+    const host = board.parentElement;
+    const H = (host && host.clientHeight) || board.clientHeight;
+    const VW = (host && host.clientWidth) || board.clientWidth;
+    if (!H || !VW) return false;
+    const TOP = 34, FOOT = 64, PAD = 30, JACK = 62;
+    const U0 = Math.max(120, H - TOP - FOOT);
+    const base = TOP + U0; // the floor line every piece stands on
+    const stackOf = () => Math.max(ampI >= 0 ? P.get(ampI).w : 230, cabI >= 0 ? P.get(cabI).w : 210);
+    const size = (n, U) => {
+      const ar = aspect(n.g), s = n.g.slot;
+      let w, hh;
+      if (s === 'amp') {
+        w = Math.max(110, Math.min(330, U * 1.1));
+        hh = w / ar;
+        const cap = cabI >= 0 || noCab ? U * 0.43 : U * 0.8;
+        if (hh > cap) (hh = cap), (w = hh * ar);
+      } else if (s === 'cab') {
+        const head = ampI >= 0 ? P.get(ampI).h : noAmp ? U * 0.3 : 0;
+        hh = Math.max(60, U - head - 2);
+        w = hh * ar;
+        const cap = Math.max(U * 0.8, (ampI >= 0 ? P.get(ampI).w : 220) * 1.08);
+        if (w > cap) (w = cap), (hh = w / ar);
+      } else if (s === 'rack') {
+        w = Math.max(96, Math.min(220, U * 0.8));
+        hh = w / ar;
+        if (hh > 76) (hh = 76), (w = hh * ar);
+      } else {
+        hh = Math.max(64, Math.min(190, U * 0.52));
+        w = hh * ar;
+        if (w > hh * 1.3) (w = hh * 1.3), (hh = w / ar);
+      }
+      n.w = Math.round(w);
+      n.h = Math.round(hh);
+      n.pic.style.width = `${n.w}px`;
+      n.pic.style.height = `${n.h}px`;
+    };
+    // left to right on screen: out · rack (last…first) · loop (last…first) · the stack · pedals (last…first) · in
+    const row = (list) => list.slice().reverse().map((i) => P.get(i));
+    let U = U0, GAP = 54, GROUP = 78, groups, total, stackW;
+    // a big rig is made a little smaller rather than running off the side of the board
+    for (let pass = 0; pass < 7; pass++) {
+      if (ampI >= 0) size(P.get(ampI), U);
+      for (const [i, n] of P) if (i !== ampI) size(n, U);
+      stackW = stackOf();
+      groups = [{ k: 'out', w: JACK }, { k: 'rack', list: row(racks) }, { k: 'post', list: row(post) }, { k: 'stack', w: stackW }, { k: 'pre', list: row(pre) }, { k: 'in', w: JACK }].filter((g) => !g.list || g.list.length);
+      for (const g of groups) if (g.list) g.w = g.list.reduce((a, n) => a + n.w, 0) + GAP * (g.list.length - 1);
+      total = groups.reduce((a, g) => a + g.w, 0) + GROUP * (groups.length - 1);
+      const room = VW - PAD * 2;
+      if (total <= room || U <= U0 * 0.36) break;
+      const k = Math.max(0.5, (room / total) * 0.98);
+      U = Math.max(U0 * 0.36, U * k);
+      GAP = Math.max(30, GAP * k);
+      GROUP = Math.max(40, GROUP * k);
+    }
+    S = Math.max(0.55, Math.min(1, U / U0 + 0.12));
+    board.style.setProperty('--cable', S.toFixed(3));
+    const W = Math.max(VW, total + PAD * 2);
+    board.style.width = `${W}px`;
+    board.style.height = `${H}px`;
+    let x = (W - total) / 2;
+    const at = {};
+    for (const g of groups) {
+      at[g.k] = { x, w: g.w };
+      if (g.list) {
+        let px = x;
+        for (const n of g.list) {
+          n.x = px;
+          n.y = base - n.h;
+          px += n.w + GAP;
+        }
+      }
+      x += g.w + GROUP;
+    }
+    const sx = at.stack.x;
+    let headH = U * 0.3;
+    if (ampI >= 0) {
+      const a = P.get(ampI);
+      headH = a.h;
+      a.x = sx + (stackW - a.w) / 2;
+    }
+    if (cabI >= 0) {
+      const c = P.get(cabI);
+      c.x = sx + (stackW - c.w) / 2;
+      c.y = base - c.h;
+      if (ampI >= 0) P.get(ampI).y = c.y - headH - 2;
+    } else if (ampI >= 0) P.get(ampI).y = base - headH - (noCab ? U * 0.34 + 4 : 0);
+    if (noCab) Object.assign(noCab.style, { left: `${sx}px`, top: `${base - U * 0.34}px`, width: `${stackW}px`, height: `${U * 0.34}px` });
+    if (noAmp) Object.assign(noAmp.style, { left: `${sx}px`, top: `${(cabI >= 0 ? P.get(cabI).y : base - U * 0.34) - U * 0.3 - 4}px`, width: `${stackW}px`, height: `${U * 0.3}px` });
+    for (const n of P.values()) {
+      place(n);
+      const tape = n.foot.querySelector('.rb-tape');
+      if (tape) tape.style.maxWidth = `${Math.max(74, n.w + GAP - (n.foot.children.length > 1 ? 40 : 12))}px`;
+    }
+    // the guitar and the speakers sit level with the jack they plug into, so those cables run flat
+    const firstIn = pre.length ? P.get(pre[0]) : ampI >= 0 ? P.get(ampI) : null;
+    const lastOut = racks.length ? P.get(racks[racks.length - 1]) : cabI >= 0 ? P.get(cabI) : ampI >= 0 ? P.get(ampI) : null;
+    const portY = (n) => (n ? n.y + n.h * (n.g.slot === 'rack' ? 0.5 : n.g.slot === 'amp' ? 0.5 : n.g.slot === 'cab' ? 0.56 : 0.31) : base - 60);
+    const clampY = (y) => Math.max(TOP + 30, Math.min(base - 34, y));
+    Object.assign(jackIn.style, { left: `${at.in.x}px`, top: `${clampY(portY(firstIn)) - 34}px`, width: `${JACK}px` });
+    Object.assign(jackOut.style, { left: `${at.out.x}px`, top: `${clampY(portY(lastOut)) - 27}px`, width: `${JACK}px` });
+    // furniture
+    for (const k of ['pre', 'post', 'rack']) if (tapes[k]) Object.assign(tapes[k].style, { left: `${at[k].x + at[k].w / 2}px`, top: '6px' });
+    Object.assign(chalk.style, { left: `${Math.min(W - 196, at.in.x - 110)}px`, top: `${base + 32}px` });
+    Object.assign(sticker.style, { left: `${Math.max(10, at.out.x - 24)}px`, top: '4px' });
+    if (eqSign) {
+      const n = P.get(eqI);
+      Object.assign(eqSign.style, { left: `${n.x + n.w / 2}px`, top: `${Math.max(30, n.y - 30)}px` });
+    }
+    if (hint) {
+      const first = pre.length ? P.get(pre[0]) : post.length ? P.get(post[0]) : P.get(racks[0]);
+      Object.assign(hint.style, { left: `${first.x + first.w / 2}px`, top: `${Math.max(36, first.y - 108)}px` });
+    }
+    L = { base, W, H, runA: base + 44, runB: base + 55, at, stackW, sx };
+    return true;
+  };
+
+  // ---- the cables
+  const box = (n) => ({ l: n.x + n.at[0], t: n.y + n.at[1], r: n.x + n.at[0] + n.w, b: n.y + n.at[1] + n.h, w: n.w, h: n.h });
+  const jackBox = (el) => {
+    const ico = el.querySelector('.rb-jack-ico');
+    const l = el.offsetLeft + ico.offsetLeft, t = el.offsetTop + ico.offsetTop;
+    return { l, t, r: l + ico.offsetWidth, b: t + ico.offsetHeight, w: ico.offsetWidth, h: ico.offsetHeight };
+  };
+  // where a cable plugs in: every pedal and rack unit takes it on the right and sends from the left
+  const port = (i, which) => {
+    const n = P.get(i), b = box(n), s = n.g.slot;
+    if (s === 'amp') {
+      if (which === 'in') return { x: b.r - 2, y: b.t + b.h * 0.5, d: 1 };
+      if (which === 'send') return { x: b.l + 2, y: b.t + b.h * 0.34, d: -1 };
+      if (which === 'return') return { x: b.l + 2, y: b.t + b.h * 0.7, d: -1 };
+      return { x: b.r - 2, y: b.t + b.h * 0.86, d: 1 }; // speaker out
+    }
+    if (s === 'cab') return which === 'in' ? { x: b.r - 2, y: b.t + b.h * 0.16, d: 1 } : { x: b.l + 2, y: b.t + b.h * 0.56, d: -1 };
+    const yf = s === 'rack' ? 0.5 : 0.31;
+    return which === 'in' ? { x: b.r - 2, y: b.t + b.h * yf, d: 1 } : { x: b.l + 2, y: b.t + b.h * yf, d: -1 };
+  };
+  const f = (v) => v.toFixed(1);
+  // a short patch cable between two jacks that face each other. The plug comes straight out of
+  // the jack (they're side jacks); between two jacks at the same height the cable hangs in a
+  // shallow U, and between different heights it makes one smooth S: never a V.
+  const PLUG = 13;
+  const hop = (a, b) => {
+    const a1 = { x: a.x + a.d * PLUG * S, y: a.y }, b1 = { x: b.x + b.d * PLUG * S, y: b.y };
+    const dx = Math.abs(a1.x - b1.x), dy = Math.abs(a1.y - b1.y);
+    const ua = { x: a.x + a.d * 30, y: a.y }, ub = { x: b.x + b.d * 30, y: b.y };
+    if (dy > 26 || dx < 14) {
+      const reach = Math.max(12, Math.min(70, dx * 0.55 + dy * 0.12));
+      return { d: `M${f(a.x)},${f(a.y)} L${f(a1.x)},${f(a1.y)} C${f(a1.x + a.d * reach)},${f(a1.y)} ${f(b1.x + b.d * reach)},${f(b1.y)} ${f(b1.x)},${f(b1.y)} L${f(b.x)},${f(b.y)}`, a, b, ua, ub };
+    }
+    const sag = Math.min(16, 3 + dx * 0.12) * S;
+    const mx = (a1.x + b1.x) / 2, my = Math.max(a1.y, b1.y) + sag;
+    const r = Math.max(6, dx * 0.3);
+    return {
+      d: `M${f(a.x)},${f(a.y)} L${f(a1.x)},${f(a1.y)} C${f(a1.x + a.d * r)},${f(a1.y)} ${f(mx - a.d * r * 0.8)},${f(my)} ${f(mx)},${f(my)} C${f(mx + a.d * r * 0.8)},${f(my)} ${f(b1.x + b.d * r)},${f(b1.y)} ${f(b1.x)},${f(b1.y)} L${f(b.x)},${f(b.y)}`,
+      a, b, ua, ub,
+    };
+  };
+  // a long run: out of the jack, down to the floor, along it, and up into the other jack
+  const run = (a, b, y, xa, xb) => {
+    const R = 12;
+    const pts = [[a.x, a.y], [xa, a.y], [xa, y], [xb, y], [xb, b.y], [b.x, b.y]];
+    let d = `M${f(pts[0][0])},${f(pts[0][1])}`;
+    for (let k = 1; k < pts.length - 1; k++) {
+      const [px, py] = pts[k - 1], [cx, cy] = pts[k], [nx, ny] = pts[k + 1];
+      const l1 = Math.hypot(cx - px, cy - py) || 1, l2 = Math.hypot(nx - cx, ny - cy) || 1;
+      const r = Math.min(R, l1 / 2, l2 / 2);
+      d += ` L${f(cx - ((cx - px) / l1) * r)},${f(cy - ((cy - py) / l1) * r)} Q${f(cx)},${f(cy)} ${f(cx + ((nx - cx) / l2) * r)},${f(cy + ((ny - cy) / l2) * r)}`;
+    }
+    d += ` L${f(b.x)},${f(b.y)}`;
+    return { d, a, b, ua: { x: xa, y: a.y }, ub: { x: xb, y: b.y }, floor: [Math.min(xa, xb), Math.max(xa, xb), y] };
+  };
+  // the speaker lead: a short loop down the side of the stack
+  const jumper = (a, b) => {
+    const out = Math.max(a.x, b.x) + 26;
+    return { d: `M${f(a.x)},${f(a.y)} C${f(out)},${f(a.y)} ${f(out)},${f(b.y)} ${f(b.x)},${f(b.y)}`, a, b, ua: { x: a.x + 20, y: a.y }, ub: { x: b.x + 20, y: b.y }, fat: true };
+  };
+  const plug = (p, u) => {
+    let ux = u.x - p.x, uy = u.y - p.y;
     const l = Math.hypot(ux, uy) || 1;
     ux /= l; uy /= l;
-    const e = { x: p.x + ux * 15, y: p.y + uy * 15 };
-    const c = { x: p.x + ux * 11, y: p.y + uy * 11 };
-    return `<line class="rb-plug" x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${e.x.toFixed(1)}" y2="${e.y.toFixed(1)}"/><line class="rb-plug-hi" x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${c.x.toFixed(1)}" y2="${c.y.toFixed(1)}"/><line class="rb-collar" x1="${c.x.toFixed(1)}" y1="${c.y.toFixed(1)}" x2="${e.x.toFixed(1)}" y2="${e.y.toFixed(1)}"/>`;
+    const e = { x: p.x + ux * 14 * S, y: p.y + uy * 14 * S }, c = { x: p.x + ux * 10 * S, y: p.y + uy * 10 * S };
+    return `<line class="rb-plug" x1="${f(p.x)}" y1="${f(p.y)}" x2="${f(e.x)}" y2="${f(e.y)}"/><line class="rb-plug-hi" x1="${f(p.x)}" y1="${f(p.y)}" x2="${f(c.x)}" y2="${f(c.y)}"/><line class="rb-collar" x1="${f(c.x)}" y1="${f(c.y)}" x2="${f(e.x)}" y2="${f(e.y)}"/>`;
   };
-  const ro = new ResizeObserver(() => requestAnimationFrame(draw));
+  const draw = () => {
+    if (!board.isConnected || !L) return;
+    svg.setAttribute('viewBox', `0 0 ${L.W} ${L.H}`);
+    svg.setAttribute('width', String(L.W));
+    svg.setAttribute('height', String(L.H));
+    const ji = jackBox(jackIn), jo = jackBox(jackOut);
+    const IN = { x: ji.l + 4, y: ji.t + ji.h * 0.62, d: -1 }, OUT = { x: jo.r - 4, y: jo.t + jo.h * 0.5, d: 1 };
+    const cables = [];
+    const off = (...is) => is.some((i) => i >= 0 && gear[i] && gear[i].bypass);
+    const add = (c, ...is) => (c.off = off(...is), cables.push(c));
+    // guitar → pedals → amp
+    let from = IN, fromI = -1;
+    for (const i of pre) { add(hop(from, port(i, 'in')), fromI, i); from = port(i, 'out'); fromI = i; }
+    const stackLeft = Math.min(ampI >= 0 ? box(P.get(ampI)).l : L.sx, cabI >= 0 ? box(P.get(cabI)).l : L.sx);
+    if (ampI >= 0) {
+      add(hop(from, port(ampI, 'in')), fromI);
+      // the loop: send → loop pedals → back along the floor to the return
+      if (post.length) {
+        from = port(ampI, 'send'); fromI = -1;
+        for (const i of post) { add(hop(from, port(i, 'in')), fromI, i); from = port(i, 'out'); fromI = i; }
+        add(run(from, port(ampI, 'return'), L.runA, from.x - 16, stackLeft - 30), fromI);
+      }
+      if (cabI >= 0) add(jumper(port(ampI, 'spk'), port(cabI, 'in')));
+      from = cabI >= 0 ? port(cabI, 'out') : port(ampI, post.length ? 'return' : 'send');
+    }
+    // cabinet (its mic) → rack → out; past the loop pedals it lies along the floor
+    const next = racks.length ? port(racks[0], 'in') : OUT;
+    if (ampI >= 0 || pre.length) {
+      if (post.length && ampI >= 0) add(run(from, next, L.runB, stackLeft - 16, next.x + 18));
+      else add(hop(from, next), fromI >= 0 && ampI < 0 ? fromI : -1, racks.length ? racks[0] : -1);
+    }
+    for (let k = 0; k < racks.length; k++) add(hop(port(racks[k], 'out'), k + 1 < racks.length ? port(racks[k + 1], 'in') : OUT), racks[k], k + 1 < racks.length ? racks[k + 1] : -1);
+    let paths = '', plugs = '', glow = '';
+    const floors = [];
+    cables.forEach((c, k) => {
+      const cls = `${c.off ? ' off' : ''}${c.fat ? ' fat' : ''}`;
+      paths += `<path class="rb-shadow${cls}" d="${c.d}" transform="translate(1.5 3)"/><path class="rb-braid${cls}" d="${c.d}"/><path class="rb-weave${cls}" d="${c.d}"/><path class="rb-sheen${cls}" d="${c.d}"/>`;
+      glow += `<path class="rb-pulse${cls}" pathLength="100" d="${c.d}" style="animation-delay:${(-0.18 * k).toFixed(2)}s"/>`;
+      plugs += plug(c.a, c.ua) + plug(c.b, c.ub);
+      if (c.floor) floors.push(c.floor);
+    });
+    svg.innerHTML = `<g class="rb-wires">${paths}</g><g class="rb-glow">${glow}</g><g class="rb-plugs">${plugs}</g>`;
+    // gaffer tape over the floor runs, the way cables are taped down on a stage
+    runTapes.forEach((t, k) => {
+      const fl = floors[0];
+      const span = fl ? fl[1] - fl[0] : 0;
+      if (!fl || span < 150 * (k + 1)) return void (t.hidden = true);
+      t.hidden = false;
+      Object.assign(t.style, { left: `${fl[0] + span * (k ? 0.72 : 0.3)}px`, top: `${(floors.length > 1 ? (L.runA + L.runB) / 2 : fl[2])}px`, rotate: k ? '86deg' : '-94deg' });
+    });
+  };
+
+  // ---- dragging a piece: a nudge, or past a neighbour to swap (one piece at a time)
+  let dragging = false;
+  function drag(n) {
+    n.art.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || dragging) return;
+      dragging = true;
+      const x0 = e.clientX, y0 = e.clientY, a0 = n.at.slice();
+      let moved = false, done = false;
+      const free = n.canMove;
+      const move = (ev) => {
+        if (done) return;
+        const dx = ev.clientX - x0, dy = ev.clientY - y0;
+        if (!moved && Math.hypot(dx, dy) < 5) return;
+        if (!moved) {
+          moved = true;
+          n.art.setPointerCapture(e.pointerId);
+          n.el.classList.add('dragging');
+          hintDone();
+        }
+        n.at[0] = free ? a0[0] + dx : Math.max(-NUDGE.x, Math.min(NUDGE.x, a0[0] + dx));
+        n.at[1] = n.g.slot === 'amp' || n.g.slot === 'cab' ? 0 : Math.max(-NUDGE.up, Math.min(NUDGE.down, a0[1] + dy));
+        place(n);
+        if (free) n.el.classList.toggle('swap', steps() !== 0);
+        draw();
+      };
+      // how many neighbours its middle has passed: + = later in the chain (to the left)
+      const steps = () => {
+        const c = n.x + n.at[0] + n.w / 2;
+        const lane = n.g.slot === 'rack' ? racks.map((i) => P.get(i)) : [...pre.map((i) => P.get(i)), ...(ampI >= 0 ? [P.get(ampI)] : []), ...post.map((i) => P.get(i))];
+        const me = lane.indexOf(n);
+        let k = 0;
+        for (let j = me + 1; j < lane.length && c < lane[j].x + lane[j].w / 2; j++) k++;
+        if (!k) for (let j = me - 1; j >= 0 && c > lane[j].x + lane[j].w / 2; j--) k--;
+        return k;
+      };
+      const up = () => {
+        if (done) return;
+        done = true;
+        dragging = false;
+        n.art.removeEventListener('pointermove', move);
+        n.art.removeEventListener('pointerup', up);
+        n.art.removeEventListener('pointercancel', up);
+        if (!moved) return;
+        n.el.classList.remove('dragging', 'swap');
+        // the click that follows a drag isn't a pick
+        const eat = (ev) => (ev.stopImmediatePropagation(), ev.preventDefault());
+        n.art.addEventListener('click', eat, { capture: true, once: true });
+        setTimeout(() => n.art.removeEventListener('click', eat, { capture: true }), 80);
+        const k = free ? steps() : 0;
+        if (k) {
+          onMove && onMove(n.i, k);
+          return;
+        }
+        n.at[0] = Math.max(-NUDGE.x, Math.min(NUDGE.x, n.at[0]));
+        n.el.classList.add('settle');
+        place(n);
+        draw();
+        setTimeout(() => (n.el.classList.remove('settle'), draw()), 170);
+        onNudge && onNudge(n.i, n.at[0] || n.at[1] ? [Math.round(n.at[0]), Math.round(n.at[1])] : null);
+      };
+      n.art.addEventListener('pointermove', move);
+      n.art.addEventListener('pointerup', up);
+      n.art.addEventListener('pointercancel', up);
+    });
+    n.art.addEventListener('click', () => onPick && onPick(n.i));
+    // keyboard: Alt + arrows move a pedal along the chain
+    n.art.addEventListener('keydown', (e) => {
+      if (!e.altKey || !n.canMove) return;
+      const k = e.key === 'ArrowLeft' ? 1 : e.key === 'ArrowRight' ? -1 : 0;
+      if (!k) return;
+      e.preventDefault();
+      onMove && onMove(n.i, k);
+    });
+  }
+
+  const redraw = () => layout() && draw();
+  const ro = new ResizeObserver(() => requestAnimationFrame(redraw));
   ro.observe(board);
-  for (const img of board.querySelectorAll('img')) if (!img.complete) img.addEventListener('load', () => requestAnimationFrame(draw), { once: true });
-  requestAnimationFrame(draw);
-  board.redraw = draw;
+  let hostSeen = null;
+  const watchHost = () => {
+    if (board.parentElement && board.parentElement !== hostSeen) ro.observe((hostSeen = board.parentElement));
+  };
+  requestAnimationFrame(() => (watchHost(), redraw()));
+  board.redraw = redraw;
+  /** where piece i stands on the board (its middle), for stickers and stamps */
+  board.where = (i) => {
+    const n = P.get(i);
+    return n ? { x: n.x + n.at[0] + n.w / 2, y: n.y + n.at[1] + n.h / 2, w: n.w, h: n.h } : null;
+  };
+  board.setName = (name) => (sticker.firstChild.textContent = name || 'New tone');
   /** 0..1: how loud you're playing; the pulse fades out when you stop. */
   board.setLevel = (x) => {
     const s = Math.max(0, Math.min(1, x));

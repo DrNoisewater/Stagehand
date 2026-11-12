@@ -295,6 +295,7 @@ export function createHighway(stage) {
         toggle('Chord names', prefs.chordNames !== false, () => setPref('chordNames', prefs.chordNames === false)),
         toggle('Fire on a streak', prefs.fx, () => setPref('fx', !prefs.fx)),
         toggle('Score card at the end', prefs.scoreCard !== false, () => setPref('scoreCard', prefs.scoreCard === false)),
+        toggle('Hit burst', prefs.hitBurst !== false, () => setPref('hitBurst', prefs.hitBurst === false)),
         toggle('Offer help when notes aren’t counting', !prefs.struggleOff, () => setPref('struggleOff', !prefs.struggleOff)),
         toggle('Frame rate', !!prefs.showFps, () => setPref('showFps', !prefs.showFps))
       )
@@ -1153,11 +1154,11 @@ export function createHighway(stage) {
     let html = '';
     let key = '';
     if (info.phase === 'loading') {
-      key = `loading:${info.song.id}`;
-      html = `<div class="hw-st-box"><span class="hw-st-spin"></span><b>Opening ${title}…</b><span>Getting the song audio ready.</span></div>`;
+      key = `loading:${info.song.id}:${info.note || ''}`;
+      html = `<div class="hw-st-box"><span class="hw-st-spin"></span><b>Opening ${title}…</b><span>${esc(info.note || 'Getting the song audio ready.')}</span></div>`;
     } else if (info.phase === 'error') {
       key = `error:${info.song.id}:${info.error}`;
-      html = `<div class="hw-st-box bad"><b>${title} didn’t open</b><span>${esc(info.error || 'Something went wrong.')}</span><div class="hw-st-acts"><button type="button" class="btn small primary" data-act="retry">Try again</button>${info.prev ? `<button type="button" class="btn small ghost" data-act="prev">Back to ${esc(info.prev.title)}</button>` : ''}</div></div>`;
+      html = `<div class="hw-st-box bad"><b>${title} didn’t open</b><span>${esc(info.error || 'Something went wrong.')}</span><div class="hw-st-acts">${info.code === 'AUDIO_NO_GAME' ? '<button type="button" class="btn small primary" data-act="game">Find my Rocksmith folder</button>' : ''}<button type="button" class="btn small${info.code === 'AUDIO_NO_GAME' ? ' ghost' : ' primary'}" data-act="retry">Try again</button>${info.prev ? `<button type="button" class="btn small ghost" data-act="prev">Back to ${esc(info.prev.title)}</button>` : ''}</div></div>`;
     } else if (info.waiting) {
       const st = info.waiting;
       const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
@@ -1189,6 +1190,7 @@ export function createHighway(stage) {
     const b = e.target.closest('[data-act]');
     if (!b) return;
     if (b.dataset.act === 'retry') stage.retry();
+    else if (b.dataset.act === 'game') stage.findGameThenRetry();
     else if (b.dataset.act === 'prev') stage.backToPrevious();
     else if (b.dataset.act === 'now') stage.playNow();
   };
@@ -2604,6 +2606,34 @@ export function createHighway(stage) {
         const box = chordBox(tg, an);
         for (const nt of tg.notes) buildGem(nt, -0.02, an, false, false, true, box, fl, Math.min(1, k * 1.2));
       } else for (const nt of tg.notes) buildGem(nt, -0.02, an, false, tg.kind === 'mute', true, null, fl, Math.min(1, k * 1.2));
+    }
+    // 4. 4.11: a ring of light bursts outward from each note you hit, so a hit reads at a glance:
+    // in the string's colour, white-hot when you were right on time (within 30 ms). It lives for a
+    // third of a second on the glow layer only: nothing about the notes, the neck, the timing or
+    // the scoring changes. Sound & settings › Hit burst turns it off.
+    if (prefs.hitBurst !== false) {
+      for (const h of H.hits) {
+        const age = (now - h.at) / 1000;
+        if (age > 0.34) continue;
+        const tg = H.targets[h.id];
+        if (!tg) continue;
+        const p = age / 0.34;
+        const k = (1 - p) * (1 - p);
+        const dead = h.offset !== null && h.offset !== undefined && Math.abs(h.offset) <= 30;
+        const an = anchorAt(tg.t);
+        const th = 0.03 + 0.02 * (1 - p);
+        for (const nt of tg.notes) {
+          const x = nt.f === 0 ? noteX(nt, an) : laneC(nt.f);
+          const y = strH(nt.s);
+          const w = laneW(Math.max(1, nt.f || an.fret)) * (0.5 + (dead ? 1.15 : 0.85) * p);
+          const hh = G.gy * (0.5 + (dead ? 1.3 : 1.0) * p);
+          const c = dead ? col('#ffffff', 0.9 * k, 2.2) : col(STRING[nt.s], 0.8 * k, 1.7);
+          glow.up(x - w, x + w, y + hh - th, y + hh + th, -0.075, c);
+          glow.up(x - w, x + w, y - hh - th, y - hh + th, -0.075, c);
+          glow.up(x - w - th, x - w + th, y - hh, y + hh, -0.075, c);
+          glow.up(x + w - th, x + w + th, y - hh, y + hh, -0.075, c);
+        }
+      }
     }
   }
 

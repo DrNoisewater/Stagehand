@@ -1,3 +1,124 @@
+# 4.11.0 — official songs find their audio (songs.psarc), every pedal checked, tidier cables, tuner everywhere with two looks, hit burst (2026-11-12)
+
+User (after 4.10's board; from a phone, PC not linked): paid Rocksmith DLC says "contains no audio" ("that is
+just not acceptable"; a ChatGPT brief: rs1compatibilitydlc_p.psarc has charts only, no .wem and no .bnk;
+Kryptonite = SongKey "Kryptonite", SongEvent "Play_Kryptonite"; audio in songs.psarc / other archives) · "verify
+that each one of these pedals affects the tone in the correct way. Do the pedals actually work?" · "the cords
+connecting everything together look odd" · are the scraps on every screen, is the UI top notch · a vertical tuner
+look (mock-up attached) and "any item in the app that has multiple looks should have a setting" · the tuner must be
+easier to find (someone took an hour) · could vocals be sung (second mic?): look into it · the highway: "slightly
+more interactive" hit feedback, "very careful".
+
+**NOT VERIFIED ON THE USER'S REAL FILES.** The PC wasn't reachable, songs.psarc can't be uploaded. Everything about
+the audio search is tested on archives built to the shapes described (and on the real banks in test/fixtures).
+First thing next session if the PC is linked: open Kryptonite and a Queen song, read the `Audio:` lines in
+Settings › About › the log.
+
+**Done:**
+- **Audio across archives** (`src/main/core/wwise.js` new, `services/audiofind.js` rewritten, `audio.js`,
+  `rocksmith.js`, `library.js`): a song whose file has no audio is resolved the way the game does it: manifest
+  `SongBank` + `SongEvent` → that bank in any archive (by file name; else the bank that holds the event's id,
+  FNV-1 of the lower-cased name: checked against real banks) → Event → Action → Sound → media id → `<id>.wem`
+  (or audio whole inside the bank). Looks in the Rocksmith folder (root songs.psarc first, rs1compatibility*,
+  dlc/**) and the library. Never the first/biggest file; `_preview.bnk` never counts; a custom song reusing the
+  bank's name doesn't beat the game's own files; two different recordings equally placed = `AUDIO_AMBIGUOUS`
+  (reported, not played). Errors: `AUDIO_NO_GAME` (with a **Find my Rocksmith folder** button on the player and
+  the highway), `AUDIO_NO_BANK` (says whether songs.psarc is missing), `AUDIO_NO_MEDIA`, `AUDIO_DECODE`. The log
+  names the song key/event/bank and the chart's, bank's and audio's archives.
+  Index v2 (`Cache/audio-index.json`: banks + audio ids per archive, events per bank of shared archives, by
+  path/size/mtime; progress events `audio:search` shown while a song opens). `AUDIO_REV` 3 re-reads every no-audio
+  song once (keeps `bankName`, `songEvent`); `song.audioFail` replaces the blanket "no audio" badge (shown only
+  after a real search failed; opening the song looks again); choosing the Rocksmith folder clears old results.
+  Songs are no longer blocked up front for having no audio in their own file. Stems use the same resolved audio.
+  Tests: `test/audiofind.test.js` (17 cases; `test/helpers/psarc-make.js` builds PSARCs and banks).
+- **Every pedal and rack unit checked** (`test/effects-behaviour.cjs`, in npm test: 208 checks on all 100): drives
+  add harmonics, delays repeat, reverbs leave a tail, modulation moves, each EQ band lifts its own frequency, wahs
+  sweep up, compressors even out, the gate shuts, pitch pedals add their note. **Found and fixed:** Trem-Ole and
+  AutoVibe never wobbled (they only ducked the level): now a tremolo whose depth and speed follow how hard you
+  play (`trem_proc`). **Engine rebuilt: `native/bin/stagehand-audio.exe` (llvm-mingw 20251104) and
+  `rig-dsp.wasm`.** Not run on Windows here.
+- **Switches and selectors** (4.10 made them step) couldn't be dragged: each small move rounded back. Now the drag
+  adds up, a click flips to the next position (`rotaryKnob`).
+- **Cables** (`hop` in gearbench.js): plugs come straight out of the side jacks, a cable between two jacks hangs in
+  a shallow curve (never a V), thickness follows the rig's size, the guitar and speakers sit level with the jack
+  they plug into.
+- **Tuner:** a **Tuner** button on the guitar card (bottom left, every page), **U** opens it anywhere in its own
+  window (`openTuner`), two looks (`TUNER_LOOKS`: Needle, Tower: a tall LED meter, up = sharp), switched on the
+  tuner or in **Settings › Appearance › Pick your look** (which also has Songs: List/Tiles). String buttons say
+  6th…1st. `test/e2e/tuner-audit.js` (16 checks).
+- **Highway:** one addition, on the glow layer only: a ring bursts outward from each note you hit (string colour;
+  white when within 30 ms). **Sound & settings › Hit burst** turns it off. Notes, neck, timing, scoring untouched.
+  Seen only as software-rendered stills: ask how it reads at speed.
+- **Scraps:** all 30 are registered; placed: banners on Jam/Songs/Tones/Progress/Discover/Backstage, the board (11
+  kinds), tuning card, Getting started, window titles (pick underline), the guitar card (cable arrow when nothing
+  is plugged in). Not placed: the black curved arrow (black on a dark app). Settings, Now playing and the highway
+  stay plain.
+- **Vocals:** looked into, feasible; write-up and plan in TODO.md (top).
+
+**Not done / open:** real-file check of the audio search; a deeper UX pass (this one was screenshots of 12 screens);
+wah treadles and pedal footswitches on the photos; 4.10.0 and 4.11.0 are NOT on GitHub (push access was refused in
+the session: branch `gear-board-audit` exists only in the delivered source zip).
+
+**Ask the user:** do Kryptonite / the Queen songs / other paid DLC play now (if not: the `Audio:` log lines)? Does
+the first open take long (how many files in the Rocksmith folder)? Trem-Ole/AutoVibe feel right? Tower tuner close
+to the mock-up? Hit burst: keep, stronger, or off by default?
+
+# 4.10.0 — the tidy board, a full knob and slider audit, 8 straight-on photos, tape with words (2026-11-12)
+
+User (with a screenshot of the Create a Tone board: cables looping all over, the amp far from the pedals):
+"some of them looked kind of wonky and from the side" (new zip: 8 straight-on photos) · "a full knob and slider
+audit to make sure some of these knobs aren't in a goofy spot when you turn them" · "sliders … we can actually
+interact with" · "any part of the gear that can be interacted with should be" · the board "looks ridiculous. It
+needs to be very clean, able to move things around, and the cables should connect in a smart fashion … put the
+things in order and allow the user to move them around slightly" · "images of tape pieces, signs, and arrows …
+let's try to use everything … words could be added to tape".
+
+**Done (checked in Chromium screenshots and tests: ask the user how it looks and feels on their PC):**
+- **8 new photos** (JCM800, JTM45, Amp EQ, Range Booster, Eden WTDI, Supervibe, Guv'nor Plus, Acoustic Emulator)
+  replace the angled ones (`art/gear/full` + `thumb`; trims.json entries are identity for these).
+- **Knob audit** (`tools/gear/knob_audit.py`, result in `tools/gear/audit.json`, which now has the last word in
+  `build_photos.py`): every one of the 532 photo knobs was re-fitted to the circle that really turns and its
+  **pointer angle read from the photo** (before, everything but the 38 hand-made entries assumed noon, so a knob
+  photographed at 1 o'clock showed the wrong setting and swung to odd places). Review sheets show each knob as
+  photo | turned fully down | fully up; all 10 sheets were gone through by eye. Hand fixes: both new Marshall
+  amps, Jimmy Bean, Rockerverb, AD200B, Eden WT800, EN30 presence, TW26 treble, the Bass Sub Octave / Distortion /
+  Super Drive (the whole knob turns now, not just its silver cap), NPN Delay mix. The Chorus's Depth is a toggle in
+  the photo, so it's on the strip only. To fix one: edit audit.json → `python3 tools/gear/build_photos.py` →
+  `python3 tools/gear/knob_audit.py sheets <out> <key>`.
+- **Sliders on the photos** (`photoSlider` in rigui.js; `sliders` in gear-photos.js): the 5-band, 8-band and
+  8-band bass EQs (21 sliders). The cap is cut from the photo and slides in its slot (drag, click the slot, wheel,
+  arrows, Shift for fine, double-click resets); a clear piece of the same slot covers where the photo shows the
+  cap. Same control as the strip knob, both ways. 553 of 611 controls are now on their photos.
+- **Switches and selectors click** between positions (`stepFor`: a range of 4 or less steps by 1) on the photo
+  and on the strip (Bright, Low/High-Shift, Filter Type, Waveform, Voicing…).
+- **The board** (`rigBoard` in gearbench.js, rewritten; `css/rig.css`): seen from where you stand, **guitar on the
+  right, signal runs right to left** (a pedal's input is on its right, as printed on the Boss photos): in → pedals
+  → amp head on its cab → loop pedals → rack → out, all on one floor line. Neighbours get a short patch cable jack
+  to jack; the loop's return and the cab's mic line lie flat along the floor (with gaffer tape across them); the
+  speaker lead is a short black loop down the side of the stack. A rig too wide for the window is made smaller
+  rather than scrolling. **Drag** a piece: a little = nudge (±24 px sideways, 34 up, 10 down; saved with the tone
+  as `gear[].at`, undoable), past its neighbour = swap places, across the amp = into/out of the loop
+  (`onMove`/`onNudge` → `moveBy` in rigroom.js). Alt+←/→ moves the focused pedal. A click still opens the piece.
+- **Scraps in use on the board:** names typed on masking tape, group labels on gaffer tape, Out on duct tape,
+  "Guitar in" on the backstage tag, the tone's name in the peeling sticker frame, the chalk arrow showing which
+  way the signal runs, the highlighter behind the piece you picked, "DO NOT TOUCH MY EQ" taped above an EQ pedal,
+  the notebook corner + red arrow as a one-time "drag gear" hint (localStorage `stagehand.rigDragHint`), a
+  scribbled star slapped on gear you just added, the pick underline under the piece's name. All hidden or plain
+  with Less decoration.
+- Tests: `npm test` ok (gear-controls adds slider checks); `SH_AUDIT=test/e2e/board-audit.js node
+  test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>` (26 checks: signal order, one floor line, no
+  overlaps, cable length, nudge, swap, undo, across the amp, sliders, pointer angle, save keeps nudges; shots
+  `board-*.png`); `SH_GEAR_AUDIT=1` still passes (cable count check relaxed: the loop return and speaker lead are
+  extra cables).
+
+**Not done:** the wah treadles and the Modern Wah's Auto toggle aren't workable on the photo yet (strip only);
+footswitches on pedal photos don't stomp (the round switch under each pedal on the board does). 13 rack units still
+have no photo. No native change, so no engine rebuild.
+
+**Ask the user:** is right-to-left the way they want it (it matches real pedals; flipping it is one layout
+change)? Do any knobs still look off when turned (name the piece)? Do the EQ sliders feel right? Is the tape/sign
+dressing on the board too much or about right? Should a nudge be allowed further?
+
 # 4.9.1 — pictures in AVIF: 45 MB of art down to 27 MB, same look (2026-11-12)
 
 User: "we have a lot of images in the program now, can we shrink them down to not take up space but still have

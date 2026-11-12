@@ -21,6 +21,10 @@ knobs_path = os.path.join(ROOT, 'tools/gear/knobs.json')
 det = json.load(open(knobs_path)) if os.path.exists(knobs_path) else {}
 ovr_path = os.path.join(ROOT, 'tools/gear/overrides.json')
 ovr = json.load(open(ovr_path)) if os.path.exists(ovr_path) else {}
+# 4.10: the audit table (tools/gear/knob_audit.py) has the last word: every knob's centre, size and the
+# angle its pointer shows in the photo, plus the sliders, all measured on the shipped (trimmed) picture
+audit_path = os.path.join(ROOT, 'tools/gear/audit.json')
+audit = json.load(open(audit_path)) if os.path.exists(audit_path) else {}
 base_js = open(os.path.join(ROOT, 'tools/gear/gear-photos.base.js')).read()
 old = json.loads(re.search(r'export const GEAR_PHOTOS = (\{.*?\});\n', base_js, re.S).group(1))
 
@@ -86,12 +90,20 @@ for f in sorted(os.listdir(os.path.join(ART, 'full'))):
             e['knobs'][name_] = v
     for name_ in o.get('drop', []):
         e['knobs'].pop(name_, None)
-    if e.get('how') != 'hand':
+    au = audit.get(key)
+    if au is not None:
+        e['knobs'] = dict(au.get('knobs') or {})
+        e['how'] = 'audit'
+        if au.get('sliders'):
+            e['sliders'] = au['sliders']
+    if e.get('how') not in ('hand', 'audit'):
         # most photos show their knobs at noon; a measured pointer angle is too often fooled by
         # print and glare, and a wrong one would show the wrong setting
         e['knobs'] = {k: v[:3] + [0] for k, v in e['knobs'].items()}
     # only real parameters of this piece, at sane places
     e['knobs'] = {k: v for k, v in e['knobs'].items() if k in params and ok(v)}
+    if e.get('sliders'):
+        e['sliders'] = {k: v for k, v in e['sliders'].items() if k in params}
     if e['knobs']:
         e['turn'] = True
     photos[key] = e
@@ -99,11 +111,13 @@ for f in sorted(os.listdir(os.path.join(ART, 'full'))):
 head = '''// Gear portraits and their knobs (built by tools/gear/build_photos.py; edit overrides.json and
 // rebuild rather than this file). Each knob: [x %, y %, radius % of the width, angle the photo's
 // own pointer shows (degrees, 0 = straight up)]. The knob face is cut from the photo and turned,
-// so the real knob moves. Knobs not listed for a piece are on the control strip beside it.
+// so the real knob moves. Sliders: [x %, y % of the cap at the top of its travel, y % at the bottom,
+// y % where the photo shows it, cap width %, cap height %, y % of a clear piece of slot used to
+// paint over the photo's own cap]. Controls not listed for a piece are on the strip beside it.
 '''
 js = head + 'export const GEAR_PHOTOS = ' + json.dumps(photos, separators=(',', ':')) + ';\n'
 js += re.search(r'(// The same physical family.*)', base_js, re.S).group(1)
 open(os.path.join(ROOT, 'src/renderer/js/gear-photos.js'), 'w').write(js)
-placed = sum(len(e['knobs']) for e in photos.values())
+placed = sum(len(e['knobs']) + len(e.get('sliders', {})) for e in photos.values())
 total = sum(len((GEAR.get(k) or {}).get('k', [])) for k in photos)
 print(f"{len(photos)} photos ({stats['hand']} hand-calibrated, {stats['detected']} detected, {stats['none']} without knob data); {placed} of {total} knobs on the photos")

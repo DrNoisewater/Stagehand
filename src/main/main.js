@@ -991,6 +991,16 @@ function registerIpc() {
       throw new Error('That folder doesn’t contain Rocksmith2014.exe. Pick the folder the game is installed in.');
     }
     settings.set({ rocksmith: { gameDir: d } });
+    // 4.11: songs whose audio wasn't found get another look now that the folder is known
+    try {
+      await finder.reset();
+      const again = library.forgetAudioSearch();
+      if (again.length) send('library:songs', again.map(withStems));
+      finder.index().catch((err) => log(`Audio search: ${err.message}`));
+      log(`Rocksmith folder set to ${d}; ${again.length} song(s) will look for their audio again`);
+    } catch (err) {
+      log(`Audio search reset failed: ${err.message}`);
+    }
     return rsprofiles.read();
   });
   handle('rs:backups', () => rsprofiles.backups());
@@ -1179,8 +1189,10 @@ app.whenReady().then(async () => {
     gameDir: () => (rsprofiles ? rsprofiles.gameDir() : null),
     folders: () => library.data.folders.map((f) => f.path),
     log,
+    // 4.11: the first look through a big Rocksmith folder takes a moment: say how far it is
+    onProgress: (p) => (p.done === p.total || p.done % 8 === 1) && send('audio:search', { state: 'indexing', done: p.done, total: p.total }),
   });
-  audio = new AudioService({ cacheDir: D.audio, tools, library, settings, finder, onSong: (s) => send('library:songs', [withStems(s)]), log });
+  audio = new AudioService({ cacheDir: D.audio, tools, library, settings, finder, onSong: (s) => send('library:songs', [withStems(s)]), onSearch: (p) => send('audio:search', { state: p.state, songId: p.song.id }), log });
   stems = new StemService({ stemsDir: D.stems, audio, tools, settings, library, engineScript: ENGINE_SCRIPT, log });
   await stems.startup();
   art = new ArtService({ cacheDir: D.art });

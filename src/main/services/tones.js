@@ -22,6 +22,8 @@ function cleanGear(gear) {
       for (const [k, v] of Object.entries(g.knobs || {})) if (Number.isFinite(Number(v))) knobs[String(k)] = Number(v);
       const out = { slot: g.slot, key: String(g.key), knobs, order: Number.isFinite(g.order) ? g.order : i };
       if (g.bypass) out.bypass = true;
+      // 4.10: where you nudged it on the Create a Tone board (pixels off its place; looks only)
+      if (Array.isArray(g.at) && g.at.length === 2 && g.at.every((v) => Number.isFinite(Number(v))) && (Number(g.at[0]) || Number(g.at[1]))) out.at = [Math.max(-40, Math.min(40, Math.round(Number(g.at[0])))), Math.max(-40, Math.min(40, Math.round(Number(g.at[1]))))];
       return out;
     });
 }

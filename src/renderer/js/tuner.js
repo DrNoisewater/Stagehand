@@ -24,10 +24,41 @@ function load() {
   }
 }
 
+/** 4.11: the tuner has two looks: 'bar' (a needle across) and 'tower' (a tall meter: up is sharp). */
+export const TUNER_LOOKS = [
+  ['bar', 'Needle', 'A needle across a bar'],
+  ['tower', 'Tower', 'A tall meter: up is sharp, down is flat'],
+];
+export function tunerLook() {
+  return load().look === 'tower' ? 'tower' : 'bar';
+}
+export function setTunerLook(look) {
+  const p = load();
+  p.look = look === 'tower' ? 'tower' : 'bar';
+  try {
+    localStorage.setItem('stagehand.tuner3', JSON.stringify(p));
+  } catch (_) {}
+  window.dispatchEvent(new CustomEvent('stagehand:tuner-look', { detail: p.look }));
+}
+const ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'];
+
+let tunerWin = null;
+/** The tuner in a window of its own, from anywhere (U, or Tuner on your guitar's card). */
+export async function openTuner() {
+  if (tunerWin) return tunerWin.close();
+  const { modal } = await import('./ui.js');
+  const t = createTuner();
+  t.el.classList.add('tn-solo');
+  tunerWin = modal({ title: 'Tuner', body: t.el, onClose: () => (t.hide(), (tunerWin = null)) });
+  t.show();
+  return tunerWin;
+}
+
 export function createTuner() {
   const prefs = load();
   const save = () => {
     try {
+      prefs.look = tunerLook(); // the look is shared by every tuner in the app
       localStorage.setItem('stagehand.tuner3', JSON.stringify(prefs));
     } catch (_) {}
   };
@@ -40,12 +71,25 @@ export function createTuner() {
   const cents = h('span.c', { text: 'Play one open string' });
   const hz = h('span', { text: '' });
   const strings = h('div.tn-strings');
+  // 4.11: two looks, yours to pick (here, or Settings › Appearance)
+  const lookBtn = h('button.icon-btn.tn-look', { type: 'button' });
+  const tower = h('div.tn-tower', { 'aria-hidden': 'true' }, h('span.tn-t-lab.up', { text: '+50' }), h('span.tn-t-lab.dn', { text: '−50' }), h('div.tn-t-col', null, h('i.tn-t-fill'), h('i.tn-t-zero'), h('i.tn-t-dot')));
+  const applyLook = () => {
+    const look = tunerLook();
+    el.classList.toggle('tower', look === 'tower');
+    lookBtn.innerHTML = icon(look === 'tower' ? 'levels' : 'sliders');
+    lookBtn.title = look === 'tower' ? 'Tower look. Click for the needle look' : 'Needle look. Click for the tower look';
+    lookBtn.setAttribute('aria-label', 'Change how the tuner looks');
+  };
+  lookBtn.onclick = () => setTunerLook(tunerLook() === 'tower' ? 'bar' : 'tower');
+  window.addEventListener('stagehand:tuner-look', applyLook);
   el.append(
-    h('div.card-head', null, h('h2', { text: 'Tuner' }), h('span.grow'), tuneSel, refSel),
-    h('div.tn-row', null, note, h('div', { style: { flex: '1' } }, h('div.tn-scale', null, needle), h('div.tn-read', null, h('span', { text: '−50' }), cents, h('span', { text: '+50' })))),
-    h('div.tn-read', { style: { justifyContent: 'center' } }, hz),
+    h('div.card-head', null, h('h2', { text: 'Tuner' }), h('span.grow'), tuneSel, refSel, lookBtn),
+    h('div.tn-row', null, note, h('div.tn-bar', { style: { flex: '1' } }, h('div.tn-scale', null, needle), h('div.tn-read', null, h('span', { text: '−50' }), cents, h('span', { text: '+50' }))), tower),
+    h('div.tn-read.tn-hz', { style: { justifyContent: 'center' } }, hz),
     strings
   );
+  applyLook();
 
   function bass() {
     // what's plugged in, when Stagehand has heard it; else the tone you picked
@@ -101,8 +145,9 @@ export function createTuner() {
     strings.style.setProperty('--n', String(tg.list.length || 6));
     strings.hidden = tg.chromatic;
     tg.list.forEach((x, s) => {
-      const b = h('button', { type: 'button', text: x.name, title: `${x.name}: ${x.hz.toFixed(2)} Hz (click to tune only this string)`, style: { '--gel': STRING_COLORS[s] } });
+      const b = h('button', { type: 'button', title: `${x.name}: ${x.hz.toFixed(2)} Hz (click to tune only this string)`, style: { '--gel': STRING_COLORS[s] } });
       b.dataset.s = String(s);
+      b.append(h('b', { text: x.name }), h('small', { text: ORD[tg.list.length - 1 - s] || '' }));
       b.classList.toggle('locked', T.lock === s);
       b.onclick = () => {
         T.lock = T.lock === s ? null : s;
@@ -131,6 +176,7 @@ export function createTuner() {
     if (!p) {
       needle.style.opacity = '0.3';
       needle.classList.remove('ok');
+      el.classList.remove('heard', 'intune');
       if (!rig.on) {
         note.textContent = '–';
         note.className = 'tn-note';
@@ -176,6 +222,10 @@ export function createTuner() {
     cents.className = `c${a < 1.5 ? ' ok' : ''}`;
     hz.textContent = `${p.hz.toFixed(2)} Hz · target ${targetHz.toFixed(2)} Hz`;
     needle.style.left = `${50 + Math.max(-50, Math.min(50, off))}%`;
+    el.style.setProperty('--off', Math.max(-50, Math.min(50, off)).toFixed(1));
+    el.classList.add('heard');
+    el.classList.toggle('intune', a < 1.5);
+    el.classList.toggle('sharp', off > 0);
     needle.style.opacity = '1';
     needle.classList.toggle('ok', a < 1.5);
     for (const b of strings.children) b.classList.toggle('on', Number(b.dataset.s) === target);

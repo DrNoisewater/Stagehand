@@ -147,6 +147,12 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (isTyping()) return;
+  // 4.11: U opens the tuner anywhere (the highway and the tab view have their own, same key)
+  if (!ctrl && !e.altKey && e.key.toLowerCase() === 'u' && !document.querySelector('.highway.open, .highway:not([hidden])') && state.page !== 'now') {
+    e.preventDefault();
+    import('./tuner.js').then((t) => t.openTuner());
+    return;
+  }
   // 1–9: tone slots. Shift+1–6: mute a stem.
   const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
   if (e.code === 'Space') stage.toggle();

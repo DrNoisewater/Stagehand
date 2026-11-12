@@ -12,7 +12,7 @@ const { Psarc } = require('../core/psarc');
 const rocksmith = require('../core/rocksmith');
 const { readJson, writeJsonAtomic } = require('../core/files');
 
-const AUDIO_REV = 2; // bump to re-read files that had no song audio found (2: 4.0.3 keeps the bank's name)
+const AUDIO_REV = 3; // bump to re-read files that had no song audio found (2: 4.0.3 keeps the bank's name; 3: 4.11 keeps the manifest's bank and event names, and forgets old "no audio" results)
 const IS_WIN = process.platform === 'win32';
 const norm = (p) => {
   const r = path.resolve(p);
@@ -338,8 +338,31 @@ class Library extends EventEmitter {
     const s = this.data.songs[id];
     if (!s) return null;
     s.audioFrom = from || undefined;
+    if (from) s.audioFail = undefined;
     this.saveSoon();
     return s;
+  }
+
+  /** 4.11: why a song's audio couldn't be found last time ({ code, message }); cleared when it is found or looked for afresh. */
+  setAudioFail(id, fail) {
+    const s = this.data.songs[id];
+    if (!s) return null;
+    s.audioFail = fail ? { code: String(fail.code || ''), message: String(fail.message || '').slice(0, 400), at: Date.now() } : undefined;
+    this.saveSoon();
+    return s;
+  }
+
+  /** Forget every "audio not found" (and where audio was found): the Rocksmith folder changed. Returns the songs touched. */
+  forgetAudioSearch() {
+    const out = [];
+    for (const s of Object.values(this.data.songs)) {
+      if (!s.audioFail && !s.audioFrom) continue;
+      s.audioFail = undefined;
+      s.audioFrom = undefined;
+      out.push(s);
+    }
+    if (out.length) this.saveSoon();
+    return out;
   }
 
   setAudioKey(id, key) {

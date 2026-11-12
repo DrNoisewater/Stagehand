@@ -47,53 +47,81 @@
     #1b1a19;
   border-bottom:2px solid #3a3026; box-shadow:inset 0 10px 24px #000a,inset 0 -8px 20px #0008;
 }
-.rb { position:relative; min-width:100%; width:max-content; height:100%; }
-.rb-lane { position:relative; z-index:1; display:flex; align-items:center; gap:58px; height:100%; padding:26px 60px 40px; box-sizing:border-box; }
-.rb-cables { position:absolute; inset:0; z-index:2; pointer-events:none; overflow:visible; }
-.rb-group { display:flex; align-items:center; gap:52px; position:relative; }
-.rb-group::before { content:attr(data-label); position:absolute; top:-20px; left:0; font-family:var(--rr-mono,monospace); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:#8f8676; white-space:nowrap; }
-.rb-group.rack { flex-direction:column; gap:14px; }
-.rb-stack { display:flex; flex-direction:column; align-items:center; gap:4px; }
-.rb-piece { position:relative; display:flex; flex-direction:column; align-items:center; gap:6px; z-index:1; }
-.rb-art { display:block; padding:0; border:0; background:none; cursor:pointer; border-radius:6px; transition:transform .12s, filter .12s; }
-.rb-art img, .rb-art .gb-drawing { display:block; filter:drop-shadow(0 10px 10px #000c) drop-shadow(0 2px 2px #000); }
+/* 4.10: every piece stands where the board's layout puts it (gearbench.js rigBoard): signal order,
+   right to left, on one floor line; the cables are drawn between their jacks */
+.rb { position:relative; min-width:100%; height:100%; user-select:none; }
+.rb-cables { position:absolute; left:0; top:0; z-index:3; pointer-events:none; overflow:visible; }
+.rb-piece { position:absolute; z-index:2; }
+.rb-piece.dragging { z-index:6; }
+.rb-piece.settle { transition:left .16s ease-out, top .16s ease-out; }
+.rb-art { display:block; padding:0; border:0; background:none; cursor:pointer; border-radius:6px; touch-action:none; transition:filter .12s; }
+.rb-piece.pre .rb-art, .rb-piece.post .rb-art, .rb-piece.rack .rb-art { cursor:grab; }
+.rb-piece.dragging .rb-art { cursor:grabbing; filter:brightness(1.12) drop-shadow(0 18px 14px #000c); }
+.rb-piece.dragging.swap .rb-art { filter:brightness(1.15) drop-shadow(0 0 10px #8fe36a) drop-shadow(0 18px 14px #000c); }
+.rb-art img, .rb-art .gb-drawing { display:block; object-fit:contain; filter:drop-shadow(0 8px 8px #000c) drop-shadow(0 2px 2px #000); pointer-events:none; }
 .rb-art .gb-drawing svg { width:100%; height:100%; }
-.rb-piece.pre .rb-art img, .rb-piece.post .rb-art img { height:clamp(110px,17vh,170px); width:auto; }
-.rb-piece.pre .rb-art .gb-drawing, .rb-piece.post .rb-art .gb-drawing { height:clamp(110px,17vh,170px); width:clamp(70px,11vh,110px); }
-.rb-piece.amp .rb-art img { width:clamp(200px,22vw,320px); height:auto; max-height:15vh; object-fit:contain; }
-.rb-piece.cab .rb-art img { width:clamp(180px,19vw,280px); height:auto; max-height:17vh; object-fit:contain; }
-.rb-piece.amp .rb-art .gb-drawing, .rb-piece.cab .rb-art .gb-drawing { width:clamp(200px,22vw,300px); height:12vh; }
-.rb-piece.rack .rb-art img, .rb-piece.rack .rb-art .gb-drawing { width:clamp(150px,15vw,220px); height:auto; max-height:8vh; }
-.rb-piece.rack .rb-art .gb-drawing { height:6vh; }
-.rb-art:hover { transform:translateY(-3px); }
+.rb-art:hover { filter:brightness(1.08); }
 .rb-art:focus-visible { outline:2px solid #e3d8bf; outline-offset:4px; }
-.rb-piece.sel .rb-art { filter:drop-shadow(0 0 0 #fff) drop-shadow(0 0 10px #ffcf7a88); }
-.rb-piece.sel::after { content:''; position:absolute; left:10%; right:10%; bottom:-12px; height:3px; border-radius:2px; background:#ffcf7a; box-shadow:0 0 10px #ffcf7a; }
-.rb-piece.off .rb-art { filter:grayscale(.7) brightness(.55); }
-.rb-tape { font-family:var(--rr-mono,monospace); font-size:10.5px; line-height:1.2; padding:2px 7px; background:#d9cba5; color:#231d17; transform:rotate(-1.2deg); max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 1px 2px #0008; }
-.rb-foot { display:flex; align-items:center; gap:7px; }
-.rb-switch { width:24px; height:24px; border-radius:50%; padding:0; border:2px solid #9aa0a8; background:radial-gradient(circle at 35% 30%,#f2f4f6,#8b9097 55%,#4a4e54); box-shadow:0 2px 3px #000a; cursor:pointer; position:relative; }
+.rb-piece.sel .rb-art { filter:drop-shadow(0 0 10px #ffcf7a99); }
+.rb-piece.off .rb-art img, .rb-piece.off .rb-art .gb-drawing { filter:grayscale(.75) brightness(.5) drop-shadow(0 8px 8px #000c); }
+/* the name, typed on a strip of masking tape under the piece */
+.rb-foot { position:absolute; left:50%; top:calc(100% + 7px); transform:translateX(-50%); width:max-content; display:flex; align-items:center; gap:6px; white-space:nowrap; z-index:1; }
+.rb-piece.amp .rb-foot { display:none; }
+.rb-piece.amp:not(:has(~ .rb-piece.cab)) .rb-foot { display:flex; }
+.rb-tape { position:relative; font-family:var(--rr-mono,'Typewriter Stagehand',monospace); font-size:10.5px; font-weight:700; line-height:1.2; padding:4px 13px 5px; color:#231d17; rotate:-1.2deg;
+  max-width:170px; white-space:normal; text-align:center; overflow-wrap:break-word; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; background:url('../art/scraps/cream-masking-tape.avif') center/100% 100% no-repeat; filter:drop-shadow(0 1px 1.5px #000a); }
+.rb-piece:nth-child(even) .rb-tape { rotate:1deg; }
+.rb-tape.duct { display:block; white-space:nowrap; background-image:url('../art/scraps/silver-duct-tape.avif'); color:#17191c; letter-spacing:.14em; text-transform:uppercase; padding:5px 14px 6px; rotate:2deg; }
+.rb-piece.sel .rb-foot::before { content:''; position:absolute; inset:-5px -16px -6px; z-index:-1; background:url('../art/scraps/yellow-highlighter-swipe.avif') center/100% 100% no-repeat; opacity:.95; rotate:-1deg; }
+.rb-switch { flex:none; width:22px; height:22px; border-radius:50%; padding:0; border:2px solid #9aa0a8; background:radial-gradient(circle at 35% 30%,#f2f4f6,#8b9097 55%,#4a4e54); box-shadow:0 2px 3px #000a; cursor:pointer; position:relative; }
 .rb-led { position:absolute; top:-9px; left:50%; width:7px; height:7px; margin-left:-3.5px; border-radius:50%; background:#3a1512; }
 .rb-switch[aria-pressed='true'] .rb-led { background:#ff3b2a; box-shadow:0 0 8px #ff3b2a,0 0 2px #fff; }
 .rb-switch:active { transform:translateY(1px); }
-.rb-jack { display:flex; flex-direction:column; align-items:center; gap:4px; color:#bdb3a1; font-size:11px; }
+.rb-jack { position:absolute; z-index:2; display:flex; flex-direction:column; align-items:center; gap:5px; }
 .rb-jack-ico { width:54px; height:54px; display:block; filter:drop-shadow(0 4px 5px #000a); }
 .rb-jack-ico svg { width:100%; height:100%; }
-.rb-empty { display:grid; place-items:center; width:clamp(200px,20vw,280px); height:10vh; border:2px dashed #5a4a33; border-radius:4px; color:#8f8676; font-size:12px; text-align:center; padding:6px; }
-.rb-empty.cab { height:12vh; }
+/* your guitar comes in on a backstage tag */
+.rb-tag { display:grid; place-items:end center; width:78px; height:54px; padding:0 4px 9px; box-sizing:border-box; rotate:-4deg; font-family:var(--rr-mono,monospace); font-size:9.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#3a1c05; white-space:nowrap;
+  background:url('../art/scraps/backstage-pass-tag.avif') center/100% 100% no-repeat; filter:drop-shadow(0 2px 2px #000a); }
+.rb-empty { position:absolute; z-index:1; display:grid; place-items:center; box-sizing:border-box; border:2px dashed #5a4a33; border-radius:4px; color:#8f8676; font-size:12px; text-align:center; padding:6px; }
+/* the furniture: decoration only, never in the way of a click */
+.rb-deco { position:absolute; inset:0; z-index:4; pointer-events:none; }
+.rb-deco > * { position:absolute; }
+.rb-gaffer { translate:-50% 0; rotate:-.8deg; padding:5px 16px 6px; font-family:var(--rr-mono,monospace); font-size:10px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:#d8d3c6; white-space:nowrap;
+  background:url('../art/scraps/black-gaffer-tape.avif') center top/100% 175% no-repeat; filter:drop-shadow(0 1px 2px #000c); }
+.rb-chalk { display:flex; align-items:center; gap:6px; opacity:.8; }
+.rb-chalk img { width:104px; height:auto; display:block; }
+.rb-chalk small { font-family:var(--rr-mono,monospace); font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:#e9e6dc; }
+.rb-sticker { width:164px; height:79px; display:grid; place-items:center; rotate:-3deg; background:linear-gradient(#efe6cf,#e0d3b3) center/86% 58% no-repeat; filter:drop-shadow(0 2px 3px #000a); }
+.rb-sticker::after { content:''; position:absolute; inset:0; background:url('../art/scraps/peeling-sticker-frame.avif') center/100% 100% no-repeat; }
+.rb-sticker b { max-width:112px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--rr-mono,monospace); font-size:11.5px; color:#1d2a52; text-transform:uppercase; letter-spacing:.04em; }
+.rb-eqsign { width:118px; height:auto; translate:-50% -50%; rotate:-5deg; filter:drop-shadow(0 2px 3px #000b); }
+.rb-runtape { width:46px; height:auto; translate:-50% -50%; opacity:.96; filter:drop-shadow(0 1px 1px #000a); }
+.rb-runtape[hidden] { display:none; }
+.rb-hint { translate:-50% 0; width:196px; height:96px; box-sizing:border-box; padding:16px 16px 0 34px; rotate:2deg; background:url('../art/scraps/lined-notebook-corner.avif') center/100% 100% no-repeat; filter:drop-shadow(0 3px 4px #000b);
+  font-family:var(--rr-mono,monospace); font-size:10.5px; font-weight:700; line-height:1.35; color:#1c2c63; animation:rb-hint-in .4s .5s cubic-bezier(.2,.9,.3,1.4) both; }
+.rb-hint img { position:absolute; right:-34px; bottom:-30px; width:62px; height:auto; rotate:38deg; }
+@keyframes rb-hint-in { from { opacity:0; scale:.7; } to { opacity:1; scale:1; } }
+html[data-decoration='reduced'] .rb-deco > :not(.rb-gaffer) { display:none; }
+html[data-decoration='reduced'] :is(.rb-tape, .rb-gaffer, .rb-tag) { background:#d9cba5; filter:none; }
+html[data-decoration='reduced'] .rb-gaffer { background:#2a2a29; }
+html[data-decoration='reduced'] .rb-piece.sel .rb-foot::before { display:none; }
+@media (prefers-reduced-motion: reduce) { .rb-hint { animation:none; } .rb-piece.settle { transition:none; } }
 
 /* the cables: braided tan with chrome jacks, like the photo */
-.rb-shadow { fill:none; stroke:#000; stroke-opacity:.38; stroke-width:7; stroke-linecap:round; }
-.rb-braid { fill:none; stroke:#b89a66; stroke-width:6; stroke-linecap:round; }
-.rb-weave { fill:none; stroke:#6e5634; stroke-width:6; stroke-dasharray:1.6 2.6; stroke-linecap:butt; opacity:.85; }
+.rb-shadow { fill:none; stroke:#000; stroke-opacity:.38; stroke-width:calc(6px * var(--cable, 1)); stroke-linecap:round; }
+.rb-braid { fill:none; stroke:#b89a66; stroke-width:calc(5px * var(--cable, 1)); stroke-linejoin:round; stroke-linecap:round; }
+.rb-weave { fill:none; stroke:#6e5634; stroke-width:calc(5px * var(--cable, 1)); stroke-dasharray:1.6 2.6; stroke-linecap:butt; opacity:.85; }
 .rb-sheen { fill:none; stroke:#f1dfb8; stroke-width:1.4; stroke-dasharray:3 2; opacity:.55; transform:translateY(-1.3px); }
 .rb-braid.off, .rb-weave.off, .rb-sheen.off { opacity:.45; }
-.rb-plug { stroke:#6f747b; stroke-width:9; stroke-linecap:round; }
-.rb-plug-hi { stroke:#eef1f4; stroke-width:3.5; stroke-linecap:round; opacity:.9; }
-.rb-collar { stroke:#2b2d30; stroke-width:9.5; stroke-dasharray:1.5 2; }
+/* the speaker lead from the head down to the cabinet: thick and black */
+.rb-braid.fat { stroke:#1b1b1c; stroke-width:calc(6.5px * var(--cable, 1)); } .rb-weave.fat { stroke:#3a3a3c; stroke-width:calc(6.5px * var(--cable, 1)); opacity:.5; } .rb-sheen.fat { stroke:#8d9096; opacity:.35; }
+.rb-plug { stroke:#6f747b; stroke-width:calc(8px * var(--cable, 1)); stroke-linecap:round; }
+.rb-plug-hi { stroke:#eef1f4; stroke-width:calc(3px * var(--cable, 1)); stroke-linecap:round; opacity:.9; }
+.rb-collar { stroke:#2b2d30; stroke-width:calc(8.5px * var(--cable, 1)); stroke-dasharray:1.5 2; }
 /* the signal: a light running along the cables, as bright as you play */
 .rb-glow { opacity:var(--sig,0); transition:opacity .25s; }
-.rb-pulse { fill:none; stroke:#ffd27a; stroke-width:3.2; stroke-linecap:round; stroke-dasharray:12 88; pathLength:100; filter:drop-shadow(0 0 4px #ffb547); animation:rb-flow 1.15s linear infinite; animation-play-state:paused; }
+.rb-pulse { fill:none; stroke:#ffd27a; stroke-width:3.2; stroke-linecap:round; stroke-dasharray:12 88; filter:drop-shadow(0 0 4px #ffb547); animation:rb-flow 1.15s linear infinite; animation-play-state:paused; }
 .rb.live .rb-pulse { animation-play-state:running; }
 .rb-pulse.off { stroke:#ffd27a55; }
 @keyframes rb-flow { from { stroke-dashoffset:100; } to { stroke-dashoffset:0; } }
@@ -232,3 +260,22 @@
   .sr-left { min-height:340px; }
   .mic-stage, .rr-cab, .sr-cab { grid-template-columns:minmax(0,1fr); }
 }
+
+/* 4.10: sliders on the photos (graphic EQs): the photo's own cap, sliding in its slot */
+.gear-face .photo-patch { position:absolute; display:block; background-repeat:no-repeat; pointer-events:none; }
+.gear-face .gear-slider { position:absolute; display:block; padding:0; border:0; background:none; cursor:ns-resize; touch-action:none; z-index:1; }
+.gear-face .photo-slide { position:absolute; left:0; width:100%; display:block; background-repeat:no-repeat; border-radius:2px; filter:drop-shadow(0 2px 2px #000a); transition:top .05s linear; will-change:top; }
+.gear-face .gear-slider:is(:hover,:focus-visible) .photo-slide { box-shadow:0 0 0 1.5px #e3d8bfcc; }
+.gear-face .gear-slider:active .photo-slide { box-shadow:0 0 0 1.5px #d23a2ccc,0 0 8px 1px #d23a2c66; transition:none; }
+.gear-face .gear-slider:focus-visible { outline:none; z-index:5; }
+.gear-face .gear-slider:disabled { cursor:not-allowed; opacity:.5; }
+.gear-face .gsl-tip { display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); white-space:nowrap; pointer-events:none; z-index:6;
+  font-family:'Typewriter Stagehand',var(--rr-mono,monospace); font-size:11.5px; font-weight:700; padding:2px 8px; background:#e6dfcf; color:#231d17; box-shadow:0 1px 3px #000a; }
+.gear-face .gear-slider:is(:hover,:focus-visible,:active) .gsl-tip { display:block; }
+@media (prefers-reduced-motion: reduce) { .gear-face .photo-slide { transition:none; } }
+
+/* 4.10: the piece's name underlined with the pick; a star slapped on gear you just added */
+.rr-ititle h3 { position:relative; padding-bottom:7px; }
+.rr-ititle h3::after { content:''; position:absolute; left:-2px; right:-14px; bottom:-3px; height:10px; background:url('../art/scraps/pick-underline.avif') left center/100% 100% no-repeat; filter:invert(1) hue-rotate(180deg) brightness(1.5); opacity:.85; }
+html[data-decoration='reduced'] .rr-ititle h3::after { display:none; }
+.rr-board .cameo-scrap.added-star { --size:74px; translate:-50% -50%; pointer-events:none; }
