@@ -16,7 +16,7 @@ Decisions:
   wave views only; no canvas/3D changes.
 - Drop look pref: localStorage 'stagehand.dropLook' = 'pedal' (default) | 'console'.
 
-Status: in progress.
+Status: done in 4.8.0 (merged). See HANDOFF.md for what to ask the user.
 
 Progress (me):
 - Drop: dropui.js has pedalPhoto (controls laid over the photo), dropSection (the fold), the look switch.

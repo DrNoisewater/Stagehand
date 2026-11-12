@@ -9,7 +9,12 @@ module.exports = async ({ page, outDir, check }) => {
   const shots = new Set((process.env.BANNER_SHOTS || '1920x1080,1280x800').split(','));
   const go = async n => { await page.evaluate(async n => (await import('./js/store.js')).setPage(n), n); await page.waitForTimeout(900); };
   const closeModals = async () => { for (let i = 0; i < 3 && await page.locator('.modal').count(); i++) await page.keyboard.press('Escape'); };
-  const measure = () => page.evaluate(() => {
+  // let the picture's entrance finish first (Rehearsal Room drops it in from above)
+  const settle = () => page.evaluate(() => Promise.race([
+    Promise.all((document.querySelector('.identity-banner .identity-art')?.getAnimations() || []).filter(a => a.effect?.getComputedTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))),
+    new Promise(r => setTimeout(r, 2000)),
+  ]));
+  const measure = async () => (await settle(), page.evaluate(() => {
     const r = el => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width && b.height ? { x: b.left, y: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height } : null; };
     const art = document.querySelector('.identity-banner .identity-art');
     const vis = art && !art.hidden && getComputedStyle(art).display !== 'none' && getComputedStyle(art).visibility !== 'hidden' && art.naturalWidth > 0;
@@ -39,7 +44,7 @@ module.exports = async ({ page, outDir, check }) => {
         return false;
       }).map(el => el.className || el.tagName),
     };
-  });
+  }));
   const snap = async n => { for (let i = 0; i < 3; i++) { try { return await page.screenshot({ path: path.join(outDir, n + '.png'), timeout: 20000 }); } catch (e) { console.log('screenshot retry', n, e.message.split('\n')[0]); } } };
   const hit = (a, b) => a && b && a.x < b.r && a.r > b.x && a.y < b.b && a.b > b.y;
   for (const look of looks) {

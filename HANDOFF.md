@@ -1,4 +1,4 @@
-# Unreleased (after 4.7.0) — highway restyle and the real Drop pedal (2026-11-12)
+# 4.8.0 — highway restyle, the real Drop pedal, banner art in the top bar, faster pages (2026-11-12)
 
 User (calls the current version 4.7.1; GitHub says 4.7.0): restyle everything around the 3D highway in the app's
 style (the 3D highway itself must not change); Tab and Waveform views to match; the highway Drop as the real
@@ -15,10 +15,22 @@ with an option to switch its look; the Drop folds away and pops open by itself w
 - `css/stagechrome.css` (new, loaded last): road-case look for the highway top bar, Tools, Sound & settings,
   cards, the pop-up menus while a song is open, and the Tab/Waveform page (`.np-*`). Tab canvas (`tab.js`),
   ruler (`stage.js`) and waveform (`wave.js`) colours moved from navy to warm. No change to the 3D highway.
-- Not in this merge yet: banner art back in the top bar + flicker fix, and Discover/Progress speed-ups
-  (helpers still working; notes in `docs/notes/highway-restyle.md`).
+- **Banner art** (`identity.js`, `identity.css`, `roadshow.css`, `rockopera.css`): the picture is measured into
+  the free top-bar stretch (right of the search box, left of the top-bar and window buttons) and rises into it
+  (`position:fixed`, `--art-x/y/w/h`, `data-rise=rise|inside|none`). One size budget for every picture
+  (`ART_MAX` in identity.js: 360 px wide, 190 px tall, area of a 190 px square) because the user will add much
+  more art and said it takes up a fair bit of screen: tall art rises, wide art stays in the banner.
+  Flicker: the next picture is decoded before it replaces the old one (`swapArt`).
+  Check: `SH_AUDIT=test/e2e/banner-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>`
+  (`BANNER_LOOKS`, `BANNER_SIZES`, `BANNER_PAGES`, `BANNER_SHOTS`).
+- **Speed** (measured on 2,500 songs): the Songs list and Discover don't redraw while hidden (Songs marks itself
+  stale and draws once on the 'page' event); the menu picture (`menu-art.js` decorativeImage), Discover album
+  covers and the Progress venue keep their loaded image (no blink); date formatters reused (`ui.js`).
+  Background updates went from 25–140 ms to under 5 ms. Not done: Collection gaps still takes ~300 ms to draw
+  with 400 artists (try `content-visibility:auto` on its rows); sidebar.js and inspector.js redraw on every
+  library event.
 
-**Ask the user:** does the Drop pedal feel right (knob, footswitch, pop-out opening and closing)? Do the Tab and
+**Ask the user:** is the banner art a good size now? Does the Drop pedal feel right (knob, footswitch, pop-out opening and closing)? Do the Tab and
 Waveform screens fit the rest of the app?
 
 # 4.7.0 — the drive, fuzz and pitch pedals rebuilt as real circuits; live engine rebuilt (2026-11-11)
