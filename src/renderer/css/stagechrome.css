@@ -1,0 +1,226 @@
+/* STAGE CHROME (4.8): the Drop as the real pedal, and everything around the note highway
+   (top bar, Tools, Sound & settings, cards), the Tab view and the Waveform view, in the
+   app's own road-case look. The 3D highway itself (its canvases) is never touched here. */
+
+/* ===================================================== the Drop as the real pedal */
+.dc-look { height:24px; padding:0 9px; border-radius:3px; border:1px solid #0009; background:#0000002e; color:#e9d9bd;
+  font:inherit; font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; }
+.dc-look:hover { background:#ffffff14; color:#fff; }
+.dc-look:focus-visible { outline:2px solid #ffd497; outline-offset:2px; }
+.dc-body { display:grid; grid-template-columns:minmax(118px,44%) minmax(0,1fr); gap:14px; align-items:start; }
+.dc-side { display:grid; gap:10px; min-width:0; align-content:start; }
+.dc-pedal .dc-lcd { grid-template-columns:auto minmax(0,1fr); }
+@container (max-width: 340px) {
+  .dc-body { grid-template-columns:minmax(0,46%) minmax(0,1fr); gap:10px; }
+  .dc-pedal .dc-lcd { grid-template-columns:1fr; }
+  .dc-pedal .dc-amt { font-size:30px; }
+}
+
+.dp { position:relative; width:100%; user-select:none; -webkit-user-select:none; touch-action:none;
+  filter:drop-shadow(0 10px 10px #000b) drop-shadow(0 2px 2px #000); }
+.dp-img, .dp-photo { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.dp-photo { background-size:100% 100%; background-repeat:no-repeat; pointer-events:none; transition:transform .08s ease-out, filter .08s; }
+/* the footswitch goes down when you stomp it */
+.dp.stomp .dp-sw { transform:scale(.92); filter:brightness(.78) contrast(1.1); }
+/* MOMENTARY on: the toggle's bat flips up */
+.dp.momentary .dp-bat { transform:scaleY(-1); filter:brightness(1.05); }
+.dp :is(button) { position:absolute; padding:0; margin:0; border:0; background:none; cursor:pointer; border-radius:50%; }
+.dp :is(button):focus-visible { outline:2px solid #ffd497; outline-offset:2px; }
+.dp-led { width:4.4%; aspect-ratio:1; transform:translate(-50%,-50%); }
+.dp-led::after { content:''; position:absolute; inset:-10%; border-radius:50%; opacity:0; transition:opacity .15s;
+  background:radial-gradient(circle at 42% 38%,#fff3ec 0 12%,#ff5a40 34%,#d3170c 60%,#ff2a1200 72%); box-shadow:0 0 10px 3px #ff3b2477; }
+.dp-led.lit::after { opacity:.45; }
+.dp.on .dp-led.lit::after { opacity:1; }
+.dp-led:hover:not(:disabled)::after { opacity:.6; }
+.dp-led:disabled { cursor:default; }
+.dp-status { position:absolute; width:5.2%; aspect-ratio:1; transform:translate(-50%,-50%); border-radius:50%; opacity:0; transition:opacity .12s;
+  background:radial-gradient(circle at 42% 38%,#fff3ec 0 12%,#ff5a40 34%,#d3170c 62%,#ff2a1200 74%); box-shadow:0 0 14px 5px #ff3b2466; pointer-events:none; }
+.dp.on .dp-status { opacity:1; }
+/* the knob: a painted pointer turns to the lit setting */
+.dp-knob { aspect-ratio:1; cursor:grab; }
+.dp-knob:active { cursor:grabbing; }
+.dp-pointer { position:absolute; left:50%; top:50%; width:46%; height:4.5%; margin-top:-2.25%; transform-origin:0 50%;
+  transform:rotate(var(--turn,160deg)); transition:transform .22s cubic-bezier(.3,1.4,.5,1);
+  background:linear-gradient(90deg,transparent 0 44%,#efe6d4 44% 94%,transparent 94%); border-radius:2px; filter:drop-shadow(0 1px 0 #000); }
+.dp-knob:hover .dp-pointer { background:linear-gradient(90deg,transparent 0 44%,#fff 44% 94%,transparent 94%); }
+.dp-switch, .dp-toggle { aspect-ratio:auto; }
+.dp-switch { aspect-ratio:1; }
+.dp-toggle { border-radius:8px; }
+@media (prefers-reduced-motion: reduce) { .dp-photo, .dp-pointer, .dp-led::after, .dp-status { transition:none; } }
+
+/* the Drop folded under a head that always says what it's doing (the highway) */
+.dc-fold { --dc-red:#ff4b3a; border-radius:4px; border:1px solid #000; color:#f3e7d3;
+  background:linear-gradient(180deg,#4d1610,#33100b); box-shadow:inset 0 1px 0 #ffffff1a,0 6px 14px -8px #000; }
+.dc-fold-head { display:flex; align-items:center; gap:8px; padding:6px 8px 6px 4px; min-height:44px; }
+.dc-fold-name { flex:1; min-width:0; display:flex; align-items:center; gap:9px; padding:4px 6px; border:0; border-radius:3px; background:none; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.dc-fold-name:hover { background:#ffffff0d; }
+.dc-fold-name b { font-size:19px; font-weight:900; font-stretch:62%; letter-spacing:.08em; text-transform:uppercase; color:#f6efe2; text-shadow:0 2px 0 #0008; }
+.dc-fold-state { min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:12.5px; font-weight:700; color:#d8c6a8; }
+.dc-fold.working .dc-fold-state { color:#ffc66b; }
+.dc-fold.needed .dc-fold-state { color:#ffd8c2; }
+.dc-fold.on .dc-led { background:radial-gradient(circle at 40% 35%,#ffb3a8,var(--dc-red) 55%); box-shadow:0 0 10px var(--dc-red),0 0 2px #fff inset; }
+.dc-foot.dc-foot-sm { width:34px; height:34px; flex:none; border-width:1.5px; box-shadow:0 3px 0 #000a,0 4px 8px #0008; }
+.dc-foot.dc-foot-sm .dc-foot-cap { width:14px; height:14px; }
+.dc-foot.dc-foot-sm[aria-pressed='true'] { transform:translateY(2px); box-shadow:0 1px 0 #000a,0 2px 4px #0008, 0 0 0 2px #ff4b3a55; }
+.dc-fold-chev, .hw-droppop-x { flex:none; width:30px; height:30px; display:grid; place-items:center; padding:0; border-radius:3px; border:1px solid #0008; background:#0003; color:#e9d9bd; cursor:pointer; }
+.dc-fold-chev:hover, .hw-droppop-x:hover { background:#ffffff14; color:#fff; }
+.dc-fold-chev svg, .hw-droppop-x svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+.dc-fold-body { display:none; padding:0 6px 6px; }
+.dc-fold.open .dc-fold-body { display:block; }
+.dc-fold .dc { border-radius:3px; }
+.dc-fold .dc > .dc-head { display:none; } /* the fold's head says it */
+.dc-fold .dc { padding:4px 4px 2px; border:0; background:none; box-shadow:none; }
+.dc-fold.open .dc-fold-head { border-bottom:1px solid #0006; box-shadow:0 1px 0 #ffffff10; margin-bottom:8px; }
+.dc-look-row { display:flex; justify-content:flex-end; }
+.dc-look-row .dc-look { height:22px; font-size:10px; opacity:.85; }
+
+/* ================================================= around the highway: road-case chrome
+   Tokens match the Roadshow look (#app in roadshow.css); the highway lives outside #app. */
+.highway, .sc-chrome, #app {
+  --sc-case:#191715; --sc-deck:#221f1b; --sc-plate:#2a2622; --sc-line:#5b5043; --sc-line-2:#3d362e;
+  --sc-ink:#f5edda; --sc-ink-2:#d2c7b2; --sc-ink-3:#a99e8c;
+  --sc-gold:#f1ce68; --sc-gold-hi:#ffe4a0; --sc-gold-ink:#241c0d; --sc-gold-soft:#f1ce6826; --sc-red:#dc6650;
+  --sc-mono:'Typewriter Stagehand','Liberation Mono','Courier New',monospace;
+  --sc-tex:url('../art/roadshow/flight-case.webp');
+  --sc-panel:linear-gradient(180deg,#1a1815f4,#121110f7),var(--sc-tex) center/720px;
+  --sc-screws:radial-gradient(circle at 7px 7px,#a4916f 0 1.3px,#14120f 1.3px 2.3px,transparent 3px),radial-gradient(circle at calc(100% - 7px) 7px,#a4916f 0 1.3px,#14120f 1.3px 2.3px,transparent 3px);
+}
+/* the top bar: a warm fade, not a cold blue one */
+.highway .hw-top { background:linear-gradient(#0d0b0aee 0%,#0d0b0ab0 60%,#0d0b0a00); }
+.highway :is(.hw-chip,.hw-back,.hw-icon) {
+  border-radius:3px; border:1px solid var(--sc-line); color:var(--sc-ink-2);
+  background:linear-gradient(180deg,#2c2723ee,#1b1815ee); box-shadow:0 2px 0 #000b,inset 0 1px 0 #ffffff12;
+  font-weight:800; letter-spacing:.02em;
+}
+.highway :is(.hw-chip,.hw-back,.hw-icon):hover { color:var(--sc-ink); border-color:#8a7a62; background:linear-gradient(180deg,#363029ee,#221e1aee); }
+.highway .hw-chip[aria-pressed='true'] { color:var(--sc-gold-ink); background:linear-gradient(180deg,var(--sc-gold-hi),var(--sc-gold)); border-color:#ffe9ac; box-shadow:0 2px 0 #000b; }
+/* Back: a strip of gaffer tape */
+.highway .hw-back { height:34px; text-transform:uppercase; font-size:13px; font-stretch:80%; letter-spacing:.06em; color:#e6dccb;
+  background:repeating-linear-gradient(45deg,#ffffff07 0 1px,transparent 1px 3px),linear-gradient(180deg,#36352f,#262522); border-color:#000; transform:rotate(-1deg); }
+.highway .hw-title b { font-weight:900; font-stretch:72%; font-size:20px; letter-spacing:.005em; color:var(--sc-ink); text-shadow:2px 2px 0 #000; }
+.highway .hw-title span { color:var(--sc-ink-3); font-family:var(--sc-mono); font-size:11px; letter-spacing:.04em; }
+.highway .hw-play { background:var(--sc-gold); color:var(--sc-gold-ink); border:2px solid #ffe9ac; box-shadow:2px 2px 0 #000; }
+.highway .hw-play:hover { background:var(--sc-gold-hi); }
+.highway .hw-time { color:var(--sc-ink-2); font-family:var(--sc-mono); font-size:13.5px; }
+.highway .hw-score { color:var(--sc-ink-3); font-family:var(--sc-mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+.highway .hw-score b { color:var(--sc-ink); font-family:var(--font); font-weight:900; font-stretch:75%; font-size:24px; letter-spacing:0; text-shadow:2px 2px 0 #000; }
+.highway .hw-score b.hw-best { color:var(--sc-gold); }
+/* Tab | Highway | Waveform: the app's segmented switch */
+.highway .hw-views { border-radius:3px; border:1px solid #665a47; background:#171510e8; box-shadow:0 2px 0 #000b; }
+.highway .hw-views button { border-radius:2px; color:var(--sc-ink-2); font-weight:800; }
+.highway .hw-views button:hover { color:var(--sc-ink); background:#ffffff0c; }
+.highway .hw-views button[aria-pressed='true'] { background:#54452b; color:#ffe7ac; box-shadow:inset 0 -2px 0 #e4bd61; }
+.highway .hw-rig { border-radius:3px; border:1px solid var(--sc-line); background:linear-gradient(180deg,#2c2723ee,#1b1815ee); box-shadow:0 2px 0 #000b; }
+.highway .hw-rig .hw-chip { box-shadow:none; border-color:transparent; background:none; }
+.highway .hw-rig-mute { border-radius:2px; }
+/* the section strip: masking tape on the case */
+.highway .hw-sections button { border-radius:1px; background:#2a2520b8; color:var(--sc-ink-3); font-weight:800; letter-spacing:.03em; text-transform:uppercase; font-size:10.5px; }
+.highway .hw-sections button:hover { background:#3a332bd9; color:var(--sc-ink); }
+.highway .hw-sections button.on { background:#3d3528e0; color:var(--sc-gold-hi); box-shadow:inset 0 -2px 0 var(--sc-gold); }
+.highway .hw-head { background:var(--sc-gold); box-shadow:0 0 6px #f1ce6888; }
+
+/* Tools sits beside Sound & settings, never on top of it */
+.highway .hw-tools { transition:right .28s var(--ease, ease); }
+.highway:has(.hw-dock:not(.collapsed)) .hw-tools { right:432px; }
+
+/* Sound & settings: a road case lid that slides out */
+.highway .hw-dock-tab {
+  border-radius:3px 0 0 3px; border:1px solid #000; border-right:0; color:#e6dccb; font-weight:900; font-stretch:80%;
+  background:repeating-linear-gradient(45deg,#ffffff07 0 1px,transparent 1px 3px),linear-gradient(90deg,#3a3933,#282724); box-shadow:-3px 3px 0 #0009;
+}
+.highway .hw-dock-tab:hover { color:var(--sc-gold-hi); }
+.highway .hw-mix {
+  border:0; border-left:3px double #6c5f4d; border-bottom:2px solid #625647; border-radius:0 0 0 3px;
+  background:var(--sc-panel); box-shadow:-10px 18px 40px #000b; color:var(--sc-ink);
+  scrollbar-color:#6c5f4d #0000;
+}
+.highway .hw-master-title b { font-weight:900; font-stretch:68%; font-size:24px; text-transform:uppercase; letter-spacing:.02em; color:#f1dfbb; text-shadow:2px 2px 0 #000; transform:rotate(-1deg); display:inline-block; }
+/* section names: a torn poster kicker, like the page banners */
+.highway .hw-master-sec { font-family:var(--font); font-weight:900; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#211b13; display:block; width:max-content; margin-top:12px; padding:3px 9px 2px; border:0;
+  background:#e3c26a; clip-path:polygon(2% 0,98% 5%,100% 85%,94% 93%,2% 100%,0 65%); transform:rotate(-1deg); }
+.highway :is(.hw-level,.hw-mix-row,.hw-sync,.hw-opt-toggle,.hw-tuner-sec,.hw-venue-preview) {
+  border-radius:2px; border:1px solid #554a3b; background-color:#26221d; box-shadow:2px 3px 0 #08070666,inset 0 0 0 1px #ffffff06;
+}
+.highway :is(.hw-level,.hw-sync) { background-image:var(--sc-screws); }
+.highway .hw-level-top b, .highway .hw-mix-row .name, .highway .hw-sync b, .highway .hw-opt-toggle b { color:var(--sc-ink); font-weight:800; }
+.highway .hw-level-top span, .highway .hw-sync small, .highway .hw-opt-toggle small, .highway .hw-mix-note, .highway .hw-mix-head span { color:var(--sc-ink-3); }
+.highway .hw-mix-head.sub b { font-weight:900; font-stretch:78%; text-transform:uppercase; letter-spacing:.05em; color:#f1dfbb; }
+.highway .hw-sync:hover, .highway .hw-opt-toggle:hover { border-color:#8a7a62; background-color:#2e2923; }
+.highway .hw-sync-icon { background:var(--sc-gold); color:var(--sc-gold-ink); border-radius:50%; box-shadow:2px 2px 0 #000; }
+.highway .hw-opt-toggle[aria-checked='true'] .hw-switch { background:var(--sc-gold); }
+.highway .hw-mix-row .you { border-radius:2px; background:var(--sc-gold-soft); color:var(--sc-gold-hi); text-transform:uppercase; font-size:9.5px; letter-spacing:.06em; }
+.highway .hw-mix-solo { border-radius:2px; }
+.highway .hw-tuner-head { color:var(--sc-ink); }
+.highway .hw-tuner-head b { font-weight:800; }
+.highway .hw-venue { border-radius:2px; border-color:#554a3b; }
+.highway .hw-venue[aria-pressed='true'] { border-color:var(--sc-gold); box-shadow:0 0 0 2px #f1ce6855,2px 3px 0 #000a; }
+.highway .hw-venue span { font-weight:800; text-transform:uppercase; font-size:9.5px; letter-spacing:.05em; }
+.highway .hw-mix .hw-chip { box-shadow:0 2px 0 #000b; }
+/* the Drop in Sound & settings: no extra frame around the fold */
+.highway .hw-drop { padding:0; border:0; background:none; border-radius:0; }
+
+/* the Drop's pop-out on the highway, under Tools, clear of the Sound & settings tab */
+.highway .hw-droppop { position:absolute; right:52px; top:146px; z-index:14; width:min(400px,calc(100vw - 120px)); filter:drop-shadow(0 14px 22px #000c); }
+.highway .hw-droppop[hidden] { display:none; }
+.highway .hw-droppop .dc-fold:not(.open) { width:max-content; max-width:100%; margin-left:auto; }
+.highway .hw-droppop .dc-mine-row { display:none; }
+.highway .hw-droppop .dc-fold { animation:sc-pop .28s cubic-bezier(.2,.9,.3,1.25) both; }
+@keyframes sc-pop { from { opacity:0; transform:translateY(-10px) scale(.96); } }
+@media (prefers-reduced-motion: reduce) { .highway .hw-droppop .dc-fold { animation:none; } }
+.highway.hw-training .hw-droppop { display:none !important; }
+
+/* score card, first-time timing check, loading box: road-case cards */
+.highway :is(.hw-card,.hw-syncbox,.hw-st-box) {
+  border-radius:3px; border:1px solid #554a3b; color:var(--sc-ink-2);
+  background:var(--sc-screws),var(--sc-panel); box-shadow:inset 0 0 0 3px #0c0b0a,inset 0 0 0 4px #a88d5733,0 24px 60px #000c;
+}
+.highway :is(.hw-card-titles h3,.hw-syncbox h3,.hw-st-box b) { color:var(--sc-ink); font-weight:900; font-stretch:72%; text-transform:uppercase; letter-spacing:.01em; text-shadow:2px 2px 0 #000; }
+.highway .hw-card-eyebrow, .highway .hw-sync-eyebrow { display:inline-block; width:max-content; padding:2px 8px; color:#211b13; background:#e3c26a; font-weight:900; font-size:10px; letter-spacing:.14em; text-transform:uppercase; clip-path:polygon(2% 0,98% 5%,100% 85%,94% 93%,2% 100%,0 65%); }
+.highway .hw-card-facts div { border-radius:2px; background:#1c1916; border:1px solid #3d362e; }
+.highway .hw-card-facts b { font-weight:900; font-stretch:75%; color:var(--sc-ink); }
+.highway .hw-card-x { border-radius:3px; }
+.highway .hw-syncbox .btn.primary, .highway .hw-st-box .btn.primary { color:var(--sc-gold-ink); background:var(--sc-gold); border-color:#ffe4a0; box-shadow:2px 3px 0 #080704; border-radius:2px; }
+.highway .hw-syncbox .btn, .highway .hw-st-box .btn { border-radius:2px; }
+.highway .hw-sync-ring { border-color:var(--sc-gold); color:var(--sc-gold); }
+.highway .hw-st-spin { border-color:#f1ce6833; border-top-color:var(--sc-gold); }
+.highway .hw-st-bar > i { background:linear-gradient(90deg,#e8b164,var(--sc-gold)); }
+.highway .hw-trainbar { border-radius:3px; border:1px solid #554a3b; background:var(--sc-panel); }
+
+/* Pop-ups opened from the highway (Tools menu, practice speed, tone) match its road-case panels. */
+body:has(.highway:not([hidden])) :is(.menu,.context-menu,.toast,.speed-pop,.tm) {
+  background:linear-gradient(180deg,#25211cf7,#191715f9); color:#f1e1c4;
+  border:1px solid #806b49; border-radius:3px; box-shadow:4px 6px 0 #000a,0 18px 44px #000a;
+}
+body:has(.highway:not([hidden])) .speed-pop::before { background:#25211c; border-color:#806b49; }
+body:has(.highway:not([hidden])) .speed-pop { --acc:#d2c7b2; }
+body:has(.highway:not([hidden])) .speed-pop.slow { --acc:#f1ce68; }
+body:has(.highway:not([hidden])) :is(.sp-head,.tm h4) { color:#a99e8c; }
+body:has(.highway:not([hidden])) .tm-now { border-radius:3px; background:linear-gradient(90deg,color-mix(in srgb,var(--gel) 20%,transparent),transparent),#201c18; }
+body:has(.highway:not([hidden])) .menu :is(button,.menu-item):hover { background:#3a332b; color:#ffe4a0; }
+
+/* The Tab and Waveform screens wear the same road case as the highway. */
+#app .np-head, #app .np-foot { background:linear-gradient(180deg,#211d19f2,#181512f4),var(--sc-tex) center/720px; border-color:var(--sc-line-2); }
+#app .np-head { border-bottom:2px solid #5b5043; }
+#app .np-foot { border-top:2px solid #5b5043; }
+#app .np-main > :is(.stage-body,.tab-view) { border-radius:3px; border:1px solid var(--sc-line); background:#191714; box-shadow:4px 5px 0 #0009; }
+#app .tab-view { background:#191714; }
+#app :is(.tab-bar,.ruler-head) { background:#1f1b17; border-color:var(--sc-line-2); }
+#app .lane-head { background:#1d1a16; border-color:#3d362e; }
+#app .np-panel { background:var(--sc-panel); border-left:2px solid #5b5043; }
+#app .np-tabs { background:#1d1a16; border-color:var(--sc-line-2); }
+#app .np-tabs button { font-weight:750; white-space:nowrap; }
+#app .np-tabs button[aria-selected='true'] { color:var(--sc-gold-hi); box-shadow:inset 0 -3px 0 var(--sc-gold); }
+#app .np-pane { background:transparent; border-color:transparent; }
+#app .lvl-card { border-radius:3px; background:linear-gradient(180deg,color-mix(in srgb,var(--gel) 13%,#24201b),#1c1916); border:1px solid color-mix(in srgb,var(--gel) 40%,#5b5043); background-image:var(--sc-screws),linear-gradient(180deg,color-mix(in srgb,var(--gel) 13%,#24201b),#1c1916); }
+#app .stem-row { border-radius:3px; background:linear-gradient(90deg,color-mix(in srgb,var(--gel) 11%,transparent),transparent 60%),#221e1a; border-color:#4a4137; }
+#app .stem-row.off { background:#1a1714; border-color:#3d362e; }
+#app :is(.sec-head,.np-fine) { color:var(--sc-ink-3); }
+#app .np-callout { border-radius:3px; background:#221e1a; border-color:#5b5043; }
+#app :is(.np-guitar,.np-drop,.np-speed .speed-chip) { border-radius:3px; }
+#app .np-drop { color:var(--sc-ink-2); border-color:var(--sc-line); background:#221e1a; }
+#app .np-score b { font-weight:900; font-stretch:75%; text-shadow:2px 2px 0 #000; }
+#app .np-score .ring i { background:#191714; }
+#app .tab-sections button { border-radius:1px; background:#2a2520; color:var(--sc-ink-3); font-weight:800; }
+#app .tab-sections button:hover { background:#3a332b; color:var(--sc-ink); }
+#app .tab-sections button.on { background:#3d3528; color:var(--sc-gold-hi); box-shadow:inset 0 -2px 0 var(--sc-gold); }
+#app .tab-sections-head { background:var(--sc-gold); }

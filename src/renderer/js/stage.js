@@ -22,9 +22,9 @@ const GEL = {
 };
 const MIX_PALETTE = {
   played: ['#ffd497', '#ffb547', '#ff7a45'],
-  unplayed: 'rgba(132, 144, 186, 0.42)',
+  unplayed: 'rgba(176, 162, 140, 0.40)',
   axis: 'rgba(255,255,255,0.05)',
-  dim: { played: ['#59607a', '#4a5068', '#3c4256'], unplayed: 'rgba(90, 98, 128, 0.35)' },
+  dim: { played: ['#6b6153', '#5a5145', '#4a4339'], unplayed: 'rgba(110, 100, 86, 0.35)' },
 };
 function stemPalette(name) {
   const g = GEL[name] || GEL.other;
@@ -32,7 +32,7 @@ function stemPalette(name) {
     played: g,
     unplayed: hexA(g[1], 0.32),
     axis: 'rgba(255,255,255,0.045)',
-    dim: { played: ['#4f5670', '#454b62', '#3a3f53'], unplayed: 'rgba(80, 88, 116, 0.32)' },
+    dim: { played: ['#625949', '#544c40', '#463f36'], unplayed: 'rgba(100, 91, 78, 0.32)' },
   };
 }
 function hexA(hex, a) {
@@ -603,14 +603,15 @@ export function toggleSectionLoop() {
 
 // -------------------------------------------------------------- drawing --
 const RULER_COLORS = {
-  sectionA: 'rgba(42, 51, 80, 0.75)',
-  sectionB: 'rgba(36, 44, 68, 0.75)',
-  sectionHover: 'rgba(60, 70, 104, 0.95)',
-  sectionActive: 'rgba(255, 181, 71, 0.2)',
-  sectionText: '#a3aac2',
-  sectionActiveText: '#ffc978',
-  tick: 'rgba(163, 170, 194, 0.35)',
-  tickText: '#6e7693',
+  // 4.8: warm road-case colours, like the rest of the app (were navy)
+  sectionA: 'rgba(58, 51, 43, 0.85)',
+  sectionB: 'rgba(46, 41, 35, 0.85)',
+  sectionHover: 'rgba(84, 69, 43, 0.95)',
+  sectionActive: 'rgba(241, 206, 104, 0.22)',
+  sectionText: '#cec4b1',
+  sectionActiveText: '#ffe4a0',
+  tick: 'rgba(214, 200, 175, 0.35)',
+  tickText: '#8f8676',
   loop: 'rgba(255, 181, 71, 0.16)',
   loopEdge: 'rgba(255, 181, 71, 0.8)',
   playhead: '#ffc978',

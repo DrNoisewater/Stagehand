@@ -14,17 +14,18 @@ const STRING_COLORS = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#
 const GUITAR_NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
 const BASS_NAMES = ['E', 'A', 'D', 'G'];
 const C = {
-  bg: '#141a29',
-  staff: 'rgba(163, 170, 194, 0.32)',
-  beat: 'rgba(163, 170, 194, 0.09)',
-  bar: 'rgba(163, 170, 194, 0.3)',
-  barNum: '#6e7693',
-  ink: '#eceef6',
-  ink2: '#a3aac2',
-  ink3: '#6e7693',
+  // 4.8: the app's warm road-case colours (were navy)
+  bg: '#191714',
+  staff: 'rgba(214, 200, 175, 0.30)',
+  beat: 'rgba(214, 200, 175, 0.08)',
+  bar: 'rgba(214, 200, 175, 0.30)',
+  barNum: '#8f8676',
+  ink: '#f5edda',
+  ink2: '#cec4b1',
+  ink3: '#8f8676',
   tungsten: '#ffb547',
   tungstenHi: '#ffc978',
-  noteBg: '#131826',
+  noteBg: '#191714',
 };
 const FONT = "'Archivo', 'Segoe UI', sans-serif";
 
@@ -526,7 +527,7 @@ export function createTabView(host, stage) {
         drawSystem({ t0: row.t0, t1: row.t1, x0, x1, staffTop: top + 70, gap: g.gap, t, lyrics: g.lyrics, playhead: r === 0, dim: r > 0 });
         hit.push({ y0: top, y1: top + g.sysH, x0, t0: row.t0, t1: row.t1, pps: g.pps });
         if (r > 0) {
-          ctx.fillStyle = 'rgba(42, 51, 80, 0.6)';
+          ctx.fillStyle = 'rgba(98, 86, 71, 0.6)';
           ctx.fillRect(12, top - 3, W - 24, 1);
         }
       }
@@ -550,9 +551,9 @@ export function createTabView(host, stage) {
     const tab = V.tab;
     const names = tab.type === 'bass' ? BASS_NAMES : GUITAR_NAMES;
     const opens = openStrings(tab);
-    ctx.fillStyle = '#171d2d';
+    ctx.fillStyle = '#14120f';
     ctx.fillRect(0, 0, g.gutter, H);
-    ctx.fillStyle = 'rgba(42, 51, 80, 0.8)';
+    ctx.fillStyle = 'rgba(98, 86, 71, 0.85)';
     ctx.fillRect(g.gutter - 1, 0, 1, H);
     ctx.font = `700 12px ${FONT}`;
     ctx.textAlign = 'center';
@@ -609,8 +610,8 @@ export function createTabView(host, stage) {
       const x = Math.max(x0 + 4, X(sec.start) + 2);
       const w = ctx.measureText(label).width + 14;
       if (sec.start < t0 && x + w > X(sec.end) - 4) continue;
-      ctx.fillStyle = 'rgba(255, 181, 71, 0.14)';
-      roundRect(ctx, x, staffTop - 58, w, 18, 4);
+      ctx.fillStyle = 'rgba(241, 206, 104, 0.16)';
+      roundRect(ctx, x, staffTop - 58, w, 18, 2);
       ctx.fill();
       ctx.fillStyle = C.tungstenHi;
       ctx.fillText(label, x + 7, staffTop - 45);
