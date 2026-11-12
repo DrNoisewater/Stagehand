@@ -212,6 +212,14 @@ function renderCard() {
   if (rig.on) top.append(mute);
   card.append(top);
   if (s.line || s.sub) card.append(h('div.gc-text', { html: `${s.line}${s.sub ? `<br>${s.sub}` : ''}` }));
+  // 4.11: nothing plugged in: the cable shows the way
+  if (s.cls === 'idle') card.append(h('img.gc-cable', { src: 'art/scraps/guitar-cable-arrow.avif', alt: '', draggable: false }));
+  // 4.11: the tuner, one press away on every page (someone went an hour without finding it)
+  if (rig.on) {
+    const tb = h('button.gc-tuner', { type: 'button', title: 'Open the tuner (U)' }, h('span', { html: icon('tuning') }), h('span', { text: 'Tuner' }), h('kbd', { text: 'U' }));
+    tb.onclick = async () => (await import('./tuner.js')).openTuner();
+    card.append(tb);
+  }
   G.meter = null;
   if (rig.on) {
     const m = h('div.meter-bar', null, h('i'));

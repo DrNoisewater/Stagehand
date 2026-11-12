@@ -378,7 +378,7 @@ class StemService extends EventEmitter {
       const song = this.library.get(id);
       if (!song) continue;
       // no song audio anywhere: nothing to split (official DLC may have it in another file)
-      if (song.audioEntry === null && !song.audioFrom && (song.toolkit || song.author || song.packageVersion)) continue;
+      if (song.audioEntry === null && !song.audioFrom && song.audioFail) continue; // its audio was looked for and not found
       if (this.current && this.current.songId === id) {
         this.current.ahead = false;
         continue;
@@ -404,7 +404,7 @@ class StemService extends EventEmitter {
   ahead(songId) {
     const song = this.library.get(songId);
     if (!song || !this.tools.enginePython()) return false;
-    if (song.audioEntry === null && !song.audioFrom && (song.toolkit || song.author || song.packageVersion)) return false;
+    if (song.audioEntry === null && !song.audioFrom && song.audioFail) return false;
     if ((this.current && this.current.songId === songId) || this.queue.some((j) => j.songId === songId)) return false;
     if (this.ready(song)) return false;
     const older = this.queue.filter((j) => j.ahead).sort((a, b) => a.pickedAt - b.pickedAt);

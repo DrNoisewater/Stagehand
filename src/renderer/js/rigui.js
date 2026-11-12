@@ -29,6 +29,9 @@ export function rotaryKnob({ name, min = 0, max = 1, value, def, gel = 'var(--tu
   const val = h('span.kn-val');
   el.append(ring, label, val);
   const st = step || (max - min >= 20 ? 1 : (max - min) / 100);
+  const positions = Math.round((max - min) / st);
+  const few = positions <= 6; // a switch or a selector
+  if (few) el.classList.add('switch');
   let v = Number(value);
   const show = () => {
     const t = (v - min) / (max - min || 1);
@@ -62,16 +65,24 @@ export function rotaryKnob({ name, min = 0, max = 1, value, def, gel = 'var(--tu
     el.focus({preventScroll:true});
     el.setPointerCapture(e.pointerId);
     let y = e.clientY;
+    // 4.11: the drag is added up before it is rounded to a step, so a switch or selector (a few
+    // positions) follows the hand too: before, each small move rounded back to where it was
+    let raw = v, moved = 0;
+    const span = few ? Math.max(40, 30 * positions) : 160;
     const move = (ev) => {
       const dy = y - ev.clientY;
       y = ev.clientY;
-      set(v + (dy / (ev.shiftKey ? 600 : 160)) * (max - min));
+      moved += Math.abs(dy);
+      raw = Math.max(min, Math.min(max, raw + (dy / (ev.shiftKey && !few ? 600 : span)) * (max - min)));
+      set(raw);
     };
     const up = () => {
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
       el.removeEventListener('pointercancel', up);
       el.removeEventListener('lostpointercapture', up);
+      // a plain click on a switch flips it to its next position
+      if (few && moved < 3) return set(v + st > max + 1e-9 ? min : v + st, true);
       set(v, true);
     };
     el.addEventListener('pointermove', move);
@@ -82,7 +93,7 @@ export function rotaryKnob({ name, min = 0, max = 1, value, def, gel = 'var(--tu
   });
   el.addEventListener('wheel', (e) => {
     e.preventDefault();
-    set(v - Math.sign(e.deltaY) * st * (e.shiftKey ? 1 : 3), true);
+    set(v - Math.sign(e.deltaY) * st * (e.shiftKey || few ? 1 : 3), true);
   }, { passive: false });
   el.addEventListener('keydown', (e) => {
     const k = e.key;

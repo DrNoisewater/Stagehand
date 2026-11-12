@@ -1528,7 +1528,7 @@ class FakePortMain extends EventEmitter {
   // 4.1.6: the tuner follows the song you open (a hand-picked tuning lasts until the next song)
   await page.locator('.nav-section[data-page="play"]').click();
   await page.waitForTimeout(600);
-  const tunerSays = () => page.evaluate(() => { const s = document.querySelector('#page-play .tuner3 select'); return s ? s.options[s.selectedIndex].text + ' | ' + [...document.querySelectorAll('#page-play .tuner3 .tn-strings button')].map((b) => b.textContent).join(' ') : ''; });
+  const tunerSays = () => page.evaluate(() => { const s = document.querySelector('#page-play .tuner3 select'); return s ? s.options[s.selectedIndex].text + ' | ' + [...document.querySelectorAll('#page-play .tuner3 .tn-strings button b')].map((b) => b.textContent).join(' ') : ''; });
   await page.evaluate(async () => (await import('/src/renderer/js/rig.js')).rig.setSongTuning([-2, 0, 0, 0, 0, 0], 'guitar', 0));
   await page.waitForTimeout(300);
   const t1 = await tunerSays();

@@ -14,8 +14,9 @@ const { readWavInfo } = require('../core/files');
 const { run } = require('./tools');
 
 class AudioService {
-  constructor({ cacheDir, tools, library, settings, finder = null, onSong = () => {}, log = () => {} }) {
+  constructor({ cacheDir, tools, library, settings, finder = null, onSong = () => {}, onSearch = () => {}, log = () => {} }) {
     this.finder = finder;
+    this.onSearch = onSearch;
     this.onSong = onSong;
     this.dir = cacheDir;
     this.tools = tools;
@@ -95,32 +96,33 @@ class AudioService {
   }
 
   /**
-   * 4.0.3: the song's file has no audio (some paid DLC): look for it in Rocksmith's own
-   * folder and the library, by the media id its sound bank names.
+   * The song's own file has no audio (official files often keep it elsewhere; Rocksmith 1 DLC
+   * keeps even its sound bank elsewhere): find it the way the game does (services/audiofind.js).
+   * The chart's file and the audio's file may differ; every part of the song shares the result.
    */
   async _findElsewhere(song) {
-    const official = !song.toolkit && !song.author && !song.packageVersion;
-    let found = null;
-    if (this.finder && song.bankEntry) {
-      let bank = null;
+    if (!this.finder) throw new Error('This file has no song audio');
+    let bank = null;
+    if (song.bankEntry) {
       try {
         bank = await this._read({ path: song.path, entry: song.bankEntry });
       } catch (_) {}
-      found = await this.finder.find(song, bank).catch((err) => (this.log(`Audio search failed: ${err.message}`), null));
     }
-    if (found) {
-      this.log(`Audio: ${song.title || song.songKey} plays its audio from ${found.path} (${found.entry})`);
+    this.onSearch({ song, state: 'looking' });
+    try {
+      const r = await this.finder.resolve(song, bank);
+      const found = { path: r.path, entry: r.entry };
       const s = this.library.setAudioFrom(song.id, found);
       if (s) this.onSong(s);
       return found;
+    } catch (err) {
+      if (!err.code) this.log(`Audio search failed for ${song.title || song.songKey} (${song.path}): ${err.message}`);
+      const s = this.library.setAudioFail(song.id, { code: err.code || 'AUDIO_SEARCH', message: err.message });
+      if (s) this.onSong(s);
+      throw err;
+    } finally {
+      this.onSearch({ song, state: 'done' });
     }
-    // say what the file does hold, so a report can tell why
-    this.log(`Audio: no song audio in ${song.path} (${song.title || song.songKey}): ${song.audioNote || 'not described'}; not found in other files either`);
-    throw new Error(
-      official
-        ? 'This official DLC file has no audio inside, and Stagehand couldn’t find it in your Rocksmith folder. Check that Rocksmith is installed on this PC (Stagehand looks in its folder, including songs.psarc and the dlc folder).'
-        : 'This file has no song audio'
-    );
   }
 
   async _decode(wem, key) {
@@ -144,7 +146,9 @@ class AudioService {
       await fsp.rename(tmpWav, this.wavPath(key));
     } catch (err) {
       await fsp.unlink(tmpWav).catch(() => {});
-      throw new Error(`Could not decode the song audio: ${err.message}`);
+      const e = new Error(`Stagehand found this song’s audio but couldn’t decode it: ${err.message}`);
+      e.code = 'AUDIO_DECODE';
+      throw e;
     } finally {
       await fsp.unlink(wemPath).catch(() => {});
     }

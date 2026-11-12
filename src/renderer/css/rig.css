@@ -109,16 +109,16 @@ html[data-decoration='reduced'] .rb-piece.sel .rb-foot::before { display:none; }
 @media (prefers-reduced-motion: reduce) { .rb-hint { animation:none; } .rb-piece.settle { transition:none; } }
 
 /* the cables: braided tan with chrome jacks, like the photo */
-.rb-shadow { fill:none; stroke:#000; stroke-opacity:.38; stroke-width:7; stroke-linecap:round; }
-.rb-braid { fill:none; stroke:#b89a66; stroke-width:6; stroke-linecap:round; }
-.rb-weave { fill:none; stroke:#6e5634; stroke-width:6; stroke-dasharray:1.6 2.6; stroke-linecap:butt; opacity:.85; }
+.rb-shadow { fill:none; stroke:#000; stroke-opacity:.38; stroke-width:calc(6px * var(--cable, 1)); stroke-linecap:round; }
+.rb-braid { fill:none; stroke:#b89a66; stroke-width:calc(5px * var(--cable, 1)); stroke-linejoin:round; stroke-linecap:round; }
+.rb-weave { fill:none; stroke:#6e5634; stroke-width:calc(5px * var(--cable, 1)); stroke-dasharray:1.6 2.6; stroke-linecap:butt; opacity:.85; }
 .rb-sheen { fill:none; stroke:#f1dfb8; stroke-width:1.4; stroke-dasharray:3 2; opacity:.55; transform:translateY(-1.3px); }
 .rb-braid.off, .rb-weave.off, .rb-sheen.off { opacity:.45; }
 /* the speaker lead from the head down to the cabinet: thick and black */
-.rb-braid.fat { stroke:#1b1b1c; stroke-width:7; } .rb-weave.fat { stroke:#3a3a3c; stroke-width:7; opacity:.5; } .rb-sheen.fat { stroke:#8d9096; opacity:.35; }
-.rb-plug { stroke:#6f747b; stroke-width:9; stroke-linecap:round; }
-.rb-plug-hi { stroke:#eef1f4; stroke-width:3.5; stroke-linecap:round; opacity:.9; }
-.rb-collar { stroke:#2b2d30; stroke-width:9.5; stroke-dasharray:1.5 2; }
+.rb-braid.fat { stroke:#1b1b1c; stroke-width:calc(6.5px * var(--cable, 1)); } .rb-weave.fat { stroke:#3a3a3c; stroke-width:calc(6.5px * var(--cable, 1)); opacity:.5; } .rb-sheen.fat { stroke:#8d9096; opacity:.35; }
+.rb-plug { stroke:#6f747b; stroke-width:calc(8px * var(--cable, 1)); stroke-linecap:round; }
+.rb-plug-hi { stroke:#eef1f4; stroke-width:calc(3px * var(--cable, 1)); stroke-linecap:round; opacity:.9; }
+.rb-collar { stroke:#2b2d30; stroke-width:calc(8.5px * var(--cable, 1)); stroke-dasharray:1.5 2; }
 /* the signal: a light running along the cables, as bright as you play */
 .rb-glow { opacity:var(--sig,0); transition:opacity .25s; }
 .rb-pulse { fill:none; stroke:#ffd27a; stroke-width:3.2; stroke-linecap:round; stroke-dasharray:12 88; filter:drop-shadow(0 0 4px #ffb547); animation:rb-flow 1.15s linear infinite; animation-play-state:paused; }

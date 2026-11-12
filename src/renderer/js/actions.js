@@ -29,7 +29,8 @@ export async function playAlong(id) {
   if (!song || !stageApi) return;
   // 4.0.2: a file with no song audio inside used to open the highway over an error you
   // couldn't see; 4.0.3: official DLC looks for its audio in Rocksmith's folder instead
-  if (song.audioEntry === null && !song.audioFrom && !noStamp(song)) return noAudioToast(song);
+  // 4.11: a file without audio inside isn't a song without audio: official songs (Rocksmith 1 DLC
+  // above all) keep it in Rocksmith's own folder, so every song gets its audio looked for
   const cur = stageApi.current && stageApi.current();
   // the same song carries on, unless it failed to open: then picking it again tries again
   const phase = stageApi.loadInfo ? stageApi.loadInfo().phase : 'ready';

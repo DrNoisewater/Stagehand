@@ -1,3 +1,68 @@
+# 4.11.0 — official songs find their audio (songs.psarc), every pedal checked, tidier cables, tuner everywhere with two looks, hit burst (2026-11-12)
+
+User (after 4.10's board; from a phone, PC not linked): paid Rocksmith DLC says "contains no audio" ("that is
+just not acceptable"; a ChatGPT brief: rs1compatibilitydlc_p.psarc has charts only, no .wem and no .bnk;
+Kryptonite = SongKey "Kryptonite", SongEvent "Play_Kryptonite"; audio in songs.psarc / other archives) · "verify
+that each one of these pedals affects the tone in the correct way. Do the pedals actually work?" · "the cords
+connecting everything together look odd" · are the scraps on every screen, is the UI top notch · a vertical tuner
+look (mock-up attached) and "any item in the app that has multiple looks should have a setting" · the tuner must be
+easier to find (someone took an hour) · could vocals be sung (second mic?): look into it · the highway: "slightly
+more interactive" hit feedback, "very careful".
+
+**NOT VERIFIED ON THE USER'S REAL FILES.** The PC wasn't reachable, songs.psarc can't be uploaded. Everything about
+the audio search is tested on archives built to the shapes described (and on the real banks in test/fixtures).
+First thing next session if the PC is linked: open Kryptonite and a Queen song, read the `Audio:` lines in
+Settings › About › the log.
+
+**Done:**
+- **Audio across archives** (`src/main/core/wwise.js` new, `services/audiofind.js` rewritten, `audio.js`,
+  `rocksmith.js`, `library.js`): a song whose file has no audio is resolved the way the game does it: manifest
+  `SongBank` + `SongEvent` → that bank in any archive (by file name; else the bank that holds the event's id,
+  FNV-1 of the lower-cased name: checked against real banks) → Event → Action → Sound → media id → `<id>.wem`
+  (or audio whole inside the bank). Looks in the Rocksmith folder (root songs.psarc first, rs1compatibility*,
+  dlc/**) and the library. Never the first/biggest file; `_preview.bnk` never counts; a custom song reusing the
+  bank's name doesn't beat the game's own files; two different recordings equally placed = `AUDIO_AMBIGUOUS`
+  (reported, not played). Errors: `AUDIO_NO_GAME` (with a **Find my Rocksmith folder** button on the player and
+  the highway), `AUDIO_NO_BANK` (says whether songs.psarc is missing), `AUDIO_NO_MEDIA`, `AUDIO_DECODE`. The log
+  names the song key/event/bank and the chart's, bank's and audio's archives.
+  Index v2 (`Cache/audio-index.json`: banks + audio ids per archive, events per bank of shared archives, by
+  path/size/mtime; progress events `audio:search` shown while a song opens). `AUDIO_REV` 3 re-reads every no-audio
+  song once (keeps `bankName`, `songEvent`); `song.audioFail` replaces the blanket "no audio" badge (shown only
+  after a real search failed; opening the song looks again); choosing the Rocksmith folder clears old results.
+  Songs are no longer blocked up front for having no audio in their own file. Stems use the same resolved audio.
+  Tests: `test/audiofind.test.js` (17 cases; `test/helpers/psarc-make.js` builds PSARCs and banks).
+- **Every pedal and rack unit checked** (`test/effects-behaviour.cjs`, in npm test: 208 checks on all 100): drives
+  add harmonics, delays repeat, reverbs leave a tail, modulation moves, each EQ band lifts its own frequency, wahs
+  sweep up, compressors even out, the gate shuts, pitch pedals add their note. **Found and fixed:** Trem-Ole and
+  AutoVibe never wobbled (they only ducked the level): now a tremolo whose depth and speed follow how hard you
+  play (`trem_proc`). **Engine rebuilt: `native/bin/stagehand-audio.exe` (llvm-mingw 20251104) and
+  `rig-dsp.wasm`.** Not run on Windows here.
+- **Switches and selectors** (4.10 made them step) couldn't be dragged: each small move rounded back. Now the drag
+  adds up, a click flips to the next position (`rotaryKnob`).
+- **Cables** (`hop` in gearbench.js): plugs come straight out of the side jacks, a cable between two jacks hangs in
+  a shallow curve (never a V), thickness follows the rig's size, the guitar and speakers sit level with the jack
+  they plug into.
+- **Tuner:** a **Tuner** button on the guitar card (bottom left, every page), **U** opens it anywhere in its own
+  window (`openTuner`), two looks (`TUNER_LOOKS`: Needle, Tower: a tall LED meter, up = sharp), switched on the
+  tuner or in **Settings › Appearance › Pick your look** (which also has Songs: List/Tiles). String buttons say
+  6th…1st. `test/e2e/tuner-audit.js` (16 checks).
+- **Highway:** one addition, on the glow layer only: a ring bursts outward from each note you hit (string colour;
+  white when within 30 ms). **Sound & settings › Hit burst** turns it off. Notes, neck, timing, scoring untouched.
+  Seen only as software-rendered stills: ask how it reads at speed.
+- **Scraps:** all 30 are registered; placed: banners on Jam/Songs/Tones/Progress/Discover/Backstage, the board (11
+  kinds), tuning card, Getting started, window titles (pick underline), the guitar card (cable arrow when nothing
+  is plugged in). Not placed: the black curved arrow (black on a dark app). Settings, Now playing and the highway
+  stay plain.
+- **Vocals:** looked into, feasible; write-up and plan in TODO.md (top).
+
+**Not done / open:** real-file check of the audio search; a deeper UX pass (this one was screenshots of 12 screens);
+wah treadles and pedal footswitches on the photos; 4.10.0 and 4.11.0 are NOT on GitHub (push access was refused in
+the session: branch `gear-board-audit` exists only in the delivered source zip).
+
+**Ask the user:** do Kryptonite / the Queen songs / other paid DLC play now (if not: the `Audio:` log lines)? Does
+the first open take long (how many files in the Rocksmith folder)? Trem-Ole/AutoVibe feel right? Tower tuner close
+to the mock-up? Hit burst: keep, stronger, or off by default?
+
 # 4.10.0 — the tidy board, a full knob and slider audit, 8 straight-on photos, tape with words (2026-11-12)
 
 User (with a screenshot of the Create a Tone board: cables looping all over, the amp far from the pedals):

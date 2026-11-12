@@ -116,3 +116,8 @@ html[data-look='opera'] #app .opera-sticker-img.note { max-width:250px; max-heig
 html[data-look='opera'][data-decoration='reduced'] :is(.opera-tape, .opera-fx .wall) { display:none !important; }
 html[data-look='opera'][data-decoration='reduced'] #app .identity-banner .identity-title::before { content:none !important; }
 html[data-calm='true'] .opera-tape, html[data-calm='true'] .identity-title::before { animation:none !important; }
+
+/* 4.11: every window's title (Settings, Getting started, the tuner, questions) is underlined with the pick */
+.modal > header h2 { position: relative; padding-bottom: 6px; }
+.modal > header h2::after { content: ''; position: absolute; left: -2px; right: -18px; bottom: -4px; height: 9px; background: url('../art/scraps/pick-underline.avif') left center / 100% 100% no-repeat; filter: invert(1) hue-rotate(180deg) brightness(1.5); opacity: 0.8; pointer-events: none; }
+html[data-decoration='reduced'] .modal > header h2::after { display: none; }

@@ -402,6 +402,7 @@ export function rigBoard(tone, { selected = -1, onPick, onBypass, onMove, onNudg
 
   // ---- where everything stands
   let L = null; // the last layout: { base, runA, runB, W, H }
+  let S = 1; // how much smaller than full size the rig is drawn (cables and plugs follow)
   const place = (n) => {
     n.el.style.left = `${Math.round(n.x + n.at[0])}px`;
     n.el.style.top = `${Math.round(n.y + n.at[1])}px`;
@@ -461,6 +462,8 @@ export function rigBoard(tone, { selected = -1, onPick, onBypass, onMove, onNudg
       GAP = Math.max(30, GAP * k);
       GROUP = Math.max(40, GROUP * k);
     }
+    S = Math.max(0.55, Math.min(1, U / U0 + 0.12));
+    board.style.setProperty('--cable', S.toFixed(3));
     const W = Math.max(VW, total + PAD * 2);
     board.style.width = `${W}px`;
     board.style.height = `${H}px`;
@@ -498,9 +501,13 @@ export function rigBoard(tone, { selected = -1, onPick, onBypass, onMove, onNudg
       const tape = n.foot.querySelector('.rb-tape');
       if (tape) tape.style.maxWidth = `${Math.max(74, n.w + GAP - (n.foot.children.length > 1 ? 40 : 12))}px`;
     }
-    const mid = base - Math.min(U * 0.3, 80);
-    Object.assign(jackIn.style, { left: `${at.in.x}px`, top: `${mid - 30}px`, width: `${JACK}px` });
-    Object.assign(jackOut.style, { left: `${at.out.x}px`, top: `${mid - 30}px`, width: `${JACK}px` });
+    // the guitar and the speakers sit level with the jack they plug into, so those cables run flat
+    const firstIn = pre.length ? P.get(pre[0]) : ampI >= 0 ? P.get(ampI) : null;
+    const lastOut = racks.length ? P.get(racks[racks.length - 1]) : cabI >= 0 ? P.get(cabI) : ampI >= 0 ? P.get(ampI) : null;
+    const portY = (n) => (n ? n.y + n.h * (n.g.slot === 'rack' ? 0.5 : n.g.slot === 'amp' ? 0.5 : n.g.slot === 'cab' ? 0.56 : 0.31) : base - 60);
+    const clampY = (y) => Math.max(TOP + 30, Math.min(base - 34, y));
+    Object.assign(jackIn.style, { left: `${at.in.x}px`, top: `${clampY(portY(firstIn)) - 34}px`, width: `${JACK}px` });
+    Object.assign(jackOut.style, { left: `${at.out.x}px`, top: `${clampY(portY(lastOut)) - 27}px`, width: `${JACK}px` });
     // furniture
     for (const k of ['pre', 'post', 'rack']) if (tapes[k]) Object.assign(tapes[k].style, { left: `${at[k].x + at[k].w / 2}px`, top: '6px' });
     Object.assign(chalk.style, { left: `${Math.min(W - 196, at.in.x - 110)}px`, top: `${base + 32}px` });
@@ -538,13 +545,25 @@ export function rigBoard(tone, { selected = -1, onPick, onBypass, onMove, onNudg
     return which === 'in' ? { x: b.r - 2, y: b.t + b.h * yf, d: 1 } : { x: b.l + 2, y: b.t + b.h * yf, d: -1 };
   };
   const f = (v) => v.toFixed(1);
-  // a short patch cable between two jacks that face each other: out of one, a little slack, into the next
+  // a short patch cable between two jacks that face each other. The plug comes straight out of
+  // the jack (they're side jacks); between two jacks at the same height the cable hangs in a
+  // shallow U, and between different heights it makes one smooth S: never a V.
+  const PLUG = 13;
   const hop = (a, b) => {
-    const d = Math.abs(a.x - b.x);
-    const reach = Math.max(18, Math.min(60, d * 0.45));
-    const sag = Math.max(8, Math.min(30, 6 + d * 0.16)) + Math.min(24, Math.abs(a.y - b.y) * 0.12);
-    const c1 = { x: a.x + a.d * reach, y: a.y + sag }, c2 = { x: b.x + b.d * reach, y: b.y + sag };
-    return { d: `M${f(a.x)},${f(a.y)} C${f(c1.x)},${f(c1.y)} ${f(c2.x)},${f(c2.y)} ${f(b.x)},${f(b.y)}`, a, b, ua: c1, ub: c2 };
+    const a1 = { x: a.x + a.d * PLUG * S, y: a.y }, b1 = { x: b.x + b.d * PLUG * S, y: b.y };
+    const dx = Math.abs(a1.x - b1.x), dy = Math.abs(a1.y - b1.y);
+    const ua = { x: a.x + a.d * 30, y: a.y }, ub = { x: b.x + b.d * 30, y: b.y };
+    if (dy > 26 || dx < 14) {
+      const reach = Math.max(12, Math.min(70, dx * 0.55 + dy * 0.12));
+      return { d: `M${f(a.x)},${f(a.y)} L${f(a1.x)},${f(a1.y)} C${f(a1.x + a.d * reach)},${f(a1.y)} ${f(b1.x + b.d * reach)},${f(b1.y)} ${f(b1.x)},${f(b1.y)} L${f(b.x)},${f(b.y)}`, a, b, ua, ub };
+    }
+    const sag = Math.min(16, 3 + dx * 0.12) * S;
+    const mx = (a1.x + b1.x) / 2, my = Math.max(a1.y, b1.y) + sag;
+    const r = Math.max(6, dx * 0.3);
+    return {
+      d: `M${f(a.x)},${f(a.y)} L${f(a1.x)},${f(a1.y)} C${f(a1.x + a.d * r)},${f(a1.y)} ${f(mx - a.d * r * 0.8)},${f(my)} ${f(mx)},${f(my)} C${f(mx + a.d * r * 0.8)},${f(my)} ${f(b1.x + b.d * r)},${f(b1.y)} ${f(b1.x)},${f(b1.y)} L${f(b.x)},${f(b.y)}`,
+      a, b, ua, ub,
+    };
   };
   // a long run: out of the jack, down to the floor, along it, and up into the other jack
   const run = (a, b, y, xa, xb) => {
@@ -569,7 +588,7 @@ export function rigBoard(tone, { selected = -1, onPick, onBypass, onMove, onNudg
     let ux = u.x - p.x, uy = u.y - p.y;
     const l = Math.hypot(ux, uy) || 1;
     ux /= l; uy /= l;
-    const e = { x: p.x + ux * 14, y: p.y + uy * 14 }, c = { x: p.x + ux * 10, y: p.y + uy * 10 };
+    const e = { x: p.x + ux * 14 * S, y: p.y + uy * 14 * S }, c = { x: p.x + ux * 10 * S, y: p.y + uy * 10 * S };
     return `<line class="rb-plug" x1="${f(p.x)}" y1="${f(p.y)}" x2="${f(e.x)}" y2="${f(e.y)}"/><line class="rb-plug-hi" x1="${f(p.x)}" y1="${f(p.y)}" x2="${f(c.x)}" y2="${f(c.y)}"/><line class="rb-collar" x1="${f(c.x)}" y1="${f(c.y)}" x2="${f(e.x)}" y2="${f(e.y)}"/>`;
   };
   const draw = () => {

@@ -2126,3 +2126,53 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 /* a title you earned, on your pass, in place of the joke line */
 .gr-role.earned { font-style: normal; font-weight: 800; letter-spacing: .02em; color: #ffe08a; text-shadow: 0 0 8px #ffd36b55; }
 .lv-try-grid .lv-try b { padding-right: 34px; }
+
+/* ---- 4.11: the tuner's string buttons name the string; a second look ("tower"); a window of its own */
+.tuner3 .tn-strings button { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; line-height: 1.05; }
+.tuner3 .tn-strings button small { display: none; font-size: 10px; font-weight: 600; opacity: 0.7; }
+.tuner3 .tn-look { width: 28px; height: 28px; flex: none; border: 1px solid #3b4248; }
+.tuner3 .tn-tower { display: none; }
+.tuner3.tower .tn-row { flex-direction: column; gap: 6px; }
+.tuner3.tower .tn-bar .tn-scale, .tuner3.tower .tn-bar .tn-read > span:not(.c) { display: none; }
+.tuner3.tower .tn-bar { order: 3; flex: none !important; }
+.tuner3.tower .tn-bar .tn-read { justify-content: center; margin-top: 0; font-size: 14px; font-weight: 700; }
+.tuner3.tower .tn-note { order: 2; width: auto; font-size: 64px; }
+.tuner3.tower .tn-tower { order: 1; display: block; position: relative; width: 100%; height: 150px; }
+.tuner3.tower.tn-solo .tn-tower { height: 210px; }
+.tuner3.tower .tn-t-col { position: absolute; left: 50%; top: 4px; bottom: 4px; width: 26px; margin-left: -13px; border-radius: 6px;
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0 5px, transparent 5px 9px); overflow: visible; }
+/* lit segments from the middle to where you are: green near the middle, amber, then red */
+.tuner3.tower .tn-t-fill { position: absolute; left: 0; right: 0; border-radius: 3px; opacity: 0; transition: top 0.08s linear, height 0.08s linear;
+  top: calc(50% - max(0, var(--off, 0)) * 1%); height: calc(max(var(--off, 0), var(--off, 0) * -1) * 1%);
+  background: linear-gradient(180deg, #ff5a4d 0%, #ffc857 30%, #6bd49a 47%, #6bd49a 53%, #ffc857 70%, #ff5a4d 100%); background-size: 100% 142px; background-position: 0 calc(max(0, var(--off, 0)) * -1.42px);
+  -webkit-mask: repeating-linear-gradient(180deg, #000 0 5px, transparent 5px 9px); mask: repeating-linear-gradient(180deg, #000 0 5px, transparent 5px 9px); }
+.tuner3.tower.tn-solo .tn-t-fill { background-size: 100% 202px; background-position: 0 calc(max(0, var(--off, 0)) * -2.02px); }
+.tuner3.tower.heard .tn-t-fill { opacity: 1; }
+.tuner3.tower .tn-t-zero { position: absolute; left: -90px; right: -90px; top: 50%; height: 1px; background: linear-gradient(90deg, transparent, rgba(127, 224, 166, 0.55) 30%, rgba(127, 224, 166, 0.55) 70%, transparent); }
+.tuner3.tower .tn-t-dot { position: absolute; left: 50%; top: calc(50% - var(--off, 0) * 1%); width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; border: 2px solid #fff; background: #5a646b; opacity: 0.3; transition: top 0.08s linear; }
+.tuner3.tower.heard .tn-t-dot { opacity: 1; background: #ffc857; }
+.tuner3.tower.intune .tn-t-dot { background: #7fe0a6; box-shadow: 0 0 14px 3px rgba(107, 212, 154, 0.6); }
+.tuner3.tower .tn-t-lab { position: absolute; right: calc(50% + 34px); font-size: 11px; color: #a3afb5; font-variant-numeric: tabular-nums; }
+.tuner3.tower .tn-t-lab.up { top: 0; } .tuner3.tower .tn-t-lab.dn { bottom: 0; }
+.tuner3.tower .tn-t-lab.up::after { content: ' sharp'; } .tuner3.tower .tn-t-lab.dn::after { content: ' flat'; }
+.tuner3.tower .tn-strings button { height: 52px; border-radius: 10px; }
+.tuner3.tower .tn-strings button b { font-size: 17px; }
+.tuner3.tower .tn-strings button small { display: block; }
+.tuner3.tn-solo { box-shadow: none; background: transparent; border: 0; margin: 0; padding: 0; min-width: min(460px, 80vw); }
+.tuner3.tn-solo .card-head h2 { display: none; }
+.tuner3.tn-solo:not(.tower) .tn-note { font-size: 72px; width: 96px; }
+.tuner3.tn-solo:not(.tower) .tn-strings button { height: 44px; }
+@media (prefers-reduced-motion: reduce) { .tuner3.tower .tn-t-fill, .tuner3.tower .tn-t-dot { transition: none; } }
+/* the tuner is one press away wherever you are: on your guitar's card */
+.guitar-card .gc-tuner { display: flex; align-items: center; justify-content: center; gap: 7px; height: 32px; border-radius: 9px; border: 1px solid color-mix(in srgb, #6bd49a 45%, transparent); background: color-mix(in srgb, #6bd49a 10%, transparent); color: #c9f2da; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+.guitar-card .gc-tuner:hover { background: color-mix(in srgb, #6bd49a 20%, transparent); color: #fff; }
+.guitar-card .gc-tuner svg { width: 15px; height: 15px; }
+.guitar-card .gc-tuner kbd { margin-left: 2px; font-size: 10px; padding: 1px 5px; border-radius: 4px; background: #0006; border: 1px solid #fff2; color: #dfe; }
+.looks-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+.looks-row > b { flex: 0 0 150px; font-size: 13px; }
+.looks-row .seg { display: inline-flex; border: 1px solid #3b4248; border-radius: 9px; overflow: hidden; }
+.looks-row .seg button { padding: 7px 14px; background: none; border: 0; color: var(--ink-2); font-weight: 650; cursor: pointer; }
+.looks-row .seg button[aria-pressed='true'] { background: var(--tungsten, #ffb547); color: #1a1408; }
+.looks-row small { color: var(--ink-3); }
+.guitar-card .gc-cable { width: 100%; max-height: 54px; object-fit: contain; opacity: 0.9; filter: drop-shadow(0 2px 2px #0008); }
+html[data-decoration='reduced'] .guitar-card .gc-cable { display: none; }

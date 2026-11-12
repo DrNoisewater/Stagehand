@@ -459,9 +459,17 @@ static void trem_proc(sh_block *b, float *L, float *R, int n) {
   for (int i = 0; i < n; i++) {
     float x = R ? 0.5f * (L[i] + R[i]) : L[i];
     float lfo;
+    float amt = 1.f;
     if (t->envmode) {
+      /* 4.11: Trem-Ole and AutoVibe are tremolos you play with your hands: the harder you dig in,
+         the deeper and faster the wobble; play softly and it calms down (Sensitivity: how easily it
+         comes on; Attack/Release: how quickly it follows you). Before, the level only ducked with
+         the note and never wobbled at all. */
       float e = env_run(&t->env, x);
-      lfo = 1.f - sh_clampf(e * t->sens * 10.f, 0, 1);
+      amt = sh_clampf(e * t->sens * 10.f, 0, 1);
+      t->ph += t->rate * (0.6f + 0.9f * amt);
+      if (t->ph >= 1) t->ph -= 1;
+      lfo = 0.5f + 0.5f * sh_sin01(t->ph);
     } else {
       t->ph += t->rate;
       if (t->ph >= 1) t->ph -= 1;
@@ -474,7 +482,7 @@ static void trem_proc(sh_block *b, float *L, float *R, int n) {
         default: lfo = 0.5f + 0.5f * sh_sin01(p);
       }
     }
-    float g = 1.f - t->mix * (1.f - lfo);
+    float g = 1.f - t->mix * amt * (1.f - lfo);
     L[i] *= g;
     if (R) {
       float g2 = t->envmode ? g : 1.f - t->mix * lfo; /* stereo: opposite phase */
@@ -491,6 +499,7 @@ static int trem_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
   t->shape = (int)RAW(g, "waveform", 0);
   if (sh_has(k, "TremOle") || sh_has(k, "AutoVibe")) {
     t->envmode = 1;
+    t->rate = (float)((sh_has(k, "AutoVibe") ? 5.2 : 4.2) / sr); /* its own speed, pushed by how hard you play */
     t->sens = P(g, "sensitivity", 0.7f);
     env_set(&t->env, sr, RAW(g, "attack speed", 10) * 0.5 + 1, RAW(g, "release speed", 200));
   }

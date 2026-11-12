@@ -241,6 +241,7 @@ async function readSongs(psarc) {
       if (!s._sectionsAny && Array.isArray(a.Sections) && a.Sections.length) s._sectionsAny = a.Sections;
       if (!s._bank && a.SongBank) s._bank = a.SongBank;
       if (!s._previewBank && a.PreviewBankPath) s._previewBank = a.PreviewBankPath;
+      if (!s._event && a.SongEvent) s._event = a.SongEvent;
       if (!s._art && a.AlbumArt) s._art = a.AlbumArt;
     }
   }
@@ -383,6 +384,10 @@ async function readSongs(psarc) {
       previewEntry: preview,
       // 4.0.3: the song's sound bank, so its audio can be looked for in other files
       bankEntry: s._bank ? names.find((n) => n.toLowerCase().endsWith('/' + String(s._bank).toLowerCase())) || null : null,
+      // 4.11: what the manifest says plays this song, so its bank and audio can be found in
+      // another archive when this one holds neither (Rocksmith 1 DLC: charts only)
+      bankName: s._bank || null,
+      songEvent: s._event || null,
       platform: wems[0] ? wems[0].platform : null,
       audioNote: audio ? undefined : audioDiagnosis(names),
     });

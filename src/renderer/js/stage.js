@@ -797,7 +797,27 @@ function setPhase(phase) {
 }
 
 export function loadInfo() {
-  return { phase: S.phase || (S.song ? 'ready' : 'none'), song: S.song, error: S.error, prev: S.prevSong, waiting: S.waitPlay ? S.waitStatus || S.status || { state: 'queued' } : null };
+  return { phase: S.phase || (S.song ? 'ready' : 'none'), song: S.song, error: S.error, code: S.errorCode || null, note: S.loadNote || '', prev: S.prevSong, waiting: S.waitPlay ? S.waitStatus || S.status || { state: 'queued' } : null };
+}
+
+// 4.11: finding a song's audio in Rocksmith's folder can take a moment the first time: say so
+try {
+  api.on('audio:search', (p) => {
+    if (S.phase !== 'loading' || !S.song) return;
+    if (p.state === 'indexing') S.loadNote = `Reading your Rocksmith folder for the first time: ${p.done} of ${p.total} files…`;
+    else if (p.state === 'looking' && p.songId === S.song.id) S.loadNote = S.loadNote || 'Looking for this song’s audio in your Rocksmith folder…';
+    else return;
+    showLoadingState(S.loadNote);
+    emit('stage-phase');
+  });
+} catch (_) {
+  /* tests without the bridge */
+}
+
+/** 4.11: the song's audio is in Rocksmith's folder and we don't know where that is: ask, then open the song again. */
+export async function findGameThenRetry() {
+  const { pickGameFolder } = await import('./actions.js');
+  if (await pickGameFolder()) return retry();
 }
 
 /** Open the song again from the start (after it failed). */
@@ -850,6 +870,8 @@ export async function load(song, { autoplay = true, at = 0, loop = null, quiet =
   playBtn.disabled = true;
   stemModeBtn.disabled = true;
   buildBody();
+  S.errorCode = null;
+  S.loadNote = '';
   showLoadingState('Decoding audio…');
   lanes.get('mix').lane.classList.add('scanning');
   try {
@@ -917,6 +939,7 @@ export async function load(song, { autoplay = true, at = 0, loop = null, quiet =
     if (token !== S.token) return;
     stopWaiting();
     S.error = err.message;
+    S.errorCode = err.code || null;
     // once the audio is in, a later hiccup (stems) doesn't make the song unplayable
     if (S.phase !== 'ready') {
       engine.unloadAll();
@@ -929,6 +952,11 @@ export async function load(song, { autoplay = true, at = 0, loop = null, quiet =
       const again = h('button.btn.small', { type: 'button', text: 'Try again' });
       again.onclick = () => retry();
       mix.note.append(h('span.stage-error', { text: `Could not play this song. ${err.message}` }), again);
+      if (err.code === 'AUDIO_NO_GAME') {
+        const find = h('button.btn.small.primary', { type: 'button', text: 'Find my Rocksmith folder' });
+        find.onclick = () => findGameThenRetry();
+        mix.note.append(find);
+      }
       if (S.prevSong) {
         const back = h('button.btn.small.ghost', { type: 'button', text: `Back to ${S.prevSong.title}` });
         back.onclick = () => backToPrevious();
@@ -1496,6 +1524,7 @@ function makeHighway() {
       stemsStep: (st) => stemsStep(st),
       retry: () => retry(),
       backToPrevious: () => backToPrevious(),
+      findGameThenRetry: () => findGameThenRetry(),
       playNow: () => playNow(),
       requestStems: () => S.song && actions.requestStems([S.song.id]).then(() => api.stems.prioritize(S.song.id).catch(() => {})),
       borrowPlayer: () => borrowPlayer(),
