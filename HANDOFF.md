@@ -1,3 +1,49 @@
+# 4.7.1 — chord scoring tells a wrong chord from a right one, and stays forgiving (2026-11-12)
+
+User: "Lets check out the chord scoring and see if there is a better version than ours. Still being somewhat
+lightweight", then: keep it forgiving, "it was a little too harsh, and sometimes I still think i'm hitting the right
+notes and it counts me wrong. So let's be smart about this".
+
+**Looked for something better to bring in:** nothing fit. The good open chord tools (Chordino/NNLS chroma, Essentia,
+aubio) are GPL/AGPL (Stagehand is MIT); Spotify's Basic Pitch (Apache) needs TensorFlow.js and works on 2 s chunks
+after the fact; the light MIT ones (Meyda, pitchy) only follow one note. So ours was made smarter instead.
+
+**What was wrong:** a chord counted when 60 % of its notes rang. A wrong chord shares most notes with the right one
+(E minor vs E major differ on one string), so wrong chords counted about 80 % of the time.
+
+**Done (`src/renderer/js/detect.js`, `_matchChord` / `_chordIn` / `_wrongFret` / `_peaks`):**
+- Half the strings is now enough (was 60 %): a light strum or a missed string still counts.
+- New `_wrongFret`: a chord misses only when one of its notes clearly isn't there AND a note a fret or two away,
+  one the chord doesn't have, rings in its place (the G in E minor where E major wants G#). Judged on a settled
+  frame 90–200 ms after the strum (the onset frames smear peaks and, for a repeated chord, the "new energy"
+  subtraction splits them), from real spectral peaks (spill-over beside a loud peak ignored), using only harmonics
+  the other chord notes don't share, and only peaks that are new since before the strum.
+- Forgiving on purpose: a note that's quiet or missed is fine; a note whose harmonics all sit under other notes
+  (often the fifth) can't be told and is fine; a note heard clearly on any of its strings is fine even if another
+  of its strings slipped a fret. Stray extra notes never count against you.
+- Waits until the settled frame exists before passing a chord (the early "peek" could otherwise lock in a hit).
+
+**Measured** (synthesised strums of 19 chords incl. open, barre, minor, 7th and power chords; messy = strings
+uneven 0.35–1.25, ±12 cents, 10–40 ms strum, 12 % of strings missed):
+
+| | before | now |
+|---|---|---|
+| right chord, clean / messy | 100 / 98 % | 100 / 98 % |
+| one string of a doubled note a fret off | 90 % | 91 % |
+| top strings only | 99 % | 100 % |
+| wrong chord counted, clean / messy | 80 / 82 % | 17 / 29 % |
+
+The wrong chords still counted are mostly ones where the telling string was missed or very quiet (then it's
+really a partial strum of the right chord) or a whole chord moved two frets.
+
+- Test: `node test/chords.test.mjs` (~40 s, not in npm test). `detect.test.mjs`: everything passes except its two bass cases,
+  which fail the same way before this change on this container.
+- Notes: `docs/notes/chord-scoring.md`.
+
+**Ask the user:** play some songs with chords: does it still feel fair, or does it ever mark a chord you know you
+played right? Then deliberately play a few wrong (minor for major, a wrong shape): are they caught? If it's too
+harsh, the knobs are in `_wrongFret` (0.1 "heard clearly", 0.15 and 2x "the other note is clearly there").
+
 # 4.7.0 — the drive, fuzz and pitch pedals rebuilt as real circuits; live engine rebuilt (2026-11-11)
 
 User: "I don't really have any pedals. I was hoping you could code these in to the engine" (after asking whether the
