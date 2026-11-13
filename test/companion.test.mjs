@@ -7,6 +7,7 @@ import path from 'node:path';
 import https from 'node:https';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { PcClock, songPos } from '../src/companion/clock.js';
 const require = createRequire(import.meta.url);
 const { Companion, nowMs } = require('../src/main/services/companion.js');
@@ -14,7 +15,7 @@ const { Settings } = require('../src/main/services/settings.js');
 const { makeCert } = require('../src/main/core/selfcert.js');
 const ws = require('../src/main/core/ws.js');
 
-const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname), '..');
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..'); // a real path on Windows too
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sh-quest-'));
 const SONGS = [
   { id: 's1', title: 'Sugar', artist: 'System Of A Down', arrangements: [{ type: 'lead' }, { type: 'bass' }, { type: 'vocals' }], length: 151 },
