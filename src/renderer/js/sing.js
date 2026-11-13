@@ -16,6 +16,8 @@ export const SING_LEVELS = {
 export const SLACK = 0.15;
 /** A line is a good one when this share of its syllables counted. */
 export const GOOD_LINE = 0.7;
+/** Once on a note, the room to stay on it grows by this much. */
+export const HOLD_ROOM = 1.4;
 
 /** Charts mark "no note" in several ways (0, 254, 255); a voice sits between these. */
 export const hasPitch = (p) => Number.isFinite(p) && p >= 36 && p <= 96;
@@ -91,6 +93,78 @@ export function withPitches(syl, found) {
 }
 
 /**
+ * Turns the microphone's raw reading (a new one every frame or so) into a
+ * steady voice to draw and score. A real voice wobbles, slides into notes,
+ * cracks up an octave and stops for breath; the raw pitch follows all of
+ * that, so the dot jumped around. This keeps what matters:
+ * - small wobble (vibrato, drift) is smoothed out, a real move to another
+ *   note is followed quickly;
+ * - a sudden jump of an octave is ignored unless it lasts;
+ * - a short gap (a breath, a consonant) keeps the last note for a moment.
+ * push(t, midi|null, level) → { voiced, midi, level }.
+ */
+export class VoiceTracker {
+  constructor({ hold = 0.14, calm = 0.09, quick = 0.02, octaveWait = 0.12 } = {}) {
+    Object.assign(this, { hold, calm, quick, octaveWait });
+    this.reset();
+  }
+  reset() {
+    this.est = null; // the steady note (midi)
+    this.lastHeard = -Infinity; // when a note was last heard
+    this.lastT = null;
+    this.recent = []; // the last few raw notes, after octave fixing
+    this.octSince = null; // when an octave jump started
+    this.since = 0; // when this stretch of singing started
+  }
+  push(t, midi, level = 0) {
+    const dt = this.lastT === null ? 0.016 : Math.max(0.001, Math.min(0.1, t - this.lastT));
+    this.lastT = t;
+    if (midi === null || midi === undefined || !Number.isFinite(midi)) {
+      // a breath or a consonant: keep the note a moment, then let it go
+      if (this.est !== null && t - this.lastHeard <= this.hold) return { voiced: true, midi: this.est, level };
+      this.est = null;
+      this.recent = [];
+      this.octSince = null;
+      return { voiced: false, midi: null, level };
+    }
+    let m = midi;
+    if (this.est !== null && t - this.lastHeard <= this.hold + 0.2) {
+      // an octave crack (or the pitch reader slipping an octave): moved back unless it lasts
+      const d = m - this.est;
+      const oct = Math.round(d / 12);
+      if (oct !== 0 && Math.abs(d - oct * 12) < 1.5) {
+        if (this.octSince === null) this.octSince = t;
+        if (t - this.octSince < this.octaveWait) m -= oct * 12;
+        else {
+          this.est += oct * 12; // it lasted: the singer really went there
+          this.recent = this.recent.map((x) => x + oct * 12);
+          this.octSince = null;
+        }
+      } else this.octSince = null;
+    } else {
+      this.est = null;
+      this.recent = [];
+    }
+    this.lastHeard = t;
+    this.recent.push(m);
+    if (this.recent.length > 5) this.recent.shift();
+    const med = [...this.recent].sort((a, b) => a - b)[Math.floor(this.recent.length / 2)];
+    if (this.est === null) {
+      this.est = med;
+      this.since = t;
+      return { voiced: true, midi: this.est, level };
+    }
+    // near the steady note: glide slowly (wobble smooths out); a semitone or more away for a
+    // moment: a new note, follow it quickly
+    // (the middle of the last few readings already ignores a single stray one)
+    // (and the first moment of a note, while the voice slides onto it, is followed closely too)
+    const tau = Math.abs(med - this.est) >= 0.8 ? this.quick : t - this.since < 0.2 ? this.quick * 1.5 : this.calm;
+    this.est += (med - this.est) * (1 - Math.exp(-dt / tau));
+    return { voiced: true, midi: this.est, level };
+  }
+}
+
+/**
  * Follows a singer through the song. Feed it what the microphone hears with
  * push(), and tick() as time passes; it settles each syllable once its time
  * (plus the slack) is over.
@@ -106,6 +180,7 @@ export class SingJudge {
   /** Start over from time t: everything from there on is unsung again. */
   reset(t = 0) {
     this.good = new Float32Array(this.syl.length); // seconds on the note
+    this.held = new Uint8Array(this.syl.length); // on the note at the last look (holding it gets a little more room)
     this.spans = this.syl.map(() => []); // [from, to] stretches on the note, for drawing
     this.result = new Array(this.syl.length).fill(null); // 'hit' | 'miss'
     this.lineResult = new Array(this.lines.length).fill(null); // share of syllables that counted
@@ -138,6 +213,7 @@ export class SingJudge {
       }
       this.result[i] = null;
       this.good[i] = 0;
+      this.held[i] = 0;
       this.spans[i] = [];
     }
     for (let l = firstLine; l < this.lines.length; l++) {
@@ -161,7 +237,10 @@ export class SingJudge {
     if (!voice || !voice.voiced) return false;
     const p = this.syl[i].p;
     if (p === null) return true;
-    return voice.midi !== null && voice.midi !== undefined && Math.abs(foldCents(voice.midi, p)) <= SING_LEVELS[this.level].cents;
+    // once you're on the note, you get a little more room to stay there (holding a note is
+    // the hard part; a wobble shouldn't drop you off it)
+    const room = SING_LEVELS[this.level].cents * (this.held[i] ? HOLD_ROOM : 1);
+    return voice.midi !== null && voice.midi !== undefined && Math.abs(foldCents(voice.midi, p)) <= room;
   }
 
   /**
@@ -177,7 +256,9 @@ export class SingJudge {
       const s = this.syl[i];
       if (s.t - SLACK > t) break;
       if (t > s.t + s.d + SLACK) continue;
-      if (!this.on(i, voice)) continue;
+      const on = this.on(i, voice);
+      this.held[i] = on ? 1 : 0;
+      if (!on) continue;
       this.good[i] = Math.min(s.d, this.good[i] + dt);
       const sp = this.spans[i];
       const last = sp[sp.length - 1];

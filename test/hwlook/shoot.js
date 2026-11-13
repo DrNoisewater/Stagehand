@@ -29,7 +29,7 @@ const srv = http.createServer((req, res) => {
   page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text()));
   for (const spec of process.argv.slice(3)) {
     const [scene, t, play, hits, file, part] = spec.split(':');
-    await page.goto(`http://localhost:8765/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}${process.env.SING ? `&sing=${process.env.SING}` : ''}`);
+    await page.goto(`http://localhost:8765/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}${process.env.SING ? `&sing=${process.env.SING}` : ''}${process.env.PIANO ? `&piano=${process.env.PIANO}` : ''}${process.env.NONOTES ? '&nonotes=1' : ''}`);
     await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     if (process.env.VENUE) {
       await page.evaluate((v) => { const p = JSON.parse(localStorage.getItem('stagehand.highway') || '{}'); p.venue = v; p.v = 36; localStorage.setItem('stagehand.highway', JSON.stringify(p)); localStorage.setItem('stagehand.fluidDye', '256'); }, process.env.VENUE);
@@ -188,10 +188,78 @@ const srv = http.createServer((req, res) => {
       }
       continue;
     }
+    if (process.env.PIANO) {
+      // Piano: a pretend USB keyboard (an Allegro IV) and a pretend pianist who plays the part Stagehand
+      // wrote, a little early or late, holding each note, leaving bar 4 out and hitting a wrong key now and then.
+      const fail = (m) => { throw new Error('piano: ' + m); };
+      const level = process.env.PIANO_LEVEL || 'hard';
+      await page.evaluate((level) => {
+        localStorage.setItem('stagehand.keys', JSON.stringify({ level, hands: 'both', look: 'both' }));
+        const listeners = new Set();
+        const input = { id: 'allegro', name: 'Allegro IV', state: 'connected', addEventListener: (k, f) => listeners.add(f), removeEventListener: (k, f) => listeners.delete(f) };
+        window.__press = (midi, on) => { const e = { data: new Uint8Array([on ? 0x90 : 0x80, midi, on ? 90 : 0]), timeStamp: performance.now() }; for (const f of listeners) f(e); };
+        window.__midiAsked = 0;
+        navigator.requestMIDIAccess = async () => (window.__midiAsked++, { inputs: new Map([['allegro', input]]), onstatechange: null });
+      }, level);
+      const st0 = await page.evaluate(() => ({ chip: !document.querySelector('.hw-keys-chip').hidden, view: !document.querySelector('.hw-piano').hidden, asked: window.__midiAsked }));
+      if (!st0.chip || st0.view || st0.asked) fail('before pressing Piano: ' + JSON.stringify(st0));
+      await page.screenshot({ path: path.join(out, 'piano-0-off.png') });
+      await page.click('.hw-keys-chip');
+      await page.waitForFunction(() => document.querySelector('.highway').__hw.keys.state.arr && !document.querySelector('.hw-piano').hidden, null, { timeout: 15000 });
+      const info = await page.evaluate(() => { const K = document.querySelector('.highway').__hw.keys.state; return { key: K.arr.key.name, chords: K.arr.chords.filter((c) => c.len >= 4).slice(0, 12).map((c) => c.name), notes: K.notes.length, sources: K.arr.sources, neck: document.querySelector('.highway').classList.contains('hw-keys-on') }; });
+      console.log('PIANO', JSON.stringify(info));
+      if (!info.notes || !info.neck) fail('no part: ' + JSON.stringify(info));
+      await page.evaluate(() => {
+        const H = document.querySelector('.highway').__hw;
+        const K = H.keys.state;
+        const bar4 = K.arr.grid.bars[3];
+        const skip = (n) => n.k >= bar4.k0 && n.k < bar4.k1;
+        const down = new Map();
+        let wrongs = 0;
+        window.__pianist = setInterval(() => {
+          if (!window.__stage.engine.playing) return;
+          const t = K.vis;
+          K.notes.forEach((n, i) => {
+            const jit = ((i * 37) % 11) / 11 * 0.08 - 0.04;
+            if (!down.has(i) && !skip(n) && t >= n.t + jit && t < n.t + 0.1) { window.__press(n.midi, true); down.set(i, n); }
+          });
+          for (const [i, n] of down) if (t >= n.t + n.d * 0.92) { window.__press(n.midi, false); down.delete(i); }
+          if (t > 6 && wrongs < 3 && Math.random() < 0.002) { wrongs++; window.__press(61, true); setTimeout(() => window.__press(61, false), 120); }
+        }, 4);
+        const e = window.__stage.engine; e.position = 0; e.dispatchEvent(new Event('seek')); e.play();
+      });
+      const until = (t) => page.waitForFunction((t) => window.__stage.engine.position > t, t, { timeout: 90000 });
+      const shots = (process.env.PIANO_SHOTS || '5,9,13').split(',').map(Number);
+      for (const [i, at] of shots.entries()) { await until(at); await page.screenshot({ path: path.join(out, `piano-${i + 1}.png`) }); }
+      const end = Number(process.env.PIANO_END || 22);
+      await until(end);
+      const r = await page.evaluate(async () => {
+        const H = document.querySelector('.highway').__hw;
+        const j = H.keys.state.judge;
+        const live = { hits: j.hits, judged: j.judged, acc: j.accuracy, wrong: j.wrong.length };
+        clearInterval(window.__pianist);
+        const e = window.__stage.engine;
+        e.pause();
+        e.dispatchEvent(new Event('ended'));
+        await new Promise((x) => setTimeout(x, 300));
+        const card = document.querySelector('.hw-card');
+        return { ...live, card: !card.hidden, cardText: card.textContent, logs: (window.__statsLogs || []).filter((x) => x.part === 'keys') };
+      });
+      console.log('PIANO RUN', JSON.stringify({ ...r, cardText: r.cardText.slice(0, 160) }));
+      await page.screenshot({ path: path.join(out, 'piano-card.png') });
+      if (!(r.acc > 0.6 && r.acc < 0.99)) fail('accuracy ' + r.acc + ' (bar 4 left out, the rest played)');
+      if (!r.card || !/Piano/.test(r.cardText) || /notes hit/.test(r.cardText)) fail('the card: ' + r.cardText);
+      if (!r.logs.length || !r.logs[0].full) fail('stats: ' + JSON.stringify(r.logs));
+      const off = await page.evaluate(async () => { document.querySelector('.highway').__hw.keys.turn(false); const { keyboard } = await import('/js/midi.js'); return { kb: keyboard.on, view: !document.querySelector('.hw-piano').hidden, neck: document.querySelector('.highway').classList.contains('hw-keys-on') }; });
+      if (off.kb || off.view || off.neck) fail('switching off: ' + JSON.stringify(off));
+      console.log('PASS piano: off until pressed, a part written from the song, a pretend pianist scored note by note (bar 4 left out), the card and the stats get it, off lets the keyboard go and the neck comes back');
+      continue;
+    }
     if (process.env.SING) {
       // Sing along: a pretend microphone (a tone that follows the song's notes) sings the made-up song.
       // Lines 1 and 2 are sung right (an octave down), line 3 is left out, line 4 is sung right.
       const fail = (m) => { throw new Error('sing: ' + m); };
+      if (process.env.SING_WOBBLE) await page.evaluate(() => { window.__SING_WOBBLE = 1; });
       const st0 = await page.evaluate(() => {
         const H = document.querySelector('.highway').__hw;
         window.__micAsked = 0;
@@ -210,10 +278,25 @@ const srv = http.createServer((req, res) => {
         let ln = 0;
         for (const w of ly) { lineOf.push(ln); if (w.w.endsWith('+')) ln++; }
         window.__skipLine = 2;
+        window.__wobble = !!window.__SING_WOBBLE;
         setInterval(() => {
           const t = window.__stage.engine.position;
           const i = ly.findIndex((x) => t >= x.t && t < x.t + x.d);
           const on = i >= 0 && lineOf[i] !== window.__skipLine && window.__stage.engine.playing;
+          // SING_WOBBLE: a real, unsteady voice: vibrato, drift, a slide into each note, a crack up an
+          // octave now and then, and short breaths where the microphone hears nothing
+          if (window.__wobble && on) {
+            const W = window.__wob || (window.__wob = { drift: 0, crack: 0, gap: 0, i: -1, at: 0 });
+            if (W.i !== i) { W.i = i; W.at = t; W.drift = (Math.random() - 0.5) * 0.5; }
+            W.drift += (Math.random() - 0.5) * 0.06 - W.drift * 0.02;
+            if (W.crack > 0) W.crack--; else if (Math.random() < 0.004) W.crack = 6;
+            if (W.gap > 0) W.gap--; else if (Math.random() < 0.003) W.gap = 12;
+            const slide = Math.max(0, 1 - (t - W.at) / 0.12) * -1.2;
+            const m = window.__singTune[i] - 12 + 0.35 * Math.sin(t * 2 * Math.PI * 5.5) + W.drift + slide + (W.crack ? 12 : 0) + (Math.random() - 0.5) * 0.5;
+            gain.gain.value = W.gap ? 0 : 0.3;
+            osc.frequency.value = 440 * 2 ** ((m - 69) / 12);
+            return;
+          }
           gain.gain.value = on ? 0.3 : 0;
           if (on) osc.frequency.value = 440 * 2 ** ((window.__singTune[i] - 12 - 69) / 12);
         }, 4);

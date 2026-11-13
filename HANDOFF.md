@@ -1,3 +1,106 @@
+# 4.15.0 — Piano: sheet music written from the song, falling notes, a USB keyboard (2026-11-13)
+
+User: "I really wanted to add piano, but I don't have any sheet music … the ability to play a song on piano, and it be
+some of the vocals, some of the guitar riffs, just like on piano vision". Their keyboard: a **Williams Allegro IV**
+(88 weighted keys, USB MIDI). Then: "similar to the real. Sheet music of the song not just bullshit put together", and
+the look of the YouTube piano videos ("notes come down and they're all glowing, and really long stems"). Asked for
+"some of your best work". **Not tried with a real keyboard yet** (Chromium with a pretend Web MIDI keyboard).
+
+- **The piano part** (`piano-arrange.js`, pure; `test/keys.test.mjs`, 11 tests in npm test), written like piano /
+  vocal / guitar sheet music, everything on the song's own beats and bars (sixteenths, `makeGrid` from `tab.beats`):
+  - right hand: the singer's notes (`lyrics[].p`, read off the vocals stem when the chart has none and the song is
+    split, as Sing along does), the whole song moved by one octave so the tune keeps its shape; where a bar has no
+    singing, the lead guitar's top line (an octave above where guitar sounds, each section in its own octave);
+  - chords (`readChords`): each chord the rhythm (or only) guitar strikes is named from its own notes (a riff of
+    power chords stays a riff: Sugar reads C5 G5 F♯5 F5); single-note bars read beat by beat from the notes and the
+    bass; a chord needs ≥72 % of what's heard inside it and its notes heard, and a bass running through notes in one
+    beat is no chord (N.C.); a chord lasts while it rings. Chart chord names win when present;
+  - key: Krumhansl profiles + how much the home note is heard + the first chord (`findKey`), spelled sharps/flats;
+  - Easy: the tune. Medium: + the chord's root in the left hand where the bass starts a note on a beat. Hard: + the
+    chord under the tune (up to 2 chord notes close under each melody note on chord changes and bar starts; the
+    whole chord in close position where the tune rests; root–fifth–octave for a power chord) + the real bass line,
+    an octave up (median E2–E3), as piano music writes it;
+  - `KeysJudge`: each note on its own, −0.12/+0.16 s (wider above 100 % speed), held keys fill the note, wrong keys
+    noted (no penalty).
+- **The sheet music** (`piano-sheet.js`): `notate()` (bars split, tied over, chords, rests, note values that read
+  well: `splitValues`, accidentals per bar against the key, beams per beat, stem direction) and `createSheet()`
+  (a grand staff scrolling past a playhead; clefs drawn as paths, no music font needed; key signature, bar numbers,
+  chord names in gold above, the words under the tune, ledger lines, dots, ties, beams with second beams).
+- **The view** (`keys.js`, `.hw-piano` in v3.css): the sheet on a road case up top, below it the notes falling onto a
+  keyboard drawn over the notes' range (whole octaves, ≥3): glowing bars (three-layer halo, a bright core, the held
+  part burns white), green right hand, blue left hand, note names on the bars, darker lanes for black keys, bar lines,
+  a band of light where they land, keys lighting in the hand's colour (orange for a wrong key), sparks and a flash up
+  the lane on a hit. Looks: both / falling notes only / sheet only.
+- **Piano chip** beside Sing (shown on every song): off until pressed (no keyboard opened, nothing read); on, the
+  neck and guitar notes step aside (`aside()` in highway.js, as karaoke does: no guitar scoring, no lyrics line, the
+  Sing lane held) and the part is written (a few ms; the song's parts loaded through `api.tab.load`). Menu: Easy /
+  Medium / Hard, Hands (both, right, left), Look, Take the singer out (vocals stem), Keyboard, Stop playing piano.
+  Remembered per song (`stagehand.keys`). Score tape top right; its own card at the end (`showKeysCard`).
+- **The keyboard** (`midi.js`): Web MIDI, the picked one or the first (`stagehand.midi`), let go when not used;
+  Settings › Guitar & audio › **Piano keyboard** (picker, Try it: the keys you press show by name).
+- **Stats:** part `keys` (its own best, like vocals; "Piano" in Progress); XP like any part.
+- Checked: `PIANO=tune|real [PIANO_LEVEL=…] … shoot.js` (a made-up song with a band and a singer, or Sugar's real
+  chart with `R:0.5:::sugar.json`): off until pressed, the neck steps aside, a pretend pianist on a pretend Allegro IV
+  scored (bar 4 left out → ~92 %), the card and stats, off lets the keyboard go.
+
+**Second pass on the arrangements (asked: "spend a little bit more time on the piano section … make sure it's the best
+version it can be"):**
+- Scored on when a note sounds in the recording (`n.t` keeps the source time), written on the grid (`k`): before,
+  notes were scored at their snapped spot (up to a 32nd off, more in a shuffle).
+- Shuffle songs: `detectFeel` (off-beat onsets two thirds into the beat) → swung eighths written as plain eighths
+  (`snapper`), "Swing" on the sheet and the key tag.
+- Words without notes in the chart (common in custom songs): no made-up tune. Those bars get the chords as an
+  accompaniment (Easy: the root, held while it repeats; Medium/Hard: the chord), the words shown under the treble on
+  their own, and a badge offering to split the song (`stage.requestStems`) so the tune can be read off the recording.
+- Chords voiced like a pianist's hand (`voiceChord`: the nearest inversion to the last chord, G3–G5, root position to
+  begin; power chords root–fifth–octave), and played in the guitar's own strumming rhythm (Hard: every strum ≥ an
+  eighth apart; Medium: strums on the beat) where the tune rests.
+- The hands never take the same key at once (the left hand drops an octave). Time signatures drawn on the staff
+  (and where they change). 5 more tests (16 in `keys.test.mjs`).
+
+Ask the user: does the Allegro IV show up and score on time (Electron should allow Web MIDI by default; if not, a
+permission handler for 'midi' in main)? How do the arrangements feel on songs they know: is the tune right, the
+chords right, Hard playable? Is the sheet readable at their screen size?
+
+## Next, if asked: Stagehand Companion on the Quest 3 (the user's goal, 2026-11-13)
+
+"A VR app for the Quest 3 that mimics PianoVision … connects to my computer to use my Stagehand library", and
+"ideally the entire app could be used from the Quest … play guitar while watching the highway through the Quest,
+the highway and your animated backgrounds all around you". The plan we talked through:
+- The PC stays the engine: cable, amp sound, detection, song audio, library. The Quest only draws.
+- Stagehand serves a page on the home network (a small HTTP + WebSocket server in main); the Quest Browser opens it
+  and enters WebXR (no store app; passthrough possible). It gets the song's notes / piano part / lyrics once (KBs),
+  then a clock and hit/miss events over the socket; it renders the highway, venue and backgrounds itself.
+- Audio stays on the PC (speakers or headphones on the PC): no Wi-Fi delay on what you hear. The risk is keeping the
+  picture in time with it: a timing check for the Quest like the existing one, and clock sync over the socket.
+- Piano in passthrough: falling notes over the real keyboard (a two-point calibration on the keys).
+
+# 4.14.1 — steadier singing, cleaner lane (2026-11-13)
+
+User: "while it's almost matching up, when you sing, it shows my vocals going all over the place … it needs to be
+smoother and easier to hold a note. And we can just make this whole area look a little bit cleaner."
+
+- **A steady voice** (`VoiceTracker` in `sing.js`, used by `mic.js read()`; replaces `PitchSmoother(3)`, which
+  reset on any 40-cent jump, so a real voice passed through raw): the middle of the last 5 readings, then a glide
+  (0.09 s near the note, 0.02 s for a move of ~a semitone or more, and closely for the first 0.2 s of a phrase);
+  an octave jump is undone unless it lasts 0.12 s; a gap of up to 0.14 s keeps the last note (breaths,
+  consonants). The level gate opens at 0.007 and closes at 0.0045 so a fading note doesn't flicker.
+- **Easier to hold** (`SingJudge`): once you're on a syllable's note, the room to stay on it grows ×1.4
+  (`HOLD_ROOM`): Medium 120 → 168 cents while held. Getting on the note still needs the normal room, so a singer
+  steadily 80 cents sharp still fails Hard.
+- **The dot** (`singlane.js shownVoice`): on the note it is drawn 70 % of the way onto the bar (it looks held);
+  it glides (45 ms) and its tail is one smooth curve. The Words look's meter dot does the same (CSS 0.12 s).
+- **Cleaner lane:** no note grid lines, no LED meter (a faint ring on the now line shows the microphone is alive
+  when nothing is heard), no note letter under the pointer, no "SUNG"; plain pills without outlines (the one to
+  sing now a little brighter); a thinner now line. The score moved off the canvas onto a strip of tape at the
+  top right (`.sw-score`; hidden in the Words look).
+- Tests: 4 new in `test/sing.test.mjs` (a wobbly held note within 25 cents, a crack and a breath ignored, a real
+  move followed within 0.15 s, a wobbly hold counts once you're on). `SING_WOBBLE=1` with `SING=…` in
+  `test/hwlook/shoot.js` sings with an unsteady pretend voice (vibrato, drift, slides, cracks, breaths).
+
+Ask the user: does the dot feel calm but still honest (not lagging behind when they change note)? Is holding a
+note on Medium now about right?
+
 # 4.14.0 — UI pass: karaoke mic, cover buttons, Karaoke page, menu groups, guitar chip, Setup look (2026-11-13)
 
 The rest of the user's 4.13 list (see below).
