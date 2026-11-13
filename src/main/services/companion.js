@@ -28,7 +28,7 @@ const DEFAULT_PORT = 7787;
 const MAX_CONNS = 8;
 const WRONG_LIMIT = 5; // wrong codes before the code changes
 const PAIR_WAIT = 120e3; // a page that hasn't paired is let go after this
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.ttf': 'font/ttf', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.avif': 'image/avif' };
+const TYPES = { '.jpg': 'image/jpeg', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.ttf': 'font/ttf', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.avif': 'image/avif' };
 
 /** Milliseconds on a clock both Electron processes share (wall time at start + a steady clock since). */
 const nowMs = () => performance.timeOrigin + performance.now();
@@ -65,13 +65,14 @@ class Companion extends EventEmitter {
    * library: { songs() } → song records. staticDir: the page. fontsDir: the app's fonts.
    * artFile(song, size) → a picture file for a song (or null).
    */
-  constructor({ dir, settings, library, staticDir, fontsDir = null, artFile = null, version = '', log = () => {}, pcName = os.hostname() }) {
+  constructor({ dir, settings, library, staticDir, fontsDir = null, rendererDir = null, artFile = null, version = '', log = () => {}, pcName = os.hostname() }) {
     super();
     this.dir = dir;
     this.settings = settings;
     this.library = library;
     this.staticDir = staticDir;
-    this.fontsDir = fontsDir;
+    this.fontsDir = fontsDir || (rendererDir ? path.join(rendererDir, 'fonts') : null);
+    this.rendererDir = rendererDir;
     this.artFile = artFile;
     this.version = version;
     this.log = log;
@@ -82,6 +83,9 @@ class Companion extends EventEmitter {
     this.wrong = 0;
     this.conns = new Set();
     this.last = null; // the last state from the page
+    this.chart = null; // the notes the PC's highway shows
+    this.marks = new Map(); // target id -> 1 hit / 0 miss, this time through
+    this.score = null;
     this.error = null;
     this._libTimer = null;
   }
@@ -233,9 +237,36 @@ class Companion extends EventEmitter {
       part: st.part ? String(st.part) : null,
       notice: st.notice ? String(st.notice) : null,
     };
-    this.last = s;
+    // hits and misses from the PC's judge (only what's new; a headset joining late gets them all, below)
+    const j = st.judge && typeof st.judge === 'object' ? st.judge : null;
+    if (j) {
+      if (j.reset || j.off) this.marks.clear();
+      const ev = Array.isArray(j.ev) ? j.ev.filter((e) => Array.isArray(e) && Number.isInteger(e[0])).map((e) => [e[0], e[1] ? 1 : 0]) : [];
+      for (const [id, r] of ev) this.marks.set(id, r);
+      s.judge = j.off ? { off: true } : { hits: Number(j.hits) || 0, judged: Number(j.judged) || 0, streak: Number(j.streak) || 0, best: Number(j.best) || 0, ev, reset: !!j.reset };
+      this.score = j.off ? null : { ...s.judge, ev: undefined, reset: undefined };
+    }
+    this.last = { ...s, judge: undefined };
     const text = JSON.stringify(s);
     for (const c of this.conns) if (c.device) c.send(text);
+  }
+
+  /** The notes of the part the PC's highway shows (once per song and part), for the VR highway. */
+  pushChart(chart) {
+    if (!chart || typeof chart !== 'object' || !chart.song) return;
+    this.chart = { ...chart, type: 'chart' };
+    this.marks.clear();
+    const text = JSON.stringify(this.chart);
+    for (const c of this.conns) if (c.device) c.send(text);
+  }
+
+  /** What a headset joining now needs: the notes, where the song is, and the marks so far. */
+  _catchUp(c) {
+    if (this.chart) c.send(JSON.stringify(this.chart));
+    if (this.last) {
+      const judge = this.score ? { ...this.score, ev: [...this.marks], reset: true } : undefined;
+      c.send(JSON.stringify({ ...this.last, judge }));
+    }
   }
 
   /** The library changed: the headsets get the new list (once things settle). */
@@ -283,6 +314,10 @@ class Companion extends EventEmitter {
     let rel = parts.length ? parts : ['index.html'];
     if (parts[0] === 'fonts' && this.fontsDir) {
       base = this.fontsDir;
+      rel = parts.slice(1);
+    } else if ((parts[0] === 'three' || parts[0] === 'venues') && this.rendererDir) {
+      // shared with the app: the 3D library and the venue pictures
+      base = parts[0] === 'three' ? path.join(this.rendererDir, 'vendor', 'three') : path.join(this.rendererDir, 'venues');
       rel = parts.slice(1);
     }
     if (rel.some((p) => p === '..' || p.includes('\\') || p.includes('\0'))) {
@@ -346,7 +381,7 @@ class Companion extends EventEmitter {
     this.settings.set({ companion: { devices } });
     c.send(JSON.stringify({ type: 'welcome', ...extra, device: c.device, pc: { name: this.pcName, version: this.version }, now: nowMs() }));
     c.send(JSON.stringify(this._libraryMsg()));
-    if (this.last) c.send(JSON.stringify(this.last));
+    this._catchUp(c);
     this._changed();
   }
 

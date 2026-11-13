@@ -965,6 +965,7 @@ function registerIpc() {
   handle('companion:forget', (id) => companion.forget(String(id || '')));
   handle('companion:newCode', () => companion.newCode());
   ipcMain.on('companion:state', (_e, st) => companion && companion.pushState(st));
+  ipcMain.on('companion:chart', (_e, ch) => companion && companion.pushChart(ch));
 
   handle('settings:get', () => settings.get());
   handle('settings:set', (patch) => {
@@ -1400,7 +1401,7 @@ app.whenReady().then(async () => {
     settings,
     library: { songs: () => Object.values(library.data.songs || {}), get: (id) => library.get(id) },
     staticDir: path.join(__dirname, '..', 'companion'),
-    fontsDir: path.join(RENDERER, 'fonts'),
+    rendererDir: RENDERER,
     artFile: (song, size) => art.file(song, size),
     version: app.getVersion(),
     log,

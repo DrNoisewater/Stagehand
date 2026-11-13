@@ -39,7 +39,7 @@ module.exports = async ({ page, outDir, check, companion }) => {
 
   // ---- the headset
   // its own browser (the app's runs as one process, which can't open a second window)
-  const qb = await require(process.env.PLAYWRIGHT || 'playwright').chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
+  const qb = await require(process.env.PLAYWRIGHT || 'playwright').chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await qb.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 760 }, userAgent: QUEST_UA });
   const q = await ctx.newPage();
   q.on('pageerror', (e) => errs.push(`quest: ${e.message}`));
@@ -99,6 +99,57 @@ module.exports = async ({ page, outDir, check, companion }) => {
   check(med < 0.05, `the headset's song clock matches the PC's (median ${(med * 1000).toFixed(1)} ms off)`);
   await shot(q, '5-quest-playing');
   await shot(page, '6-pc-highway');
+
+  // ---- step 2: the notes reach the headset, and its own highway draws them
+  const pcTargets = await page.evaluate(() => (window.__shHighway && window.__shHighway.targets() ? window.__shHighway.targets().length : 0));
+  let qChart = 0;
+  for (let i = 0; i < 20 && !qChart; i++) {
+    qChart = await q.evaluate(() => (window.__companion.chart && window.__companion.chart.targets ? window.__companion.chart.targets.length : 0));
+    if (!qChart) await q.waitForTimeout(200);
+  }
+  check(pcTargets > 0 && qChart === pcTargets, `the headset has the part's notes (${qChart} of ${pcTargets})`);
+  check(/notes ready/.test(await q.locator('#vrNote').textContent()), 'the headset says the notes are ready');
+  // the PC paused just before the notes start, so the highway has some coming
+  const t0 = await q.evaluate(() => window.__companion.chart.targets[0].t);
+  await page.evaluate(async (t) => { const st = await import('./js/stage.js'); if (st.engine.playing) st.toggle(); st.seekTo(t); }, Math.max(0, t0 + 0.6));
+  await wait(800);
+  // pretend the PC's judge heard the first notes, one of them missed
+  const near = await q.evaluate(() => {
+    const c = window.__companion.chart;
+    const t = window.__companion.songPos();
+    return c.targets.filter((x) => x.t <= t + 0.01).slice(0, 4).map((x) => x.i);
+  });
+  if (near.length) {
+    const ev = near.map((id, k) => [id, k === 1 ? 0 : 1]);
+    companion.pushState({ ...companion.last, at: companion.last.at, judge: { hits: ev.filter((e) => e[1]).length, judged: ev.length, streak: 2, best: 2, ev, reset: true } });
+    await q.waitForTimeout(300);
+    const got = await q.evaluate((ids) => ids.map((id) => window.__companion.marks.get(id)), near);
+    check(JSON.stringify(got) === JSON.stringify(ev.map((e) => e[1])), `hits and misses from the PC reach the headset (${JSON.stringify(got)})`);
+  } else check(false, 'no notes near the playhead to mark');
+  await q.locator('#preview').click();
+  await q.waitForTimeout(2500);
+  const vr = await q.evaluate(() => ({ ...window.__companion.stage.stats }));
+  check(vr.fps > 0, `the headset's highway runs (${vr.fps} fps here in software graphics)`);
+  check(vr.drawn > 0, `notes are on it (${vr.drawn})`);
+  await shot(q, '7-quest-highway');
+  const d0 = await q.evaluate(() => window.__companion.stage.prefs.dist);
+  await q.evaluate(() => window.__companion.stage.press('far'));
+  const saved = await q.evaluate(() => JSON.parse(localStorage.getItem('stagehand.vr') || '{}').dist);
+  check(Math.abs(saved - (d0 + 0.05)) < 1e-6, 'the highway moved farther, and that is remembered');
+  await q.evaluate(() => window.__companion.stage.press('near'));
+  await q.evaluate(() => window.__companion.stage.press('play'));
+  await wait(900);
+  check((await pc()).playing, 'the menu in the headset plays the PC');
+  await q.waitForTimeout(1200);
+  await q.evaluate(() => window.__companion.stage.press('play'));
+  await wait(900);
+  check(!(await pc()).playing, 'and pauses it');
+  await shot(q, '8-quest-highway-paused');
+  await q.locator('#stageBack').click();
+  await q.waitForTimeout(300);
+  check(await q.locator('#stageWrap').isHidden(), 'Back leaves the highway');
+  await page.evaluate(async () => { const st = await import('./js/stage.js'); if (!st.engine.playing) st.toggle(); }); // playing again for the checks below
+  await wait(500);
 
   // ---- seek from the headset, pause on the PC
   const len = await q.evaluate(() => window.__companion.state.song.length);

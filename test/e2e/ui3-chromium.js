@@ -198,7 +198,7 @@ class FakePortMain extends EventEmitter {
   const { Companion } = require('../../src/main/services/companion');
   const { ArtService } = require('../../src/main/services/art');
   const questArt = new ArtService({ cacheDir: path.join(tmp, 'art') });
-  const companion = new Companion({ dir: path.join(tmp, 'Quest'), settings, library: { songs: () => library.snapshot().songs, get: (id) => library.get(id) }, staticDir: path.join(ROOT, 'src/companion'), fontsDir: path.join(ROOT, 'src/renderer/fonts'), artFile: (song, size) => questArt.file(song, size), version: require('../../package.json').version, pcName: 'STAGE-PC' });
+  const companion = new Companion({ dir: path.join(tmp, 'Quest'), settings, library: { songs: () => library.snapshot().songs, get: (id) => library.get(id) }, staticDir: path.join(ROOT, 'src/companion'), rendererDir: path.join(ROOT, 'src/renderer'), artFile: (song, size) => questArt.file(song, size), version: require('../../package.json').version, pcName: 'STAGE-PC' });
   const stemHold = new Set(); // songs whose stems are "still splitting" (for the wait-for-stems check)
   // song switching checks (3.13): songs whose audio fails to open, and slow answers
   const audioFail = new Set();
@@ -236,6 +236,7 @@ class FakePortMain extends EventEmitter {
     'companion.forget': (id) => companion.forget(id),
     'companion.newCode': () => companion.newCode(),
     'companion.state': (st) => companion.pushState(st),
+    'companion.chart': (ch) => companion.pushChart(ch),
     'settings.get': () => settings.get(),
     'settings.set': (p) => settings.set(p),
     // the real grouping over the test songs plus three made-up copies of one song (for the picture)

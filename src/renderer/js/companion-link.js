@@ -39,15 +39,113 @@ function snapshot() {
   };
 }
 
+// ------------------------------------------------- the notes, for the VR highway --
+const HW = () => window.__shHighway || null;
+let chartKey = null;
+let chartTargets = null;
+const FLAG = { mute: 1, hopo: 2, bend: 4, slide: 8, harmonic: 16, vibrato: 32, palmMute: 64, tremolo: 128, accent: 256, tap: 512 };
+function flags(n) {
+  let f = 0;
+  if (n.mute) f |= FLAG.mute;
+  if (n.hammerOn || n.pullOff) f |= FLAG.hopo;
+  if (n.bend > 0) f |= FLAG.bend;
+  if (n.slideTo >= 0 || n.slideUnpitchTo >= 0) f |= FLAG.slide;
+  if (n.harmonic || n.pinchHarmonic) f |= FLAG.harmonic;
+  if (n.vibrato) f |= FLAG.vibrato;
+  if (n.palmMute) f |= FLAG.palmMute;
+  if (n.tremolo) f |= FLAG.tremolo;
+  if (n.accent) f |= FLAG.accent;
+  if (n.tap) f |= FLAG.tap;
+  return f;
+}
+/** The part the highway shows, made small: what the headset needs to draw it (sent once per song and part). */
+export function chartOf(song, tab, targets, { venue = null, lowTop = true } = {}) {
+  const r3 = (x) => Math.round((Number(x) || 0) * 1000) / 1000;
+  return {
+    song: song.id,
+    part: tab.type === 'combo' ? 'lead' : tab.type,
+    name: tab.name || '',
+    strings: tab.strings || (tab.type === 'bass' ? 4 : 6),
+    tuning: tab.tuning || [],
+    capo: tab.capo || 0,
+    length: r3(tab.length),
+    venue,
+    lowTop,
+    beats: (tab.beats || []).map((b) => [r3(b.t), b.m]),
+    sections: (tab.sections || []).map((x) => [x.name, r3(x.start), r3(x.end)]),
+    anchors: (tab.anchors || []).map((a) => [r3(a.t), r3(a.end), a.fret, a.width]),
+    targets: targets.map((x) => ({
+      i: x.id,
+      t: r3(x.t),
+      d: r3(x.sus),
+      k: x.kind === 'chord' ? 'c' : x.kind === 'mute' ? 'm' : 'n',
+      c: x.name || '',
+      r: x.repeat ? 1 : 0,
+      l: x.linked ? 1 : 0,
+      p: x.linked ? x.parent : undefined,
+      n: x.notes.map((n) => [n.s, n.f, r3(n.sus), flags(n), n.slideTo >= 0 ? n.slideTo : n.slideUnpitchTo >= 0 ? n.slideUnpitchTo : -1, n.bend || 0]),
+    })),
+  };
+}
+function sendChart() {
+  const hw = HW();
+  const song = stage.current();
+  const tab = hw && hw.tab && hw.tab();
+  const targets = hw && hw.targets && hw.targets();
+  if (!song || !tab || !targets || (hw.open && !hw.open())) return;
+  const venue = hw.venue ? hw.venue() : null;
+  const lowTop = hw.lowTop ? hw.lowTop() : true;
+  const aside = hw.aside ? hw.aside() : false;
+  const key = `${song.id}|${tab.type}|${tab.name}|${targets.length}|${venue}|${lowTop}|${aside}`;
+  if (key === chartKey && targets === chartTargets) return;
+  chartKey = key;
+  chartTargets = targets;
+  try {
+    api.companion.chart(aside ? { song: song.id, aside: true } : chartOf(song, tab, targets, { venue, lowTop }));
+  } catch (_) {}
+}
+
+// hits and misses, as the PC's judge calls them
+let judgeSeen = null;
+let judgeIds = new Set();
+function judgeNews() {
+  const hw = HW();
+  const j = hw && hw.judge ? hw.judge() : null;
+  if (!j || !j.state) {
+    if (judgeSeen) {
+      judgeSeen = null;
+      judgeIds = new Set();
+      return { off: true };
+    }
+    return null;
+  }
+  const out = { hits: j.hits, judged: j.judged, streak: j.streak, best: j.best, ev: [] };
+  if (j !== judgeSeen || j.state.size < judgeIds.size) {
+    // a new judge, or it started over (a seek): the headset clears its marks
+    judgeSeen = j;
+    judgeIds = new Set();
+    out.reset = true;
+  }
+  for (const [id, v] of j.state) {
+    if (judgeIds.has(id)) continue;
+    judgeIds.add(id);
+    out.ev.push([id, v.result === 'hit' ? 1 : 0]);
+  }
+  return out;
+}
+
 function tick() {
   timer = 0;
   if (clients <= 0) return;
+  sendChart();
   const s = snapshot();
+  const jn = judgeNews();
+  if (jn) s.judge = jn;
   const p = sent;
   // while paused, only when something changed (a seek, a new song) or once a second
   const moved = p && p.playing && s.playing ? Math.abs(s.pos - (p.pos + ((s.at - p.at) / 1000) * p.speed)) > 0.002 : true;
   const changed = !p || s.playing || p.playing !== s.playing || (p.song && p.song.id) !== (s.song && s.song.id) || Math.abs(p.pos - s.pos) > 0.01 || p.phase !== s.phase || p.part !== s.part || p.notice !== s.notice || p.speed !== s.speed || s.at - p.at > 1000;
-  if (changed || moved) {
+  if (changed || moved || (jn && ((jn.ev && jn.ev.length) || jn.reset || jn.off || !p || !p.judge || p.judge.streak !== jn.streak))) {
     sent = s;
     try {
       api.companion.state(s);

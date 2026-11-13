@@ -4,6 +4,7 @@
  * Nothing plays here; the sound stays on the PC.
  */
 import { PcClock, songPos } from './clock.js';
+import { prepChart, Marks } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 const KEY = 'stagehand.companion';
@@ -33,6 +34,8 @@ let paired = false;
 let pcName = '';
 let songs = [];
 let state = null;
+let chart = null; // the notes the PC's highway shows (step 2)
+const marks = new Marks();
 let retry = 600;
 let pingTimer = 0;
 let pingId = 0;
@@ -132,14 +135,22 @@ function onMessage(m) {
     drawList();
     return;
   }
+  if (m.type === 'chart') {
+    chart = prepChart(m) || (m.aside ? { song: m.song, aside: true } : null);
+    marks.clear();
+    drawVrNote();
+    return;
+  }
   if (m.type === 'state') {
     const before = state && state.song && state.song.id;
+    if (m.judge) marks.apply(m.judge, performance.now());
     state = m;
     if ((m.song && m.song.id) !== before) {
       drawNow();
       markRow();
     }
     drawButtons();
+    drawVrNote();
   }
 }
 
@@ -326,7 +337,63 @@ $('bar').onclick = (e) => {
   send({ type: 'seek', t: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * len });
 };
 
+// ------------------------------------------------------------ the highway --
+let stage = null;
+async function getStage() {
+  if (stage) return stage;
+  const { createStage } = await import('./vr.js');
+  stage = createStage({
+    canvas: $('stage'),
+    getState: () => state,
+    getChart: () => chart,
+    marks,
+    pcNow: () => clock.pcNow(),
+    send,
+    onExit: () => closeStage(),
+  });
+  return stage;
+}
+function openStage() {
+  $('stageWrap').hidden = false;
+}
+function closeStage() {
+  $('stageWrap').hidden = true;
+  if (stage) stage.stop();
+}
+async function enter(mode) {
+  try {
+    const s = await getStage();
+    openStage();
+    s.start();
+    if (mode !== 'preview') await s.enter(mode);
+  } catch (err) {
+    closeStage();
+    $('vrNote').textContent = `Couldn’t start: ${err.message}`;
+  }
+}
+$('preview').onclick = () => enter('preview');
+$('enterVr').onclick = () => enter('vr');
+$('enterAr').onclick = () => enter('ar');
+$('stageBack').onclick = () => (stage ? stage.exit() : closeStage());
+setInterval(() => {
+  if (stage && !$('stageWrap').hidden) $('stageInfo').textContent = `${stage.stats.fps} fps · ${stage.stats.drawn} notes`;
+}, 1000);
+if (navigator.xr) {
+  navigator.xr.isSessionSupported('immersive-vr').then((ok) => ($('enterVr').hidden = !ok)).catch(() => {});
+  navigator.xr.isSessionSupported('immersive-ar').then((ok) => ($('enterAr').hidden = !ok)).catch(() => {});
+}
+function drawVrNote() {
+  const id = state && state.song && state.song.id;
+  let t = '';
+  if (!id) t = 'Pick a song, then step into the highway.';
+  else if (!chart || chart.song !== id) t = 'Open the highway on the PC (it opens by itself when you pick here) to get the notes.';
+  else if (chart.aside) t = 'The PC is playing piano or karaoke: the guitar notes are off.';
+  else t = `${chart.targets.length} notes ready${chart.part ? ` · ${chart.part}` : ''}`;
+  $('vrNote').textContent = t;
+}
+drawVrNote();
+
 // for tests: what the page thinks
-window.__companion = { clock, get state() { return state; }, get songs() { return songs; }, songPos: () => songPos(state, clock.pcNow()), get paired() { return paired; } };
+window.__companion = { get chart() { return chart; }, marks, get stage() { return stage; }, clock, get state() { return state; }, get songs() { return songs; }, songPos: () => songPos(state, clock.pcNow()), get paired() { return paired; } };
 
 connect();

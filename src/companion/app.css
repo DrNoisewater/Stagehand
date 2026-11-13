@@ -77,3 +77,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .now-art { width: 110px; height: 110px; font-size: 30px; }
   .lib { border-right: 0; }
 }
+
+/* 4.16 step 2: into the highway */
+.vr-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 4px 0 2px; }
+.vr-btn { height: 52px; padding: 0 22px; border-radius: 26px; border: 1px solid var(--rule); background: var(--riser); font-weight: 700; font-size: 16px; }
+.vr-btn.primary { background: var(--tungsten); color: var(--tungsten-ink); border: 0; font-size: 18px; padding: 0 30px; }
+.vr-note { color: var(--ink-3); font-size: 13px; min-height: 18px; margin: 6px 0 0; }
+.stage-wrap { position: fixed; inset: 0; background: #05070c; z-index: 10; }
+.stage-wrap canvas { width: 100%; height: 100%; display: block; }
+.stage-back { position: absolute; top: 16px; left: 16px; height: 44px; padding: 0 20px; border-radius: 22px; border: 1px solid var(--rule); background: rgba(19,21,23,.85); font-weight: 700; }
+.stage-info { position: absolute; top: 24px; right: 20px; color: var(--ink-3); font-size: 13px; }

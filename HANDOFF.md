@@ -1,3 +1,49 @@
+# Quest companion, step 2: the guitar highway in the headset (not released yet, same branch, 2026-11-13)
+
+User chose "Keep building: VR highway" over releasing step 1 first. **Not tried on a real headset yet.**
+
+- **The notes reach the headset:** while a headset is connected, the PC page (`companion-link.js`) sends the part the
+  highway shows once per song/part/venue (`chartOf`: targets with id, time, hold, kind, chord name, repeat, linked +
+  parent, notes `[string, fret, hold, flags, slideTo, bend]`; beats, sections, anchors, strings, string order, venue;
+  `{ aside:true }` while Piano or karaoke has the neck stepped aside). `window.__shHighway` gained `venue()`,
+  `lowTop()`, `aside()`. Hits and misses: the PC's judge (`__shHighway.judge()`), only what's new, inside `state`
+  (`judge: { hits, judged, streak, best, ev:[[id,1|0]], reset }`, `{off:true}` when the guitar stops being judged).
+  The server keeps the chart and the marks so far, so a headset joining mid-song gets everything (`_catchUp`).
+- **The headset draws it** (`src/companion/vr.js`, three.js r170 served from the app's own copy at `/three/…`; venue
+  pictures at `/venues/…`): the neck in front of you a little below your eyes (sitting), notes coming from the distance
+  (2.4 m per second, 4.2 s ahead), the PC's string colours and order, fret numbers on the notes (one picture of 0–24
+  and X, picked per note), held-note tails, open strings as bars across the hand's frets, chord names, beat and bar
+  lines, the neck sliding to follow the hand's position (anchors), notes turning white on a hit (sparks) and grey on a
+  miss. The venue: photo venues on a big curved screen around you, the moving-background venues as a starry sky (the
+  real moving scenes in 3D are still to do); the sky breathes with the beat. A score board up ahead (title, artist,
+  section, time, accuracy, streak). A menu panel left of the neck: Play/Pause, −10/+10 s, Nearer/Farther,
+  Higher/Lower, Notes sooner/later (±10 ms, for the headset's own delay), Leave VR; pointed at with controllers or
+  hands (pinch). The neck's place and the notes' timing are kept in the headset's browser (`stagehand.vr`).
+- **Three ways in** (buttons on the headset page under Now playing): **Enter VR** (the venue around you),
+  **Passthrough** (your room, the highway floating in front; `immersive-ar`), **Preview the highway** (flat, in the
+  page; what the tests use, and handy to check the notes arrived). The buttons for VR/passthrough only show when the
+  browser can do them.
+- Tests: `companion.test.mjs` +3 (which notes are near, the hand's place, string order, marks kept/reset/sparks, a
+  headset joining late gets the notes and the marks, the 3D files served). `companion-audit.js` +9: the part's notes
+  reach the headset (all of them), hits/misses from the PC show there, the highway runs with notes on it, the menu
+  moves the neck (remembered) and plays/pauses the PC, Back; writes `q-7/8-quest-highway*.png`. npm test and the full
+  ui3 visit pass with the switch off.
+- Still to do in step 2: the **Quest timing check** (strum on flashes seen in the headset; the PC times the strums)
+  instead of only Notes sooner/later; moving-background venues in 3D; frame rate measured on the real headset.
+
+**How the user opens it (asked "I'll need to be shown how to sideload this app"):** nothing to sideload. It's a page
+in the Quest's own **Browser**: switch on Settings › Quest headset on the PC, type the address it shows into the Quest
+Browser, accept the one-time "not private" warning (Advanced › Proceed), type the code; then bookmark it (or "Add to
+home"/pin the page, if the Quest Browser offers it) so it's one tap next time. A store/sideloaded app can come later if
+wanted; it isn't needed. Show this with pictures when it's released (the README line and the Settings page say it).
+
+**Piano, from the user (changes step 3):** "I usually use my oculus with piano vision. And it's not hooked up through
+midi. I usually just play it for fun, so we'll just have the gestures and hand controls through the oculus." "I sit
+like five feet away from my computer … my piano is not in front of my computer." So for step 3: **no MIDI**; the
+keyboard is placed by touching its ends with tracked fingertips (not by pressing keys), remembered the three ways;
+presses read from **hand tracking** in the headset (like PianoVision) or not scored at all ("for fun"); the song's
+sound in the **Quest's headphones** fits well here (the piano makes its own sound, the PC is 5 ft away).
+
 # Quest companion, step 1: the bridge (not released yet, branch `claude/quest-companion`, 2026-11-13)
 
 User: "a VR app for the Quest 3 that mimics PianoVision in most ways, but connects to my computer to use my Stagehand

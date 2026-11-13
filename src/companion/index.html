@@ -44,8 +44,19 @@
       <button id="play" class="round big" title="Play or pause"><span class="ico play"></span></button>
       <button id="fwd" class="round" title="Forward 10 seconds">+10</button>
     </div>
+    <div class="vr-row">
+      <button id="enterVr" class="vr-btn primary" hidden>Enter VR</button>
+      <button id="enterAr" class="vr-btn" hidden>Passthrough</button>
+      <button id="preview" class="vr-btn">Preview the highway</button>
+    </div>
+    <p class="vr-note" id="vrNote"></p>
     <p class="fine">You hear the song on the PC, as always. This page follows it.</p>
   </section>
 </main>
+<div id="stageWrap" class="stage-wrap" hidden>
+  <canvas id="stage"></canvas>
+  <button id="stageBack" class="stage-back">Back</button>
+  <div id="stageInfo" class="stage-info"></div>
+</div>
 </body>
 </html>

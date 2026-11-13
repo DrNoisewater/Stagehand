@@ -27,7 +27,7 @@ async function make(port = 0) {
   const settings = new Settings(path.join(tmp, `settings-${crypto.randomBytes(3).toString('hex')}.json`));
   await settings.load();
   settings.set({ companion: { port } });
-  const c = new Companion({ dir: path.join(tmp, 'Quest'), settings, library, staticDir: path.join(ROOT, 'src/companion'), fontsDir: path.join(ROOT, 'src/renderer/fonts'), version: 'test', pcName: 'STAGE-PC' });
+  const c = new Companion({ dir: path.join(tmp, 'Quest'), settings, library, staticDir: path.join(ROOT, 'src/companion'), rendererDir: path.join(ROOT, 'src/renderer'), version: 'test', pcName: 'STAGE-PC' });
   return { c, settings };
 }
 const ca = () => fs.readFileSync(path.join(tmp, 'Quest', 'companion-cert.pem'), 'utf8');
@@ -230,4 +230,72 @@ test('a slow answer on the network does not move the clock', () => {
   assert.ok(Math.abs(clock.offset - 500) < 0.5);
   clock.add(t, t + 300, t + 500 + 290); // held up on the way back: would say 640
   assert.ok(Math.abs(clock.offset - 500) < 0.5, `ignored (${clock.offset})`);
+});
+
+// ---------------------------------------------------------------- step 2: the notes in VR --
+const { prepChart, nearTargets, anchorAt, level, Marks, sectionAt } = await import('../src/companion/chart.js');
+const CHART = {
+  song: 's1', part: 'lead', strings: 6, lowTop: true,
+  beats: [[0, 0], [0.5, -1], [1, -1], [1.5, -1], [2, 1]],
+  sections: [['intro', 0, 8], ['verse', 8, 30]],
+  anchors: [[0, 4, 1, 4], [4, 9, 7, 5]],
+  targets: [
+    { i: 0, t: 1, d: 0, k: 'n', n: [[0, 3, 0, 0, -1, 0]] },
+    { i: 1, t: 2, d: 3, k: 'n', n: [[2, 5, 3, 0, -1, 0]] }, // held 3 s
+    { i: 2, t: 5.1, d: 0, k: 'c', c: 'G5', n: [[0, 3, 0, 0, -1, 0], [1, 5, 0, 0, -1, 0]] },
+    { i: 3, t: 20, d: 0, k: 'n', n: [[5, 0, 0, 0, -1, 0]] },
+  ],
+};
+
+test('the VR highway: which notes are near, where the hand is, the string order', () => {
+  const ch = prepChart(CHART);
+  assert.equal(ch.maxHold, 3);
+  assert.deepEqual(nearTargets(ch, 0, 4).map((x) => x.i), [0, 1], 'the next 4 s');
+  assert.deepEqual(nearTargets(ch, 4.5, 4, 0.4).map((x) => x.i), [1, 2], 'a note still held stays (2 s + 3 s held)');
+  assert.deepEqual(nearTargets(ch, 6, 4, 0.4).map((x) => x.i), [], 'played and gone; the next is far off');
+  assert.deepEqual(anchorAt(ch, 1), { fret: 1, width: 4 });
+  assert.deepEqual(anchorAt(ch, 5), { fret: 7, width: 5 });
+  assert.equal(level(ch, 0), 5, 'low E on top');
+  assert.equal(level({ ...ch, lowTop: false }, 0), 0, 'high e on top');
+  assert.equal(sectionAt(ch, 9), 'verse');
+});
+
+test('hits and misses from the PC: kept, started over, sparks only for new hits', () => {
+  const m = new Marks();
+  m.apply({ hits: 1, judged: 2, streak: 1, best: 1, ev: [[0, 1], [1, 0]] }, 10);
+  assert.equal(m.get(0), 1);
+  assert.equal(m.get(1), 0);
+  assert.equal(m.flashes.length, 1, 'a spark for the hit, none for the miss');
+  m.apply({ hits: 1, judged: 2, streak: 1, best: 1, ev: [] });
+  assert.equal(m.get(0), 1, 'kept between messages');
+  m.apply({ hits: 0, judged: 0, streak: 0, best: 1, ev: [], reset: true });
+  assert.equal(m.get(0), undefined, 'a seek starts over');
+  m.apply({ off: true });
+  assert.equal(m.score, null, 'no guitar: no score');
+});
+
+test('a headset joining mid-song gets the notes and every mark so far', async () => {
+  const { c } = await make();
+  await c.setOn(true);
+  const a = await headset(c.port);
+  a.send({ type: 'pair', code: c.code, name: 'Quest A' });
+  const w = await a.next('welcome');
+  c.pushChart(CHART);
+  const got = await a.next('chart');
+  assert.equal(got.targets.length, 4);
+  c.pushState({ song: { id: 's1', length: 30 }, pos: 2.5, playing: true, at: nowMs(), judge: { hits: 1, judged: 2, streak: 0, best: 1, ev: [[0, 1], [1, 0]], reset: true } });
+  c.pushState({ song: { id: 's1', length: 30 }, pos: 2.6, playing: true, at: nowMs(), judge: { hits: 1, judged: 2, streak: 0, best: 1, ev: [] } });
+  // the same headset again, as if it had just come back
+  const b = await headset(c.port);
+  b.send({ type: 'hello', token: w.token });
+  await b.next('welcome');
+  const ch = await b.next('chart');
+  assert.equal(ch.song, 's1');
+  const st = await b.next('state');
+  assert.deepEqual(st.judge.ev, [[0, 1], [1, 0]], 'the marks so far');
+  assert.equal(st.judge.reset, true);
+  // the files the VR page needs are served: the 3D library and a venue picture
+  assert.equal((await get(c.port, '/three/three.module.min.js')).status, 200);
+  assert.equal((await get(c.port, '/vr.js')).status, 200);
+  await c.stop();
 });

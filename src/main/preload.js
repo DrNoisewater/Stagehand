@@ -210,6 +210,7 @@ contextBridge.exposeInMainWorld('stagehand', {
     forget: (id) => call('companion:forget', id),
     newCode: () => call('companion:newCode'),
     state: (st) => ipcRenderer.send('companion:state', st),
+    chart: (ch) => ipcRenderer.send('companion:chart', ch),
   },
   settings: {
     get: () => call('settings:get'),
