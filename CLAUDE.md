@@ -13,6 +13,7 @@ A session once started from a copy several versions old (3.9 while GitHub had 4.
 
 - `src/main/`: Electron main process (CommonJS): `core/` (PSARC, SNG, saves, tones) and `services/` (library, stems, audio relay).
 - `src/renderer/`: the UI (ES modules, no bundler, no build step): `js/rig.js` (the rig), `js/detect.js` (note detection), `js/instrument.js` (guitar or bass), `js/sing.js` + `js/singlane.js` + `js/mic.js` (Sing along, an add-on: off until its chip is pressed), `js/karaoke.js` (the Karaoke page), `js/piano-arrange.js` + `js/piano-sheet.js` + `js/keys.js` + `js/midi.js` (Piano, an add-on: a part written from the song, sheet music and falling notes, a USB keyboard).
+- `src/companion/`: the Quest companion's page (4.16, plain JS, served by `src/main/services/companion.js` over HTTPS on the home network, only when switched on in Settings › Quest headset; `core/ws.js` and `core/selfcert.js` are its WebSocket and certificate).
 - `engine/stagehand_stems.py`: stem splitting (Demucs/PyTorch, installed on the user's PC at runtime).
 - `native/`: the sound engine in plain C. `dsp/` is the amp, cab, effects and NAM code, shared by the Windows helper (`host/io_wasapi.c` → `native/bin/stagehand-audio.exe`, **prebuilt and committed**) and the in-app WebAssembly engine (`src/renderer/worklets/rig-dsp.wasm`, **committed**).
 - `windows/`: the installers: `install.ps1` + `Install Stagehand.bat` (zip install), and `setup/` (the Setup .exe, C, cross-compiled).
@@ -72,6 +73,8 @@ SH_AUDIT=test/e2e/discover-audit.js node test/e2e/ui3-chromium.js native/build/s
 SH_AUDIT=test/e2e/gear-about-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # stem splitting: a song in line names the one split first; a split moving along rebuilds nothing
 SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# the Quest companion: the real server and page with a pretend Quest browser (pair, library, pick, play/seek both ways, clock); writes q-*.png
+SH_AUDIT=test/e2e/companion-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # a moving background must rebuild itself after the graphics card drops it
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```

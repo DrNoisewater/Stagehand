@@ -14,6 +14,7 @@ const DEFAULTS = {
   cache: { audioLimitGB: 4 },
   window: { bounds: null, maximized: false },
   updates: { check: true }, // 4.1.4: look for a newer Stagehand on GitHub
+  companion: { on: false, port: 7787, devices: [] }, // 4.16: the Quest companion, off until switched on
   ui: {},
 };
 

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Stagehand</title>
+<link rel="stylesheet" href="app.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark"></span>Stagehand</div>
+  <div class="link" id="link"><span class="dot"></span><span id="linkText">Looking for Stagehand…</span></div>
+</header>
+
+<main id="pair" class="pair" hidden>
+  <div class="pair-card">
+    <h1>Connect to your PC</h1>
+    <p class="sub">On the PC, open Stagehand › Settings › <b>Quest headset</b>, switch it on, and type the code it shows.</p>
+    <div class="code" id="code"><span></span><span></span><span></span><span></span></div>
+    <p class="msg" id="pairMsg"></p>
+    <div class="pad" id="pad"></div>
+  </div>
+</main>
+
+<main id="home" class="home" hidden>
+  <section class="lib">
+    <div class="lib-head">
+      <input id="search" type="search" placeholder="Search your songs" autocomplete="off" spellcheck="false">
+      <span class="count" id="count"></span>
+    </div>
+    <div class="list" id="list"></div>
+  </section>
+  <section class="now" id="now">
+    <div class="now-art" id="nowArt"></div>
+    <div class="now-title" id="nowTitle">No song yet</div>
+    <div class="now-artist" id="nowArtist">Pick one on the left, or on the PC</div>
+    <div class="now-state" id="nowState"></div>
+    <div class="clock"><span id="pos">0:00.0</span><span class="len" id="len"></span></div>
+    <div class="bar" id="bar"><div class="fill" id="fill"></div><div class="head" id="head"></div></div>
+    <div class="ctl">
+      <button id="back" class="round" title="Back 10 seconds">−10</button>
+      <button id="play" class="round big" title="Play or pause"><span class="ico play"></span></button>
+      <button id="fwd" class="round" title="Forward 10 seconds">+10</button>
+    </div>
+    <p class="fine">You hear the song on the PC, as always. This page follows it.</p>
+  </section>
+</main>
+</body>
+</html>
