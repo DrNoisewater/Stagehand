@@ -42,6 +42,19 @@ function Shot-Setup([string] $name, [string[]] $setupArgs = @()) {
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
     $bmp.Save((Join-Path $shots "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    # the window's part of the screen, also written into the log (artifacts aren't always reachable)
+    $p.Refresh()
+    Add-Type -Namespace W -Name U -MemberDefinition '[DllImport("user32.dll")] public static extern bool GetWindowRect(System.IntPtr h, out RECT r); public struct RECT { public int L, T, R, B; }' -ErrorAction SilentlyContinue
+    $rc = New-Object W.U+RECT
+    if ($p.MainWindowHandle -ne 0 -and [W.U]::GetWindowRect($p.MainWindowHandle, [ref] $rc)) {
+      $cw = [math]::Min($rc.R, $b.Width) - [math]::Max($rc.L, 0); $chh = [math]::Min($rc.B, $b.Height) - [math]::Max($rc.T, 0)
+      $crop = $bmp.Clone((New-Object System.Drawing.Rectangle ([math]::Max($rc.L, 0)), ([math]::Max($rc.T, 0)), $cw, $chh), $bmp.PixelFormat)
+      $ms = New-Object System.IO.MemoryStream
+      $crop.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+      $b64 = [Convert]::ToBase64String($ms.ToArray())
+      for ($i = 0; $i -lt $b64.Length; $i += 3000) { Write-Host "SHOTB64 $name $($b64.Substring($i, [math]::Min(3000, $b64.Length - $i)))" }
+      $crop.Dispose()
+    }
     $g.Dispose(); $bmp.Dispose()
     if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
     Start-Sleep 1
