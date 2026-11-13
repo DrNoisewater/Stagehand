@@ -85,6 +85,15 @@ The browser check now starts the song at 0 s (2.5 s before the first word): this
 moment after the song starts and lost the first line otherwise.
 **Ask:** does it look like part of the same app now?
 
+**Flashing when opening menus on the highway (reported 2026-11-13, while the song runs, "kind of random", solid
+165+ fps).** Not reproduced: this container has no graphics card (software drawing, ~15 fps). First guess, done:
+panels floating over the running highway blurred the picture behind them (`backdrop-filter` on `.hw-opts`,
+`.hw-card`, `.speed-pop`, `.rep-bar`, `.modal-backdrop`); on Windows that blur over a canvas redrawn at high
+refresh rates can flicker. It is switched off while the highway shows (end of v3.css); the panels are 92–97%
+solid so they look the same. **Ask:** is it gone? If not: which menus, and what flashes (the whole screen black,
+the highway, the menu itself)? Next suspect: Windows moving the full-screen picture on and off its fast path
+when anything covers it (would need a Chromium switch in main.js, only worth trying on their PC).
+
 **Not done / open:**
 - Only on the highway. The Tab view and Now playing don't have the lane yet (the plan wanted it above the tab).
 - The voice through Stagehand (hearing yourself with reverb, the voice in recorded clips): needs the sound engine

@@ -2251,3 +2251,8 @@ html[data-decoration='reduced'] .guitar-card .gc-cable { display: none; }
 .kk-card .kk-play svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
 .kk-card .kk-best { color: #33c8e0; font-weight: 700; }
 .kk-empty, .kk-more { color: var(--ink-3); }
+
+/* 4.12: while the highway shows, nothing floating over it blurs the moving picture behind it.
+   On Windows a blur over a picture redrawn 165 times a second can flicker when a panel opens;
+   these panels are nearly solid anyway, so they look the same without it. */
+body:has(> .highway:not([hidden])) :is(.hw-opts, .hw-card, .speed-pop, .rep-bar, .modal-backdrop) { -webkit-backdrop-filter: none; backdrop-filter: none; }
