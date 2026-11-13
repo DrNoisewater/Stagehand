@@ -41,6 +41,7 @@
 #include <winhttp.h>
 #include <bcrypt.h>
 #include "setup_core.h"
+#include "miniz_tinfl.h"
 
 #ifndef SH_VERSION
 #define SH_VERSION "0.0.0"
@@ -131,11 +132,13 @@ static struct {
   Payload pay;
   int has_payload;
   CRITICAL_SECTION cs;
-  HFONT f_title, f_body, f_small, f_icon, f_btn, f_mono;
+  HFONT f_title, f_body, f_small, f_icon, f_btn, f_mono, f_sticker;
   int own_fonts; /* the app's fonts loaded from inside Setup */
   int hover; /* button under the mouse */
   RECT b_main, b_alt, b_check;
   int anim;
+  HBITMAP art; /* 4.16.3: the header picture, sized for the window */
+  int art_w, art_h;
 } S;
 
 static int px(int v) { return MulDiv(v, S.dpi, 96); }
@@ -1338,19 +1341,166 @@ static void badge(HDC dc, int cx, int cy, int state) {
   glyph(dc, cx, cy, r, state, RGB(14, 16, 22));
 }
 
+static void vgrad(HDC dc, RECT r, COLORREF top, COLORREF bot);
+/* 4.16.3: the app's buttons: cream paper for the main one, a dark worn case for the others,
+   each with a hard shadow under it */
 static void button(HDC dc, RECT r, const wchar_t *label, int primary, int hover, int enabled) {
-  COLORREF bg = primary ? (enabled ? (hover ? RGB(255, 201, 120) : C_GOLD) : RGB(84, 70, 46)) : (hover ? RGB(52, 47, 41) : RGB(38, 34, 30));
-  if (primary && enabled) {
-    RECT s = r;
-    OffsetRect(&s, px(2), px(3));
-    fill(dc, s, RGB(8, 7, 6));
+  RECT s = r;
+  OffsetRect(&s, 0, px(2));
+  fill(dc, s, RGB(0, 0, 0));
+  if (primary && !enabled) {
+    round_rect(dc, r, px(3), RGB(70, 63, 52), RGB(90, 82, 68));
+    text(dc, S.f_btn, RGB(140, 130, 112), r, label, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    return;
   }
-  round_rect(dc, r, px(4), bg, primary ? bg : (hover ? C_DIM : C_LINE));
-  wchar_t up[64];
-  int i = 0;
-  for (; label[i] && i < 63; i++) up[i] = towupper(label[i]);
-  up[i] = 0;
-  text(dc, S.f_btn, primary ? RGB(26, 18, 5) : C_TEXT, r, up, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+  if (primary && hover) OffsetRect(&r, 0, -px(1));
+  RECT in = r;
+  InflateRect(&in, -1, -1);
+  if (primary) {
+    fill(dc, r, RGB(138, 125, 99));
+    vgrad(dc, in, hover ? RGB(246, 238, 218) : RGB(236, 226, 203), hover ? RGB(226, 214, 186) : RGB(214, 201, 170));
+    RECT hi = {in.left, in.top, in.right, in.top + 1};
+    fill(dc, hi, RGB(250, 246, 236));
+  } else {
+    fill(dc, r, hover ? RGB(106, 95, 82) : RGB(61, 54, 48));
+    vgrad(dc, in, hover ? RGB(46, 41, 36) : RGB(38, 34, 30), hover ? RGB(32, 28, 24) : RGB(26, 23, 20));
+  }
+  text(dc, S.f_btn, primary ? RGB(29, 24, 20) : C_TEXT, r, label, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+}
+
+/* ------------------------------------------------------------ the header (4.16.3) --
+   A picture cut from the app's own page banner (make-art.js / make-art.py): the kraft-paper flyer, the
+   poster type, the highlighter, a character, on the rehearsal-room wall. Packed as premultiplied BGRA,
+   zlib; unpacked here and resized once for the window's size (an area average, so text stays crisp). */
+static HBITMAP art_make(int id, int ow, int oh) {
+  HRSRC r = FindResourceW(S.inst, MAKEINTRESOURCEW(id), RT_RCDATA);
+  if (!r) return NULL;
+  HGLOBAL g = LoadResource(S.inst, r);
+  const unsigned char *d = g ? (const unsigned char *)LockResource(g) : NULL;
+  DWORD n = SizeofResource(S.inst, r);
+  if (!d || n < 12 || memcmp(d, "SHI1", 4)) return NULL;
+  int iw = d[4] | d[5] << 8 | d[6] << 16 | d[7] << 24;
+  int ih = d[8] | d[9] << 8 | d[10] << 16 | d[11] << 24;
+  size_t got = 0;
+  unsigned char *src = (unsigned char *)tinfl_decompress_mem_to_heap(d + 12, n - 12, &got, TINFL_FLAG_PARSE_ZLIB_HEADER);
+  if (!src || got != (size_t)iw * ih * 4 || ow < 1 || oh < 1) {
+    free(src);
+    return NULL;
+  }
+  BITMAPINFO bi;
+  memset(&bi, 0, sizeof bi);
+  bi.bmiHeader.biSize = sizeof bi.bmiHeader;
+  bi.bmiHeader.biWidth = ow;
+  bi.bmiHeader.biHeight = -oh; /* top-down */
+  bi.bmiHeader.biPlanes = 1;
+  bi.bmiHeader.biBitCount = 32;
+  bi.bmiHeader.biCompression = BI_RGB;
+  unsigned char *dst = NULL;
+  HBITMAP bmp = CreateDIBSection(NULL, &bi, DIB_RGB_COLORS, (void **)&dst, NULL, 0);
+  if (!bmp || !dst) {
+    free(src);
+    return NULL;
+  }
+  /* each output pixel is the average of the source area it covers (fractions at the edges) */
+  double sx = (double)iw / ow, sy = (double)ih / oh;
+  for (int y = 0; y < oh; y++) {
+    double y0 = y * sy, y1 = y0 + (sy < 1 ? 1 : sy);
+    if (y1 > ih) y1 = ih;
+    for (int x = 0; x < ow; x++) {
+      double x0 = x * sx, x1 = x0 + (sx < 1 ? 1 : sx);
+      if (x1 > iw) x1 = iw;
+      double acc[4] = {0, 0, 0, 0}, wsum = 0;
+      for (int yy = (int)y0; yy < (int)ceil(y1); yy++) {
+        double wy = (yy + 1 < y1 ? yy + 1 : y1) - (yy > y0 ? yy : y0);
+        if (wy <= 0) continue;
+        const unsigned char *row = src + (size_t)yy * iw * 4;
+        for (int xx = (int)x0; xx < (int)ceil(x1); xx++) {
+          double wx = (xx + 1 < x1 ? xx + 1 : x1) - (xx > x0 ? xx : x0);
+          if (wx <= 0) continue;
+          double wgt = wx * wy;
+          const unsigned char *p = row + xx * 4;
+          acc[0] += p[0] * wgt;
+          acc[1] += p[1] * wgt;
+          acc[2] += p[2] * wgt;
+          acc[3] += p[3] * wgt;
+          wsum += wgt;
+        }
+      }
+      unsigned char *q = dst + ((size_t)y * ow + x) * 4;
+      for (int k = 0; k < 4; k++) q[k] = (unsigned char)(wsum > 0 ? acc[k] / wsum + 0.5 : 0);
+    }
+  }
+  free(src);
+  return bmp;
+}
+static void draw_art(HDC dc, int x, int y, int w, int h) {
+  if (!S.art || S.art_w != w || S.art_h != h) {
+    if (S.art) DeleteObject(S.art);
+    S.art = art_make(S.uninstall ? 21 : 20, w, h);
+    S.art_w = w;
+    S.art_h = h;
+  }
+  if (!S.art) return;
+  HDC m = CreateCompatibleDC(dc);
+  HGDIOBJ o = SelectObject(m, S.art);
+  BLENDFUNCTION bf = {AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
+  AlphaBlend(dc, x, y, w, h, m, 0, 0, w, h, bf);
+  SelectObject(m, o);
+  DeleteDC(m);
+}
+/* the rehearsal-room wall behind everything: dark bricks, as on the app's pages */
+static void draw_wall(HDC dc, RECT cr) {
+  fill(dc, cr, RGB(14, 13, 14));
+  int bw = px(88), bh = px(42), gw = px(92), gh = px(46);
+  static const COLORREF shade[3] = {RGB(23, 21, 23), RGB(20, 18, 20), RGB(22, 20, 22)};
+  HGDIOBJ op = SelectObject(dc, GetStockObject(NULL_PEN));
+  for (int row = 0, y = px(2); y < cr.bottom; row++, y += gh) {
+    int off = (row & 1) ? -gw / 2 : 0;
+    for (int col = 0, x = off + px(2); x < cr.right; col++, x += gw) {
+      HBRUSH b = CreateSolidBrush(shade[(row + col) % 3]);
+      HGDIOBJ ob = SelectObject(dc, b);
+      RoundRect(dc, x, y, x + bw, y + bh, px(4), px(4));
+      SelectObject(dc, ob);
+      DeleteObject(b);
+    }
+  }
+  SelectObject(dc, op);
+}
+/* a vertical two-colour fill (the app's buttons) */
+static void vgrad(HDC dc, RECT r, COLORREF top, COLORREF bot) {
+  TRIVERTEX v[2] = {{r.left, r.top, (COLOR16)(GetRValue(top) << 8), (COLOR16)(GetGValue(top) << 8), (COLOR16)(GetBValue(top) << 8), 0xff00},
+                    {r.right, r.bottom, (COLOR16)(GetRValue(bot) << 8), (COLOR16)(GetGValue(bot) << 8), (COLOR16)(GetBValue(bot) << 8), 0xff00}};
+  GRADIENT_RECT gr = {0, 1};
+  GradientFill(dc, v, 2, &gr, 1, GRADIENT_FILL_RECT_V);
+}
+/* something drawn turned a little (a sticker, a strip of tape): turn the page, draw, turn it back */
+static void tilt(HDC dc, double deg, int cx, int cy) {
+  SetGraphicsMode(dc, GM_ADVANCED);
+  double a = deg * 3.14159265 / 180;
+  XFORM x = {(FLOAT)cos(a), (FLOAT)sin(a), (FLOAT)-sin(a), (FLOAT)cos(a), 0, 0};
+  x.eDx = (FLOAT)(cx - cx * x.eM11 - cy * x.eM21);
+  x.eDy = (FLOAT)(cy - cx * x.eM12 - cy * x.eM22);
+  SetWorldTransform(dc, &x);
+}
+static void untilt(HDC dc) {
+  ModifyWorldTransform(dc, NULL, MWT_IDENTITY);
+}
+/* a turned rectangle (w×h around cx,cy), filled: drawn as a polygon so it turns everywhere */
+static void tilted_rect(HDC dc, int cx, int cy, int w, int h, double deg, COLORREF c) {
+  double a = deg * 3.14159265 / 180, ca = cos(a), sa = sin(a);
+  double hx = w / 2.0, hy = h / 2.0;
+  double pts[4][2] = {{-hx, -hy}, {hx, -hy}, {hx, hy}, {-hx, hy}};
+  POINT p[4];
+  for (int i = 0; i < 4; i++) {
+    p[i].x = (LONG)lround(cx + pts[i][0] * ca - pts[i][1] * sa);
+    p[i].y = (LONG)lround(cy + pts[i][0] * sa + pts[i][1] * ca);
+  }
+  HBRUSH b = CreateSolidBrush(c);
+  HGDIOBJ ob = SelectObject(dc, b), op = SelectObject(dc, GetStockObject(NULL_PEN));
+  Polygon(dc, p, 4);
+  SelectObject(dc, ob);
+  SelectObject(dc, op);
+  DeleteObject(b);
 }
 
 static const wchar_t *main_label(void) {
@@ -1366,58 +1516,33 @@ static void paint(HDC dc, RECT cr) {
   fill(dc, cr, C_BG);
   SetBkMode(dc, TRANSPARENT);
   int m = px(28);
-  /* 4.14 header, like the app's page banner: a darker band, stripes on the right,
-     a small typewriter kicker, the name in the poster type, a gold bar under it */
-  int hh = px(112);
-  RECT band = {0, 0, W, hh};
-  fill(dc, band, C_HEAD);
-  {
-    HPEN sp = CreatePen(PS_SOLID, px(2), RGB(44, 38, 30));
-    HGDIOBJ op = SelectObject(dc, sp);
-    for (int i = 0; i < 9; i++) {
-      int x = W - px(250) + i * px(26);
-      MoveToEx(dc, x + px(40), 0, NULL);
-      LineTo(dc, x, hh);
-    }
-    SelectObject(dc, op);
-    DeleteObject(sp);
-  }
-  RECT edge = {0, hh - 1, W, hh};
-  fill(dc, edge, C_LINE);
-  RECT bar0 = {m, hh - px(4), m + px(58), hh};
-  fill(dc, bar0, C_GOLD);
-  HICON ic = (HICON)LoadImageW(S.inst, MAKEINTRESOURCEW(1), IMAGE_ICON, px(48), px(48), 0);
-  if (ic) {
-    DrawIconEx(dc, m, px(30), ic, px(48), px(48), 0, NULL, DI_NORMAL);
-    DestroyIcon(ic);
-  }
-  RECT k = {m + px(64), px(24), W - m, px(40)};
-  text(dc, S.f_mono, C_GOLD, k, S.uninstall ? L"UNINSTALL" : (S.installed_ver[0] ? L"SETUP \x00b7 UPDATE" : L"SETUP"), DT_LEFT | DT_SINGLELINE);
-  RECT r = {m + px(64), px(40), W - m, px(84)};
-  RECT sh = r;
-  OffsetRect(&sh, px(2), px(2));
-  const wchar_t *name = S.uninstall ? L"REMOVE STAGEHAND" : L"STAGEHAND";
-  text(dc, S.f_title, RGB(0, 0, 0), sh, name, DT_LEFT | DT_SINGLELINE);
-  text(dc, S.f_title, C_TEXT, r, name, DT_LEFT | DT_SINGLELINE);
+  /* 4.16.3: the app's rehearsal-room look: the wall, and the page banner cut from the app itself */
+  draw_wall(dc, cr);
+  int hh = px(172);
+  draw_art(dc, 0, 0, W, hh);
+  RECT r = {m, 0, W - m, 0};
   if (!S.uninstall) {
-    /* a strip of tape on the right: the version (what you have -> what this installs) */
+    /* the version on a sticker slapped on the wall beside the flyer (what you have -> what this installs) */
     wchar_t vp[96];
     if (S.checked && S.installed_ver[0])
       _snwprintf(vp, 96, wcscmp(S.installed_ver, WSTR(SH_VERSION)) ? L"%s  \x2192  " WSTR(SH_VERSION) : L"%s INSTALLED", S.installed_ver);
     else
       _snwprintf(vp, 96, L"V" WSTR(SH_VERSION));
-    SelectObject(dc, S.f_mono);
+    SelectObject(dc, S.f_sticker);
     SIZE sz;
     GetTextExtentPoint32W(dc, vp, (int)wcslen(vp), &sz);
-    RECT pr = {W - m - sz.cx - px(22), px(38), W - m, px(62)};
-    RECT ps = pr;
-    OffsetRect(&ps, px(2), px(3));
-    fill(dc, ps, RGB(8, 7, 6));
-    fill(dc, pr, C_GOLD);
-    text(dc, S.f_mono, RGB(26, 18, 5), pr, vp, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    int cx = px(500), cy = px(54);
+    int sw = sz.cx + px(36), sh2 = px(40);
+    tilted_rect(dc, cx + px(3), cy + px(4), sw, sh2, -3, RGB(0, 0, 0));
+    tilted_rect(dc, cx, cy, sw, sh2, -3, RGB(233, 223, 200));
+    tilted_rect(dc, cx, cy, sw - px(5), sh2 - px(5), -3, RGB(21, 19, 17));
+    tilt(dc, -3, cx, cy);
+    RECT pr = {cx - sw / 2, cy - sh2 / 2, cx + sw / 2, cy + sh2 / 2};
+    text(dc, S.f_sticker, RGB(236, 228, 210), pr, vp, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    untilt(dc);
   }
-  r.top = hh + px(14);
-  r.bottom = hh + px(38);
+  r.top = hh + px(12);
+  r.bottom = hh + px(36);
   EnterCriticalSection(&S.cs);
   const wchar_t *sub = S.headline[0] ? S.headline : (S.checked ? (S.uninstall ? L"Here’s what will happen" : L"Here’s what’s already on your PC, and what gets installed") : L"Checking your PC…");
   text(dc, S.f_body, S.finished == 2 ? C_RED : S.finished == 1 ? C_GREEN : C_DIM, r, sub, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
@@ -1427,14 +1552,19 @@ static void paint(HDC dc, RECT cr) {
   static const int order_uninstall[] = {R_APP, R_DATA};
   const int *order = S.uninstall ? order_uninstall : order_install;
   int nr = S.uninstall ? 2 : 6;
-  int y = hh + px(50), rh = px(62);
+  int y = hh + px(44), rh = px(54);
   RECT panel = {m, y, W - m, y + rh * nr + px(8)};
   {
     RECT ps = panel;
     OffsetRect(&ps, px(3), px(4));
-    fill(dc, ps, RGB(8, 7, 6)); /* the hard shadow the app's cards have */
+    fill(dc, ps, RGB(0, 0, 0)); /* the hard shadow the app's cards have */
   }
-  round_rect(dc, panel, px(4), C_PANEL, C_LINE);
+  round_rect(dc, panel, px(4), RGB(26, 23, 20), RGB(47, 42, 37));
+  {
+    /* a strip of masking tape holding the card to the wall */
+    int tx = panel.left + px(10), ty = panel.top + px(12);
+    tilted_rect(dc, tx, ty, px(58), px(18), -38, RGB(214, 205, 182));
+  }
   for (int i = 0; i < nr; i++) {
     Row *row = &S.rows[order[i]];
     int ry = y + px(4) + i * rh;
@@ -1450,9 +1580,9 @@ static void paint(HDC dc, RECT cr) {
     }
     badge(dc, m + px(34), ry + rh / 2, row->state);
     if (order[i] == R_STEMS) S.b_stems = (RECT){m, ry, W - m, ry + rh};
-    RECT t = {m + px(62), ry + px(10), W - m - px(16), ry + px(32)};
+    RECT t = {m + px(62), ry + px(7), W - m - px(16), ry + px(29)};
     text(dc, S.f_body, C_TEXT, t, row->title, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
-    t.top = ry + px(32);
+    t.top = ry + px(28);
     t.bottom = ry + rh - px(6);
     COLORREF nc = row->state == ST_HAVE || row->state == ST_DONE ? RGB(150, 214, 170) : row->state == ST_ERR ? C_RED : row->state == ST_LATER ? RGB(150, 225, 238) : C_DIM;
     text(dc, S.f_small, nc, t, row->note, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
@@ -1496,7 +1626,7 @@ static void paint(HDC dc, RECT cr) {
     int on = S.uninstall ? S.del_data : S.desktop;
     S.b_check = (RECT){m, by + px(8), m + px(300), by + bh - px(8)};
     RECT box = {m, by + bh / 2 - px(10), m + px(20), by + bh / 2 + px(10)};
-    round_rect(dc, box, px(3), on ? (S.uninstall ? C_RED : C_GOLD) : C_PANEL, on ? (S.uninstall ? C_RED : C_GOLD) : C_DIM);
+    round_rect(dc, box, px(3), on ? (S.uninstall ? C_RED : RGB(228, 216, 188)) : RGB(26, 23, 20), on ? (S.uninstall ? C_RED : RGB(138, 125, 99)) : C_DIM);
     if (on) glyph(dc, (box.left + box.right) / 2, (box.top + box.bottom) / 2, px(11), ST_DONE, RGB(12, 14, 20));
     RECT lt = {m + px(30), by, m + px(330), by + bh};
     text(dc, S.f_body, S.hover == 3 ? C_TEXT : C_DIM, lt, S.uninstall ? L"Also delete my library data and stems" : L"Desktop shortcut", DT_LEFT | DT_VCENTER | DT_SINGLELINE);
@@ -1666,12 +1796,14 @@ static void make_fonts(void) {
     S.f_small = font(L"SH Text", 13, 600);
     S.f_btn = font(L"SH Text Bold", 14, 800);
     S.f_mono = font(L"SH Mono", 11, FW_BOLD);
+    S.f_sticker = font(L"SH Mono", 15, FW_BOLD);
   } else {
     S.f_title = font(L"Segoe UI Black", 30, FW_BLACK);
     S.f_body = font(L"Segoe UI", 15, FW_SEMIBOLD);
     S.f_small = font(L"Segoe UI", 13, FW_NORMAL);
     S.f_btn = font(L"Segoe UI", 14, FW_BOLD);
     S.f_mono = font(L"Consolas", 11, FW_BOLD);
+    S.f_sticker = font(L"Consolas", 15, FW_BOLD);
   }
   /* Segoe Fluent Icons (Windows 11) or Segoe MDL2 Assets (Windows 10) */
   S.f_icon = font(L"Segoe MDL2 Assets", 13, FW_NORMAL);
@@ -1772,7 +1904,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show) {
   wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
   wc.lpszClassName = L"StagehandSetup";
   RegisterClassExW(&wc);
-  int ww = px(700), wh = px(S.uninstall ? 400 : 680); /* fits a 768-pixel-tall laptop screen */
+  int ww = px(700), wh = px(S.uninstall ? 440 : 680); /* fits a 768-pixel-tall laptop screen */
   RECT wr = {0, 0, ww, wh};
   DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
   AdjustWindowRectExForDpi(&wr, style, FALSE, 0, S.dpi);

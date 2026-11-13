@@ -6,6 +6,9 @@
 11 RCDATA "fonts/SHText.ttf"
 12 RCDATA "fonts/SHTextBold.ttf"
 13 RCDATA "fonts/SHMono.ttf"
+// 4.16.3: the header, cut from the app's own banner (make-art.js, make-art.py)
+20 RCDATA "art/header-setup.bin"
+21 RCDATA "art/header-remove.bin"
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION SH_V1,SH_V2,SH_V3,0
 PRODUCTVERSION SH_V1,SH_V2,SH_V3,0
