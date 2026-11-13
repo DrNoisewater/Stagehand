@@ -153,6 +153,17 @@ there's not seamless integration").**
   finder's Next song skips (or, without Get songs, looks for the next wanted song), its Stop ends the run.
   The run bar has "Show the finder" instead of Copy again / Open CustomsForge; texts no longer say Ctrl+V.
 
+**Gear page: a spec sheet under every piece's knobs** (asked: "add the real life description of every piece of gear
+and pedal … the bottom half of the right side is unused … when you hover over a knob the tooltip isn't easy to read").
+`js/gearabout.js` (`loadAbout`, `aboutCard`) + `data/gear-about.json` (221 pieces; cabinets by family). A cream card
+taped under the controls: "Modelled on <real gear>" (or "Probably based on" when the match is a community guess,
+`guess: true`), 2–3 plain sentences, then every knob (or, on cabinets, every mic and mic knob) with the same words
+as the tooltips, readable. Real names: 45 of 221; the rest of Rocksmith's made-up names (AT-120, GB-412, Buzz 1…)
+had no reliable source (customsforge.com, the main fan list, is blocked here), so they describe the sound only.
+**Ask:** does any real name look wrong to you, and are there ones you know that are missing?
+Checked: `test/gear-about.test.js` (every piece has words; in npm test), `SH_AUDIT=test/e2e/gear-about-audit.js
+node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>` (writes gear-about-*.png).
+
 **Discover restyled** (asked: "the discover page has been left behind and doesn't have the same look"):
 `css/discover.css` (loaded last, scoped to `#app #discover`): left-aligned like Songs, the heavy uppercase titles,
 typewriter labels and tags, square sticker placeholders, gold/brass completion bars, house `card` boxes,

@@ -243,6 +243,23 @@ html[data-decoration='reduced'] .rb-piece.sel .rb-foot::before { display:none; }
 .sr-show > .gb-panel > .gb-photo.drawing { container-type:normal; }
 .sr-show > .gb-panel > .gb-strip-wrap { overflow:auto; min-height:0; }
 .sr-show > .sr-cab { overflow:auto; }
+.sr-show > .gb-panel > .sr-side { min-height:0; overflow:auto; display:flex; flex-direction:column; gap:14px; padding-right:2px; }
+.sr-show > .gb-panel > .sr-side > .gb-strip-wrap { flex:none; }
+.sr-cab > .sr-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+/* 4.12: the spec sheet: a typed card pinned under the controls, easy to read (the tooltips weren't) */
+.gear-about { position:relative; flex:none; margin:10px 2px 4px; padding:22px 18px 16px; color:#2a2218; border-radius:2px;
+  background:linear-gradient(180deg,#efe6cf,#e3d7b9);
+  box-shadow:0 1px 0 #fff6 inset,3px 4px 0 #000a,0 12px 24px #0007; }
+.gear-about-tape { position:absolute; top:-10px; left:14px; transform:rotate(-2deg); padding:3px 9px; background:#c9b27a; color:#2a2218;
+  font:700 10.5px/1.2 var(--rr-mono,'Typewriter Stagehand',monospace); letter-spacing:.1em; text-transform:uppercase; box-shadow:1px 1px 0 #0006; }
+.gear-about p { margin:0 0 10px; }
+.gear-about-real small { display:block; font:700 10px var(--rr-mono,monospace); letter-spacing:.12em; text-transform:uppercase; color:#7a6a4e; }
+.gear-about-real b { font-size:19px; font-weight:900; font-stretch:80%; letter-spacing:.01em; line-height:1.15; }
+.gear-about-text { font-size:14px; line-height:1.55; }
+.gear-about h3 { margin:14px 0 6px; padding-top:10px; border-top:2px solid #2a221822; font:700 10.5px var(--rr-mono,monospace); letter-spacing:.12em; text-transform:uppercase; color:#7a6a4e; }
+.gear-about-knobs { margin:0; display:grid; grid-template-columns:max-content minmax(0,1fr); gap:6px 14px; font-size:13px; line-height:1.45; }
+.gear-about-knobs dt { font-weight:800; }
+.gear-about-knobs dd { margin:0; color:#3d3326; }
 .sr-title small { font-family:var(--rr-mono,monospace); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:#a88d57; }
 .sr-title h2 { margin:0; font-size:24px; color:#f1e6cf; }
 .sr-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }

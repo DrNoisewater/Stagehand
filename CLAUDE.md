@@ -60,6 +60,8 @@ SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
 SH_AUDIT=test/e2e/sing-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # Discover's look on made-up results, artist, gaps and Wanted; writes discover-*.png
 SH_AUDIT=test/e2e/discover-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# the Gear page's spec sheet (real gear, words, every knob) on an EQ, a cabinet and an amp
+SH_AUDIT=test/e2e/gear-about-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # stem splitting: a song in line names the one split first; a split moving along rebuilds nothing
 SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # a moving background must rebuild itself after the graphics card drops it
