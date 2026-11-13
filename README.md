@@ -183,6 +183,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.16.1:** Singing: the words come in sooner, and the next line is written out in full above the lane before you have to sing it. Chord scoring tells a wrong chord (E minor for E major) from the right one, and still forgives a light strum or a missed string.
 - **4.16.0:** Meta Quest: play along in the headset with the highway in front of you and your venue all around you, pick songs and play, pause or skip from either the headset or the PC. Off until you switch it on in Settings › Quest headset; nothing to install on the headset.
 - **4.15.1:** On bass, a wrong note no longer counts as right now and then. The highway's top bar fits smaller screens (Sing and Piano are small buttons until you turn them on), the song list has no outline box when you use the arrow keys, and song tags no longer get cut in half.
 - **4.15.0:** Piano: plug a digital piano or keyboard in by USB and play any song on it. Stagehand writes the piano part from the song itself (the singer's tune, the guitar's riffs, the band's real chords, the bass line) as real sheet music, over glowing notes falling onto a keyboard, in Easy, Medium and Hard, for either hand or both, and scores every note.

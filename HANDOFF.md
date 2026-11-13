@@ -1,3 +1,22 @@
+# 4.16.1 — words sooner when singing; the lost chord-scoring fix brought in (2026-11-13)
+
+User: "there needs to be a little bit more time before the words get to you … it's kind of hard to see the words
+coming fast enough for you to figure out what to actually sing". Then: "Fix the note scoring thing you found and get
+rid of the duplicate quest".
+- **Singing lane** (`singlane.js`): it shows 5.5 s ahead (was 4) and the place you sing moved left (16 % of the width,
+  was 20 %), so each word arrives about 2 s sooner. Above the lane, the **next line written out in full** (`COMING UP`
+  in tungsten, `NEXT` when it starts within 2.5 s), from the moment the line before it starts (up to 14 s ahead);
+  the first line shows before the song's singing starts. Both sizes (beside the highway, and Karaoke's big lane).
+  The Words look already showed the next line. Checked: `SING=1 … shoot.js` passes, `sing-audit.js` 13/13.
+- **Chord scoring (4.7.1, from 2026-11-12, never merged):** its branch `ccr-137e0328-sqv9ba` had one commit that no PR
+  carried. Brought onto 4.16.0 (`detect.js` merged cleanly; its HANDOFF/README/version lines left out; the full write-up
+  is in `docs/notes/chord-scoring.md` and in that commit). A chord now misses only when one of its notes is clearly
+  missing and a note a fret or two away rings in its place; half the strings is enough. `node test/chords.test.mjs`:
+  wrong chords counted 16 % / 21 % messy (was ~80 %), right chords 100 %. `detect.test.mjs` all pass (bass wrong 8 %).
+- **The duplicate Quest PR #45** (a second run of the scheduled task built it in parallel) closed with a note; its branch
+  `claude/quest-companion-vr` kept. No scheduled tasks are left on the account.
+- Ask the user: is the singing lead time enough now, or more? Does chord scoring feel fair on real strums?
+
 # 4.16.0 — Quest companion (steps 1–2), released 2026-11-13
 
 User: "do whatever else you need to do. And let's merge, release so we can continue". #43 (4.15.1) merged, then #44;
