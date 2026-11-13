@@ -1,4 +1,4 @@
-# Highway look: round strings and frets, inlay dots (branch `claude/highway-modern`, not released yet, 2026-11-13)
+# 4.16.2 — Highway look: round strings and frets, inlay dots (released 2026-11-13; user: "merge and release all")
 
 User: "Can we make the highway in the app a little bit more modern? … it looks like it's kind of just lines for the
 strings, where they could be rounded a little bit more, and we can just improve the look of the fretboard. And
