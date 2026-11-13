@@ -2286,3 +2286,5 @@ body:has(> .highway:not([hidden])) :is(.hw-opts, .hw-card, .speed-pop, .rep-bar,
 .hw-piano[data-look='sheet'] .pk-fall { display: none; }
 .hw-piano[data-look='sheet'] .pk-sheet-box { height: clamp(260px, 46vh, 460px); margin-top: 6vh; }
 .hw-card-ring.keys { --c: #8fe36a; }
+.pk-badge.has-action { pointer-events: auto; }
+.pk-badge button { margin-left: 8px; padding: 2px 8px; font: 700 11px var(--font); color: #231d17; background: #f1ce68; border: 0; border-radius: 2px; cursor: pointer; }

@@ -168,7 +168,8 @@ if (q.get('piano') === 'tune') {
       ly.push({ t: T(bar, at) + 0.03, d: last ? b * 3.6 : b * (rhythms[li % 4][i + 1] - at) * 0.9, w, p: tunes[li % 4][i] - 12 });
     });
   });
-  lead.lyrics = ly;
+  // nonotes=1: the chart has the words but not the singer's notes (common in custom songs)
+  lead.lyrics = q.get('nonotes') ? ly.map((w) => ({ ...w, p: 254 })) : ly;
   lead.id = 'lead';
   window.__tabs = { lead, rhythm: { ...rhythm, id: 'rhythm' }, bass: { ...bass, id: 'bass' } };
   window.__parts = [{ id: 'lead', type: 'lead', name: 'Lead' }, { id: 'rhythm', type: 'rhythm', name: 'Rhythm' }, { id: 'bass', type: 'bass', name: 'Bass' }];

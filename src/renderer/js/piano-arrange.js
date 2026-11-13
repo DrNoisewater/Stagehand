@@ -99,7 +99,38 @@ export function makeGrid(beats, length = 0) {
     }
     return a;
   };
-  return { stepOf, timeOf, bars, barAt, steps: (B.length - 1) * TPB };
+  /** Song time → the step a note there is written on (set to the song's feel by arrange()). */
+  const q = (t) => Math.round(stepOf(t));
+  return { stepOf, timeOf, bars, barAt, q, steps: (B.length - 1) * TPB };
+}
+
+/**
+ * Straight or swung: in a shuffle the note between two beats lands about two
+ * thirds of the way through the beat, not halfway. Sheet music writes those
+ * as plain eighths under a "Swing" mark, so they're written that way here.
+ */
+export function detectFeel(times, grid) {
+  let straight = 0;
+  let swung = 0;
+  for (const t of times) {
+    const x = grid.stepOf(t) / TPB;
+    const f = x - Math.floor(x);
+    if (Math.abs(f - 0.5) < 0.06) straight++;
+    else if (Math.abs(f - 2 / 3) < 0.06) swung++;
+  }
+  return swung >= 12 && swung > straight * 2 ? 'swing' : 'straight';
+}
+
+/** Where a note at song time t is written, in this feel: the nearest sixteenth, or in a shuffle the beat or the eighth after it. */
+export function snapper(grid, feel) {
+  if (feel !== 'swing') return (t) => Math.round(grid.stepOf(t));
+  return (t) => {
+    const x = grid.stepOf(t) / TPB;
+    const b = Math.floor(x);
+    const f = x - b;
+    const pos = f < 0.2 ? 0 : f < 0.45 ? 0.25 : f < 0.83 ? 0.5 : 1;
+    return Math.round((b + pos) * TPB);
+  };
 }
 
 // --------------------------------------------------------- the parts --
@@ -138,7 +169,7 @@ export function partEvents(tab) {
 function onGrid(events, grid, high = true) {
   const out = [];
   for (const e of events) {
-    const k = Math.round(grid.stepOf(e.t));
+    const k = grid.q(e.t);
     const m = high ? e.top : e.low;
     const prev = out[out.length - 1];
     if (prev && prev.k === k) {
@@ -147,12 +178,12 @@ function onGrid(events, grid, high = true) {
       prev.endT = Math.max(prev.endT, e.end);
       continue;
     }
-    out.push({ k, midi: m, endT: e.end, held: e.held });
+    out.push({ k, midi: m, endT: e.end, held: e.held, t: e.t });
   }
   for (let i = 0; i < out.length; i++) {
     const n = out[i];
     const next = out[i + 1] ? out[i + 1].k : Infinity;
-    const own = Math.round(grid.stepOf(n.endT)) - n.k;
+    const own = grid.q(n.endT) - n.k;
     n.len = Math.max(1, Math.min(next - n.k, n.held && own > 0 ? own : Math.min(TPB, next - n.k)));
   }
   return out;
@@ -234,7 +265,7 @@ export function readChords({ rhythm = [], bass = [], lead = [] }, grid, chordNam
   const struckBeat = new Uint8Array(beats);
   for (const e of rhythm) {
     if (e.midis.length < 2) continue;
-    const k = Math.round(grid.stepOf(e.t));
+    const k = grid.q(e.t);
     let c = e.chord !== undefined && chordNames[e.chord] ? parseChordName(chordNames[e.chord]) : null;
     if (!c) {
       const w = new Array(12).fill(0);
@@ -243,7 +274,7 @@ export function readChords({ rhythm = [], bass = [], lead = [] }, grid, chordNam
     }
     if (!c) continue;
     // it lasts while it rings, to the end of that beat at least
-    const own = Math.max(k + 1, Math.round(grid.stepOf(Math.max(e.end, e.t))));
+    const own = Math.max(k + 1, grid.q(Math.max(e.end, e.t)));
     struck.push({ k, c, end: Math.ceil(own / TPB) * TPB });
     const b = Math.floor(k / TPB);
     if (b >= 0 && b < beats) struckBeat[b] = 1;
@@ -360,9 +391,9 @@ function vocalLine(lyrics, grid) {
   const syl = (lyrics || []).filter((w) => Number.isFinite(w.p) && w.p >= 36 && w.p <= 96);
   const out = [];
   for (const w of syl) {
-    const k = Math.round(grid.stepOf(w.t));
-    const end = Math.max(k + 1, Math.round(grid.stepOf(w.t + (w.d || 0.2))));
-    const word = String(w.w || '').replace(/\+$/, '');
+    const k = grid.q(w.t);
+    const end = Math.max(k + 1, grid.q(w.t + (w.d || 0.2)));
+    const word = String(w.w || '').replace(/\+$/, '').replace(/-+$/, '-');
     const prev = out[out.length - 1];
     if (prev && prev.k === k) {
       // two syllables on one step: the longer one stays, the words go together
@@ -378,10 +409,49 @@ function vocalLine(lyrics, grid) {
 
 // --------------------------------------------------------- arranging --
 /**
+ * A chord voiced for the right hand, near the one before it (as a pianist
+ * moves between chords: the fewest and smallest steps), between G3 and G5.
+ * A power chord stays root, fifth and octave.
+ */
+export function voiceChord(c, prev = null) {
+  const pcs = c.q === '5' ? [c.root, (c.root + 7) % 12] : c.pcs.slice(0, 4);
+  const cands = [];
+  for (let base = 52; base <= 70; base++) {
+    if (((base % 12) + 12) % 12 !== pcs[0] && c.q === '5') continue;
+    // each candidate: the chord's notes stacked upward from `base`, each note once
+    if (!pcs.includes(((base % 12) + 12) % 12)) continue;
+    const notes = [base];
+    let m = base;
+    const left = pcs.filter((p) => p !== ((base % 12) + 12) % 12);
+    while (left.length) {
+      m++;
+      const i = left.indexOf(((m % 12) + 12) % 12);
+      if (i >= 0) {
+        notes.push(m);
+        left.splice(i, 1);
+      }
+    }
+    if (c.q === '5') notes.push(base + 12);
+    if (notes[0] < 55 || notes[notes.length - 1] > 79) continue;
+    cands.push(notes);
+  }
+  if (!cands.length) return pcs.map((p) => 60 + ((p - 60) % 12 + 12) % 12).sort((a, b) => a - b);
+  const cost = (v) => {
+    if (!prev) return Math.abs(v.reduce((a, b) => a + b, 0) / v.length - 64) + (v[0] % 12 === c.root ? 0 : 5); // root position near the middle to begin
+    let d = 0;
+    for (const m of v) d += Math.min(...prev.map((p) => Math.abs(p - m)));
+    return d + Math.abs(v[0] - prev[0]) * 0.3;
+  };
+  return cands.sort((a, b) => cost(a) - cost(b))[0];
+}
+
+/**
  * Writes the piano part. Input: the song's parts as tabs (any may be
  * missing), its lyrics (with notes), its beats. Output:
- * { grid, key, chords, levels: { easy, medium, hard } } where each level is
- * a list of notes { k, len, midi, hand: 'R'|'L', role, word?, t, d } sorted by time.
+ * { grid, key, feel, chords, levels: { easy, medium, hard }, sources } where
+ * each level is a list of notes { k, len, midi, hand: 'R'|'L', role, word?, t, d }
+ * sorted by time. k/len are where the note is written (sixteenths); t/d are
+ * when it sounds in the recording (what you're scored against).
  */
 export function arrange({ lead = null, rhythm = null, bass = null, lyrics = [], beats = null, length = 0 }) {
   const any = lead || rhythm || bass;
@@ -389,11 +459,35 @@ export function arrange({ lead = null, rhythm = null, bass = null, lyrics = [], 
   const ev = { lead: partEvents(lead), rhythm: partEvents(rhythm), bass: partEvents(bass) };
   // a song with one guitar part: it is the rhythm part too
   if (!ev.rhythm.length && ev.lead.length) ev.rhythm = ev.lead;
+  // straight or shuffle, from where everyone's notes land
+  const pitchedWords = (lyrics || []).filter((w) => Number.isFinite(w.p) && w.p >= 36 && w.p <= 96);
+  const feel = detectFeel([...ev.lead, ...ev.rhythm, ...ev.bass].map((e) => e.t).concat(pitchedWords.map((w) => w.t)), grid);
+  grid.q = snapper(grid, feel);
   const names = ((rhythm || lead || {}).chords || []).map((c) => c.name);
   const chords = readChords(ev, grid, names);
+  const chordAt = (k) => {
+    let a = 0;
+    let b = chords.length - 1;
+    if (!chords.length || k < chords[0].k) return null;
+    while (a < b) {
+      const m = (a + b + 1) >> 1;
+      if (chords[m].k <= k) a = m;
+      else b = m - 1;
+    }
+    return chords[a].k + chords[a].len > k ? chords[a] : null;
+  };
+
+  // where the words are, and whether the chart (or the recording) gives the singer's notes
+  const wordsBars = new Set();
+  for (const w of lyrics || []) {
+    const k0 = grid.q(w.t);
+    const k1 = Math.max(k0, grid.q(w.t + (w.d || 0.2)) - 1);
+    for (let b = grid.barAt(k0); b <= grid.barAt(k1); b++) wordsBars.add(b);
+  }
+  const tuneless = (lyrics || []).length > 0 && pitchedWords.length / lyrics.length < 0.5;
 
   // the tune: the singer's notes where they sing, the lead guitar where nobody does
-  let voc = vocalLine(lyrics, grid);
+  let voc = tuneless ? [] : vocalLine(lyrics, grid);
   const vocShift = placeOctave(voc.map((n) => n.midi), 64, 76);
   voc = voc.map((n) => ({ ...n, midi: n.midi + vocShift, role: 'melody', from: 'voice' }));
   const sung = new Set(); // bars with singing in them
@@ -402,11 +496,11 @@ export function arrange({ lead = null, rhythm = null, bass = null, lyrics = [], 
     const b1 = grid.barAt(n.k + n.len - 1);
     for (let b = b0; b <= b1; b++) sung.add(b);
   }
-  // the bars around a sung line count as sung too when the line only brushes them
-  const leadLine = onGrid(ev.lead.length ? ev.lead : ev.rhythm, grid, true).filter((n) => !sung.has(grid.barAt(n.k)));
+  const busy = (k) => sung.has(grid.barAt(k)) || (tuneless && wordsBars.has(grid.barAt(k)));
+  const leadLine = onGrid(ev.lead.length ? ev.lead : ev.rhythm, grid, true).filter((n) => !busy(n.k));
   // guitar is written an octave above where it sounds, and so is a riff for piano; each section of the
   // song finds its own octave so a solo up the neck doesn't fly off the top of the keyboard
-  const secs = ((lead || rhythm || {}).sections || []).map((x) => Math.round(grid.stepOf(x.start)));
+  const secs = ((lead || rhythm || {}).sections || []).map((x) => grid.q(x.start));
   const secOf = (k) => {
     let i = 0;
     while (i + 1 < secs.length && secs[i + 1] <= k) i++;
@@ -422,11 +516,12 @@ export function arrange({ lead = null, rhythm = null, bass = null, lyrics = [], 
   const riff = leadLine.map((n) => {
     let m = n.midi + shiftOf.get(secOf(n.k));
     while (m > 88) m -= 12;
-    return { k: n.k, len: n.len, midi: m, role: 'melody', from: 'guitar' };
+    return { k: n.k, len: n.len, midi: m, t: n.t, role: 'melody', from: 'guitar' };
   });
   let melody = [...voc, ...riff].sort((a, b) => a.k - b.k);
   // one voice: a note ends where the next one starts; a note let go a little early is written to its full
   // length (a singer breathes before the next word; sheet music doesn't write that as a rest)
+  melody = melody.filter((n, i) => i === 0 || n.k !== melody[i - 1].k);
   for (let i = 0; i < melody.length; i++) {
     const n = melody[i];
     const next = i + 1 < melody.length ? melody[i + 1].k : Infinity;
@@ -435,8 +530,7 @@ export function arrange({ lead = null, rhythm = null, bass = null, lyrics = [], 
     else if (gap > 0 && gap <= Math.max(1, n.len / 4)) n.len += gap;
     else if (n.len >= TPB && (n.k + n.len) % TPB === TPB - 1) n.len += 1; // let go just before the beat: to the beat
   }
-  melody = melody.filter((n, i) => i === 0 || n.k !== melody[i - 1].k);
-  // nothing below the middle of the keyboard for the right hand
+  // nothing below the middle of the keyboard for the right hand's tune
   for (const n of melody) while (n.midi < 57) n.midi += 12;
 
   // the key, from the chords and the tune
@@ -449,21 +543,9 @@ export function arrange({ lead = null, rhythm = null, bass = null, lyrics = [], 
   const key = findKey(kw);
   for (const c of chords) c.name = chordName(c, key.fifths);
 
-  const chordAt = (k) => {
-    let a = 0;
-    let b = chords.length - 1;
-    if (!chords.length || k < chords[0].k) return null;
-    while (a < b) {
-      const m = (a + b + 1) >> 1;
-      if (chords[m].k <= k) a = m;
-      else b = m - 1;
-    }
-    return chords[a].k + chords[a].len > k ? chords[a] : null;
-  };
-
   // the bass line, as the bass plays it, in the piano's bass
   // (a bass guitar sounds very low; piano music plays its line an octave up, around the bass staff)
-  let bassLine = onGrid(ev.bass, grid, false).map((n) => ({ k: n.k, len: n.len, midi: n.midi, role: 'bass' }));
+  let bassLine = onGrid(ev.bass, grid, false).map((n) => ({ k: n.k, len: n.len, midi: n.midi, t: n.t, role: 'bass' }));
   const bassShift = placeOctave(bassLine.map((n) => n.midi), 40, 52);
   for (const n of bassLine) {
     n.midi += bassShift;
@@ -473,6 +555,7 @@ export function arrange({ lead = null, rhythm = null, bass = null, lyrics = [], 
   if (!bassLine.length) {
     // no bass part: the root on the downbeat and halfway through each bar, as a piano player would
     for (const c of chords) {
+      if (c.len < TPB) continue;
       for (let k = c.k; k < c.k + c.len; k += TPB * 2) {
         const len = Math.min(TPB * 2, c.k + c.len - k);
         bassLine.push({ k, len, midi: 40 + ((c.root - 40) % 12 + 12) % 12, role: 'bass' });
@@ -480,9 +563,96 @@ export function arrange({ lead = null, rhythm = null, bass = null, lyrics = [], 
     }
   }
 
+  // where the right hand plays chords: each chord change, and each bar's first beat while a chord lasts
+  const points = new Set();
+  for (const c of chords) {
+    points.add(c.k);
+    for (const bar of grid.bars) if (bar.k0 > c.k && bar.k0 < c.k + c.len) points.add(bar.k0);
+  }
+  const sorted = [...points].sort((a, b) => a - b);
+  const melodyAt = (k) => {
+    let a = 0;
+    let b = melody.length - 1;
+    while (a <= b) {
+      const m = (a + b) >> 1;
+      const n = melody[m];
+      if (n.k > k) b = m - 1;
+      else if (n.k + n.len <= k) a = m + 1;
+      else return n;
+    }
+    return null;
+  };
+
+  // the band's own rhythm: where the guitar strikes its chords (the piano's chords follow it)
+  const strums = [...new Set(ev.rhythm.filter((e) => e.midis.length >= 2).map((e) => grid.q(e.t)))].sort((a, b) => a - b);
+  /** Chord points for a level: the changes and downbeats, and the guitar's strums (all of them, or those on a beat). */
+  const pointsFor = (onBeats) => {
+    const all = new Set(sorted);
+    for (const k of strums) if (!onBeats || k % TPB === 0) all.add(k);
+    const out = [];
+    for (const k of [...all].sort((a, b) => a - b)) if (!out.length || k - out[out.length - 1] >= 2) out.push(k);
+    return out;
+  };
+  const strong = new Set(sorted);
+
+  /**
+   * The chords: under the tune where a chord changes (or a bar starts), up to two of its notes close under the
+   * melody note; where the tune rests, the whole chord in the guitar's rhythm, moving smoothly from the last one.
+   * Bars that have words but no notes for them get the chords as an accompaniment instead.
+   */
+  const compose = (pts, under) => {
+    const harmony = [];
+    const accomp = [];
+    let prevV = null;
+    for (let i = 0; i < pts.length; i++) {
+      const k = pts[i];
+      const c = chordAt(k);
+      if (!c) continue;
+      const until = Math.min(pts[i + 1] !== undefined ? pts[i + 1] : Infinity, c.k + c.len);
+      const top = melodyAt(k);
+      if (top && top.k === k) {
+        if (!under || !strong.has(k)) continue;
+        const notes = [];
+        for (let m = top.midi - 1; m >= top.midi - 12 && notes.length < 2; m--) {
+          if (top.midi - m < 3) continue; // not crowding the tune
+          if (c.pcs.includes(((m % 12) + 12) % 12) && m >= 55) notes.push(m);
+        }
+        for (const m of notes) harmony.push({ k, len: Math.max(1, Math.min(until - k, top.len)), midi: m, t: top.t, role: 'chord' });
+      } else if (!top) {
+        const next = melody.find((n) => n.k > k);
+        const stop = next ? Math.min(until - k, next.k - k) : until - k;
+        if (stop < 2) continue;
+        const words = tuneless && wordsBars.has(grid.barAt(k));
+        if (!words && !under) continue; // Medium only fills in where the words have no notes
+        const v = voiceChord(c, prevV);
+        prevV = v;
+        for (const m of v) (words ? accomp : harmony).push({ k, len: stop, midi: m, role: 'chord', chordRoot: c.root });
+      }
+    }
+    return { harmony, accomp };
+  };
+  const hardComp = compose(pointsFor(false), true);
+  const medComp = compose(pointsFor(true), false);
+  const accomp = medComp.accomp;
+  const harmony = hardComp.harmony;
+
   const levels = {};
-  // Easy: the tune
-  levels.easy = melody.map((n) => ({ ...n, hand: 'R' }));
+  const R = (list) => list.map((n) => ({ ...n, hand: 'R' }));
+  const L = (list) => list.map((n) => ({ ...n, hand: 'L' }));
+  // Easy: the tune (and where the chart has no tune for the words, the chord's root, one note at a time)
+  const easyAccomp = [];
+  for (const n of accomp) {
+    if (((n.midi % 12) + 12) % 12 !== n.chordRoot) continue;
+    const last = easyAccomp[easyAccomp.length - 1];
+    if (last && last.k === n.k) continue;
+    // the same root struck again: held instead (one note per chord, as easy piano music does)
+    if (last && last.midi === n.midi && last.k + last.len >= n.k) {
+      last.len = n.k + n.len - last.k;
+      continue;
+    }
+    easyAccomp.push({ ...n, role: 'melody' });
+  }
+  levels.easy = R([...melody, ...easyAccomp]);
 
   // Medium: the tune, and the chord's root wherever the bass starts a note on a beat
   const roots = [];
@@ -498,66 +668,39 @@ export function arrange({ lead = null, rhythm = null, bass = null, lyrics = [], 
       continue;
     }
     if (prev && prev.k + prev.len > n.k) prev.len = n.k - prev.k;
-    roots.push({ k: n.k, len: Math.max(TPB, n.len), midi: m, role: 'bass' });
+    roots.push({ k: n.k, len: Math.max(TPB, n.len), midi: m, t: n.t, role: 'bass' });
   }
   for (let i = 0; i < roots.length - 1; i++) roots[i].len = Math.min(roots[i].len, roots[i + 1].k - roots[i].k);
-  levels.medium = [...melody.map((n) => ({ ...n, hand: 'R' })), ...roots.map((n) => ({ ...n, hand: 'L' }))];
+  levels.medium = [...R([...melody, ...accomp]), ...L(roots)];
 
   // Hard: the tune with its chord under it, and the bass line
-  const harmony = [];
-  const points = new Set();
-  for (const c of chords) {
-    points.add(c.k);
-    // and every bar's first beat, and its middle in long chords
-    for (const bar of grid.bars) if (bar.k0 > c.k && bar.k0 < c.k + c.len) points.add(bar.k0);
-  }
-  const sorted = [...points].sort((a, b) => a - b);
-  const melodyAt = (k) => {
-    for (const n of melody) {
-      if (n.k <= k && n.k + n.len > k) return n;
-      if (n.k > k) break;
-    }
-    return null;
-  };
-  for (let i = 0; i < sorted.length; i++) {
-    const k = sorted[i];
-    const c = chordAt(k);
-    if (!c) continue;
-    const until = Math.min(sorted[i + 1] !== undefined ? sorted[i + 1] : Infinity, c.k + c.len);
-    const top = melodyAt(k);
-    if (top && top.k === k) {
-      // under a melody note that starts here: up to two of the chord's notes, close under it
-      const under = [];
-      for (let m = top.midi - 1; m >= top.midi - 12 && under.length < 2; m--) {
-        if (top.midi - m < 3) continue; // not crowding the tune
-        if (c.pcs.includes(((m % 12) + 12) % 12) && m >= 55) under.push(m);
-      }
-      for (const m of under) harmony.push({ k, len: Math.max(1, Math.min(until - k, top.len)), midi: m, role: 'chord' });
-    } else if (!top) {
-      // the tune is resting: the chord, in close position around middle C
-      const len = until - k;
-      const next = melody.find((n) => n.k > k);
-      const stop = next ? Math.min(len, next.k - k) : len;
-      if (stop < 2) continue;
-      let base = 60 + ((c.root - 60) % 12 + 12) % 12;
-      if (base > 66) base -= 12; // root position, the chord between G3 and F5
-      const notes = c.pcs.map((p) => base + ((p - base) % 12 + 12) % 12).sort((a, b) => a - b);
-      if (c.q === '5') notes.push(base + 12); // a power chord: root, fifth and octave
-      for (const m of notes) harmony.push({ k, len: stop, midi: m, role: 'chord' });
-    }
-  }
-  levels.hard = [...melody.map((n) => ({ ...n, hand: 'R' })), ...harmony.map((n) => ({ ...n, hand: 'R' })), ...bassLine.map((n) => ({ ...n, hand: 'L' }))];
+  levels.hard = [...R([...melody, ...harmony, ...hardComp.accomp]), ...L(bassLine)];
 
-  for (const L of Object.values(levels)) {
-    L.sort((a, b) => a.k - b.k || a.midi - b.midi);
-    for (const n of L) {
-      n.t = grid.timeOf(n.k);
-      n.d = grid.timeOf(n.k + n.len) - n.t;
+  for (const list of Object.values(levels)) {
+    list.sort((a, b) => a.k - b.k || a.midi - b.midi);
+    // the hands never reach for the same key at once: the left hand moves down an octave
+    const rLow = new Map();
+    for (const n of list) if (n.hand === 'R') rLow.set(n.k, Math.min(rLow.get(n.k) ?? Infinity, n.midi));
+    for (const n of list) {
+      if (n.hand !== 'L') continue;
+      const r = rLow.get(n.k);
+      if (r !== undefined && n.midi >= r - 2 && n.midi - 12 >= 28) n.midi -= 12;
     }
+    for (const n of list) {
+      // when it sounds in the recording (scored against that), written on the grid
+      const tq = grid.timeOf(n.k);
+      const t0 = Number.isFinite(n.t) && Math.abs(n.t - tq) < 0.3 ? n.t : tq;
+      n.t = t0;
+      n.d = Math.max(0.06, grid.timeOf(n.k + n.len) - tq);
+      delete n.chordRoot;
+    }
+    list.sort((a, b) => a.t - b.t || a.midi - b.midi);
   }
   for (const c of chords) c.t = grid.timeOf(c.k);
-  const sources = { voice: voc.length > 0, riff: riff.length > 0, bass: ev.bass.length > 0, rhythm: ev.rhythm.length > 0 };
-  return { grid, key, chords, levels, sources };
+  const sources = { voice: voc.length > 0, riff: riff.length > 0, bass: ev.bass.length > 0, rhythm: ev.rhythm.length > 0, tuneless };
+  // the words, for the sheet (under the tune; on their own where the tune isn't known)
+  const words = (lyrics || []).map((w) => ({ k: grid.q(w.t), text: String(w.w || '').replace(/\+$/, '').replace(/-+$/, '-') }));
+  return { grid, key, feel, chords, levels, sources, words };
 }
 
 /** Where a note sits on a staff: { step (diatonic, C4 = 28), acc: -1|0|1 } in a key. */

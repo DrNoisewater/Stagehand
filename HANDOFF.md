@@ -43,6 +43,21 @@ the look of the YouTube piano videos ("notes come down and they're all glowing, 
   chart with `R:0.5:::sugar.json`): off until pressed, the neck steps aside, a pretend pianist on a pretend Allegro IV
   scored (bar 4 left out → ~92 %), the card and stats, off lets the keyboard go.
 
+**Second pass on the arrangements (asked: "spend a little bit more time on the piano section … make sure it's the best
+version it can be"):**
+- Scored on when a note sounds in the recording (`n.t` keeps the source time), written on the grid (`k`): before,
+  notes were scored at their snapped spot (up to a 32nd off, more in a shuffle).
+- Shuffle songs: `detectFeel` (off-beat onsets two thirds into the beat) → swung eighths written as plain eighths
+  (`snapper`), "Swing" on the sheet and the key tag.
+- Words without notes in the chart (common in custom songs): no made-up tune. Those bars get the chords as an
+  accompaniment (Easy: the root, held while it repeats; Medium/Hard: the chord), the words shown under the treble on
+  their own, and a badge offering to split the song (`stage.requestStems`) so the tune can be read off the recording.
+- Chords voiced like a pianist's hand (`voiceChord`: the nearest inversion to the last chord, G3–G5, root position to
+  begin; power chords root–fifth–octave), and played in the guitar's own strumming rhythm (Hard: every strum ≥ an
+  eighth apart; Medium: strums on the beat) where the tune rests.
+- The hands never take the same key at once (the left hand drops an octave). Time signatures drawn on the staff
+  (and where they change). 5 more tests (16 in `keys.test.mjs`).
+
 Ask the user: does the Allegro IV show up and score on time (Electron should allow Web MIDI by default; if not, a
 permission handler for 'midi' in main)? How do the arrangements feel on songs they know: is the tune right, the
 chords right, Hard playable? Is the sheet readable at their screen size?

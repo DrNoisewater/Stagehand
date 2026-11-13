@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { arrange, makeGrid, bestChord, parseChordName, chordName, findKey, spell, keyAccidentals, KeysJudge, TPB, partEvents, concertMidi } from '../src/renderer/js/piano-arrange.js';
+import { arrange, makeGrid, bestChord, parseChordName, chordName, findKey, spell, keyAccidentals, KeysJudge, TPB, partEvents, concertMidi, voiceChord, detectFeel, snapper } from '../src/renderer/js/piano-arrange.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 let passed = 0;
@@ -182,6 +182,72 @@ test('scoring a keyboard: on time hits, late misses, wrong keys noted, held note
   j.rewind(0.5);
   assert.deepStrictEqual(j.result, [null, null, null, null]);
   assert.strictEqual(j.judged, 0);
+});
+
+test('you’re scored on when a note sounds in the recording, not where it’s written', () => {
+  const sung = song.levels.easy.filter((n) => n.from === 'voice');
+  // written on the beat, but the singer came in 20 ms late: that's when the key should go down
+  assert.strictEqual(sung[0].k, 16);
+  assert.ok(Math.abs(sung[0].t - (at(1, 0) + 0.02)) < 1e-9, `t ${sung[0].t}`);
+  // a chord under a sung note goes down with it
+  const under = song.levels.hard.filter((n) => n.role === 'chord' && n.k === 16);
+  assert.ok(under.every((n) => n.t === sung[0].t));
+});
+
+test('a shuffle is read as one: swung eighths written as eighths', () => {
+  // eighth notes swung: the second of each pair two thirds into the beat
+  const times = [];
+  for (let b = 0; b < 16; b++) times.push(at(0, b), at(0, b + 2 / 3));
+  const g = makeGrid(beats);
+  assert.strictEqual(detectFeel(times, g), 'swing');
+  assert.strictEqual(detectFeel(times.map((t, i) => (i % 2 ? t - (2 / 3 - 0.5) * 0.5 : t)), g), 'straight');
+  const q = snapper(g, 'swing');
+  assert.strictEqual(q(at(1, 2 / 3)), 16 + 2); // the swung eighth after beat 1 of bar 2
+  assert.strictEqual(q(at(1, 1)), 20);
+  // a whole swung riff: every note on an eighth, and the sheet is marked as a shuffle
+  const swingLead = { ...lead, notes: times.map((t, i) => ({ t, s: 2, f: [2, 5, 7, 5][i % 4], sus: 0 })) };
+  const a = arrange({ lead: swingLead, bass, beats });
+  assert.strictEqual(a.feel, 'swing');
+  assert.ok(a.levels.easy.every((n) => n.k % 2 === 0), 'on eighths');
+  // and scored where they really land, two thirds into the beat
+  const off = a.levels.easy.find((n) => n.k === 2);
+  assert.ok(Math.abs(off.t - at(0, 2 / 3)) < 1e-9);
+});
+
+test('words with no notes in the chart: the chords, not a made-up tune', () => {
+  const plain = lyrics.map((w) => ({ ...w, p: 254 }));
+  const a = arrange({ lead, rhythm, bass, lyrics: plain, beats });
+  assert.ok(a.sources.tuneless && !a.sources.voice);
+  // bars 2 and 3 have words: the right hand plays C, then A minor, as chords (Medium)
+  const bar2 = a.levels.medium.filter((n) => n.hand === 'R' && n.k === 16).map((n) => n.midi % 12).sort((x, y) => x - y);
+  assert.deepStrictEqual(bar2, [0, 4, 7]);
+  // Easy keeps to one note at a time: the chord's root
+  const easy2 = a.levels.easy.filter((n) => n.k >= 16 && n.k < 48);
+  assert.ok(easy2.length >= 2 && easy2.every((n) => [0, 9].includes(n.midi % 12)), JSON.stringify(easy2.map((n) => n.midi)));
+  assert.strictEqual(new Set(easy2.map((n) => n.k)).size, easy2.length);
+  // and the intro riff is still the guitar's
+  assert.ok(a.levels.easy.some((n) => n.from === 'guitar' && n.k < 16));
+});
+
+test('chords move like a pianist’s hand: the nearest shape each time', () => {
+  const C = parseChordName('C');
+  const F = parseChordName('F');
+  const G = parseChordName('G');
+  const c = voiceChord(C);
+  assert.deepStrictEqual(c, [60, 64, 67]);
+  const f = voiceChord(F, c);
+  assert.deepStrictEqual(f, [60, 65, 69]); // C stays, E→F, G→A
+  const g = voiceChord(G, f);
+  assert.deepStrictEqual(g, [59, 62, 67]); // B D G
+  assert.deepStrictEqual(voiceChord(parseChordName('E5')), [64, 71, 76]);
+});
+
+test('the hands never reach for the same key at once', () => {
+  for (const L of Object.values(song.levels)) {
+    for (const l of L.filter((n) => n.hand === 'L')) {
+      assert.ok(!L.some((r) => r.hand === 'R' && r.k <= l.k && r.k + r.len > l.k && r.midi === l.midi));
+    }
+  }
 });
 
 console.log(`keys: ${passed} passed`);

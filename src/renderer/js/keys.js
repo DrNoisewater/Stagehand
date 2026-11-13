@@ -105,8 +105,14 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
     chip.innerHTML = `${icon('piano')}<span>${S.on ? `Piano · ${KEYS_LEVELS[prefs().level].name}` : 'Piano'}</span>${S.on ? icon('chevron') : ''}`;
   }
 
-  function paintBadge(text) {
+  function paintBadge(text, action = null) {
     badge.textContent = text || '';
+    if (text && action) {
+      const b = h('button', { type: 'button', text: action.label });
+      b.onclick = action.onClick;
+      badge.append(' ', b);
+    }
+    badge.classList.toggle('has-action', !!(text && action));
     badge.hidden = !text;
   }
 
@@ -130,8 +136,8 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
     hi = Math.min(108, hi + (11 - (((hi % 12) + 12) % 12)));
     while (hi - lo < 36) (lo = Math.max(21, lo - 12)), hi - lo < 36 && (hi = Math.min(108, hi + 12));
     S.range = [lo, hi];
-    sheet.set({ notes: S.notes, grid: S.arr.grid, key: S.arr.key, chords: S.arr.chords });
-    keyName.textContent = `${S.arr.key.name} · ${S.arr.grid.bars[1] ? S.arr.grid.bars[1].beats : 4}/4`;
+    sheet.set({ notes: S.notes, grid: S.arr.grid, key: S.arr.key, chords: S.arr.chords, feel: S.arr.feel, words: S.arr.sources.tuneless ? S.arr.words : [] });
+    keyName.textContent = `${S.arr.key.name} · ${S.arr.grid.bars[1] ? S.arr.grid.bars[1].beats : 4}/4${S.arr.feel === 'swing' ? ' · swing' : ''}`;
     S.secs = 0;
     S.at = Date.now();
     S.slowest = stage.engine.speed || 1;
@@ -159,8 +165,12 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
       S.arr = arrange(src);
       S.loading = false;
       pick();
-      const note = !S.arr.sources.voice && src.lyrics && src.lyrics.length ? 'The tune is the guitar’s here: split the song to read the singer’s notes' : '';
-      paintBadge(keyboard.input ? note : 'Plug your piano in by USB to play along (you can still watch)');
+      if (!keyboard.input) paintBadge('Plug your piano in by USB to play along (you can still watch)');
+      else if (S.arr.sources.tuneless) {
+        // the chart has the words but not the singer's notes: the recording has them, once it's split
+        const canSplit = stage.requestStems && !(stage.stems && stage.stems().includes('vocals'));
+        paintBadge('This song’s chart has the words but not the singer’s notes, so the verses are chords for now.', canSplit ? { label: 'Split the song to read the tune', onClick: () => (stage.requestStems(), paintBadge('Splitting… the tune shows the next time you open the song')) } : null);
+      } else paintBadge('');
     } catch (e) {
       if (token !== S.token) return;
       S.loading = false;

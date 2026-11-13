@@ -346,8 +346,10 @@ export function createSheet(canvas) {
   const g = canvas.getContext('2d');
   const S = { bars: { R: [], L: [] }, chords: [], grid: null, key: null, pps: 160, judgeOf: null };
 
-  function set({ notes, grid, key, chords }) {
+  function set({ notes, grid, key, chords, feel, words }) {
     S.grid = grid;
+    S.words = words || []; // words with no notes of their own (shown under the treble on their own)
+    S.feel = feel || 'straight';
     S.key = key;
     S.chords = (chords || []).filter((c) => c.len >= TPB);
     S.bars = { R: notate(notes.filter((n) => n.hand === 'R'), grid, key.fifths, { clefMid: 34 }), L: notate(notes.filter((n) => n.hand === 'L'), grid, key.fifths, { clefMid: 22 }) };
@@ -381,11 +383,24 @@ export function createSheet(canvas) {
     const bassBot = bassTop + 4 * s;
     const fifths = S.key.fifths;
     const ks = Math.abs(fifths);
-    const head = Math.round(s * 4.2 + ks * s * 1.05 + s * 2.4); // clef, key, room
+    const head = Math.round(s * 4.2 + ks * s * 1.05 + s * 4.2); // clef, key, time, room
     const playX = head + Math.round((W - head) * 0.18);
     const X = (time) => playX + (time - t) * S.pps;
     const tAt = (k) => S.grid.timeOf(k);
     const yOf = (step, bottomStep, bottomY) => bottomY - ((step - bottomStep) * s) / 2;
+    /** A time signature (beats over 4) on both staves at x. */
+    const timeSig = (x, beats) => {
+      g.save();
+      g.fillStyle = INK;
+      g.font = `900 ${Math.round(s * 2.3)}px 'DejaVu Serif', Georgia, 'Times New Roman', serif`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      for (const top of [trebleTop, bassTop]) {
+        g.fillText(String(beats), x, top + s * 1.02);
+        g.fillText('4', x, top + s * 3.02);
+      }
+      g.restore();
+    };
 
     // the staves
     g.strokeStyle = LINE;
@@ -423,6 +438,11 @@ export function createSheet(canvas) {
       g.stroke();
       g.fillStyle = INK_DIM;
       g.fillText(String(bi + 1), x + 3, trebleTop - s * 0.8);
+      // a change of time signature is written where it happens
+      if (bi > 0 && bars[bi].beats !== bars[bi - 1].beats && bi < bars.length - 1) {
+        timeSig(x + s * 0.9, bars[bi].beats);
+        g.font = `600 ${Math.round(s * 1.05)}px 'Archivo', 'Segoe UI', sans-serif`;
+      }
     }
     // chord names above the treble
     g.font = `800 ${Math.round(s * 1.7)}px 'Archivo', 'Segoe UI', sans-serif`;
@@ -431,6 +451,20 @@ export function createSheet(canvas) {
       const x = X(c.t);
       if (x < head - 80 || x > W + 20) continue;
       g.fillText(c.name, x - s * 0.5, trebleTop - s * 2.4);
+    }
+    // words that have no notes of their own sit under the treble at their time
+    if (S.words.length) {
+      g.font = `600 ${Math.round(s * 1.35)}px 'Archivo', 'Segoe UI', sans-serif`;
+      let right = -Infinity;
+      for (const w of S.words) {
+        const x = X(tAt(w.k));
+        if (x > W + 10) break;
+        if (x < head - 120) continue;
+        const wx = Math.max(x, right + 6);
+        g.fillStyle = t >= tAt(w.k) && t < tAt(w.k) + 0.4 ? '#f1ce68' : 'rgba(239, 230, 210, 0.8)';
+        g.fillText(w.text, wx, trebleBot + s * 4.7);
+        right = wx + g.measureText(w.text).width;
+      }
     }
     // the notes
     for (const [hand, bottomStep, top, bottom] of [['R', TREBLE_BOTTOM, trebleTop, trebleBot], ['L', BASS_BOTTOM, bassTop, bassBot]]) {
@@ -611,6 +645,17 @@ export function createSheet(canvas) {
       const x = 12 + s * 4.3 + i * s * 1.05;
       (fifths > 0 ? sharp : flat)(g, x, yOf(tr, TREBLE_BOTTOM, trebleBot), s * 0.8);
       (fifths > 0 ? sharp : flat)(g, x, yOf(bs, BASS_BOTTOM, bassBot), s * 0.8);
+    }
+    // the time signature of the bar under the playhead, and the feel
+    const here = S.grid.bars[S.grid.barAt(Math.max(0, Math.floor(S.grid.stepOf(t))))] || S.grid.bars[0];
+    const mainBeats = (S.grid.bars[1] || here).beats;
+    timeSig(12 + s * 4.3 + ks * s * 1.05 + s * 1.2, here && !here.pickup ? here.beats : mainBeats);
+    if (S.feel === 'swing') {
+      g.save();
+      g.fillStyle = INK;
+      g.font = `italic 700 ${Math.round(s * 1.35)}px 'DejaVu Serif', Georgia, serif`;
+      g.fillText('Swing', head + 6, trebleTop - s * 2.6);
+      g.restore();
     }
     // a soft edge where the music slides under the header
     const fade = g.createLinearGradient(head - 4, 0, head + 30, 0);
