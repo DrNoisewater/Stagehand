@@ -28,3 +28,37 @@ html[data-look='roadshow'] .sp-head { color:#c8b78d; }
 html[data-look='roadshow'] .sp-label b { color:#f4d36c; }
 html[data-look='roadshow'] .sp-item.on { background:#3b3428; box-shadow:inset 3px 0 #d4b45e; }
 html[data-look='roadshow'] .sp-item.on .sp-ic { color:#f4d36c; }
+
+/* ---- song titles (4.14): a touch of the poster type, still easy to read at a glance ----
+   Archivo's width axis: a little narrower and heavier, warm white instead of blue-white. */
+#app .row .t { font-size:15.5px; font-weight:740; font-stretch:88%; letter-spacing:.012em; color:#f3ece0; text-shadow:0 1px 0 #0009; align-items:center; }
+#app .row .t .tt-text { line-height:1.25; }
+#app .row.sel .t, #app .row:hover .t { color:#fff; }
+#app .tile .tt { font-weight:720; font-stretch:90%; letter-spacing:.01em; }
+html[data-look='opera'] #app .row .t { font-weight:760; color:#efe6d3; }
+
+/* ---- karaoke mic on each song with words (4.14) ---- */
+.kk-mic { flex:none; margin-left:auto; width:26px; height:24px; display:grid; place-items:center; padding:0; border:1px solid transparent; border-radius:3px; background:none; color:var(--gel-vocals,#c084fc); opacity:.32; cursor:pointer; transition:opacity .12s, background .12s, border-color .12s, transform .12s; }
+.kk-mic svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+#app .row:hover .kk-mic, #app .row.sel .kk-mic { opacity:.8; }
+.kk-mic:hover, .kk-mic:focus-visible { opacity:1 !important; background:#ffffff10; border-color:currentColor; transform:scale(1.06); outline:none; }
+.kk-mic:active { transform:scale(.96); }
+/* on a tile it sits beside the play button, showing on hover like it does */
+.tile .kk-mic.on-tile { position:absolute; right:52px; bottom:12px; width:30px; height:30px; border-radius:50%; background:#000a; border-color:#ffffff22; opacity:0; color:#e9d5ff; }
+.tile:hover .kk-mic.on-tile { opacity:1; }
+
+/* ---- song panel cover: sing / play along / play (4.14) ---- */
+.insp-cover-btns { position:absolute; right:10px; bottom:10px; display:flex; align-items:center; gap:7px; z-index:2; }
+#app .insp-cover-btns .play { position:static; }
+.cv-btn { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; padding:0; cursor:pointer;
+  background:#0b0a09cc; color:#f3ece0; border:1px solid #ffffff2e; box-shadow:0 4px 14px #0008; backdrop-filter:blur(6px);
+  transition:transform .14s var(--ease), background .14s, border-color .14s, color .14s; }
+.cv-btn svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+.cv-btn:hover, .cv-btn:focus-visible { transform:scale(1.07); outline:none; border-color:currentColor; }
+.cv-sing { color:#e9d5ff; }
+.cv-sing:hover { background:#2a1d3acc; }
+.cv-along { color:#ffd58f; }
+.cv-along:hover { background:#3a2a12cc; }
+/* the title wins the room: badges shrink first, the mic always stays */
+#app .row .t .tt-text { flex:0 0 auto; max-width:calc(100% - 34px); }
+#app .row .t > :not(.tt-text):not(.kk-mic) { flex-shrink:40; min-width:0; overflow:hidden; }

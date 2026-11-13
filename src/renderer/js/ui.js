@@ -1,6 +1,8 @@
 /** DOM helpers, icons, menus, modals and toasts. */
 
 const ICONS = {
+  // 4.14: the note highway (two rails running away, lane marks between)
+  highway: '<path d="M9.5 3 4 21M14.5 3 20 21M12 4.5v2.2M12 10.3v2.8M12 16.8V20"/>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>',
   play: '<path d="M7 4.8v14.4c0 .8.9 1.3 1.6.9l11.3-7.2c.6-.4.6-1.4 0-1.8L8.6 3.9C7.9 3.5 7 4 7 4.8z"/>',
   pause: '<rect x="6" y="4.5" width="4.2" height="15" rx="1.2"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1.2"/>',

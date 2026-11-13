@@ -96,9 +96,25 @@ function renderOne(s) {
   harvest(root);
   root.innerHTML = '';
   const c = cover(s);
-  const play = h('button.play', { type: 'button', title: 'Play', html: icon('play') });
+  // 4.14: three buttons on the cover: sing it, play along (stems start splitting), just play it
+  const btns = h('div.insp-cover-btns');
+  if ((s.arrangements || []).some((a) => a.type === 'vocals' || a.type === 'jvocals')) {
+    const sing = h('button.cv-btn.cv-sing', { type: 'button', title: 'Sing it (Karaoke)', 'aria-label': 'Sing it (Karaoke)', html: icon('mic') });
+    sing.onclick = () => actions.playKaraoke(s.id);
+    btns.append(sing);
+  }
+  const phase = actions.stemPhase(s);
+  const hw = h('button.cv-btn.cv-along', {
+    type: 'button',
+    title: phase === 'ready' ? 'Play along on the highway (stems ready)' : phase === 'working' ? 'Play along on the highway (stems are being split)' : 'Play along on the highway, and split its stems while you play',
+    'aria-label': 'Play along',
+    html: icon('highway'),
+  });
+  hw.onclick = () => actions.playAlongWithStems(s.id);
+  const play = h('button.play', { type: 'button', title: 'Play', 'aria-label': 'Play', html: icon('play') });
   play.onclick = () => actions.playSong(s.id, { autoplay: true });
-  c.append(play);
+  btns.append(hw, play);
+  c.append(btns);
   const glow = h('div.insp-glow', null, c);
   glow.style.setProperty('--gel', gelOf(s));
   root.append(glow);
