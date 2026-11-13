@@ -146,6 +146,19 @@ there's not seamless integration").**
 - Checked: `ELECTRON=<electron 44> xvfb-run -a node test/e2e/finder-electron.js <out>` (a pretend song site:
   Find searches, a link elsewhere stays out, a .psarc lands in the songs folder and library, a .rar goes to
   Downloads), `test/finder.test.js` (which sites are allowed; in npm test).
+- **Hooked into Discover** (`discover.js`: `hasFinder`, `openFinder`, `explainFinder`): every Find button,
+  Find next and Get songs open the song finder instead of copying the song and opening the browser (the old
+  way stays as a fallback when the finder can't open). The first time, a short box explains it
+  (`stagehand.finderExplained`). Get songs: each download moves the finder on to the next wanted song; the
+  finder's Next song skips (or, without Get songs, looks for the next wanted song), its Stop ends the run.
+  The run bar has "Show the finder" instead of Copy again / Open CustomsForge; texts no longer say Ctrl+V.
+
+**Discover restyled** (asked: "the discover page has been left behind and doesn't have the same look"):
+`css/discover.css` (loaded last, scoped to `#app #discover`): left-aligned like Songs, the heavy uppercase titles,
+typewriter labels and tags, square sticker placeholders, gold/brass completion bars, house `card` boxes,
+bordered secondary buttons; Roadshow gets the flight-case background. Only class names changed in
+`discover.js`. Checked: `SH_AUDIT=test/e2e/discover-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>`
+(made-up search results, artist, gaps, Wanted; writes discover-*.png). **Ask:** does Discover feel like the rest now?
 
 **Not done / open:**
 - Only on the highway. The Tab view and Now playing don't have the lane yet (the plan wanted it above the tab).

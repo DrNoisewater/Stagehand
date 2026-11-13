@@ -256,7 +256,17 @@ async function copyList(items) {
 }
 
 // ------------------------------------------------------------ CustomsForge --
+// 4.12: the song finder: CustomsForge in Stagehand's own window, which types the song into
+// the site's search box and puts what you download straight into your library (finder.js).
+const hasFinder = () => !!(api.discover && api.discover.finder);
+async function openFinder(item) {
+  const left = D.wanted.filter((w) => w.status === 'wanted').length;
+  const r = await api.discover.finder({ id: item.id, artist: item.artist, title: item.title, left: D.run ? runLeft().length : left }).catch(() => null);
+  return !!(r && (r.ok || r.open));
+}
+
 function explainCustomsForge() {
+  if (hasFinder()) return explainFinder();
   try {
     if (localStorage.getItem('stagehand.cfExplained')) return Promise.resolve(true);
   } catch (_) {}
@@ -291,8 +301,50 @@ function explainCustomsForge() {
   });
 }
 
+function explainFinder() {
+  try {
+    if (localStorage.getItem('stagehand.finderExplained')) return Promise.resolve(true);
+  } catch (_) {}
+  return new Promise((resolve) => {
+    let go = false;
+    const ok = btn('Open the song finder', { cls: 'primary', iconName: 'search' });
+    const cancel = btn('Cancel', { cls: 'ghost' });
+    const m = modal({
+      title: 'Finding songs on CustomsForge',
+      body: h(
+        'div.cf-explain',
+        null,
+        h('p', { text: 'Stagehand opens CustomsForge in its own window and types the song into the search box for you.' }),
+        h(
+          'ol.how-steps',
+          null,
+          h('li', null, h('b', { text: 'Sign in' }), h('span', { text: 'The first time, sign in to CustomsForge in that window. It remembers you.' })),
+          h('li', null, h('b', { text: 'Download' }), h('span', { text: 'Pick the song from the results and download the PC version.' })),
+          h('li', null, h('b', { text: 'Play' }), h('span', { text: 'It goes straight into your library and comes off Wanted. Next song searches for the next one.' }))
+        ),
+        h('p.fine', { text: 'Stagehand only searches when you ask and never downloads by itself: the clicks on the site stay yours.' })
+      ),
+      footer: [cancel, ok],
+      onClose: () => resolve(go),
+    });
+    ok.onclick = () => {
+      go = true;
+      store('stagehand.finderExplained', '1');
+      m.close();
+    };
+    cancel.onclick = () => m.close();
+  });
+}
+
 export async function findOnCF(item, { open: openSite = true } = {}) {
   const text = `${item.artist} ${item.title}`.trim();
+  if (hasFinder()) {
+    if (!(await explainFinder())) return;
+    if (await openFinder(item)) {
+      markSearched(item);
+      return;
+    }
+  }
   if (openSite && !(await explainCustomsForge())) return;
   await api.discover.customsforge({ text, open: openSite });
   if (openSite) D.cfOpened = true;
@@ -327,7 +379,7 @@ async function findNext() {
   const seen = searchedMap();
   // The least recently searched song comes up next.
   const next = left.slice().sort((a, b) => (seen[keyOf(a.artist, a.title)] || 0) - (seen[keyOf(b.artist, b.title)] || 0))[0];
-  await findOnCF(next, { open: !D.cfOpened });
+  await findOnCF(next, { open: hasFinder() || !D.cfOpened });
 }
 
 // ------------------------------------------------------------- get songs --
@@ -351,6 +403,10 @@ function notify(title, body) {
 }
 
 async function runCopy(item, { open: openSite = false } = {}) {
+  if (hasFinder() && (await openFinder(item))) {
+    markSearched(item);
+    return;
+  }
   const text = `${item.artist} ${item.title}`.trim();
   await api.discover.customsforge({ text, open: openSite });
   if (openSite) D.cfOpened = true;
@@ -371,7 +427,8 @@ export async function startRun() {
   await runCopy(left[0], { open: true });
   emit('discover-run');
   if (sub() === 'wanted') render();
-  toast({ title: 'Getting your songs', message: `“${left[0].artist} ${left[0].title}” is copied. In CustomsForge, click the search box, press Ctrl+V and download the PC version. Stagehand copies the next song when it arrives.`, kind: 'info', timeout: 10000 });
+  if (hasFinder()) toast({ title: 'Getting your songs', message: `The song finder is looking for “${left[0].artist} ${left[0].title}”. Download the PC version there; the next song comes up when it arrives.`, kind: 'info', timeout: 10000 });
+  else toast({ title: 'Getting your songs', message: `“${left[0].artist} ${left[0].title}” is copied. In CustomsForge, click the search box, press Ctrl+V and download the PC version. Stagehand copies the next song when it arrives.`, kind: 'info', timeout: 10000 });
 }
 
 export function stopRun() {
@@ -414,7 +471,7 @@ async function runAfterImport() {
   await runNext();
   if (D.run && D.run.current) {
     const c = D.run.current;
-    notify(`Got “${got.title}”`, `Next: ${c.artist} – ${c.title}. It’s copied: click CustomsForge’s search box and press Ctrl+V.`);
+    notify(`Got “${got.title}”`, hasFinder() ? `Next: ${c.artist} – ${c.title}. The song finder is looking for it.` : `Next: ${c.artist} – ${c.title}. It’s copied: click CustomsForge’s search box and press Ctrl+V.`);
   }
 }
 
@@ -430,10 +487,11 @@ function runBar() {
       'div.get-run-text',
       null,
       h('b', { text: c ? `Now: ${c.artist} – ${c.title}` : 'Getting songs' }),
-      h('span', { text: `Copied: click CustomsForge’s search box, press Ctrl+V, download the PC version. ${run.done} in so far, ${plural(left, 'song')} to go.` })
+      h('span', { text: `${hasFinder() ? 'In the song finder, download the PC version.' : 'Copied: click CustomsForge’s search box, press Ctrl+V, download the PC version.'} ${run.done} in so far, ${plural(left, 'song')} to go.` })
     ),
-    btn('Copy again', { cls: 'small ghost', iconName: 'copy', onClick: () => c && runCopy(c) }),
-    btn('Open CustomsForge', { cls: 'small ghost', iconName: 'external', onClick: () => c && runCopy(c, { open: true }) }),
+    ...(hasFinder()
+      ? [btn('Show the finder', { cls: 'small ghost', iconName: 'search', onClick: () => c && runCopy(c) })]
+      : [btn('Copy again', { cls: 'small ghost', iconName: 'copy', onClick: () => c && runCopy(c) }), btn('Open CustomsForge', { cls: 'small ghost', iconName: 'external', onClick: () => c && runCopy(c, { open: true }) })]),
     btn('Skip', { cls: 'small', title: 'Can’t find this one: go to the next', onClick: () => runNext({ skip: true }) }),
     btn('Stop', { cls: 'small ghost', onClick: () => stopRun() })
   );
@@ -982,8 +1040,8 @@ function renderWanted(page) {
   const left = D.wanted.filter((w) => w.status === 'wanted');
   const found = D.wanted.filter((w) => w.status === 'found');
   const tools = [
-    D.run ? null : btn('Get songs', { cls: 'primary', iconName: 'download', disabled: !left.length, onClick: () => startRun(), title: 'One after another: Stagehand copies each song for CustomsForge’s search and imports what you download' }),
-    btn('Find next', { cls: 'soft', iconName: 'external', disabled: !left.length, onClick: () => findNext(), title: 'Copies the next song and opens CustomsForge in your browser' }),
+    D.run ? null : btn('Get songs', { cls: 'primary', iconName: 'download', disabled: !left.length, onClick: () => startRun(), title: hasFinder() ? 'One after another: the song finder searches CustomsForge for each song and imports what you download' : 'One after another: Stagehand copies each song for CustomsForge’s search and imports what you download' }),
+    btn('Find next', { cls: 'soft', iconName: hasFinder() ? 'search' : 'external', disabled: !left.length, onClick: () => findNext(), title: hasFinder() ? 'Searches CustomsForge for the next song in the song finder' : 'Copies the next song and opens CustomsForge in your browser' }),
     btn('Copy list', { cls: 'soft', iconName: 'copy', disabled: !left.length, onClick: () => copyList(left) }),
   ].filter(Boolean);
   if (found.length) {
@@ -1038,7 +1096,7 @@ function renderWanted(page) {
       if (w.status === 'found') {
         if (w.songId && state.songs.has(w.songId)) acts.append(btn('Play', { cls: 'small ghost', iconName: 'play', onClick: () => actions.playSong(w.songId) }));
       } else {
-        acts.append(btn('Find', { cls: 'small', iconName: 'external', title: 'Copy and open CustomsForge', onClick: () => findOnCF(w, { open: !D.cfOpened }) }));
+        acts.append(btn('Find', { cls: 'small', iconName: hasFinder() ? 'search' : 'external', title: hasFinder() ? 'Search CustomsForge for it in the song finder' : 'Copy and open CustomsForge', onClick: () => findOnCF(w, { open: !D.cfOpened }) }));
         acts.append(
           iconBtn('more', 'More', (e) =>
             showMenu(e.clientX, e.clientY, [
@@ -1075,8 +1133,8 @@ function howItWorks() {
     'ol.how-steps.cols4',
     null,
     h('li', null, h('b', { text: 'Want it' }), h('span', { text: 'In Search or Collection gaps, press Want it on songs you don’t have. They collect here.' })),
-    h('li', null, h('b', { text: 'Find' }), h('span', { text: 'Stagehand copies the song and opens CustomsForge. Paste it into the search box.' })),
-    h('li', null, h('b', { text: 'Download' }), h('span', { text: 'Get the PC version (_p.psarc) in your browser.' })),
+    h('li', null, h('b', { text: 'Find' }), h('span', { text: hasFinder() ? 'Stagehand opens CustomsForge in its own window and searches for the song.' : 'Stagehand copies the song and opens CustomsForge. Paste it into the search box.' })),
+    h('li', null, h('b', { text: 'Download' }), h('span', { text: hasFinder() ? 'Get the PC version (_p.psarc) in that window.' : 'Get the PC version (_p.psarc) in your browser.' })),
     h('li', null, h('b', { text: 'Play' }), h('span', { text: 'Stagehand moves it into Rocksmith and ticks it off here.' }))
   );
   box.append(steps);
@@ -1472,6 +1530,14 @@ api.on('import:done', async ({ entries, gameRunning }) => {
   }
 });
 api.on('rocksmith:changed', () => loadRocksmith());
+// the song finder's own buttons: Next song, and Stop
+api.on('finder:event', (e) => {
+  if (!e) return;
+  if (e.type === 'skip') {
+    if (D.run) runNext({ skip: true }).catch(() => {});
+    else findNext().catch(() => {});
+  } else if (e.type === 'stop') stopRun();
+});
 
 // ------------------------------------------------------------ drag & drop --
 const overlay = h('div.drop-overlay', { hidden: true }, h('div.box', null, h('div.ic', { html: icon('download') }), h('b', { text: 'Drop to import into Rocksmith' }), h('span', { text: '.psarc song files or ZIPs of them' })));

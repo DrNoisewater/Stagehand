@@ -1,5 +1,6 @@
 /**
  * 4.12: the song finder in the real app (Electron), on a pretend song site:
+ *  - Discover's Find opens it (after a short explanation the first time);
  *  - Find types the wanted song into the site's search box and searches;
  *  - a download (.psarc, and a ZIP) goes straight into the library and the bar says so;
  *  - links to other sites don't open in the window; a .rar goes to Downloads with a note.
@@ -57,8 +58,15 @@ const site = http.createServer((req, res) => {
     await window.stagehand.library.addFolder(dir);
     await window.stagehand.imports.configure({ target: dir });
   }, songsDir);
-  const r = await page.evaluate(() => window.stagehand.discover.finder({ id: 'w1', artist: 'Integration', title: 'The Test', left: 3 }));
-  check(r && r.ok, `the finder opens (${JSON.stringify(r)})`);
+  // Discover's Find opens the finder (the first time explains it: say yes)
+  await page.evaluate(() => { const m = import('./js/discover.js').then((d) => d.findOnCF({ id: 'w1', artist: 'Integration', title: 'The Test' })); window.__findDone = m; });
+  const dlg = page.locator('.modal[aria-label="Finding songs on CustomsForge"]');
+  await dlg.locator('button.primary').waitFor({ timeout: 10000 });
+  check(/song finder/i.test(await dlg.textContent()), 'the first Find explains the song finder');
+  await dlg.locator('button.primary').click();
+  await page.evaluate(() => window.__findDone);
+  const r = { ok: await app.evaluate(({ BaseWindow }) => BaseWindow.getAllWindows().some((w) => w.getTitle().startsWith('Find songs'))) };
+  check(r.ok, 'Discover’s Find opens the song finder');
   // the site's page and the bar, from the main process
   const contents = () => app.evaluate(({ webContents }) => webContents.getAllWebContents().map((w) => ({ id: w.id, url: w.getURL() })));
   const run = (match, js) => app.evaluate(async ({ webContents }, [match, js]) => {

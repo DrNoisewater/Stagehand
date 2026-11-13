@@ -50,7 +50,7 @@ TCHECK=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
 # the real app in Electron: crash the window mid-recording; it must reload with a note and save the clip
 # (electron 44 installed outside the project, e.g. npm install electron@44 in a scratch folder)
 ELECTRON=<electron> xvfb-run -a node test/e2e/crash-electron.js <outDir>
-# the song finder in the real app on a pretend song site: Find searches, downloads land in the library
+# the song finder in the real app on a pretend song site: Discover's Find opens it, Find searches, downloads land in the library
 ELECTRON=<electron> xvfb-run -a node test/e2e/finder-electron.js <outDir>
 # Tones in the real app: one tone used for guitar and bass (each row picks itself), an empty key
 ELECTRON=<electron> xvfb-run -a node test/e2e/tones-electron.js <outDir>
@@ -58,6 +58,8 @@ ELECTRON=<electron> xvfb-run -a node test/e2e/tones-electron.js <outDir>
 SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
 # Sing along's settings in the full page (the microphone picker, the look) and the Karaoke page
 SH_AUDIT=test/e2e/sing-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# Discover's look on made-up results, artist, gaps and Wanted; writes discover-*.png
+SH_AUDIT=test/e2e/discover-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # stem splitting: a song in line names the one split first; a split moving along rebuilds nothing
 SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # a moving background must rebuild itself after the graphics card drops it
