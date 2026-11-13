@@ -28,5 +28,6 @@ module.exports = async ({ page, outDir, check }) => {
   await pick('8-Band Graphic EQ', 'eq');
   await pick('GB-412 MKIII', 'cab');
   await pick('AT-120', 'amp');
+  await pick('US Wah', 'wah');
   check(!errs.length, `no errors on the page (${errs.join('; ')})`);
 };
