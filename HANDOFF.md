@@ -94,6 +94,24 @@ solid so they look the same. **Ask:** is it gone? If not: which menus, and what 
 the highway, the menu itself)? Next suspect: Windows moving the full-screen picture on and off its fast path
 when anything covers it (would need a Chromium switch in main.js, only worth trying on their PC).
 
+**Stem splitting: progress, flicker, the slow end (asked: "the stem splitting sometimes doesn't show you the
+progress if you start splitting another song", "get rid of the flickering, and lag when it's wrapping up").**
+- A song waiting in line used to say only "Waiting" everywhere, so a split of another song looked stuck. Now
+  every waiting message says which song goes first and how far it has got ("Splitting “Hysteria” first · 43%.
+  This one is next."): the song panel on the right (button "In line" and a line under it), Now playing's mix
+  tab, the song's page, the highway's waiting card (`splitFirst()` in store.js).
+- A song you ask to split now goes before songs split ahead on a hunch (picked in the list): it used to wait
+  behind up to three of them (`_askedEnd()` in stems.js; checked in `test/stems-queue.test.js`).
+- Flicker: the whole left menu was rebuilt each time a split started, finished, or a picked song joined the
+  line; the song panel too; Now playing's mix tab on every progress tick of any song. Now the menu only
+  rebuilds when its Stems ready count changes, the panel only changes its button and line, the mix tab only
+  its words and bar (and rebuilds only for the open song), list rows only cells that changed.
+  Checked: `SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>`.
+- The slow end: the last step (back to the song's sample rate and writing the files) ran on every core even
+  after the graphics card did the splitting. Now it runs on the card when the card split it, and on half the
+  cores at most (`engine/stagehand_stems.py`, "Writing stems"). Not run here (no PyTorch in this container).
+  **Ask:** is the end of a split smoother now, and does the app still flicker while splitting?
+
 **Not done / open:**
 - Only on the highway. The Tab view and Now playing don't have the lane yet (the plan wanted it above the tab).
 - The voice through Stagehand (hearing yourself with reverb, the voice in recorded clips): needs the sound engine

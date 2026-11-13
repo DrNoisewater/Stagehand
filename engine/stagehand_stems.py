@@ -441,16 +441,27 @@ def separate(args, stop=None, keep=False):
     emit("status", message="Writing stems")
     os.makedirs(args.outdir, exist_ok=True)
     names = list(model.sources)
-    for i, name in enumerate(names):
-        s = sources[i].float().cpu()
-        if sr != msr:
-            s = julius.resample_frac(s, msr, sr)
-        s = s.numpy()
-        if s.shape[1] >= frames:
-            s = s[:, :frames]
-        else:
-            s = np.pad(s, ((0, 0), (0, frames - s.shape[1])))
-        write_wav16(os.path.join(args.outdir, name + ".wav"), s, sr)
+    # 4.12: the last step goes easy on the computer (it used every core, and the app
+    # stuttered as a split wrapped up): back to the song's rate on the graphics card
+    # when it did the splitting, and on half the cores at most
+    torch.set_num_threads(max(1, min(threads, (_BASE_THREADS or threads) // 2)))
+    try:
+        for i, name in enumerate(names):
+            s = sources[i]
+            if sr != msr:
+                try:
+                    s = julius.resample_frac(s, msr, sr)
+                except Exception:  # noqa: BLE001  (the card is out of memory: on the CPU)
+                    s = julius.resample_frac(s.float().cpu(), msr, sr)
+            s = s.float().cpu().numpy()
+            if s.shape[1] >= frames:
+                s = s[:, :frames]
+            else:
+                s = np.pad(s, ((0, 0), (0, frames - s.shape[1])))
+            write_wav16(os.path.join(args.outdir, name + ".wav"), s, sr)
+            check_stop()
+    finally:
+        torch.set_num_threads(threads)
 
     emit("progress", value=1.0)
     emit("done", stems=names, sampleRate=sr, frames=int(frames), seconds=round(time.time() - t0, 1), device=device)

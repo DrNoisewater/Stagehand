@@ -19,6 +19,7 @@ export const guitarCardHost = h('div.guitar-card-host');
 side.append(root, guitarCardHost);
 // A section you're already in folds its sub-menu on a second click (and opens on the next).
 let folded = null;
+let stemsShown = -1; // the Stems ready count last shown
 const fold = (page) => {
   folded = folded === page ? null : page;
   render();
@@ -130,6 +131,7 @@ function renameSetlist(id) {
 }
 
 export function render() {
+  stemsShown = stemsReadyCount();
   const songs = [...state.songs.values()];
   const count = (f) => songs.filter(f).length;
   const recentCut = Date.now() - 1000 * 60 * 60 * 24 * 30;
@@ -430,6 +432,16 @@ on('discover-wanted', render);
 on('discover-imports', render);
 on('discover-gaps', render);
 on('rocksmith', render);
-on('stems', render);
+// 4.12: only when the Stems ready count changes (the whole menu was rebuilt each time
+// a split started, finished or a song joined the line, which flickered)
+function stemsReadyCount() {
+  let n = 0;
+  for (const s of state.songs.values()) if (s.hasStems || (state.stems.get(s.id) || {}).state === 'ready') n++;
+  return n;
+}
+on('stems', () => {
+  const n = stemsReadyCount();
+  if (n !== stemsShown) render();
+});
 emit('sidebar-ready');
 on('best', render);

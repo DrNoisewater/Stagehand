@@ -1,7 +1,7 @@
 /** Right pane: song details, metadata editor (single and batch). */
 import { artImg, harvest } from './artkeep.js';
 import { api } from './api.js';
-import { state, on, emit, selectedSongs, upsertSongs, setView } from './store.js';
+import { state, on, emit, selectedSongs, upsertSongs, setView, splitFirst } from './store.js';
 import { h, icon, esc, fmtDuration, fmtBytes, fmtDate, toast } from './ui.js';
 import * as actions from './actions.js';
 import { setPage } from './store.js';
@@ -118,23 +118,16 @@ function renderOne(s) {
   root.append(h('div.insp-play', null, along, listen));
 
   const fav = !!(s.user && s.user.fav);
-  const st = state.stems.get(s.id);
-  const stemsReady = s.hasStems || (st && st.state === 'ready');
-  const busy = st && (st.state === 'running' || st.state === 'queued');
   const row = h('div.insp-actions');
   const edit = h('button.btn', { type: 'button', html: `${icon('edit')}<span>Edit details</span>`, title: 'Edit details (F2)' });
   edit.onclick = () => beginEdit();
   const favBtn = h('button.btn', { type: 'button', title: fav ? 'Remove from favorites' : 'Add to favorites', 'aria-pressed': String(fav), html: icon('heart') });
   if (fav) favBtn.style.color = 'var(--tungsten)';
   favBtn.onclick = () => actions.toggleFav([s.id]);
-  const stemBtn = h('button.btn', {
-    type: 'button',
-    'data-stem-btn': s.id,
-    disabled: busy || stemsReady ? true : null,
-    html: busy ? `<span class="spin"></span><span>${st.state === 'queued' ? 'Waiting' : `${Math.round((st.progress || 0) * 100)}%`}</span>` : stemsReady ? `${icon('check')}<span>Stems ready</span>` : `${icon('split')}<span>Split stems</span>`,
-    title: stemsReady ? 'Stems are ready for this song' : 'Split this song into instrument stems',
-  });
+  const stemBtn = h('button.btn', { type: 'button', 'data-stem-btn': s.id });
   stemBtn.onclick = () => actions.requestStems([s.id]);
+  const stemNote = h('div.insp-stem-note', { 'data-stem-note': '' });
+  fillStem(stemBtn, stemNote, s);
   const more = h('button.btn', { type: 'button', title: 'More', html: icon('more') });
   more.onclick = (e) => {
     const r = more.getBoundingClientRect();
@@ -142,7 +135,7 @@ function renderOne(s) {
     e.stopPropagation();
   };
   row.append(edit, stemBtn);
-  root.append(row);
+  root.append(row, stemNote);
 
   // Rating
   const stars = h('span.stars', { role: 'radiogroup', 'aria-label': 'Rating' });
@@ -440,6 +433,33 @@ function endEdit() {
   render();
 }
 
+/**
+ * The Split stems button and the line under it. 4.12: updated in place as a split goes
+ * (the whole panel used to be rebuilt, which flickered), and a song waiting in line says
+ * which song is being split first and how far along it is.
+ */
+function fillStem(btn, note, s) {
+  const st = state.stems.get(s.id);
+  const ready = s.hasStems || (st && st.state === 'ready');
+  const busy = st && (st.state === 'running' || st.state === 'queued');
+  const html = busy ? `<span class="spin"></span><span>${st.state === 'queued' ? 'In line' : `${Math.round((st.progress || 0) * 100)}%`}</span>` : ready ? `${icon('check')}<span>Stems ready</span>` : `${icon('split')}<span>Split stems</span>`;
+  if (btn.innerHTML !== html) btn.innerHTML = html;
+  btn.disabled = !!(busy || ready);
+  btn.title = ready ? 'Stems are ready for this song' : busy ? 'Splitting this song into instrument stems' : 'Split this song into instrument stems';
+  const text = st && st.state === 'queued' ? `${splitFirst()}. This one is next in line.` : '';
+  if (note.textContent !== text) note.textContent = text;
+  note.hidden = !text;
+}
+
+/** A split moved on: only the button and its line change (nothing else in the panel shows splits). */
+function stemNews() {
+  if (state.editing) return;
+  const b = root.querySelector('[data-stem-btn]');
+  const note = root.querySelector('[data-stem-note]');
+  const s = b && state.songs.get(b.dataset.stemBtn);
+  if (s && note) fillStem(b, note, s);
+}
+
 export function render() {
   if (state.editing) return;
   const songs = selectedSongs();
@@ -453,14 +473,9 @@ on('selection', () => {
   render();
 });
 on('library', render);
-on('stems', render);
+on('stems', stemNews);
 on('rocksmith', render);
-on('stems-progress', () => {
-  const b = root.querySelector('[data-stem-btn]');
-  if (!b || state.editing) return;
-  const st = state.stems.get(b.dataset.stemBtn);
-  if (st && st.state === 'running') b.innerHTML = `<span class="spin"></span><span>${Math.round((st.progress || 0) * 100)}%</span>`;
-});
+on('stems-progress', stemNews);
 emit('inspector-ready');
 void upsertSongs;
 on('best', render);

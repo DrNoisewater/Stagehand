@@ -239,8 +239,8 @@ async function boot() {
       s.hasStems = false;
       bump();
     }
-    if (!prev || prev.state !== u.state) emit('stems');
-    else emit('stems-progress');
+    if (!prev || prev.state !== u.state) emit('stems', u);
+    else emit('stems-progress', u);
     emit('stems-update', u);
     tickStems();
   });

@@ -31,7 +31,7 @@ import { createTuner } from './tuner.js';
 import { breakdown, cheer } from './scorecard.js';
 import { cameo } from './cameo.js';
 import { StruggleWatch, nearestPick } from './struggle.js';
-import { state, on } from './store.js';
+import { state, on, splitFirst } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
 import { trainingChart, trainingTimes, trainingAudio, TRAINING_SONG } from './training-song.js';
 import { createRepeat } from './repeat.js';
@@ -1222,15 +1222,19 @@ export function createHighway(stage) {
       const left = stemsLeft(st);
       const what = (st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : pct ? `Splitting the stems · ${pct}%` : stage.stemsStep ? stage.stemsStep(st) : 'Splitting the stems…') + (left ? ` · ${left}` : '');
       key = `wait:${info.song.id}:${st.state}`;
-      if (statusBox.dataset.key === key && st.state === 'running') {
+      // 4.12: waiting in line says which song is split first, and how far it has got
+      const sub = st.state === 'queued' ? `${esc(splitFirst())}. ${title} is next.` : `${title} starts by itself as soon as its stems are ready.`;
+      if (statusBox.dataset.key === key && (st.state === 'running' || st.state === 'queued')) {
         const b = statusBox.querySelector('b');
         if (b) b.textContent = what;
+        const sp = statusBox.querySelector('.hw-st-box > span');
+        if (sp && sp.innerHTML !== sub) sp.innerHTML = sub;
         const bar = statusBox.querySelector('.hw-st-bar > i');
         if (bar) bar.style.width = `${Math.max(2, pct)}%`;
         statusBox.hidden = false;
         return;
       }
-      html = `<div class="hw-st-box"><b>${what}</b><span>${title} starts by itself as soon as its stems are ready.</span><div class="hw-st-bar"><i style="width:${Math.max(2, pct)}%"></i></div><div class="hw-st-acts"><button type="button" class="btn small" data-act="now">Play now with the full mix</button></div></div>`;
+      html = `<div class="hw-st-box"><b>${what}</b><span>${sub}</span><div class="hw-st-bar"><i style="width:${Math.max(2, pct)}%"></i></div><div class="hw-st-acts"><button type="button" class="btn small" data-act="now">Play now with the full mix</button></div></div>`;
     }
     if (!html) {
       statusBox.hidden = true;

@@ -192,6 +192,10 @@ async function until(fn, ms = 5000) {
   assert.strictEqual(engines.filter((c) => c.killed).length, killedBefore + 1, 'picking songs never stopped a split (only opening M did)');
   svc.request(['c']); // asked for: no longer a pick that can drop out
   assert.strictEqual(svc.queue.find((j) => j.songId === 'c').ahead, false);
+  {
+    const order = svc.queue.map((j) => j.songId);
+    assert.ok(order.indexOf('c') < order.indexOf('j') && order.indexOf('c') < order.indexOf('l'), `a song you ask for goes before the picks (${order})`);
+  }
   jobMs = 100;
   await until(() => ['m', 'j', 'l', 'c', 'i'].every((id) => ready.has(id)), 8000);
   assert.ok(ready.get('m') < ready.get('j'), 'the opened song was split first');

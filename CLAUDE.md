@@ -56,6 +56,8 @@ ELECTRON=<electron> xvfb-run -a node test/e2e/tones-electron.js <outDir>
 SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
 # Sing along's settings in the full page (the microphone picker, the look) and the Karaoke page
 SH_AUDIT=test/e2e/sing-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# stem splitting: a song in line names the one split first; a split moving along rebuilds nothing
+SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # a moving background must rebuild itself after the graphics card drops it
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```

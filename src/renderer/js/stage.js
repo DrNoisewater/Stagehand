@@ -2,7 +2,7 @@
 import { cameo } from './cameo.js';
 import { did } from './rewards.js';
 import { api } from './api.js';
-import { state, on, emit, upsertSongs, setPage } from './store.js';
+import { state, on, emit, upsertSongs, setPage, splitFirst } from './store.js';
 import { h, icon, esc, toast, stemsLeft } from './ui.js';
 import { AudioEngine, loadTrackData, STEM_ORDER } from './audio-engine.js';
 import { WaveLane, drawBeam, drawRuler, drawSpectrum, fmtTime, overview, drawBars } from './wave.js';
@@ -1097,9 +1097,12 @@ function renderStemsCall() {
   const heading = st.state === 'queued' ? 'Waiting to split this song' : `Splitting instruments${where ? ` ${where}` : ''}, ${pct}%`;
   // Progress ticks only update text, so buttons stay clickable while it runs.
   const key = [st.state, st.device, st.note, a0 && a0.action, state.engine && state.engine.installed].join('|');
+  const sub = st.state === 'queued' ? `${splitFirst()}. This one is next.` : st.note || 'You can keep listening to the full mix meanwhile.';
   if (busy && stemsCall.dataset.key === key && stemsCall.querySelector('h3')) {
     stemsCall.querySelector('h3').textContent = heading;
     stemsCall.querySelector('.progress').style.setProperty('--p', `${pct}%`);
+    const p = stemsCall.querySelector('p');
+    if (p && p.textContent !== sub) p.textContent = sub;
     return;
   }
   stemsCall.dataset.key = busy ? key : '';
@@ -1109,7 +1112,7 @@ function renderStemsCall() {
     box.append(
       h('h3', { text: heading }),
       h('div.progress', { style: { '--p': `${pct}%` } }, h('i')),
-      h('p', { text: st.state === 'queued' ? 'Another song is being separated first.' : st.note || 'You can keep listening to the full mix meanwhile.' })
+      h('p', { text: sub })
     );
     const row = h('div', { style: { display: 'flex', gap: '8px', justifyContent: 'center' } });
     const a = state.engine && state.engine.advice;
@@ -1268,7 +1271,7 @@ function renderWaiting(st) {
   const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
   const title = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : pct ? `Splitting the stems · ${pct}%` : stemsStep(st);
   const left = stemsLeft(st);
-  const note = st.state === 'queued' ? 'Another song is being split first. This one is next.' : st.state === 'ready' ? 'Almost there.' : 'Guitar, bass, drums and the rest, so you can mix them. The song starts by itself as soon as its stems are ready.';
+  const note = st.state === 'queued' ? `${splitFirst()}. This one is next.` : st.state === 'ready' ? 'Almost there.' : 'Guitar, bass, drums and the rest, so you can mix them. The song starts by itself as soon as its stems are ready.';
   if (!waitBox.firstChild) {
     waitBox.innerHTML = `<div class="read-bar"><div class="rb-top"><span class="eq"><i></i><i></i><i></i><i></i></span><span class="rb-label"></span><span class="rb-count"></span></div><div class="rb-track"><i></i></div><div class="rb-note"></div><div class="sw-row"><span class="sw-song"></span></div></div>`;
     const now = h('button.btn.small', { type: 'button', html: `${icon('play')}<span>Play now with the full mix</span>` });
@@ -1410,6 +1413,12 @@ on('stems-update', (u) => {
   if (u.state === 'ready' && !S.stems.length && !S.loadingStems && S.phase === 'ready') loadStems(S.token);
   else renderStemsCall();
   emit('stage-phase');
+});
+// 4.12: a song waiting in line says how far the split before it has got
+on('stems-progress', (u) => {
+  if (!S.song || !u || u.songId === S.song.id || !S.status || S.status.state !== 'queued') return;
+  if (S.waitPlay) renderWaiting(S.waitStatus || S.status);
+  else renderStemsCall();
 });
 // 4.4: the time left counts down between updates
 on('stems-tick', () => {
