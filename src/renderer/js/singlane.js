@@ -15,10 +15,16 @@ import { mic } from './mic.js';
 import { buildSing, SingJudge, SING_LEVELS, SLACK, pitchedShare, withPitches, nearOctave, foldCents } from './sing.js';
 
 const KEY = 'stagehand.sing';
+// the stage's own colours (as the highway's top bar and cards): warm cream ink, stage gold,
+// and the vocals colour for what you sang right
 const CYAN = '#33c8e0';
 const CYAN_SOFT = '#9be9f5';
-const GOLD = '#ffcf3a';
+const GOLD = '#f1ce68';
+const INK = '#f5edda';
+const INK_3 = '#a99e8c';
+const TUNGSTEN = '#ffb547';
 const FONT = "'Archivo', 'Segoe UI', sans-serif";
+const MONO = "'Typewriter Stagehand', 'Liberation Mono', 'Courier New', monospace";
 /** How long the microphone's sound takes to reach the page, roughly (seconds). */
 const MIC_DELAY = 0.06;
 /** Seconds of song the lane shows ahead of now. */
@@ -45,6 +51,11 @@ function setPref(k, v) {
   try {
     localStorage.setItem(KEY, JSON.stringify(p));
   } catch (_) {}
+}
+/** How strict the scoring is: easy | medium | hard (shared by Sing along and Karaoke). */
+export const singLevel = () => (SING_LEVELS[prefs().level] ? prefs().level : 'medium');
+export function setSingLevel(v) {
+  if (SING_LEVELS[v]) setPref('level', v);
 }
 export const singLook = () => (prefs().look === 'words' ? 'words' : 'bars');
 export function setSingLook(v) {
@@ -98,16 +109,20 @@ async function notesFromStem(song, syl, engine) {
 }
 
 // ------------------------------------------------------------ the lane --
-export function createSing({ root, stage, onKaraoke }) {
+export function createSing({ root, stage, onKaraoke, onLeave }) {
   const chip = h('button.hw-chip.hw-sing-chip', { type: 'button', hidden: true });
   const lane = h('div.hw-sing', { hidden: true, 'aria-hidden': 'true' });
   const cv = h('canvas');
-  const meter = h('div.sw-meter', null, h('i'));
+  // the voice dot rides on a little LED meter (green, amber, red as you get louder)
+  const meterBar = h('div.sw-meter');
+  const meter = h('div.sw-meter-wrap', null, meterBar, h('i'));
   const nowRow = h('div.sw-now');
   const nextRow = h('div.sw-next');
   const wordsBox = h('div.sw-words', null, meter, h('div.sw-lines', null, nowRow, nextRow));
   const badge = h('div.sw-badge');
-  lane.append(cv, wordsBox, badge);
+  // a strip of tape on the case saying what this lane is, as on the rest of the stage
+  const tape = h('div.sw-tape', { text: 'Vocals' });
+  lane.append(tape, cv, wordsBox, badge);
   root.append(lane);
   const g = cv.getContext('2d');
 
@@ -139,7 +154,7 @@ export function createSing({ root, stage, onKaraoke }) {
   function paintChip() {
     chip.hidden = !S.base.syl.length;
     chip.setAttribute('aria-pressed', String(S.on));
-    chip.title = S.on ? (S.karaoke ? 'Karaoke is on: level, microphone, look' : 'Singing is on: level, microphone, look') : 'Sing along or karaoke: score your singing with a microphone';
+    chip.title = S.on ? (S.karaoke ? 'Karaoke: level, microphone, look' : 'Singing is on: level, microphone, look') : 'Sing along: score your singing beside your guitar part, with a microphone';
     chip.innerHTML = `${icon('mic')}<span>${S.on ? `${S.karaoke ? 'Karaoke' : 'Sing'} · ${SING_LEVELS[prefs().level].name}` : 'Sing'}</span>${S.on ? icon('chevron') : ''}`;
   }
 
@@ -196,6 +211,7 @@ export function createSing({ root, stage, onKaraoke }) {
     on = !!on && S.on && S.open;
     if (on) lane.dataset.k = '1';
     else delete lane.dataset.k;
+    tape.textContent = on ? 'Karaoke' : 'Vocals';
     S.rng = null;
     S.trail = [];
     const v = vocalsTrack();
@@ -256,21 +272,40 @@ export function createSing({ root, stage, onKaraoke }) {
     stageKaraoke(false);
   }
 
-  /** Switch singing on or off for this song; `karaoke` picks which kind (left as it was when not given). */
-  function turn(on, karaoke) {
+  /** Switch singing (beside the guitar part) on or off for this song. It is remembered for the song. */
+  function turn(on) {
     if (!S.song) return;
-    const was = S.on;
-    S.on = !!on && S.base.syl.length > 0;
-    if (S.on && karaoke !== undefined) S.karaoke = !!karaoke;
+    const want = !!on && S.base.syl.length > 0;
     const map = { ...prefs().on };
-    if (S.on) map[S.song.id] = S.karaoke ? 2 : 1; // 2 = karaoke
+    if (want) map[S.song.id] = 1;
     else delete map[S.song.id];
     setPref('on', map);
+    apply(want || S.karaoke);
+    api.app.activity && want && api.app.activity(`Singing ${S.song.title}`).catch(() => {});
+  }
+
+  /** Singing starts or stops (either kind). */
+  function apply(on) {
+    const was = S.on;
+    S.on = on;
     paintChip();
-    if (S.on && !was) begin();
-    else if (S.on) stageKaraoke(S.karaoke); // already singing: only the kind changed
-    else end();
-    api.app.activity && S.on && !was && api.app.activity(`${S.karaoke ? 'Karaoke:' : 'Singing'} ${S.song.title}`).catch(() => {});
+    if (on && !was) begin();
+    else if (on) stageKaraoke(S.karaoke);
+    else if (was) end();
+  }
+
+  /**
+   * Karaoke for this visit to the song (asked for from the Karaoke page; not
+   * remembered, so the highway's own Sing button is always the kind beside
+   * the guitar part). Says whether the song has words to sing.
+   */
+  function setKaraoke(on) {
+    on = !!on && !!S.song && S.base.syl.length > 0;
+    if (S.karaoke === on) return on;
+    S.karaoke = on;
+    apply(on || !!(S.song && prefs().on[S.song.id]));
+    api.app.activity && on && api.app.activity(`Karaoke: ${S.song.title}`).catch(() => {});
+    return on;
   }
 
   /** Writes the run so far to your stats (as the part "vocals") and starts a fresh one. */
@@ -292,15 +327,8 @@ export function createSing({ root, stage, onKaraoke }) {
   }
 
   chip.onclick = async () => {
+    if (!S.on) return turn(true);
     const r = chip.getBoundingClientRect();
-    if (!S.on) {
-      // two ways to sing: beside your guitar part, or with the stage to yourself
-      showMenu(r.left, r.bottom + 6, [
-        { label: 'Sing along', hint: 'with your guitar part', icon: 'mic', onClick: () => turn(true, false) },
-        { label: 'Karaoke', hint: 'just the words', icon: 'mic', onClick: () => turn(true, true) },
-      ]);
-      return;
-    }
     const p = prefs();
     const check = (v) => (v ? '✓' : '');
     const list = await mic.devices().catch(() => []);
@@ -318,7 +346,6 @@ export function createSing({ root, stage, onKaraoke }) {
         },
       })),
       '-',
-      { label: 'Karaoke: just the words', hint: check(S.karaoke), onClick: () => turn(true, !S.karaoke) },
       v ? { label: 'Take the singer out of the song', hint: check(v.muted), onClick: () => stage.setStem('vocals', { muted: !v.muted }) } : null,
       {
         label: 'Microphone',
@@ -328,7 +355,7 @@ export function createSing({ root, stage, onKaraoke }) {
       },
       { label: 'Look', submenu: SING_LOOKS.map(([id, name]) => ({ label: name, hint: check(singLook() === id), onClick: () => setSingLook(id) })) },
       '-',
-      { label: 'Stop singing', icon: 'x', onClick: () => turn(false) },
+      S.karaoke ? { label: 'Leave karaoke', icon: 'x', onClick: () => onLeave && onLeave() } : { label: 'Stop singing', icon: 'x', onClick: () => turn(false) },
     ]);
   };
   window.addEventListener('sing-look', () => {
@@ -380,13 +407,8 @@ export function createSing({ root, stage, onKaraoke }) {
     const Z = lay();
     const j = S.judge;
     const syl = S.cur.syl;
-    g.clearRect(0, 0, W, Hh);
-    roundRect(0.5, 0.5, W - 1, Hh - 1, 12);
-    g.fillStyle = 'rgba(6, 9, 16, 0.56)';
-    g.fill();
-    g.strokeStyle = 'rgba(155, 233, 245, 0.14)';
-    g.lineWidth = 1;
-    g.stroke();
+    g.clearRect(0, 0, W, Hh); // the road case behind is the lane's own (CSS)
+    if ('fontStretch' in g) g.fontStretch = 'condensed';
 
     const nowX = Math.round(W * 0.2); // the lane runs across the top; you sing at the line near its left end
     const pps = (W - nowX - 8) / AHEAD;
@@ -424,7 +446,7 @@ export function createSing({ root, stage, onKaraoke }) {
     const midY = (top + bot) / 2;
     const fade = (x) => (x < nowX ? Math.max(0, Math.min(1, x / (nowX * 0.35))) : 1);
     // faint lines, one for each note, so how high or low a bar sits can be read
-    g.fillStyle = 'rgba(155, 233, 245, 0.07)';
+    g.fillStyle = 'rgba(245, 237, 218, 0.06)';
     for (let p = Math.ceil(S.rng.lo); p <= Math.floor(S.rng.hi); p++) g.fillRect(14, Math.round(Y(p)), W - 28, 1);
 
     // bars
@@ -443,16 +465,16 @@ export function createSing({ root, stage, onKaraoke }) {
       if (res === 'hit') {
         g.fillStyle = gold ? GOLD : CYAN;
         g.shadowColor = gold ? GOLD : CYAN;
-        g.shadowBlur = 10;
+        g.shadowBlur = 12;
         g.fill();
         g.shadowBlur = 0;
       } else if (res === 'miss') {
-        g.fillStyle = 'rgba(255, 255, 255, 0.13)';
+        g.fillStyle = 'rgba(245, 237, 218, 0.08)';
         g.fill();
       } else {
-        g.fillStyle = 'rgba(155, 233, 245, 0.2)';
+        g.fillStyle = 'rgba(245, 237, 218, 0.13)';
         g.fill();
-        g.strokeStyle = 'rgba(155, 233, 245, 0.6)';
+        g.strokeStyle = 'rgba(245, 237, 218, 0.62)';
         g.lineWidth = 1;
         if (s.p === null) g.setLineDash([3, 3]);
         g.stroke();
@@ -471,7 +493,7 @@ export function createSing({ root, stage, onKaraoke }) {
     g.globalAlpha = 1;
 
     // words
-    g.font = `600 ${Z.font}px ${FONT}`;
+    g.font = `800 ${Z.font + 2}px ${FONT}`;
     g.textBaseline = 'alphabetic';
     let right = -Infinity;
     let prevJoined = false;
@@ -483,15 +505,18 @@ export function createSing({ root, stage, onKaraoke }) {
       const isNow = t >= s.t && t < s.t + s.d + 0.1;
       const lineShare = j ? j.lineResult[s.line] : null;
       g.globalAlpha = fade(x) * (x > W - 60 ? Math.max(0, (W - x) / 60) : 1);
-      g.shadowColor = 'rgba(0, 0, 0, 0.9)';
-      g.shadowBlur = 5;
-      g.fillStyle = res === 'hit' ? (lineShare === 1 ? GOLD : CYAN_SOFT) : res === 'miss' ? 'rgba(200, 208, 225, 0.4)' : isNow ? '#ffffff' : s.t < t ? 'rgba(200, 208, 225, 0.6)' : 'rgba(244, 246, 251, 0.92)';
-      if (isNow && !res) {
-        g.shadowColor = CYAN;
-        g.shadowBlur = 12;
-      }
       const word = s.joined ? `${s.text}-` : s.text;
+      // a hard black shadow, like the song title and the score (a second copy: cheap to draw)
+      g.fillStyle = '#000';
+      g.fillText(word, x + 2, Z.wordY + 2);
+      g.fillStyle = res === 'hit' ? (lineShare === 1 ? GOLD : CYAN_SOFT) : res === 'miss' ? 'rgba(169, 158, 140, 0.55)' : isNow ? '#ffffff' : s.t < t ? INK_3 : INK;
+      if (isNow && !res) {
+        // the word to sing now sits in a warm spotlight
+        g.shadowColor = TUNGSTEN;
+        g.shadowBlur = 14;
+      }
       g.fillText(word, x, Z.wordY);
+      g.shadowBlur = 0;
       right = x + g.measureText(word).width;
       prevJoined = s.joined;
       if (right < X(syl[i + 1] ? syl[i + 1].t : Infinity) - 30) right = -Infinity; // a pause: the next word sits at its own time
@@ -500,8 +525,17 @@ export function createSing({ root, stage, onKaraoke }) {
     g.globalAlpha = 1;
 
     // now
-    g.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    // now: a beam of stage light with a gold line down its middle
+    const beam = g.createLinearGradient(nowX - 26, 0, nowX + 26, 0);
+    beam.addColorStop(0, 'rgba(241, 206, 104, 0)');
+    beam.addColorStop(0.5, 'rgba(241, 206, 104, 0.14)');
+    beam.addColorStop(1, 'rgba(241, 206, 104, 0)');
+    g.fillStyle = beam;
+    g.fillRect(nowX - 26, 6, 52, Z.nowH + 4);
+    g.fillStyle = GOLD;
+    g.globalAlpha = 0.8;
     g.fillRect(nowX - 1, 8, 2, Z.nowH);
+    g.globalAlpha = 1;
 
     // your voice: a dot on the now line, with a short tail
     const target = sylAt(t - MIC_DELAY);
@@ -521,7 +555,7 @@ export function createSing({ root, stage, onKaraoke }) {
       const y = Math.max(top - 4, Math.min(bot + 4, Y(aim.p)));
       const r = Z.dot * 1.2;
       g.globalAlpha = aim.t > t ? 0.5 : 1;
-      g.fillStyle = CYAN_SOFT;
+      g.fillStyle = GOLD;
       g.beginPath();
       g.moveTo(nowX - 5, y);
       g.lineTo(nowX - 5 - r, y - r * 0.8);
@@ -529,7 +563,7 @@ export function createSing({ root, stage, onKaraoke }) {
       g.closePath();
       g.fill();
       // its name sits under the line, clear of the bars
-      g.font = `700 ${Z === BIG ? 18 : 12}px ${FONT}`;
+      g.font = `700 ${Z === BIG ? 17 : 12}px ${MONO}`;
       g.textAlign = 'center';
       g.fillText(NOTE[((Math.round(aim.p) % 12) + 12) % 12], nowX, 8 + Z.nowH + (Z === BIG ? 20 : 13));
       g.textAlign = 'left';
@@ -549,7 +583,7 @@ export function createSing({ root, stage, onKaraoke }) {
       const p1 = S.trail[k];
       if (p1.t - p0.t > 0.09 || Math.abs(p1.p - p0.p) > 3) continue;
       g.globalAlpha = Math.max(0, 1 - (t - p1.t) / 1.4) * 0.8;
-      g.strokeStyle = p1.ok ? CYAN : 'rgba(255, 255, 255, 0.75)';
+      g.strokeStyle = p1.ok ? CYAN : 'rgba(245, 237, 218, 0.75)';
       g.beginPath();
       g.moveTo(X(p0.t), Math.max(6, Math.min(Hh - Z.floor, Y(p0.p))));
       g.lineTo(X(p1.t), Math.max(6, Math.min(Hh - Z.floor, Y(p1.p))));
@@ -561,31 +595,48 @@ export function createSing({ root, stage, onKaraoke }) {
       const y = Math.max(6, Math.min(Hh - Z.floor, Y(lastP.p)));
       g.beginPath();
       g.arc(nowX, y, Z.dot, 0, Math.PI * 2);
-      g.fillStyle = lastP.ok ? CYAN : '#ffffff';
-      g.shadowColor = lastP.ok ? CYAN : 'rgba(255,255,255,0.8)';
+      g.fillStyle = lastP.ok ? CYAN : INK;
+      g.shadowColor = lastP.ok ? CYAN : 'rgba(245, 237, 218, 0.8)';
       g.shadowBlur = 14;
       g.fill();
       g.shadowBlur = 0;
     }
 
     // the microphone is alive: a small level bar at the left edge
+    // the microphone is alive: a little LED meter at the left edge, green, amber, red at the top
     const lv = Math.min(1, (voice ? voice.level : 0) * 6);
-    g.fillStyle = 'rgba(155, 233, 245, 0.18)';
-    g.fillRect(6, 12, 3, Z.lvl);
-    g.fillStyle = CYAN;
-    g.fillRect(6, 12 + Z.lvl * (1 - lv), 3, Z.lvl * lv);
+    const SEG = 10;
+    const gap = 2;
+    const sh = (Z.lvl - gap * (SEG - 1)) / SEG;
+    for (let k = 0; k < SEG; k++) {
+      const lit = lv * SEG > k + 0.2;
+      const col = k >= 8 ? '#dc6650' : k >= 6 ? GOLD : '#7bd36a';
+      g.fillStyle = col;
+      g.globalAlpha = lit ? 1 : 0.16;
+      g.fillRect(12, 14 + Z.lvl - (k + 1) * sh - k * gap, 5, sh);
+    }
+    g.globalAlpha = 1;
 
     // the score so far, and good lines in a row
     if (j && j.judged) {
       g.textAlign = 'right';
+      // the score as on the highway's top bar: big condensed numbers with a hard shadow
       const big = Z === BIG;
-      g.font = `700 ${big ? 18 : 13}px ${FONT}`;
-      g.fillStyle = CYAN_SOFT;
-      g.fillText(`${Math.round(j.accuracy * 100)}%`, W - 12, big ? 26 : 20);
-      if (j.streak >= 2) {
-        g.fillStyle = GOLD;
-        g.fillText(`×${j.streak}`, W - (big ? 70 : 52), big ? 26 : 20);
-      }
+      const y0 = big ? 34 : 26;
+      g.font = `900 ${big ? 32 : 22}px ${FONT}`;
+      const pct = `${Math.round(j.accuracy * 100)}%`;
+      const pw = g.measureText(pct).width;
+      const hard = (text, x, col) => {
+        g.fillStyle = '#000';
+        g.fillText(text, x + 2, y0 + 2);
+        g.fillStyle = col;
+        g.fillText(text, x, y0);
+      };
+      hard(pct, W - 14, INK);
+      if (j.streak >= 2) hard(`×${j.streak}`, W - 26 - pw, GOLD);
+      g.font = `700 ${big ? 11 : 9.5}px ${MONO}`;
+      g.fillStyle = INK_3;
+      g.fillText('SUNG', W - 14, y0 + (big ? 15 : 12));
       g.textAlign = 'left';
     }
   }
@@ -627,14 +678,14 @@ export function createSing({ root, stage, onKaraoke }) {
     }
     // your voice against the note: the dot sits in the middle when you're on it, above when sharp
     const target = sylAt(t - MIC_DELAY);
-    const dot = meter.firstChild;
+    const dot = meter.lastChild;
     const cents = SING_LEVELS[prefs().level].cents;
     if (voice && voice.voiced) {
       const off = target && target.p !== null && voice.midi !== null && voice.midi !== undefined ? foldCents(voice.midi, target.p) : 0;
       dot.style.top = `${50 - Math.max(-50, Math.min(50, (off / 300) * 50))}%`;
       dot.className = target && Math.abs(off) <= cents ? 'ok' : 'off';
     } else dot.className = '';
-    meter.style.setProperty('--lv', String(Math.min(1, (voice ? voice.level : 0) * 6)));
+    meterBar.style.setProperty('--lv', String(Math.min(1, (voice ? voice.level : 0) * 6)));
   }
 
   return {
@@ -658,8 +709,8 @@ export function createSing({ root, stage, onKaraoke }) {
       S.lastResult = null;
       S.rng = null;
       S.best = undefined;
+      S.karaoke = false;
       S.on = !!(song && prefs().on[song.id] && S.base.syl.length);
-      S.karaoke = S.on && prefs().on[song.id] === 2;
       paintChip();
       if (S.on && S.open) begin();
     },
@@ -672,7 +723,15 @@ export function createSing({ root, stage, onKaraoke }) {
       if (S.open === open) return;
       S.open = open;
       if (open && S.on) begin();
-      else if (!open && S.judge) end();
+      else if (!open) {
+        if (S.judge) end();
+        // karaoke was for that visit only
+        if (S.karaoke) {
+          S.karaoke = false;
+          S.on = !!(S.song && prefs().on[S.song.id]);
+          paintChip();
+        }
+      }
     },
     /** Every frame while the highway shows: t is the song clock, vis the picture's clock. */
     frame(t, vis, playing, speed = 1) {
@@ -715,6 +774,7 @@ export function createSing({ root, stage, onKaraoke }) {
       chip.style.display = v ? 'none' : '';
     },
     turn,
+    setKaraoke,
     state: S, // tests
   };
 }

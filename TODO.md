@@ -5,7 +5,7 @@ Ideas and requests not built yet. Newest first.
 ## Sing along: what's left (the first version shipped in 4.12.0, see HANDOFF.md)
 
 - The lane on the Tab view and Now playing (it is on the highway only).
-- Karaoke (also 4.12.0): a way in from a song's menu in the library, a party list of songs to sing: only if asked.
+- Karaoke (also 4.12.0, its own page on the left): a party list of songs to sing in a row, taking turns: only if asked.
 - Tune it after the user has sung: the levels, the microphone's delay, notes read off real vocals stems.
 - The voice through Stagehand (hearing yourself, the voice in clips), duets: only if asked.
 

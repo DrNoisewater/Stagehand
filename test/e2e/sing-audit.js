@@ -54,5 +54,23 @@ module.exports = async ({ page, outDir, check }) => {
   await look.scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(outDir, 'sing-settings-look.png') });
   await page.keyboard.press('Escape');
+  // the Karaoke page on the left: songs with words, and picking one opens it with the words only
+  await page.locator('#sidebar .nav-section[data-page="karaoke"]').click();
+  await page.waitForTimeout(600);
+  const cards = await page.locator('#page-karaoke .kk-card').count();
+  check(cards > 0, `Karaoke is on the left and lists the songs with words (${cards})`);
+  await page.locator('#page-karaoke .kk-search').fill('zzzz no such song');
+  check((await page.locator('#page-karaoke .kk-card').count()) === 0 && /No song matches/.test(await page.locator('#page-karaoke').textContent()), 'searching narrows the list');
+  await page.locator('#page-karaoke .kk-search').fill('');
+  await page.screenshot({ path: path.join(outDir, 'karaoke-page.png') });
+  await page.locator('#page-karaoke .kk-card').first().click();
+  await page.waitForFunction(() => { const r = document.querySelector('.highway'); return r && !r.hidden; }, null, { timeout: 30000 });
+  await page.waitForTimeout(2500);
+  const kk = await page.evaluate(() => { const r = document.querySelector('.highway'); return { k: r.classList.contains('hw-karaoke'), chip: r.querySelector('.hw-sing-chip').textContent, words: r.__hw.sing.state.base.syl.length }; });
+  check(kk.words ? kk.k && /Karaoke/.test(kk.chip) : !kk.k, `picking a song opens it as karaoke (${JSON.stringify(kk)})`);
+  await page.screenshot({ path: path.join(outDir, 'karaoke-open.png') });
+  await page.evaluate(() => window.__shHighway.leave());
+  await page.waitForTimeout(800);
+  check(await page.evaluate(() => document.getElementById('app').classList.contains('page-karaoke')), 'leaving goes back to the Karaoke page');
   check(!errs.length, `no errors on the page (${errs.join('; ')})`);
 };

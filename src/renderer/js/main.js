@@ -22,6 +22,7 @@ import './showroom.js';
 import './progress.js';
 import './room.js';
 import './greenroom.js';
+import './karaoke.js';
 import './stemformat.js';
 import { rig } from './rig.js';
 import { nudgeSpeed } from './speedpop.js';

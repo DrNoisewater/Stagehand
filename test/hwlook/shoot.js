@@ -225,15 +225,16 @@ const srv = http.createServer((req, res) => {
       if (await page.evaluate(() => window.__micAsked)) fail('the microphone was opened before Sing was pressed');
       await page.screenshot({ path: path.join(out, 'sing-0-off.png') });
       const kar = process.env.SING === 'karaoke';
-      // the chip asks which kind: beside the guitar part, or karaoke
-      await page.click('.hw-sing-chip');
-      await page.click(`.menu[role="menu"] button:has-text("${kar ? 'Karaoke' : 'Sing along'}")`);
+      // the Sing button is singing beside the guitar part; karaoke is asked for by the Karaoke page
+      if (kar) await page.evaluate(() => document.querySelector('.highway').__hw.sing.setKaraoke(true));
+      else await page.click('.hw-sing-chip');
       await page.waitForFunction(() => !document.querySelector('.hw-sing').hidden && document.querySelector('.highway').__hw.sing.active, null, { timeout: 8000 });
       const words = process.env.SING === 'words';
       // the song starts once the microphone is open and hearing (opening it takes a moment)
       await page.evaluate(async () => { const { mic } = await import('/js/mic.js'); for (let i = 0; i < 100 && !mic.on; i++) await new Promise((x) => setTimeout(x, 100)); await new Promise((x) => setTimeout(x, 400)); });
       if (process.env.SING === 'stem') await page.waitForFunction(() => document.querySelector('.highway').__hw.sing.state.mode === 'stem', null, { timeout: 30000 });
-      await page.evaluate(() => { const e = window.__stage.engine; e.position = 1.5; e.dispatchEvent(new Event('seek')); e.play(); });
+      // a run-up of 2.5 s before the first word: this machine draws slowly for a moment once the song starts
+      await page.evaluate(() => { const e = window.__stage.engine; e.position = 0; e.dispatchEvent(new Event('seek')); e.play(); });
       const until = (t) => page.waitForFunction((t) => window.__stage.engine.position > t, t, { timeout: 60000 });
       await page.evaluate(() => { window.__frames = 0; const f = () => { window.__frames++; requestAnimationFrame(f); }; f(); });
       await until(4.6);
@@ -265,14 +266,15 @@ const srv = http.createServer((req, res) => {
       if (kar) {
         if (!/sung/.test(r.cardText) || /notes hit/.test(r.cardText)) fail('karaoke should end on the singing card only: ' + r.cardText);
         await page.screenshot({ path: path.join(out, 'sing-4-card.png') });
-        // back to singing beside the guitar: the neck returns and the singer is put back
+        // karaoke isn't remembered for the song: without it the neck returns, the singer is put back
+        // and singing is off again (the Sing button was never pressed for this song)
         const k2 = await page.evaluate(async () => {
           const H = document.querySelector('.highway').__hw;
-          H.sing.turn(true, false);
+          H.sing.setKaraoke(false);
           await new Promise((x) => setTimeout(x, 300));
           return { cls: document.querySelector('.highway').classList.contains('hw-karaoke'), big: document.querySelector('.hw-sing').dataset.k, muted: window.__vocals.muted, on: H.sing.active };
         });
-        if (k2.cls || k2.big || k2.muted || !k2.on) fail('leaving karaoke: ' + JSON.stringify(k2));
+        if (k2.cls || k2.big || k2.muted || k2.on) fail('leaving karaoke: ' + JSON.stringify(k2));
       }
       await page.screenshot({ path: path.join(out, 'sing-4-card.png') });
       const log = r.logs.find((x) => x.part === 'vocals');

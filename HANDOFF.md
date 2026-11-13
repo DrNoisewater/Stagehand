@@ -43,19 +43,16 @@ levels feel? Bars or Words? Speakers or headphones (the microphone hears the spe
   line doesn't, the card and the stats get it, off lets the microphone go; writes sing-0…4.png.
 
 **Karaoke (asked mid-session: "we might as well just have a karaoke mode as well").** The same singing with the
-stage to yourself. The Sing chip, when off, now asks which kind: **Sing along** (with your guitar part) or
-**Karaoke** (just the words); when on, its menu has "Karaoke: just the words" to switch between them.
+stage to yourself. (First on the Sing chip as a choice; moved to its own page on the left right after, see below.)
 - In karaoke the neck and notes are not drawn (the venue stays), the lane goes big in the middle (`data-k` on
   `.hw-sing`; the Bars look uses the `BIG` sizes in `singlane.js`, the Words look is bigger by CSS), the guitar is
   not listened to or scored (`sing.karaoke` gates `listen()`, the judge's tick, the score card and what
   `practice.js` logs), and the top score is hidden (`.highway.hw-karaoke`). The song ends on the singing card.
 - The singer is taken out of the song by itself when the song has been split (the vocals stem is muted, and put
   back when karaoke ends, only if karaoke was what muted it). A song that isn't split says so in the lane's badge.
-- Remembered per song with the Sing choice (`stagehand.sing` › `on[songId]`: 1 = sing along, 2 = karaoke).
 - The guitar's own sound is untouched: you can still strum through the rig while singing.
 - Checked: `SING=karaoke … shoot.js` (karaoke on: no guitar score, singer out, big lane; singing card at the end;
-  switching back puts the neck and the singer back). **Ask:** is the chip the right place to find it, or should
-  Karaoke also be reachable from a song's menu in the library? Should the guitar go quiet in karaoke?
+  leaving it puts the neck and the singer back). **Ask:** should the guitar go quiet in karaoke?
 
 **The lane goes up top (asked right after: "up top kind of like in the other rock band games, something that
 shows you what pitch you're supposed to be singing at any given time").** The lane now runs across the top of the
@@ -63,6 +60,30 @@ highway, centred (`.hw-sing`, 82% of the width; bigger in karaoke, also up top, 
 near its left end (`nowX` 20%), bars scroll in from the right. New in the Bars look: faint lines for each note, and
 a pointer on the line at the height of the note to sing now, with its name (A, C♯…); between words it waits,
 dimmer, at the next note. **Ask:** is this the picture they had in mind (height, how far ahead it shows)?
+
+**Karaoke moves to the left menu (asked: "karaoke should be a main item on the left screen, because when you
+click it on the highway, it should always be the scored version").** So:
+- **Karaoke** is a page on the left (`karaoke.js`, `#page-karaoke`, between Songs and Tones): every song with a
+  vocals part as covers, a search box, Easy/Medium/Hard (shared with the highway), the microphone (opens
+  Settings), your best singing score per song. Picking a song plays it from the top on the highway as karaoke
+  (`actions.playKaraoke` sets `state.karaokeNext`; the highway's `open()` calls `sing.setKaraoke(true)`). Back (or
+  the chip's "Leave karaoke") returns to the Karaoke page (`stage.goBack` honours `state.backPage`).
+- Karaoke is for that visit only; it isn't remembered for the song. The **Sing** button on the highway is now
+  always singing scored beside your guitar part (no Karaoke choice in its menu any more).
+- Checked: `test/e2e/sing-audit.js` (the page lists songs with words, search narrows, a pick opens karaoke, Back
+  returns to it).
+
+**A makeover to match the stage (asked: "rock star vibes same as guitar vibes").** The lane is now a road case
+like the highway's cards (the same panel and screws, a gold rim), with a strip of tape on it saying VOCALS or
+KARAOKE; words in the bold condensed lettering with a hard black shadow (as the song title and score), cream
+ink, the word to sing now in a warm spotlight; the now line is a gold stage-light beam; the pointer and note
+name are gold (typewriter letters); the score is big condensed numbers with SUNG under; the microphone meter
+is a green-amber-red LED meter (also in the Words look). Sung right stays the vocals colour (cyan), a perfect
+line turns gold. The Sing chip pressed is gold like the other pressed buttons. Hard shadows are drawn as a
+second black copy of the text, not with the canvas shadow (much cheaper to draw).
+The browser check now starts the song at 0 s (2.5 s before the first word): this container draws slowly for a
+moment after the song starts and lost the first line otherwise.
+**Ask:** does it look like part of the same app now?
 
 **Not done / open:**
 - Only on the highway. The Tab view and Now playing don't have the lane yet (the plan wanted it above the tab).

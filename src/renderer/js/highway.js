@@ -189,6 +189,7 @@ export function createHighway(stage) {
   const sing = createSing({
     root,
     stage,
+    onLeave: () => window.__shHighway.leave(),
     onKaraoke: (on) => {
       root.classList.toggle('hw-karaoke', on);
       if (!on && H.judge) {
@@ -1119,6 +1120,12 @@ export function createHighway(stage) {
     H.prevBest = H.song && state.best ? { ...(state.best[H.song.id] || {}) } : null;
     sing.setBest(H.prevBest ? H.prevBest.vocals : undefined);
     sing.setOpen(true);
+    // opened from the Karaoke page: the words only, for this visit
+    if (state.karaokeNext) {
+      const want = state.karaokeNext === song.id;
+      state.karaokeNext = null;
+      if (want && !sing.setKaraoke(true)) toast({ title: 'No words to sing', message: 'This song has no lyrics in it.', kind: 'info' });
+    }
     newWatch();
     hideCard();
     resetJudge();

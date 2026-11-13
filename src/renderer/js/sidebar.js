@@ -160,6 +160,8 @@ export function render() {
   );
   const songsSub = h('div.nav-sub');
   top.append(songsSub);
+  // 4.12: Karaoke, a place of its own: your songs with words, sung with the stage to yourself
+  top.append(section({ page: 'karaoke', label: 'Karaoke', iconName: 'mic', gel: 'var(--gel-vocals)' }));
   top.append(section({ page: 'tones', label: 'Tones', iconName: 'tones', gel: 'var(--gel-bass)' }));
   top.append(section({ page: 'gear', label: 'Gear', iconName: 'amp', gel: 'var(--gel-lead, #ff6b3d)' }));
   top.append(section({ page: 'progress', label: 'Progress', iconName: 'chart', gel: 'var(--gel-piano)' }));
