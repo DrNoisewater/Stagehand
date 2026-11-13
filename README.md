@@ -183,6 +183,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.16.3:** Setup looks like the app now: the torn flyer on the rehearsal-room wall, a character, cream buttons.
 - **4.16.2:** A more modern highway: round, shiny strings with a soft shadow, round metal frets, and round inlay dots on the neck (gold where your hand is).
 - **4.16.1:** Singing: the words come in sooner, and the next line is written out in full above the lane before you have to sing it. Chord scoring tells a wrong chord (E minor for E major) from the right one, and still forgives a light strum or a missed string.
 - **4.16.0:** Meta Quest: play along in the headset with the highway in front of you and your venue all around you, pick songs and play, pause or skip from either the headset or the PC. Off until you switch it on in Settings › Quest headset; nothing to install on the headset.

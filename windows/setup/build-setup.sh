@@ -51,7 +51,7 @@ CF="-O2 -Wall -Wno-unused-function -Wno-missing-braces -DMINIZ_NO_ARCHIVE_WRITIN
 $WINDRES -I"$S/include" -DSH_V1=$V1 -DSH_V2=$V2 -DSH_V3=$V3 -DSH_VSTR="\\\"$VER\\\"" "$HERE/setup.rc" -O coff -o "$B/setup.res" --preprocessor-arg=-I"$HERE"
 $CC $CF -municode -mwindows -static -DSH_VERSION="\"$VER\"" -DSH_ELECTRON="\"$ELEC\"" -include "$B/components.h" \
   -o "$B/stub.exe" "$HERE/setup.c" "$HERE/setup_core.c" $MINIZ/miniz.c $MINIZ/miniz_tinfl.c $MINIZ/miniz_tdef.c $MINIZ/miniz_zip.c "$B/setup.res" \
-  -lole32 -luuid -lshell32 -lgdi32 -luser32 -ladvapi32 -lshlwapi -lwinhttp -lbcrypt
+  -lole32 -luuid -lshell32 -lgdi32 -luser32 -ladvapi32 -lshlwapi -lwinhttp -lbcrypt -lmsimg32
 $STRIP "$B/stub.exe"
 python3 "$HERE/make-payload.py" "$B/stub.exe" "$OUT/Stagehand-Setup-$VER.exe" "$ROOT"
 # the stub alone is the uninstaller; keep it for testing

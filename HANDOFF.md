@@ -1,3 +1,24 @@
+# 4.16.3 — Setup in the app's Rehearsal Room look (2026-11-13)
+
+User: "That installation screen that shows up when it's installing still looks like the old version of the app. The
+part that shows if you have electron, or whatever else … it should be updated". It had 4.14's plain dark look; the app
+has since moved to the Rehearsal Room look (brick wall, kraft-paper flyer, tape, characters, cream buttons).
+- **The header is cut from the app itself**: `windows/setup/make-art.js` (an SH_AUDIT module for `ui3-chromium.js`) sets
+  the real page banner to kraft paper + highlighter + masking tape, the words SETUP / UNINSTALL, STAGEHAND and a line,
+  a character (amp-imp for Setup, tech-roadie for Uninstall), at Setup's width, and captures it at 2× through CDP
+  (Playwright's own screenshot ignores the 2× override). `make-art.py` (Pillow, dev time) packs each PNG as `SHI1` +
+  size + zlib premultiplied BGRA, the bottom 40 px fading out; the PNGs and `.bin`s are committed (`windows/setup/art/`),
+  RCDATA 20/21. Redo: run both scripts after changing the app's banner.
+- `setup.c`: `art_make` unpacks with miniz's tinfl and resizes once for the window (area average, crisp text);
+  `draw_art` (AlphaBlend; `-lmsimg32` added in build-setup.sh); `draw_wall` (the app's brick wall in GDI, colours
+  taken from the picture's wall); the version on a tilted sticker beside the flyer (`tilted_rect` draws turned shapes as
+  polygons: Wine ignored the world transform for FillRect/RoundRect); a strip of masking tape on the card; the card in
+  the app's colours with a hard black shadow; buttons like the app's (`vgrad`): cream paper for the main one, a dark
+  worn case for the rest, normal case; the ticked box cream. Rows 62 → 54 px so the taller header fits; uninstall window
+  400 → 440 px tall.
+- Checked under Wine 10 (`windows/setup/test-wine.sh`; set `WINEDLLOVERRIDES="mscoree,mshtml="` so a fresh prefix
+  doesn't stop on the .NET prompt): install and uninstall windows. Setup grows ~1.2 MB (33.8 MB).
+
 # 4.16.2 — Highway look: round strings and frets, inlay dots (released 2026-11-13; user: "merge and release all")
 
 User: "Can we make the highway in the app a little bit more modern? … it looks like it's kind of just lines for the
