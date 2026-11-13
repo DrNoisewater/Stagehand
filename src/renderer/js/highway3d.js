@@ -81,6 +81,41 @@ export function mix(hexA, hexB, t, a = 1, k = 1) {
   return col(hex, a, k);
 }
 
+
+// ------------------------------------------------------------- rods (4.16.2) --
+// Strings and fret wires are drawn round: a few facets, each corner coloured by how the light from above
+// the camera falls on it, with a highlight. The colours are worked out once per colour and kept.
+const ROD_A0 = -Math.PI * 0.55; // from just under the front …
+const ROD_SPAN = Math.PI * 1.25; // … over the top to just behind
+const RODS = new Map();
+/** The corner colours for a rod of colour `hex`: 'string' (lying across, lit from above) or 'post' (standing up). */
+export function rodShades(hex, kind = 'string', facets = 6) {
+  const key = `${hex}|${kind}|${facets}`;
+  let out = RODS.get(key);
+  if (out) return out;
+  out = [];
+  for (let i = 0; i <= facets; i++) {
+    let lit;
+    let spec;
+    if (kind === 'post') {
+      const a = -Math.PI / 2 + (Math.PI * i) / facets; // left side → front → right side
+      lit = 0.42 + 0.58 * Math.max(0, Math.cos(a + 0.35));
+      spec = Math.pow(Math.max(0, Math.cos(a + 0.5)), 18) * 0.85;
+    } else {
+      const a = ROD_A0 + (ROD_SPAN * i) / facets;
+      // normal (sin a up, -cos a towards you); light from above and in front
+      const ny = Math.sin(a);
+      const nz = Math.cos(a);
+      const d = Math.max(0, ny * 0.8 + nz * 0.6);
+      lit = 0.42 + 0.66 * d;
+      spec = Math.pow(d, 30) * 0.55;
+    }
+    out.push(mix(hex, '#ffffff', spec, 1, lit));
+  }
+  RODS.set(key, out);
+  return out;
+}
+
 /** A vertex buffer rebuilt every frame: quads with a colour per corner. */
 class Layer {
   constructor(scene, { depthWrite = false, order = 0, additive = false } = {}) {
@@ -174,6 +209,36 @@ class Layer {
     this.q(x0, y1, z0, x1, y1, z0, x1, y1, z1, x0, y1, z1, top, top, top, top);
     this.q(x0, y0, z0, x0, y1, z0, x0, y1, z1, x0, y0, z1, side, side, side, side);
     this.q(x1, y0, z0, x1, y1, z0, x1, y1, z1, x1, y0, z1, side, side, side, side);
+  }
+  /**
+   * 4.16.2: a round rod lying across the neck (a string): x0..x1 at height y, depth z, radius r. Drawn as
+   * facets around its front and top, lit from above the camera, with a bright line where the light catches it,
+   * so it reads as a round string and not a flat line. `shades` comes from rodShades(hex).
+   */
+  rodX(x0, x1, y, z, r, shades) {
+    const n = shades.length - 1;
+    for (let i = 0; i < n; i++) {
+      const a0 = ROD_A0 + (ROD_SPAN * i) / n;
+      const a1 = ROD_A0 + (ROD_SPAN * (i + 1)) / n;
+      const y0 = y + r * Math.sin(a0);
+      const z0 = z - r * Math.cos(a0);
+      const y1 = y + r * Math.sin(a1);
+      const z1 = z - r * Math.cos(a1);
+      this.q(x0, y0, z0, x1, y0, z0, x1, y1, z1, x0, y1, z1, shades[i], shades[i], shades[i + 1], shades[i + 1]);
+    }
+  }
+  /** A round post standing up (a fret wire): at x, depth z, from y0 to y1, radius r; `shades` from rodShades(hex, 'post'). */
+  rodY(x, z, y0, y1, r, shades) {
+    const n = shades.length - 1;
+    for (let i = 0; i < n; i++) {
+      const a0 = -Math.PI / 2 + (Math.PI * i) / n;
+      const a1 = -Math.PI / 2 + (Math.PI * (i + 1)) / n;
+      const xa = x + r * Math.sin(a0);
+      const za = z - r * Math.cos(a0);
+      const xb = x + r * Math.sin(a1);
+      const zb = z - r * Math.cos(a1);
+      this.q(xa, y0, za, xb, y0, zb, xb, y1, zb, xa, y1, za, shades[i], shades[i + 1], shades[i + 1], shades[i]);
+    }
   }
   /** A thin bar between two points, widened across `w`: plane 'y' = flat on a floor, 'z' = upright. */
   bar(a, b, w, c0, c1 = c0, plane = 'y') {

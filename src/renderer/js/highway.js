@@ -22,7 +22,7 @@ import { VENUES, VENUE_ALIAS, venueThumb, createVenue, createFire } from './venu
 import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShift } from './detect.js';
-import { createRenderer3D, col, mix } from './highway3d.js';
+import { createRenderer3D, col, mix, rodShades } from './highway3d.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { tuningGuide } from './tuning-check.js';
@@ -2101,6 +2101,16 @@ export function createHighway(stage) {
   }
 
   // ------------------------------------------------------------- neck --
+  /** A round dot facing you (an inlay, its glow): centre colour cIn fading to cOut at the rim. */
+  const DISC = Array.from({ length: 17 }, (_, i) => [Math.cos((i / 16) * Math.PI * 2), Math.sin((i / 16) * Math.PI * 2)]);
+  function disc(layer, cx, cy, z, r, cIn, cOut) {
+    for (let k = 0; k < 16; k += 2) {
+      const [a0, b0] = DISC[k];
+      const [a1, b1] = DISC[k + 1];
+      const [a2, b2] = DISC[k + 2];
+      layer.q(cx, cy, z, cx + a0 * r, cy + b0 * r, z, cx + a1 * r, cy + b1 * r, z, cx + a2 * r, cy + b2 * r, z, cIn, cOut, cOut, cOut);
+    }
+  }
   function buildNeck(t, a, f0, f1) {
     const { solid, alpha, glow } = R3.L;
     const n = G.n;
@@ -2110,35 +2120,41 @@ export function createHighway(stage) {
     const yt = G.yTop + 0.32;
     // your hand position, faintly lit on the neck
     alpha.up(anX0(a), anX1(a), yb, yt, 0.06, col('#46c8ff', 0.05), col('#46c8ff', 0.1));
-    // inlay panels behind the strings: gold in your hand position, teal elsewhere
+    // inlay dots between the strings, as on a real fretboard (4.16.2: round dots with a soft glow, were
+    // tall see-through panels): gold in your hand position, teal elsewhere; two at the 12th and 24th
+    const midY = (G.hl + G.yTop) / 2;
     for (const f of INLAYS) {
       if (f < f0 - 1 || f > f1 + 1) continue;
       const inA = f >= a.fret && f < a.fret + (a.width || 4);
       const w = laneW(f);
       const c = laneC(f);
-      alpha.up(c - w * 0.3, c + w * 0.3, G.hl - 0.05, G.yTop + 0.05, 0.05, inA ? col('#ffc446', 0.3) : col('#50c8d2', 0.12), inA ? col('#ffc446', 0.14) : col('#50c8d2', 0.05));
+      const r = Math.min(w * 0.12, 0.075);
+      const ys = f % 12 === 0 ? [G.hl + (G.yTop - G.hl) * 0.28, G.hl + (G.yTop - G.hl) * 0.72] : [midY];
+      for (const y of ys) {
+        disc(alpha, c, y, 0.055, r, inA ? col('#ffe39a', 0.9) : col('#7fdce4', 0.42), inA ? col('#ffc040', 0.82) : col('#4fb8c4', 0.36));
+        if (inA) disc(glow, c, y, 0.06, r * 1.9, col('#ffc446', 0.12), col('#000000', 0));
+      }
     }
-    // fret wires: slim metal rods standing across the strings, the nut ivory.
-    // (3.13: they were deep, near-black boxes; seen from the side near the camera
-    // their sides showed as big black slabs beside the highway)
+    // fret wires: round metal posts standing across the strings (lit from above, a bright edge
+    // where the light catches them), the nut ivory and a little wider
     for (let f = Math.max(0, f0 - 1); f <= Math.min(24, f1 + 1); f++) {
       const x = XF(f);
-      const hw = f === 0 ? 0.04 : 0.024;
-      const dz = f === 0 ? 0.04 : 0.012;
-      solid.box(x - hw, x + hw, yb, yt, -dz, dz, f === 0 ? col('#8a8476') : col('#55555f'), f === 0 ? col('#c8c0aa') : col('#8a8378'), f === 0 ? col('#5a5548') : col('#3c3c46'));
-      if (f > 0) solid.up(x - hw * 0.35, x + hw * 0.35, yb, yt, -0.045, col('#6e675d', 1));
+      if (f === 0) solid.rodY(x, 0, yb, yt, 0.04, rodShades('#e4dcc6', 'post', 6));
+      else solid.rodY(x, 0, yb, yt, 0.021, rodShades('#a9adb8', 'post', 4));
     }
-    // strings: thin and coloured, a touch thicker toward the low E, with a soft glow
+    // strings: round and coloured, a touch thicker toward the low E, with a bright line along the top
+    // where the light catches them and a soft glow behind (4.16.2: were flat boxes)
     for (let s = 0; s < n; s++) {
       const y = strH(s);
-      const th = (n === 4 ? 0.021 : 0.016) - s * (n === 4 ? 0.0025 : 0.0016);
-      solid.box(xn, xe, y - th, y + th, -th, th, col(STRING[s], 1, 0.5), col(STRING[s], 1, 0.68), col(STRING[s], 1, 0.38));
-      glow.up(xn, xe, y - th * 2.5, y + th * 2.5, -0.05, col(STRING[s], 0.08));
+      const th = (n === 4 ? 0.034 : 0.028) - s * (n === 4 ? 0.0035 : 0.0024);
+      solid.rodX(xn, xe, y, 0, th, rodShades(STRING[s], 'string', 6));
+      R3.L.floor.bar([xn, 0.004, 0.05 + s * 0.012], [xe, 0.004, 0.05 + s * 0.012], th * 2.2, col('#000000', 0.22)); // its shadow on the floor
+      glow.up(xn, xe, y - th * 3, y + th * 3, 0.03, col(STRING[s], 0.07));
     }
-    // the hand position's edges at the neck: two white posts, the same height as
-    // the frets (3.12: they used to stand taller, which looked off to the user)
+    // the hand position's edges at the neck: two bright posts, the same height as the frets
+    // (3.12: they used to stand taller, which looked off to the user)
     for (const x of [anX0(a), anX1(a)]) {
-      solid.box(x - 0.025, x + 0.025, yb, yt, -0.08, -0.02, col('#fff0f8', 1, 1.0));
+      solid.rodY(x, -0.05, yb, yt, 0.03, rodShades('#fff4fb', 'post', 6));
       glow.up(x - 0.1, x + 0.1, yb, yt, -0.085, col('#ff7ad2', 0.12), col('#50e8ff', 0.1));
     }
 
