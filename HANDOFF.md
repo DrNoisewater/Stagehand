@@ -1,3 +1,16 @@
+# Highway look: round strings and frets, inlay dots (branch `claude/highway-modern`, not released yet, 2026-11-13)
+
+User: "Can we make the highway in the app a little bit more modern? … it looks like it's kind of just lines for the
+strings, where they could be rounded a little bit more, and we can just improve the look of the fretboard. And
+highway just a little bit".
+- `highway3d.js`: `rodShades(hex, 'string'|'post', facets)` (corner colours worked out once per colour, lit from above
+  the camera with a highlight) and `Layer.rodX` / `Layer.rodY` (a rod lying across / standing up, drawn as facets).
+- `highway.js` `buildNeck`: strings are round rods (thicker: 0.028 low E → 0.016 high e on guitar, bass 0.034 →),
+  with a bright line where the light catches them, a soft glow behind and a faint shadow on the floor; fret wires are
+  round metal posts (the nut ivory, wider); the hand position's edge posts are round and bright; inlays are round dots
+  (two at 12 and 24) instead of tall see-through panels, gold with a glow in your hand position, teal elsewhere.
+- Checked with `hwlook/shoot.js T:3 T:17.2`; npm test passes. Ask the user how it looks on their screen.
+
 # 4.16.1 — words sooner when singing; the lost chord-scoring fix brought in (2026-11-13)
 
 User: "there needs to be a little bit more time before the words get to you … it's kind of hard to see the words
