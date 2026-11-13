@@ -3,6 +3,7 @@ import { h, toast } from './ui.js';
 import { rig } from './rig.js';
 import { guitarStatus } from './shell.js';
 import { mic } from './mic.js';
+import { keyboard } from './midi.js';
 
 export async function pane(el, setting) {
   const draw = async () => {
@@ -112,6 +113,7 @@ export async function pane(el, setting) {
     el.append(setting('Guitar or bass', 'What you’re playing. Stagehand scores a bass part played on guitar an octave up, and the tuner shows its strings. Your tone never changes by itself.', inst));
     el.append(h('p.np-fine', { text: 'If you hear yourself twice, turn off “Listen to this device” for the cable in Windows sound settings.', style: { marginTop: '10px' } }));
     el.append(micSetting(setting));
+    el.append(keyboardSetting(setting));
   };
   await draw();
 }
@@ -153,4 +155,53 @@ function micSetting(setting) {
     }, 40);
   };
   return setting('Microphone for singing', 'For Sing along (the Sing chip on the highway). Any microphone works: USB, a headset, a webcam. Your voice is only listened to for scoring; it isn’t played through Stagehand. The guitar cable stays for the guitar.', sel, level, tryBtn);
+}
+
+/** Piano: the keyboard plugged in by USB. Pressing keys here lights them up, to check it's connected. */
+function keyboardSetting(setting) {
+  const sel = h('select.input', { 'aria-label': 'Piano keyboard' });
+  const keys = h('span.kb-check', { title: 'Press a key: it lights up here' });
+  const tryBtn = h('button.btn.small.soft', { type: 'button', text: 'Try it' });
+  const fill = async () => {
+    const list = await keyboard.devices().catch(() => []);
+    sel.innerHTML = '';
+    if (!list.length) sel.append(h('option', { value: '', text: 'No keyboard plugged in' }));
+    for (const d of list) sel.append(h('option', { value: d.id, text: d.label, selected: d.id === keyboard.deviceId ? true : null }));
+  };
+  fill();
+  sel.onchange = () => keyboard.setDevice(sel.value, sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : '');
+  const show = () => {
+    const held = [...keyboard.held.keys()].sort((a, b) => a - b);
+    const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+    keys.textContent = held.length ? held.map((m) => `${NAMES[m % 12]}${Math.floor(m / 12) - 1}`).join(' ') : keyboard.on ? 'Press a key' : '';
+    keys.classList.toggle('lit', held.length > 0);
+  };
+  let timer = 0;
+  const stop = () => {
+    clearTimeout(timer);
+    timer = 0;
+    keyboard.removeEventListener('note', show);
+    keyboard.stop('settings');
+    tryBtn.textContent = 'Try it';
+    keys.textContent = '';
+  };
+  tryBtn.onclick = async () => {
+    if (timer) return stop();
+    const ok = await keyboard.start('settings');
+    fill();
+    if (!ok) {
+      keyboard.stop('settings');
+      return toast({ title: 'No keyboard', message: keyboard.error || 'Plug the piano in by USB and turn it on.', kind: 'err' });
+    }
+    tryBtn.textContent = 'Stop';
+    keyboard.addEventListener('note', show);
+    show();
+    const check = () => {
+      if (!keys.isConnected) return stop();
+      timer = setTimeout(check, 1000);
+    };
+    timer = setTimeout(check, 1000);
+  };
+  keyboard.addEventListener('change', () => keys.isConnected && fill());
+  return setting('Piano keyboard', 'For the Piano part (the Piano button on the highway). Plug your digital piano or keyboard in by USB. It plays its own sound; Stagehand only listens to which keys you press.', sel, keys, tryBtn);
 }

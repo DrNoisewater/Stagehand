@@ -172,6 +172,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.15.0:** Piano: plug a digital piano or keyboard in by USB and play any song on it. Stagehand writes the piano part from the song itself (the singer's tune, the guitar's riffs, the band's real chords, the bass line) as real sheet music, over glowing notes falling onto a keyboard, in Easy, Medium and Hard, for either hand or both, and scores every note.
 - **4.14.1:** Singing is steadier: your voice's dot glides instead of jumping, settles onto the bar when you're on the note, and a breath or a crack in your voice no longer knocks you off. Once you're on a note it's easier to hold it. The singing lane is cleaner, with the score on a strip of tape.
 - **4.14.0:** A small mic on every song with words takes you straight into Karaoke, and the song cover has three buttons: sing, play along (the stems start splitting), play. Karaoke is reworked: click any song to sing, see at a glance which have the singer taken out and how hard each is to sing. The menu's groups fold and remember how you left them, Setlists can import your Rocksmith lists from a right-click, and folders moved to Settings. The guitar status and tuner sit in the top-right corner. Setup has the new look.
 - **4.13.0:** The search suggestions match the rest of the app, Progress shows the XP you've earned singing (quietly, under your level), and Settings › Library can bring in the Rocksmith DLC you have installed.

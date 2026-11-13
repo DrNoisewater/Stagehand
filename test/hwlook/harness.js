@@ -120,6 +120,60 @@ if (q.get('sing')) {
 }
 window.__tab = tab;
 window.__parts = [{ id: 'p1', type: 'lead', name: 'Lead' }];
+// piano=real: every part of the real chart (file=…) for the piano part. piano=tune: a made-up song
+// with a band and a singer (lead riff, rhythm chords, bass, words with notes) at 96 a minute.
+if (q.get('piano') === 'real') {
+  const all = await (await fetch('/' + (q.get('file') || 'real.json'))).json();
+  window.__tabs = {};
+  window.__parts = Object.keys(all).map((k) => ((window.__tabs[k] = { ...all[k], id: k }), { id: k, type: all[k].type || k, name: k }));
+}
+if (q.get('piano') === 'tune') {
+  const b = 60 / 96;
+  const bars = 18;
+  const beats = [];
+  for (let i = 0; i <= bars * 4 + 4; i++) beats.push({ t: 1 + i * b, m: i % 4 === 0 ? i / 4 : -1 });
+  const T = (bar, beat) => 1 + (bar * 4 + beat) * b;
+  // C G Am F, twice over, after a two-bar riff; guitar shapes in standard tuning
+  const SHAPES = { C: [-1, 3, 2, 0, 1, 0], G: [3, 2, 0, 0, 0, 3], Am: [-1, 0, 2, 2, 1, 0], F: [1, 3, 3, 2, 1, 1] };
+  const ROOT = { C: [1, 3], G: [0, 3], Am: [1, 0], F: [0, 1] }; // bass string, fret
+  const prog = ['C', 'G', 'Am', 'F'];
+  const lead = { type: 'lead', strings: 6, tuning: [0, 0, 0, 0, 0, 0], capo: 0, beats, sections: [{ name: 'intro', start: T(0, 0) }, { name: 'verse', start: T(2, 0) }, { name: 'chorus', start: T(10, 0) }], chords: [], notes: [], chordEvents: [], anchors: [], handShapes: [], length: T(bars, 0) + 2 };
+  // the riff: E G A C D C A G in eighths on the D and G strings, twice
+  const riff = [[2, 2], [2, 5], [3, 2], [3, 5], [3, 7], [3, 5], [3, 2], [2, 5]];
+  for (let bar = 0; bar < 2; bar++) riff.forEach(([s, f], i) => lead.notes.push({ t: T(bar, i / 2), s, f, sus: i === 7 ? 0.25 : 0 }));
+  // and again in the gap between the verses
+  riff.forEach(([s, f], i) => lead.notes.push({ t: T(9, i / 2), s, f, sus: 0 }));
+  const rhythm = { ...lead, type: 'rhythm', notes: [], chordEvents: [], chords: prog.map((n) => ({ name: n })) };
+  const bass = { ...lead, type: 'bass', strings: 4, tuning: [0, 0, 0, 0], notes: [], chordEvents: [] };
+  for (let bar = 2; bar < bars; bar++) {
+    const c = prog[(bar - 2) % 4];
+    for (const beat of [0, 2]) rhythm.chordEvents.push({ t: T(bar, beat), sus: b * 1.8, chord: prog.indexOf(c), strings: SHAPES[c].map((f, s) => ({ s, f })).filter((x) => x.f >= 0) });
+    for (const beat of [0, 1, 2, 3]) bass.notes.push({ t: T(bar, beat), s: ROOT[c][0], f: ROOT[c][1] + (beat === 3 && c !== 'F' ? 2 : 0), sus: b * 0.9 });
+  }
+  // the singer, an original line for each chord (no gap at bar 9: the riff plays there)
+  const words = [
+    ['Lights', 'go', 'down', 'on', 'the', 'stage+'], ['Hold', 'the', 'note', 'and', 'turn', 'the', 'page+'],
+    ['Ev-', 'ery', 'chord', 'a', 'step', 'a-', 'way+'], ['Play', 'it', 'loud', 'and', 'let', 'it', 'stay+'],
+    ['Lights', 'go', 'down', 'on', 'the', 'stage+'], ['Hold', 'the', 'note', 'and', 'turn', 'the', 'page+'],
+    ['Ev-', 'ery', 'chord', 'a', 'step', 'a-', 'way+'], ['Play', 'it', 'loud', 'and', 'let', 'it', 'stay+'],
+  ];
+  const tunes = [[64, 64, 67, 65, 64, 60], [62, 62, 67, 69, 67, 65, 62], [64, 65, 67, 69, 67, 64, 60], [65, 65, 69, 67, 65, 64, 65]];
+  const rhythms = [[0, 0.5, 1, 2, 2.5, 3], [0, 0.5, 1, 1.5, 2, 2.5, 3], [0, 0.5, 1, 1.5, 2, 2.5, 3], [0, 0.5, 1, 1.5, 2, 2.5, 3]];
+  const ly = [];
+  words.forEach((line, li) => {
+    const bar = li < 4 ? 2 + li * 2 : 10 + (li - 4) * 2; // a line every two bars, the last word held
+    line.forEach((w, i) => {
+      const at = rhythms[li % 4][i];
+      const last = i === line.length - 1;
+      ly.push({ t: T(bar, at) + 0.03, d: last ? b * 3.6 : b * (rhythms[li % 4][i + 1] - at) * 0.9, w, p: tunes[li % 4][i] - 12 });
+    });
+  });
+  lead.lyrics = ly;
+  lead.id = 'lead';
+  window.__tabs = { lead, rhythm: { ...rhythm, id: 'rhythm' }, bass: { ...bass, id: 'bass' } };
+  window.__parts = [{ id: 'lead', type: 'lead', name: 'Lead' }, { id: 'rhythm', type: 'rhythm', name: 'Rhythm' }, { id: 'bass', type: 'bass', name: 'Bass' }];
+  window.__tab = lead;
+}
 
 const engine = Object.assign(new EventTarget(), { playing: q.get('play') === '1', speed: 1, duration: tab.length, tracks: [], sinkId: '', sampleRate: 48000, setSpeed(s) { s = Math.round(Math.max(0.25, Math.min(1.5, s)) * 100) / 100; if (s === this.speed) return; const p = this.position; this.speed = s; this.position = p; this.dispatchEvent(new Event('speed')); }, setPlayAlong() {}, level: () => 0, extraLatency: 0, async extraOut() { this._ac = this._ac || new AudioContext(); await this._ac.resume(); return { ctx: this._ac, node: this._ac.destination }; } });
 // a smooth song clock, moving while playing (tests may also set it by hand)

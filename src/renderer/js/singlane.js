@@ -81,7 +81,7 @@ function keepNotes(key, p) {
 let worker = null;
 let jobs = 0;
 /** The note of each syllable, read off the song's vocals stem (null when it has none). */
-async function notesFromStem(song, syl, engine) {
+export async function notesFromStem(song, syl, engine) {
   const st = await api.stems.status(song.id).catch(() => null);
   const f = st && st.state === 'ready' && Array.isArray(st.stems) ? st.stems.find((x) => x.name === 'vocals') : null;
   if (!f || !f.url) return null;

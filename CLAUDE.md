@@ -12,7 +12,7 @@ A session once started from a copy several versions old (3.9 while GitHub had 4.
 ## Layout
 
 - `src/main/`: Electron main process (CommonJS): `core/` (PSARC, SNG, saves, tones) and `services/` (library, stems, audio relay).
-- `src/renderer/`: the UI (ES modules, no bundler, no build step): `js/rig.js` (the rig), `js/detect.js` (note detection), `js/instrument.js` (guitar or bass), `js/sing.js` + `js/singlane.js` + `js/mic.js` (Sing along, an add-on: off until its chip is pressed), `js/karaoke.js` (the Karaoke page).
+- `src/renderer/`: the UI (ES modules, no bundler, no build step): `js/rig.js` (the rig), `js/detect.js` (note detection), `js/instrument.js` (guitar or bass), `js/sing.js` + `js/singlane.js` + `js/mic.js` (Sing along, an add-on: off until its chip is pressed), `js/karaoke.js` (the Karaoke page), `js/piano-arrange.js` + `js/piano-sheet.js` + `js/keys.js` + `js/midi.js` (Piano, an add-on: a part written from the song, sheet music and falling notes, a USB keyboard).
 - `engine/stagehand_stems.py`: stem splitting (Demucs/PyTorch, installed on the user's PC at runtime).
 - `native/`: the sound engine in plain C. `dsp/` is the amp, cab, effects and NAM code, shared by the Windows helper (`host/io_wasapi.c` → `native/bin/stagehand-audio.exe`, **prebuilt and committed**) and the in-app WebAssembly engine (`src/renderer/worklets/rig-dsp.wasm`, **committed**).
 - `windows/`: the installers: `install.ps1` + `Install Stagehand.bat` (zip install), and `setup/` (the Setup .exe, C, cross-compiled).
@@ -57,6 +57,9 @@ ELECTRON=<electron> xvfb-run -a node test/e2e/tones-electron.js <outDir>
 # Sing along with a pretend microphone: the chart's notes (1), notes read off a made-up vocals stem (stem), timing only (words, karaoke (karaoke))
 SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
 # the same with an unsteady pretend voice (vibrato, drift, cracks, breaths): SING_WOBBLE=1 SING=1 …
+# Piano with a pretend USB keyboard and pianist: a made-up song with a singer (tune), or a real chart (real, file sugar.json)
+PIANO=tune PIANO_END=46 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:0.5
+PIANO=real PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> R:0.5:::sugar.json
 # Sing along's settings in the full page (the microphone picker, the look) and the Karaoke page
 SH_AUDIT=test/e2e/sing-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # Discover's look on made-up results, artist, gaps and Wanted; writes discover-*.png

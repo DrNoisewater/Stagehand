@@ -441,7 +441,7 @@ function songsTab(body) {
   const row = (m, why) => {
     const s = state.songs.get(m.songId);
     const el = h('button.pw-row.pg-mrow', { type: 'button', title: 'Play it' }, coverEl(s, 52, 'sm'),
-      h('span.pw-text', null, h('b', { text: s.title }), h('span', { text: `${s.artist || ''} · ${{ lead: 'Lead', rhythm: 'Rhythm', bass: 'Bass', vocals: 'Singing' }[m.part] || m.part}${why ? ` · ${why}` : ''}` })),
+      h('span.pw-text', null, h('b', { text: s.title }), h('span', { text: `${s.artist || ''} · ${{ lead: 'Lead', rhythm: 'Rhythm', bass: 'Bass', vocals: 'Singing', keys: 'Piano' }[m.part] || m.part}${why ? ` · ${why}` : ''}` })),
       h('span.pg-mtag', { style: { '--rung': TIER_COLORS[m.tier] }, text: m.name }),
       h(`b.pw-best${m.best >= 0.9 ? '.top' : ''}`, { text: m.best ? `${Math.round(m.best * 100)}%` : '–' }));
     el.onclick = () => actions.playAlong(s.id);
@@ -488,7 +488,7 @@ function history(body, st) {
 }
 
 // ------------------------------------------------- 3.9: spotlight + highlights --
-const PART = { lead: 'Lead', rhythm: 'Rhythm', bass: 'Bass', vocals: 'Singing' };
+const PART = { lead: 'Lead', rhythm: 'Rhythm', bass: 'Bass', vocals: 'Singing', keys: 'Piano' };
 const band = (a) => (a >= 0.9 ? 'g' : a >= 0.7 ? 'y' : a >= 0.5 ? 'o' : 'r');
 const pctOf = (a) => `${Math.round(a * 100)}%`;
 // bars from 40 % up, so the differences that matter show
