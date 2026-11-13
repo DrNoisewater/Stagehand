@@ -26,8 +26,9 @@ const TUNGSTEN = '#ffb547';
 const FONT = "'Archivo', 'Segoe UI', sans-serif";
 /** How long the microphone's sound takes to reach the page, roughly (seconds). */
 const MIC_DELAY = 0.06;
-/** Seconds of song the lane shows ahead of now. */
-const AHEAD = 4;
+/** Seconds of song the lane shows ahead of now. 4.16.1: 4 → 5.5, so the words come in sooner
+ *  ("it's kind of hard to see the words coming fast enough … to figure out what to actually sing"). */
+const AHEAD = 5.5;
 
 export const SING_LOOKS = [
   ['bars', 'Bars', 'A bar for every syllable, higher notes higher, and a dot for your voice'],
@@ -367,8 +368,8 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
 
   // ------------------------------------------------------------ drawing --
   /** Sizes of the Bars look: the small lane beside the highway, or the big one in karaoke. */
-  const SMALL = { H: 124, top: 20, bot: 70, bh: 11, font: 17, wordY: 108, dot: 6 };
-  const BIG = { H: 310, top: 40, bot: 210, bh: 20, font: 27, wordY: 282, dot: 10 };
+  const SMALL = { H: 124, top: 20, bot: 70, bh: 11, font: 17, wordY: 108, dot: 6, nextY: 14, nextFont: 15 };
+  const BIG = { H: 310, top: 40, bot: 210, bh: 20, font: 27, wordY: 282, dot: 10, nextY: 28, nextFont: 20 };
   const lay = () => (lane.dataset.k ? BIG : SMALL);
 
   function size() {
@@ -428,7 +429,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
     g.clearRect(0, 0, W, Hh); // the road case behind is the lane's own (CSS)
     if ('fontStretch' in g) g.fontStretch = 'condensed';
 
-    const nowX = Math.round(W * 0.2); // the lane runs across the top; you sing at the line near its left end
+    const nowX = Math.round(W * 0.16); // the lane runs across the top; you sing at the line near its left end
     const pps = (W - nowX - 8) / AHEAD;
     const X = (time) => nowX + (time - t) * pps;
     const top = Z.top;
@@ -507,6 +508,29 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
       }
     }
     g.globalAlpha = 1;
+
+    // 4.16.1: the next line, written out in full above the lane as soon as the one before it starts,
+    // so you can read it before its words scroll in
+    const L = S.cur.lines;
+    let ni = 0;
+    while (ni < L.length && L[ni].t0 <= t + 0.05) ni++;
+    const nl = L[ni];
+    if (nl && nl.t0 - t < 14) {
+      const words = syl.slice(nl.from, nl.to).map((x, k) => x.text + (x.joined || k === nl.to - nl.from - 1 ? '' : ' ')).join('');
+      const soon = nl.t0 - t;
+      g.globalAlpha = Math.min(1, (14 - soon) / 1.5) * 0.92;
+      g.font = `700 ${Z.nextFont}px ${FONT}`;
+      g.textBaseline = 'middle';
+      const label = soon < 2.5 ? 'NEXT' : 'COMING UP';
+      g.fillStyle = TUNGSTEN;
+      g.fillText(label, nowX, Z.nextY);
+      const lx = nowX + g.measureText(label).width + 10;
+      g.fillStyle = '#000';
+      g.fillText(words, lx + 1, Z.nextY + 1, W - lx - 90);
+      g.fillStyle = soon < 2.5 ? INK : INK_3;
+      g.fillText(words, lx, Z.nextY, W - lx - 90);
+      g.globalAlpha = 1;
+    }
 
     // words
     g.font = `800 ${Z.font + 2}px ${FONT}`;
