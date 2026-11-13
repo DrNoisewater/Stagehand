@@ -5,6 +5,7 @@
  * page only shows things.
  */
 import { ClockSync, SongClock } from './clock.js';
+import { createVR } from './vr.js';
 
 const $ = (id) => document.getElementById(id);
 const KEY = 'stagehand.companion';
@@ -22,6 +23,7 @@ const keep = (patch) => {
   } catch (_) {}
 };
 
+const nowMs = () => performance.timeOrigin + performance.now();
 const sync = new ClockSync();
 const clock = new SongClock(sync);
 const S = { ws: null, paired: false, songs: [], byId: new Map(), state: null, songId: null, arrId: null, pc: null, device: null, tries: 0, code: '' };
@@ -105,6 +107,13 @@ function onMessage(m) {
       S.paired = true;
       S.pc = m.pc;
       S.device = m.device;
+      // where the highway sits, kept on the PC too (a cleared browser doesn't lose it)
+      if (!saved.comfort && m.device && m.device.data && m.device.data.vr) {
+        keep({ comfort: m.device.data.vr });
+        if (vr) Object.assign(vr.stage.S.comfort, m.device.data.vr);
+        if (vr) vr.setOffset(m.device.data.vr.offsetMs || 0);
+        drawOffset();
+      }
       link('on', `Connected to ${m.pc && m.pc.name ? m.pc.name : 'your PC'}`);
       show('main');
       return;
@@ -119,10 +128,35 @@ function onMessage(m) {
       S.arrId = m.arrId;
       drawNow();
       markList();
+      wantChart();
+      return;
+    case 'tab':
+      if (m.req !== S.tabReq) return;
+      if (vr) vr.setChart(m.tab || null);
+      S.chartFor = m.tab ? `${m.songId}|${m.tab.id}` : null;
+      $('art').classList.toggle('live', !!m.tab);
+      $('preview').hidden = !m.tab;
+      return;
+    case 'judged':
+      if (vr) vr.judged(m);
       return;
     case 'state':
+      if (S.state && m.songId === S.state.songId && vr) {
+        // a jump back: the notes after it get judged again
+        const was = clock.target(nowMs());
+        if (m.t < was - 0.3) vr.rewind(m.t);
+      }
       S.state = m;
       clock.set(m);
+      if (m.arrId && m.arrId !== S.arrId) {
+        S.arrId = m.arrId;
+        drawNow();
+      }
+      wantChart();
+      if (vr && m.venue !== S.venue) {
+        S.venue = m.venue;
+        vr.setVenue(m.venue ? `/venues/${m.venue}.jpg` : null);
+      }
       if (m.songId !== S.songId) {
         S.songId = m.songId;
         drawNow();
@@ -285,12 +319,12 @@ function drawNow() {
   if (!s) return;
   if ($('art').dataset.id !== s.id) {
     $('art').dataset.id = s.id;
-    $('art').innerHTML = '';
+    $('art').querySelectorAll('img').forEach((x) => x.remove());
     const img = document.createElement('img');
     img.alt = '';
     img.src = coverUrl(s.id, 400);
     img.onerror = () => img.remove();
-    $('art').append(img);
+    $('art').prepend(img);
   }
   $('title').textContent = s.title;
   $('artist').textContent = [s.artist, s.album, s.year].filter(Boolean).join(' · ');
@@ -324,6 +358,59 @@ function drawScore() {
 $('playBtn').onclick = () => send({ type: S.state && S.state.playing ? 'pause' : 'play' });
 $('back5').onclick = () => send({ type: 'seek', t: Math.max(0, clock.target(performance.timeOrigin + performance.now()) - 5) });
 $('fwd5').onclick = () => send({ type: 'seek', t: clock.target(performance.timeOrigin + performance.now()) + 5 });
+
+// ------------------------------------------------------------- the stage --
+/** Asks the PC for the part being played (once per song and part). */
+function wantChart() {
+  const id = S.songId, arr = S.arrId;
+  if (!id || !arr || S.wanted === `${id}|${arr}`) return;
+  S.wanted = `${id}|${arr}`;
+  S.tabReq = (S.tabReq || 0) + 1;
+  send({ type: 'tab', songId: id, arrId: arr, req: S.tabReq });
+}
+function info() {
+  const s = S.songId ? S.byId.get(S.songId) : null;
+  const sc = S.state && S.state.score;
+  return {
+    title: s ? s.title : '',
+    sub: s ? s.artist : '',
+    acc: sc && sc.judged ? sc.acc : null,
+    streak: sc ? sc.streak || 0 : 0,
+    note: S.state && !S.state.playing ? 'Paused · pull the trigger to play' : '',
+  };
+}
+function saveComfort(c) {
+  keep({ comfort: c });
+  send({ type: 'save', key: 'vr', value: c });
+}
+const vr = createVR({ canvas: $('preview'), clock, nowMs, send, comfort: saved.comfort, saveComfort, info });
+window.__companion.vr = vr;
+function drawOffset() {
+  $('offVal').textContent = `${vr ? vr.V.offsetMs : 0} ms`;
+}
+function nudge(d) {
+  if (!vr) return;
+  vr.setOffset(Math.max(-300, Math.min(300, vr.V.offsetMs + d)));
+  drawOffset();
+  clearTimeout(nudge.t);
+  nudge.t = setTimeout(() => saveComfort({ ...vr.stage.S.comfort, offsetMs: vr.V.offsetMs }), 800);
+}
+$('offMinus').onclick = () => nudge(-10);
+$('offPlus').onclick = () => nudge(10);
+drawOffset();
+(async () => {
+  if (!vr) {
+    $('vrNote').textContent = 'This browser can’t draw the highway.';
+    return;
+  }
+  const ok = await vr.supported();
+  $('vrBtn').disabled = !ok.vr;
+  $('arBtn').disabled = !ok.ar;
+  if (!ok.vr && !ok.ar) $('vrNote').textContent = window.isSecureContext ? 'Open this page in the Quest’s browser to go into VR.' : 'VR needs the secure address (https).';
+  const go = (mode) => vr.enter(mode).catch((err) => ($('vrNote').textContent = `Couldn’t start VR: ${err.message}`));
+  $('vrBtn').onclick = () => go('immersive-vr');
+  $('arBtn').onclick = () => go('immersive-ar');
+})();
 
 // every frame: the clock and the bar
 function frame() {

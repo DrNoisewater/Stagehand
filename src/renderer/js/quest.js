@@ -31,6 +31,7 @@ function snapshot() {
     speed: eng.speed || 1,
     open,
     dur: stage.duration() || 0,
+    venue: open && hw.venue ? hw.venue() : null,
     score: judge ? { acc: judge.accuracy, streak: judge.streak, hits: judge.hits, judged: judge.judged } : null,
   };
 }
@@ -38,7 +39,7 @@ function snapshot() {
 function tick() {
   const s = snapshot();
   const p = Q.last;
-  const changed = !p || p.songId !== s.songId || p.arrId !== s.arrId || p.playing !== s.playing || p.speed !== s.speed || p.open !== s.open || Math.abs(s.t - p.t) > 0.05 || (s.score && (!p.score || p.score.judged !== s.score.judged));
+  const changed = !p || p.songId !== s.songId || p.arrId !== s.arrId || p.playing !== s.playing || p.speed !== s.speed || p.open !== s.open || p.venue !== s.venue || Math.abs(s.t - p.t) > 0.05 || (s.score && (!p.score || p.score.judged !== s.score.judged));
   // playing: every tick (the headset's clock); paused: on a change, and once a second
   if (s.playing || changed || s.at - Q.lastSent > 1000) {
     api.companion.state(s);

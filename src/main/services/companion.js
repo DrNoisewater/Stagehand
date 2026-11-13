@@ -233,6 +233,7 @@ class Companion extends EventEmitter {
       open: !!s.open,
       dur: Number(s.dur) || 0,
       score: s.score || null,
+      venue: typeof s.venue === 'string' && /^[a-z0-9-]{1,40}$/.test(s.venue) ? s.venue : null,
     };
     const changed = !this.state || this.state.songId !== st.songId || this.state.arrId !== st.arrId;
     this.state = st;
@@ -273,6 +274,7 @@ class Companion extends EventEmitter {
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(405, 'text/plain', 'No');
     if (u.pathname === '/' || u.pathname === '/index.html') return this._file(res, 'index.html', head);
     if (u.pathname.startsWith('/app/')) return this._file(res, u.pathname.slice(5), head);
+    if (u.pathname.startsWith('/venues/') && this.o.venueDir && /^\/venues\/[a-z0-9-]+\.(jpg|webp|avif)$/.test(u.pathname)) return this._file(res, u.pathname.slice(8), { ...head, 'Cache-Control': 'max-age=86400' }, this.o.venueDir);
     if (u.pathname.startsWith('/fonts/') && this.o.fontDir) return this._file(res, u.pathname.slice(7), { ...head, 'Cache-Control': 'max-age=86400' }, this.o.fontDir);
     if (u.pathname.startsWith('/cover/')) {
       if (!this._deviceForToken(u.searchParams.get('k'))) return send(403, 'text/plain', 'Pair first');

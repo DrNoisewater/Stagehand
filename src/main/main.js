@@ -1430,6 +1430,7 @@ async function setupCompanion() {
   companion = new Companion({
     pageDir: path.join(__dirname, '..', 'companion'),
     fontDir: path.join(RENDERER, 'fonts'),
+    venueDir: path.join(RENDERER, 'venues'),
     store: companionStore,
     songs: () => Object.values((library.data && library.data.songs) || {}),
     loadTab: (songId, arrId) => {

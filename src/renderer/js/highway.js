@@ -238,6 +238,7 @@ export function createHighway(stage) {
   H.openSync = () => openSync();
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
   window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on && !aside() ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave(),
+    venue: () => { const v = VENUES.find((x) => x.id === H.decorVenue); return v && v.photo ? v.photo : null; }, // its photo, for the headset
     // 4.16: the Quest companion picks the part from the headset
     setPart: async (arrId) => {
       if (!H.song || !H.parts.some((p) => p.id === arrId) || (H.tab && H.tab.id === arrId)) return;

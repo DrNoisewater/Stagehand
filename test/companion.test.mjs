@@ -304,3 +304,28 @@ test('the home network address is picked over virtual adapters', () => {
   assert.equal(a[0].address, '192.168.1.20');
   assert.equal(a.length, 2);
 });
+
+test('the headset’s chart: notes and chords in order, the PC’s results matched by time, words in lines', async () => {
+  const { targets, Results, lyricLines, lyricAt, handAt } = await import('../src/companion/chart.js');
+  const tab = {
+    notes: [{ t: 2, s: 1, f: 5 }, { t: 1, s: 0, f: 3, sus: 0.5 }],
+    chordEvents: [{ t: 1.5, chord: 0, strings: [{ s: 0, f: 5 }, { s: 1, f: 7 }] }],
+    anchors: [{ t: 0, fret: 3, width: 4 }, { t: 1.9, fret: 9, width: 4 }],
+  };
+  const T = targets(tab);
+  assert.deepEqual(T.map((x) => [x.t, x.kind]), [[1, 'note'], [1.5, 'chord'], [2, 'note']]);
+  const R = new Results(T);
+  assert.equal(R.judged({ t: 1.5, hit: true, notes: [{ s: 0, f: 5 }, { s: 1, f: 7 }] }), 1);
+  assert.equal(R.judged({ t: 2.001, hit: false, notes: [{ s: 1, f: 5 }] }), 2);
+  assert.equal(R.judged({ t: 7, hit: true }), -1);
+  assert.equal(R.get(1).hit, true);
+  R.rewind(1.9); // a seek back to before the last note: judged again
+  assert.equal(R.get(2), null);
+  assert.ok(R.get(1));
+  // the neck starts moving towards the next hand position before you get there
+  assert.ok(handAt(tab.anchors, 1.0) > handAt(tab.anchors, 0) && handAt(tab.anchors, 1.0) < handAt(tab.anchors, 2.5));
+  const L = lyricLines([{ t: 1, d: 0.3, w: 'Su-' }, { t: 1.3, d: 0.3, w: 'gar+' }, { t: 3, d: 0.3, w: 'we’re' }, { t: 3.4, d: 0.3, w: 'going+' }]);
+  assert.deepEqual(L.map((l) => l.text), ['Sugar', 'we’re going']);
+  assert.equal(lyricAt(L, 1.8), 'Sugar');
+  assert.equal(lyricAt(L, 2.5), 'we’re going');
+});

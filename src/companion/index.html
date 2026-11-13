@@ -45,7 +45,7 @@
         <span>It opens on the PC too, and both follow each other.</span>
       </div>
       <div class="now-song" id="nowSong" hidden>
-        <div class="art" id="art"></div>
+        <div class="art" id="art"><canvas id="preview" hidden></canvas></div>
         <div class="meta">
           <div class="title" id="title"></div>
           <div class="artist" id="artist"></div>
@@ -61,7 +61,12 @@
           <button class="btn round" id="fwd5" title="On 5 seconds">+5</button>
         </div>
         <div class="score" id="score"></div>
-        <button class="btn primary wide" id="vrBtn" disabled>Enter VR · coming next</button>
+        <div class="vr-row">
+          <button class="btn primary wide" id="vrBtn" disabled>Step onto the stage</button>
+          <button class="btn wide" id="arBtn" disabled>In my room</button>
+        </div>
+        <p class="vr-note" id="vrNote"></p>
+        <div class="offset"><span>Picture timing</span><button class="btn small" id="offMinus" title="Notes earlier">−</button><b id="offVal">0 ms</b><button class="btn small" id="offPlus" title="Notes later">+</button></div>
         <div class="sync" id="sync"></div>
       </div>
     </section>
