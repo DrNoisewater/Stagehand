@@ -3,6 +3,7 @@
 const path = require('path');
 const { Psarc } = require('../core/psarc');
 const sng = require('../core/sng');
+const { vocalDifficulty } = require('../core/vocaldiff');
 const { parseXml } = require('../core/xmlarr');
 const { songTones } = require('../core/tones');
 
@@ -82,6 +83,25 @@ class TabService {
     const json = JSON.parse((await psarc.read(arr.manifest)).toString('utf8').replace(/^\uFEFF/, ''));
     const entry = (json.Entries && (json.Entries[arr.id] || Object.values(json.Entries)[0])) || null;
     return entry ? songTones(entry.Attributes, tab.tones, arr.type) : null;
+  }
+
+  /** 4.14: how hard the song is to sing (the Karaoke page), from its lyric chart. Small and cached. */
+  async vocals(song) {
+    const key = `${song.path}|${song.mtimeMs}`;
+    this.vocalCache = this.vocalCache || new Map();
+    if (this.vocalCache.has(key)) return this.vocalCache.get(key);
+    const voc = (song.arrangements || []).find((a) => a.type === 'vocals');
+    const sourcePath = (song.dlcImport && voc && voc.sourcePath) || song.path;
+    let out = null;
+    const psarc = await Psarc.open(sourcePath);
+    try {
+      out = vocalDifficulty(await this._lyrics(psarc, song).catch(() => []));
+    } finally {
+      await psarc.close().catch(() => {});
+    }
+    this.vocalCache.set(key, out);
+    if (this.vocalCache.size > 4000) this.vocalCache.delete(this.vocalCache.keys().next().value);
+    return out;
   }
 
   async _lyrics(psarc, song) {

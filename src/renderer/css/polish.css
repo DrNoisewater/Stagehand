@@ -38,13 +38,13 @@ html[data-look='roadshow'] .sp-item.on .sp-ic { color:#f4d36c; }
 html[data-look='opera'] #app .row .t { font-weight:760; color:#efe6d3; }
 
 /* ---- karaoke mic on each song with words (4.14) ---- */
-.kk-mic { flex:none; margin-left:auto; width:26px; height:24px; display:grid; place-items:center; padding:0; border:1px solid transparent; border-radius:3px; background:none; color:var(--gel-vocals,#c084fc); opacity:.32; cursor:pointer; transition:opacity .12s, background .12s, border-color .12s, transform .12s; }
+.kk-mic { flex:none; margin-left:auto; width:26px; height:24px; display:grid; place-items:center; padding:0; border:1px solid transparent; border-radius:3px; background:none; color:var(--gel-vocals); opacity:.32; cursor:pointer; transition:opacity .12s, background .12s, border-color .12s, transform .12s; }
 .kk-mic svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
 #app .row:hover .kk-mic, #app .row.sel .kk-mic { opacity:.8; }
 .kk-mic:hover, .kk-mic:focus-visible { opacity:1 !important; background:#ffffff10; border-color:currentColor; transform:scale(1.06); outline:none; }
 .kk-mic:active { transform:scale(.96); }
 /* on a tile it sits beside the play button, showing on hover like it does */
-.tile .kk-mic.on-tile { position:absolute; right:52px; bottom:12px; width:30px; height:30px; border-radius:50%; background:#000a; border-color:#ffffff22; opacity:0; color:#e9d5ff; }
+.tile .kk-mic.on-tile { position:absolute; right:52px; bottom:12px; width:30px; height:30px; border-radius:50%; background:#000a; border-color:#ffffff22; opacity:0; color:#9fe9f5; }
 .tile:hover .kk-mic.on-tile { opacity:1; }
 
 /* ---- song panel cover: sing / play along / play (4.14) ---- */
@@ -55,10 +55,66 @@ html[data-look='opera'] #app .row .t { font-weight:760; color:#efe6d3; }
   transition:transform .14s var(--ease), background .14s, border-color .14s, color .14s; }
 .cv-btn svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
 .cv-btn:hover, .cv-btn:focus-visible { transform:scale(1.07); outline:none; border-color:currentColor; }
-.cv-sing { color:#e9d5ff; }
-.cv-sing:hover { background:#2a1d3acc; }
+.cv-sing { color:#9fe9f5; }
+.cv-sing:hover { background:#0f2f36cc; }
 .cv-along { color:#ffd58f; }
 .cv-along:hover { background:#3a2a12cc; }
 /* the title wins the room: badges shrink first, the mic always stays */
 #app .row .t .tt-text { flex:0 0 auto; max-width:calc(100% - 34px); }
 #app .row .t > :not(.tt-text):not(.kk-mic) { flex-shrink:40; min-width:0; overflow:hidden; }
+
+/* ---- Karaoke page (4.14) ---- */
+#page-karaoke { gap:16px; padding:22px 28px 40px; }
+.kk-title-big { margin:0; font-size:28px; font-weight:900; font-stretch:66%; text-transform:uppercase; letter-spacing:.005em; color:#efe6d3; text-shadow:0 2px 0 #000; line-height:1; }
+html[data-look='roadshow'] .kk-title-big { color:#d9f0dc; }
+.kk-sub { margin:6px 0 0; font-size:12.5px; color:var(--ink-3); }
+.kk-levels { border-radius:3px; box-shadow:inset 0 0 0 1px #3d3832; }
+.kk-levels button { padding:6px 12px; font:700 11px 'Typewriter Stagehand','Liberation Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:#a99e8c; }
+.kk-levels button[aria-pressed='true'] { color:#06222a; background:var(--gel-vocals); }
+.kk-tools { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.kk-search { max-width:340px; }
+.kk-show { display:inline-flex; gap:6px; }
+.kk-show button { display:inline-flex; align-items:center; gap:7px; padding:6px 11px; border-radius:3px; border:1px solid #3d3832; background:#16140f; color:#cfc6b4; font:600 12.5px var(--font); cursor:pointer; }
+.kk-show button small { font-size:11px; color:#8f8676; font-variant-numeric:tabular-nums; }
+.kk-show button[aria-pressed='true'] { border-color:var(--gel-vocals); color:#fff; background:#0f2a2f; }
+.kk-show button[aria-pressed='true'] small { color:#9fe9f5; }
+.kk-sort { height:32px; padding:0 10px; border-radius:3px; border:1px solid #3d3832; background:#16140f; color:#cfc6b4; font:600 12.5px var(--font); }
+
+.kk-grid { grid-template-columns:repeat(auto-fill, minmax(168px, 1fr)); gap:22px 18px; }
+.kk-card { position:relative; display:flex; flex-direction:column; gap:2px; min-width:0; cursor:pointer; outline:none; }
+.kk-cov { position:relative; margin-bottom:8px; }
+.kk-card .cover { width:100% !important; height:auto !important; aspect-ratio:1 / 1; border-radius:2px; margin:0; box-shadow:0 0 0 1px #000, 3px 4px 0 #0008; transition:transform .14s var(--ease), box-shadow .14s; }
+.kk-card:hover .cover, .kk-card:focus-visible .cover { transform:translateY(-3px) rotate(-.4deg); box-shadow:0 0 0 2px var(--gel-vocals), 4px 8px 0 #0009; }
+/* the mic that says "click to sing", on hover */
+.kk-mic-big { position:absolute; inset:0; display:grid; place-items:center; opacity:0; transition:opacity .14s; pointer-events:none; }
+.kk-mic-big svg { width:46px; height:46px; padding:13px; border-radius:50%; box-sizing:content-box; background:#000b; color:#9fe9f5; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; box-shadow:0 0 0 2px #9fe9f544, 0 0 30px #33c8e055; transform:translateY(-3px); }
+.kk-card:hover .kk-mic-big, .kk-card:focus-visible .kk-mic-big { opacity:1; }
+/* just play it */
+.kk-listen { position:absolute; right:8px; bottom:8px; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; padding:0; border:1px solid #ffffff30; background:#0b0a09d9; color:#f3ece0; cursor:pointer; opacity:.0; transition:opacity .14s, transform .14s, background .14s; }
+.kk-listen svg { width:13px; height:13px; margin-left:2px; }
+.kk-card:hover .kk-listen, .kk-card:focus-within .kk-listen { opacity:1; }
+.kk-listen:hover { background:var(--tungsten,#ffb547); color:#1a1205; border-color:transparent; transform:scale(1.08); }
+/* split or not, at a glance: a strip of tape on the cover */
+.kk-stem { position:absolute; left:-5px; top:9px; display:inline-flex; align-items:center; gap:5px; padding:3px 8px 3px 7px; font:700 10px 'Typewriter Stagehand','Liberation Mono',monospace; letter-spacing:.09em; text-transform:uppercase; transform:rotate(-2deg); box-shadow:1px 2px 0 #0007; }
+.kk-stem svg { width:11px; height:11px; fill:none; stroke:currentColor; stroke-width:3; }
+.kk-stem.ready { background:#33c8e0; color:#04222a; }
+.kk-stem.working { background:#e9dfc8; color:#3b2f1c; }
+.kk-stem.working i { width:7px; height:7px; border-radius:50%; background:#d23a2c; animation:kkpulse 1s ease-in-out infinite; }
+.kk-stem.none { background:#1b1915e6; color:#8f8676; box-shadow:inset 0 0 0 1px #3d3832; font-weight:600; transform:none; left:6px; top:6px; padding:2px 6px; opacity:0; transition:opacity .14s; }
+.kk-card:hover .kk-stem.none { opacity:1; }
+@keyframes kkpulse { 50% { opacity:.35; } }
+.kk-card .kk-title { font-size:14px; font-weight:740; font-stretch:90%; color:#f3ece0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kk-card .kk-artist { font-size:12px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kk-meta { display:flex; align-items:center; gap:10px; margin-top:5px; min-height:16px; }
+/* difficulty: five pips, the word beside them */
+.kk-diff { display:inline-flex; align-items:center; gap:2px; font-size:11px; color:#a99e8c; }
+.kk-diff i { width:7px; height:9px; border-radius:1px; background:#3a352e; }
+.kk-diff i.on { background:#33c8e0; }
+.kk-diff[data-level='4'] i.on { background:#f2b33d; }
+.kk-diff[data-level='5'] i.on { background:#e5533c; }
+.kk-diff em { font-style:normal; margin-left:6px; font-weight:600; letter-spacing:.01em; }
+.kk-diff.wait i { animation:kkpulse 1.4s ease-in-out infinite; }
+.kk-diff.wait i:nth-child(2) { animation-delay:.1s } .kk-diff.wait i:nth-child(3) { animation-delay:.2s } .kk-diff.wait i:nth-child(4) { animation-delay:.3s } .kk-diff.wait i:nth-child(5) { animation-delay:.4s }
+.kk-diff.none { color:#6c655a; }
+.kk-best { margin-left:auto; display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:700; color:#9fe9f5; font-variant-numeric:tabular-nums; }
+.kk-best svg { width:11px; height:11px; fill:none; stroke:currentColor; stroke-width:2; }
