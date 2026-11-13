@@ -57,6 +57,13 @@ stage to yourself. The Sing chip, when off, now asks which kind: **Sing along** 
   switching back puts the neck and the singer back). **Ask:** is the chip the right place to find it, or should
   Karaoke also be reachable from a song's menu in the library? Should the guitar go quiet in karaoke?
 
+**The lane goes up top (asked right after: "up top kind of like in the other rock band games, something that
+shows you what pitch you're supposed to be singing at any given time").** The lane now runs across the top of the
+highway, centred (`.hw-sing`, 82% of the width; bigger in karaoke, also up top, not mid-stage). You sing at a line
+near its left end (`nowX` 20%), bars scroll in from the right. New in the Bars look: faint lines for each note, and
+a pointer on the line at the height of the note to sing now, with its name (A, C♯…); between words it waits,
+dimmer, at the next note. **Ask:** is this the picture they had in mind (height, how far ahead it shows)?
+
 **Not done / open:**
 - Only on the highway. The Tab view and Now playing don't have the lane yet (the plan wanted it above the tab).
 - The voice through Stagehand (hearing yourself with reverb, the voice in recorded clips): needs the sound engine

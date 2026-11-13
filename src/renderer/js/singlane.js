@@ -1,6 +1,6 @@
 /**
  * Sing along on the highway: an add-on, off until you press the Sing chip.
- * A lane of its own where the lyrics sit (words, a bar for each syllable
+ * A lane of its own across the top, as in the band games (words, a bar for each syllable
  * placed by its note, a dot for your voice). It never touches the neck, the
  * notes, the guitar's sound or the guitar's score, and it does nothing at
  * all while it is off: no microphone, no reading of the song.
@@ -23,6 +23,8 @@ const FONT = "'Archivo', 'Segoe UI', sans-serif";
 const MIC_DELAY = 0.06;
 /** Seconds of song the lane shows ahead of now. */
 const AHEAD = 4;
+/** Note names for the pointer that shows what to sing. */
+const NOTE = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 
 export const SING_LOOKS = [
   ['bars', 'Bars', 'A bar for every syllable, higher notes higher, and a dot for your voice'],
@@ -336,8 +338,8 @@ export function createSing({ root, stage, onKaraoke }) {
 
   // ------------------------------------------------------------ drawing --
   /** Sizes of the Bars look: the small lane beside the highway, or the big one in karaoke. */
-  const SMALL = { H: 118, top: 18, bot: 66, bh: 10, font: 17, wordY: 100, nowH: 68, dot: 6, floor: 40, lvl: 60 };
-  const BIG = { H: 300, top: 30, bot: 196, bh: 18, font: 27, wordY: 268, nowH: 208, dot: 10, floor: 76, lvl: 180 };
+  const SMALL = { H: 124, top: 18, bot: 62, bh: 10, font: 17, wordY: 110, nowH: 64, dot: 6, floor: 50, lvl: 56 };
+  const BIG = { H: 310, top: 30, bot: 196, bh: 18, font: 27, wordY: 284, nowH: 208, dot: 10, floor: 86, lvl: 180 };
   const lay = () => (lane.dataset.k ? BIG : SMALL);
 
   function size() {
@@ -386,7 +388,7 @@ export function createSing({ root, stage, onKaraoke }) {
     g.lineWidth = 1;
     g.stroke();
 
-    const nowX = Math.round(W * 0.3);
+    const nowX = Math.round(W * 0.2); // the lane runs across the top; you sing at the line near its left end
     const pps = (W - nowX - 8) / AHEAD;
     const X = (time) => nowX + (time - t) * pps;
     const top = Z.top;
@@ -421,6 +423,9 @@ export function createSing({ root, stage, onKaraoke }) {
     const Y = (p) => bot - ((p - S.rng.lo) / (S.rng.hi - S.rng.lo)) * (bot - top);
     const midY = (top + bot) / 2;
     const fade = (x) => (x < nowX ? Math.max(0, Math.min(1, x / (nowX * 0.35))) : 1);
+    // faint lines, one for each note, so how high or low a bar sits can be read
+    g.fillStyle = 'rgba(155, 233, 245, 0.07)';
+    for (let p = Math.ceil(S.rng.lo); p <= Math.floor(S.rng.hi); p++) g.fillRect(14, Math.round(Y(p)), W - 28, 1);
 
     // bars
     const BH = Z.bh;
@@ -501,6 +506,35 @@ export function createSing({ root, stage, onKaraoke }) {
     // your voice: a dot on the now line, with a short tail
     const target = sylAt(t - MIC_DELAY);
     const cents = SING_LEVELS[prefs().level].cents;
+    // what to sing right now: a pointer on the line at the note's height, with its name
+    // (it waits at the next note, dimmer, between words)
+    let aim = target && target.p !== null && t <= target.t + target.d ? target : null;
+    if (!aim) {
+      for (let i = j ? j.next : 0; i < syl.length && syl[i].t < t + 2.5; i++) {
+        if (syl[i].p !== null && syl[i].t + syl[i].d > t) {
+          aim = syl[i];
+          break;
+        }
+      }
+    }
+    if (aim) {
+      const y = Math.max(top - 4, Math.min(bot + 4, Y(aim.p)));
+      const r = Z.dot * 1.2;
+      g.globalAlpha = aim.t > t ? 0.5 : 1;
+      g.fillStyle = CYAN_SOFT;
+      g.beginPath();
+      g.moveTo(nowX - 5, y);
+      g.lineTo(nowX - 5 - r, y - r * 0.8);
+      g.lineTo(nowX - 5 - r, y + r * 0.8);
+      g.closePath();
+      g.fill();
+      // its name sits under the line, clear of the bars
+      g.font = `700 ${Z === BIG ? 18 : 12}px ${FONT}`;
+      g.textAlign = 'center';
+      g.fillText(NOTE[((Math.round(aim.p) % 12) + 12) % 12], nowX, 8 + Z.nowH + (Z === BIG ? 20 : 13));
+      g.textAlign = 'left';
+      g.globalAlpha = 1;
+    }
     if (voice && voice.voiced) {
       const near = target && target.p !== null ? target.p : (S.rng.lo + S.rng.hi) / 2;
       const p = voice.midi === null || voice.midi === undefined ? null : nearOctave(voice.midi, near);

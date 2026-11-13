@@ -2180,11 +2180,12 @@ html[data-decoration='reduced'] .guitar-card .gc-cable { display: none; }
 /* 4.12 sing along (an add-on): the Sing chip, the lane where the lyrics sit, and its line on the score card */
 .highway .hw-sing-chip[aria-pressed='true'] { color: #06222a; background: #33c8e0; border-color: #33c8e0; box-shadow: 0 0 14px rgba(51, 200, 224, 0.45); }
 .hw-sing-chip[aria-pressed='true'] svg:last-child { width: 12px; height: 12px; opacity: 0.7; }
-.hw-sing { position: absolute; left: 28px; top: 96px; z-index: 3; width: min(56vw, 900px); pointer-events: none; }
+.hw-sing { position: absolute; left: 50%; top: 96px; z-index: 3; width: min(82vw, 1500px); transform: translateX(-50%); pointer-events: none; } /* across the top, as in the band games */
+.hw-sing .sw-words { justify-content: center; }
 .highway.hw-repeating .hw-sing { top: 142px; }
 .hw-sing[hidden] { display: none; }
 .highway:has(.hw-card:not([hidden])) .hw-sing { visibility: hidden; } /* the score card sits there */
-.hw-sing canvas { display: block; width: 100%; height: 118px; }
+.hw-sing canvas { display: block; width: 100%; height: 124px; }
 .hw-sing .sw-words { display: none; gap: 14px; align-items: stretch; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85); }
 .hw-sing[data-look='words'] canvas { display: none; }
 .hw-sing[data-look='words'] .sw-words { display: flex; }
@@ -2213,10 +2214,10 @@ html[data-decoration='reduced'] .guitar-card .gc-cable { display: none; }
 .mic-level i { display: block; height: 100%; width: calc(var(--lv) * 100%); background: #7e87a6; border-radius: 4px; transition: width 0.05s linear; }
 .mic-level.voiced i { background: #33c8e0; box-shadow: 0 0 8px #33c8e0; }
 
-/* 4.12 karaoke: the lane goes big in the middle of the stage; the guitar's score steps aside */
-.hw-sing[data-k] { left: 50%; top: 50%; width: min(92vw, 1300px); transform: translate(-50%, -50%); }
-.highway.hw-repeating .hw-sing[data-k] { top: 50%; }
-.hw-sing[data-k] canvas { height: 300px; }
+/* 4.12 karaoke: the lane goes big, still up top; the guitar's score steps aside */
+.hw-sing[data-k] { top: max(110px, 13vh); width: min(92vw, 1500px); }
+.highway.hw-repeating .hw-sing[data-k] { top: max(150px, 13vh); }
+.hw-sing[data-k] canvas { height: 310px; }
 .hw-sing[data-k][data-look='words'] .sw-words { justify-content: center; gap: 26px; }
 .hw-sing[data-k] .sw-now { font-size: clamp(34px, 4.6vw, 64px); }
 .hw-sing[data-k] .sw-next { margin-top: 12px; font-size: clamp(20px, 2.4vw, 32px); }
