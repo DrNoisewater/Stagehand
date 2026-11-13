@@ -1,3 +1,72 @@
+# 4.16 (not released yet) — the Quest companion, steps 1 and 2 (2026-11-13)
+
+User (the plan, in the claude.ai Project doc "Stagehand Quest companion handoff"): "a VR app for the Quest 3 that mimics
+PianoVision … connects to my computer to use my Stagehand library", guitar on the highway in VR, piano's falling notes
+on the real Williams Allegro IV in passthrough. Non-negotiables: Stagehand works exactly as before without the headset
+(the companion is off until switched on); with it, seamless; guitar and piano both solid; the piano position remembered,
+never set up again. Built on `claude/audit-fixes` (#43, 4.15.1) because #43 wasn't merged yet. **Not tried on a real
+Quest yet.**
+
+**Step 1, the bridge (done):**
+- Settings › **Quest headset** (`questsettings.js`): one switch. Off (the default): nothing listens, the window sends
+  nothing, no prompts. On: the address (`https://<PC>:4180`, the same port every time; the next free one if taken), a
+  4-number code, the headsets it knows (connected / last seen, Forget), New code.
+- `src/main/services/companion.js` (main, Node built-ins only): https + WebSocket on the home network. Its own file
+  `companion.json` in the data folder (switch, port, code, headsets with a **hash** of their key, the certificate),
+  kept apart from settings so the key never reaches the window. Page and fonts need no key; covers, the library, charts
+  and everything on the socket do. 5 wrong codes in a minute: a minute's wait (a new code clears it). Up to 8 headsets.
+  The headset can keep its own things on the PC (`save` → `devices[].data`: where the highway sits, its picture timing;
+  later the piano's position), handed back on every connect.
+- `src/main/core/wsserver.js`: a small WebSocket (text frames, ping, close). `src/main/core/selfcert.js`: a self-signed
+  certificate written by hand (EC P-256, the PC's addresses in it, 825 days), because the Quest's browser only allows VR
+  on an https page. Made once and kept; a new one only when the PC's address changes or it nears its end. The headset
+  warns once ("not private": Advanced › Proceed).
+- `src/renderer/js/quest.js` (the window's side): only while a headset is connected, the song clock + play state 30×/s
+  (paused: on change and once a second) and judged notes (`window.__shCompanionJudged`, a hook in highway.js
+  `onJudged`); commands from the headset: pick (opens Play along, then the part: `__shHighway.setPart`), part, play,
+  pause, seek.
+- `src/companion/` (the headset's page, plain ES modules like the renderer): `app.js` (pairing pad, library with search
+  and covers, now playing, transport, parts), `clock.js` (ClockSync: pings, the fastest third of the last 16 round
+  trips; SongClock: smooth, snaps on seek/pause), `style.css`.
+- The clock: the PC's song clock + the moment it was read (ms since 1970, both processes); the headset estimates the
+  offset and runs it smoothly. Measured: within 15 ms with a 5 s clock difference (Node test); 0.5 ms typical in the
+  full app (quest-audit).
+
+**Step 2, the guitar highway on the headset (first version):**
+- `stage3d.js` (WebGL2, no library; instanced boxes, a digits texture, a panel texture): strings across in front of you
+  (low E on top), frets left to right following your hand (`handAt`: eased towards the next anchor), notes and chords
+  coming at you along their strings with stems to the lane, held notes as tails, the hand's frets lit, beat and bar
+  lines, the venue's photo on a curved screen around you (`/venues/<photo>.jpg`, the song's venue from the PC), the
+  song, score and the words being sung on a panel above. The PC's hits flash and spark; misses grey out.
+- `vr.js`: a preview on the page (the same scene, a standing eye) and **Step onto the stage** (`immersive-vr`) or **In
+  my room** (`immersive-ar`, passthrough: no venue, the highway floating in your room). In VR: trigger = play/pause,
+  right stick up/down = nearer/further, left stick up/down = higher/lower, B or Y = leave. Kept on the headset and on the
+  PC (`vr` in the headset's data). **Picture timing** −/+ (10 ms steps) on the page, kept the same way.
+- `chart.js` (pure): targets like `targetsFromTab`, anchors, Results (the PC's judged notes matched by time and strings,
+  forgotten after a seek back), lyric lines.
+
+Checks: `node --test test/companion.test.mjs` (in npm test: off = nothing listens; pairing, wrong codes, the wait,
+reconnecting with the key, forget, same certificate after a restart, picks/pause/seek reach the PC, charts on request,
+the clock within 15 ms, judged notes and library changes passed on, the chart helpers). `SH_AUDIT=test/e2e/quest-audit.js
+node test/e2e/ui3-chromium.js …` (the real app page + server + a pretend Quest in a second Chromium: Settings off/on,
+pairing, a pick on the headset opens the PC's highway, play/pause both ways, the clock, put on again without the code,
+off closes the port). `node test/e2e/quest-vr.js <out>` (the headset's highway on Sugar, software graphics, a pretend
+WebXR with two eyes: preview, hits/misses, VR, the trigger pauses). Full ui3 passes with the switch off.
+
+Not done yet / next:
+- The **Quest timing check** (strum on beats you see in the headset) — only the −/+ nudge so far.
+- Step 3, **piano in passthrough**: calibration on two keys (with MIDI telling which), the three-way remembering
+  (persistent anchor, the pose on the PC, a one-touch re-check), falling notes on the real keys, the sheet above.
+- Step 4: hand-tracking menus, the moving backgrounds in 3D, performance on the headset (measure first).
+- If the PC's address changes (a router handing out a new one), the page's address changes and the Quest browser sees a
+  new site: its saved key is gone and the code is asked again (the PC keeps the old entry until forgotten). Worth a look
+  after the user tries it (a fixed address in the router, or the PC's name).
+
+Ask the user: (1) Wi-Fi or cable, same network as the Quest? (2) sitting or standing, piano in the PC's room? (3) ever the
+song through the Quest's speakers? Then, on the headset: does the address open (after Advanced › Proceed), does the code
+pair, does a song picked on the Quest start on the PC, do Step onto the stage / In my room work, is the highway in time
+(use Picture timing), comfortable distance and height? Does Windows ask about the firewall when the switch is turned on?
+
 # 4.15.1 — full audit after 4.15.0: bass scoring, top bar, song list (2026-11-13)
 
 User: "merge and release. But then we need to do a full audit to make sure everything's working. If that's good, we

@@ -62,8 +62,8 @@ export function createVR({ canvas, clock, nowMs, send, comfort, saveComfort, inf
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     // where your eyes would be, standing at the highway
     const c = stage.S.comfort;
-    const proj = perspective((62 * Math.PI) / 180, canvas.width / canvas.height, 0.05, 60);
-    const view = lookAt([0, c.height + 0.38, 0.05], [0, c.height - 0.05, -c.dist - 1.6]);
+    const proj = perspective((46 * Math.PI) / 180, canvas.width / canvas.height, 0.05, 60);
+    const view = lookAt([0, c.height + 0.34, -0.1], [0, c.height + 0.02, -c.dist - 1.4]);
     stage.drawView(mul(proj, view), { panelInfo: panelInfo(t) });
   }
   V.raf = requestAnimationFrame(previewFrame);

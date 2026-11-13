@@ -71,8 +71,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .now { min-height: 0; overflow-y: auto; padding: 22px 26px; display: flex; flex-direction: column; }
 .now-empty { margin: auto; text-align: center; display: flex; flex-direction: column; gap: 8px; color: var(--ink-3); font-size: 17px; }
 .now-empty b { color: var(--ink); font-size: 24px; }
-.now-song { display: flex; flex-direction: column; gap: 18px; }
-.art { position: relative; width: 100%; aspect-ratio: 1.6; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg, var(--riser), var(--deck)); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45); }
+.now-song { display: flex; flex-direction: column; gap: 14px; }
+.art { position: relative; width: 100%; aspect-ratio: 2; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg, var(--riser), var(--deck)); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45); }
 .art img { width: 100%; height: 100%; object-fit: cover; }
 .title { font-size: 30px; font-weight: 800; line-height: 1.1; }
 .artist { color: var(--ink-2); font-size: 17px; margin-top: 6px; }
@@ -81,13 +81,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .chip[aria-pressed='true'] { color: var(--house); border-color: transparent; }
 .chip.lead[aria-pressed='true'] { background: var(--lead); } .chip.rhythm[aria-pressed='true'] { background: var(--rhythm); } .chip.bass[aria-pressed='true'] { background: var(--bass); color: #fff; }
 .clock .time { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
-.clock .time b { font-size: 46px; font-weight: 800; }
+.clock .time b { font-size: 38px; font-weight: 800; }
 .clock .time span { color: var(--ink-3); font-size: 18px; }
 .track { height: 8px; border-radius: 99px; background: var(--riser); overflow: hidden; margin-top: 8px; }
 .track i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ff7a45, var(--tungsten)); border-radius: 99px; }
 .transport { display: flex; justify-content: center; align-items: center; gap: 18px; }
 .btn.round { width: 64px; height: 64px; border-radius: 50%; padding: 0; font-size: 18px; }
-.btn.round.big { width: 86px; height: 86px; background: var(--tungsten); border-color: var(--tungsten); }
+.btn.round.big { width: 76px; height: 76px; background: var(--tungsten); border-color: var(--tungsten); }
 .btn.round svg { width: 38px; height: 38px; fill: var(--tungsten-ink); }
 .score { display: flex; align-items: baseline; justify-content: center; gap: 8px; color: var(--ink-3); font-size: 15px; min-height: 30px; }
 .score b { color: var(--ink); font-size: 26px; margin-left: 12px; }
