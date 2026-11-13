@@ -121,3 +121,10 @@ jobs:
         run: |
           $exe = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'setup') -Filter 'Stagehand-Setup-*.exe' | Select-Object -First 1
           pwsh windows/setup/test-windows.ps1 -Setup $exe.FullName
+      - name: Pictures of the Setup window
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: setup-shots
+          path: ${{ runner.temp }}/setup-shots
+          if-no-files-found: ignore

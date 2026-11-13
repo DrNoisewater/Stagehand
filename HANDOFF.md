@@ -1,3 +1,42 @@
+# 4.14.0 — UI pass: karaoke mic, cover buttons, Karaoke page, menu groups, guitar chip, Setup look (2026-11-13)
+
+The rest of the user's 4.13 list (see below).
+
+- **Song list** (`library.js`, `css/polish.css`): a small mic (`.kk-mic`, `data-sing`) at the right end of the
+  title cell of every song with a vocals part (and on tiles beside play) → `actions.playKaraoke`. Faint until
+  the row is hovered/selected. Titles: Archivo a little narrower and heavier (`font-stretch:88%`, 740), warm
+  white; the title never gets squeezed out by badges (badges shrink first, the mic always stays).
+- **Song panel cover** (`inspector.js`): three buttons: Sing (mic, only with vocals), Play along (new
+  `highway` icon) → `actions.playAlongWithStems` (plays along and, if stem splitting is installed and the song
+  isn't split, queues its split; never opens the setup), and Play. `actions.stemPhase(song)`: ready/working/none.
+- **Karaoke page** (`karaoke.js` rewritten): click anywhere on a card = sing; a small play button on the cover
+  just plays it here. Tape on the cover: SINGER OUT (split) / SPLITTING / "With singer" on hover. Five pips +
+  a word for how hard it is to sing: `core/vocaldiff.js` (syllables a minute over the sung span, the 10–90 %
+  note range, average jump inside a phrase → 1–5, Easy/Steady/Medium/Hard/Brutal), read in main by
+  `tabs.vocals(song)` over IPC `tab:vocals` (`api.tab.vocals`), only for cards scrolled into view, two at a time,
+  cached in localStorage `stagehand.vocalDiff.v1` by id|mtime. Filters All / Singer out / With singer, sort by
+  artist, title, easiest, hardest, best score (kept in `stagehand.karaoke`). Right-click: sing, listen, play
+  along, split stems, show in Songs. The banner has karaoke lines and pictures now (`identity.js`).
+- **Menu** (`sidebar.js`): Setlists folds like the other groups; all groups start folded the first time (new
+  key `stagehand.nav2`), then stay as left; a folded group shows its count. Right-click the Setlists heading
+  or any setlist: New setlist, Import Rocksmith lists › All / each list (`importRocksmithLists(only)`; a list
+  already brought over gets its new songs added). Folders gone from the menu (Settings › Library has them and
+  Add folder). The fixed "PICKS VANISH. RIFFS REMAIN." is now `tagline()`: page jokes plus lines from your
+  library (song count, mastered, odd tunings, last played, setlists, late at night), picked once per visit.
+- **Guitar card → chip** (`shell.js`): a chip in the banner's top-right (`.banner-corner`, beside ⋯): a dot,
+  Guitar / Muted / No cable / Guitar off, and Tuner U. Pointing at it opens the full card (`.gchip-pop`, on
+  `<body>` because the banner clips). `guitarCardHost` in the sidebar is hidden. `tuner-audit.js` updated.
+- **Setup .exe** (`windows/setup/setup.c`): the app's colours (warm road case, bone text, gold), its fonts
+  embedded (`fonts/`, made by `make-fonts.py` from Archivo + Liberation Mono, ~70 KB, RCDATA 10–13,
+  `AddFontMemResourceEx`, Segoe UI if that fails), a banner header (stripes, typewriter kicker, the name in
+  the poster type, gold bar, the version on a strip of tape), square cards with hard shadows, dashed row rules,
+  uppercase buttons. Window 700×700 (uninstall 420). CI now uploads pictures of the window
+  (`test-windows.ps1` → artifact `setup-shots`) since Linux can't show it.
+- **Progress** singing XP (4.13) unchanged. The in-app stem setup window already had the app's look.
+
+Ask the user: does the mic placement on the rows feel right on their 1,800-song list, and do the singing
+difficulty words match how the songs feel to sing?
+
 # 4.13.0 — search list restyled, singing XP on Progress, installed DLC import (2026-11-13)
 
 User (2026-11-13) sent a zip of their latest copy plus a list of UI changes (installer restyle, search list,

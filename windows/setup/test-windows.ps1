@@ -29,6 +29,27 @@ function Installed-Ok {
 
 Write-Host "Setup: $Setup ($([math]::Round((Get-Item $Setup).Length / 1MB, 1)) MB)"
 
+# 4.14: pictures of the Setup window (uploaded by CI), so its look can be checked without a PC
+$shots = Join-Path ($env:RUNNER_TEMP ?? $env:TEMP) 'setup-shots'
+New-Item -ItemType Directory -Force -Path $shots | Out-Null
+Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+function Shot-Setup([string] $name, [string[]] $setupArgs = @()) {
+  try {
+    $p = if ($setupArgs.Count) { Start-Process -FilePath $Setup -ArgumentList $setupArgs -PassThru } else { Start-Process -FilePath $Setup -PassThru }
+    Start-Sleep 7
+    $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+    $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+    $bmp.Save((Join-Path $shots "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $g.Dispose(); $bmp.Dispose()
+    if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+    Start-Sleep 1
+    Write-Host "shot $name.png"
+  } catch { Write-Host "no picture of $name`: $($_.Exception.Message)" }
+}
+Shot-Setup 'setup-fresh'
+
 # 1. first install: downloads the runtime and the decoder from GitHub
 $r = Run-Setup @('/quiet')
 Check ($r.code -eq 0) "first install finishes (exit $($r.code), $($r.secs) s)"
@@ -36,6 +57,8 @@ Check (Installed-Ok) 'Stagehand, its runtime and its uninstaller are in place'
 Check (Test-Path (Join-Path $local 'Tools\vgmstream\vgmstream-cli.exe')) 'the song audio decoder is installed'
 Check (-not (Test-Path (Join-Path $prog 'locales\fr.pak')) -and (Test-Path (Join-Path $prog 'locales\en-US.pak'))) 'only the English language file is kept'
 Check (-not (Get-ChildItem $dl -Filter *.zip -ErrorAction SilentlyContinue)) 'downloads are cleared once installed'
+
+Shot-Setup 'setup-installed'
 
 # 2. run it again (an update): nothing to download, quick
 $before = (Get-Item (Join-Path $prog 'Stagehand.exe')).LastWriteTimeUtc
