@@ -3,7 +3,7 @@
  *   SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>
  */
 const path = require('path');
-module.exports = async ({ page, outDir, check }) => {
+module.exports = async ({ page, outDir, check, stemHold }) => {
   const errs = [];
   page.on('pageerror', (e) => errs.push(e.message));
   for (let i = 0; i < 3 && (await page.locator('.modal').count()); i++) await page.keyboard.press('Escape');
@@ -58,5 +58,30 @@ module.exports = async ({ page, outDir, check }) => {
   await page.waitForTimeout(300);
   check(/Stems ready/.test(await page.locator('[data-stem-btn]').textContent()), 'and says when its stems are ready');
   if (c) await send({ songId: c, state: 'none' });
+  // on the highway, Sound & settings follows the split too (it stalled at its first number)
+  await send({ songId: a.id, state: 'none' });
+  stemHold.add(a.id);
+  await page.evaluate(async (id) => (await import('./js/actions.js')).playAlong(id), a.id);
+  await page.waitForFunction(() => { const r = document.querySelector('.highway'); return r && !r.hidden; }, null, { timeout: 30000 });
+  await page.waitForTimeout(1500);
+  await send({ songId: a.id, state: 'running', progress: 0.3 });
+  await page.waitForTimeout(200);
+  if (!(await page.locator('.highway .hw-mix-note[data-split]').count())) await page.locator('.highway .hw-dock-tab').click();
+  await page.waitForTimeout(500);
+  const m1 = await page.evaluate(() => { const n = document.querySelector('.highway .hw-mix-note[data-split]'); if (n) n.__mark = 1; return n ? n.textContent : ''; });
+  check(/30%/.test(m1), `the highway's Sound & settings shows the split: “${m1}”`);
+  await send({ songId: a.id, state: 'running', progress: 0.55 });
+  await page.waitForTimeout(400);
+  const m2 = await page.evaluate(() => { const n = document.querySelector('.highway .hw-mix-note[data-split]'); return { text: n ? n.textContent : '', same: !!(n && n.__mark), bar: n && n.nextElementSibling ? n.nextElementSibling.firstChild.style.width : '' }; });
+  check(/55%/.test(m2.text) && m2.same && m2.bar === '55%', `and moves with it, in place (${JSON.stringify(m2)})`);
+  await page.screenshot({ path: path.join(outDir, 'stems-highway-mix.png') });
+  stemHold.delete(a.id);
+  await send({ songId: a.id, state: 'ready' });
+  let rows = 0;
+  for (let i = 0; i < 40 && !rows; i++) {
+    await page.waitForTimeout(250);
+    rows = await page.locator('.highway .hw-mix-row').count();
+  }
+  check(rows > 0 && !(await page.locator('.highway .hw-mix-note[data-split]').count()), `when it finishes, the stems show up there (${rows} rows)`);
   check(!errs.length, `no errors on the page (${errs.join('; ')})`);
 };

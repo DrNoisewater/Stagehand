@@ -456,7 +456,7 @@ class FakePortMain extends EventEmitter {
   }
   // any audit module (a path): node ui3-chromium.js helper out with SH_AUDIT=test/e2e/foo.js
   if (process.env.SH_AUDIT) {
-    await require(path.resolve(process.env.SH_AUDIT))({ page, outDir, check });
+    await require(path.resolve(process.env.SH_AUDIT))({ page, outDir, check, stemHold });
     fs.writeFileSync(path.join(outDir, 'results.json'), JSON.stringify({ results, logs }, null, 2));
     await browser.close(); relay.quit(); server.close();
     process.exit(results.some(r => !r.ok) ? 1 : 0);

@@ -957,6 +957,35 @@ export function createHighway(stage) {
     renderDropBox();
     renderOpts();
   }
+  // 4.12: the split's progress in Sound & settings moves as the split goes (it was written
+  // once when the menu opened, so it looked stalled until the stems suddenly appeared)
+  function mixSplitText(st) {
+    if (st.state === 'queued') return `${splitFirst()}. This song is next.`;
+    const pct = Math.round((st.progress || 0) * 100);
+    const left = stemsLeft(st);
+    return `${pct ? `Splitting stems · ${pct}%` : stage.stemsStep ? stage.stemsStep(st) : 'Splitting stems…'}${left ? ` · ${left}` : ''}`;
+  }
+  function fillMixSplit(note, st) {
+    const text = mixSplitText(st);
+    if (note.textContent !== text) note.textContent = text;
+    const bar = note.nextElementSibling && note.nextElementSibling.firstChild;
+    if (bar) bar.style.width = `${st.state === 'running' ? Math.max(2, Math.round((st.progress || 0) * 100)) : 0}%`;
+  }
+  /** The open song's split, newest news first (the stage may read it a moment later). */
+  function splitNow() {
+    const song = stage.loadInfo ? stage.loadInfo().song : null;
+    return (song && state.stems.get(song.id)) || (stage.stemStatus && stage.stemStatus()) || { state: 'none' };
+  }
+  function mixSplitMoved() {
+    if (!mixOpen || !H.open) return;
+    const note = mixPanel.querySelector('.hw-mix-note[data-split]');
+    if (!note) return;
+    const st = splitNow();
+    const busy = st.state === 'queued' || st.state === 'running';
+    const was = note.dataset.split;
+    if (stage.stems().length || (busy ? st.state : 'none') !== was) return renderMix();
+    if (busy) fillMixSplit(note, st);
+  }
   function renderMixBody() {
     const stems = stage.stems();
     // Two big levels first: your guitar (live, through your tone) and the whole song.
@@ -976,9 +1005,14 @@ export function createHighway(stage) {
       h('div.hw-mix-head.sub', null, h('b', { text: 'Song stems' }), h('span', { text: stems.length ? 'Each instrument in the recording' : '' }))
     );
     if (!stems.length) {
-      const st = stage.stemStatus ? stage.stemStatus() : null;
-      const busy = st && (st.state === 'queued' || st.state === 'running');
-      mixPanel.append(h('p.hw-mix-note', { text: busy ? `Splitting stems… ${st.progress ? Math.round(st.progress * 100) + '%' : ''}` : 'Split this song into stems to set the drums, bass, vocals and guitar separately.' }));
+      const st = splitNow();
+      const busy = st.state === 'queued' || st.state === 'running';
+      const note = h('p.hw-mix-note', { 'data-split': busy ? st.state : 'none', text: busy ? '' : 'Split this song into stems to set the drums, bass, vocals and guitar separately.' });
+      mixPanel.append(note);
+      if (busy) {
+        note.after(h('div.hw-st-bar.hw-mix-bar', null, h('i')));
+        fillMixSplit(note, st);
+      }
       if (!busy && stage.requestStems) {
         const b = h('button.hw-chip', { type: 'button', html: `${icon('split')}<span>Split stems</span>` });
         b.onclick = () => {
@@ -1256,8 +1290,9 @@ export function createHighway(stage) {
     else if (b.dataset.act === 'now') stage.playNow();
   };
   on('stage-phase', () => renderStatus());
-  on('stems-update', () => H.open && renderStatus());
-  on('stems-tick', () => H.open && renderStatus()); // (the time left counts down)
+  on('stems-update', () => H.open && (renderStatus(), mixSplitMoved()));
+  on('stems-tick', () => H.open && (renderStatus(), mixSplitMoved())); // (the time left counts down)
+  on('stage-phase', () => mixSplitMoved()); // (the stems finished loading)
 
   function pickPart() {
     const want = prefs.part || 'lead';

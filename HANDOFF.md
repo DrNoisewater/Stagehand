@@ -110,6 +110,10 @@ progress if you start splitting another song", "get rid of the flickering, and l
 - The slow end: the last step (back to the song's sample rate and writing the files) ran on every core even
   after the graphics card did the splitting. Now it runs on the card when the card split it, and on half the
   cores at most (`engine/stagehand_stems.py`, "Writing stems"). Not run here (no PyTorch in this container).
+- The highway's Sound & settings (the menu on the right) wrote the split's number once when it opened, so it
+  sat still and then the stems suddenly appeared ("it just stalls but then finishes"). It now has a bar and
+  moves with the split (and the time left), names the song split first when this one is in line, and shows the
+  stems when they're in (`mixSplitMoved()` in highway.js; checked in stems-audit.js).
   **Ask:** is the end of a split smoother now, and does the app still flicker while splitting?
 
 **Not done / open:**
