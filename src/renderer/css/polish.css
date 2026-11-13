@@ -1,0 +1,30 @@
+/* 4.13 polish: pieces that sat outside the looks (the search list lives on <body>, outside #app,
+   so it never got the look's colours and stayed navy). */
+
+/* ---- search suggestions: the same road-case panel as the rest of the app ---- */
+.search-pop { background:#1c1a17; border:1px solid #4a4237; border-radius:3px; padding:6px; box-shadow:0 2px 0 #000,0 18px 40px -10px #000d, inset 0 1px 0 #ffffff08; }
+.sp-head { font-family:'Typewriter Stagehand','Liberation Mono',monospace; font-weight:700; font-size:10.5px; letter-spacing:.12em; color:#a99e8c; padding:9px 10px 5px; }
+.sp-more, .sp-clear { font-family:var(--font); letter-spacing:0; font-size:11.5px; color:#8f8676; }
+.sp-sep { background:#3a342d; height:1px; margin:6px 6px; }
+.sp-item { border-radius:2px; height:35px; color:#cfc6b4; }
+.sp-label { color:#ece4d2; }
+.sp-label b { color:#ffc978; font-weight:800; }
+.sp-ic, .sp-sub { color:#9a9081; }
+.sp-item.on { background:linear-gradient(90deg,#ffb54724,#ffb5470a 70%,transparent); box-shadow:inset 3px 0 #ffb547; color:#fff; }
+.sp-item.on .sp-label { color:#fff; }
+.sp-item.on .sp-ic { color:#ffb547; }
+.sp-item[data-kind='all'] .sp-label, .sp-item[data-kind='online'] .sp-label { color:#cfc6b4; }
+
+/* Rehearsal Room: tolex and cream, typewriter labels */
+html[data-look='opera'] .search-pop { background:#151311; border-color:#2f2a25; box-shadow:0 0 0 1px #000,0 2px 0 #000,0 0 0 2px #a88d5730,0 22px 44px -10px #000e; }
+html[data-look='opera'] .sp-head { color:#8f8676; }
+html[data-look='opera'] .sp-label b { color:#e3d8bf; text-decoration:underline; text-decoration-color:#d23a2c; text-underline-offset:3px; text-decoration-thickness:2px; }
+html[data-look='opera'] .sp-item.on { background:linear-gradient(90deg,#d23a2c22,#d23a2c08 60%,transparent); box-shadow:inset 3px 0 #d23a2c; }
+html[data-look='opera'] .sp-item.on .sp-ic { color:#e3d8bf; }
+
+/* Roadshow: flight case, gold rim */
+html[data-look='roadshow'] .search-pop { background:#201e18; border:1px solid #6b6051; box-shadow:3px 4px 0 #08070688,0 20px 40px -12px #000c; }
+html[data-look='roadshow'] .sp-head { color:#c8b78d; }
+html[data-look='roadshow'] .sp-label b { color:#f4d36c; }
+html[data-look='roadshow'] .sp-item.on { background:#3b3428; box-shadow:inset 3px 0 #d4b45e; }
+html[data-look='roadshow'] .sp-item.on .sp-ic { color:#f4d36c; }

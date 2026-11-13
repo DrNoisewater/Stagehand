@@ -184,6 +184,7 @@ class Library extends EventEmitter {
     if (!rec) return;
     for (const id of rec.songIds || []) {
       const s = this.data.songs[id];
+      if (s?.dlcImport) continue; // Explicit imports are independent of watched-folder membership.
       if (s && keepUserData && (s.user || s.audioKey)) {
         this.data.orphans[`${s.songKey}|${s.fileSize}`] = { id, user: s.user, addedAt: s.addedAt, audioKey: s.audioKey, at: Date.now() };
       }
@@ -212,7 +213,8 @@ class Library extends EventEmitter {
     const oldIds = new Set(old ? old.songIds : []);
     const ids = [];
     for (const meta of parsed) {
-      const id = songId(filePath, meta.songKey);
+      const imported = Object.values(this.data.songs).find((s) => s.dlcImport && String(s.songKey).toLowerCase() === String(meta.songKey).toLowerCase());
+      const id = imported?.id || songId(filePath, meta.songKey);
       const prev = this.data.songs[id];
       const orphanKey = `${meta.songKey}|${st.size}`;
       const orphan = !prev && this.data.orphans[orphanKey];
@@ -235,11 +237,11 @@ class Library extends EventEmitter {
         // 4.0.3: where the audio was found when the file has none (kept until the file gets its own)
         audioFrom: !meta.audioEntry && prev && prev.audioFrom ? prev.audioFrom : undefined,
       };
-      this.data.songs[id] = rec;
+      this.data.songs[id] = prev?.dlcImport ? prev : rec;
       ids.push(id);
       oldIds.delete(id);
     }
-    for (const id of oldIds) delete this.data.songs[id];
+    for (const id of oldIds) if (!this.data.songs[id]?.dlcImport) delete this.data.songs[id];
     this.data.files[np] = { path: filePath, size: st.size, mtimeMs: st.mtimeMs, songIds: ids, error: error || (parsed.length ? null : undefined), audioRev: AUDIO_REV };
     if (error) this.emit('log', `Could not read ${filePath}: ${error}`);
     return ids;

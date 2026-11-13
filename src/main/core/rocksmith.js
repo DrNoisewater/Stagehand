@@ -188,12 +188,13 @@ function audioDiagnosis(names) {
  * Reads every song in an archive.
  * @param {import('./psarc').Psarc} psarc
  */
-async function readSongs(psarc) {
+async function readSongs(psarc, { metadataOnly = false, signal } = {}) {
   const names = psarc.names;
   const songs = new Map();
   const manifestNames = names.filter((n) => /^manifests\/.+\.json$/i.test(n));
 
   for (const n of manifestNames) {
+    signal?.throwIfAborted();
     let doc;
     try {
       doc = jsonpatch.parse(await psarc.read(n));
@@ -319,6 +320,7 @@ async function readSongs(psarc) {
     // Main audio: the .wem referenced by the song's sound bank.
     let audio = null;
     let preview = null;
+    if (!metadataOnly) {
     const ids = wems.map((w) => w.id).filter((id) => id !== null);
     const sizeOf = (name) => psarc.entryFor(name).length;
     const bank = await readBank(s._bank);
@@ -346,6 +348,8 @@ async function readSongs(psarc) {
         const big = media.reduce((a, b) => (b.size > a.size ? b : a));
         if (full) audio = `${full}#${big.id}`;
       }
+    }
+
     }
 
     const secs = (s._sections || s._sectionsAny || [])

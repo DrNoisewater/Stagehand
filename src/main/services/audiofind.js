@@ -241,7 +241,7 @@ class AudioFinder {
    * @returns {Promise<{ path: string, entry: string, mediaId: number, bank: { path: string, entry: string }, via: string }>}
    * @throws {AudioFindError}
    */
-  async resolve(song, ownBank = null) {
+  async resolve(song, ownBank = null, { includeOwn = false } = {}) {
     await this.index();
     const key = String(song.songKey || '');
     const event = fnv1(song.songEvent || `Play_${key}`);
@@ -265,14 +265,14 @@ class AudioFinder {
     else {
       const names = new Set([base(song.bankName), `song_${key.toLowerCase()}.bnk`].filter((n) => n && n !== 'song_.bnk' && !PREVIEW.test(n)));
       for (const [p, rec] of this.files) {
-        if (same(p, song.path)) continue;
-        for (const [name] of rec.banks) if (names.has(base(name))) banks.push({ path: p, entry: name, tier: this._tier(p), how: 'bank name' });
+        if (!includeOwn && same(p, song.path)) continue;
+        for (const [name] of rec.banks) if (names.has(base(name))) banks.push({ path: p, entry: name, tier: same(p, song.path) ? -1 : this._tier(p), how: 'bank name' });
       }
       if (!banks.length) {
         // no bank by that name: the bank that holds the song's event, in the shared archives
         for (const [p, rec] of this.files) {
-          if (same(p, song.path) || !rec.banks.length) continue;
-          const tier = this._tier(p);
+          if ((!includeOwn && same(p, song.path)) || !rec.banks.length) continue;
+          const tier = same(p, song.path) ? -1 : this._tier(p);
           if (tier > 1 && rec.banks.filter(([n]) => !PREVIEW.test(n)).length < 2) continue; // a single song's own file
           const ev = await this._events(p, rec);
           for (const [name, ids] of Object.entries(ev)) if (ids.includes(event)) banks.push({ path: p, entry: name, tier, how: 'event' });

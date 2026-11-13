@@ -1,3 +1,21 @@
+# 4.13.0 — search list restyled, singing XP on Progress, installed DLC import (2026-11-13)
+
+User (2026-11-13) sent a zip of their latest copy plus a list of UI changes (installer restyle, search list,
+karaoke mic on songs, Karaoke page overhaul, collapsible menu groups, folders to Settings, Rocksmith list import
+from right-click, song-title font, guitar card into the top bar, the sidebar tagline) and "Progress should have
+xp for singing as well. much, much more discreet". Mid-session: "pause when you can, merge and release", so this
+release carries the first part; the rest follows in 4.14.
+
+- **Search suggestions** (`css/polish.css`, new, loaded last): the list is on `<body>`, outside `#app`, so the
+  looks never reached it and it stayed navy (`#1a2134` in v3.css). Now a road-case panel per look: Rehearsal Room
+  (tolex, typewriter group names, red underline on the typed part, pilot-red bar on the picked row) and Roadshow
+  (flight case, gold).
+- **Singing XP** (`levels.js compute()` returns `singing: { xp, songs, seconds }`: XP given during sessions with
+  part `vocals`; `progress.js` hero: a small dim "N XP sung" with a mic at the end of the XP line, `.pg-sung` in
+  career.css). It still counts toward the level as before; only shown when there is some.
+- **Installed DLC import** (Settings › Library › Import Rocksmith DLC): was in the user's zip but not on GitHub
+  (see `docs/DLC-IMPORT-CHANGES.md`). Released as they asked; they said not to test this feature specifically.
+
 # 4.12.0 — Sing along and Karaoke, an add-on: a Sing chip on the highway, any microphone, three levels (2026-11-13)
 
 User: "check the handoff for the new singing ability" and go ahead (the plan was `docs/vocals-handoff.md`, written
