@@ -60,6 +60,10 @@ SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
 # Piano with a pretend USB keyboard and pianist: a made-up song with a singer (tune), or a real chart (real, file sugar.json)
 PIANO=tune PIANO_END=46 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:0.5
 PIANO=real PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> R:0.5:::sugar.json
+# the highway's top bar fits (nothing off the edges, the title readable), Piano off and on, at a window width
+TOPBAR=1 VW=1366 VH=768 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
+# Piano in the full page: the keyboard in Settings, Piano on a real library song, a key scored
+SH_AUDIT=test/e2e/piano-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # Sing along's settings in the full page (the microphone picker, the look) and the Karaoke page
 SH_AUDIT=test/e2e/sing-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # Discover's look on made-up results, artist, gaps and Wanted; writes discover-*.png
@@ -72,7 +76,7 @@ SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stag
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```
 
-Timing in this container: `ui3-chromium.js` takes ~20 min; in `rig-chromium.js` tone builds can take 5–8 s under load, so its "Keep my tone", "bass heard" and "speakers got the song" checks fail now and then (also before 3.13).
+Timing in this container: `ui3-chromium.js` takes ~20 min (run timing-sensitive checks such as SING/PIANO/TCHECK/rig on their own, not beside it); in `rig-chromium.js` tone builds can take 5–8 s under load, so its "Keep my tone", "bass heard" and "speakers got the song" checks fail now and then (also before 3.13).
 
 Also documented in HANDOFF.md but not re-run on 2026-11-01:
 - `bash scripts/session-setup.sh` fetches llvm-mingw (the Windows cross compiler) and the Setup payload zips, and builds the fake helper.

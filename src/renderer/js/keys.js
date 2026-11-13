@@ -102,7 +102,10 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
     chip.hidden = !S.song;
     chip.setAttribute('aria-pressed', String(S.on));
     chip.title = S.on ? 'Piano is on: level, hands, look, keyboard' : 'Piano: play this song on a keyboard plugged in by USB, from sheet music written from the song';
-    chip.innerHTML = `${icon('piano')}<span>${S.on ? `Piano · ${KEYS_LEVELS[prefs().level].name}` : 'Piano'}</span>${S.on ? icon('chevron') : ''}`;
+    // off, it's a small icon button (the top bar is full); on, it says what's on
+    chip.innerHTML = S.on ? `${icon('piano')}<span>Piano · ${KEYS_LEVELS[prefs().level].name}</span>${icon('chevron')}` : icon('piano');
+    chip.classList.toggle('icon-only', !S.on);
+    chip.setAttribute('aria-label', S.on ? chip.title : 'Piano');
   }
 
   function paintBadge(text, action = null) {

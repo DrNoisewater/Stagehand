@@ -29,7 +29,7 @@ const srv = http.createServer((req, res) => {
   page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text()));
   for (const spec of process.argv.slice(3)) {
     const [scene, t, play, hits, file, part] = spec.split(':');
-    await page.goto(`http://localhost:8765/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}${process.env.SING ? `&sing=${process.env.SING}` : ''}${process.env.PIANO ? `&piano=${process.env.PIANO}` : ''}${process.env.NONOTES ? '&nonotes=1' : ''}`);
+    await page.goto(`http://localhost:8765/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}${process.env.SING ? `&sing=${process.env.SING}` : ''}${process.env.PIANO ? `&piano=${process.env.PIANO}` : ''}${process.env.NONOTES ? '&nonotes=1' : ''}${process.env.TOPBAR ? '&piano=tune&sing=1' : ''}`);
     await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     if (process.env.VENUE) {
       await page.evaluate((v) => { const p = JSON.parse(localStorage.getItem('stagehand.highway') || '{}'); p.venue = v; p.v = 36; localStorage.setItem('stagehand.highway', JSON.stringify(p)); localStorage.setItem('stagehand.fluidDye', '256'); }, process.env.VENUE);
@@ -186,6 +186,30 @@ const srv = http.createServer((req, res) => {
         await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `seq_${String(i).padStart(3, '0')}.jpg`), quality: 70 });
       }
+      continue;
+    }
+    if (process.env.TOPBAR) {
+      // the top bar fits at this window size, with Piano off and on: nothing off the edges, the title readable
+      const fail = (m) => { throw new Error('top bar: ' + m); };
+      for (const mode of ['off', 'piano']) {
+        if (mode === 'piano') {
+          await page.evaluate(() => { navigator.requestMIDIAccess = async () => ({ inputs: new Map(), onstatechange: null }); document.querySelector('.highway').__hw.keys.turn(true); });
+          await page.waitForTimeout(900);
+        }
+        const r = await page.evaluate(() => {
+          const top = document.querySelector('.hw-top');
+          document.querySelector('.highway').classList.remove('hw-quiet');
+          const vw = innerWidth;
+          const out = [...top.querySelectorAll('button')].filter((e) => e.offsetParent).filter((e) => { const b = e.getBoundingClientRect(); return b.right > vw + 1 || b.left < -1; }).map((e) => e.textContent.trim().slice(0, 20) || e.className);
+          const title = top.querySelector('.hw-title, .hw-titlebox, [class*=title]');
+          const b = title && title.querySelector('b');
+          return { out, title: title ? Math.round(title.getBoundingClientRect().width) : -1, titleShown: b ? b.clientWidth >= Math.min(b.scrollWidth, 90) : false, settingsRight: Math.round(document.querySelector('.hw-set-btn').getBoundingClientRect().right), vw };
+        });
+        console.log('TOPBAR', mode, JSON.stringify(r));
+        await page.screenshot({ path: path.join(out, `topbar-${process.env.VW || 1920}-${mode}.png`), clip: { x: 0, y: 0, width: Number(process.env.VW || 1920), height: 110 } });
+        if (r.out.length || r.settingsRight > r.vw || !r.titleShown) fail(JSON.stringify(r));
+      }
+      console.log(`PASS the top bar fits at ${process.env.VW || 1920} wide, Piano off and on`);
       continue;
     }
     if (process.env.PIANO) {
