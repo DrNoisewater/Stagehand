@@ -1,3 +1,38 @@
+# 4.17.0 — Auto-tune and voice changer (2026-11-13, not released; not tried with a real voice)
+
+User: "We need to get auto tune working for the voice input … while you're playing or doing karaoke, you can enable
+auto tune, it needs to be just like the real auto tune", then "I want auto tune to raise your voice to the correct
+pitch … I also want the crazy like T-Pain … can we incorporate voice changer stuff … sing with a deep voice or sing
+with a high voice".
+- **The tuner** is `src/renderer/worklets/autotune-worklet.js` (class `AutoTune`, plain JS, also run by the tests):
+  it finds the sung note every 5 ms, cuts the voice into one-cycle grains and lays them down again at the right note
+  (the way the real effect works), so the voice keeps its own sound. Styles: **Natural** (glides, 0.11 s), **Pop**
+  (0.03 s), **Hard tune** (instant: the T-Pain sound). Tune to **the song's notes** (the syllable notes of the chart
+  or of the split vocals stem, moved to the singer's octave; between notes, the song's scale) or **the nearest note**.
+  A song recorded slightly off pitch is followed. Breath, silence and room noise pass through untouched.
+- **Voice changer** (same file, `VOICES`): Deep, Giant (octave down), High, Chipmunk (octave up). The note only
+  moves by whole octaves so it stays in key; the "size" of the voice is changed by reading each grain slower/faster.
+  Works with auto-tune or alone.
+- **The app side** is `src/renderer/js/autotune.js` (singleton `autotune`; prefs `stagehand.autotune` = style, notes,
+  vol, voice). It runs only while the microphone is on (Sing along, Karaoke, Settings › Try it) and a style or voice
+  is picked. Song notes come from `singlane.js` (`autotune.setSong`, `autotune.clock`).
+- **Where the voice goes**: with the Windows sound engine running, into the engine on a new low-delay voice line
+  (`native/host/host.c`, frame type 4, helper 1.2.0, `"voice":1` in `started`; `rigaudio.js` `sendSong(f32, 4)`;
+  `rig.voiceLine()`), mixed with guitar and song. Otherwise to the speakers the rig uses (`ctx.setSinkId`). The
+  microphone's own AudioContext now has no output of its own (`mic.js`, `sinkId: none`).
+- **Where you switch it**: the Sing chip's menu on the highway (`tuneMenu()` in `singlane.js`), the wand button on
+  the Karaoke page, and Settings › Guitar & audio › "Auto-tune and voice changer". The first time, a note about
+  headphones.
+- **Scoring still listens to the real voice**, not the tuned one.
+- Tests: `test/autotune.test.mjs` (16, in `npm test`), `test/voice-native.js` (fake helper), `TUNE=robot SING=1` in
+  `test/hwlook/shoot.js`, voice checks in `test/e2e/rig-chromium.js`.
+- **Not known yet**: how it sounds on a real voice, and the delay. Expect about 50–70 ms between singing and hearing
+  it (the browser's microphone capture is the slow part). If that feels late, the next step is letting the sound
+  engine capture the microphone itself (WASAPI), which can't be tested on Linux. Clips recorded on the in-app engine
+  don't include the tuned voice.
+- **Ask the user**: does the tuned voice feel late? Is Hard tune hard enough, Natural gentle enough? Do Deep and High
+  sound good or odd? Any squeal with speakers? Should recordings include the tuned voice?
+
 # 4.16.3 — Setup in the app's Rehearsal Room look (2026-11-13)
 
 User: "That installation screen that shows up when it's installing still looks like the old version of the app. The

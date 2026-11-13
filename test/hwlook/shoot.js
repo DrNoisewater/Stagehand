@@ -322,7 +322,9 @@ const srv = http.createServer((req, res) => {
             return;
           }
           gain.gain.value = on ? 0.3 : 0;
-          if (on) osc.frequency.value = 440 * 2 ** ((window.__singTune[i] - 12 - 69) / 12);
+          // TUNE: the pretend singer is 40 cents flat (auto-tune must put that right)
+          if (on) osc.frequency.value = 440 * 2 ** ((window.__singTune[i] - 12 - (window.__flat || 0) - 69) / 12);
+          window.__sungNow = on ? window.__singTune[i] - 12 : null;
         }, 4);
         const chip = document.querySelector('.hw-sing-chip');
         return { chip: !!chip && !chip.hidden, pressed: chip && chip.getAttribute('aria-pressed'), lane: !document.querySelector('.hw-sing').hidden, lyrics: !!document.querySelector('.hw-lyrics'), ctx: ac.state };
@@ -332,6 +334,35 @@ const srv = http.createServer((req, res) => {
       if (await page.evaluate(() => window.__micAsked)) fail('the microphone was opened before Sing was pressed');
       await page.screenshot({ path: path.join(out, 'sing-0-off.png') });
       const kar = process.env.SING === 'karaoke';
+      // TUNE=robot|pop|natural: auto-tune on. What goes to the speakers is listened to all the way through.
+      const tuneStyle = process.env.TUNE || '';
+      if (tuneStyle) {
+        await page.evaluate(async (style) => {
+          const { autotune } = await import('/js/autotune.js');
+          const { detectPitch } = await import('/js/pitch.js');
+          window.__flat = 0.4;
+          autotune.setStyle(style);
+          autotune.setNotes('song');
+          window.__tuned = [];
+          let an = null;
+          let node = null;
+          const buf = new Float32Array(2048);
+          setInterval(() => {
+            if (!autotune.node) return;
+            if (node !== autotune.node) {
+              node = autotune.node;
+              an = node.context.createAnalyser();
+              an.fftSize = 2048;
+              node.connect(an);
+            }
+            const want = window.__sungNow;
+            an.getFloatTimeDomainData(buf);
+            const r = detectPitch(buf, node.context.sampleRate, { minHz: 70, maxHz: 1100 });
+            if (want === null || !r || r.clarity < 0.6) return;
+            window.__tuned.push(Math.round((69 + 12 * Math.log2(r.hz / 440) - want) * 100));
+          }, 50);
+        }, tuneStyle);
+      }
       // the Sing button is singing beside the guitar part; karaoke is asked for by the Karaoke page
       if (kar) await page.evaluate(() => document.querySelector('.highway').__hw.sing.setKaraoke(true));
       else await page.click('.hw-sing-chip');
@@ -394,12 +425,29 @@ const srv = http.createServer((req, res) => {
         if (!(r.lines[0] >= 0.5 && r.lines[1] >= 0.7 && r.lines[2] === 0 && r.lines[3] >= 0.85)) fail('lines: ' + JSON.stringify(r.lines));
       }
       if (r.asked !== 1) fail('the microphone was asked for ' + r.asked + ' times');
+      {
+        // auto-tune: off, the voice is never played; on, what is played is on the song's notes
+        const at = await page.evaluate(async () => { const { autotune } = await import('/js/autotune.js'); return { on: autotune.on, route: autotune.route, style: autotune.style, tuned: window.__tuned || [], state: autotune.state }; });
+        if (!tuneStyle) {
+          if (at.on) fail('the voice is played though auto-tune is off: ' + JSON.stringify(at));
+        } else {
+          const d = at.tuned.map(Math.abs).sort((a, b) => a - b);
+          const mid = d[Math.floor(d.length / 2)];
+          const near = d.filter((x) => x <= 15).length / Math.max(1, d.length);
+          console.log('TUNE', JSON.stringify({ on: at.on, route: at.route, heard: d.length, middle: mid, within15: near, state: at.state }));
+          if (!at.on || at.route !== 'speakers') fail('auto-tune is not playing: ' + JSON.stringify({ on: at.on, route: at.route }));
+          // (the pretend singer is 40 cents flat; a note that just changed is still on its way)
+          if (d.length < 40 || !(mid <= (tuneStyle === 'robot' ? 6 : 12)) || near < (tuneStyle === 'natural' ? 0.6 : 0.75)) fail('the tuned voice is off the notes: ' + JSON.stringify({ heard: d.length, mid, near }));
+        }
+      }
       if (!r.card || !/sung|Singing/.test(r.cardText)) fail('no singing on the score card: ' + r.cardText);
       if (!log || log.notes !== r.judged || !(log.accuracy > 0.6 && log.accuracy < 0.85) || !log.full) fail('stats: ' + JSON.stringify(r.logs));
       // switching it off lets the microphone go and brings the plain lyrics back
       await page.evaluate(() => document.querySelector('.highway').__hw.sing.turn(false));
       const off = await page.evaluate(async () => { const { mic } = await import('/js/mic.js'); return { mic: mic.on, lane: !document.querySelector('.hw-sing').hidden, pressed: document.querySelector('.hw-sing-chip').getAttribute('aria-pressed') }; });
       if (off.mic || off.lane || off.pressed !== 'false') fail('switching off: ' + JSON.stringify(off));
+      if (await page.evaluate(async () => (await import('/js/autotune.js')).autotune.on)) fail('auto-tune still plays after singing stopped');
+      if (tuneStyle) console.log(`PASS auto-tune (${tuneStyle}): a singer 40 cents flat comes out on the song's notes, and it stops with the singing`);
       console.log(`PASS sing along (${words ? 'timing only' : process.env.SING === 'stem' ? 'notes read off the vocals stem' : 'notes from the chart'}): off until pressed, sung lines count (an octave down), a skipped line doesn't, the card and the stats get it, off lets the microphone go`);
       continue;
     }

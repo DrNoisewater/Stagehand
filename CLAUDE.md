@@ -12,7 +12,7 @@ A session once started from a copy several versions old (3.9 while GitHub had 4.
 ## Layout
 
 - `src/main/`: Electron main process (CommonJS): `core/` (PSARC, SNG, saves, tones) and `services/` (library, stems, audio relay).
-- `src/renderer/`: the UI (ES modules, no bundler, no build step): `js/rig.js` (the rig), `js/detect.js` (note detection), `js/instrument.js` (guitar or bass), `js/sing.js` + `js/singlane.js` + `js/mic.js` (Sing along, an add-on: off until its chip is pressed), `js/karaoke.js` (the Karaoke page), `js/piano-arrange.js` + `js/piano-sheet.js` + `js/keys.js` + `js/midi.js` (Piano, an add-on: a part written from the song, sheet music and falling notes, a USB keyboard).
+- `src/renderer/`: the UI (ES modules, no bundler, no build step): `js/rig.js` (the rig), `js/detect.js` (note detection), `js/instrument.js` (guitar or bass), `js/sing.js` + `js/singlane.js` + `js/mic.js` (Sing along, an add-on: off until its chip is pressed), `js/autotune.js` + `worklets/autotune-worklet.js` (4.17 auto-tune and voice changer: the microphone moved onto the song's notes and played with the song; off until a style or voice is picked), `js/karaoke.js` (the Karaoke page), `js/piano-arrange.js` + `js/piano-sheet.js` + `js/keys.js` + `js/midi.js` (Piano, an add-on: a part written from the song, sheet music and falling notes, a USB keyboard).
 - `src/companion/`: the Quest companion's page (4.16, plain JS, served by `src/main/services/companion.js` over HTTPS on the home network, only when switched on in Settings › Quest headset; `core/ws.js` and `core/selfcert.js` are its WebSocket and certificate).
 - `engine/stagehand_stems.py`: stem splitting (Demucs/PyTorch, installed on the user's PC at runtime).
 - `native/`: the sound engine in plain C. `dsp/` is the amp, cab, effects and NAM code, shared by the Windows helper (`host/io_wasapi.c` → `native/bin/stagehand-audio.exe`, **prebuilt and committed**) and the in-app WebAssembly engine (`src/renderer/worklets/rig-dsp.wasm`, **committed**).
@@ -31,6 +31,7 @@ npm test                        # the whole suite (~1 min); must pass before com
 node test/detect.test.mjs       # note detection on synthesised playing (~20 s); NOT in npm test: a few assertions can be flaky
 node test/chords.test.mjs       # chord scoring: wrong chords miss, messy right strums count (~40 s); NOT in npm test
 node --test test/instrument.test.mjs   # guitar-or-bass sensing (also in npm test)
+node --no-warnings test/autotune.test.mjs   # auto-tune and voice changer on a made-up voice (also in npm test)
 
 # Linux helper with a fake audio device, needed by the e2e rig/UI tests (native/build/ is git-ignored)
 cd native && mkdir -p build && cc -O3 -ffp-contract=fast -fno-math-errno -Wno-unused-function -pthread \
@@ -58,6 +59,10 @@ ELECTRON=<electron> xvfb-run -a node test/e2e/finder-electron.js <outDir>
 ELECTRON=<electron> xvfb-run -a node test/e2e/tones-electron.js <outDir>
 # Sing along with a pretend microphone: the chart's notes (1), notes read off a made-up vocals stem (stem), timing only (words, karaoke (karaoke))
 SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
+# auto-tune: a pretend singer 40 cents flat hears their voice put on the note (robot, pop or natural)
+TUNE=robot SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
+# the tuned voice through the sound engine's own voice line (fake helper): whole, no gaps, the song beside it
+node test/voice-native.js native/build/stagehand-audio-fake
 # the same with an unsteady pretend voice (vibrato, drift, cracks, breaths): SING_WOBBLE=1 SING=1 …
 # Piano with a pretend USB keyboard and pianist: a made-up song with a singer (tune), or a real chart (real, file sugar.json)
 PIANO=tune PIANO_END=46 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:0.5

@@ -3,7 +3,8 @@
  *
  * Talks to Stagehand over stdin/stdout with framed messages:
  *   [u32 type][u32 length][payload]
- *   in:  1 = JSON command, 2 = song audio (f32 stereo interleaved)
+ *   in:  1 = JSON command, 2 = song audio (f32 stereo interleaved),
+ *        4 = the singer's voice, already tuned (f32 stereo interleaved; 1.2.0)
  *   out: 1 = JSON event,   3 = guitar input (f32 mono, engine rate)
  */
 #include <stdio.h>
@@ -12,7 +13,7 @@
 #include <math.h>
 #include "host.h"
 
-#define VERSION "1.1.0"
+#define VERSION "1.2.0"
 
 /* ---------------------------------------------------------------- rings -- */
 int ring_init(ring_t *r, uint32_t cap) {
@@ -257,7 +258,7 @@ int slip_pull(slip_t *s, ring_t *r, float *L, float *R, int frames) {
 }
 
 /* ----------------------------------------------------------- host state -- */
-enum { Q_SELECT = 1, Q_PARAM, Q_SONGCFG, Q_SONGON, Q_RESET_IN };
+enum { Q_SELECT = 1, Q_PARAM, Q_SONGCFG, Q_SONGON, Q_RESET_IN, Q_VOICECFG, Q_VOICEON };
 typedef struct {
   int type, i;
   float v;
@@ -278,11 +279,15 @@ static struct {
   void *mem;
   size_t memsz;
   int rate, in_rate, in_period, out_period;
-  ring_t in_ring, song_ring, tap_ring, processed_ring, mix_ring;
+  ring_t in_ring, song_ring, voice_ring, tap_ring, processed_ring, mix_ring;
   _Atomic int monitor;
   drs_t in_drs;
   slip_t song_slip;
   int song_rate, song_on;
+  /* the singer's voice: like the song, but kept much closer to now (you hear yourself) */
+  slip_t voice_slip;
+  int voice_rate, voice_on;
+  float vl[SH_MAX_BLOCK], vr[SH_MAX_BLOCK];
   float song_gain;
   char *spec[SLOTS];
   float *ir[SLOTS];
@@ -298,7 +303,7 @@ static struct {
   float params[SHP_COUNT];
   int params_set[SHP_COUNT];
   _Atomic int xruns;
-  double song_target, in_target;
+  double song_target, voice_target, in_target;
   _Atomic int quit;
   _Atomic int lost;
 } H;
@@ -410,6 +415,11 @@ static void drain_queue(void) {
         ring_clear(&H.song_ring);
         break;
       case Q_SONGON: H.song_on = c.i; break;
+      case Q_VOICECFG:
+        slip_init(&H.voice_slip, c.v, H.rate, H.voice_target * c.v / H.rate);
+        ring_clear(&H.voice_ring);
+        break;
+      case Q_VOICEON: H.voice_on = c.i; break;
     }
   }
 }
@@ -438,8 +448,14 @@ void host_on_render(float *L, float *R, int frames) {
     if (!ok && H.in_drs.underruns) atomic_store(&H.xruns, H.in_drs.underruns);
     ring_write(&H.tap_ring, H.inbuf, (uint32_t)n);
     sh_engine_process(H.eng, H.inbuf, H.gl, H.gr, n);
-    if (H.song_on && H.song_rate) {
-      slip_pull(&H.song_slip, &H.song_ring, H.sl, H.sr_, n);
+    int song = H.song_on && H.song_rate, voice = H.voice_on && H.voice_rate;
+    if (song || voice) {
+      if (song) slip_pull(&H.song_slip, &H.song_ring, H.sl, H.sr_, n);
+      else memset(H.sl, 0, sizeof(float) * n), memset(H.sr_, 0, sizeof(float) * n);
+      if (voice) {
+        slip_pull(&H.voice_slip, &H.voice_ring, H.vl, H.vr, n);
+        for (int i = 0; i < n; i++) H.sl[i] += H.vl[i], H.sr_[i] += H.vr[i];
+      }
       for (int i = 0; i < n; i++) {
         L[done + i] = soft_clip(H.gl[i] + H.sl[i]);
         R[done + i] = soft_clip(H.gr[i] + H.sr_[i]);
@@ -497,7 +513,7 @@ static void send_started(void) {
   json_str(in, sizeof in, s->in_name);
   json_str(out, sizeof out, s->out_name);
   snprintf(b, sizeof b,
-           "{\"ev\":\"started\",\"rate\":%d,\"inRate\":%d,\"inPeriod\":%d,\"outPeriod\":%d,\"latencyMs\":%.2f,\"songLatencyMs\":%.2f,\"inName\":%s,\"outName\":%s,\"mode\":\"%s\",\"backend\":\"%s\"}",
+           "{\"ev\":\"started\",\"rate\":%d,\"inRate\":%d,\"inPeriod\":%d,\"outPeriod\":%d,\"latencyMs\":%.2f,\"songLatencyMs\":%.2f,\"inName\":%s,\"outName\":%s,\"mode\":\"%s\",\"backend\":\"%s\",\"voice\":1}",
            H.rate, H.in_rate, H.in_period, H.out_period, guitar, song, in, out, s->mode, io_backend_name());
   send_json(b);
 }
@@ -556,6 +572,7 @@ static void cmd_start(const char *j) {
   ring_clear(&H.in_ring);
   ring_clear(&H.tap_ring);
   ring_clear(&H.song_ring);
+  ring_clear(&H.voice_ring);
   if (!io_start(&cfg, &H.st, err, sizeof err, code, sizeof code)) {
     send_error(code[0] ? code : "start", err[0] ? err : "Couldn't open the audio devices.", "start");
     return;
@@ -568,6 +585,11 @@ static void cmd_start(const char *j) {
   double ip = H.in_period * (double)H.rate / (H.in_rate ? H.in_rate : H.rate);
   H.in_target = ip + (cfg.buffer == 0 ? 0.15 : cfg.buffer == 1 ? 0.4 : 1.0) * H.out_period + 24;
   H.song_target = H.rate * 0.06 + H.out_period;
+  H.voice_target = H.rate * 0.025 + H.out_period;
+  {
+    double vr = H.voice_rate ? H.voice_rate : H.rate;
+    slip_init(&H.voice_slip, vr, H.rate, H.voice_target * vr / H.rate);
+  }
   drs_init(&H.in_drs, 1, H.in_rate, H.rate, H.in_target, 0.5, 0.001);
   {
     double sr = H.song_rate ? H.song_rate : H.rate;
@@ -718,6 +740,13 @@ static void handle_json(const char *j) {
       q_push(Q_SONGCFG, 0, (float)rate);
     }
     q_push(Q_SONGON, on, 0);
+  } else if (!strcmp(cmd, "voice")) {
+    /* the singer's voice starts or stops; starting empties what was left from last time */
+    int rate = (int)jnum(j, "rate", 0);
+    int on = (int)jnum(j, "on", 1);
+    if (rate) H.voice_rate = rate;
+    if (on && H.voice_rate) q_push(Q_VOICECFG, 0, (float)H.voice_rate);
+    q_push(Q_VOICEON, on, 0);
   } else if (!strcmp(cmd, "ir")) cmd_ir(j);
   else if (!strcmp(cmd, "nam")) cmd_nam(j);
   else if (!strcmp(cmd, "monitor")) atomic_store(&H.monitor,(int)jnum(j,"on",0));
@@ -858,6 +887,7 @@ int main(int argc, char **argv) {
   ring_init(&H.processed_ring,1<<18);
   ring_init(&H.mix_ring,1<<18);
   ring_init(&H.song_ring, 1 << 17);
+  ring_init(&H.voice_ring, 1 << 15);
   H.active = -1;
   plat_thread pump;
   plat_thread_start(&pump, pump_thread, 0);
@@ -898,6 +928,8 @@ int main(int argc, char **argv) {
         payload[len] = (unsigned char)save;
       } else if (type == 2 && atomic_load(&H.running)) {
         ring_write(&H.song_ring, (const float *)payload, len / 4);
+      } else if (type == 4 && atomic_load(&H.running)) {
+        ring_write(&H.voice_ring, (const float *)payload, len / 4);
       }
       off += 8 + len;
     }

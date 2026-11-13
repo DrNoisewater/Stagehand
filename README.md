@@ -183,6 +183,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.17.0:** Auto-tune and a voice changer for singing. In Sing along or Karaoke, pick Natural, Pop or Hard tune (the T-Pain sound) and hear your voice lifted onto the song's notes, with the song. Sing as a deep voice, a giant, a high voice or a chipmunk, with auto-tune or on its own. Headphones are best.
 - **4.16.3:** Setup looks like the app now: the torn flyer on the rehearsal-room wall, a character, cream buttons.
 - **4.16.2:** A more modern highway: round, shiny strings with a soft shadow, round metal frets, and round inlay dots on the neck (gold where your hand is).
 - **4.16.1:** Singing: the words come in sooner, and the next line is written out in full above the lane before you have to sing it. Chord scoring tells a wrong chord (E minor for E major) from the right one, and still forgives a light strum or a missed string.

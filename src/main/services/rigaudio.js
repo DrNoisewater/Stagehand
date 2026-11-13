@@ -4,7 +4,8 @@
  * between it and the page.
  *
  * Wire format on the helper's stdin/stdout: [u32 type][u32 length][payload]
- *   to helper:   1 = JSON command, 2 = song audio (f32 stereo interleaved)
+ *   to helper:   1 = JSON command, 2 = song audio (f32 stereo interleaved),
+ *                4 = the singer's tuned voice (f32 stereo interleaved)
  *   from helper: 1 = JSON event,   3 = guitar input (f32 mono)
  *
  * The page talks to us over two MessagePorts: "control" (commands, events,
@@ -130,31 +131,31 @@ class RigAudio extends EventEmitter {
     return true;
   }
 
-  sendSong(f32) {
+  sendSong(f32, type = 2) {
     if (!this.child || this.state !== 'running') return;
     // Never queue up audio behind a stalled pipe: late audio is useless.
     if (this.child.stdin.writableLength > 256 * 1024) return;
     const bytes = Buffer.from(f32.buffer, f32.byteOffset, f32.byteLength);
     const hdr = Buffer.alloc(8);
-    hdr.writeUInt32LE(2, 0);
+    hdr.writeUInt32LE(type, 0);
     hdr.writeUInt32LE(bytes.length, 4);
     this.child.stdin.write(hdr);
     this.child.stdin.write(bytes);
     this.songBytes += bytes.length;
   }
 
-  /** A page port: "control" or "song". */
+  /** A page port: "control", "song" or "voice" (the singer's tuned voice, 4.17). */
   attach(port, kind) {
     const entry = { port, kind };
     this.ports.add(entry);
     port.on('message', (e) => {
       const m = e.data;
       if (!m) return;
-      if (kind === 'song') {
-        if (m.t === 'song' && m.d) {
+      if (kind === 'song' || kind === 'voice') {
+        if (m.t === kind && m.d) {
           const d = m.d;
           const f = d instanceof Float32Array ? d : ArrayBuffer.isView(d) ? new Float32Array(d.buffer, d.byteOffset, d.byteLength >> 2) : d instanceof ArrayBuffer ? new Float32Array(d) : Array.isArray(d) ? Float32Array.from(d) : null;
-          if (f && f.length) this.sendSong(f);
+          if (f && f.length) this.sendSong(f, kind === 'voice' ? 4 : 2);
         }
         return;
       }

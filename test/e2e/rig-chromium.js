@@ -130,7 +130,7 @@ class FakePortMain extends EventEmitter {
     }
     let p = ports.get(id);
     if (!p) return;
-    if (msg && msg.t === 'song' && Array.isArray(msg.d)) msg = { ...msg, d: Float32Array.from(msg.d) };
+    if (msg && (msg.t === 'song' || msg.t === 'voice') && Array.isArray(msg.d)) msg = { ...msg, d: Float32Array.from(msg.d) };
     p.emit('message', { data: msg });
   });
   await page.exposeBinding('__open', (_src, id, kind) => {
@@ -156,7 +156,7 @@ class FakePortMain extends EventEmitter {
           local.set(id, ch.port2);
           ch.port2.onmessage = (e) => {
             let m = e.data;
-            if (m && m.t === 'song' && m.d) m = { t: 'song', d: Array.from(m.d) };
+            if (m && (m.t === 'song' || m.t === 'voice') && m.d) m = { t: m.t, d: Array.from(m.d) };
             window.__relay(id, kind, m);
           };
           await window.__open(id, kind);
@@ -355,8 +355,63 @@ class FakePortMain extends EventEmitter {
   check(rr.clipRms > 0.005, `a recorded clip has the sound in it (${rr.clipRms.toFixed(3)})`);
   check(rr.tapChunks > 3 && rr.tapDupes === 0, `…and so does the dry guitar tap (${rr.tapDupes} of ${rr.tapChunks} repeated)`);
 
+  // 4.17 auto-tune: with the engine holding the speakers, the tuned voice goes out through it.
+  // A pretend singer 40 cents under A sharp (466 Hz); the speakers must get A sharp.
+  const vr = await page.evaluate(async () => {
+    const ac = new AudioContext();
+    const osc = ac.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 440 * 2 ** ((70 - 0.4 - 69) / 12);
+    const gain = ac.createGain();
+    gain.gain.value = 0.3;
+    const dest = ac.createMediaStreamDestination();
+    osc.connect(gain).connect(dest);
+    osc.start();
+    const realMic = navigator.mediaDevices.getUserMedia;
+    navigator.mediaDevices.getUserMedia = async () => dest.stream;
+    const { mic } = await import('/src/renderer/js/mic.js');
+    const { autotune } = await import('/src/renderer/js/autotune.js');
+    autotune.setStyle('robot');
+    autotune.setNotes('near');
+    autotune.setVol(1.15);
+    const ok = await mic.start('test');
+    await new Promise((r) => setTimeout(r, 3500));
+    const r = { ok, on: autotune.on, route: autotune.route, state: autotune.state };
+    mic.stop('test');
+    await new Promise((r) => setTimeout(r, 300));
+    autotune.setStyle('off');
+    navigator.mediaDevices.getUserMedia = realMic;
+    osc.stop();
+    ac.close();
+    return { ...r, after: autotune.on };
+  });
+  check(vr.ok && vr.on && vr.route === 'engine' && !vr.after, `auto-tune sends the voice into the sound engine (${JSON.stringify({ on: vr.on, route: vr.route })})`);
+  check(vr.state && vr.state.voiced && Math.abs(vr.state.target - 70) < 0.01 && Math.abs(vr.state.sung - 69.6) < 0.1, `…hears the note sung and picks the right one (${vr.state && vr.state.sung && vr.state.sung.toFixed(2)} → ${vr.state && vr.state.target})`);
+
   await page.evaluate(() => window.__h.rig.stop());
   await new Promise((r) => setTimeout(r, 600));
+  {
+    const wav = outWav.replace(/\.wav$/, '-restarts.wav');
+    const b = fs.existsSync(wav) ? fs.readFileSync(wav) : null;
+    let tuned = 0;
+    let raw = 0;
+    if (b && b.length > 44) {
+      const f = new Float32Array(b.buffer.slice(b.byteOffset + 44, b.byteOffset + b.length - ((b.length - 44) % 8)));
+      const g = (hz, a, n) => {
+        let c = 0;
+        let q = 0;
+        for (let i = a; i < a + n; i++) (c += f[2 * i] * Math.cos((2 * Math.PI * hz * i) / 48000)), (q += f[2 * i] * Math.sin((2 * Math.PI * hz * i) / 48000));
+        return Math.sqrt(c * c + q * q) / n;
+      };
+      // the loudest quarter second of A sharp anywhere in what the speakers got, and the untuned note there
+      for (let a = 0; a + 12000 <= f.length / 2; a += 6000) {
+        const v = g(466.16, a, 12000);
+        if (v > tuned) (tuned = v), (raw = g(440 * 2 ** (0.6 / 12), a, 12000));
+      }
+    }
+    // (this test's stand-in line is slow, so the voice arrives in bits here; test/voice-native.js checks it whole)
+    check(tuned > 0.004 && tuned > raw * 1.5, `the speakers got the tuned voice, on the note (A sharp at ${tuned.toFixed(4)}, the flat note at ${raw.toFixed(4)})`);
+  }
   const back = await page.evaluate(() => !window.__h.engine.native);
   check(back, 'song goes back to the normal output when the guitar is turned off');
 

@@ -12,6 +12,7 @@
 import { api } from './api.js';
 import { h, icon, showMenu, toast } from './ui.js';
 import { mic } from './mic.js';
+import { autotune, TUNE_STYLES, TUNE_NOTES, TUNE_LEVELS, TUNE_VOICES } from './autotune.js';
 import { buildSing, SingJudge, SING_LEVELS, SLACK, pitchedShare, withPitches, nearOctave, foldCents } from './sing.js';
 
 const KEY = 'stagehand.sing';
@@ -107,6 +108,37 @@ export async function notesFromStem(song, syl, engine) {
 }
 
 // ------------------------------------------------------------ the lane --
+/** The first time your voice is played back, a word about headphones. */
+function tuneTip() {
+  if (!autotune.wanted || prefs().tuneTipSeen) return;
+  setPref('tuneTipSeen', true);
+  toast({
+    title: 'Your voice is on',
+    message: 'You hear your tuned voice with the song. Headphones are best: with speakers, keep the microphone away from them, or it squeals.',
+    kind: 'info',
+    timeout: 12000,
+  });
+}
+const nameOf = (list, id) => (list.find(([x]) => x === id) || list[0])[1];
+/** "Auto-tune", "Auto-tune: Hard tune", "Voice: Giant" or both, for a button or a menu line. */
+export function tuneLabel() {
+  const a = autotune.style === 'off' ? '' : nameOf(TUNE_STYLES, autotune.style);
+  const v = autotune.voice === 'normal' ? '' : nameOf(TUNE_VOICES, autotune.voice);
+  return a && v ? `${a} · ${v}` : a ? `Auto-tune: ${a}` : v ? `Voice: ${v}` : 'Auto-tune';
+}
+/** Auto-tune and the voice changer as menu lines (the Sing menu and the Karaoke page). */
+export function tuneMenu() {
+  const check = (v) => (v ? '✓' : '');
+  return [
+    { heading: true, label: 'Auto-tune' },
+    ...TUNE_STYLES.map(([id, name]) => ({ label: name, hint: check(autotune.style === id), onClick: () => (autotune.setStyle(id), tuneTip()) })),
+    '-',
+    { label: `Tune to: ${nameOf(TUNE_NOTES, autotune.notes).toLowerCase()}`, submenu: TUNE_NOTES.map(([id, name]) => ({ label: name, hint: check(autotune.notes === id), onClick: () => autotune.setNotes(id) })) },
+    { label: `Voice: ${nameOf(TUNE_VOICES, autotune.voice).toLowerCase()}`, submenu: TUNE_VOICES.map(([id, name]) => ({ label: name, hint: check(autotune.voice === id), onClick: () => (autotune.setVoice(id), tuneTip()) })) },
+    { label: 'Voice volume', submenu: TUNE_LEVELS.map(([v, name]) => ({ label: name, hint: check(Math.abs(autotune.vol - v) < 0.01), onClick: () => autotune.setVol(v) })) },
+  ];
+}
+
 export function createSing({ root, stage, onKaraoke, onLeave }) {
   const chip = h('button.hw-chip.hw-sing-chip', { type: 'button', hidden: true });
   const lane = h('div.hw-sing', { hidden: true, 'aria-hidden': 'true' });
@@ -187,6 +219,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
     S.reading = false;
     newJudge();
     paintBadge();
+    autotune.setSong(S.mode === 'charted' ? S.cur.syl : null);
     if (S.mode === 'charted') return;
     S.reading = true;
     paintBadge();
@@ -204,6 +237,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
         S.cur = { syl, lines: S.base.lines };
         S.mode = 'stem';
         newJudge();
+        autotune.setSong(S.cur.syl);
       }
     }
     paintBadge();
@@ -270,6 +304,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
     log(false);
     S.token++;
     mic.stop('sing');
+    autotune.setSong(null);
     S.judge = null;
     lane.hidden = true;
     stageKaraoke(false);
@@ -356,6 +391,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
           ? list.map((d) => ({ label: d.label, hint: check(d.id === mic.deviceId), onClick: () => mic.setDevice(d.id, d.label) }))
           : [{ label: 'No microphone found', disabled: true }],
       },
+      { label: tuneLabel(), submenu: tuneMenu() },
       { label: 'Look', submenu: SING_LOOKS.map(([id, name]) => ({ label: name, hint: check(singLook() === id), onClick: () => setSingLook(id) })) },
       '-',
       S.karaoke ? { label: 'Leave karaoke', icon: 'x', onClick: () => onLeave && onLeave() } : { label: 'Stop singing', icon: 'x', onClick: () => turn(false) },
@@ -775,6 +811,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
       const dt = Math.max(0, Math.min(0.25, t - S.lastT));
       S.lastT = t;
       const voice = mic.read();
+      autotune.clock(t, playing ? speed : 0); // auto-tune follows the song's notes
       if (playing) {
         const tm = t - MIC_DELAY * speed;
         j.push(tm, voice);

@@ -263,6 +263,11 @@ class NativeBackend {
     if (this.port && this.running) this._cmd({ cmd: 'song', rate, on: 1 });
   }
 
+  /** The singer's tuned voice starts (at this sound rate) or stops. */
+  voice(rate, on) {
+    if (this.port && this.running) this._cmd({ cmd: 'voice', rate: rate || 0, on: on ? 1 : 0 });
+  }
+
   samples(buf) {
     const n = buf.length;
     const r = this.ring;
@@ -514,6 +519,24 @@ export class Rig extends EventTarget {
     });
   }
 
+  /** 4.17: does the sound engine hold the speakers and take the singer's voice? (auto-tune) */
+  get voiceNative() {
+    const b = this.backend;
+    return !!(this.on && this.kind === 'native' && b && b.running && b.info && b.info.voice);
+  }
+  /** A line for the tuned voice into the sound engine (it plays it with the song and your guitar). */
+  async voiceLine(rate) {
+    const b = this.backend;
+    if (!this.voiceNative) return null;
+    const port = await portFrom('voice').catch(() => null);
+    if (!port || this.backend !== b || !this.voiceNative) {
+      if (port) port.close();
+      return null;
+    }
+    b.voice(rate, true);
+    return { port, backend: b, close: () => (this.backend === b ? b.voice(0, false) : null) };
+  }
+
   /** Final stereo instrument, before song/drum/loop mixing. */
   async captureProcessed(feed){
     if(!this.on||!this.backend)throw Error('Connect your instrument first.');
@@ -736,6 +759,7 @@ export class Rig extends EventTarget {
     this.notice = null;
     await loadGear();
     let ok = false;
+    this.dispatchEvent(new Event('starting')); // anything of ours holding the speakers lets go (auto-tune)
     if (await this._wantNative()) {
       const nb = new NativeBackend(this);
       // Windows only grants exclusive use of an output nobody else has open,

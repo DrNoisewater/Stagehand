@@ -39,6 +39,19 @@ module.exports = async ({ page, outDir, check }) => {
   await page.waitForTimeout(300);
   const after = await page.evaluate(async () => { const { mic } = await import('./js/mic.js'); return { on: mic.on, id: mic.deviceId }; });
   check(!after.on && after.id === 'usb1', `Stop lets the microphone go, and the choice is remembered (${JSON.stringify(after)})`);
+  // auto-tune and the voice changer (4.17): one row, remembered, off until picked
+  const tune = page.locator('.setting', { hasText: 'Auto-tune and voice changer' });
+  check((await tune.count()) === 1, 'Settings › Guitar & audio has auto-tune and the voice changer');
+  const tuneOpts = (await tune.locator('select option').allTextContents()).join(' | ');
+  check(/Hard tune/.test(tuneOpts) && /Giant/.test(tuneOpts) && /Chipmunk/.test(tuneOpts) && /song/i.test(tuneOpts), `it lists the styles, the notes and the voices (${tuneOpts.length} letters)`);
+  const tuneWas = await page.evaluate(async () => { const { autotune } = await import('./js/autotune.js'); return { wanted: autotune.wanted, on: autotune.on }; });
+  check(!tuneWas.wanted && !tuneWas.on, 'auto-tune is off until you pick something');
+  await tune.locator('select[aria-label="Voice changer"]').selectOption('giant');
+  await tune.locator('select[aria-label="Auto-tune"]').selectOption('robot');
+  const tuneNow = await page.evaluate(async () => { const { autotune } = await import('./js/autotune.js'); const { tuneLabel } = await import('./js/singlane.js'); return { style: autotune.style, voice: autotune.voice, wanted: autotune.wanted, on: autotune.on, label: tuneLabel() }; });
+  check(tuneNow.style === 'robot' && tuneNow.voice === 'giant' && tuneNow.wanted && !tuneNow.on && /Hard tune/.test(tuneNow.label) && /Giant/.test(tuneNow.label), `the choices are remembered, and nothing plays while the microphone is off (${JSON.stringify(tuneNow)})`);
+  await tune.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: path.join(outDir, 'sing-settings-tune.png') });
   // (the picture comes last: it is slow here, and Try it stops by itself after 20 seconds)
   await row.scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(outDir, 'sing-settings-mic.png') });
@@ -62,6 +75,16 @@ module.exports = async ({ page, outDir, check }) => {
   await page.locator('#page-karaoke .kk-search').fill('zzzz no such song');
   check((await page.locator('#page-karaoke .kk-card').count()) === 0 && /No song matches/.test(await page.locator('#page-karaoke').textContent()), 'searching narrows the list');
   await page.locator('#page-karaoke .kk-search').fill('');
+  const wand = page.locator('#page-karaoke .kk-tunebtn');
+  check((await wand.getAttribute('aria-pressed')) === 'true', 'the Karaoke page shows auto-tune is on');
+  await wand.click();
+  await page.waitForTimeout(300);
+  const menu = await page.locator('.menu').last().textContent().catch(() => '');
+  check(/Hard tune/.test(menu) && /Voice: giant/.test(menu) && /Tune to/.test(menu), `its menu has the styles, the notes and the voice (${menu.slice(0, 90)})`);
+  await page.screenshot({ path: path.join(outDir, 'karaoke-tune-menu.png') });
+  await page.keyboard.press('Escape');
+  await page.mouse.click(5, 5);
+  await page.evaluate(async () => { const { autotune } = await import('./js/autotune.js'); autotune.setStyle('off'); autotune.setVoice('normal'); });
   await page.screenshot({ path: path.join(outDir, 'karaoke-page.png') });
   await page.locator('#page-karaoke .kk-card').first().click();
   await page.waitForFunction(() => { const r = document.querySelector('.highway'); return r && !r.hidden; }, null, { timeout: 30000 });
