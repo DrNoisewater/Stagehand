@@ -2295,3 +2295,18 @@ body:has(> .highway:not([hidden])) :is(.hw-opts, .hw-card, .speed-pop, .rep-bar,
 .hw-top .hw-score { min-width: 0; overflow: hidden; flex-shrink: 3; }
 @media (max-width: 1440px) { .hw-top .hw-score > b + span { display: none; } }
 @media (max-width: 1340px) { .hw-keys-chip > span, .hw-sing-chip > span { display: none; } }
+
+/* 4.16: Settings › Quest headset */
+.quest-card { margin: 4px 0 12px; padding: 14px 16px; border-radius: 12px; background: var(--deck-2); border: 1px solid var(--rule); display: grid; gap: 12px; }
+.quest-step { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; }
+.quest-n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 12.5px; background: var(--tungsten); color: #111; }
+.quest-k { color: var(--ink); font-size: 13px; font-weight: 600; }
+.quest-d { color: var(--ink-3); font-size: 12.5px; }
+.quest-addr { font: 600 22px/1.3 'Liberation Mono', ui-monospace, monospace; color: var(--ink); letter-spacing: .02em; margin-top: 2px; user-select: all; }
+.quest-code { font: 700 34px/1.1 'Liberation Mono', ui-monospace, monospace; letter-spacing: .3em; color: var(--tungsten); margin-top: 2px; }
+.quest-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid var(--rule); padding-top: 10px; }
+.quest-note { color: var(--ink-3); font-size: 12.5px; margin: 0 0 12px; }
+.quest-note.bad { color: var(--danger); }
+.quest-devices { display: grid; gap: 6px; margin-top: 6px; }
+.quest-dev { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--rule-soft); }
+.quest-dev-name { color: var(--ink); font-size: 13px; }

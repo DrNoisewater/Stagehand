@@ -46,6 +46,7 @@ function tickStems() {
 import { setPage, setView, goBack } from './store.js';
 import './jam.js';
 import './song-auto.js';
+import './companion-link.js'; // 4.16: the Quest companion (does nothing until a headset connects)
 
 // 3.9: the mouse's back button (and Alt+←, the Back key) goes to the previous screen:
 // out of Jam or the highway first, a dialog or menu closes, else the last page or list

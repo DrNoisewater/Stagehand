@@ -24,7 +24,7 @@ export async function playSong(id, opts = {}) {
  * Play along: straight into the note highway. If the song is already the one
  * playing, nothing restarts; you jump in wherever it is.
  */
-export async function playAlong(id) {
+export async function playAlong(id, { autoplay = true } = {}) {
   const song = state.songs.get(id);
   if (!song || !stageApi) return;
   // 4.0.2: a file with no song audio inside used to open the highway over an error you
@@ -37,8 +37,9 @@ export async function playAlong(id) {
   const same = cur && cur.id === id && phase !== 'error';
   // a new song starts loading (it becomes the current song straight away);
   // the same song just carries on from where it is
-  const loading = same ? null : stageApi.load(song, { autoplay: true });
-  if (same && !stageApi.engine.playing) stageApi.toggle();
+  // 4.16: a song picked in the headset opens paused (you're picking up the guitar)
+  const loading = same ? null : stageApi.load(song, { autoplay });
+  if (same && autoplay && !stageApi.engine.playing) stageApi.toggle();
   // the highway first, so you never see the Tab view flash by
   if (stageApi.openHighway) stageApi.openHighway();
   const { setPage } = await import('./store.js');

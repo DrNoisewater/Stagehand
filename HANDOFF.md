@@ -1,3 +1,141 @@
+# 4.16.0 — Quest companion (steps 1–2), released 2026-11-13
+
+User: "do whatever else you need to do. And let's merge, release so we can continue". #43 (4.15.1) merged, then #44;
+released as 4.16.0 (it carries 4.15.1's fixes too). README has a Meta Quest section (how to open it in the headset).
+**Ask the user next:** try it on the Quest: pairing, Enter VR, how smooth it feels, the highway's height/distance,
+whether notes look early or late (Notes sooner/later), and any venue that looks wrong. Then step 3 (piano).
+
+## Step 2b: the headset's highway made to look like the PC's
+
+User on the first pictures: "That highway looks a little low quality" … "We want it to look the same as the pc app.
+Everything buttery smooth".
+- **Look** (`src/companion/vr.js`), matched to the PC's 3D highway: the hand's frets as a lit teal lane with bright
+  cyan edges running into the distance (`laneMat`, divider lines, breathes with the beat); a faint fret grid on a dark
+  floor that fades out; metal fret posts across the strings (the hand's two ends white); gold inlay marks; strings
+  with a bright core and a soft glow; big gold fret numbers under the hand, teal elsewhere; gems are rounded, lit,
+  glowing in their string colour (`onBeforeCompile` adds the colour as glow) with a soft halo that grows as they come
+  close and a thin line down to the floor; held tails glow; sparks are soft; beat lines only inside the lane and none
+  behind the strings. The venue photo is the right way round (it was mirrored), in proportion (20 m tall, 2.6 rad),
+  with its horizon put just below your eyes so the highway lies on its floor; the floor under you fades out so the
+  photo's floor shows. Flat preview framed like the PC (looking down the highway); the menu only shows in VR.
+- **Bug found:** everything see-through near the floor was drawn dark: the floor disc under you was drawn last (three.js
+  draws see-through things nearest last) and covered the highway's numbers. The room now draws first (`renderOrder`).
+  Fret numbers' picture has no smaller copies (they darkened seen at an angle).
+- **Smooth:** the song clock shown glides to each report from the PC instead of jumping (`songNow`: runs on the
+  headset's frames, nudged 12 % a frame, snaps on a seek); no new objects made each frame; the headset asked for its
+  highest frame rate (`updateTargetFrameRate`, up to 120); lighter edge-saving (foveation 0.4).
+- `node test/e2e/companion-vr-shot.js <out> [times…]` (new): the headset's highway on a made-up part (riff, chords,
+  held note, slide, open strings, hits and one miss) without the full app: quick pictures `vr-<t>.png`.
+
+**Piano, asked:** "We do still want it to keep track of how well you do. The piano section is just for fun right now.
+But I do want to actually get better. Will this be of the same quality as the piano vision songs? I have a
+subscription with them, but I want to cancel it, if this is going to work better." Answered honestly (see the reply):
+PianoVision's songs are arranged by people; Stagehand writes its piano parts from the Rocksmith chart and the singer,
+so they're good for songs in the library but not the same as hand-made piano arrangements, and it has no piano-only
+catalogue. Scoring: exact with the keyboard's USB into the PC (a longer USB cable covers 5 ft); from hand tracking
+only it's rougher (PianoVision does that too). Suggested: keep the subscription until they've tried Stagehand's piano
+in the headset. Scoring is wanted ("keep track of how well you do").
+
+## Step 2: the guitar highway in the headset
+
+User chose "Keep building: VR highway" over releasing step 1 first. **Not tried on a real headset yet.**
+
+- **The notes reach the headset:** while a headset is connected, the PC page (`companion-link.js`) sends the part the
+  highway shows once per song/part/venue (`chartOf`: targets with id, time, hold, kind, chord name, repeat, linked +
+  parent, notes `[string, fret, hold, flags, slideTo, bend]`; beats, sections, anchors, strings, string order, venue;
+  `{ aside:true }` while Piano or karaoke has the neck stepped aside). `window.__shHighway` gained `venue()`,
+  `lowTop()`, `aside()`. Hits and misses: the PC's judge (`__shHighway.judge()`), only what's new, inside `state`
+  (`judge: { hits, judged, streak, best, ev:[[id,1|0]], reset }`, `{off:true}` when the guitar stops being judged).
+  The server keeps the chart and the marks so far, so a headset joining mid-song gets everything (`_catchUp`).
+- **The headset draws it** (`src/companion/vr.js`, three.js r170 served from the app's own copy at `/three/…`; venue
+  pictures at `/venues/…`): the neck in front of you a little below your eyes (sitting), notes coming from the distance
+  (2.4 m per second, 4.2 s ahead), the PC's string colours and order, fret numbers on the notes (one picture of 0–24
+  and X, picked per note), held-note tails, open strings as bars across the hand's frets, chord names, beat and bar
+  lines, the neck sliding to follow the hand's position (anchors), notes turning white on a hit (sparks) and grey on a
+  miss. The venue: photo venues on a big curved screen around you, the moving-background venues as a starry sky (the
+  real moving scenes in 3D are still to do); the sky breathes with the beat. A score board up ahead (title, artist,
+  section, time, accuracy, streak). A menu panel left of the neck: Play/Pause, −10/+10 s, Nearer/Farther,
+  Higher/Lower, Notes sooner/later (±10 ms, for the headset's own delay), Leave VR; pointed at with controllers or
+  hands (pinch). The neck's place and the notes' timing are kept in the headset's browser (`stagehand.vr`).
+- **Three ways in** (buttons on the headset page under Now playing): **Enter VR** (the venue around you),
+  **Passthrough** (your room, the highway floating in front; `immersive-ar`), **Preview the highway** (flat, in the
+  page; what the tests use, and handy to check the notes arrived). The buttons for VR/passthrough only show when the
+  browser can do them.
+- Tests: `companion.test.mjs` +3 (which notes are near, the hand's place, string order, marks kept/reset/sparks, a
+  headset joining late gets the notes and the marks, the 3D files served). `companion-audit.js` +9: the part's notes
+  reach the headset (all of them), hits/misses from the PC show there, the highway runs with notes on it, the menu
+  moves the neck (remembered) and plays/pauses the PC, Back; writes `q-7/8-quest-highway*.png`. npm test and the full
+  ui3 visit pass with the switch off.
+- Still to do in step 2: the **Quest timing check** (strum on flashes seen in the headset; the PC times the strums)
+  instead of only Notes sooner/later; moving-background venues in 3D; frame rate measured on the real headset.
+
+**How the user opens it (asked "I'll need to be shown how to sideload this app"):** nothing to sideload. It's a page
+in the Quest's own **Browser**: switch on Settings › Quest headset on the PC, type the address it shows into the Quest
+Browser, accept the one-time "not private" warning (Advanced › Proceed), type the code; then bookmark it (or "Add to
+home"/pin the page, if the Quest Browser offers it) so it's one tap next time. A store/sideloaded app can come later if
+wanted; it isn't needed. Show this with pictures when it's released (the README line and the Settings page say it).
+
+**Piano, from the user (changes step 3):** "I usually use my oculus with piano vision. And it's not hooked up through
+midi. I usually just play it for fun, so we'll just have the gestures and hand controls through the oculus." "I sit
+like five feet away from my computer … my piano is not in front of my computer." So for step 3: **no MIDI**; the
+keyboard is placed by touching its ends with tracked fingertips (not by pressing keys), remembered the three ways;
+presses read from **hand tracking** in the headset (like PianoVision) or not scored at all ("for fun"); the song's
+sound in the **Quest's headphones** fits well here (the piano makes its own sound, the PC is 5 ft away).
+
+## Step 1: the bridge (branch `claude/quest-companion`)
+
+User: "a VR app for the Quest 3 that mimics PianoVision in most ways, but connects to my computer to use my Stagehand
+library … play guitar while watching the highway through the Quest". Must: Stagehand works exactly as today without the
+headset; seamless with it; guitar and piano both solid; the piano's place remembered, never set up again. The plan is
+the claude.ai Project doc "Stagehand Quest companion handoff" (4 steps). Built on `claude/audit-fixes` (#43, 4.15.1)
+because #43 wasn't merged yet. **Not tried on a real headset yet.**
+
+Their answers (asked at the start): PC on a **network cable**, Quest on **Wi-Fi**; plays **sitting**; would like to
+**hear the song in the Quest's headphones** "if it makes sense" (see below). Not answered yet: is the piano in the PC's room.
+
+What step 1 is:
+- **Settings › Quest headset** (`questsettings.js`, a new tab before About): one switch, **off by default**
+  (`settings.companion.on`). Off: nothing listens, the page sends nothing (`companion-link.js` only reacts to
+  `companion:status` with headsets connected). On: the address (`https://<PC>:7787`), the steps (the browser's one-time
+  "not private" warning), a 4-digit code, New code, the headsets it knows (Connected / last seen, Forget).
+- **The server** (`src/main/services/companion.js`, Node built-ins only): HTTPS with **its own certificate**
+  (`core/selfcert.js` writes a P-256 X.509 by hand; kept in `<data>/Quest/`, so the browser asks once). Why HTTPS: the
+  Quest browser only allows VR (WebXR, steps 2–3) on a secure page. **WebSocket** `/ws` (`core/ws.js`, small RFC 6455:
+  text, ping, close; also a client for tests). Same port every time (7787, next free if taken).
+- **Pairing:** `hello` with the kept key → `welcome`; no key → `need-code`; `pair` with the code → a key (24 random bytes)
+  the headset keeps in its browser; the PC keeps only its SHA-256. A code works once; 5 wrong tries → a new code.
+  At most 8 sockets; a socket that hasn't paired is let go after 2 min. Covers: `/art/<id>?k=<key>`.
+- **What travels:** PC → headset: `library` (id, title, artist, album, year, length, parts; re-sent when the library
+  changes), `state` (song, pos, playing, speed, part, phase, `notice`: the PC is offering/doing the timing check, `at`:
+  the PC's clock in ms, `performance.timeOrigin + now()`, the same in main and the page) 30×/s while playing, on change
+  while paused; `pong`. Headset → PC: `pick` (opens on the PC's highway **paused**: `playAlong(id, { autoplay:false })`),
+  `toggle`/`play`/`pause`, `seek`, `ping`.
+- **The clock** (`src/companion/clock.js`, pure, shared with the VR steps): ping/pong, the fastest of the last 12 sets
+  the offset (eased, so a hiccup doesn't move the song); the song position runs on between reports.
+- Play pressed in the headset while the song is still opening plays it once ready; while the PC offers the first-time
+  timing check it counts as "Not now" (found by the audit: the box held the song and the headset couldn't see it).
+- **The headset page** (`src/companion/`: `index.html`, `app.css`, `app.js`; plain JS, no build): a number pad for the
+  code, the library (search, covers, part chips, 250 shown, type to narrow), now playing (cover, the clock in tenths,
+  a bar to seek, −10 / play / +10, the link and its round-trip time top right). Reconnects by itself.
+- Tests: `node --test test/companion.test.mjs` (in npm test: off by default, pairing, the key remembered, forget,
+  guessing, the certificate kept, the clock within 15 ms with the headset's clock 5 s and 73 s off, a slow answer
+  ignored). `SH_AUDIT=test/e2e/companion-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>`:
+  the real server and page, a pretend Quest 3 browser (its own Chromium): pair (a wrong code first), library, pick →
+  opens on the PC, play/seek/pause both ways, the headset's clock 0.1 ms from the PC's, reload → no code, Forget, Off;
+  writes `q-*.png`. ui3's full visit checks the companion stays off and quiet.
+
+Hearing the song in the Quest (asked): **the guitar's sound can't go through the headset** (Wi-Fi adds 100–300 ms and
+it wobbles: you'd hear yourself late). **The song can**, without that delay: the headset would fetch the song's audio
+once and play it on the shared clock (no streaming), the same way it draws the notes on time. Makes most sense for
+**piano** (the Allegro plays its own sound; song in the headphones). For guitar you'd still hear your amp from the PC.
+Planned as an option in step 3/4 ("Song sound: PC / headset"), off by default; needs a headset timing check for sound.
+
+Also asked mid-way (not started, unrelated to the Quest): **"a badass auto-tune available for when you're singing just
+for fun"** (Sing along / Karaoke: the voice from the mic tuned to the song's notes, through the PC's sound).
+
+Next: step 2, the guitar highway in VR (`immersive-vr`, the Enter VR button on this page): the highway and a venue,
+hits/misses from the PC's judge (to add to `state`), the Quest timing check (saved per headset).
+
 # 4.15.1 — full audit after 4.15.0: bass scoring, top bar, song list (2026-11-13)
 
 User: "merge and release. But then we need to do a full audit to make sure everything's working. If that's good, we

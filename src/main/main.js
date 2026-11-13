@@ -17,6 +17,7 @@ const { ClipSessions } = require('./services/clip-sessions');
 const { AudioFinder } = require('./services/audiofind');
 const { StemService, MODELS } = require('./services/stems');
 const { ArtService } = require('./services/art');
+const { Companion } = require('./services/companion'); // 4.16: the Quest companion (off until switched on)
 const { Organizer } = require('./services/organize');
 const { RsProfiles } = require('./services/rsprofiles');
 const { MusicBrainz } = require('./services/musicbrainz');
@@ -65,6 +66,7 @@ let finder;
 let dlcImporter;
 let stems;
 let art;
+let companion = null; // 4.16: the Quest companion
 let organizer;
 let rsprofiles;
 let rigAudio;
@@ -130,6 +132,8 @@ function makeDirs() {
 
 function send(channel, payload) {
   if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
+  // 4.16: a headset following along gets the new song list too (nothing happens when it's off)
+  if (companion && (channel === 'library:songs' || channel === 'library:reset')) companion.libraryChanged();
 }
 
 function handle(channel, fn) {
@@ -955,6 +959,14 @@ function registerIpc() {
   handle('tools:vgmstream', () => ({ path: tools.vgmstreamPath() }));
   handle('tools:installVgmstream', () => tools.installVgmstream((p) => send('tools:progress', p)));
 
+  // 4.16: the Quest companion (Settings › Quest)
+  handle('companion:status', () => companion.status());
+  handle('companion:setOn', (on) => companion.setOn(!!on));
+  handle('companion:forget', (id) => companion.forget(String(id || '')));
+  handle('companion:newCode', () => companion.newCode());
+  ipcMain.on('companion:state', (_e, st) => companion && companion.pushState(st));
+  ipcMain.on('companion:chart', (_e, ch) => companion && companion.pushChart(ch));
+
   handle('settings:get', () => settings.get());
   handle('settings:set', (patch) => {
     const before = settings.get().stems.model;
@@ -1383,6 +1395,20 @@ app.whenReady().then(async () => {
       return new Response('Error', { status: 500 });
     })
   );
+  // 4.16: the Quest companion; listens on the network only if you switched it on
+  companion = new Companion({
+    dir: path.join(D.roaming, 'Quest'),
+    settings,
+    library: { songs: () => Object.values(library.data.songs || {}), get: (id) => library.get(id) },
+    staticDir: path.join(__dirname, '..', 'companion'),
+    rendererDir: RENDERER,
+    artFile: (song, size) => art.file(song, size),
+    version: app.getVersion(),
+    log,
+  });
+  companion.on('status', (st) => send('companion:status', st));
+  companion.on('cmd', (c) => send('companion:cmd', c));
+  companion.startup();
   registerIpc();
   createWindow();
   library.watch();
@@ -1398,6 +1424,7 @@ app.on('before-quit', async (e) => {
   try {
     library.close();
     if (rigAudio) rigAudio.quit();
+    if (companion) companion.stop().catch(() => {});
     importer.stop();
     discover.cancelGaps();
     stems.stopAll();

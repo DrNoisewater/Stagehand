@@ -194,6 +194,11 @@ class FakePortMain extends EventEmitter {
   const captures = new Captures({ dir: capDir, openExternal: () => true, log: () => {} });
   await captures.load();
 
+  // 4.16: the Quest companion, the real one (off until an audit switches it on)
+  const { Companion } = require('../../src/main/services/companion');
+  const { ArtService } = require('../../src/main/services/art');
+  const questArt = new ArtService({ cacheDir: path.join(tmp, 'art') });
+  const companion = new Companion({ dir: path.join(tmp, 'Quest'), settings, library: { songs: () => library.snapshot().songs, get: (id) => library.get(id) }, staticDir: path.join(ROOT, 'src/companion'), rendererDir: path.join(ROOT, 'src/renderer'), artFile: (song, size) => questArt.file(song, size), version: require('../../package.json').version, pcName: 'STAGE-PC' });
   const stemHold = new Set(); // songs whose stems are "still splitting" (for the wait-for-stems check)
   // song switching checks (3.13): songs whose audio fails to open, and slow answers
   const audioFail = new Set();
@@ -226,6 +231,12 @@ class FakePortMain extends EventEmitter {
     'shell.openExternal': () => true,
     'app.info': () => ({ version: require('../../package.json').version, platform: 'win32', packaged: false, dirs: {}, models: [] }),
     'app.log': () => [],
+    'companion.status': () => companion.status(),
+    'companion.setOn': (on) => companion.setOn(on),
+    'companion.forget': (id) => companion.forget(id),
+    'companion.newCode': () => companion.newCode(),
+    'companion.state': (st) => companion.pushState(st),
+    'companion.chart': (ch) => companion.pushChart(ch),
     'settings.get': () => settings.get(),
     'settings.set': (p) => settings.set(p),
     // the real grouping over the test songs plus three made-up copies of one song (for the picture)
@@ -360,6 +371,8 @@ class FakePortMain extends EventEmitter {
   }
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--autoplay-policy=no-user-gesture-required','--single-process','--no-zygote','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1600, height: process.env.SH_PICTURES311?1100:950 } });
+  companion.on('status', (st) => page.evaluate((st) => window.__shEmit && window.__shEmit('companion:status', st), st).catch(() => {}));
+  companion.on('cmd', (c) => page.evaluate((c) => window.__shEmit && window.__shEmit('companion:cmd', c), c).catch(() => {}));
   page.setDefaultTimeout(60000);
   const logs = [];
   page.on('console', (m) => (logs.push(`${m.type()}: ${m.text()}`), /error|warn/.test(m.type()) && !/404|Failed to load/.test(m.text()) && console.log('CONSOLE', m.type(), m.text())));
@@ -442,6 +455,8 @@ class FakePortMain extends EventEmitter {
 
   await page.goto(`${base}/src/renderer/index.html`);
   await page.waitForTimeout(3500);
+  // 4.16: without the switch, the Quest companion never listens and the page sends it nothing
+  check(!companion.server && !companion.status().on && !companion.last, 'the Quest companion is off and quiet until switched on');
   const shot = (n) => process.env.SH_NO_PICS?Promise.resolve():(console.log('SHOT', n), page.screenshot({ path: path.join(outDir, `v3-${n}.png`) }));
   if (process.env.SH_CAREER_AUDIT) {
     await require('./career-audit.js')({ page, outDir, check });
@@ -457,7 +472,8 @@ class FakePortMain extends EventEmitter {
   }
   // any audit module (a path): node ui3-chromium.js helper out with SH_AUDIT=test/e2e/foo.js
   if (process.env.SH_AUDIT) {
-    await require(path.resolve(process.env.SH_AUDIT))({ page, outDir, check, stemHold });
+    await require(path.resolve(process.env.SH_AUDIT))({ page, outDir, check, stemHold, browser, companion });
+    await companion.stop().catch(() => {});
     fs.writeFileSync(path.join(outDir, 'results.json'), JSON.stringify({ results, logs }, null, 2));
     await browser.close(); relay.quit(); server.close();
     process.exit(results.some(r => !r.ok) ? 1 : 0);

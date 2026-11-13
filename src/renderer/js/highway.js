@@ -237,7 +237,9 @@ export function createHighway(stage) {
   root.__openSync = () => openSync(); // for tests
   H.openSync = () => openSync();
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
-  window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on && !aside() ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave() };
+  window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on && !aside() ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave(),
+    // 4.16: for the Quest companion's highway (the same venue, string order, and whether the neck stepped aside)
+    venue: () => H.decorVenue || VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse', lowTop: () => prefs.lowTop !== false, aside: () => !!aside() };
   const extras = createPerformanceTools({root,top,stage,H,rig});
   top.append(mixBtn); // after Tools: the last thing in the top bar
   const practiceCheckpoint = () => window.__shPractice && window.__shPractice.checkpoint();
