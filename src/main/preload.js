@@ -33,6 +33,7 @@ const EVENTS = new Set(['nav:back', 'win:state', 'audio:search',
   'updates:change',
   'updates:progress',
   'app:recovered',
+  'finder:event',
 ]);
 
 contextBridge.exposeInMainWorld('stagehand', {
@@ -226,6 +227,8 @@ contextBridge.exposeInMainWorld('stagehand', {
     clearFound: () => call('discover:clearFound'),
     copy: (text) => call('discover:copy', text),
     customsforge: (opts) => call('discover:customsforge', opts),
+    finder: (item) => call('finder:open', item),
+    closeFinder: () => call('finder:close'),
   },
   imports: {
     status: () => call('import:status'),

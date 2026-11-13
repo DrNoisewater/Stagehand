@@ -70,6 +70,7 @@ let rigAudio;
 let mb;
 let discover;
 let importer;
+let songFinder = null; // 4.12: CustomsForge in a Stagehand window
 let covers;
 let tabs;
 let toneStore;
@@ -1033,9 +1034,32 @@ function registerIpc() {
   handle('discover:removeWanted', (ids) => discover.removeWanted(Array.isArray(ids) ? ids.map(String) : []));
   handle('discover:clearFound', () => discover.clearFound());
   handle('discover:copy', (text) => clipboard.writeText(String(text || '').slice(0, 20000)));
+  // 4.12: the song finder (finder.js): CustomsForge in a Stagehand window that types the wanted
+  // song into its search box when you press Find, and takes what you download into your library
+  handle('finder:open', (item) => {
+    if (!songFinder) {
+      const { createFinder } = require('./services/finder');
+      const testSite = process.env.STAGEHAND_FINDER_URL || null; // (tests: a pretend site)
+      songFinder = createFinder({
+        parent: () => win,
+        icon: ICON,
+        stagingDir: D.staging,
+        downloadsDir: () => process.env.STAGEHAND_DOWNLOADS || app.getPath('downloads'),
+        importFiles: (paths) => importer.importFiles(paths, { origin: 'finder' }),
+        onEvent: (e) => send('finder:event', e),
+        openExternal: (u) => !process.env.STAGEHAND_NO_EXTERNAL && shell.openExternal(u),
+        clipboard,
+        log,
+        home: testSite || undefined,
+        extraHosts: testSite ? [new URL(testSite).host] : [],
+      });
+    }
+    return songFinder.open(item || null);
+  });
+  handle('finder:close', () => songFinder && songFinder.close());
   handle('discover:customsforge', (opts = {}) => {
-    // Stagehand never searches CustomsForge itself: their rules forbid bots and
-    // scrapers. It copies the search and opens the site in the user's browser.
+    // In your own browser: Stagehand copies the search and opens the site. (4.12: the song
+    // finder, above, is the usual way; it never reads the site or downloads by itself either.)
     if (opts.text) clipboard.writeText(String(opts.text).slice(0, 300));
     const url = opts.page === 'artists' ? `${IGNITION}artist` : IGNITION;
     if (opts.open !== false && !process.env.STAGEHAND_NO_EXTERNAL) shell.openExternal(url);

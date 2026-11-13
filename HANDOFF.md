@@ -116,6 +116,29 @@ progress if you start splitting another song", "get rid of the flickering, and l
   stems when they're in (`mixSplitMoved()` in highway.js; checked in stems-audit.js).
   **Ask:** is the end of a split smoother now, and does the app still flicker while splitting?
 
+**The song finder (asked: "would it be easier if Stagehand had its own little browser that didn't allow for
+much browsing, but could automatically type into the search bar for you? … one of the biggest hurdles is
+there's not seamless integration").**
+- `src/main/services/finder.js` + `src/main/finder/bar.html` (+ `bar-preload.js`): a Stagehand window with
+  CustomsForge in it (its own sign-in kept, `persist:customsforge`) and a bar on top: Back/Forward/Reload,
+  LOOKING FOR the wanted song, **Find**, **Next song**, a message line, My browser, Done.
+- **Find** puts the song in the site's search box (the first visible search field) and presses Enter, once per
+  press (also when the window first opens or moves to the next song). It never reads results, never clicks
+  anything on the site and never downloads by itself. Also copied, for Ctrl+V. If no box is found (signed
+  out), the bar says so. **Not tried on the real site** (this container can't reach customsforge.com): ask
+  whether Find lands in Ignition's search box.
+- Downloads in the window: .psarc and .zip go straight into the library (`importer.importFiles`, origin
+  `finder`), which ticks the song off Wanted; anything else (.rar, .7z) goes to Downloads with a note.
+- The window only shows CustomsForge and the file sites songs are shared on (Google Drive, Dropbox, MediaFire,
+  MEGA, OneDrive, Box, GitHub, Discord, Patreon: `HOSTS`); other links open in the user's browser.
+- The site sees a plain Chrome (the Electron/Stagehand words are taken out of its user agent) so sign-in checks
+  don't trip on it.
+- Earlier rule ("never automate CustomsForge", 4.0.4) is relaxed only this far: typing one search when the user
+  presses Find, like autofill. Still no scraping, no automatic downloads.
+- Checked: `ELECTRON=<electron 44> xvfb-run -a node test/e2e/finder-electron.js <out>` (a pretend song site:
+  Find searches, a link elsewhere stays out, a .psarc lands in the songs folder and library, a .rar goes to
+  Downloads), `test/finder.test.js` (which sites are allowed; in npm test).
+
 **Not done / open:**
 - Only on the highway. The Tab view and Now playing don't have the lane yet (the plan wanted it above the tab).
 - The voice through Stagehand (hearing yourself with reverb, the voice in recorded clips): needs the sound engine
@@ -1220,7 +1243,8 @@ Stagehand is a Windows desktop app (Electron 44.1.0) for Rocksmith 2014 `.psarc`
 - stem separation through Demucs (Python, GPU when available)
 - in-game Rocksmith song lists (up to 20, renamable)
 - **Discover**: MusicBrainz search, artist pages, collection gaps, a Wanted list, and a CustomsForge hand-off
-  - The hand-off copies the search text and opens the browser. **Never automate CustomsForge**; their rules forbid bots.
+  - The hand-off copies the search text and opens the browser; 4.12's song finder types one search when you press
+    Find (see 4.12). Still never scrape CustomsForge or download from it automatically; their rules forbid bots.
 - Downloads auto-import (watches the Downloads folder for `.psarc` only; zips only by manual pick or drag-drop)
 - a **Tab view** (T key) with lyrics, play along, practice speed, string order and pages
 - a **Your guitar** amp rig and tuner on the Rocksmith Real Tone Cable
