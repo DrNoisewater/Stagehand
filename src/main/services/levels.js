@@ -325,7 +325,15 @@ function setOf(runs) {
  */
 function compute({ sessions = [], did = {}, daily = {}, done = {}, trophies = {}, added = [], songs = {}, weekSong, title = null, since = 0, resetAt = 0, trophySince = 0, legacy = [], dev = {}, caps = null, now = Date.now(), ask = null, weekly: askWeek = null }) {
   const awards = [];
-  const give = (key, xp, why, at, kind = 'play', extra = null) => xp > 0 && awards.push({ key, xp: Math.round(xp), why, at, kind, ...(extra || {}) });
+  // 4.13: XP earned while singing, kept apart so Progress can show it quietly (it still counts toward your level)
+  const sung = { xp: 0, songs: new Set(), seconds: 0 };
+  let singing = false;
+  const give = (key, xp, why, at, kind = 'play', extra = null) => {
+    if (!(xp > 0)) return false;
+    awards.push({ key, xp: Math.round(xp), why, at, kind, ...(extra || {}) });
+    if (singing) sung.xp += Math.round(xp);
+    return true;
+  };
   const events = []; // the career timeline (besides awards): mastery, bests, firsts
   const seenSong = new Map();
   const tunings = new Set();
@@ -367,6 +375,8 @@ function compute({ sessions = [], did = {}, daily = {}, done = {}, trophies = {}
   const list = sessions.filter((s) => s && Number(s.at) >= resetAt && Number(s.at) > 0 && Number(s.seconds) > 0).sort((a, b) => a.at - b.at);
   const recentDays = []; // played day keys in order, for the weekly rhythm
   for (const s of list) {
+    singing = s.part === 'vocals';
+    if (singing) (sung.seconds += Number(s.seconds) || 0), s.songId && sung.songs.add(s.songId);
     const day = dayKey(s.at);
     const k = `s:${s.at}:${s.songId || 'free'}`;
     const isToday = day === today;
@@ -521,6 +531,7 @@ function compute({ sessions = [], did = {}, daily = {}, done = {}, trophies = {}
       if (acc >= 0.8) for (const t of tl) t.good80.add(s.songId);
     }
   }
+  singing = false;
   T.set = setOf(T.runs);
   W.set = setOf(W.runs);
   for (const [id, at] of Object.entries(did)) {
@@ -666,6 +677,7 @@ function compute({ sessions = [], did = {}, daily = {}, done = {}, trophies = {}
     adjust: adj,
     resetAt,
     challengesDone: doneList.length,
+    singing: { xp: sung.xp, songs: sung.songs.size, seconds: Math.round(sung.seconds) },
     ...(ask ? { asked: Object.fromEntries(ask.map((id) => [id, Math.min(ALL_DAILY.get(id).target, ALL_DAILY.get(id).count(T))])) } : {}),
     ...(askWeek ? { weeklyAsked: Object.fromEntries(askWeek.map((id) => [id, Math.min(ALL_WEEKLY.get(id).target, ALL_WEEKLY.get(id).count(W))])) } : {}),
   };

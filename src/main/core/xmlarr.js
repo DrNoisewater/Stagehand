@@ -71,7 +71,7 @@ function markLinks(notes, chordEvents) {
   }
 }
 
-function parseXml(text, { type = 'lead', name = '' } = {}) {
+function parseXml(text, { type = 'lead', name = '', fullDifficulty = false } = {}) {
   const xml = String(text);
   if (!/<song\b/.test(xml) || !/<levels\b/.test(xml)) throw new Error('Not a Rocksmith arrangement');
   const tun = attrs((/<tuning\b([^>]*)\/?>/.exec(xml) || [])[1] || '');
@@ -102,11 +102,16 @@ function parseXml(text, { type = 'lead', name = '' } = {}) {
   const notes = [];
   const chordEvents = [];
   const anchors = [];
+  const fullShapes = [];
   iters.forEach((it, i) => {
     const end = i + 1 < iters.length ? iters[i + 1].start : Infinity;
     const phrase = phrases[it.phraseId];
     const level = levels.get(phrase ? phrase.maxDifficulty : 0);
+    if (fullDifficulty && (!phrase || !level)) throw new Error('Missing authored phrase difficulty');
     if (!level) return;
+    if (fullDifficulty) for (const h of level.handShapes) {
+      if (num(h.startTime) < end && num(h.endTime) > it.start) fullShapes.push({ chord: num(h.chordId), start: round(Math.max(num(h.startTime), it.start)), end: round(Math.min(num(h.endTime), end)) });
+    }
     const inside = (time) => time >= it.start - 0.0005 && time < end - 0.0005;
     for (const a of level.anchors) if (inside(a.t)) anchors.push({ t: round(a.t), fret: a.fret, width: a.width });
     for (const n of level.notes) {
@@ -145,7 +150,7 @@ function parseXml(text, { type = 'lead', name = '' } = {}) {
     notes,
     chordEvents,
     anchors,
-    handShapes: maxLevel.handShapes.map((h) => ({ chord: num(h.chordId), start: round(num(h.startTime)), end: round(num(h.endTime)) })),
+    handShapes: fullDifficulty ? fullShapes : maxLevel.handShapes.map((h) => ({ chord: num(h.chordId), start: round(num(h.startTime)), end: round(num(h.endTime)) })),
     tones: tags(block(xml, 'tones'), 'tone').map((t) => ({ time: num(t.a.time), id: num(t.a.id) })),
     events: tags(block(xml, 'events'), 'event').map((e) => ({ t: round(num(e.a.time)), name: e.a.code })),
   };

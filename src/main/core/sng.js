@@ -284,14 +284,19 @@ function techFromMask(mask, extra = {}) {
  * Every note as Rocksmith plays it at the hardest level: each phrase
  * iteration's notes come from the level matching that phrase's max difficulty.
  */
-function toTab(sng, { type = 'lead', tuning = null, capo = null, name = '' } = {}) {
+function toTab(sng, { type = 'lead', tuning = null, capo = null, name = '', fullDifficulty = false } = {}) {
   const byDiff = new Map(sng.levels.map((l) => [l.difficulty, l]));
   const notes = [];
   const chordEvents = [];
   const anchors = [];
+  const fullShapes = [];
   sng.phraseIterations.forEach((pi, idx) => {
     const phrase = sng.phrases[pi.phraseId];
+    if (fullDifficulty && (!phrase || !byDiff.has(phrase.maxDifficulty))) throw new Error('Missing authored phrase difficulty');
     const level = byDiff.get(phrase ? phrase.maxDifficulty : 0) || sng.levels[sng.levels.length - 1];
+    if (fullDifficulty && level) for (const h of [...level.handShapes, ...level.arpeggios]) {
+      if (h.start < pi.end && h.end > pi.start) fullShapes.push({ chord: h.chordId, start: round(Math.max(h.start, pi.start)), end: round(Math.min(h.end, pi.end)) });
+    }
     if (!level) return;
     for (const a of level.anchors) {
       if (a.start >= pi.start - 0.001 && a.start < pi.end - 0.001) anchors.push({ t: round(a.start), end: round(a.end), fret: a.fret, width: a.width });
@@ -349,7 +354,7 @@ function toTab(sng, { type = 'lead', tuning = null, capo = null, name = '' } = {
     notes,
     chordEvents,
     anchors,
-    handShapes: (() => {
+    handShapes: fullDifficulty ? fullShapes : (() => {
       const lv = byDiff.get(sng.meta.maxDifficulty) || sng.levels[sng.levels.length - 1] || { handShapes: [], arpeggios: [] };
       return [...lv.handShapes, ...lv.arpeggios].map((h) => ({ chord: h.chordId, start: round(h.start), end: round(h.end) })).sort((a, b) => a.start - b.start);
     })(),

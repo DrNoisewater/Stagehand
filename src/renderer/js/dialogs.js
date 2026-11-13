@@ -247,6 +247,10 @@ const PANES = {
       box.textContent = state.unreadable.map((u) => `${u.path}\n  ${u.error}`).join('\n');
       el.append(box);
     }
+    const dlc = h('button.btn', { type: 'button', text: 'Import Rocksmith DLC' });
+    dlc.onclick = () => import('./dlc-import.js').then((m) => m.openDlcImport());
+    el.append(h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: '16px' } }, dlc));
+    el.append(h('div', { style: { display: 'flex', flexDirection: 'column', minHeight: '100%' } }, ...Array.from(el.childNodes)));
   },
 
   async playback(el) {

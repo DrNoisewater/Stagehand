@@ -340,3 +340,8 @@ html[data-look='opera'] #app .dc { border-radius:3px; }
   .dc-line { display:none; }
 }
 .pg-takes { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:8px; }
+/* 4.13: singing XP, one quiet line in the hero (guitar stays the headline) */
+.pg-sung { display:inline-flex; align-items:center; gap:5px; margin-left:auto; color:var(--ink-3); font-size:12px; opacity:.75; cursor:default; }
+.pg-sung i { display:grid; width:13px; height:13px; color:var(--gel-vocals); opacity:.8; }
+.pg-sung i svg { width:13px; height:13px; }
+.pg-sung:hover { opacity:1; }

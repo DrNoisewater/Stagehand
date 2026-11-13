@@ -157,7 +157,11 @@ function hero(st) {
     h('div.pg-xpsub', null,
       h('span', { text: st.atMax ? `Level 100. ${n(st.xp - st.from)} XP beyond it.` : `${n(st.to - st.xp)} XP to level ${st.level + 1}` }),
       st.today ? h('span.lv-today', { text: `+${n(st.today)} today` }) : null,
-      st.nextMilestone && !st.atMax ? h('span.pg-mile', { text: `Next milestone: level ${st.nextMilestone}` }) : null),
+      st.nextMilestone && !st.atMax ? h('span.pg-mile', { text: `Next milestone: level ${st.nextMilestone}` }) : null,
+      // 4.13: singing counts too, said quietly (this is a guitar app first)
+      st.singing && st.singing.xp > 0
+        ? h('span.pg-sung', { title: `XP from singing: ${n(st.singing.xp)} over ${st.singing.songs} song${st.singing.songs === 1 ? '' : 's'}. It counts toward your level like playing does.` }, h('i', { html: icon('mic') }), `${n(st.singing.xp)} XP sung`)
+        : null),
     dots);
   return h('section.card.pg-hero', { 'aria-label': 'Your level' }, medal, who, nextGig(st));
 }

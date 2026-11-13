@@ -30,9 +30,10 @@ class TabService {
   async load(song, arrId, { withLyrics = true } = {}) {
     const arr = (song.arrangements || []).find((a) => a.id === arrId) || this.list(song)[0];
     if (!arr) throw Object.assign(new Error('This song has no guitar or bass part.'), { code: 'NO_TAB' });
-    const key = `${song.path}|${song.mtimeMs}|${arr.id}`;
+    const sourcePath = song.dlcImport && arr.sourcePath || song.path;
+    const key = `${sourcePath}|${song.mtimeMs}|${arr.id}|${!!song.dlcImport}`;
     if (this.cache.has(key)) return this.cache.get(key);
-    const psarc = await Psarc.open(song.path);
+    const psarc = await Psarc.open(sourcePath);
     try {
       const tab = await this._read(psarc, song, arr);
       tab.songTones = await this._tones(psarc, arr, tab).catch((e) => {
@@ -53,7 +54,7 @@ class TabService {
     const base = this._base(arr.manifest);
     const names = psarc.names;
     const lower = new Map(names.map((n) => [n.toLowerCase(), n]));
-    const opts = { type: arr.type, tuning: arr.tuning, capo: arr.capo, name: arr.name };
+    const opts = { type: arr.type, tuning: arr.tuning, capo: arr.capo, name: arr.name, fullDifficulty: !!song.dlcImport };
     const platform = song.platform === 'mac' || names.some((n) => /^songs\/bin\/macos\//i.test(n)) ? 'mac' : 'pc';
     const sngName = lower.get(`songs/bin/generic/${base}.sng`.toLowerCase()) || lower.get(`songs/bin/macos/${base}.sng`.toLowerCase());
     let err = null;
