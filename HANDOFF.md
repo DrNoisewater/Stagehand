@@ -1,3 +1,34 @@
+# Quest companion, step 2b: the headset's highway made to look like the PC's (same branch, 2026-11-13)
+
+User on the first pictures: "That highway looks a little low quality" … "We want it to look the same as the pc app.
+Everything buttery smooth".
+- **Look** (`src/companion/vr.js`), matched to the PC's 3D highway: the hand's frets as a lit teal lane with bright
+  cyan edges running into the distance (`laneMat`, divider lines, breathes with the beat); a faint fret grid on a dark
+  floor that fades out; metal fret posts across the strings (the hand's two ends white); gold inlay marks; strings
+  with a bright core and a soft glow; big gold fret numbers under the hand, teal elsewhere; gems are rounded, lit,
+  glowing in their string colour (`onBeforeCompile` adds the colour as glow) with a soft halo that grows as they come
+  close and a thin line down to the floor; held tails glow; sparks are soft; beat lines only inside the lane and none
+  behind the strings. The venue photo is the right way round (it was mirrored), in proportion (20 m tall, 2.6 rad),
+  with its horizon put just below your eyes so the highway lies on its floor; the floor under you fades out so the
+  photo's floor shows. Flat preview framed like the PC (looking down the highway); the menu only shows in VR.
+- **Bug found:** everything see-through near the floor was drawn dark: the floor disc under you was drawn last (three.js
+  draws see-through things nearest last) and covered the highway's numbers. The room now draws first (`renderOrder`).
+  Fret numbers' picture has no smaller copies (they darkened seen at an angle).
+- **Smooth:** the song clock shown glides to each report from the PC instead of jumping (`songNow`: runs on the
+  headset's frames, nudged 12 % a frame, snaps on a seek); no new objects made each frame; the headset asked for its
+  highest frame rate (`updateTargetFrameRate`, up to 120); lighter edge-saving (foveation 0.4).
+- `node test/e2e/companion-vr-shot.js <out> [times…]` (new): the headset's highway on a made-up part (riff, chords,
+  held note, slide, open strings, hits and one miss) without the full app: quick pictures `vr-<t>.png`.
+
+**Piano, asked:** "We do still want it to keep track of how well you do. The piano section is just for fun right now.
+But I do want to actually get better. Will this be of the same quality as the piano vision songs? I have a
+subscription with them, but I want to cancel it, if this is going to work better." Answered honestly (see the reply):
+PianoVision's songs are arranged by people; Stagehand writes its piano parts from the Rocksmith chart and the singer,
+so they're good for songs in the library but not the same as hand-made piano arrangements, and it has no piano-only
+catalogue. Scoring: exact with the keyboard's USB into the PC (a longer USB cable covers 5 ft); from hand tracking
+only it's rougher (PianoVision does that too). Suggested: keep the subscription until they've tried Stagehand's piano
+in the headset. Scoring is wanted ("keep track of how well you do").
+
 # Quest companion, step 2: the guitar highway in the headset (not released yet, same branch, 2026-11-13)
 
 User chose "Keep building: VR highway" over releasing step 1 first. **Not tried on a real headset yet.**

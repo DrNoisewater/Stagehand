@@ -75,6 +75,8 @@ SH_AUDIT=test/e2e/gear-about-audit.js node test/e2e/ui3-chromium.js native/build
 SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # the Quest companion: the real server and page with a pretend Quest browser (pair, library, pick, play/seek both ways, clock); writes q-*.png
 SH_AUDIT=test/e2e/companion-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# the headset's highway on a made-up part, no app needed (quick pictures of its look); writes vr-<t>.png
+node test/e2e/companion-vr-shot.js <outDir> 3.2 6.6
 # a moving background must rebuild itself after the graphics card drops it
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```

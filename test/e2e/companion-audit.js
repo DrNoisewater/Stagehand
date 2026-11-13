@@ -127,9 +127,9 @@ module.exports = async ({ page, outDir, check, companion }) => {
     check(JSON.stringify(got) === JSON.stringify(ev.map((e) => e[1])), `hits and misses from the PC reach the headset (${JSON.stringify(got)})`);
   } else check(false, 'no notes near the playhead to mark');
   await q.locator('#preview').click();
-  await q.waitForTimeout(2500);
+  await q.waitForFunction(() => window.__companion.stage && window.__companion.stage.stats.total >= 3, null, { timeout: 30000 }).catch(() => {});
   const vr = await q.evaluate(() => ({ ...window.__companion.stage.stats }));
-  check(vr.fps > 0, `the headset's highway runs (${vr.fps} fps here in software graphics)`);
+  check(vr.total >= 3, `the headset's highway runs (${vr.total} frames, ${vr.fps} a second here in software graphics)`);
   check(vr.drawn > 0, `notes are on it (${vr.drawn})`);
   await shot(q, '7-quest-highway');
   const d0 = await q.evaluate(() => window.__companion.stage.prefs.dist);
