@@ -192,6 +192,7 @@ const srv = http.createServer((req, res) => {
       // Sing along: a pretend microphone (a tone that follows the song's notes) sings the made-up song.
       // Lines 1 and 2 are sung right (an octave down), line 3 is left out, line 4 is sung right.
       const fail = (m) => { throw new Error('sing: ' + m); };
+      if (process.env.SING_WOBBLE) await page.evaluate(() => { window.__SING_WOBBLE = 1; });
       const st0 = await page.evaluate(() => {
         const H = document.querySelector('.highway').__hw;
         window.__micAsked = 0;
@@ -210,10 +211,25 @@ const srv = http.createServer((req, res) => {
         let ln = 0;
         for (const w of ly) { lineOf.push(ln); if (w.w.endsWith('+')) ln++; }
         window.__skipLine = 2;
+        window.__wobble = !!window.__SING_WOBBLE;
         setInterval(() => {
           const t = window.__stage.engine.position;
           const i = ly.findIndex((x) => t >= x.t && t < x.t + x.d);
           const on = i >= 0 && lineOf[i] !== window.__skipLine && window.__stage.engine.playing;
+          // SING_WOBBLE: a real, unsteady voice: vibrato, drift, a slide into each note, a crack up an
+          // octave now and then, and short breaths where the microphone hears nothing
+          if (window.__wobble && on) {
+            const W = window.__wob || (window.__wob = { drift: 0, crack: 0, gap: 0, i: -1, at: 0 });
+            if (W.i !== i) { W.i = i; W.at = t; W.drift = (Math.random() - 0.5) * 0.5; }
+            W.drift += (Math.random() - 0.5) * 0.06 - W.drift * 0.02;
+            if (W.crack > 0) W.crack--; else if (Math.random() < 0.004) W.crack = 6;
+            if (W.gap > 0) W.gap--; else if (Math.random() < 0.003) W.gap = 12;
+            const slide = Math.max(0, 1 - (t - W.at) / 0.12) * -1.2;
+            const m = window.__singTune[i] - 12 + 0.35 * Math.sin(t * 2 * Math.PI * 5.5) + W.drift + slide + (W.crack ? 12 : 0) + (Math.random() - 0.5) * 0.5;
+            gain.gain.value = W.gap ? 0 : 0.3;
+            osc.frequency.value = 440 * 2 ** ((m - 69) / 12);
+            return;
+          }
           gain.gain.value = on ? 0.3 : 0;
           if (on) osc.frequency.value = 440 * 2 ** ((window.__singTune[i] - 12 - 69) / 12);
         }, 4);

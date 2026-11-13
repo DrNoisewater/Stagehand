@@ -1,6 +1,6 @@
 /* Sing along: the scoring rules and reading notes off a recording. `node test/sing.test.mjs` */
 import assert from 'node:assert';
-import { buildSing, SingJudge, foldCents, nearOctave, withPitches, pitchedShare, hasPitch } from '../src/renderer/js/sing.js';
+import { buildSing, SingJudge, VoiceTracker, foldCents, nearOctave, withPitches, pitchedShare, hasPitch } from '../src/renderer/js/sing.js';
 import { pitchesFromAudio } from '../src/renderer/js/vocal-pitch.js';
 
 let passed = 0;
@@ -139,6 +139,80 @@ test('notes read off a recording: steps, a glide and gaps, within 30 cents', () 
   assert.strictEqual(merged.filter((s) => s.p !== null).length, 5);
   // the chart's own note wins
   assert.strictEqual(withPitches([{ t: 0, d: 1, p: 61 }], [70])[0].p, 61);
+});
+
+// a made-up unsteady voice, read every 16 ms (as the microphone is): vibrato, drift and jitter
+function wobbly(note, { from = 0, to = 1, vib = 0.35, jitter = 0.25, seed = 3 } = {}) {
+  const out = [];
+  for (let t = from; t < to; t += 0.016) {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    out.push({ t, m: note + vib * Math.sin(t * 2 * Math.PI * 5.5) + ((seed / 0x7fffffff) * 2 - 1) * jitter });
+  }
+  return out;
+}
+
+test('a wobbly held note comes out steady', () => {
+  const v = new VoiceTracker();
+  let worst = 0;
+  let rawWorst = 0;
+  for (const { t, m } of wobbly(60, { to: 2 })) {
+    const r = v.push(t, m);
+    assert.ok(r.voiced);
+    if (t > 0.3) {
+      worst = Math.max(worst, Math.abs(r.midi - 60));
+      rawWorst = Math.max(rawWorst, Math.abs(m - 60));
+    }
+  }
+  assert.ok(rawWorst > 0.5, `the made-up voice wobbles (${rawWorst})`);
+  assert.ok(worst < 0.25, `steady within 25 cents: ${(worst * 100).toFixed(0)}`);
+});
+
+test('an octave crack or a short breath doesn\'t move the dot', () => {
+  const v = new VoiceTracker();
+  let r;
+  for (let t = 0; t < 0.5; t += 0.016) r = v.push(t, 62);
+  for (let t = 0.5; t < 0.56; t += 0.016) r = v.push(t, 74); // cracks up an octave for 60 ms
+  assert.ok(Math.abs(r.midi - 62) < 0.1, `crack: ${r.midi}`);
+  for (let t = 0.56; t < 0.66; t += 0.016) r = v.push(t, null); // a 100 ms breath
+  assert.ok(r.voiced && Math.abs(r.midi - 62) < 0.1, `breath: ${JSON.stringify(r)}`);
+  for (let t = 0.66; t < 1.2; t += 0.016) r = v.push(t, null); // then quiet for real
+  assert.ok(!r.voiced);
+});
+
+test('a real move to another note is followed quickly', () => {
+  const v = new VoiceTracker();
+  let r;
+  for (let t = 0; t < 0.5; t += 0.016) r = v.push(t, 60);
+  let at = null;
+  for (let t = 0.5; t < 1; t += 0.016) {
+    r = v.push(t, 64);
+    if (at === null && Math.abs(r.midi - 64) < 0.3) at = t - 0.5;
+  }
+  assert.ok(at !== null && at < 0.15, `reached the new note after ${at} s`);
+  // and an octave held on purpose is followed too
+  for (let t = 1; t < 1.5; t += 0.016) r = v.push(t, 76);
+  assert.ok(Math.abs(r.midi - 76) < 0.3, `octave held: ${r.midi}`);
+});
+
+test('holding a note: once on it, a wobble doesn\'t drop you off', () => {
+  // Medium (120 cents): on the note, then drifting between 130 and 155 cents sharp
+  const one = buildSing([{ t: 1, d: 1, w: 'ooh+', p: 60 }]);
+  const j = new SingJudge(one.syl, one.lines, 'medium');
+  for (let t = 0; t < 3; t += 0.02) {
+    const inNote = t >= 1 && t < 2;
+    const m = t < 1.15 ? 60 : 60 + 1.42 + 0.12 * Math.sin(t * 20);
+    j.push(t, inNote ? { voiced: true, midi: m } : { voiced: false, midi: null });
+    j.tick(t);
+  }
+  assert.strictEqual(j.result[0], 'hit');
+  // the same drift without getting on the note first doesn't count
+  const k = new SingJudge(one.syl, one.lines, 'medium');
+  for (let t = 0; t < 3; t += 0.02) {
+    const inNote = t >= 1 && t < 2;
+    k.push(t, inNote ? { voiced: true, midi: 60 + 1.42 + 0.12 * Math.sin(t * 20) } : { voiced: false, midi: null });
+    k.tick(t);
+  }
+  assert.strictEqual(k.result[0], 'miss');
 });
 
 console.log(`sing: ${passed} passed`);

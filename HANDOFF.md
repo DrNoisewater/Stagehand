@@ -1,3 +1,29 @@
+# 4.14.1 — steadier singing, cleaner lane (2026-11-13)
+
+User: "while it's almost matching up, when you sing, it shows my vocals going all over the place … it needs to be
+smoother and easier to hold a note. And we can just make this whole area look a little bit cleaner."
+
+- **A steady voice** (`VoiceTracker` in `sing.js`, used by `mic.js read()`; replaces `PitchSmoother(3)`, which
+  reset on any 40-cent jump, so a real voice passed through raw): the middle of the last 5 readings, then a glide
+  (0.09 s near the note, 0.02 s for a move of ~a semitone or more, and closely for the first 0.2 s of a phrase);
+  an octave jump is undone unless it lasts 0.12 s; a gap of up to 0.14 s keeps the last note (breaths,
+  consonants). The level gate opens at 0.007 and closes at 0.0045 so a fading note doesn't flicker.
+- **Easier to hold** (`SingJudge`): once you're on a syllable's note, the room to stay on it grows ×1.4
+  (`HOLD_ROOM`): Medium 120 → 168 cents while held. Getting on the note still needs the normal room, so a singer
+  steadily 80 cents sharp still fails Hard.
+- **The dot** (`singlane.js shownVoice`): on the note it is drawn 70 % of the way onto the bar (it looks held);
+  it glides (45 ms) and its tail is one smooth curve. The Words look's meter dot does the same (CSS 0.12 s).
+- **Cleaner lane:** no note grid lines, no LED meter (a faint ring on the now line shows the microphone is alive
+  when nothing is heard), no note letter under the pointer, no "SUNG"; plain pills without outlines (the one to
+  sing now a little brighter); a thinner now line. The score moved off the canvas onto a strip of tape at the
+  top right (`.sw-score`; hidden in the Words look).
+- Tests: 4 new in `test/sing.test.mjs` (a wobbly held note within 25 cents, a crack and a breath ignored, a real
+  move followed within 0.15 s, a wobbly hold counts once you're on). `SING_WOBBLE=1` with `SING=…` in
+  `test/hwlook/shoot.js` sings with an unsteady pretend voice (vibrato, drift, slides, cracks, breaths).
+
+Ask the user: does the dot feel calm but still honest (not lagging behind when they change note)? Is holding a
+note on Medium now about right?
+
 # 4.14.0 — UI pass: karaoke mic, cover buttons, Karaoke page, menu groups, guitar chip, Setup look (2026-11-13)
 
 The rest of the user's 4.13 list (see below).

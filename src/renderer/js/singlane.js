@@ -24,13 +24,10 @@ const INK = '#f5edda';
 const INK_3 = '#a99e8c';
 const TUNGSTEN = '#ffb547';
 const FONT = "'Archivo', 'Segoe UI', sans-serif";
-const MONO = "'Typewriter Stagehand', 'Liberation Mono', 'Courier New', monospace";
 /** How long the microphone's sound takes to reach the page, roughly (seconds). */
 const MIC_DELAY = 0.06;
 /** Seconds of song the lane shows ahead of now. */
 const AHEAD = 4;
-/** Note names for the pointer that shows what to sing. */
-const NOTE = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 
 export const SING_LOOKS = [
   ['bars', 'Bars', 'A bar for every syllable, higher notes higher, and a dot for your voice'],
@@ -122,7 +119,9 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
   const badge = h('div.sw-badge');
   // a strip of tape on the case saying what this lane is, as on the rest of the stage
   const tape = h('div.sw-tape', { text: 'Vocals' });
-  lane.append(tape, cv, wordsBox, badge);
+  // the score so far rides on a second strip of tape at the right, clear of the bars
+  const score = h('div.sw-score', { hidden: true });
+  lane.append(tape, score, cv, wordsBox, badge);
   root.append(lane);
   const g = cv.getContext('2d');
 
@@ -365,8 +364,8 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
 
   // ------------------------------------------------------------ drawing --
   /** Sizes of the Bars look: the small lane beside the highway, or the big one in karaoke. */
-  const SMALL = { H: 124, top: 18, bot: 62, bh: 10, font: 17, wordY: 110, nowH: 64, dot: 6, floor: 50, lvl: 56 };
-  const BIG = { H: 310, top: 30, bot: 196, bh: 18, font: 27, wordY: 284, nowH: 208, dot: 10, floor: 86, lvl: 180 };
+  const SMALL = { H: 124, top: 20, bot: 70, bh: 11, font: 17, wordY: 108, dot: 6 };
+  const BIG = { H: 310, top: 40, bot: 210, bh: 20, font: 27, wordY: 282, dot: 10 };
   const lay = () => (lane.dataset.k ? BIG : SMALL);
 
   function size() {
@@ -399,6 +398,22 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
     g.beginPath();
     if (g.roundRect) g.roundRect(x, y, w, hh, r);
     else g.rect(x, y, w, hh);
+  }
+
+  /** What the voice dot shows: on the note it settles onto the bar, off the note it shows where you are. */
+  function shownVoice(t, voice, target) {
+    if (!voice || !voice.voiced) return null;
+    const near = target && target.p !== null ? target.p : S.rng ? (S.rng.lo + S.rng.hi) / 2 : 60;
+    const p = voice.midi === null || voice.midi === undefined ? null : nearOctave(voice.midi, near);
+    let ok = false;
+    let show = p === null ? near : p;
+    if (target && S.judge) {
+      const i = S.cur.syl.indexOf(target);
+      ok = i >= 0 && S.judge.on(i, voice);
+      // on the note: drawn mostly on the bar, so a held note looks held
+      if (ok && target.p !== null && p !== null) show = target.p + (p - target.p) * 0.3;
+    }
+    return { p: show, ok };
   }
 
   function drawBars(t, voice) {
@@ -443,45 +458,43 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
       S.rng.hi += (mid + half - S.rng.hi) * 0.06;
     }
     const Y = (p) => bot - ((p - S.rng.lo) / (S.rng.hi - S.rng.lo)) * (bot - top);
+    const clampY = (y) => Math.max(top - 6, Math.min(bot + 6, y));
     const midY = (top + bot) / 2;
     const fade = (x) => (x < nowX ? Math.max(0, Math.min(1, x / (nowX * 0.35))) : 1);
-    // faint lines, one for each note, so how high or low a bar sits can be read
-    g.fillStyle = 'rgba(245, 237, 218, 0.06)';
-    for (let p = Math.ceil(S.rng.lo); p <= Math.floor(S.rng.hi); p++) g.fillRect(14, Math.round(Y(p)), W - 28, 1);
+    const target = sylAt(t - MIC_DELAY);
 
-    // bars
+    // bars: plain pills, the one to sing now a little brighter
     const BH = Z.bh;
     for (let i = a; i < syl.length; i++) {
       const s = syl[i];
       if (s.t > t + AHEAD + 0.3) break;
       const x0 = X(s.t);
-      const x1 = Math.max(x0 + 7, X(s.t + s.d) - 2);
-      const y = Math.max(top - 4, Math.min(bot + 4, s.p === null ? midY : Y(s.p)));
+      const x1 = Math.max(x0 + BH, X(s.t + s.d) - 3);
+      const y = clampY(s.p === null ? midY : Y(s.p));
       const res = j ? j.result[i] : null;
-      const lineShare = j ? j.lineResult[s.line] : null;
-      const gold = lineShare === 1;
+      const gold = j && j.lineResult[s.line] === 1;
       g.globalAlpha = fade((x0 + x1) / 2) * (x0 > W - 40 ? Math.max(0, (W - x0) / 40) : 1);
       roundRect(x0, y - BH / 2, x1 - x0, BH, BH / 2);
       if (res === 'hit') {
         g.fillStyle = gold ? GOLD : CYAN;
         g.shadowColor = gold ? GOLD : CYAN;
-        g.shadowBlur = 12;
+        g.shadowBlur = 8;
         g.fill();
         g.shadowBlur = 0;
-      } else if (res === 'miss') {
-        g.fillStyle = 'rgba(245, 237, 218, 0.08)';
-        g.fill();
-      } else {
-        g.fillStyle = 'rgba(245, 237, 218, 0.13)';
-        g.fill();
-        g.strokeStyle = 'rgba(245, 237, 218, 0.62)';
+        continue;
+      }
+      const isNow = s === target;
+      g.fillStyle = res === 'miss' ? 'rgba(245, 237, 218, 0.07)' : isNow ? 'rgba(245, 237, 218, 0.34)' : 'rgba(245, 237, 218, 0.18)';
+      if (s.p === null && !res) {
+        // no note: any voice counts, so the bar is only an outline
+        g.strokeStyle = 'rgba(245, 237, 218, 0.4)';
         g.lineWidth = 1;
-        if (s.p === null) g.setLineDash([3, 3]);
+        g.setLineDash([3, 3]);
         g.stroke();
         g.setLineDash([]);
-      }
+      } else g.fill();
       // the stretches you were on the note fill in
-      if (j && res !== 'hit') {
+      if (j && j.spans[i].length) {
         g.save();
         roundRect(x0, y - BH / 2, x1 - x0, BH, BH / 2);
         g.clip();
@@ -521,26 +534,21 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
       prevJoined = s.joined;
       if (right < X(syl[i + 1] ? syl[i + 1].t : Infinity) - 30) right = -Infinity; // a pause: the next word sits at its own time
     }
-    g.shadowBlur = 0;
     g.globalAlpha = 1;
 
-    // now
-    // now: a beam of stage light with a gold line down its middle
-    const beam = g.createLinearGradient(nowX - 26, 0, nowX + 26, 0);
+    // now: a thin gold line in a soft beam of stage light
+    const beam = g.createLinearGradient(nowX - 20, 0, nowX + 20, 0);
     beam.addColorStop(0, 'rgba(241, 206, 104, 0)');
-    beam.addColorStop(0.5, 'rgba(241, 206, 104, 0.14)');
+    beam.addColorStop(0.5, 'rgba(241, 206, 104, 0.1)');
     beam.addColorStop(1, 'rgba(241, 206, 104, 0)');
     g.fillStyle = beam;
-    g.fillRect(nowX - 26, 6, 52, Z.nowH + 4);
+    g.fillRect(nowX - 20, top - 10, 40, bot - top + 20);
     g.fillStyle = GOLD;
-    g.globalAlpha = 0.8;
-    g.fillRect(nowX - 1, 8, 2, Z.nowH);
+    g.globalAlpha = 0.55;
+    g.fillRect(nowX - 0.75, top - 10, 1.5, bot - top + 20);
     g.globalAlpha = 1;
 
-    // your voice: a dot on the now line, with a short tail
-    const target = sylAt(t - MIC_DELAY);
-    const cents = SING_LEVELS[prefs().level].cents;
-    // what to sing right now: a pointer on the line at the note's height, with its name
+    // what to sing right now: a small gold pointer at the note's height
     // (it waits at the next note, dimmer, between words)
     let aim = target && target.p !== null && t <= target.t + target.d ? target : null;
     if (!aim) {
@@ -552,92 +560,84 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
       }
     }
     if (aim) {
-      const y = Math.max(top - 4, Math.min(bot + 4, Y(aim.p)));
-      const r = Z.dot * 1.2;
-      g.globalAlpha = aim.t > t ? 0.5 : 1;
+      const y = clampY(Y(aim.p));
+      const r = Z.dot;
+      g.globalAlpha = aim.t > t ? 0.45 : 0.95;
       g.fillStyle = GOLD;
       g.beginPath();
-      g.moveTo(nowX - 5, y);
-      g.lineTo(nowX - 5 - r, y - r * 0.8);
-      g.lineTo(nowX - 5 - r, y + r * 0.8);
+      g.moveTo(nowX - Z.dot - 4, y);
+      g.lineTo(nowX - Z.dot - 4 - r, y - r * 0.75);
+      g.lineTo(nowX - Z.dot - 4 - r, y + r * 0.75);
       g.closePath();
       g.fill();
-      // its name sits under the line, clear of the bars
-      g.font = `700 ${Z === BIG ? 17 : 12}px ${MONO}`;
-      g.textAlign = 'center';
-      g.fillText(NOTE[((Math.round(aim.p) % 12) + 12) % 12], nowX, 8 + Z.nowH + (Z === BIG ? 20 : 13));
-      g.textAlign = 'left';
       g.globalAlpha = 1;
     }
-    if (voice && voice.voiced) {
-      const near = target && target.p !== null ? target.p : (S.rng.lo + S.rng.hi) / 2;
-      const p = voice.midi === null || voice.midi === undefined ? null : nearOctave(voice.midi, near);
-      const ok = !!target && (target.p === null || (p !== null && Math.abs(foldCents(p, target.p)) <= cents));
-      S.trail.push({ t, p: p === null ? (S.rng.lo + S.rng.hi) / 2 : p, ok });
-    }
-    while (S.trail.length && S.trail[0].t < t - 1.4) S.trail.shift();
-    g.lineWidth = Z.dot / 2;
+
+    // your voice: a dot on the now line that glides (never jumps), with a smooth tail behind it
+    const sv = shownVoice(t, voice, target);
+    const dt = S.dotT === undefined ? 0 : Math.max(0, Math.min(0.1, t - S.dotT));
+    S.dotT = t;
+    if (sv) {
+      S.dotP = S.dotP === undefined || S.dotGone ? sv.p : S.dotP + (sv.p - S.dotP) * (1 - Math.exp(-dt / 0.045));
+      S.dotGone = false;
+      S.trail.push({ t, p: S.dotP, ok: sv.ok });
+    } else S.dotGone = true;
+    while (S.trail.length && S.trail[0].t < t - 1.2) S.trail.shift();
     g.lineCap = 'round';
-    for (let k = 1; k < S.trail.length; k++) {
-      const p0 = S.trail[k - 1];
-      const p1 = S.trail[k];
-      if (p1.t - p0.t > 0.09 || Math.abs(p1.p - p0.p) > 3) continue;
-      g.globalAlpha = Math.max(0, 1 - (t - p1.t) / 1.4) * 0.8;
-      g.strokeStyle = p1.ok ? CYAN : 'rgba(245, 237, 218, 0.75)';
+    g.lineJoin = 'round';
+    g.lineWidth = Z.dot * 0.7;
+    // one stroke per stretch of the same colour, through the midpoints (a smooth curve)
+    const tr = S.trail;
+    const gap = (n) => tr[n].t - tr[n - 1].t > 0.12;
+    let k = 0;
+    while (k < tr.length - 1) {
+      const ok = tr[k + 1].ok;
       g.beginPath();
-      g.moveTo(X(p0.t), Math.max(6, Math.min(Hh - Z.floor, Y(p0.p))));
-      g.lineTo(X(p1.t), Math.max(6, Math.min(Hh - Z.floor, Y(p1.p))));
+      g.moveTo(X(tr[k].t), clampY(Y(tr[k].p)));
+      let n = k + 1;
+      for (; n < tr.length && !gap(n) && tr[n].ok === ok; n++) {
+        const x0 = X(tr[n - 1].t);
+        const y0 = clampY(Y(tr[n - 1].p));
+        g.quadraticCurveTo(x0, y0, (x0 + X(tr[n].t)) / 2, (y0 + clampY(Y(tr[n].p))) / 2);
+      }
+      g.lineTo(X(tr[n - 1].t), clampY(Y(tr[n - 1].p)));
+      g.globalAlpha = Math.max(0, 1 - (t - tr[n - 1].t) / 1.2) * (ok ? 0.75 : 0.45);
+      g.strokeStyle = ok ? CYAN : INK;
       g.stroke();
+      if (n >= tr.length) break;
+      k = gap(n) ? n : n - 1; // a change of colour carries on from the same point
     }
     g.globalAlpha = 1;
     const lastP = S.trail[S.trail.length - 1];
-    if (lastP && t - lastP.t < 0.08) {
-      const y = Math.max(6, Math.min(Hh - Z.floor, Y(lastP.p)));
+    if (sv && lastP) {
+      const y = clampY(Y(lastP.p));
       g.beginPath();
       g.arc(nowX, y, Z.dot, 0, Math.PI * 2);
       g.fillStyle = lastP.ok ? CYAN : INK;
-      g.shadowColor = lastP.ok ? CYAN : 'rgba(245, 237, 218, 0.8)';
-      g.shadowBlur = 14;
+      g.shadowColor = lastP.ok ? CYAN : 'rgba(245, 237, 218, 0.6)';
+      g.shadowBlur = lastP.ok ? 16 : 8;
       g.fill();
       g.shadowBlur = 0;
+    } else if (mic.on) {
+      // listening, nothing heard: a faint ring on the line shows the microphone is alive
+      const lv = Math.min(1, (voice ? voice.level : 0) * 8);
+      g.beginPath();
+      g.arc(nowX, midY, Z.dot * 0.8, 0, Math.PI * 2);
+      g.strokeStyle = `rgba(245, 237, 218, ${0.18 + lv * 0.5})`;
+      g.lineWidth = 1.5;
+      g.stroke();
     }
 
-    // the microphone is alive: a small level bar at the left edge
-    // the microphone is alive: a little LED meter at the left edge, green, amber, red at the top
-    const lv = Math.min(1, (voice ? voice.level : 0) * 6);
-    const SEG = 10;
-    const gap = 2;
-    const sh = (Z.lvl - gap * (SEG - 1)) / SEG;
-    for (let k = 0; k < SEG; k++) {
-      const lit = lv * SEG > k + 0.2;
-      const col = k >= 8 ? '#dc6650' : k >= 6 ? GOLD : '#7bd36a';
-      g.fillStyle = col;
-      g.globalAlpha = lit ? 1 : 0.16;
-      g.fillRect(12, 14 + Z.lvl - (k + 1) * sh - k * gap, 5, sh);
-    }
-    g.globalAlpha = 1;
+    paintScore();
+  }
 
-    // the score so far, and good lines in a row
-    if (j && j.judged) {
-      g.textAlign = 'right';
-      // the score as on the highway's top bar: big condensed numbers with a hard shadow
-      const big = Z === BIG;
-      const y0 = big ? 34 : 26;
-      g.font = `900 ${big ? 32 : 22}px ${FONT}`;
-      const pct = `${Math.round(j.accuracy * 100)}%`;
-      const pw = g.measureText(pct).width;
-      const hard = (text, x, col) => {
-        g.fillStyle = '#000';
-        g.fillText(text, x + 2, y0 + 2);
-        g.fillStyle = col;
-        g.fillText(text, x, y0);
-      };
-      hard(pct, W - 14, INK);
-      if (j.streak >= 2) hard(`×${j.streak}`, W - 26 - pw, GOLD);
-      g.font = `700 ${big ? 11 : 9.5}px ${MONO}`;
-      g.fillStyle = INK_3;
-      g.fillText('SUNG', W - 14, y0 + (big ? 15 : 12));
-      g.textAlign = 'left';
+  /** The score tape: how much you've sung right, and good lines in a row. */
+  function paintScore() {
+    const j = S.judge;
+    const txt = j && j.judged ? `${Math.round(j.accuracy * 100)}%${j.streak >= 2 ? ` ×${j.streak}` : ''}` : '';
+    if (score.textContent !== txt) {
+      score.textContent = txt;
+      score.hidden = !txt;
     }
   }
 
@@ -681,11 +681,15 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
     const dot = meter.lastChild;
     const cents = SING_LEVELS[prefs().level].cents;
     if (voice && voice.voiced) {
-      const off = target && target.p !== null && voice.midi !== null && voice.midi !== undefined ? foldCents(voice.midi, target.p) : 0;
+      let off = target && target.p !== null && voice.midi !== null && voice.midi !== undefined ? foldCents(voice.midi, target.p) : 0;
+      const i = target ? syl.indexOf(target) : -1;
+      const ok = i >= 0 && j ? j.on(i, voice) : !!target && Math.abs(off) <= cents;
+      if (ok) off *= 0.3; // on the note: the dot settles in the middle
       dot.style.top = `${50 - Math.max(-50, Math.min(50, (off / 300) * 50))}%`;
-      dot.className = target && Math.abs(off) <= cents ? 'ok' : 'off';
+      dot.className = ok ? 'ok' : 'off';
     } else dot.className = '';
     meterBar.style.setProperty('--lv', String(Math.min(1, (voice ? voice.level : 0) * 6)));
+    paintScore();
   }
 
   return {

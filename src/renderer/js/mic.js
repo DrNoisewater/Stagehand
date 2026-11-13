@@ -3,7 +3,8 @@
  * cable: the page listens to it only while someone is singing, reads the
  * note being sung, and never plays the voice back.
  */
-import { detectPitch, PitchSmoother } from './pitch.js';
+import { detectPitch } from './pitch.js';
+import { VoiceTracker } from './sing.js';
 
 const KEY = 'stagehand.mic';
 const CABLE = /rocksmith|real ?tone|guitar adapter/i;
@@ -25,9 +26,10 @@ export const mic = new (class extends EventTarget {
     this.ctx = null;
     this.node = null;
     this.buf = null;
-    this.smooth = new PitchSmoother(3);
+    this.voice = new VoiceTracker();
     this.last = { voiced: false, midi: null, level: 0 };
     this.lastAt = 0;
+    this.open = false; // the level gate (opens a little louder than it closes)
     this.users = new Set();
   }
 
@@ -123,7 +125,8 @@ export const mic = new (class extends EventTarget {
     const was = this.on;
     this.on = false;
     this.last = { voiced: false, midi: null, level: 0 };
-    this.smooth = new PitchSmoother(3);
+    this.voice.reset();
+    this.open = false;
     if (was) this.dispatchEvent(new Event('change'));
   }
 
@@ -140,9 +143,12 @@ export const mic = new (class extends EventTarget {
     let e = 0;
     for (let i = 0; i < this.buf.length; i++) e += this.buf[i] * this.buf[i];
     const level = Math.sqrt(e / this.buf.length);
-    const r = level > 0.006 ? detectPitch(this.buf, this.ctx.sampleRate, { minHz: 70, maxHz: 1100 }) : null;
-    const hz = r && r.clarity >= 0.55 ? this.smooth.push(r.hz) : this.smooth.push(0);
-    this.last = { voiced: !!hz, midi: hz ? 69 + 12 * Math.log2(hz / 440) : null, level };
+    // a little louder to start than to keep going, so a held note fading out doesn't flicker
+    this.open = level > (this.open ? 0.0045 : 0.007);
+    const r = this.open ? detectPitch(this.buf, this.ctx.sampleRate, { minHz: 70, maxHz: 1100 }) : null;
+    const midi = r && r.clarity >= 0.5 ? 69 + 12 * Math.log2(r.hz / 440) : null;
+    // steadied: wobble smoothed, octave cracks ignored, short breaths bridged (VoiceTracker)
+    this.last = this.voice.push(now / 1000, midi, level);
     return this.last;
   }
 })();

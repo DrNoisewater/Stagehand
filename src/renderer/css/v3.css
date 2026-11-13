@@ -2190,13 +2190,17 @@ html[data-decoration='reduced'] .guitar-card .gc-cable { display: none; }
 .hw-sing canvas { border-radius: 4px; background: var(--sc-screws), radial-gradient(circle at 7px calc(100% - 7px), #a4916f 0 1.3px, #14120f 1.3px 2.3px, transparent 3px), radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), #a4916f 0 1.3px, #14120f 1.3px 2.3px, transparent 3px), var(--sc-panel); box-shadow: inset 0 0 0 2px #0c0b0a, inset 0 0 0 3px #a88d5733, 0 10px 24px #0009; }
 .sw-tape { position: absolute; left: 22px; top: -11px; z-index: 1; padding: 3px 12px 4px; font: 700 11px 'Typewriter Stagehand', 'Liberation Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #231d17; background: #e6dfcf; box-shadow: 0 1px 3px #000a; transform: rotate(-1.5deg); clip-path: polygon(1% 4%, 99% 0, 100% 92%, 97% 100%, 2% 96%, 0 40%); }
 .hw-sing[data-look='words'] .sw-tape { display: none; }
+.sw-score { position: absolute; right: 22px; top: -12px; z-index: 1; padding: 2px 12px 3px; font: 900 15px/1.2 var(--font); font-stretch: 80%; letter-spacing: 0.02em; color: #231d17; background: #e6dfcf; box-shadow: 0 1px 3px #000a; transform: rotate(1.2deg); clip-path: polygon(0 6%, 98% 0, 100% 94%, 3% 100%); } /* the score on a strip of tape */
+.sw-score[hidden] { display: none; }
+.hw-sing[data-look='words'] .sw-score { display: none; }
+.hw-sing[data-k] .sw-score { font-size: 20px; top: -15px; }
 .hw-sing .sw-words { display: none; gap: 14px; align-items: stretch; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85); }
 .hw-sing[data-look='words'] canvas { display: none; }
 .hw-sing[data-look='words'] .sw-words { display: flex; }
 .sw-meter { --lv: 0; position: relative; flex: none; width: 10px; border-radius: 2px; background: linear-gradient(to top, #7bd36a 0 60%, #f1ce68 60% 80%, #dc6650 80%); -webkit-mask: linear-gradient(to top, #000 calc(var(--lv) * 100%), #0003 0), repeating-linear-gradient(to top, #000 0 8%, transparent 8% 10%); -webkit-mask-composite: source-in; mask-composite: intersect; box-shadow: 0 0 0 2px #0c0b0a; } /* an LED meter: green, amber, red */
 .sw-meter-wrap { position: relative; flex: none; display: flex; }
 .sw-meter-wrap::before { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 2px; margin-top: -1px; background: #f1ce68; z-index: 1; }
-.sw-meter-wrap i { position: absolute; z-index: 2; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #f5edda; opacity: 0; transition: top 0.06s linear; }
+.sw-meter-wrap i { position: absolute; z-index: 2; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #f5edda; opacity: 0; transition: top 0.12s ease-out; }
 .sw-meter-wrap i.off { opacity: 1; box-shadow: 0 0 10px rgba(245, 237, 218, 0.7); }
 .sw-meter-wrap i.ok { opacity: 1; background: #33c8e0; box-shadow: 0 0 14px #33c8e0; }
 .sw-now { font: 900 34px/1.2 var(--font); font-stretch: 75%; color: #f5edda; text-shadow: 2px 2px 0 #000; }

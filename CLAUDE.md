@@ -56,6 +56,7 @@ ELECTRON=<electron> xvfb-run -a node test/e2e/finder-electron.js <outDir>
 ELECTRON=<electron> xvfb-run -a node test/e2e/tones-electron.js <outDir>
 # Sing along with a pretend microphone: the chart's notes (1), notes read off a made-up vocals stem (stem), timing only (words, karaoke (karaoke))
 SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
+# the same with an unsteady pretend voice (vibrato, drift, cracks, breaths): SING_WOBBLE=1 SING=1 …
 # Sing along's settings in the full page (the microphone picker, the look) and the Karaoke page
 SH_AUDIT=test/e2e/sing-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # Discover's look on made-up results, artist, gaps and Wanted; writes discover-*.png
