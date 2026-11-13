@@ -1,6 +1,6 @@
 // The app's bridge to the main process. Only tabs are real here; anything else other
 // modules call when they load (api.on(...), api.settings.get(), ...) quietly does nothing.
-const real = { app: { fullscreen: async () => {} }, tab: { list: async () => window.__parts, load: async () => window.__tab } };
+const real = { stems: { status: async () => window.__stems || null }, stats: { log: async (x) => ((window.__statsLogs = window.__statsLogs || []).push(x), x) }, app: { fullscreen: async () => {} }, tab: { list: async () => window.__parts, load: async () => window.__tab } };
 const quiet = (path) => new Proxy(function () {}, {
   get(_, k) {
     if (k === 'then') return undefined; // not a promise

@@ -1,6 +1,7 @@
 /** DOM helpers, icons, menus, modals and toasts. */
 
 const ICONS = {
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>',
   play: '<path d="M7 4.8v14.4c0 .8.9 1.3 1.6.9l11.3-7.2c.6-.4.6-1.4 0-1.8L8.6 3.9C7.9 3.5 7 4 7 4.8z"/>',
   pause: '<rect x="6" y="4.5" width="4.2" height="15" rx="1.2"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1.2"/>',
   prev: '<path d="M18.5 5.3v13.4c0 .8-.9 1.2-1.5.8L8 13.2v5.3H5.5v-13H8v5.3l9-6.3c.6-.4 1.5 0 1.5.8z"/>',

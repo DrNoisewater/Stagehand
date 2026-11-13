@@ -1,3 +1,71 @@
+# 4.12.0 — Sing along and Karaoke, an add-on: a Sing chip on the highway, any microphone, three levels (2026-11-13)
+
+User: "check the handoff for the new singing ability" and go ahead (the plan was `docs/vocals-handoff.md`, written
+on 2026-11-12: singing is an add-on, guitar comes first, off until switched on). Built from that plan in one session.
+
+**NOT TRIED WITH A REAL MICROPHONE OR A REAL VOICE.** Everything below is checked in Chromium with a pretend
+microphone (a tone that follows the song's notes) on a made-up song. **Ask first:** does the microphone open while
+Stagehand holds the speakers in its fastest mode (it should: an input is a different device)? How do the three
+levels feel? Bars or Words? Speakers or headphones (the microphone hears the speakers)?
+
+**Done:**
+- **Off until pressed.** A **Sing** chip beside Lead / Rhythm / Bass on the highway, shown only when the song has
+  lyrics. Off: nothing is opened, read or drawn; the lyrics look as before. On (remembered per song,
+  `localStorage stagehand.sing`): the lyrics give way to the singing lane, the microphone opens; closing the
+  highway or switching Sing off lets the microphone go. Pressing the lit chip opens its menu: Easy / Medium / Hard,
+  Take the singer out of the song (the vocals stem's switch), Microphone, Look, Stop singing.
+- **What to sing** (`src/renderer/js/sing.js`, pure; `tabs.js _lyrics` now keeps each syllable's note as `p`):
+  the chart's own notes when at least 60 % of syllables have one (official songs); otherwise the notes are **read
+  off the vocals stem** when the song has stems (`vocal-pitch.js` + `workers/vocal-pitch-worker.js`: the tuner's
+  pitch tracker, the middle note of each syllable; done once, the last 30 songs kept in
+  `localStorage stagehand.singNotes`); otherwise **timing only** (any voice at the right time counts). A small
+  label under the lane says which: "Notes from the recording" / "Timing only".
+- **Scoring** (`SingJudge`): any octave counts; a syllable counts when your voice was on its note for a share of
+  its length: Easy within 250 cents for 40 %, Medium 120 / 55 %, Hard 60 / 70 %; 150 ms early or late allowed. A
+  line is good at 70 % of its syllables; good lines in a row are the streak; a perfect line turns gold.
+- **The microphone** (`mic.js`): the page listens (no change to the sound engine, no rebuild); any input except the
+  Rocksmith cable (left out by name; if Windows hands over the cable, the next microphone is used). The voice is
+  **not** played through Stagehand. Settings › Guitar & audio › **Microphone for singing**: picker, level meter,
+  Try it (20 s).
+- **The lane** (`singlane.js`, `.hw-sing` in v3.css; a 2D overlay where the lyrics sit, nothing added to the 3D
+  scene): **Bars** (a bar per syllable placed by note, words under them, a now line, a dot with a tail for your
+  voice, bars fill cyan as you hold them, the score and streak top right, a mic level bar at the left) and
+  **Words** (the lyrics as before, words turn cyan when sung right, a small meter: dot in the middle = on the
+  note). Picked in the chip's menu or Settings › Appearance › Pick your look › Singing.
+- **Score card:** a singing line under the guitar's numbers; when the guitar wasn't scored, a card of its own.
+- **Stats:** a run is logged as part `vocals` (seconds sung, syllables, accuracy; `stats.best()` keeps
+  `vocals` apart: the song's overall best stays about playing). Levels count it like any part (XP for the time and
+  the score; own mastery record, shown as "Singing" in Progress). Playing and singing at once logs both.
+- **Tests:** `test/sing.test.mjs` (10, in npm test: perfect singer, octave down, 80 cents sharp, late, silence,
+  talking, jumping back, notes off a made-up recording within 30 cents). In the browser:
+  `SING=1|stem|words PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5` (the chart's notes / notes
+  read off a made-up vocals stem / timing only): no microphone before Sing is pressed, sung lines count, a skipped
+  line doesn't, the card and the stats get it, off lets the microphone go; writes sing-0…4.png.
+
+**Karaoke (asked mid-session: "we might as well just have a karaoke mode as well").** The same singing with the
+stage to yourself. The Sing chip, when off, now asks which kind: **Sing along** (with your guitar part) or
+**Karaoke** (just the words); when on, its menu has "Karaoke: just the words" to switch between them.
+- In karaoke the neck and notes are not drawn (the venue stays), the lane goes big in the middle (`data-k` on
+  `.hw-sing`; the Bars look uses the `BIG` sizes in `singlane.js`, the Words look is bigger by CSS), the guitar is
+  not listened to or scored (`sing.karaoke` gates `listen()`, the judge's tick, the score card and what
+  `practice.js` logs), and the top score is hidden (`.highway.hw-karaoke`). The song ends on the singing card.
+- The singer is taken out of the song by itself when the song has been split (the vocals stem is muted, and put
+  back when karaoke ends, only if karaoke was what muted it). A song that isn't split says so in the lane's badge.
+- Remembered per song with the Sing choice (`stagehand.sing` › `on[songId]`: 1 = sing along, 2 = karaoke).
+- The guitar's own sound is untouched: you can still strum through the rig while singing.
+- Checked: `SING=karaoke … shoot.js` (karaoke on: no guitar score, singer out, big lane; singing card at the end;
+  switching back puts the neck and the singer back). **Ask:** is the chip the right place to find it, or should
+  Karaoke also be reachable from a song's menu in the library? Should the guitar go quiet in karaoke?
+
+**Not done / open:**
+- Only on the highway. The Tab view and Now playing don't have the lane yet (the plan wanted it above the tab).
+- The voice through Stagehand (hearing yourself with reverb, the voice in recorded clips): needs the sound engine
+  (`io_wasapi.c`, a second input), see `docs/vocals-handoff.md` › Later. Duets, harmony lines: not started.
+- Tuning after the user has sung: `MIC_DELAY` (60 ms, singlane.js), the three levels' numbers (`SING_LEVELS`),
+  the voice gate (`mic.js`: level 0.006, clarity 0.55), and how well notes read off real stems (backing vocals).
+- Singing counts toward XP on top of guitar time when both happen at once: ask whether that feels right.
+- 4.12.0 is on branch `ccr-1f2fac6e-bvgvp7`, not merged or released.
+
 # 4.11.0 — official songs find their audio (songs.psarc), every pedal checked, tidier cables, tuner everywhere with two looks, hit burst (2026-11-12)
 
 User (after 4.10's board; from a phone, PC not linked): paid Rocksmith DLC says "contains no audio" ("that is

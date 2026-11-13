@@ -146,7 +146,8 @@ class Stats {
       const o = (out[s.songId] = out[s.songId] || {});
       const k = s.part || 'lead';
       if (o[k] === undefined || s.accuracy > o[k]) o[k] = s.accuracy;
-      if (o.best === undefined || s.accuracy > o.best) o.best = s.accuracy;
+      // 4.12: a singing score has its own best (vocals); the song's best stays about playing it
+      if (k !== 'vocals' && (o.best === undefined || s.accuracy > o.best)) o.best = s.accuracy;
     }
     return out;
   }

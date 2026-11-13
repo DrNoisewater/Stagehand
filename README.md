@@ -172,6 +172,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.12.0:** Sing along. Press **Sing** on the highway and sing into any microphone (USB, headset, webcam): the lyrics become a lane with a bar for every syllable and a dot for your voice. Easy, Medium and Hard, any octave counts, and your singing gets its own score. Or pick **Karaoke** from the same button: just the words, big, on the stage, with the singer taken out when the song has been split. It stays off until you press it.
 - **4.11.0:** Official songs that said “no audio” (Rocksmith 1 DLC and others) now find their audio in your Rocksmith folder. A Tuner button on every page (or press U) with two looks to choose from. Every pedal was tested; Trem-Ole and AutoVibe now wobble as they should. Tidier cables in Create a Tone, and a small burst of light when you hit a note.
 - **4.10.0:** Create a Tone’s board is tidy: your gear stands in order with short cables between the jacks, and you can drag a piece to shift it or swap it with its neighbour. Every knob on the gear photos was checked so it turns from where it really points, the graphic EQs have sliders you can grab, and eight photos were replaced with straight-on ones.
 - **4.9.1:** the pictures take up much less room (the art went from 45 MB to 27 MB) and look exactly the same on screen.

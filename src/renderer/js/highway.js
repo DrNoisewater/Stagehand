@@ -37,6 +37,7 @@ import { trainingChart, trainingTimes, trainingAudio, TRAINING_SONG } from './tr
 import { createRepeat } from './repeat.js';
 import { paintSpeedChip, openSpeedPopover, createRepeatBar } from './speedpop.js';
 import { openToneMenu } from './tonemenu.js';
+import { createSing } from './singlane.js';
 
 const STRING = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff'];
 const STRING_DARK = ['#7a1d27', '#7a5e12', '#164e80', '#7a4515', '#1c6a3c', '#55307f'];
@@ -183,11 +184,28 @@ export function createHighway(stage) {
   const repBar = createRepeatBar(rep, stage.engine, { cls: 'hw-rep-bar' });
   root.append(glCanvas, canvas, top, sections, repBar, bottom, msg, statusBox, dock, fpsBox, lyricsBox);
   document.body.append(root);
+  // 4.12: sing along, an add-on. Off until its chip is pressed; its lane sits where the lyrics are.
+  // Karaoke (the same chip): the neck and notes step aside and the guitar isn't scored while it shows.
+  const sing = createSing({
+    root,
+    stage,
+    onKaraoke: (on) => {
+      root.classList.toggle('hw-karaoke', on);
+      if (!on && H.judge) {
+        // back to the guitar: its score starts again from here
+        H.judge.rewind(stage.engine.position);
+        H.judge.next = lower(H.targets, stage.engine.position - H.judge.early);
+        H.judge.events = []; H.judge.frames = []; H.judge.onsets = [];
+      }
+    },
+  });
+  parts.after(sing.chip);
+  H.sing = sing; // tests
   root.__hw = H; // for tests
   root.__openSync = () => openSync(); // for tests
   H.openSync = () => openSync();
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
-  window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave() };
+  window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on && !sing.karaoke ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave() };
   const extras = createPerformanceTools({root,top,stage,H,rig});
   const practiceCheckpoint = () => window.__shPractice && window.__shPractice.checkpoint();
   const ctx = canvas.getContext('2d');
@@ -381,10 +399,43 @@ export function createHighway(stage) {
   function hideCard() {
     card.hidden = true;
   }
+  // 4.12: how the singing went, when Sing was on: a line on the card, or a card of its own
+  // when the guitar wasn't being scored
+  const SING_LEVEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+  function singFacts(v) {
+    const facts = h('div.hw-card-facts');
+    const fact = (val, l) => facts.append(h('div', null, h('b', { text: val }), h('span', { text: l })));
+    fact(`${v.hit}/${v.notes}`, 'syllables sung');
+    fact(`${v.goodLines}/${v.lines}`, 'good lines');
+    fact(v.prev === undefined || v.prev === null ? '–' : `${Math.round(v.prev * 100)}%`, 'best before');
+    return facts;
+  }
+  function againButton() {
+    const again = h('button.hw-chip.hw-card-again', { type: 'button', html: `${icon('play')}<span>Play again</span>` });
+    again.onclick = () => {
+      hideCard();
+      jumpTo(0);
+      if (!stage.engine.playing) stage.toggle();
+    };
+    return h('div.hw-card-actions', null, again);
+  }
+  function showSingCard(v) {
+    card.innerHTML = '';
+    const x = h('button.hw-card-x', { type: 'button', title: 'Close', 'aria-label': 'Close', html: icon('x') });
+    x.onclick = hideCard;
+    const best = v.notes >= 20 && (v.prev === undefined || v.prev === null || v.acc > v.prev + 0.005);
+    const ring = h(`div.hw-card-ring.sing.${bandCls(v.acc)}`, { style: { '--deg': `${Math.round(v.acc * 360)}deg` } }, h('b', { text: `${Math.round(v.acc * 100)}%` }), h('span', { text: 'sung' }));
+    card.append(h('div.hw-card-head', null, ring, h('div.hw-card-titles', null, h('div.hw-card-eyebrow', { text: best ? (v.prev === undefined || v.prev === null ? 'First time singing it' : 'New best!') : 'Song complete' }), h('h3', { text: H.song ? H.song.title : 'Song' }), h('p', { html: `${icon('mic')} Singing · ${SING_LEVEL[v.level] || 'Medium'}${v.mode === 'rhythm' ? ' · timing only' : v.mode === 'stem' ? ' · notes from the recording' : ''}` })), x), singFacts(v), againButton());
+    card.hidden = false;
+  }
   function showCard() {
-    if (prefs.scoreCard === false || !H.judge || !H.tab || !(prefs.detect && rig.on)) return;
-    const b = breakdown(H.tab, H.targets, H.judge);
-    if (!b.notes) return;
+    if (prefs.scoreCard === false || !H.tab) return;
+    const vs = sing.result();
+    const b = H.judge && prefs.detect && rig.on && !sing.karaoke ? breakdown(H.tab, H.targets, H.judge) : null;
+    if (!b || !b.notes) {
+      if (vs) showSingCard(vs);
+      return;
+    }
     const part = H.tab.type === 'combo' ? 'lead' : H.tab.type;
     const prev = H.prevBest && H.prevBest[part] !== undefined ? H.prevBest[part] : null;
     const pct = Math.round(b.acc * 100);
@@ -401,6 +452,7 @@ export function createHighway(stage) {
     fact(String(b.bestStreak), 'longest streak');
     fact(prev === null ? '–' : `${Math.round(prev * 100)}%`, 'best before');
     card.append(facts);
+    if (vs) card.append(h('div.hw-card-sing', null, h('span.sing-pct', { html: `${icon('mic')}<b>${Math.round(vs.acc * 100)}%</b>` }), h('span', { text: `Singing · ${SING_LEVEL[vs.level] || 'Medium'} · ${vs.hit}/${vs.notes} syllables${vs.prev !== undefined && vs.prev !== null ? ` · best before ${Math.round(vs.prev * 100)}%` : ''}` })));
     if (b.sections.length) {
       const bars = h('div.hw-card-bars');
       for (const s of b.sections) {
@@ -434,13 +486,7 @@ export function createHighway(stage) {
       };
       card.append(h('div.hw-card-notes', null, h('div.work', null, h('span', { html: icon('clock') }), h('span', { text: prefs.syncChecked ? 'Notes you played on time not counting? Run the timing check again.' : 'Haven’t done the timing check yet? 30 seconds, once, and notes you hit on time count.' }), tc)));
     }
-    const again = h('button.hw-chip.hw-card-again', { type: 'button', html: `${icon('play')}<span>Play again</span>` });
-    again.onclick = () => {
-      hideCard();
-      jumpTo(0);
-      if (!stage.engine.playing) stage.toggle();
-    };
-    card.append(h('div.hw-card-actions', null, again));
+    card.append(againButton());
     card.hidden = false;
   }
   function repeat(s) {
@@ -453,7 +499,7 @@ export function createHighway(stage) {
   stage.engine.addEventListener('state', () => {
     if (stage.engine.playing) hideCard();
   });
-  stage.engine.addEventListener('ended', () => { if(H.open && !trainSnap){ extras.ended(); showCard(); } });
+  stage.engine.addEventListener('ended', () => { if(H.open && !trainSnap){ extras.ended(); sing.ended(); showCard(); } });
   H.showCard = showCard; // tests
 
   // ----------------------------------------------------- sync check --
@@ -1071,6 +1117,8 @@ export function createHighway(stage) {
     H.clock = stage.engine.position;
     H.last = performance.now();
     H.prevBest = H.song && state.best ? { ...(state.best[H.song.id] || {}) } : null;
+    sing.setBest(H.prevBest ? H.prevBest.vocals : undefined);
+    sing.setOpen(true);
     newWatch();
     hideCard();
     resetJudge();
@@ -1083,6 +1131,7 @@ export function createHighway(stage) {
   function close() {
     closeTraining();
     H.open = false;
+    sing.setOpen(false);
     extras.close();
     hwTuner.hide();
     tunerOn = false;
@@ -1130,6 +1179,7 @@ export function createHighway(stage) {
       H.targets = buildTargets(H.tab);
       H.lyricLines = buildLyrics(H.tab.lyrics || []);
       lyricShown = -2;
+      sing.setSong(song, H.tab.lyrics || []);
       showMsg(null);
       applyPlayAlong();
       resetJudge();
@@ -1252,7 +1302,7 @@ export function createHighway(stage) {
   let lyricWord = -2;
   function updateLyrics(t) {
     const L = H.lyricLines || [];
-    if (prefs.lyrics === false || !L.length) {
+    if (prefs.lyrics === false || !L.length || sing.active) {
       lyricsBox.hidden = true;
       return;
     }
@@ -1330,7 +1380,7 @@ export function createHighway(stage) {
   }
 
   function listen(songT) {
-    if (!H.judge || !prefs.detect || !rig.on || !stage.engine.playing) return;
+    if (!H.judge || !prefs.detect || !rig.on || !stage.engine.playing || sing.karaoke) return;
     const buf = rig.samples(analyzer.buf);
     if (!buf) return;
     if (!analyzer.an || analyzer.an.sr !== rig.sampleRate) analyzer.an = new Analyzer(rig.sampleRate);
@@ -1433,7 +1483,7 @@ export function createHighway(stage) {
       const vis = visualTime(H.vclock, H.training ? 0 : prefs.offsetMs, eng.speed); // the timing check measures from 0
       H.vis = vis; // lyrics follow the same timing as the notes
       if (H.judge) H.judge.setPace(eng.speed);
-      if (H.judge && eng.playing && prefs.detect && rig.on) H.judge.tick(H.clock - (((rig.latencyMs || 20) / 1000 + 0.03) * eng.speed));
+      if (H.judge && eng.playing && prefs.detect && rig.on && !sing.karaoke) H.judge.tick(H.clock - (((rig.latencyMs || 20) / 1000 + 0.03) * eng.speed));
       processEvents(vis);
       followTone(H.clock);
       const f0 = performance.now();
@@ -1457,6 +1507,8 @@ export function createHighway(stage) {
       }
       updateHud(H.clock);
       updateMixLevels();
+      sing.hold(!!H.training); // the timing check's own song isn't for singing
+      if (sing.active && !H.training) sing.frame(H.clock, vis, eng.playing, eng.speed || 1);
       H.raf = requestAnimationFrame(step);
     };
     H.raf = requestAnimationFrame(step);
@@ -1652,6 +1704,16 @@ export function createHighway(stage) {
     geometry(t);
     camera(t, dt);
     drawBackdrop(t);
+    if (sing.karaoke) {
+      // karaoke: the stage and the words only, no neck and no notes
+      R3.begin();
+      R3.render(G.zF, G.zs * PAST);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+      return;
+    }
     const T1 = performance.now();
     const a = anchorAt(t);
     let f0 = 0;

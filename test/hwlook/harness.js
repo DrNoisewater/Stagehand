@@ -82,11 +82,41 @@ function songC() {
 }
 const tab = scene.startsWith('R') ? (await (await fetch('/' + (q.get('file') || 'real.json'))).json())[q.get('part') || (scene === 'RB' ? 'bass' : 'lead')] : { A: songA, B: songB, C: songC, T: songT }[scene]();
 tab.id = 'p1';
-// secs=song: a song's usual sections (for the section strip and repeats)
-if (q.get('secs') === 'song') {
-  const names = ['intro', 'verse', 'prechorus', 'chorus', 'verse', 'prechorus', 'chorus', 'bridge', 'solo', 'chorus', 'outro'];
-  const a = 1, z = tab.length - 1, w = (z - a) / names.length;
-  tab.sections = names.map((name, i) => ({ name, start: a + i * w, end: a + (i + 1) * w }));
+// sing=1: lyrics with a note for every syllable. sing=words: the words only, no notes.
+// sing=stem: no notes in the chart, but a vocals stem (a made-up singer) to read them from.
+if (q.get('sing')) {
+  const words = 'Take me down to the riv- er side+ where the wa- ter runs so slow+ sing it loud and sing it clear+ ev- ery- bod- y sing a- long+'.split(' ');
+  const tune = [57, 59, 60, 62, 64, 62, 60, 59, 57, 60, 62, 64, 65, 64, 62, 60, 62, 64, 65, 67, 65, 64, 62, 60, 62, 64, 62, 60, 59, 57];
+  const kind = q.get('sing');
+  let tt = 2.5;
+  tab.lyrics = words.map((w, i) => {
+    const d = w.endsWith('+') ? 0.8 : 0.36;
+    const o = { t: Math.round(tt * 1000) / 1000, d, w, p: kind === '1' || kind === 'karaoke' ? tune[i % tune.length] : 254 };
+    tt += d + (w.endsWith('+') ? 0.9 : 0.06);
+    return o;
+  });
+  window.__singTune = words.map((w, i) => (kind === 'words' ? 57 : tune[i % tune.length]));
+  if (kind === 'stem') {
+    // the singer on the record: each syllable at its note, an octave up, with a little vibrato
+    const sr = 48000;
+    const n = Math.round(tab.length * sr);
+    const wav = new ArrayBuffer(44 + n * 2);
+    const dv = new DataView(wav);
+    const tag = (o, x) => [...x].forEach((c, k) => dv.setUint8(o + k, c.charCodeAt(0)));
+    tag(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); tag(8, 'WAVEfmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+    dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); tag(36, 'data'); dv.setUint32(40, n * 2, true);
+    tab.lyrics.forEach((w, i) => {
+      let ph = 0;
+      const len = Math.round(w.d * sr);
+      for (let k = 0; k < len; k++) {
+        const m = window.__singTune[i] + 12 + 0.2 * Math.sin((2 * Math.PI * 5.5 * k) / sr);
+        ph += (2 * Math.PI * 440 * 2 ** ((m - 69) / 12)) / sr;
+        const env = Math.min(1, k / 600, (len - k) / 600);
+        dv.setInt16(44 + (Math.round(w.t * sr) + k) * 2, Math.round(9000 * env * (Math.sin(ph) + 0.5 * Math.sin(2 * ph) + 0.3 * Math.sin(3 * ph))), true);
+      }
+    });
+    window.__stems = { state: 'ready', stems: [{ name: 'vocals', url: URL.createObjectURL(new Blob([wav], { type: 'audio/wav' })) }] };
+  }
 }
 window.__tab = tab;
 window.__parts = [{ id: 'p1', type: 'lead', name: 'Lead' }];
@@ -111,6 +141,14 @@ Object.assign(engine, {
   unloadAll() { this.tracks = []; this.loaded = null; },
 });
 const stage = { engine, stems: () => [], toggle() {}, seek(t) { engine.position = t; engine.dispatchEvent(new Event('seek')); }, setMode() {}, setLoop(l) { this._loop = l; }, getLoop() { return this._loop || null; }, gel: () => '#fff', label: (x) => x, trackIndex: () => 0, setStem() {}, songLevel: () => 0.8, setSongLevel() {}, setYou() {} };
+// sing=karaoke: the song has been split, so karaoke can take the singer out
+if (q.get('sing') === 'karaoke') {
+  window.__vocals = { muted: false };
+  engine.tracks.v = window.__vocals;
+  stage.stems = () => ['vocals'];
+  stage.trackIndex = () => 'v';
+  stage.setStem = (n, o) => Object.assign(window.__vocals, o);
+}
 stage.borrowPlayer = () => { engine.pause(); const snap = { at: engine.position, duration: engine.duration }; engine.unloadAll(); stage.borrowed = snap; return snap; };
 stage.giveBack = (snap) => { stage.borrowed = null; if (!snap) return; engine.duration = snap.duration; engine.position = snap.at; stage.gaveBack = snap; };
 const hw = createHighway(stage);

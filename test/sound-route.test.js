@@ -20,7 +20,8 @@ const fail = (m) => {
 
 // places allowed to make their own audio player: the song player, the rig's own
 // engines, and the hidden recording tap (sink "none", never heard)
-const OWN_CONTEXT_OK = new Set(['audio-engine.js', 'rig.js']);
+// mic.js only listens to the singer's microphone: nothing is connected to any speakers
+const OWN_CONTEXT_OK = new Set(['audio-engine.js', 'rig.js', 'mic.js']);
 const MEDIA = /h\(\s*[^)]*['"](video|audio)['"]|createElement\(\s*['"](video|audio)['"]\)|new Audio\(/;
 
 for (const f of files) {

@@ -2,6 +2,7 @@
 import { h, toast } from './ui.js';
 import { rig } from './rig.js';
 import { guitarStatus } from './shell.js';
+import { mic } from './mic.js';
 
 export async function pane(el, setting) {
   const draw = async () => {
@@ -110,6 +111,46 @@ export async function pane(el, setting) {
     inst.onchange = () => rig.setInstrumentPref(inst.value);
     el.append(setting('Guitar or bass', 'What you’re playing. Stagehand scores a bass part played on guitar an octave up, and the tuner shows its strings. Your tone never changes by itself.', inst));
     el.append(h('p.np-fine', { text: 'If you hear yourself twice, turn off “Listen to this device” for the cable in Windows sound settings.', style: { marginTop: '10px' } }));
+    el.append(micSetting(setting));
   };
   await draw();
+}
+
+/** 4.12: the singer's microphone (Sing along). Only listened to while singing or while you try it here. */
+function micSetting(setting) {
+  const sel = h('select.input', { 'aria-label': 'Microphone' });
+  const level = h('span.mic-level', { title: 'How loud the microphone hears you' }, h('i'));
+  const tryBtn = h('button.btn.small.soft', { type: 'button', text: 'Try it' });
+  const fill = async () => {
+    const list = await mic.devices().catch(() => []);
+    sel.innerHTML = '';
+    if (!list.some((d) => !d.id)) sel.append(h('option', { value: '', text: 'The one Windows uses' }));
+    for (const d of list) sel.append(h('option', { value: d.id, text: d.label, selected: d.id === mic.deviceId ? true : null }));
+  };
+  fill();
+  sel.onchange = () => mic.setDevice(sel.value, sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : '');
+  let timer = 0;
+  const stop = () => {
+    clearInterval(timer);
+    timer = 0;
+    mic.stop('settings');
+    tryBtn.textContent = 'Try it';
+    level.style.setProperty('--lv', '0');
+  };
+  tryBtn.onclick = async () => {
+    if (timer) return stop();
+    const ok = await mic.start('settings');
+    if (!ok) return toast({ title: 'No microphone', message: mic.error || 'Plug in a microphone.', kind: 'err' });
+    fill(); // names show once a microphone has been opened
+    tryBtn.textContent = 'Stop';
+    const t0 = performance.now();
+    timer = setInterval(() => {
+      // stops by itself after 20 seconds, or when this page is gone
+      if (!level.isConnected || performance.now() - t0 > 20000) return stop();
+      const v = mic.read();
+      level.style.setProperty('--lv', String(Math.min(1, v.level * 6)));
+      level.classList.toggle('voiced', !!v.voiced);
+    }, 40);
+  };
+  return setting('Microphone for singing', 'For Sing along (the Sing chip on the highway). Any microphone works: USB, a headset, a webcam. Your voice is only listened to for scoring; it isn’t played through Stagehand. The guitar cable stays for the guitar.', sel, level, tryBtn);
 }
