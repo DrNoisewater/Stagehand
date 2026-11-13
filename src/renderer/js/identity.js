@@ -13,6 +13,7 @@ const roadshowMoods = {
   discover: ['Discover', 'DIG UP SOMETHING LOUD', 'Seek riffs. Find trouble. Repeat.'],
   progress: ['Progress', 'EARN YOUR THUNDER', 'Even legends had to practice that bit.'],
   greenroom: ['Backstage', 'NO ROADIE LEFT BEHIND', 'Big riffs. Questionable decisions. Good company.'],
+  karaoke: ['Karaoke', 'THE MIC IS LIVE', 'The singer called in sick. You know the words.'],
 };
 // Rehearsal Room (data-look="opera"): deadpan, down to earth, guitar-trope jokes. Each visit
 // to a page picks one of these at random, with a different sticker, picture and entrance.
@@ -35,6 +36,9 @@ const operaLines = {
   progress: [['THE ROAD TO THE ARENA', 'Basement. Bar. County fair. Arena. In that order.'],
              ['TOUR DIARY', 'Day 9: the van smells. The chords sound better.'],
              ['PAYING DUES', 'Calluses don’t grow themselves.']],
+  karaoke: [['OPEN MIC NIGHT', 'Sign-up sheet’s by the bar. You’re next. You were always next.'],
+            ['THE SINGER CALLED IN SICK', 'You know the words. Mostly. Hum the rest.'],
+            ['NO, YOU CAN’T DO FREEBIRD', 'Okay. One verse.']],
   greenroom: [['ALL ACCESS (MOSTLY)', 'The free snacks were a lie. The company’s good, though.'],
               ['BAND ONLY', 'And the drummer. Fine.'],
               ['LOAD-IN AT SIX', 'Nobody is ever here at six.']],
@@ -48,6 +52,7 @@ const mythologyLines = {
   greenroom: [['THE FELLOWSHIP OF THE BAND', 'Nobody carries the whole song alone.'], ['THE COUNCIL OF LOUD', 'Bring your riffs. Leave room for the bass.']],
 };
 for (const [page, lines] of Object.entries(mythologyLines)) operaLines[page].push(...lines);
+if (!PLACEMENTS.karaoke) PLACEMENTS.karaoke = ['skull-choir', 'balcony-serenade', 'lute-serenade', 'angel-guitar', 'jazz-cat', 'stained-glass-celestial-band'];
 const STICKERS = ['NO STAIRWAY', 'TURN IT DOWN? NO.', 'TUNED IT LAST TUESDAY', 'DRUMMER WANTED (AGAIN)', 'WILL PLAY FOR PIZZA',
   'FEEDBACK IS A FEATURE', 'STRINGS CHANGED: 2019', 'BASSISTS ARE PEOPLE TOO', 'ONE MORE TAKE', 'WHO TOOK MY CAPO',
   'IT SOUNDED BETTER IN THE BASEMENT', 'IF IT’S TOO LOUD, YOU’RE TOO CLOSE', 'MY OTHER AMP IS A STACK', 'THIS SIDE UP. PROBABLY.',
@@ -61,6 +66,7 @@ const PAGE_NOTES = {
   discover: ['other-pick', 'one-more-run', 'wrong-note'],
   progress: ['clean-first', 'one-more-run', 'bend-it'],
   greenroom: ['engineers-inspection', 'other-pick', 'groove'],
+  karaoke: ['one-more-run', 'wrong-note'],
 };
 const noteFile = (n) => (ART.find((a) => a.id === `scrap-${n}`) || {}).file;
 // the marks on the flyer, the tape that holds it up, and what else is stuck on the wall
@@ -75,7 +81,7 @@ const pick = (list, avoid) => { const opts = list.length > 1 ? list.filter(x => 
 const lastPick = {};
 const pickFor = (key, list) => (lastPick[key] = pick(list, lastPick[key]));
 const operaMoods = new Proxy({}, { get: (_t, k) => {
-  const names = { play: 'Jam', songs: 'Songs', tones: 'Tones', gear: 'Gear', discover: 'Discover', progress: 'Progress', greenroom: 'Backstage' };
+  const names = { play: 'Jam', songs: 'Songs', tones: 'Tones', gear: 'Gear', discover: 'Discover', progress: 'Progress', greenroom: 'Backstage', karaoke: 'Karaoke' };
   if (!names[k]) return undefined;
   const [kicker, text] = pickFor('line:' + k, operaLines[k]);
   return [names[k], kicker, text];

@@ -187,7 +187,69 @@ renderBar();
 
 // ---------------------------------------------------------- guitar card --
 const card = h('div.guitar-card');
-guitarCardHost.append(card);
+// 4.14: the card no longer sits at the bottom of the menu. A small chip in the top-right
+// corner of the page banner (beside the ⋯ button) shows the guitar's state and the tuner;
+// the whole card opens under it when you point at it.
+const chipDot = h('span.gchip-dot');
+const chipText = h('span.gchip-text');
+const chipTuner = h('button.gchip-tuner', { type: 'button', title: 'Open the tuner (U)', 'aria-label': 'Open the tuner' }, h('span', { html: icon('tuning') }), h('span', { text: 'Tuner' }), h('kbd', { text: 'U' }));
+chipTuner.onclick = async () => (await import('./tuner.js')).openTuner();
+const chipHead = h('div.gchip-head', { tabindex: '0', 'aria-label': 'Guitar status' }, chipDot, chipText);
+const chip = h('div.gchip', null, chipHead, chipTuner);
+// the panel lives on <body> (the banner clips what hangs out of it) and follows the chip
+const pop = h('div.gchip-pop', { role: 'dialog', 'aria-label': 'Your guitar', hidden: true }, card);
+document.body.append(pop);
+guitarCardHost.hidden = true;
+let popTimer = 0;
+const showPop = () => {
+  clearTimeout(popTimer);
+  const r = chip.getBoundingClientRect();
+  if (!r.width) return;
+  pop.hidden = false;
+  pop.style.top = `${Math.round(r.bottom + 6)}px`;
+  pop.style.right = `${Math.round(window.innerWidth - r.right)}px`;
+  chip.classList.add('open');
+};
+const hidePop = (now = false) => {
+  clearTimeout(popTimer);
+  const go = () => {
+    // never under a slider being dragged, or while something inside has the keyboard
+    if (pop.contains(document.activeElement) && document.activeElement !== document.body) return;
+    pop.hidden = true;
+    chip.classList.remove('open');
+  };
+  now ? go() : (popTimer = setTimeout(go, 220));
+};
+for (const el of [chip, pop]) {
+  el.addEventListener('mouseenter', showPop);
+  el.addEventListener('mouseleave', () => hidePop());
+}
+chipHead.addEventListener('focus', showPop);
+chipHead.addEventListener('keydown', (e) => e.key === 'Escape' && hidePop(true));
+pop.addEventListener('focusout', () => setTimeout(() => !pop.matches(':hover') && !chip.matches(':hover') && hidePop(), 0));
+on('page', () => hidePop(true));
+function placeChip() {
+  const banner = document.getElementById('identity-banner');
+  if (!banner) return void guitarCardHost.append(chip);
+  const opts = banner.querySelector('.identity-options');
+  let corner = banner.querySelector('.banner-corner');
+  if (!corner) {
+    corner = h('div.banner-corner');
+    banner.append(corner);
+  }
+  if (opts && opts.parentElement !== corner) corner.append(opts);
+  corner.append(chip);
+}
+// identity.js fills the banner when it loads; wait for it once
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', placeChip, { once: true });
+else setTimeout(placeChip, 0);
+function renderChip(s) {
+  const st = rig.on ? (rig.muted ? 'muted' : 'on') : s.cls || 'idle';
+  chip.dataset.state = st;
+  chipText.textContent = rig.on ? (rig.muted ? 'Muted' : 'Guitar') : st === 'warn' ? 'Starting' : st === 'err' ? 'Guitar off' : 'No cable';
+  chipHead.title = `${s.title}${s.line ? ` · ${s.line.replace(/<[^>]+>/g, '')}` : ''}`;
+  chipTuner.hidden = !rig.on;
+}
 const G = { meter: null, raf: 0 };
 
 export function guitarStatus() {
@@ -204,6 +266,7 @@ function renderCard() {
   // don't rebuild under a slider that's being dragged
   if (card.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
   const s = guitarStatus();
+  renderChip(s);
   card.className = `guitar-card${s.cls ? ` ${s.cls}` : ''}`;
   card.innerHTML = '';
   const mute = h('button.icon-btn', { type: 'button', title: rig.muted ? 'Unmute your guitar' : 'Mute your guitar', 'aria-label': 'Mute guitar', 'aria-pressed': String(!!rig.muted), html: icon(rig.muted ? 'volumeOff' : 'volume') });

@@ -59,6 +59,30 @@ export async function playKaraoke(id) {
   await playAlong(id);
 }
 
+/** 4.14: has this song been split into stems (or is it being split right now)? */
+export function stemPhase(song) {
+  if (!song) return 'none';
+  const q = state.stems.get(song.id);
+  if (song.hasStems || (q && q.state === 'ready')) return 'ready';
+  if (q && (q.state === 'queued' || q.state === 'running')) return 'working';
+  return 'none';
+}
+
+/**
+ * 4.14 (the cover's middle button): play along on the highway and start splitting
+ * the stems in the background, so the mixer is ready a few minutes in. Only when
+ * stem splitting is already set up: this button never opens the setup.
+ */
+export async function playAlongWithStems(id) {
+  const song = state.songs.get(id);
+  if (!song) return;
+  const go = playAlong(id);
+  if (stemPhase(song) === 'none' && (await engineReady().catch(() => false))) {
+    requestStems([id]).catch(() => {});
+  }
+  await go;
+}
+
 /** Says why a song can't play: its file has no song audio inside. */
 export function noAudioToast(song) {
   toast({

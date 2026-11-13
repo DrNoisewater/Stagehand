@@ -252,6 +252,7 @@ class FakePortMain extends EventEmitter {
       return { key: 'song', url: '/song.wav', sampleRate: 48000, channels: 2, frames: 48000 * SECS, duration: SECS, bits: 16 };
     },
     'tab.list': (id) => tabs.list(song(id)),
+    'tab.vocals': (id) => tabs.vocals(song(id)),
     'tab.load': async (id, arr) => {
       await later(tabDelay.get(id));
       return { ...(await tabs.load(song(id), arr)), _for: id };

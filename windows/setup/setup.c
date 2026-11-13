@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include <wctype.h>
 #include <math.h>
 #include <winhttp.h>
 #include <bcrypt.h>
@@ -72,16 +73,18 @@
 #define WM_APP_DONE (WM_APP + 2)
 
 /* ------------------------------------------------------------- colours -- */
-#define C_BG RGB(14, 15, 20)
-#define C_PANEL RGB(23, 25, 33)
-#define C_LINE RGB(40, 43, 56)
-#define C_TEXT RGB(236, 238, 245)
-#define C_DIM RGB(140, 146, 165)
+/* 4.14: the app's own colours: a warm road case, bone-white words, tungsten gold */
+#define C_BG RGB(19, 17, 15)
+#define C_HEAD RGB(27, 24, 21)
+#define C_PANEL RGB(30, 27, 23)
+#define C_LINE RGB(61, 56, 50)
+#define C_TEXT RGB(239, 230, 211)
+#define C_DIM RGB(169, 158, 140)
 #define C_GOLD RGB(255, 181, 71)
-#define C_GREEN RGB(88, 214, 141)
-#define C_BLUE RGB(92, 180, 255)
-#define C_RED RGB(255, 92, 102)
-#define C_GREY RGB(90, 96, 115)
+#define C_GREEN RGB(91, 216, 138)
+#define C_BLUE RGB(51, 200, 224)
+#define C_RED RGB(229, 83, 60)
+#define C_GREY RGB(108, 101, 90)
 
 enum { ST_CHECK, ST_HAVE, ST_WILL, ST_BUSY, ST_DONE, ST_LATER, ST_SKIP, ST_ERR };
 enum { R_APP, R_RUNTIME, R_DECODER, R_VCRT, R_STEMS, R_DATA, NROWS };
@@ -128,7 +131,8 @@ static struct {
   Payload pay;
   int has_payload;
   CRITICAL_SECTION cs;
-  HFONT f_title, f_body, f_small, f_icon, f_btn;
+  HFONT f_title, f_body, f_small, f_icon, f_btn, f_mono;
+  int own_fonts; /* the app's fonts loaded from inside Setup */
   int hover; /* button under the mouse */
   RECT b_main, b_alt, b_check;
   int anim;
@@ -1335,9 +1339,18 @@ static void badge(HDC dc, int cx, int cy, int state) {
 }
 
 static void button(HDC dc, RECT r, const wchar_t *label, int primary, int hover, int enabled) {
-  COLORREF bg = primary ? (enabled ? (hover ? RGB(255, 198, 110) : C_GOLD) : RGB(90, 76, 50)) : (hover ? RGB(52, 56, 72) : RGB(38, 41, 54));
-  round_rect(dc, r, px(10), bg, primary ? bg : C_LINE);
-  text(dc, S.f_btn, primary ? RGB(20, 16, 8) : C_TEXT, r, label, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+  COLORREF bg = primary ? (enabled ? (hover ? RGB(255, 201, 120) : C_GOLD) : RGB(84, 70, 46)) : (hover ? RGB(52, 47, 41) : RGB(38, 34, 30));
+  if (primary && enabled) {
+    RECT s = r;
+    OffsetRect(&s, px(2), px(3));
+    fill(dc, s, RGB(8, 7, 6));
+  }
+  round_rect(dc, r, px(4), bg, primary ? bg : (hover ? C_DIM : C_LINE));
+  wchar_t up[64];
+  int i = 0;
+  for (; label[i] && i < 63; i++) up[i] = towupper(label[i]);
+  up[i] = 0;
+  text(dc, S.f_btn, primary ? RGB(26, 18, 5) : C_TEXT, r, up, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 }
 
 static const wchar_t *main_label(void) {
@@ -1353,27 +1366,58 @@ static void paint(HDC dc, RECT cr) {
   fill(dc, cr, C_BG);
   SetBkMode(dc, TRANSPARENT);
   int m = px(28);
-  /* header: icon, name, version */
+  /* 4.14 header, like the app's page banner: a darker band, stripes on the right,
+     a small typewriter kicker, the name in the poster type, a gold bar under it */
+  int hh = px(112);
+  RECT band = {0, 0, W, hh};
+  fill(dc, band, C_HEAD);
+  {
+    HPEN sp = CreatePen(PS_SOLID, px(2), RGB(44, 38, 30));
+    HGDIOBJ op = SelectObject(dc, sp);
+    for (int i = 0; i < 9; i++) {
+      int x = W - px(250) + i * px(26);
+      MoveToEx(dc, x + px(40), 0, NULL);
+      LineTo(dc, x, hh);
+    }
+    SelectObject(dc, op);
+    DeleteObject(sp);
+  }
+  RECT edge = {0, hh - 1, W, hh};
+  fill(dc, edge, C_LINE);
+  RECT bar0 = {m, hh - px(4), m + px(58), hh};
+  fill(dc, bar0, C_GOLD);
   HICON ic = (HICON)LoadImageW(S.inst, MAKEINTRESOURCEW(1), IMAGE_ICON, px(48), px(48), 0);
   if (ic) {
-    DrawIconEx(dc, m, px(24), ic, px(48), px(48), 0, NULL, DI_NORMAL);
+    DrawIconEx(dc, m, px(30), ic, px(48), px(48), 0, NULL, DI_NORMAL);
     DestroyIcon(ic);
   }
-  RECT r = {m + px(62), px(22), W - m, px(56)};
-  text(dc, S.f_title, C_TEXT, r, S.uninstall ? L"Remove Stagehand" : L"Stagehand " WSTR(SH_VERSION), DT_LEFT | DT_SINGLELINE);
-  if (!S.uninstall && S.checked && S.installed_ver[0]) {
-    /* a version pill: what you have -> what this installs */
+  RECT k = {m + px(64), px(24), W - m, px(40)};
+  text(dc, S.f_mono, C_GOLD, k, S.uninstall ? L"UNINSTALL" : (S.installed_ver[0] ? L"SETUP \x00b7 UPDATE" : L"SETUP"), DT_LEFT | DT_SINGLELINE);
+  RECT r = {m + px(64), px(40), W - m, px(84)};
+  RECT sh = r;
+  OffsetRect(&sh, px(2), px(2));
+  const wchar_t *name = S.uninstall ? L"REMOVE STAGEHAND" : L"STAGEHAND";
+  text(dc, S.f_title, RGB(0, 0, 0), sh, name, DT_LEFT | DT_SINGLELINE);
+  text(dc, S.f_title, C_TEXT, r, name, DT_LEFT | DT_SINGLELINE);
+  if (!S.uninstall) {
+    /* a strip of tape on the right: the version (what you have -> what this installs) */
     wchar_t vp[96];
-    _snwprintf(vp, 96, wcscmp(S.installed_ver, WSTR(SH_VERSION)) ? L"%s  \x2192  " WSTR(SH_VERSION) : L"%s installed", S.installed_ver);
-    SelectObject(dc, S.f_small);
+    if (S.checked && S.installed_ver[0])
+      _snwprintf(vp, 96, wcscmp(S.installed_ver, WSTR(SH_VERSION)) ? L"%s  \x2192  " WSTR(SH_VERSION) : L"%s INSTALLED", S.installed_ver);
+    else
+      _snwprintf(vp, 96, L"V" WSTR(SH_VERSION));
+    SelectObject(dc, S.f_mono);
     SIZE sz;
     GetTextExtentPoint32W(dc, vp, (int)wcslen(vp), &sz);
-    RECT pr = {W - m - sz.cx - px(24), px(30), W - m, px(56)};
-    round_rect(dc, pr, px(26), RGB(48, 38, 18), C_GOLD);
-    text(dc, S.f_small, C_GOLD, pr, vp, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    RECT pr = {W - m - sz.cx - px(22), px(38), W - m, px(62)};
+    RECT ps = pr;
+    OffsetRect(&ps, px(2), px(3));
+    fill(dc, ps, RGB(8, 7, 6));
+    fill(dc, pr, C_GOLD);
+    text(dc, S.f_mono, RGB(26, 18, 5), pr, vp, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
   }
-  r.top = px(54);
-  r.bottom = px(76);
+  r.top = hh + px(14);
+  r.bottom = hh + px(38);
   EnterCriticalSection(&S.cs);
   const wchar_t *sub = S.headline[0] ? S.headline : (S.checked ? (S.uninstall ? L"Here’s what will happen" : L"Here’s what’s already on your PC, and what gets installed") : L"Checking your PC…");
   text(dc, S.f_body, S.finished == 2 ? C_RED : S.finished == 1 ? C_GREEN : C_DIM, r, sub, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
@@ -1383,15 +1427,26 @@ static void paint(HDC dc, RECT cr) {
   static const int order_uninstall[] = {R_APP, R_DATA};
   const int *order = S.uninstall ? order_uninstall : order_install;
   int nr = S.uninstall ? 2 : 6;
-  int y = px(96), rh = px(62);
+  int y = hh + px(50), rh = px(62);
   RECT panel = {m, y, W - m, y + rh * nr + px(8)};
-  round_rect(dc, panel, px(14), C_PANEL, C_LINE);
+  {
+    RECT ps = panel;
+    OffsetRect(&ps, px(3), px(4));
+    fill(dc, ps, RGB(8, 7, 6)); /* the hard shadow the app's cards have */
+  }
+  round_rect(dc, panel, px(4), C_PANEL, C_LINE);
   for (int i = 0; i < nr; i++) {
     Row *row = &S.rows[order[i]];
     int ry = y + px(4) + i * rh;
     if (i) {
-      RECT ln = {m + px(16), ry, W - m - px(16), ry + 1};
-      fill(dc, ln, C_LINE);
+      /* a dashed rule between rows, like the app's menu */
+      HPEN dp = CreatePen(PS_DOT, 1, C_LINE);
+      HGDIOBJ op = SelectObject(dc, dp);
+      SetBkMode(dc, TRANSPARENT);
+      MoveToEx(dc, m + px(16), ry, NULL);
+      LineTo(dc, W - m - px(16), ry);
+      SelectObject(dc, op);
+      DeleteObject(dp);
     }
     badge(dc, m + px(34), ry + rh / 2, row->state);
     if (order[i] == R_STEMS) S.b_stems = (RECT){m, ry, W - m, ry + rh};
@@ -1399,7 +1454,7 @@ static void paint(HDC dc, RECT cr) {
     text(dc, S.f_body, C_TEXT, t, row->title, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
     t.top = ry + px(32);
     t.bottom = ry + rh - px(6);
-    COLORREF nc = row->state == ST_HAVE || row->state == ST_DONE ? RGB(150, 220, 175) : row->state == ST_ERR ? C_RED : row->state == ST_LATER ? RGB(150, 200, 245) : C_DIM;
+    COLORREF nc = row->state == ST_HAVE || row->state == ST_DONE ? RGB(150, 214, 170) : row->state == ST_ERR ? C_RED : row->state == ST_LATER ? RGB(150, 225, 238) : C_DIM;
     text(dc, S.f_small, nc, t, row->note, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
     if (row->state == ST_BUSY) {
       RECT bar = {m + px(62), ry + rh - px(7), W - m - px(16), ry + rh - px(4)};
@@ -1414,12 +1469,12 @@ static void paint(HDC dc, RECT cr) {
   /* overall progress, or the error */
   if (S.running || S.finished == 1) {
     RECT bar = {m, y, W - m, y + px(8)};
-    round_rect(dc, bar, px(8), C_LINE, C_LINE);
+    round_rect(dc, bar, px(2), C_LINE, C_LINE);
     double p = S.total < 0 ? 0 : S.total > 1 ? 1 : S.total;
     if (p > 0.004) {
       bar.right = bar.left + (LONG)((bar.right - bar.left) * p);
       if (bar.right - bar.left < px(8)) bar.right = bar.left + px(8);
-      round_rect(dc, bar, px(8), S.finished == 1 ? C_GREEN : C_GOLD, S.finished == 1 ? C_GREEN : C_GOLD);
+      round_rect(dc, bar, px(2), S.finished == 1 ? C_GREEN : C_GOLD, S.finished == 1 ? C_GREEN : C_GOLD);
     }
   } else if (S.finished == 2 && S.error[0]) {
     RECT er = {m, y - px(4), W - m, y + px(34)};
@@ -1441,7 +1496,7 @@ static void paint(HDC dc, RECT cr) {
     int on = S.uninstall ? S.del_data : S.desktop;
     S.b_check = (RECT){m, by + px(8), m + px(300), by + bh - px(8)};
     RECT box = {m, by + bh / 2 - px(10), m + px(20), by + bh / 2 + px(10)};
-    round_rect(dc, box, px(6), on ? (S.uninstall ? C_RED : C_GOLD) : C_PANEL, on ? (S.uninstall ? C_RED : C_GOLD) : C_DIM);
+    round_rect(dc, box, px(3), on ? (S.uninstall ? C_RED : C_GOLD) : C_PANEL, on ? (S.uninstall ? C_RED : C_GOLD) : C_DIM);
     if (on) glyph(dc, (box.left + box.right) / 2, (box.top + box.bottom) / 2, px(11), ST_DONE, RGB(12, 14, 20));
     RECT lt = {m + px(30), by, m + px(330), by + bh};
     text(dc, S.f_body, S.hover == 3 ? C_TEXT : C_DIM, lt, S.uninstall ? L"Also delete my library data and stems" : L"Desktop shortcut", DT_LEFT | DT_VCENTER | DT_SINGLELINE);
@@ -1593,11 +1648,31 @@ static HFONT font(const wchar_t *face, int size, int weight) {
   return CreateFontW(-px(size), 0, 0, 0, weight, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, face);
 }
 
+/* 4.14: the app's own fonts ride inside Setup (fonts/, made by make-fonts.py) */
+static int load_font(int id) {
+  HRSRC r = FindResourceW(S.inst, MAKEINTRESOURCEW(id), RT_RCDATA);
+  if (!r) return 0;
+  HGLOBAL g = LoadResource(S.inst, r);
+  void *data = g ? LockResource(g) : NULL;
+  DWORD n = 0;
+  return data && AddFontMemResourceEx(data, SizeofResource(S.inst, r), NULL, &n) && n;
+}
+
 static void make_fonts(void) {
-  S.f_title = font(L"Segoe UI", 24, FW_BOLD);
-  S.f_body = font(L"Segoe UI", 15, FW_SEMIBOLD);
-  S.f_small = font(L"Segoe UI", 13, FW_NORMAL);
-  S.f_btn = font(L"Segoe UI", 15, FW_BOLD);
+  S.own_fonts = load_font(10) && load_font(11) && load_font(12) && load_font(13);
+  if (S.own_fonts) {
+    S.f_title = font(L"SH Display", 38, 900);
+    S.f_body = font(L"SH Text", 15, 600);
+    S.f_small = font(L"SH Text", 13, 600);
+    S.f_btn = font(L"SH Text Bold", 14, 800);
+    S.f_mono = font(L"SH Mono", 11, FW_BOLD);
+  } else {
+    S.f_title = font(L"Segoe UI Black", 30, FW_BLACK);
+    S.f_body = font(L"Segoe UI", 15, FW_SEMIBOLD);
+    S.f_small = font(L"Segoe UI", 13, FW_NORMAL);
+    S.f_btn = font(L"Segoe UI", 14, FW_BOLD);
+    S.f_mono = font(L"Consolas", 11, FW_BOLD);
+  }
   /* Segoe Fluent Icons (Windows 11) or Segoe MDL2 Assets (Windows 10) */
   S.f_icon = font(L"Segoe MDL2 Assets", 13, FW_NORMAL);
 }
@@ -1697,7 +1772,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show) {
   wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
   wc.lpszClassName = L"StagehandSetup";
   RegisterClassExW(&wc);
-  int ww = px(700), wh = px(S.uninstall ? 360 : 640);
+  int ww = px(700), wh = px(S.uninstall ? 400 : 680); /* fits a 768-pixel-tall laptop screen */
   RECT wr = {0, 0, ww, wh};
   DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
   AdjustWindowRectExForDpi(&wr, style, FALSE, 0, S.dpi);

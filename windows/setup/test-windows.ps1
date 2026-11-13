@@ -29,6 +29,40 @@ function Installed-Ok {
 
 Write-Host "Setup: $Setup ($([math]::Round((Get-Item $Setup).Length / 1MB, 1)) MB)"
 
+# 4.14: pictures of the Setup window (uploaded by CI), so its look can be checked without a PC
+$shots = Join-Path ($env:RUNNER_TEMP ?? $env:TEMP) 'setup-shots'
+New-Item -ItemType Directory -Force -Path $shots | Out-Null
+Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+function Shot-Setup([string] $name, [string[]] $setupArgs = @()) {
+  try {
+    $p = if ($setupArgs.Count) { Start-Process -FilePath $Setup -ArgumentList $setupArgs -PassThru } else { Start-Process -FilePath $Setup -PassThru }
+    Start-Sleep 7
+    $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+    $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+    $bmp.Save((Join-Path $shots "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    # the window's part of the screen, also written into the log (artifacts aren't always reachable)
+    $p.Refresh()
+    Add-Type -Namespace W -Name U -MemberDefinition '[DllImport("user32.dll")] public static extern bool GetWindowRect(System.IntPtr h, out RECT r); public struct RECT { public int L, T, R, B; }' -ErrorAction SilentlyContinue
+    $rc = New-Object W.U+RECT
+    if ($p.MainWindowHandle -ne 0 -and [W.U]::GetWindowRect($p.MainWindowHandle, [ref] $rc)) {
+      $cw = [math]::Min($rc.R, $b.Width) - [math]::Max($rc.L, 0); $chh = [math]::Min($rc.B, $b.Height) - [math]::Max($rc.T, 0)
+      $crop = $bmp.Clone((New-Object System.Drawing.Rectangle ([math]::Max($rc.L, 0)), ([math]::Max($rc.T, 0)), $cw, $chh), $bmp.PixelFormat)
+      $ms = New-Object System.IO.MemoryStream
+      $crop.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+      $b64 = [Convert]::ToBase64String($ms.ToArray())
+      for ($i = 0; $i -lt $b64.Length; $i += 3000) { Write-Host "SHOTB64 $name $($b64.Substring($i, [math]::Min(3000, $b64.Length - $i)))" }
+      $crop.Dispose()
+    }
+    $g.Dispose(); $bmp.Dispose()
+    if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+    Start-Sleep 1
+    Write-Host "shot $name.png"
+  } catch { Write-Host "no picture of $name`: $($_.Exception.Message)" }
+}
+Shot-Setup 'setup-fresh'
+
 # 1. first install: downloads the runtime and the decoder from GitHub
 $r = Run-Setup @('/quiet')
 Check ($r.code -eq 0) "first install finishes (exit $($r.code), $($r.secs) s)"
@@ -36,6 +70,8 @@ Check (Installed-Ok) 'Stagehand, its runtime and its uninstaller are in place'
 Check (Test-Path (Join-Path $local 'Tools\vgmstream\vgmstream-cli.exe')) 'the song audio decoder is installed'
 Check (-not (Test-Path (Join-Path $prog 'locales\fr.pak')) -and (Test-Path (Join-Path $prog 'locales\en-US.pak'))) 'only the English language file is kept'
 Check (-not (Get-ChildItem $dl -Filter *.zip -ErrorAction SilentlyContinue)) 'downloads are cleared once installed'
+
+Shot-Setup 'setup-installed'
 
 # 2. run it again (an update): nothing to download, quick
 $before = (Get-Item (Join-Path $prog 'Stagehand.exe')).LastWriteTimeUtc

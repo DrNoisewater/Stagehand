@@ -203,12 +203,18 @@ function noAudioBadge(s) {
   return s.audioEntry === null && !s.audioFrom && s.audioFail ? `<sup class="noaudio" title="${esc(s.audioFail.message || 'Its audio wasn’t found')} Open it to look again.">audio not found</sup>` : '';
 }
 
+/** 4.14: a small mic on every song with words: one click and you're singing it (Karaoke). */
+function micHtml(s, where = 'row') {
+  if (!hasPart(s, 'vocals')) return '';
+  return `<button type="button" class="kk-mic${where === 'tile' ? ' on-tile' : ''}" data-sing title="Sing it (Karaoke)" aria-label="Sing ${esc(s.title)} (Karaoke)">${icon('mic')}</button>`;
+}
+
 function buildRow(s) {
   const el = h('div.row.cols', { role: 'row', draggable: 'true' });
   el.dataset.id = s.id;
   el.innerHTML = `
     <div><div class="thumb">${thumbHtml(s, 64)}</div></div>
-    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}${badgesHtml(s)}</div>
+    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}${badgesHtml(s)}${micHtml(s)}</div>
     <div>${s.artist ? `<span class="go" data-go="artist" title="All songs by ${esc(s.artist)}">${esc(s.artist)}</span>` : ''}</div>
     <div>${s.album ? `<span class="go" data-go="album" title="Everything from ${esc(s.album)}">${esc(s.album)}</span>` : ''}</div>
     <div class="num">${s.year ? `<span class="go" data-go="year" title="Songs from ${s.year}">${s.year}</span>` : ''}</div>
@@ -236,7 +242,7 @@ function buildTile(s) {
     .filter(([key]) => (s.arrangements || []).some((a) => a.type === key || (key === 'lead' && a.type === 'combo')))
     .map(([key, letter, label]) => `<span class="pb pb-${key}" title="${label}">${letter}</span>`)
     .join('');
-  el.innerHTML = `<div class="halo"></div><div class="cover gelled"><span class="ini">${esc(initialsOf(s))}</span>${s.art ? `<img src="${esc(api.artUrl(s, 256))}" alt="" loading="lazy" decoding="async" draggable="false">` : ''}<span class="badges">${badges}</span>${ring}<button type="button" class="play" title="Play" data-play>${icon('play')}</button></div>
+  el.innerHTML = `<div class="halo"></div><div class="cover gelled"><span class="ini">${esc(initialsOf(s))}</span>${s.art ? `<img src="${esc(api.artUrl(s, 256))}" alt="" loading="lazy" decoding="async" draggable="false">` : ''}<span class="badges">${badges}</span>${ring}${micHtml(s, 'tile')}<button type="button" class="play" title="Play" data-play>${icon('play')}</button></div>
     <div class="tt" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}</div>${badgesHtml(s) ? `<div class="tbadges">${badgesHtml(s)}</div>` : ''}<div class="ta">${esc(s.artist)}${s.tuning ? ` · ${esc(s.tuning)}` : ''}</div>`;
   reuse(el);
   const img = el.querySelector('img');
@@ -597,6 +603,11 @@ scroller.addEventListener('click', (e) => {
     selectClick(id, e);
     return;
   }
+  if (e.target.closest('[data-sing]')) {
+    setSelection([id], { anchor: id, focus: id });
+    actions.playKaraoke(id);
+    return;
+  }
   if (e.target.closest('[data-play]')) {
     setSelection([id], { anchor: id, focus: id });
     actions.playSong(id, { autoplay: true });
@@ -609,7 +620,7 @@ scroller.addEventListener('dblclick', (e) => {
   clearTimeout(goTimer);
   const id = idAt(e.target);
   // double-click plays along: straight to the highway
-  if (id && !e.target.closest('[data-star]')) actions.playAlong(id);
+  if (id && !e.target.closest('[data-star], [data-sing], [data-play]')) actions.playAlong(id);
 });
 
 scroller.addEventListener('contextmenu', (e) => {

@@ -920,6 +920,10 @@ function registerIpc() {
   });
 
   handle('tab:list', (songId) => tabs.list(requireSong(songId)));
+  handle('tab:vocals', (songId) => {
+    const song = requireSong(songId);
+    return withFileRead(song.path, () => tabs.vocals(song));
+  });
   handle('tab:load', (songId, arrId) => {
     const song = requireSong(songId);
     return withFileRead(song.path, () => tabs.load(song, arrId ? String(arrId) : null));
