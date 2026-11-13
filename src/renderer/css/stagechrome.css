@@ -119,9 +119,9 @@
 .highway .hw-sections button.on { background:#3d3528e0; color:var(--sc-gold-hi); box-shadow:inset 0 -2px 0 var(--sc-gold); }
 .highway .hw-head { background:var(--sc-gold); box-shadow:0 0 6px #f1ce6888; }
 
-/* Tools sits beside Sound & settings, never on top of it */
-.highway .hw-tools { transition:right .28s var(--ease, ease); }
-.highway:has(.hw-dock:not(.collapsed)) .hw-tools { right:432px; }
+/* 4.12: Tools and Settings sit together at the end of the top bar; the panel drops down under them */
+.highway .hw-top .hw-tools { position:static; z-index:auto; flex:none; }
+.highway .hw-dock.collapsed { transform:translateX(calc(100% + 24px)); visibility:hidden; transition:transform .28s var(--ease, ease), visibility 0s .28s; }
 
 /* Sound & settings: a road case lid that slides out */
 .highway .hw-dock-tab {

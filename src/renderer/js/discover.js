@@ -121,7 +121,7 @@ function iconBtn(name, title, onClick, cls = '') {
 }
 
 function emptyBox(title, text, actionsEls = []) {
-  return h('div.dv-empty', null, decorativeImage('empty-discover'), h('h2', { text: title }), h('p', { html: text }), actionsEls.length ? h('div.actions', null, ...actionsEls) : null);
+  return h('div.dv-empty.card', null, decorativeImage('empty-discover'), h('h2', { text: title }), h('p', { html: text }), actionsEls.length ? h('div.actions', null, ...actionsEls) : null);
 }
 
 // ------------------------------------------------------------ navigation --
@@ -207,8 +207,8 @@ function renderSelBar() {
   selBar.append(
     h('span.count', { text: `${plural(items.length, 'song')} selected` }),
     btn('Add to Wanted', { iconName: 'star', cls: 'primary', onClick: () => want(items) }),
-    btn('Copy as a list', { iconName: 'copy', cls: 'ghost', onClick: () => copyList(items) }),
-    btn('Clear', { cls: 'ghost', onClick: () => clearSel() })
+    btn('Copy as a list', { iconName: 'copy', cls: 'soft', onClick: () => copyList(items) }),
+    btn('Clear', { cls: 'soft', onClick: () => clearSel() })
   );
   // Keep row checkboxes in step (e.g. after "Select missing").
   for (const c of root.querySelectorAll('input.check[data-key]')) c.checked = D.sel.has(c.dataset.key);
@@ -533,7 +533,7 @@ function renderSearch(page) {
     )
   );
   if (!q) {
-    const hero = h('div.dv-hero');
+    const hero = h('div.dv-hero.card');
     hero.append(
       h('div.hero-icon', { html: icon('search') }),
       h('h2', { text: 'Type an artist or song in the search box above' }),
@@ -587,14 +587,14 @@ function renderSearch(page) {
   if (r.songs.length) {
     const missing = r.songs.filter((s) => !s.have);
     const selAll = btn(`Select ${missing.length} missing`, {
-      cls: 'small ghost',
+      cls: 'small soft',
       disabled: !missing.length,
       onClick: () => {
         for (const s of missing) D.sel.set(keyOf(s.artist, s.title), { artist: s.artist, title: s.title, album: s.album, year: s.year });
         renderSelBar();
       },
     });
-    const table = h('div.dv-table.songs');
+    const table = h('div.dv-table.songs.card');
     table.append(h('div.dv-row.head', null, h('div'), h('div', { text: 'Song' }), h('div', { text: 'Artist' }), h('div', { text: 'Time' }), h('div', { text: 'Status' }), h('div')));
     for (const s of r.songs) table.append(songRow(s, s));
     page.append(h('section.dv-section', null, h('h3', null, h('span', { text: 'Songs' }), selAll), table));
@@ -662,14 +662,14 @@ async function loadArtist({ fresh = false } = {}) {
 function renderArtist(page) {
   const v = state.view.artist || {};
   const back = btn(state.view.from === 'gaps' ? 'Collection gaps' : state.view.from === 'wanted' ? 'Wanted' : 'Search', {
-    cls: 'ghost small back',
+    cls: 'soft small back',
     iconName: 'chevronLeft',
     onClick: () => open(state.view.from || 'search'),
   });
   page.append(back);
   const p = D.page;
   if (D.loadingArtist || !p) {
-    page.append(h('div.dv-artist', null, avatar(v.name || '?', 'lg'), h('div.dv-title', null, h('div.kicker', { text: 'Artist' }), h('h1', { text: v.name || 'Artist' }))));
+    page.append(h('div.dv-artist.card', null, avatar(v.name || '?', 'lg'), h('div.dv-title', null, h('div.kicker', { text: 'Artist' }), h('h1', { text: v.name || 'Artist' }))));
     const pr = D.progress && D.progress.kind === 'artist' ? D.progress : null;
     const line = h('div.dv-progress', null, h('div.spin'), h('span.label', { text: pr && pr.total ? `Reading albums from MusicBrainz… ${pr.done} of ${pr.total}${pr.title ? ` · ${pr.title}` : ''}` : 'Finding this artist on MusicBrainz…' }));
     const meter = h('div.progress', null, h('i'));
@@ -719,7 +719,7 @@ function renderArtist(page) {
   tools.append(
     seg,
     btn('Select all missing', {
-      cls: 'ghost',
+      cls: 'soft',
       disabled: !missingItems.length,
       onClick: () => {
         for (const it of missingItems) if (!it.wanted) D.sel.set(keyOf(it.artist, it.title), it);
@@ -731,7 +731,7 @@ function renderArtist(page) {
   );
   page.append(
     h(
-      'div.dv-artist',
+      'div.dv-artist.card',
       null,
       avatar(a.name, 'lg'),
       h(
@@ -759,7 +759,7 @@ function renderArtist(page) {
     const have = al.tracks.filter((t) => t.have).length;
     const miss = al.tracks.filter((t) => !t.have && !t.wanted).map((t) => ({ artist: a.name, title: t.title, album: al.title, year: al.year }));
     const selMiss = btn(miss.length ? `Select missing (${miss.length})` : 'Nothing to select', {
-      cls: 'small ghost',
+      cls: 'small soft',
       disabled: !miss.length,
       onClick: () => {
         for (const it of miss) D.sel.set(keyOf(it.artist, it.title), it);
@@ -767,7 +767,7 @@ function renderArtist(page) {
       },
     });
     const card = h(
-      'section.album',
+      'section.album.card',
       null,
       h(
         'div.album-head',
@@ -822,7 +822,7 @@ function renderGaps(page) {
   const unchecked = artists.filter((a) => a.status === 'unchecked' || a.status === 'error');
   const tools = [];
   if (running) {
-    tools.push(btn('Stop', { cls: 'ghost', onClick: () => api.discover.cancelGaps() }));
+    tools.push(btn('Stop', { cls: 'soft', onClick: () => api.discover.cancelGaps() }));
   } else {
     tools.push(
       btn(unchecked.length ? `Check ${plural(unchecked.length, 'artist')}` : 'Check again', {
@@ -852,7 +852,7 @@ function renderGaps(page) {
     meter.firstChild.style.width = `${running.total ? Math.round((running.done / running.total) * 100) : 0}%`;
     page.append(
       h(
-        'div.dv-banner.run',
+        'div.dv-banner.card.run',
         null,
         h('div.spin'),
         h('div.grow', null, h('b', { text: `Checking ${running.current || '…'}` }), h('span', { text: ` · ${running.done} of ${running.total} artists${pr && pr.total ? ` · album ${Math.min(pr.done + 1, pr.total)} of ${pr.total}` : ''}` }), meter),
@@ -862,7 +862,7 @@ function renderGaps(page) {
   } else if (unchecked.length && !checked.length) {
     page.append(
       h(
-        'div.dv-banner',
+        'div.dv-banner.card',
         null,
         h('span.ic', { html: icon('info') }),
         h('div.grow', null, h('b', { text: `${plural(unchecked.length, 'artist')} to check. ` }), h('span', { text: `MusicBrainz allows one request a second, so this takes about ${Math.max(1, Math.round((unchecked.length * 12) / 60))} min. Keep using Stagehand meanwhile; results are saved.` }))
@@ -923,7 +923,7 @@ function renderGaps(page) {
   else if (D.gapsSort === 'complete') rows.sort((a, b) => rank(a) - rank(b) || (a.total ? a.have / a.total : 1) - (b.total ? b.have / b.total : 1) || byName(a, b));
   else rows.sort((a, b) => rank(a) - rank(b) || (b.missing || 0) - (a.missing || 0) || byName(a, b));
 
-  const table = h('div.dv-table.gaps');
+  const table = h('div.dv-table.gaps.card');
   table.append(h('div.gap-row.head', null, h('div'), h('div', { text: 'Artist' }), h('div', { text: 'You have' }), h('div', { text: 'Complete' }), h('div', { text: 'Missing' }), h('div')));
   for (const a of rows) table.append(gapRow(a, running));
   if (!rows.length) table.append(h('div.dv-none', { text: 'No artists match this filter.' }));
@@ -931,7 +931,7 @@ function renderGaps(page) {
 }
 
 function stat(n, label) {
-  return h('div.stat', null, h('b', { text: n }), h('span', { text: label }));
+  return h('div.stat.card', null, h('b', { text: n }), h('span', { text: label }));
 }
 
 function gapRow(a, running) {
@@ -983,13 +983,13 @@ function renderWanted(page) {
   const found = D.wanted.filter((w) => w.status === 'found');
   const tools = [
     D.run ? null : btn('Get songs', { cls: 'primary', iconName: 'download', disabled: !left.length, onClick: () => startRun(), title: 'One after another: Stagehand copies each song for CustomsForge’s search and imports what you download' }),
-    btn('Find next', { cls: 'ghost', iconName: 'external', disabled: !left.length, onClick: () => findNext(), title: 'Copies the next song and opens CustomsForge in your browser' }),
-    btn('Copy list', { cls: 'ghost', iconName: 'copy', disabled: !left.length, onClick: () => copyList(left) }),
+    btn('Find next', { cls: 'soft', iconName: 'external', disabled: !left.length, onClick: () => findNext(), title: 'Copies the next song and opens CustomsForge in your browser' }),
+    btn('Copy list', { cls: 'soft', iconName: 'copy', disabled: !left.length, onClick: () => copyList(left) }),
   ].filter(Boolean);
   if (found.length) {
     tools.push(
       btn('Clear found', {
-        cls: 'ghost',
+        cls: 'soft',
         onClick: async () => {
           D.wanted = await api.discover.clearFound();
           emit('discover-wanted');
@@ -1001,7 +1001,7 @@ function renderWanted(page) {
   const subText = D.wanted.length ? `${plural(left.length, 'song')} to find${found.length ? ` · ${found.length} found` : ''}` : 'Songs you want to get, collected from Search and Collection gaps.';
   page.append(head('Wanted', subText, tools, { kicker: 'Discover' }));
   const bar = runBar();
-  if (bar) page.append(bar);
+  if (bar) page.append((bar.classList.add('card'), bar));
   else page.append(howItWorks());
   if (!D.wanted.length) {
     page.append(
@@ -1025,7 +1025,7 @@ function renderWanted(page) {
     const n = items.filter((w) => w.status === 'wanted').length;
     const name = h('button.dv-link', { type: 'button', text: artist, title: `Open ${artist}` });
     name.onclick = () => openArtist({ name: artist }, 'wanted');
-    const grp = h('section.want-group', null, h('div.want-head', null, avatar(artist, 'sm'), h('h3', null, name), h('span.muted', { text: n ? `${n} to find` : 'All found' })));
+    const grp = h('section.want-group.card', null, h('div.want-head', null, avatar(artist, 'sm'), h('h3', null, name), h('span.muted', { text: n ? `${n} to find` : 'All found' })));
     for (const w of items) {
       const row = h(`div.want-row${w.status === 'found' ? '.found' : ''}`);
       const when = seen[keyOf(w.artist, w.title)];
@@ -1070,7 +1070,7 @@ function renderWanted(page) {
 function howItWorks() {
   const st = D.imports;
   const watching = st && st.watch;
-  const box = h('div.how');
+  const box = h('div.how.card');
   const steps = h(
     'ol.how-steps.cols4',
     null,
@@ -1135,7 +1135,7 @@ function renderImports(page) {
   // 4.0: songs already on this PC, outside the library
   page.append(findOnPcCard());
   // Settings
-  const card = h('section.imp-card');
+  const card = h('section.imp-card.card');
   const watch = h('input.toggle', { type: 'checkbox', 'aria-label': 'Watch for downloads' });
   watch.checked = st.watch;
   watch.onchange = () => configure({ watch: watch.checked });
@@ -1177,7 +1177,7 @@ function renderImports(page) {
     const n = st.waiting.length;
     page.append(
       h(
-        'div.dv-banner',
+        'div.dv-banner.card',
         null,
         h('span.ic', { html: icon('download') }),
         h('div.grow', null, h('b', { text: `${plural(n, 'song file')} ${n === 1 ? 'is' : 'are'} already in ${shortPath(st.watchDir)}. ` }), h('span', { text: st.waiting.slice(0, 3).map((w) => w.name).join(', ') + (n > 3 ? ` and ${n - 3} more` : '') })),
@@ -1198,7 +1198,7 @@ function renderImports(page) {
     const waiting = st.pending.some((p) => p.state === 'waiting');
     page.append(
       h(
-        'div.dv-banner',
+        'div.dv-banner.card',
         null,
         h('span.ic', { html: icon('clock') }),
         h('div.grow', null, h('b', { text: `${plural(count, 'song')} waiting to go into ${names}. ` }), h('span', { text: waiting ? 'Close Rocksmith and Stagehand adds them.' : 'Adding them now…' })),
@@ -1224,7 +1224,7 @@ function renderImports(page) {
   if (!hist.length) {
     sec.append(h('div.dv-none', { text: 'Nothing imported yet.' }));
   } else {
-    const list = h('div.imp-list');
+    const list = h('div.imp-list.card');
     for (const e of hist) list.append(importRow(e));
     sec.append(list);
   }
@@ -1310,7 +1310,7 @@ function importRow(e) {
 
 /** "Find songs on this PC": looks in Downloads and the import folder. */
 function findOnPcCard() {
-  const card = h('section.imp-card.find-pc');
+  const card = h('section.imp-card.card.find-pc');
   const res = D.pcScan;
   const go = btn(res && res.busy ? 'Looking…' : 'Look for songs', { cls: 'small', iconName: 'search', disabled: !!(res && res.busy), onClick: () => scanPC({ show: true }) });
   card.append(setting('Find songs on this PC', 'Looks in your Downloads folder (and your import folder) for song files (<b>.psarc</b>) that aren’t in your library yet. Songs somewhere else: drop the folder on Stagehand.', [go]));

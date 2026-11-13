@@ -116,6 +116,14 @@ progress if you start splitting another song", "get rid of the flickering, and l
   stems when they're in (`mixSplitMoved()` in highway.js; checked in stems-audit.js).
   **Ask:** is the end of a split smoother now, and does the app still flicker while splitting?
 
+**Highway: Tools and Settings sit together in the top bar** (asked: "weird that we have the sound settings menu
+and the tools thing hovering right next to it"). The vertical "Sound & settings" tab on the right edge is gone and
+Tools no longer floats under the bar: both are the last two buttons of the top bar (Tools ⌄, then **Settings**,
+sliders icon). Settings opens the same panel, which drops down under the bar at the right and slides fully away
+when closed. `highway.js` (`mixBtn` `.hw-set-btn`, appended after `createPerformanceTools`, which now puts its
+`.hw-tools` row into `top`); `stagechrome.css` (static `.hw-tools` in the bar, collapsed dock hidden); hidden in the
+timing check (v3.css). Tests click `.hw-set-btn` now. **Ask:** is that easier to find and less cluttered?
+
 **The song finder (asked: "would it be easier if Stagehand had its own little browser that didn't allow for
 much browsing, but could automatically type into the search bar for you? … one of the biggest hurdles is
 there's not seamless integration").**

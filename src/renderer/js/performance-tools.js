@@ -8,10 +8,10 @@ import { h, toast, isTyping, showMenu, icon } from './ui.js';
 import { scoreHit } from './performance-math.js';
 import { createClipRecorder } from './take-video.js';
 
-export function createPerformanceTools({ root, stage, H, rig }) {
+export function createPerformanceTools({ root, top, stage, H, rig }) {
   const eng = stage.engine;
   const row = h('div.hw-tools');
-  root.append(row);
+  (top || root).append(row); // 4.12: in the top bar, beside Settings
   // stand-ins for the old buttons: they keep their text/pressed state, the menu reads it
   const button = (text, title, fn) => {
     const b = h('button.hw-chip', { type: 'button', text, title });

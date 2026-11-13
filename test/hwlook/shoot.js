@@ -351,7 +351,7 @@ const srv = http.createServer((req, res) => {
     await page.waitForTimeout(play === 'p' ? 2600 : 2200);
     if (process.env.TUNER) { await page.keyboard.press('u'); await page.waitForTimeout(300); }
     if (process.env.CARD) { await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.showCard(); }); await page.waitForTimeout(Number(process.env.CARD_WAIT || 0)); }
-    if (process.env.MASTER) { await page.evaluate(() => document.querySelector('.hw-dock.collapsed .hw-dock-tab') && document.querySelector('.hw-dock-tab').click()); await page.waitForTimeout(500); }
+    if (process.env.MASTER) { await page.evaluate(() => document.querySelector('.hw-dock.collapsed') && document.querySelector('.hw-set-btn').click()); await page.waitForTimeout(500); }
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `${scene}_${(file||'').replace('.json','')}_${t}${play === 'p' ? 'p' : ''}${hits || ''}.png`) });
     console.log('shot', spec);

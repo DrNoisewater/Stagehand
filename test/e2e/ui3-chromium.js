@@ -1036,11 +1036,11 @@ class FakePortMain extends EventEmitter {
     await shot('6e-highway');
     await page.evaluate(() => (document.querySelector('.highway').__hw.forceStreak = undefined));
   }
-  await page.locator('.hw-dock-tab').click();
+  await page.locator('.hw-set-btn').click();
   await page.waitForTimeout(600);
   check((await page.locator('.hw-level').count()) === 2, 'highway mix shows Your guitar and Whole song above the stems');
   await shot('6f-highway-mix');
-  await page.locator('.hw-dock-tab').click();
+  await page.locator('.hw-set-btn').click();
   await page.waitForTimeout(300);
   await page.keyboard.press('d');
   await page.waitForTimeout(500);

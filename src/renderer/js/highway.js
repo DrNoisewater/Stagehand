@@ -145,13 +145,12 @@ export function createHighway(stage) {
   const guitarBtn = h('button.hw-rig-mute', { type: 'button' });
   const toneBtn = h('button.hw-chip.hw-rig-tone', { type: 'button', title: 'Tone for your guitar' });
   const rigBox = h('div.hw-rig', null, guitarBtn, toneBtn);
-  const mixBtn = h('button.hw-chip', { type: 'button', title: 'Song mix: stem volumes, on and off', html: `${icon('sliders')}<span>Mix</span>` });
-  // The song mix docks on the right edge and collapses to a small tab.
+  // 4.12: Sound & settings opens from a button at the end of the top bar, next to Tools
+  // (it was a tab on the right edge, with Tools floating beside it)
+  const mixBtn = h('button.hw-chip.hw-set-btn', { type: 'button', title: 'Sound & settings: the mix, Drop and tuning, timing, how the highway looks', 'aria-label': 'Sound and settings', html: `${icon('sliders')}<span>Settings</span>` });
   const mixPanel = h('div.hw-mix');
-  const mixTab = h('button.hw-dock-tab', { type: 'button', title: 'Sound & settings: the mix, Drop and tuning, timing, how the highway looks', 'aria-label': 'Sound and settings' });
-  const dock = h('div.hw-dock', null, mixTab, mixPanel);
+  const dock = h('div.hw-dock', null, mixPanel);
   let mixOpen = !!prefs.mixOpen;
-  // the Mix button doubled the tab on the right edge: the tab opens the mix now
   const score = h('div.hw-score');
   // the score sits up top (as in the game), leaving the fret numbers under the neck clear
   // switch straight to the Tab or Waveform view of the same song (Back goes to your songs)
@@ -208,6 +207,7 @@ export function createHighway(stage) {
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
   window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on && !sing.karaoke ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave() };
   const extras = createPerformanceTools({root,top,stage,H,rig});
+  top.append(mixBtn); // after Tools: the last thing in the top bar
   const practiceCheckpoint = () => window.__shPractice && window.__shPractice.checkpoint();
   const ctx = canvas.getContext('2d');
   const R3 = createRenderer3D(glCanvas);
@@ -907,8 +907,7 @@ export function createHighway(stage) {
     save();
     dock.classList.toggle('collapsed', !on);
     mixBtn.setAttribute('aria-pressed', String(on));
-    mixTab.setAttribute('aria-expanded', String(on));
-    mixTab.innerHTML = `${icon(on ? 'chevronRight' : 'chevronLeft')}<span>Sound &amp; settings</span>`;
+    mixBtn.setAttribute('aria-expanded', String(on));
     if (!on && typeof hwTuner !== 'undefined') hwTuner.hide(); // closed: stop listening
     if (typeof syncDropPop === 'function') syncDropPop();
     else if (on && tunerOn && H.open) hwTuner.show();
@@ -941,7 +940,6 @@ export function createHighway(stage) {
     tunerSec.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   };
   mixBtn.onclick = () => setMixOpen(!mixOpen);
-  mixTab.onclick = () => setMixOpen(!mixOpen);
   setTimeout(() => setMixOpen(mixOpen));
   const mixMeters = new Map();
   function renderMix() {

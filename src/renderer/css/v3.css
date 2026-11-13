@@ -803,7 +803,7 @@ body:has(> .highway:not([hidden])) .stem-wait { display: none; }
 .hw-sync-eyebrow { font: 700 11px var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
 /* The timing check is a song on the highway: only what it needs shows, and a bar says what to do */
 .highway.hw-training .hw-views, .highway.hw-training .hw-parts, .highway.hw-training .hw-transport,
-.highway.hw-training .hw-sections, .highway.hw-training .hw-dock, .highway.hw-training .hw-tools-btn,
+.highway.hw-training .hw-sections, .highway.hw-training .hw-dock, .highway.hw-training .hw-tools-btn, .highway.hw-training .hw-set-btn,
 .highway.hw-training .hw-tool-live, .highway.hw-training .hw-card, .highway.hw-training .hw-rep-bar, .highway.hw-training .hw-speed-chip { display: none !important; }
 .hw-trainbar { position: absolute; left: 50%; top: 74px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); padding: 8px 10px 8px 14px; border-radius: 999px; background: rgba(12, 16, 26, 0.82); border: 1px solid rgba(255, 181, 71, 0.4); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); color: var(--ink-2); font: 500 13px var(--font); white-space: nowrap; }
 .hw-trainbar b { color: var(--tungsten-hi); font-weight: 800; }

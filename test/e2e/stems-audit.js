@@ -66,7 +66,7 @@ module.exports = async ({ page, outDir, check, stemHold }) => {
   await page.waitForTimeout(1500);
   await send({ songId: a.id, state: 'running', progress: 0.3 });
   await page.waitForTimeout(200);
-  if (!(await page.locator('.highway .hw-mix-note[data-split]').count())) await page.locator('.highway .hw-dock-tab').click();
+  if (!(await page.locator('.highway .hw-mix-note[data-split]').count())) await page.locator('.highway .hw-set-btn').click();
   await page.waitForTimeout(500);
   const m1 = await page.evaluate(() => { const n = document.querySelector('.highway .hw-mix-note[data-split]'); if (n) n.__mark = 1; return n ? n.textContent : ''; });
   check(/30%/.test(m1), `the highway's Sound & settings shows the split: “${m1}”`);

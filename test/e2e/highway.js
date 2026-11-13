@@ -147,10 +147,10 @@ const check = (cond, what) => {
   check(v === '0.3', `vocals volume set to ${v}`);
   await shot(page, 'h6-mix');
   await page.click('.hw-mix-row:has-text("Drums") .hw-mix-on');
-  await page.click('.hw-dock-tab');
+  await page.click('.hw-set-btn');
   await wait(500);
-  const box = await page.evaluate(() => [document.querySelector('.hw-dock').classList.contains('collapsed'), Math.round(document.querySelector('.hw-mix').getBoundingClientRect().left), window.innerWidth, Math.round(document.querySelector('.hw-dock-tab').getBoundingClientRect().right)]);
-  check(box[0] && box[1] >= box[2] - 2 && box[3] === box[2], `mix collapses to the right edge (${box.join(', ')})`);
+  const box = await page.evaluate(() => [document.querySelector('.hw-dock').classList.contains('collapsed'), Math.round(document.querySelector('.hw-mix').getBoundingClientRect().left), window.innerWidth, getComputedStyle(document.querySelector('.hw-dock')).visibility]);
+  check(box[0] && box[1] >= box[2] - 2 && box[3] === 'hidden', `mix tucks away off the right edge (${box.join(', ')})`);
   await shot(page, 'h6b-mix-collapsed');
 
   // Every tone, on the bass part too
