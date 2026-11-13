@@ -46,6 +46,19 @@ export async function playAlong(id) {
   await loading;
 }
 
+/**
+ * Karaoke (from the Karaoke page): the song from the top, on the stage with
+ * the words only. The highway picks this up when it opens the song.
+ */
+export async function playKaraoke(id) {
+  const song = state.songs.get(id);
+  if (!song || !stageApi) return;
+  state.karaokeNext = id;
+  const cur = stageApi.current && stageApi.current();
+  if (cur && cur.id === id && stageApi.engine && stageApi.engine.seek) stageApi.engine.seek(0); // from the top
+  await playAlong(id);
+}
+
 /** Says why a song can't play: its file has no song audio inside. */
 export function noAudioToast(song) {
   toast({

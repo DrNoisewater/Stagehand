@@ -1,3 +1,185 @@
+# 4.12.0 — Sing along and Karaoke, an add-on: a Sing chip on the highway, any microphone, three levels (2026-11-13)
+
+User: "check the handoff for the new singing ability" and go ahead (the plan was `docs/vocals-handoff.md`, written
+on 2026-11-12: singing is an add-on, guitar comes first, off until switched on). Built from that plan in one session.
+
+**NOT TRIED WITH A REAL MICROPHONE OR A REAL VOICE.** Everything below is checked in Chromium with a pretend
+microphone (a tone that follows the song's notes) on a made-up song. **Ask first:** does the microphone open while
+Stagehand holds the speakers in its fastest mode (it should: an input is a different device)? How do the three
+levels feel? Bars or Words? Speakers or headphones (the microphone hears the speakers)?
+
+**Done:**
+- **Off until pressed.** A **Sing** chip beside Lead / Rhythm / Bass on the highway, shown only when the song has
+  lyrics. Off: nothing is opened, read or drawn; the lyrics look as before. On (remembered per song,
+  `localStorage stagehand.sing`): the lyrics give way to the singing lane, the microphone opens; closing the
+  highway or switching Sing off lets the microphone go. Pressing the lit chip opens its menu: Easy / Medium / Hard,
+  Take the singer out of the song (the vocals stem's switch), Microphone, Look, Stop singing.
+- **What to sing** (`src/renderer/js/sing.js`, pure; `tabs.js _lyrics` now keeps each syllable's note as `p`):
+  the chart's own notes when at least 60 % of syllables have one (official songs); otherwise the notes are **read
+  off the vocals stem** when the song has stems (`vocal-pitch.js` + `workers/vocal-pitch-worker.js`: the tuner's
+  pitch tracker, the middle note of each syllable; done once, the last 30 songs kept in
+  `localStorage stagehand.singNotes`); otherwise **timing only** (any voice at the right time counts). A small
+  label under the lane says which: "Notes from the recording" / "Timing only".
+- **Scoring** (`SingJudge`): any octave counts; a syllable counts when your voice was on its note for a share of
+  its length: Easy within 250 cents for 40 %, Medium 120 / 55 %, Hard 60 / 70 %; 150 ms early or late allowed. A
+  line is good at 70 % of its syllables; good lines in a row are the streak; a perfect line turns gold.
+- **The microphone** (`mic.js`): the page listens (no change to the sound engine, no rebuild); any input except the
+  Rocksmith cable (left out by name; if Windows hands over the cable, the next microphone is used). The voice is
+  **not** played through Stagehand. Settings › Guitar & audio › **Microphone for singing**: picker, level meter,
+  Try it (20 s).
+- **The lane** (`singlane.js`, `.hw-sing` in v3.css; a 2D overlay where the lyrics sit, nothing added to the 3D
+  scene): **Bars** (a bar per syllable placed by note, words under them, a now line, a dot with a tail for your
+  voice, bars fill cyan as you hold them, the score and streak top right, a mic level bar at the left) and
+  **Words** (the lyrics as before, words turn cyan when sung right, a small meter: dot in the middle = on the
+  note). Picked in the chip's menu or Settings › Appearance › Pick your look › Singing.
+- **Score card:** a singing line under the guitar's numbers; when the guitar wasn't scored, a card of its own.
+- **Stats:** a run is logged as part `vocals` (seconds sung, syllables, accuracy; `stats.best()` keeps
+  `vocals` apart: the song's overall best stays about playing). Levels count it like any part (XP for the time and
+  the score; own mastery record, shown as "Singing" in Progress). Playing and singing at once logs both.
+- **Tests:** `test/sing.test.mjs` (10, in npm test: perfect singer, octave down, 80 cents sharp, late, silence,
+  talking, jumping back, notes off a made-up recording within 30 cents). In the browser:
+  `SING=1|stem|words PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5` (the chart's notes / notes
+  read off a made-up vocals stem / timing only): no microphone before Sing is pressed, sung lines count, a skipped
+  line doesn't, the card and the stats get it, off lets the microphone go; writes sing-0…4.png.
+
+**Karaoke (asked mid-session: "we might as well just have a karaoke mode as well").** The same singing with the
+stage to yourself. (First on the Sing chip as a choice; moved to its own page on the left right after, see below.)
+- In karaoke the neck and notes are not drawn (the venue stays), the lane goes big in the middle (`data-k` on
+  `.hw-sing`; the Bars look uses the `BIG` sizes in `singlane.js`, the Words look is bigger by CSS), the guitar is
+  not listened to or scored (`sing.karaoke` gates `listen()`, the judge's tick, the score card and what
+  `practice.js` logs), and the top score is hidden (`.highway.hw-karaoke`). The song ends on the singing card.
+- The singer is taken out of the song by itself when the song has been split (the vocals stem is muted, and put
+  back when karaoke ends, only if karaoke was what muted it). A song that isn't split says so in the lane's badge.
+- The guitar's own sound is untouched: you can still strum through the rig while singing.
+- Checked: `SING=karaoke … shoot.js` (karaoke on: no guitar score, singer out, big lane; singing card at the end;
+  leaving it puts the neck and the singer back). **Ask:** should the guitar go quiet in karaoke?
+
+**The lane goes up top (asked right after: "up top kind of like in the other rock band games, something that
+shows you what pitch you're supposed to be singing at any given time").** The lane now runs across the top of the
+highway, centred (`.hw-sing`, 82% of the width; bigger in karaoke, also up top, not mid-stage). You sing at a line
+near its left end (`nowX` 20%), bars scroll in from the right. New in the Bars look: faint lines for each note, and
+a pointer on the line at the height of the note to sing now, with its name (A, C♯…); between words it waits,
+dimmer, at the next note. **Ask:** is this the picture they had in mind (height, how far ahead it shows)?
+
+**Karaoke moves to the left menu (asked: "karaoke should be a main item on the left screen, because when you
+click it on the highway, it should always be the scored version").** So:
+- **Karaoke** is a page on the left (`karaoke.js`, `#page-karaoke`, between Songs and Tones): every song with a
+  vocals part as covers, a search box, Easy/Medium/Hard (shared with the highway), the microphone (opens
+  Settings), your best singing score per song. Picking a song plays it from the top on the highway as karaoke
+  (`actions.playKaraoke` sets `state.karaokeNext`; the highway's `open()` calls `sing.setKaraoke(true)`). Back (or
+  the chip's "Leave karaoke") returns to the Karaoke page (`stage.goBack` honours `state.backPage`).
+- Karaoke is for that visit only; it isn't remembered for the song. The **Sing** button on the highway is now
+  always singing scored beside your guitar part (no Karaoke choice in its menu any more).
+- Checked: `test/e2e/sing-audit.js` (the page lists songs with words, search narrows, a pick opens karaoke, Back
+  returns to it).
+
+**A makeover to match the stage (asked: "rock star vibes same as guitar vibes").** The lane is now a road case
+like the highway's cards (the same panel and screws, a gold rim), with a strip of tape on it saying VOCALS or
+KARAOKE; words in the bold condensed lettering with a hard black shadow (as the song title and score), cream
+ink, the word to sing now in a warm spotlight; the now line is a gold stage-light beam; the pointer and note
+name are gold (typewriter letters); the score is big condensed numbers with SUNG under; the microphone meter
+is a green-amber-red LED meter (also in the Words look). Sung right stays the vocals colour (cyan), a perfect
+line turns gold. The Sing chip pressed is gold like the other pressed buttons. Hard shadows are drawn as a
+second black copy of the text, not with the canvas shadow (much cheaper to draw).
+The browser check now starts the song at 0 s (2.5 s before the first word): this container draws slowly for a
+moment after the song starts and lost the first line otherwise.
+**Ask:** does it look like part of the same app now?
+
+**Flashing when opening menus on the highway (reported 2026-11-13, while the song runs, "kind of random", solid
+165+ fps).** Not reproduced: this container has no graphics card (software drawing, ~15 fps). First guess, done:
+panels floating over the running highway blurred the picture behind them (`backdrop-filter` on `.hw-opts`,
+`.hw-card`, `.speed-pop`, `.rep-bar`, `.modal-backdrop`); on Windows that blur over a canvas redrawn at high
+refresh rates can flicker. It is switched off while the highway shows (end of v3.css); the panels are 92–97%
+solid so they look the same. **Ask:** is it gone? If not: which menus, and what flashes (the whole screen black,
+the highway, the menu itself)? Next suspect: Windows moving the full-screen picture on and off its fast path
+when anything covers it (would need a Chromium switch in main.js, only worth trying on their PC).
+
+**Stem splitting: progress, flicker, the slow end (asked: "the stem splitting sometimes doesn't show you the
+progress if you start splitting another song", "get rid of the flickering, and lag when it's wrapping up").**
+- A song waiting in line used to say only "Waiting" everywhere, so a split of another song looked stuck. Now
+  every waiting message says which song goes first and how far it has got ("Splitting “Hysteria” first · 43%.
+  This one is next."): the song panel on the right (button "In line" and a line under it), Now playing's mix
+  tab, the song's page, the highway's waiting card (`splitFirst()` in store.js).
+- A song you ask to split now goes before songs split ahead on a hunch (picked in the list): it used to wait
+  behind up to three of them (`_askedEnd()` in stems.js; checked in `test/stems-queue.test.js`).
+- Flicker: the whole left menu was rebuilt each time a split started, finished, or a picked song joined the
+  line; the song panel too; Now playing's mix tab on every progress tick of any song. Now the menu only
+  rebuilds when its Stems ready count changes, the panel only changes its button and line, the mix tab only
+  its words and bar (and rebuilds only for the open song), list rows only cells that changed.
+  Checked: `SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>`.
+- The slow end: the last step (back to the song's sample rate and writing the files) ran on every core even
+  after the graphics card did the splitting. Now it runs on the card when the card split it, and on half the
+  cores at most (`engine/stagehand_stems.py`, "Writing stems"). Not run here (no PyTorch in this container).
+- The highway's Sound & settings (the menu on the right) wrote the split's number once when it opened, so it
+  sat still and then the stems suddenly appeared ("it just stalls but then finishes"). It now has a bar and
+  moves with the split (and the time left), names the song split first when this one is in line, and shows the
+  stems when they're in (`mixSplitMoved()` in highway.js; checked in stems-audit.js).
+  **Ask:** is the end of a split smoother now, and does the app still flicker while splitting?
+
+**Highway: Tools and Settings sit together in the top bar** (asked: "weird that we have the sound settings menu
+and the tools thing hovering right next to it"). The vertical "Sound & settings" tab on the right edge is gone and
+Tools no longer floats under the bar: both are the last two buttons of the top bar (Tools ⌄, then **Settings**,
+sliders icon). Settings opens the same panel, which drops down under the bar at the right and slides fully away
+when closed. `highway.js` (`mixBtn` `.hw-set-btn`, appended after `createPerformanceTools`, which now puts its
+`.hw-tools` row into `top`); `stagechrome.css` (static `.hw-tools` in the bar, collapsed dock hidden); hidden in the
+timing check (v3.css). Tests click `.hw-set-btn` now. **Ask:** is that easier to find and less cluttered?
+
+**The song finder (asked: "would it be easier if Stagehand had its own little browser that didn't allow for
+much browsing, but could automatically type into the search bar for you? … one of the biggest hurdles is
+there's not seamless integration").**
+- `src/main/services/finder.js` + `src/main/finder/bar.html` (+ `bar-preload.js`): a Stagehand window with
+  CustomsForge in it (its own sign-in kept, `persist:customsforge`) and a bar on top: Back/Forward/Reload,
+  LOOKING FOR the wanted song, **Find**, **Next song**, a message line, My browser, Done.
+- **Find** puts the song in the site's search box (the first visible search field) and presses Enter, once per
+  press (also when the window first opens or moves to the next song). It never reads results, never clicks
+  anything on the site and never downloads by itself. Also copied, for Ctrl+V. If no box is found (signed
+  out), the bar says so. **Not tried on the real site** (this container can't reach customsforge.com): ask
+  whether Find lands in Ignition's search box.
+- Downloads in the window: .psarc and .zip go straight into the library (`importer.importFiles`, origin
+  `finder`), which ticks the song off Wanted; anything else (.rar, .7z) goes to Downloads with a note.
+- The window only shows CustomsForge and the file sites songs are shared on (Google Drive, Dropbox, MediaFire,
+  MEGA, OneDrive, Box, GitHub, Discord, Patreon: `HOSTS`); other links open in the user's browser.
+- The site sees a plain Chrome (the Electron/Stagehand words are taken out of its user agent) so sign-in checks
+  don't trip on it.
+- Earlier rule ("never automate CustomsForge", 4.0.4) is relaxed only this far: typing one search when the user
+  presses Find, like autofill. Still no scraping, no automatic downloads.
+- Checked: `ELECTRON=<electron 44> xvfb-run -a node test/e2e/finder-electron.js <out>` (a pretend song site:
+  Find searches, a link elsewhere stays out, a .psarc lands in the songs folder and library, a .rar goes to
+  Downloads), `test/finder.test.js` (which sites are allowed; in npm test).
+- **Hooked into Discover** (`discover.js`: `hasFinder`, `openFinder`, `explainFinder`): every Find button,
+  Find next and Get songs open the song finder instead of copying the song and opening the browser (the old
+  way stays as a fallback when the finder can't open). The first time, a short box explains it
+  (`stagehand.finderExplained`). Get songs: each download moves the finder on to the next wanted song; the
+  finder's Next song skips (or, without Get songs, looks for the next wanted song), its Stop ends the run.
+  The run bar has "Show the finder" instead of Copy again / Open CustomsForge; texts no longer say Ctrl+V.
+
+**Gear page: a spec sheet under every piece's knobs** (asked: "add the real life description of every piece of gear
+and pedal … the bottom half of the right side is unused … when you hover over a knob the tooltip isn't easy to read").
+`js/gearabout.js` (`loadAbout`, `aboutCard`) + `data/gear-about.json` (221 pieces; cabinets by family). A cream card
+taped under the controls: "Modelled on <real gear>" (or "Probably based on" when the match is a community guess,
+`guess: true`), 2–3 plain sentences, then every knob (or, on cabinets, every mic and mic knob) with the same words
+as the tooltips, readable. Real names: 45 of 221; the rest of Rocksmith's made-up names (AT-120, GB-412, Buzz 1…)
+had no reliable source (customsforge.com, the main fan list, is blocked here), so they describe the sound only.
+**Ask:** does any real name look wrong to you, and are there ones you know that are missing?
+Checked: `test/gear-about.test.js` (every piece has words; in npm test), `SH_AUDIT=test/e2e/gear-about-audit.js
+node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>` (writes gear-about-*.png).
+
+**Discover restyled** (asked: "the discover page has been left behind and doesn't have the same look"):
+`css/discover.css` (loaded last, scoped to `#app #discover`): left-aligned like Songs, the heavy uppercase titles,
+typewriter labels and tags, square sticker placeholders, gold/brass completion bars, house `card` boxes,
+bordered secondary buttons; Roadshow gets the flight-case background. Only class names changed in
+`discover.js`. Checked: `SH_AUDIT=test/e2e/discover-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>`
+(made-up search results, artist, gaps, Wanted; writes discover-*.png). **Ask:** does Discover feel like the rest now?
+
+**Not done / open:**
+- Only on the highway. The Tab view and Now playing don't have the lane yet (the plan wanted it above the tab).
+- The voice through Stagehand (hearing yourself with reverb, the voice in recorded clips): needs the sound engine
+  (`io_wasapi.c`, a second input), see `docs/vocals-handoff.md` › Later. Duets, harmony lines: not started.
+- Tuning after the user has sung: `MIC_DELAY` (60 ms, singlane.js), the three levels' numbers (`SING_LEVELS`),
+  the voice gate (`mic.js`: level 0.006, clarity 0.55), and how well notes read off real stems (backing vocals).
+- Singing counts toward XP on top of guitar time when both happen at once: ask whether that feels right.
+- 4.12.0 is on branch `ccr-1f2fac6e-bvgvp7`, not merged or released.
+
 # 4.11.0 — official songs find their audio (songs.psarc), every pedal checked, tidier cables, tuner everywhere with two looks, hit burst (2026-11-12)
 
 User (after 4.10's board; from a phone, PC not linked): paid Rocksmith DLC says "contains no audio" ("that is
@@ -1093,7 +1275,8 @@ Stagehand is a Windows desktop app (Electron 44.1.0) for Rocksmith 2014 `.psarc`
 - stem separation through Demucs (Python, GPU when available)
 - in-game Rocksmith song lists (up to 20, renamable)
 - **Discover**: MusicBrainz search, artist pages, collection gaps, a Wanted list, and a CustomsForge hand-off
-  - The hand-off copies the search text and opens the browser. **Never automate CustomsForge**; their rules forbid bots.
+  - The hand-off copies the search text and opens the browser; 4.12's song finder types one search when you press
+    Find (see 4.12). Still never scrape CustomsForge or download from it automatically; their rules forbid bots.
 - Downloads auto-import (watches the Downloads folder for `.psarc` only; zips only by manual pick or drag-drop)
 - a **Tab view** (T key) with lyrics, play along, practice speed, string order and pages
 - a **Your guitar** amp rig and tuner on the Rocksmith Real Tone Cable

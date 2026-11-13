@@ -300,6 +300,8 @@ export function appearancePane(el) {
   };
   const tunerRow = pick('Tuner', 'U opens the tuner anywhere');
   import('./tuner.js').then(({ TUNER_LOOKS, tunerLook, setTunerLook }) => tunerRow(TUNER_LOOKS, tunerLook, setTunerLook)).catch(() => {});
+  const singRow = pick('Singing', 'Shown on the highway when Sing is on');
+  import('./singlane.js').then(({ SING_LOOKS, singLook, setSingLook }) => singRow(SING_LOOKS, singLook, setSingLook)).catch(() => {});
   const songsRow = pick('Songs');
   Promise.all([import('./store.js'), import('./library.js')]).then(([{ state }, { setSongLayout }]) => songsRow([['list', 'List', 'Rows with every detail'], ['grid', 'Tiles', 'Album covers']], () => (state.layout === 'list' ? 'list' : 'grid'), (v) => setSongLayout(v))).catch(() => {});
   el.append(h('p', { text: 'The highway’s venue and string order are in its Sound & settings panel (and Settings › Playback); Jam’s moving background is picked on the Jam page.' }));

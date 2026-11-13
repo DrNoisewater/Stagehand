@@ -1,0 +1,183 @@
+/* 4.12: Discover in the same look as the other pages (Songs, Tones, Progress, Karaoke).
+   Panels are the house .card (worn tolex in the Rehearsal Room, screwed road-case plates in
+   Roadshow), titles are the condensed heavy lettering, small labels are the typewriter, and the
+   old blue-grey rows, bars and selection bar are gone. Only the look changes here. */
+
+/* ----------------------------------------------------------------- the page */
+#app #discover { background:linear-gradient(#191714ee,#191714f5),url('../art/roadshow/flight-case.avif') center/950px; }
+html[data-look='opera'] #app #discover { background:radial-gradient(60% 40% at 20% 0%,#ffd9a00c,transparent 70%),var(--rr-stains),var(--rr-grain),linear-gradient(180deg,#121110,#0c0b0a); }
+#app #discover .dv-page { max-width:1320px; margin:0; padding:22px 26px 110px; }
+#app #discover .card { padding:16px 18px; }
+
+/* the page head: the same lettering as ALL SONGS, TONES, KARAOKE */
+#app #discover .dv-head { align-items:flex-end; gap:16px; margin-bottom:20px; padding:0; border:0; }
+#app #discover .dv-title .kicker { margin-bottom:4px; color:var(--sc-ink-3); font-family:var(--sc-mono); font-size:10.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
+#app #discover .dv-title h1 { font-size:34px; line-height:1.05; font-weight:900; font-stretch:64%; letter-spacing:.005em; text-transform:uppercase; color:var(--sc-ink); text-shadow:2px 2px 0 #000; padding-bottom:2px; }
+#app #discover .dv-title .sub { margin-top:6px; max-width:72ch; color:var(--ink-3); font-size:13px; }
+#app #discover .dv-title .sub b { color:var(--ink-2); }
+#app #discover .dv-tools { gap:8px; }
+
+/* section labels: like TODAY and YOUR KEYS */
+#app #discover .dv-section { margin-top:28px; }
+#app #discover .dv-section > h3 { margin:0 0 12px; font-size:14px; font-weight:800; font-stretch:78%; letter-spacing:.1em; text-transform:uppercase; color:var(--sc-ink); }
+#app #discover .dv-section > h3 .hint { font-size:12.5px; font-weight:500; font-stretch:100%; letter-spacing:0; text-transform:none; color:var(--ink-3); }
+#app #discover .dv-link:hover { color:var(--sc-gold-hi); }
+#app #discover .dv-link.small { font-family:var(--sc-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; font-stretch:100%; }
+#app #discover .fine { color:var(--ink-3); }
+#app #discover .dv-foot { font-family:var(--sc-mono); font-size:11px; letter-spacing:.02em; }
+#app #discover .back { margin:0 0 14px; text-transform:uppercase; letter-spacing:.06em; font-stretch:80%; }
+
+/* buttons that ask to be pressed: the gold/cream one stays the only bright one */
+#app #discover .btn.soft:not(.small) { height:34px; }
+
+/* --------------------------------------------------------- search: the start */
+#app #discover .dv-hero { padding:30px 24px 26px; color:var(--ink-2); }
+#app #discover .dv-hero .hero-icon { width:58px; height:58px; border-radius:3px; background:var(--sc-gold-soft); color:var(--sc-gold); border:1px solid #f1ce6855; box-shadow:3px 3px 0 #000; transform:rotate(-3deg); }
+#app #discover .dv-hero h2 { margin:18px 0 8px; font-size:24px; font-weight:900; font-stretch:66%; letter-spacing:.01em; text-transform:uppercase; color:var(--sc-ink); text-shadow:2px 2px 0 #000; }
+#app #discover .dv-hero p { color:var(--ink-3); }
+#app #discover .dv-hero b { color:var(--sc-ink); }
+
+/* artists: small cards, like the keys on Tones */
+#app #discover .artist-cards { gap:12px; }
+#app #discover :is(.artist-card,.choice) {
+  border-radius:3px; border:1px solid var(--sc-line-2); color:var(--ink);
+  background:linear-gradient(180deg,#25211d,#1b1815); box-shadow:0 2px 0 #000,inset 0 1px 0 #ffffff0a;
+}
+#app #discover :is(.artist-card,.choice):hover { border-color:#8a7a62; background:linear-gradient(180deg,#2e2924,#201c18); transform:translateY(-1px); }
+#app #discover :is(.artist-card,.choice) .name { font-weight:800; }
+#app #discover .artist-card .own { color:var(--ok); }
+html[data-look='opera'] #app #discover :is(.artist-card,.choice) { border-color:#2c2722; background:var(--rr-grain),linear-gradient(180deg,#1d1a17,#151311); box-shadow:0 2px 0 #000,inset 0 1px 0 #ffffff08; }
+html[data-look='opera'] #app #discover :is(.artist-card,.choice):hover { border-color:#4a4239; }
+
+/* letters for an artist or album with no picture: a square sticker, not a glowing ball */
+#app #discover .avatar {
+  border-radius:3px; color:#fff; font-weight:900; font-stretch:72%; font-size:17px; letter-spacing:.02em; text-shadow:1px 1px 0 #000;
+  background:linear-gradient(150deg,color-mix(in srgb,var(--gel) 70%,#2a2622),color-mix(in srgb,var(--gel) 30%,#141210) 85%);
+  box-shadow:0 0 0 1px #000,2px 3px 0 #0009,inset 0 1px 0 #ffffff26;
+}
+#app #discover .avatar.sm { font-size:13px; }
+#app #discover .avatar.lg { width:96px; height:96px; font-size:40px; transform:rotate(-2deg); box-shadow:0 0 0 1px #000,4px 5px 0 #0009,inset 0 1px 0 #ffffff26; }
+#app #discover .cover { border-radius:2px; font-weight:900; font-stretch:72%; font-size:24px; text-shadow:1px 1px 0 #000; box-shadow:0 0 0 1px #000,3px 4px 0 #0009; }
+#app #discover .cover:not(.has-img) { background:linear-gradient(150deg,color-mix(in srgb,var(--gel) 55%,#2a2622),#16130f 85%); }
+
+/* completion bars: gold on the case, brass stripes in the rehearsal room */
+#app #discover .meter { height:6px; border-radius:1px; background:#0b0a09; box-shadow:inset 0 1px 2px #000,0 0 0 1px #2f2a25; }
+#app #discover .meter > i { border-radius:0; background:linear-gradient(90deg,#d9ad48,var(--sc-gold)); }
+#app #discover .meter.full > i { background:var(--ok); }
+#app #discover .meter.lg { height:12px; max-width:460px; }
+html[data-look='opera'] #app #discover .meter > i { background:repeating-linear-gradient(90deg,var(--rr-brass) 0 6px,#8a7346 6px 8px); }
+html[data-look='opera'] #app #discover .meter.full > i { background:repeating-linear-gradient(90deg,#6fae7f 0 6px,#4f8a5f 6px 8px); }
+
+/* ------------------------------------------------------------ song tables */
+#app #discover .dv-table { border-top:0; padding:4px 10px 6px; }
+#app #discover :is(.dv-row,.gap-row,.want-row,.imp-row) { border-bottom:1px solid #ffffff0b; }
+#app #discover :is(.dv-row,.gap-row,.want-row,.imp-row):last-child { border-bottom:0; }
+#app #discover :is(.dv-row,.gap-row,.want-row,.imp-row):hover,
+#app #discover .gap-row:focus-visible { background:#ffffff08; }
+#app #discover :is(.dv-row,.gap-row).head { min-height:34px; color:var(--sc-ink-3); font-family:var(--sc-mono); font-size:10px; font-weight:700; font-stretch:100%; letter-spacing:.06em; text-transform:uppercase; border-bottom:1px solid #2d2823; }
+#app #discover :is(.dv-row,.gap-row).head:hover { background:none; }
+#app #discover :is(.dv-row,.want-row,.gap-row,.imp-row) .t { font-weight:750; }
+#app #discover .dv-row.have .t { color:var(--sc-ink); }
+#app #discover .dv-row .c-num, #app #discover .dv-row .c-len { font-family:var(--sc-mono); font-size:11px; }
+#app #discover .dv-row .tick { border-radius:2px; }
+
+/* status tags: boxed typewriter, like NEW and SONG OF THE WEEK on Songs */
+#app #discover .state { height:20px; padding:0 7px; border-radius:2px; font-family:var(--sc-mono); font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; box-shadow:inset 0 0 0 1px currentColor; }
+#app #discover .state.have, #app #discover .state.ok { background:#6bd49a14; }
+#app #discover .state.want { background:var(--sc-gold-soft); color:var(--sc-gold-hi); }
+#app #discover .state.miss, #app #discover .state.muted { background:none; color:var(--ink-3); box-shadow:inset 0 0 0 1px #4a443c; }
+#app #discover .state .sbadge { text-transform:none; letter-spacing:0; }
+#app #discover .dv-row .acts .btn.want-on { color:var(--sc-gold-hi); }
+
+/* tick boxes in the gold of the app */
+#app #discover input.check { border-radius:2px; border-color:#5b5043; background:#0b0a09; box-shadow:inset 0 1px 2px #000; }
+#app #discover input.check:hover { border-color:var(--sc-ink-2); }
+#app #discover input.check:checked { background:var(--sc-gold); border-color:var(--sc-gold-hi); }
+#app #discover input.check:checked::after { border-color:var(--sc-gold-ink); }
+
+/* ------------------------------------------------------------- an artist */
+#app #discover .dv-artist { gap:24px; padding:22px 24px; margin-bottom:6px; border-bottom:0; flex-wrap:wrap; }
+#app #discover .dv-artist .dv-title h1 { font-size:46px; letter-spacing:-.005em; }
+#app #discover .dv-artist .dv-title .sub { font-family:var(--sc-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+#app #discover .dv-artist .cline { color:var(--ink-2); font-size:13px; }
+#app #discover .dv-artist .cline b { color:var(--sc-ink); font-size:20px; font-weight:900; font-stretch:72%; text-shadow:1px 1px 0 #000; }
+#app #discover .dv-artist .dv-tools { align-self:flex-end; }
+#app #discover .dv-loading.col { max-width:560px; }
+#app #discover .dv-loading .spin { color:var(--sc-gold); }
+
+#app #discover .album { margin-top:18px; padding:18px 20px 12px; }
+#app #discover .album-head { gap:18px; margin-bottom:12px; }
+#app #discover .album-head .cover { width:76px; height:76px; transform:rotate(-1.5deg); }
+#app #discover .album-meta h3 { font-size:24px; font-weight:900; font-stretch:68%; letter-spacing:.01em; text-transform:uppercase; color:var(--sc-ink); text-shadow:2px 2px 0 #000; }
+#app #discover .album-meta .sub { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--sc-ink-3); }
+#app #discover .album-meta .mini { font-family:var(--sc-mono); font-size:11px; }
+#app #discover .album .tracks { border-top:1px solid #2d2823; }
+#app #discover .album .tracks .dv-row:last-child { border-bottom:1px solid #ffffff0b; }
+#app #discover .extras .chip { border-radius:2px; }
+
+/* ------------------------------------------------------- collection gaps */
+#app #discover .stats { gap:14px; }
+#app #discover .stat { padding:16px 20px; }
+#app #discover .stat b { font-size:40px; line-height:1; font-weight:900; font-stretch:64%; color:var(--sc-ink); text-shadow:2px 2px 0 #000; }
+#app #discover .stat span { display:block; margin-top:6px; font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--sc-ink-3); }
+#app #discover .dv-bar { margin:22px 0 12px; }
+#app #discover .sortby > span { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; }
+#app #discover .gap-row .c-have b { font-weight:850; }
+#app #discover .gap-row .c-miss { color:var(--sc-gold-hi); font-weight:850; font-size:15px; }
+#app #discover .gap-row .s.warn { color:var(--sc-gold); }
+#app #discover .gap-row .c-bar > span { font-family:var(--sc-mono); font-size:11px; }
+
+/* notes at the top of a page (checking, waiting) */
+#app #discover .dv-banner { padding:13px 16px; margin:0 0 16px; color:var(--ink-2); }
+#app #discover .dv-banner b { color:var(--sc-ink); font-weight:800; }
+#app #discover .dv-banner .ic { color:var(--sc-gold); }
+#app #discover .dv-banner.run { box-shadow:inset 3px 0 0 var(--sc-gold),0 2px 0 #000; }
+#app #discover .dv-banner.run .spin { color:var(--sc-gold); }
+
+/* ----------------------------------------------------------------- wanted */
+#app #discover .how { margin-bottom:20px; padding:18px 20px 14px; }
+#app #discover ol.how-steps li { color:var(--ink-3); }
+#app #discover ol.how-steps li::before { border-radius:2px; background:var(--sc-gold); color:var(--sc-gold-ink); font-family:var(--sc-mono); font-size:12px; box-shadow:2px 2px 0 #000; transform:rotate(-3deg); }
+#app #discover ol.how-steps li b { font-size:15px; font-weight:900; font-stretch:72%; letter-spacing:.02em; text-transform:uppercase; color:var(--sc-ink); }
+#app #discover .how-status { border-top:1px dashed #4a4239; }
+#app #discover .how-status b { color:var(--sc-ink); }
+#app #discover .get-run { margin-bottom:20px; padding:14px 16px; box-shadow:inset 3px 0 0 var(--sc-gold),0 2px 0 #000; }
+#app #discover .get-run-text b { font-size:17px; font-weight:900; font-stretch:72%; letter-spacing:.01em; color:var(--sc-ink); }
+
+#app #discover .want-group { margin-top:16px; padding:14px 18px 8px; }
+#app #discover .want-head { padding-bottom:10px; border-bottom:1px solid #2d2823; }
+#app #discover .want-head h3 { font-size:20px; font-weight:900; font-stretch:68%; letter-spacing:.01em; text-transform:uppercase; }
+#app #discover .want-head h3 .dv-link { color:var(--sc-ink); text-shadow:2px 2px 0 #000; }
+#app #discover .want-head h3 .dv-link:hover { color:var(--sc-gold-hi); }
+#app #discover .want-head .muted { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; }
+#app #discover .want-row .c-ic, #app #discover .imp-row.warn .c-ic { color:var(--sc-gold); }
+#app #discover .want-row.found .c-ic, #app #discover .imp-row .c-ic { color:var(--ok); }
+#app #discover .imp-row.err .c-ic { color:var(--danger); }
+#app #discover .imp-row.muted .c-ic { color:var(--ink-3); }
+
+/* empty pages */
+#app #discover .dv-empty { max-width:560px; margin:28px 0; padding:26px 28px 24px; }
+#app #discover .dv-empty h2 { font-size:26px; font-weight:900; font-stretch:64%; letter-spacing:.01em; text-transform:uppercase; color:var(--sc-ink); text-shadow:2px 2px 0 #000; }
+#app #discover .dv-empty p { color:var(--ink-3); }
+#app #discover .dv-empty p b { color:var(--sc-ink); }
+
+/* ---------------------------------------------------------------- imports */
+#app #discover .imp-card { padding:4px 18px; margin-bottom:16px; }
+#app #discover .imp-card .setting .t { font-weight:800; }
+#app #discover .imp-list { padding:4px 10px; }
+#app #discover .imp-row .c-when { font-family:var(--sc-mono); font-size:11px; }
+#app #discover .drop-hint { border-radius:3px; border-color:#4a4239; }
+#app #discover .find-row { border-radius:2px; }
+
+/* ----------------------------------------- the bar for ticked songs, the drop */
+.dv-selbar {
+  border-radius:3px; border:1px solid var(--sc-line); padding:8px 8px 8px 18px;
+  background:var(--sc-screws),linear-gradient(180deg,#26221d,#1a1714); backdrop-filter:none;
+  box-shadow:0 3px 0 #000,0 16px 40px #000c,inset 0 1px 0 #ffffff12;
+}
+.dv-selbar .count { font-weight:900; font-stretch:72%; font-size:17px; letter-spacing:.01em; text-transform:uppercase; color:var(--sc-ink); }
+html[data-look='opera'] .dv-selbar { border-color:#3d3630; background:var(--rr-grain),linear-gradient(180deg,#1f1b18,#151311); box-shadow:inset 0 0 0 3px #0c0b0a,inset 0 0 0 4px #a88d5726,0 3px 0 #000,0 16px 40px #000c; }
+.drop-overlay { background:#0d0b0ab8; }
+.drop-overlay .box { border-radius:3px; border-color:#f1ce6888; background:linear-gradient(180deg,#26221d,#1a1714); box-shadow:4px 5px 0 #000; }
+.drop-overlay .ic { color:#f1ce68; }
+.drop-overlay b { font-size:22px; font-weight:900; font-stretch:66%; letter-spacing:.01em; text-transform:uppercase; color:#f5edda; }

@@ -23,13 +23,13 @@ const srv = http.createServer((req, res) => {
   await new Promise((r) => srv.listen(8765, r));
   const out = process.argv[2];
   fs.mkdirSync(out, { recursive: true });
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--single-process', '--no-zygote', '--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--single-process', '--no-zygote', '--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
   const page = await browser.newPage({ viewport: { width: Number(process.env.VW || 1920), height: Number(process.env.VH || 1080) }, ...(process.env.VIDEO ? { recordVideo: { dir: out, size: { width: 1280, height: 720 } } } : {}) });
   page.on('pageerror', (e) => console.log('PAGEERR', e.message, (e.stack || '').split('\n').slice(1, 3).join(' ')));
   page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text()));
   for (const spec of process.argv.slice(3)) {
     const [scene, t, play, hits, file, part] = spec.split(':');
-    await page.goto(`http://localhost:8765/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}`);
+    await page.goto(`http://localhost:8765/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}${process.env.SING ? `&sing=${process.env.SING}` : ''}`);
     await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     if (process.env.VENUE) {
       await page.evaluate((v) => { const p = JSON.parse(localStorage.getItem('stagehand.highway') || '{}'); p.venue = v; p.v = 36; localStorage.setItem('stagehand.highway', JSON.stringify(p)); localStorage.setItem('stagehand.fluidDye', '256'); }, process.env.VENUE);
@@ -188,6 +188,114 @@ const srv = http.createServer((req, res) => {
       }
       continue;
     }
+    if (process.env.SING) {
+      // Sing along: a pretend microphone (a tone that follows the song's notes) sings the made-up song.
+      // Lines 1 and 2 are sung right (an octave down), line 3 is left out, line 4 is sung right.
+      const fail = (m) => { throw new Error('sing: ' + m); };
+      const st0 = await page.evaluate(() => {
+        const H = document.querySelector('.highway').__hw;
+        window.__micAsked = 0;
+        const ac = new AudioContext();
+        const osc = ac.createOscillator();
+        osc.type = 'sawtooth';
+        const gain = ac.createGain();
+        gain.gain.value = 0;
+        const dest = ac.createMediaStreamDestination();
+        osc.connect(gain).connect(dest);
+        osc.start();
+        navigator.mediaDevices.getUserMedia = async () => { window.__micAsked++; return dest.stream; };
+        navigator.mediaDevices.enumerateDevices = async () => [{ kind: 'audioinput', deviceId: 'default', label: 'Default' }, { kind: 'audioinput', deviceId: 'usb1', label: 'USB Microphone' }, { kind: 'audioinput', deviceId: 'rs1', label: 'Rocksmith Guitar Adapter' }];
+        const ly = window.__tab.lyrics;
+        const lineOf = [];
+        let ln = 0;
+        for (const w of ly) { lineOf.push(ln); if (w.w.endsWith('+')) ln++; }
+        window.__skipLine = 2;
+        setInterval(() => {
+          const t = window.__stage.engine.position;
+          const i = ly.findIndex((x) => t >= x.t && t < x.t + x.d);
+          const on = i >= 0 && lineOf[i] !== window.__skipLine && window.__stage.engine.playing;
+          gain.gain.value = on ? 0.3 : 0;
+          if (on) osc.frequency.value = 440 * 2 ** ((window.__singTune[i] - 12 - 69) / 12);
+        }, 4);
+        const chip = document.querySelector('.hw-sing-chip');
+        return { chip: !!chip && !chip.hidden, pressed: chip && chip.getAttribute('aria-pressed'), lane: !document.querySelector('.hw-sing').hidden, lyrics: !!document.querySelector('.hw-lyrics'), ctx: ac.state };
+      });
+      if (!st0.chip || st0.pressed !== 'false' || st0.lane) fail('before pressing Sing: ' + JSON.stringify(st0));
+      await page.waitForTimeout(600);
+      if (await page.evaluate(() => window.__micAsked)) fail('the microphone was opened before Sing was pressed');
+      await page.screenshot({ path: path.join(out, 'sing-0-off.png') });
+      const kar = process.env.SING === 'karaoke';
+      // the Sing button is singing beside the guitar part; karaoke is asked for by the Karaoke page
+      if (kar) await page.evaluate(() => document.querySelector('.highway').__hw.sing.setKaraoke(true));
+      else await page.click('.hw-sing-chip');
+      await page.waitForFunction(() => !document.querySelector('.hw-sing').hidden && document.querySelector('.highway').__hw.sing.active, null, { timeout: 8000 });
+      const words = process.env.SING === 'words';
+      // the song starts once the microphone is open and hearing (opening it takes a moment)
+      await page.evaluate(async () => { const { mic } = await import('/js/mic.js'); for (let i = 0; i < 100 && !mic.on; i++) await new Promise((x) => setTimeout(x, 100)); await new Promise((x) => setTimeout(x, 400)); });
+      if (process.env.SING === 'stem') await page.waitForFunction(() => document.querySelector('.highway').__hw.sing.state.mode === 'stem', null, { timeout: 30000 });
+      // a run-up of 2.5 s before the first word: this machine draws slowly for a moment once the song starts
+      await page.evaluate(() => { const e = window.__stage.engine; e.position = 0; e.dispatchEvent(new Event('seek')); e.play(); });
+      const until = (t) => page.waitForFunction((t) => window.__stage.engine.position > t, t, { timeout: 60000 });
+      await page.evaluate(() => { window.__frames = 0; const f = () => { window.__frames++; requestAnimationFrame(f); }; f(); });
+      await until(4.6);
+      if (kar) {
+        const k = await page.evaluate(() => ({ cls: document.querySelector('.highway').classList.contains('hw-karaoke'), big: document.querySelector('.hw-sing').dataset.k, muted: window.__vocals.muted, chip: document.querySelector('.hw-sing-chip').textContent, guitar: window.__shHighway.judge() }));
+        if (!k.cls || k.big !== '1' || !k.muted || !/Karaoke/.test(k.chip) || k.guitar) fail('karaoke on: ' + JSON.stringify(k));
+      }
+      await page.screenshot({ path: path.join(out, 'sing-1-bars.png') });
+      await until(11.2);
+      await page.screenshot({ path: path.join(out, 'sing-2-bars-after-line.png') });
+      const last = await page.evaluate(() => { const l = window.__tab.lyrics; return l[l.length - 1].t + l[l.length - 1].d; });
+      await until(last - 2.2);
+      await page.evaluate(async () => { const { setSingLook } = await import('/js/singlane.js'); setSingLook('words'); });
+      await page.waitForTimeout(700);
+      await page.screenshot({ path: path.join(out, 'sing-3-words.png') });
+      await until(last + 0.6);
+      const r = await page.evaluate(async () => {
+        const H = document.querySelector('.highway').__hw;
+        const j = H.sing.state.judge;
+        const live = { share: [...j.good].map((g, i) => Math.round((g / j.syl[i].d) * 100)), frames: window.__frames, hits: j.hits, judged: j.judged, lines: [...j.lineResult], mode: H.sing.state.mode, asked: window.__micAsked };
+        const e = window.__stage.engine;
+        e.pause();
+        e.dispatchEvent(new Event('ended'));
+        await new Promise((x) => setTimeout(x, 300));
+        const card = document.querySelector('.hw-card');
+        return { ...live, card: !card.hidden, cardText: card.textContent, logs: window.__statsLogs || [], fps: H.fpsAcc ? Math.round(1 / H.fpsAcc) : null };
+      });
+      console.log('SING', JSON.stringify(r));
+      if (kar) {
+        if (!/sung/.test(r.cardText) || /notes hit/.test(r.cardText)) fail('karaoke should end on the singing card only: ' + r.cardText);
+        await page.screenshot({ path: path.join(out, 'sing-4-card.png') });
+        // karaoke isn't remembered for the song: without it the neck returns, the singer is put back
+        // and singing is off again (the Sing button was never pressed for this song)
+        const k2 = await page.evaluate(async () => {
+          const H = document.querySelector('.highway').__hw;
+          H.sing.setKaraoke(false);
+          await new Promise((x) => setTimeout(x, 300));
+          return { cls: document.querySelector('.highway').classList.contains('hw-karaoke'), big: document.querySelector('.hw-sing').dataset.k, muted: window.__vocals.muted, on: H.sing.active };
+        });
+        if (k2.cls || k2.big || k2.muted || k2.on) fail('leaving karaoke: ' + JSON.stringify(k2));
+      }
+      await page.screenshot({ path: path.join(out, 'sing-4-card.png') });
+      const log = r.logs.find((x) => x.part === 'vocals');
+      if (words) {
+        if (r.mode !== 'rhythm') fail('a song with no notes should be scored on timing only: ' + r.mode);
+        if (!(r.lines[0] >= 0.5 && r.lines[1] >= 0.7 && r.lines[2] <= 0.15 && r.lines[3] >= 0.85)) fail('timing-only lines: ' + JSON.stringify(r.lines));
+      } else {
+        if (r.mode !== (process.env.SING === 'stem' ? 'stem' : 'charted')) fail('mode ' + r.mode);
+        // (the first line only has to be mostly there: this machine draws slowly just after the song starts)
+        if (!(r.lines[0] >= 0.5 && r.lines[1] >= 0.7 && r.lines[2] === 0 && r.lines[3] >= 0.85)) fail('lines: ' + JSON.stringify(r.lines));
+      }
+      if (r.asked !== 1) fail('the microphone was asked for ' + r.asked + ' times');
+      if (!r.card || !/sung|Singing/.test(r.cardText)) fail('no singing on the score card: ' + r.cardText);
+      if (!log || log.notes !== r.judged || !(log.accuracy > 0.6 && log.accuracy < 0.85) || !log.full) fail('stats: ' + JSON.stringify(r.logs));
+      // switching it off lets the microphone go and brings the plain lyrics back
+      await page.evaluate(() => document.querySelector('.highway').__hw.sing.turn(false));
+      const off = await page.evaluate(async () => { const { mic } = await import('/js/mic.js'); return { mic: mic.on, lane: !document.querySelector('.hw-sing').hidden, pressed: document.querySelector('.hw-sing-chip').getAttribute('aria-pressed') }; });
+      if (off.mic || off.lane || off.pressed !== 'false') fail('switching off: ' + JSON.stringify(off));
+      console.log(`PASS sing along (${words ? 'timing only' : process.env.SING === 'stem' ? 'notes read off the vocals stem' : 'notes from the chart'}): off until pressed, sung lines count (an octave down), a skipped line doesn't, the card and the stats get it, off lets the microphone go`);
+      continue;
+    }
     if (process.env.TCHECK) {
       // the tuning check card: a Drop D song at A425 on an E Standard guitar, the low string
       // half way down (heard 100 cents above D), then in tune: it gets a tick
@@ -243,7 +351,7 @@ const srv = http.createServer((req, res) => {
     await page.waitForTimeout(play === 'p' ? 2600 : 2200);
     if (process.env.TUNER) { await page.keyboard.press('u'); await page.waitForTimeout(300); }
     if (process.env.CARD) { await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.showCard(); }); await page.waitForTimeout(Number(process.env.CARD_WAIT || 0)); }
-    if (process.env.MASTER) { await page.evaluate(() => document.querySelector('.hw-dock.collapsed .hw-dock-tab') && document.querySelector('.hw-dock-tab').click()); await page.waitForTimeout(500); }
+    if (process.env.MASTER) { await page.evaluate(() => document.querySelector('.hw-dock.collapsed') && document.querySelector('.hw-set-btn').click()); await page.waitForTimeout(500); }
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `${scene}_${(file||'').replace('.json','')}_${t}${play === 'p' ? 'p' : ''}${hits || ''}.png`) });
     console.log('shot', spec);

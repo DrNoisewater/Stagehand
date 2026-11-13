@@ -456,7 +456,7 @@ class FakePortMain extends EventEmitter {
   }
   // any audit module (a path): node ui3-chromium.js helper out with SH_AUDIT=test/e2e/foo.js
   if (process.env.SH_AUDIT) {
-    await require(path.resolve(process.env.SH_AUDIT))({ page, outDir, check });
+    await require(path.resolve(process.env.SH_AUDIT))({ page, outDir, check, stemHold });
     fs.writeFileSync(path.join(outDir, 'results.json'), JSON.stringify({ results, logs }, null, 2));
     await browser.close(); relay.quit(); server.close();
     process.exit(results.some(r => !r.ok) ? 1 : 0);
@@ -1036,11 +1036,11 @@ class FakePortMain extends EventEmitter {
     await shot('6e-highway');
     await page.evaluate(() => (document.querySelector('.highway').__hw.forceStreak = undefined));
   }
-  await page.locator('.hw-dock-tab').click();
+  await page.locator('.hw-set-btn').click();
   await page.waitForTimeout(600);
   check((await page.locator('.hw-level').count()) === 2, 'highway mix shows Your guitar and Whole song above the stems');
   await shot('6f-highway-mix');
-  await page.locator('.hw-dock-tab').click();
+  await page.locator('.hw-set-btn').click();
   await page.waitForTimeout(300);
   await page.keyboard.press('d');
   await page.waitForTimeout(500);

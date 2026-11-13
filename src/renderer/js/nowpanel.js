@@ -5,7 +5,7 @@
  */
 import { did } from './rewards.js';
 import { api } from './api.js';
-import { state, on, emit, setPage } from './store.js';
+import { state, on, emit, setPage, splitFirst } from './store.js';
 import { h, icon, esc, toast } from './ui.js';
 import { rig } from './rig.js';
 import * as stage from './stage.js';
@@ -215,7 +215,10 @@ function renderMix(box) {
     const busy = st.state === 'running' || st.state === 'queued';
     const pct = Math.round((st.progress || 0) * 100);
     const note = h('div.np-callout');
-    if (busy) note.append(h('b', { text: st.state === 'queued' ? 'Waiting to split this song' : `Splitting instruments, ${pct}%` }), h('div.meter-bar', null, h('i', { style: { transform: `scaleX(${(st.progress || 0).toFixed(3)})` } })), h('span', { text: 'The whole song keeps playing meanwhile.' }));
+    if (busy) {
+      note.dataset.split = st.state;
+      note.append(h('b', { text: splitHead(st) }), h('div.meter-bar', null, h('i', { style: { transform: `scaleX(${(st.progress || 0).toFixed(3)})` } })), h('span', { text: splitSub(st) }));
+    }
     else {
       note.append(h('b', { text: 'Split this song into instruments' }), h('span', { text: 'Then you can turn any instrument up, down or off, and take your part out to play it yourself.' }));
       const go = h('button.btn.glow-primary', { type: 'button', html: `${icon('split')}<span>Split stems</span>` });
@@ -550,8 +553,30 @@ on('stage-song', () => {
   R.passes = [];
   if (shown()) renderAll();
 });
-on('stems', () => shown() && N.tab === 'mix' && renderPanel());
-on('stems-progress', () => shown() && N.tab === 'mix' && !stage.stems().length && renderPanel());
+// 4.12: a split's progress only changes the words and the bar (the whole panel was rebuilt
+// on every update of any song's split, which flickered)
+function splitHead(st) {
+  return st.state === 'queued' ? 'Waiting to split this song' : `Splitting instruments, ${Math.round((st.progress || 0) * 100)}%`;
+}
+function splitSub(st) {
+  return st.state === 'queued' ? `${splitFirst()}. This one is next.` : 'The whole song keeps playing meanwhile.';
+}
+function splitMoved() {
+  if (!shown() || N.tab !== 'mix' || stage.stems().length) return;
+  const note = panel.querySelector('.np-callout[data-split]');
+  const st = stage.stemStatus() || {};
+  if (!note || note.dataset.split !== st.state) return renderPanel();
+  note.querySelector('b').textContent = splitHead(st);
+  note.querySelector('.meter-bar > i').style.transform = `scaleX(${(st.progress || 0).toFixed(3)})`;
+  note.lastChild.textContent = splitSub(st);
+}
+on('stems', (u) => {
+  if (!shown() || N.tab !== 'mix') return;
+  const open = stage.loadInfo().song;
+  if (!u || (open && u.songId === open.id)) renderPanel();
+  else splitMoved(); // another song's split: only the "being split first" words change
+});
+on('stems-progress', splitMoved);
 on('tones', () => shown() && N.tab === 'tone' && renderPanel());
 on('stage-loop', (l) => {
   if (!l && R.on) {

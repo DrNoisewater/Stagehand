@@ -229,6 +229,19 @@ export function visibleSongs() {
   return list;
 }
 
+/**
+ * 4.12: what a song waiting to be split is waiting for, e.g. "Splitting “Hysteria” first · 43%".
+ * (Waiting messages used to say only "Waiting", so a split of another song looked stuck.)
+ */
+export function splitFirst() {
+  for (const [id, st] of state.stems) {
+    if (!st || st.state !== 'running') continue;
+    const s = state.songs.get(id);
+    return `Splitting ${s && s.title ? `“${s.title}”` : 'another song'} first · ${Math.round((st.progress || 0) * 100)}%`;
+  }
+  return 'Another song is being split first';
+}
+
 export function bump() {
   state.version++;
 }

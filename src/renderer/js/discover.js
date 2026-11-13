@@ -121,7 +121,7 @@ function iconBtn(name, title, onClick, cls = '') {
 }
 
 function emptyBox(title, text, actionsEls = []) {
-  return h('div.dv-empty', null, decorativeImage('empty-discover'), h('h2', { text: title }), h('p', { html: text }), actionsEls.length ? h('div.actions', null, ...actionsEls) : null);
+  return h('div.dv-empty.card', null, decorativeImage('empty-discover'), h('h2', { text: title }), h('p', { html: text }), actionsEls.length ? h('div.actions', null, ...actionsEls) : null);
 }
 
 // ------------------------------------------------------------ navigation --
@@ -207,8 +207,8 @@ function renderSelBar() {
   selBar.append(
     h('span.count', { text: `${plural(items.length, 'song')} selected` }),
     btn('Add to Wanted', { iconName: 'star', cls: 'primary', onClick: () => want(items) }),
-    btn('Copy as a list', { iconName: 'copy', cls: 'ghost', onClick: () => copyList(items) }),
-    btn('Clear', { cls: 'ghost', onClick: () => clearSel() })
+    btn('Copy as a list', { iconName: 'copy', cls: 'soft', onClick: () => copyList(items) }),
+    btn('Clear', { cls: 'soft', onClick: () => clearSel() })
   );
   // Keep row checkboxes in step (e.g. after "Select missing").
   for (const c of root.querySelectorAll('input.check[data-key]')) c.checked = D.sel.has(c.dataset.key);
@@ -256,7 +256,17 @@ async function copyList(items) {
 }
 
 // ------------------------------------------------------------ CustomsForge --
+// 4.12: the song finder: CustomsForge in Stagehand's own window, which types the song into
+// the site's search box and puts what you download straight into your library (finder.js).
+const hasFinder = () => !!(api.discover && api.discover.finder);
+async function openFinder(item) {
+  const left = D.wanted.filter((w) => w.status === 'wanted').length;
+  const r = await api.discover.finder({ id: item.id, artist: item.artist, title: item.title, left: D.run ? runLeft().length : left }).catch(() => null);
+  return !!(r && (r.ok || r.open));
+}
+
 function explainCustomsForge() {
+  if (hasFinder()) return explainFinder();
   try {
     if (localStorage.getItem('stagehand.cfExplained')) return Promise.resolve(true);
   } catch (_) {}
@@ -291,8 +301,50 @@ function explainCustomsForge() {
   });
 }
 
+function explainFinder() {
+  try {
+    if (localStorage.getItem('stagehand.finderExplained')) return Promise.resolve(true);
+  } catch (_) {}
+  return new Promise((resolve) => {
+    let go = false;
+    const ok = btn('Open the song finder', { cls: 'primary', iconName: 'search' });
+    const cancel = btn('Cancel', { cls: 'ghost' });
+    const m = modal({
+      title: 'Finding songs on CustomsForge',
+      body: h(
+        'div.cf-explain',
+        null,
+        h('p', { text: 'Stagehand opens CustomsForge in its own window and types the song into the search box for you.' }),
+        h(
+          'ol.how-steps',
+          null,
+          h('li', null, h('b', { text: 'Sign in' }), h('span', { text: 'The first time, sign in to CustomsForge in that window. It remembers you.' })),
+          h('li', null, h('b', { text: 'Download' }), h('span', { text: 'Pick the song from the results and download the PC version.' })),
+          h('li', null, h('b', { text: 'Play' }), h('span', { text: 'It goes straight into your library and comes off Wanted. Next song searches for the next one.' }))
+        ),
+        h('p.fine', { text: 'Stagehand only searches when you ask and never downloads by itself: the clicks on the site stay yours.' })
+      ),
+      footer: [cancel, ok],
+      onClose: () => resolve(go),
+    });
+    ok.onclick = () => {
+      go = true;
+      store('stagehand.finderExplained', '1');
+      m.close();
+    };
+    cancel.onclick = () => m.close();
+  });
+}
+
 export async function findOnCF(item, { open: openSite = true } = {}) {
   const text = `${item.artist} ${item.title}`.trim();
+  if (hasFinder()) {
+    if (!(await explainFinder())) return;
+    if (await openFinder(item)) {
+      markSearched(item);
+      return;
+    }
+  }
   if (openSite && !(await explainCustomsForge())) return;
   await api.discover.customsforge({ text, open: openSite });
   if (openSite) D.cfOpened = true;
@@ -327,7 +379,7 @@ async function findNext() {
   const seen = searchedMap();
   // The least recently searched song comes up next.
   const next = left.slice().sort((a, b) => (seen[keyOf(a.artist, a.title)] || 0) - (seen[keyOf(b.artist, b.title)] || 0))[0];
-  await findOnCF(next, { open: !D.cfOpened });
+  await findOnCF(next, { open: hasFinder() || !D.cfOpened });
 }
 
 // ------------------------------------------------------------- get songs --
@@ -351,6 +403,10 @@ function notify(title, body) {
 }
 
 async function runCopy(item, { open: openSite = false } = {}) {
+  if (hasFinder() && (await openFinder(item))) {
+    markSearched(item);
+    return;
+  }
   const text = `${item.artist} ${item.title}`.trim();
   await api.discover.customsforge({ text, open: openSite });
   if (openSite) D.cfOpened = true;
@@ -371,7 +427,8 @@ export async function startRun() {
   await runCopy(left[0], { open: true });
   emit('discover-run');
   if (sub() === 'wanted') render();
-  toast({ title: 'Getting your songs', message: `“${left[0].artist} ${left[0].title}” is copied. In CustomsForge, click the search box, press Ctrl+V and download the PC version. Stagehand copies the next song when it arrives.`, kind: 'info', timeout: 10000 });
+  if (hasFinder()) toast({ title: 'Getting your songs', message: `The song finder is looking for “${left[0].artist} ${left[0].title}”. Download the PC version there; the next song comes up when it arrives.`, kind: 'info', timeout: 10000 });
+  else toast({ title: 'Getting your songs', message: `“${left[0].artist} ${left[0].title}” is copied. In CustomsForge, click the search box, press Ctrl+V and download the PC version. Stagehand copies the next song when it arrives.`, kind: 'info', timeout: 10000 });
 }
 
 export function stopRun() {
@@ -414,7 +471,7 @@ async function runAfterImport() {
   await runNext();
   if (D.run && D.run.current) {
     const c = D.run.current;
-    notify(`Got “${got.title}”`, `Next: ${c.artist} – ${c.title}. It’s copied: click CustomsForge’s search box and press Ctrl+V.`);
+    notify(`Got “${got.title}”`, hasFinder() ? `Next: ${c.artist} – ${c.title}. The song finder is looking for it.` : `Next: ${c.artist} – ${c.title}. It’s copied: click CustomsForge’s search box and press Ctrl+V.`);
   }
 }
 
@@ -430,10 +487,11 @@ function runBar() {
       'div.get-run-text',
       null,
       h('b', { text: c ? `Now: ${c.artist} – ${c.title}` : 'Getting songs' }),
-      h('span', { text: `Copied: click CustomsForge’s search box, press Ctrl+V, download the PC version. ${run.done} in so far, ${plural(left, 'song')} to go.` })
+      h('span', { text: `${hasFinder() ? 'In the song finder, download the PC version.' : 'Copied: click CustomsForge’s search box, press Ctrl+V, download the PC version.'} ${run.done} in so far, ${plural(left, 'song')} to go.` })
     ),
-    btn('Copy again', { cls: 'small ghost', iconName: 'copy', onClick: () => c && runCopy(c) }),
-    btn('Open CustomsForge', { cls: 'small ghost', iconName: 'external', onClick: () => c && runCopy(c, { open: true }) }),
+    ...(hasFinder()
+      ? [btn('Show the finder', { cls: 'small ghost', iconName: 'search', onClick: () => c && runCopy(c) })]
+      : [btn('Copy again', { cls: 'small ghost', iconName: 'copy', onClick: () => c && runCopy(c) }), btn('Open CustomsForge', { cls: 'small ghost', iconName: 'external', onClick: () => c && runCopy(c, { open: true }) })]),
     btn('Skip', { cls: 'small', title: 'Can’t find this one: go to the next', onClick: () => runNext({ skip: true }) }),
     btn('Stop', { cls: 'small ghost', onClick: () => stopRun() })
   );
@@ -533,7 +591,7 @@ function renderSearch(page) {
     )
   );
   if (!q) {
-    const hero = h('div.dv-hero');
+    const hero = h('div.dv-hero.card');
     hero.append(
       h('div.hero-icon', { html: icon('search') }),
       h('h2', { text: 'Type an artist or song in the search box above' }),
@@ -587,14 +645,14 @@ function renderSearch(page) {
   if (r.songs.length) {
     const missing = r.songs.filter((s) => !s.have);
     const selAll = btn(`Select ${missing.length} missing`, {
-      cls: 'small ghost',
+      cls: 'small soft',
       disabled: !missing.length,
       onClick: () => {
         for (const s of missing) D.sel.set(keyOf(s.artist, s.title), { artist: s.artist, title: s.title, album: s.album, year: s.year });
         renderSelBar();
       },
     });
-    const table = h('div.dv-table.songs');
+    const table = h('div.dv-table.songs.card');
     table.append(h('div.dv-row.head', null, h('div'), h('div', { text: 'Song' }), h('div', { text: 'Artist' }), h('div', { text: 'Time' }), h('div', { text: 'Status' }), h('div')));
     for (const s of r.songs) table.append(songRow(s, s));
     page.append(h('section.dv-section', null, h('h3', null, h('span', { text: 'Songs' }), selAll), table));
@@ -662,14 +720,14 @@ async function loadArtist({ fresh = false } = {}) {
 function renderArtist(page) {
   const v = state.view.artist || {};
   const back = btn(state.view.from === 'gaps' ? 'Collection gaps' : state.view.from === 'wanted' ? 'Wanted' : 'Search', {
-    cls: 'ghost small back',
+    cls: 'soft small back',
     iconName: 'chevronLeft',
     onClick: () => open(state.view.from || 'search'),
   });
   page.append(back);
   const p = D.page;
   if (D.loadingArtist || !p) {
-    page.append(h('div.dv-artist', null, avatar(v.name || '?', 'lg'), h('div.dv-title', null, h('div.kicker', { text: 'Artist' }), h('h1', { text: v.name || 'Artist' }))));
+    page.append(h('div.dv-artist.card', null, avatar(v.name || '?', 'lg'), h('div.dv-title', null, h('div.kicker', { text: 'Artist' }), h('h1', { text: v.name || 'Artist' }))));
     const pr = D.progress && D.progress.kind === 'artist' ? D.progress : null;
     const line = h('div.dv-progress', null, h('div.spin'), h('span.label', { text: pr && pr.total ? `Reading albums from MusicBrainz… ${pr.done} of ${pr.total}${pr.title ? ` · ${pr.title}` : ''}` : 'Finding this artist on MusicBrainz…' }));
     const meter = h('div.progress', null, h('i'));
@@ -719,7 +777,7 @@ function renderArtist(page) {
   tools.append(
     seg,
     btn('Select all missing', {
-      cls: 'ghost',
+      cls: 'soft',
       disabled: !missingItems.length,
       onClick: () => {
         for (const it of missingItems) if (!it.wanted) D.sel.set(keyOf(it.artist, it.title), it);
@@ -731,7 +789,7 @@ function renderArtist(page) {
   );
   page.append(
     h(
-      'div.dv-artist',
+      'div.dv-artist.card',
       null,
       avatar(a.name, 'lg'),
       h(
@@ -759,7 +817,7 @@ function renderArtist(page) {
     const have = al.tracks.filter((t) => t.have).length;
     const miss = al.tracks.filter((t) => !t.have && !t.wanted).map((t) => ({ artist: a.name, title: t.title, album: al.title, year: al.year }));
     const selMiss = btn(miss.length ? `Select missing (${miss.length})` : 'Nothing to select', {
-      cls: 'small ghost',
+      cls: 'small soft',
       disabled: !miss.length,
       onClick: () => {
         for (const it of miss) D.sel.set(keyOf(it.artist, it.title), it);
@@ -767,7 +825,7 @@ function renderArtist(page) {
       },
     });
     const card = h(
-      'section.album',
+      'section.album.card',
       null,
       h(
         'div.album-head',
@@ -822,7 +880,7 @@ function renderGaps(page) {
   const unchecked = artists.filter((a) => a.status === 'unchecked' || a.status === 'error');
   const tools = [];
   if (running) {
-    tools.push(btn('Stop', { cls: 'ghost', onClick: () => api.discover.cancelGaps() }));
+    tools.push(btn('Stop', { cls: 'soft', onClick: () => api.discover.cancelGaps() }));
   } else {
     tools.push(
       btn(unchecked.length ? `Check ${plural(unchecked.length, 'artist')}` : 'Check again', {
@@ -852,7 +910,7 @@ function renderGaps(page) {
     meter.firstChild.style.width = `${running.total ? Math.round((running.done / running.total) * 100) : 0}%`;
     page.append(
       h(
-        'div.dv-banner.run',
+        'div.dv-banner.card.run',
         null,
         h('div.spin'),
         h('div.grow', null, h('b', { text: `Checking ${running.current || '…'}` }), h('span', { text: ` · ${running.done} of ${running.total} artists${pr && pr.total ? ` · album ${Math.min(pr.done + 1, pr.total)} of ${pr.total}` : ''}` }), meter),
@@ -862,7 +920,7 @@ function renderGaps(page) {
   } else if (unchecked.length && !checked.length) {
     page.append(
       h(
-        'div.dv-banner',
+        'div.dv-banner.card',
         null,
         h('span.ic', { html: icon('info') }),
         h('div.grow', null, h('b', { text: `${plural(unchecked.length, 'artist')} to check. ` }), h('span', { text: `MusicBrainz allows one request a second, so this takes about ${Math.max(1, Math.round((unchecked.length * 12) / 60))} min. Keep using Stagehand meanwhile; results are saved.` }))
@@ -923,7 +981,7 @@ function renderGaps(page) {
   else if (D.gapsSort === 'complete') rows.sort((a, b) => rank(a) - rank(b) || (a.total ? a.have / a.total : 1) - (b.total ? b.have / b.total : 1) || byName(a, b));
   else rows.sort((a, b) => rank(a) - rank(b) || (b.missing || 0) - (a.missing || 0) || byName(a, b));
 
-  const table = h('div.dv-table.gaps');
+  const table = h('div.dv-table.gaps.card');
   table.append(h('div.gap-row.head', null, h('div'), h('div', { text: 'Artist' }), h('div', { text: 'You have' }), h('div', { text: 'Complete' }), h('div', { text: 'Missing' }), h('div')));
   for (const a of rows) table.append(gapRow(a, running));
   if (!rows.length) table.append(h('div.dv-none', { text: 'No artists match this filter.' }));
@@ -931,7 +989,7 @@ function renderGaps(page) {
 }
 
 function stat(n, label) {
-  return h('div.stat', null, h('b', { text: n }), h('span', { text: label }));
+  return h('div.stat.card', null, h('b', { text: n }), h('span', { text: label }));
 }
 
 function gapRow(a, running) {
@@ -982,14 +1040,14 @@ function renderWanted(page) {
   const left = D.wanted.filter((w) => w.status === 'wanted');
   const found = D.wanted.filter((w) => w.status === 'found');
   const tools = [
-    D.run ? null : btn('Get songs', { cls: 'primary', iconName: 'download', disabled: !left.length, onClick: () => startRun(), title: 'One after another: Stagehand copies each song for CustomsForge’s search and imports what you download' }),
-    btn('Find next', { cls: 'ghost', iconName: 'external', disabled: !left.length, onClick: () => findNext(), title: 'Copies the next song and opens CustomsForge in your browser' }),
-    btn('Copy list', { cls: 'ghost', iconName: 'copy', disabled: !left.length, onClick: () => copyList(left) }),
+    D.run ? null : btn('Get songs', { cls: 'primary', iconName: 'download', disabled: !left.length, onClick: () => startRun(), title: hasFinder() ? 'One after another: the song finder searches CustomsForge for each song and imports what you download' : 'One after another: Stagehand copies each song for CustomsForge’s search and imports what you download' }),
+    btn('Find next', { cls: 'soft', iconName: hasFinder() ? 'search' : 'external', disabled: !left.length, onClick: () => findNext(), title: hasFinder() ? 'Searches CustomsForge for the next song in the song finder' : 'Copies the next song and opens CustomsForge in your browser' }),
+    btn('Copy list', { cls: 'soft', iconName: 'copy', disabled: !left.length, onClick: () => copyList(left) }),
   ].filter(Boolean);
   if (found.length) {
     tools.push(
       btn('Clear found', {
-        cls: 'ghost',
+        cls: 'soft',
         onClick: async () => {
           D.wanted = await api.discover.clearFound();
           emit('discover-wanted');
@@ -1001,7 +1059,7 @@ function renderWanted(page) {
   const subText = D.wanted.length ? `${plural(left.length, 'song')} to find${found.length ? ` · ${found.length} found` : ''}` : 'Songs you want to get, collected from Search and Collection gaps.';
   page.append(head('Wanted', subText, tools, { kicker: 'Discover' }));
   const bar = runBar();
-  if (bar) page.append(bar);
+  if (bar) page.append((bar.classList.add('card'), bar));
   else page.append(howItWorks());
   if (!D.wanted.length) {
     page.append(
@@ -1025,7 +1083,7 @@ function renderWanted(page) {
     const n = items.filter((w) => w.status === 'wanted').length;
     const name = h('button.dv-link', { type: 'button', text: artist, title: `Open ${artist}` });
     name.onclick = () => openArtist({ name: artist }, 'wanted');
-    const grp = h('section.want-group', null, h('div.want-head', null, avatar(artist, 'sm'), h('h3', null, name), h('span.muted', { text: n ? `${n} to find` : 'All found' })));
+    const grp = h('section.want-group.card', null, h('div.want-head', null, avatar(artist, 'sm'), h('h3', null, name), h('span.muted', { text: n ? `${n} to find` : 'All found' })));
     for (const w of items) {
       const row = h(`div.want-row${w.status === 'found' ? '.found' : ''}`);
       const when = seen[keyOf(w.artist, w.title)];
@@ -1038,7 +1096,7 @@ function renderWanted(page) {
       if (w.status === 'found') {
         if (w.songId && state.songs.has(w.songId)) acts.append(btn('Play', { cls: 'small ghost', iconName: 'play', onClick: () => actions.playSong(w.songId) }));
       } else {
-        acts.append(btn('Find', { cls: 'small', iconName: 'external', title: 'Copy and open CustomsForge', onClick: () => findOnCF(w, { open: !D.cfOpened }) }));
+        acts.append(btn('Find', { cls: 'small', iconName: hasFinder() ? 'search' : 'external', title: hasFinder() ? 'Search CustomsForge for it in the song finder' : 'Copy and open CustomsForge', onClick: () => findOnCF(w, { open: !D.cfOpened }) }));
         acts.append(
           iconBtn('more', 'More', (e) =>
             showMenu(e.clientX, e.clientY, [
@@ -1070,13 +1128,13 @@ function renderWanted(page) {
 function howItWorks() {
   const st = D.imports;
   const watching = st && st.watch;
-  const box = h('div.how');
+  const box = h('div.how.card');
   const steps = h(
     'ol.how-steps.cols4',
     null,
     h('li', null, h('b', { text: 'Want it' }), h('span', { text: 'In Search or Collection gaps, press Want it on songs you don’t have. They collect here.' })),
-    h('li', null, h('b', { text: 'Find' }), h('span', { text: 'Stagehand copies the song and opens CustomsForge. Paste it into the search box.' })),
-    h('li', null, h('b', { text: 'Download' }), h('span', { text: 'Get the PC version (_p.psarc) in your browser.' })),
+    h('li', null, h('b', { text: 'Find' }), h('span', { text: hasFinder() ? 'Stagehand opens CustomsForge in its own window and searches for the song.' : 'Stagehand copies the song and opens CustomsForge. Paste it into the search box.' })),
+    h('li', null, h('b', { text: 'Download' }), h('span', { text: hasFinder() ? 'Get the PC version (_p.psarc) in that window.' : 'Get the PC version (_p.psarc) in your browser.' })),
     h('li', null, h('b', { text: 'Play' }), h('span', { text: 'Stagehand moves it into Rocksmith and ticks it off here.' }))
   );
   box.append(steps);
@@ -1135,7 +1193,7 @@ function renderImports(page) {
   // 4.0: songs already on this PC, outside the library
   page.append(findOnPcCard());
   // Settings
-  const card = h('section.imp-card');
+  const card = h('section.imp-card.card');
   const watch = h('input.toggle', { type: 'checkbox', 'aria-label': 'Watch for downloads' });
   watch.checked = st.watch;
   watch.onchange = () => configure({ watch: watch.checked });
@@ -1177,7 +1235,7 @@ function renderImports(page) {
     const n = st.waiting.length;
     page.append(
       h(
-        'div.dv-banner',
+        'div.dv-banner.card',
         null,
         h('span.ic', { html: icon('download') }),
         h('div.grow', null, h('b', { text: `${plural(n, 'song file')} ${n === 1 ? 'is' : 'are'} already in ${shortPath(st.watchDir)}. ` }), h('span', { text: st.waiting.slice(0, 3).map((w) => w.name).join(', ') + (n > 3 ? ` and ${n - 3} more` : '') })),
@@ -1198,7 +1256,7 @@ function renderImports(page) {
     const waiting = st.pending.some((p) => p.state === 'waiting');
     page.append(
       h(
-        'div.dv-banner',
+        'div.dv-banner.card',
         null,
         h('span.ic', { html: icon('clock') }),
         h('div.grow', null, h('b', { text: `${plural(count, 'song')} waiting to go into ${names}. ` }), h('span', { text: waiting ? 'Close Rocksmith and Stagehand adds them.' : 'Adding them now…' })),
@@ -1224,7 +1282,7 @@ function renderImports(page) {
   if (!hist.length) {
     sec.append(h('div.dv-none', { text: 'Nothing imported yet.' }));
   } else {
-    const list = h('div.imp-list');
+    const list = h('div.imp-list.card');
     for (const e of hist) list.append(importRow(e));
     sec.append(list);
   }
@@ -1310,7 +1368,7 @@ function importRow(e) {
 
 /** "Find songs on this PC": looks in Downloads and the import folder. */
 function findOnPcCard() {
-  const card = h('section.imp-card.find-pc');
+  const card = h('section.imp-card.card.find-pc');
   const res = D.pcScan;
   const go = btn(res && res.busy ? 'Looking…' : 'Look for songs', { cls: 'small', iconName: 'search', disabled: !!(res && res.busy), onClick: () => scanPC({ show: true }) });
   card.append(setting('Find songs on this PC', 'Looks in your Downloads folder (and your import folder) for song files (<b>.psarc</b>) that aren’t in your library yet. Songs somewhere else: drop the folder on Stagehand.', [go]));
@@ -1472,6 +1530,14 @@ api.on('import:done', async ({ entries, gameRunning }) => {
   }
 });
 api.on('rocksmith:changed', () => loadRocksmith());
+// the song finder's own buttons: Next song, and Stop
+api.on('finder:event', (e) => {
+  if (!e) return;
+  if (e.type === 'skip') {
+    if (D.run) runNext({ skip: true }).catch(() => {});
+    else findNext().catch(() => {});
+  } else if (e.type === 'stop') stopRun();
+});
 
 // ------------------------------------------------------------ drag & drop --
 const overlay = h('div.drop-overlay', { hidden: true }, h('div.box', null, h('div.ic', { html: icon('download') }), h('b', { text: 'Drop to import into Rocksmith' }), h('span', { text: '.psarc song files or ZIPs of them' })));

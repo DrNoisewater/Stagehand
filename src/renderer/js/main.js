@@ -22,6 +22,7 @@ import './showroom.js';
 import './progress.js';
 import './room.js';
 import './greenroom.js';
+import './karaoke.js';
 import './stemformat.js';
 import { rig } from './rig.js';
 import { nudgeSpeed } from './speedpop.js';
@@ -238,8 +239,8 @@ async function boot() {
       s.hasStems = false;
       bump();
     }
-    if (!prev || prev.state !== u.state) emit('stems');
-    else emit('stems-progress');
+    if (!prev || prev.state !== u.state) emit('stems', u);
+    else emit('stems-progress', u);
     emit('stems-update', u);
     tickStems();
   });

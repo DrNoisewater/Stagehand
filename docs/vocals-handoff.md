@@ -1,5 +1,8 @@
 # Sing along: handoff to build it
 
+**Status (2026-11-13): steps 1–5 are built in 4.12.0, on the highway. See the top of `HANDOFF.md` for what was
+built, how it was checked and what is left (the lane on the Tab view, tuning with a real voice).**
+
 Paste this into a new session (attach nothing; link the PC if you can). Read `HANDOFF.md` and `CLAUDE.md` first,
 start from the latest `main`, and check `package.json`'s version against GitHub before writing anything.
 

@@ -21,6 +21,7 @@ import { byId } from './tonelib.js';
 import { buildTone, freshChoices } from './tonerecipes.js';
 import { playDemo, stopDemo, demoPlaying } from './rigui.js';
 import { gearItems, GEAR_CATS, gearPanel, micPanel, gearThumb, CAB_RE } from './gearbench.js';
+import { loadAbout, aboutCard } from './gearabout.js';
 
 const root = document.getElementById('page-gear');
 const read = (k, d) => {
@@ -162,14 +163,15 @@ function drawShow() {
   showEl.append(titleRow);
   if (it.t === 'cab') {
     const g = { slot: 'cab', key: knobs.__key || it.defaultKey, knobs: Object.fromEntries(Object.entries(knobs).filter(([k]) => k !== '__key')) };
-    showEl.append(h('div.sr-cab', null, h('div.sr-cabpic', null, gearThumb(g.key, 'cab', { full: true })), micPanel(g, it, {
+    // 4.12: the spec sheet sits under the controls, in the space that was empty
+    showEl.append(h('div.sr-cab', null, h('div.sr-cabpic', null, gearThumb(g.key, 'cab', { full: true })), h('div.sr-side', null, micPanel(g, it, {
       on: (p) => {
         if (p.key) knobs.__key = p.key;
         if (p.knobs) Object.assign(knobs, p.knobs);
         if (p.key) drawShow();
         changed();
       },
-    })));
+    }), aboutCard(it, g.key))));
   } else {
     const g = { slot: it.slot, key: it.key, knobs };
     panel = gearPanel(g, {
@@ -179,6 +181,13 @@ function drawShow() {
         changed();
       },
     });
+    const wrap = panel.querySelector(':scope > .gb-strip-wrap');
+    if (wrap) {
+      const side = h('div.sr-side');
+      wrap.before(side);
+      side.append(wrap, aboutCard(it, it.key));
+    }
+    else panel.append(aboutCard(it, it.key));
     showEl.append(panel);
   }
   // hear it, compare it, play through it
@@ -275,7 +284,7 @@ function leaveLive() {
 
 async function render() {
   build();
-  const db = await loadGear();
+  const [db] = await Promise.all([loadGear(), loadAbout()]);
   S.items = gearItems(db);
   countEl.textContent = `${S.items.length} pieces · turn any knob · hear it`;
   if (!S.items.some((x) => x.key === S.pick)) S.pick = '';

@@ -385,15 +385,27 @@ class StemService extends EventEmitter {
       }
       const queued = this.queue.find((j) => j.songId === id);
       if (queued) {
-        queued.ahead = false; // you asked for it: it stays in line
+        // you asked for it: it stays in line, ahead of songs split on a hunch
+        if (queued.ahead) {
+          queued.ahead = false;
+          this.queue.splice(this.queue.indexOf(queued), 1);
+          this.queue.splice(this._askedEnd(), 0, queued);
+        }
         continue;
       }
       if (!force && this.ready(song)) continue;
-      this.queue.push({ songId: id, force });
+      // 4.12: before the songs split ahead (you used to wait behind up to three of them)
+      this.queue.splice(this._askedEnd(), 0, { songId: id, force });
       this._set(id, { state: 'queued', progress: 0, message: 'Waiting' });
     }
     this._pump();
     return this.queueInfo();
+  }
+
+  /** Where a song you asked for joins the line: after the others you asked for, before the ones split ahead. */
+  _askedEnd() {
+    const at = this.queue.findIndex((j) => j.ahead);
+    return at < 0 ? this.queue.length : at;
   }
 
   /**

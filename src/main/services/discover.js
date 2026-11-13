@@ -1,9 +1,10 @@
 'use strict';
 /**
  * Discover: search MusicBrainz, compare artists' discographies with the
- * library, track wanted songs, and hand searches to CustomsForge in the
- * user's own browser (Stagehand never queries CustomsForge itself: its
- * rules forbid unapproved bots and scrapers).
+ * library, track wanted songs, and hand searches to CustomsForge (4.12: in
+ * the song finder window, finder.js, or the user's own browser). Stagehand
+ * never reads CustomsForge's pages or downloads from it by itself: its rules
+ * forbid unapproved bots and scrapers.
  */
 const crypto = require('crypto');
 const { EventEmitter } = require('events');

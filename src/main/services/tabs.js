@@ -90,7 +90,8 @@ class TabService {
     const name = psarc.names.find((n) => n.toLowerCase() === `songs/bin/generic/${base}.sng`.toLowerCase());
     if (!name) return [];
     const parsed = sng.parse(sng.unpack(await psarc.read(name), song.platform === 'mac' ? 'mac' : 'pc'));
-    return parsed.vocals.map((v) => ({ t: Math.round(v.time * 1000) / 1000, d: Math.round(v.length * 1000) / 1000, w: v.lyric }));
+    // p: the note to sing (a MIDI number), for Sing along. Charts without notes carry 0, 254 or 255 there.
+    return parsed.vocals.map((v) => ({ t: Math.round(v.time * 1000) / 1000, d: Math.round(v.length * 1000) / 1000, w: v.lyric, p: v.note }));
   }
 }
 

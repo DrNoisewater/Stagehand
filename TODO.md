@@ -2,7 +2,16 @@
 
 Ideas and requests not built yet. Newest first.
 
-## Sing along, as an add-on: vocals for you or a second player (asked 2026-11-12; looked into, not built)
+## Sing along: what's left (the first version shipped in 4.12.0, see HANDOFF.md)
+
+- The lane on the Tab view and Now playing (it is on the highway only).
+- Karaoke (also 4.12.0, its own page on the left): a party list of songs to sing in a row, taking turns: only if asked.
+- Tune it after the user has sung: the levels, the microphone's delay, notes read off real vocals stems.
+- The voice through Stagehand (hearing yourself, the voice in clips), duets: only if asked.
+
+The notes below are the 2026-11-12 write-up, kept for the reasoning.
+
+## Sing along, as an add-on: vocals for you or a second player (asked 2026-11-12; built in 4.12.0)
 
 **Can it be done? Yes.** What's already there and what it would take:
 

@@ -50,6 +50,7 @@ test('lyrics, parts and song tones load through the tab service', async () => {
   assert.strictEqual(lead.strings, 6);
   assert.ok(lead.notes.length + lead.chordEvents.length > 0);
   assert.ok(lead.lyrics.length > 50 && lead.lyrics[0].w === 'But');
+  assert.ok(lead.lyrics.every((w) => Number.isInteger(w.p)), 'each syllable carries its note for Sing along');
   assert.strictEqual(lead.songTones.tones[0].amp, 'Orange AD50');
   assert.strictEqual(lead.songTones.tones[0].preset, 'crunch');
   const bass = await svc.load(song, parts[1].id);

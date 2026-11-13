@@ -49,6 +49,7 @@
 #app.page-tones #page-tones,
 #app.page-gear #page-gear,
 #app.page-progress #page-progress,
+#app.page-karaoke #page-karaoke,
 #app.page-greenroom #page-greenroom { display: flex !important; }
 #app.page-songs #library { display: flex !important; }
 #app.page-songs #inspector { display: block !important; }
@@ -802,7 +803,7 @@ body:has(> .highway:not([hidden])) .stem-wait { display: none; }
 .hw-sync-eyebrow { font: 700 11px var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
 /* The timing check is a song on the highway: only what it needs shows, and a bar says what to do */
 .highway.hw-training .hw-views, .highway.hw-training .hw-parts, .highway.hw-training .hw-transport,
-.highway.hw-training .hw-sections, .highway.hw-training .hw-dock, .highway.hw-training .hw-tools-btn,
+.highway.hw-training .hw-sections, .highway.hw-training .hw-dock, .highway.hw-training .hw-tools-btn, .highway.hw-training .hw-set-btn,
 .highway.hw-training .hw-tool-live, .highway.hw-training .hw-card, .highway.hw-training .hw-rep-bar, .highway.hw-training .hw-speed-chip { display: none !important; }
 .hw-trainbar { position: absolute; left: 50%; top: 74px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); padding: 8px 10px 8px 14px; border-radius: 999px; background: rgba(12, 16, 26, 0.82); border: 1px solid rgba(255, 181, 71, 0.4); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); color: var(--ink-2); font: 500 13px var(--font); white-space: nowrap; }
 .hw-trainbar b { color: var(--tungsten-hi); font-weight: 800; }
@@ -2176,3 +2177,82 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .looks-row small { color: var(--ink-3); }
 .guitar-card .gc-cable { width: 100%; max-height: 54px; object-fit: contain; opacity: 0.9; filter: drop-shadow(0 2px 2px #0008); }
 html[data-decoration='reduced'] .guitar-card .gc-cable { display: none; }
+
+/* 4.12 sing along (an add-on): the Sing chip, the lane where the lyrics sit, and its line on the score card */
+.hw-sing-chip[aria-pressed='true'] svg:last-child { width: 12px; height: 12px; opacity: 0.7; }
+.hw-sing { position: absolute; left: 50%; top: 96px; z-index: 3; width: min(82vw, 1500px); transform: translateX(-50%); pointer-events: none; } /* across the top, as in the band games */
+.hw-sing .sw-words { justify-content: center; }
+.highway.hw-repeating .hw-sing { top: 142px; }
+.hw-sing[hidden] { display: none; }
+.highway:has(.hw-card:not([hidden])) .hw-sing { visibility: hidden; } /* the score card sits there */
+.hw-sing canvas { display: block; width: 100%; height: 124px; }
+/* the lane is a road case like the rest of the stage: dark panel, a gold rim, screws in the corners */
+.hw-sing canvas { border-radius: 4px; background: var(--sc-screws), radial-gradient(circle at 7px calc(100% - 7px), #a4916f 0 1.3px, #14120f 1.3px 2.3px, transparent 3px), radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), #a4916f 0 1.3px, #14120f 1.3px 2.3px, transparent 3px), var(--sc-panel); box-shadow: inset 0 0 0 2px #0c0b0a, inset 0 0 0 3px #a88d5733, 0 10px 24px #0009; }
+.sw-tape { position: absolute; left: 22px; top: -11px; z-index: 1; padding: 3px 12px 4px; font: 700 11px 'Typewriter Stagehand', 'Liberation Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #231d17; background: #e6dfcf; box-shadow: 0 1px 3px #000a; transform: rotate(-1.5deg); clip-path: polygon(1% 4%, 99% 0, 100% 92%, 97% 100%, 2% 96%, 0 40%); }
+.hw-sing[data-look='words'] .sw-tape { display: none; }
+.hw-sing .sw-words { display: none; gap: 14px; align-items: stretch; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85); }
+.hw-sing[data-look='words'] canvas { display: none; }
+.hw-sing[data-look='words'] .sw-words { display: flex; }
+.sw-meter { --lv: 0; position: relative; flex: none; width: 10px; border-radius: 2px; background: linear-gradient(to top, #7bd36a 0 60%, #f1ce68 60% 80%, #dc6650 80%); -webkit-mask: linear-gradient(to top, #000 calc(var(--lv) * 100%), #0003 0), repeating-linear-gradient(to top, #000 0 8%, transparent 8% 10%); -webkit-mask-composite: source-in; mask-composite: intersect; box-shadow: 0 0 0 2px #0c0b0a; } /* an LED meter: green, amber, red */
+.sw-meter-wrap { position: relative; flex: none; display: flex; }
+.sw-meter-wrap::before { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 2px; margin-top: -1px; background: #f1ce68; z-index: 1; }
+.sw-meter-wrap i { position: absolute; z-index: 2; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #f5edda; opacity: 0; transition: top 0.06s linear; }
+.sw-meter-wrap i.off { opacity: 1; box-shadow: 0 0 10px rgba(245, 237, 218, 0.7); }
+.sw-meter-wrap i.ok { opacity: 1; background: #33c8e0; box-shadow: 0 0 14px #33c8e0; }
+.sw-now { font: 900 34px/1.2 var(--font); font-stretch: 75%; color: #f5edda; text-shadow: 2px 2px 0 #000; }
+.sw-now span { transition: color 0.08s linear; }
+.sw-now span.sung { color: #a99e8c; }
+.sw-now span.now { color: #fff; text-shadow: 0 0 16px rgba(255, 181, 71, 0.8), 2px 2px 0 #000; }
+.sw-now span.hit { color: #33c8e0; text-shadow: 0 0 12px rgba(51, 200, 224, 0.5), 2px 2px 0 #000; }
+.sw-now span.hit.gold { color: #f1ce68; text-shadow: 0 0 12px rgba(241, 206, 104, 0.55), 2px 2px 0 #000; }
+.sw-now span.miss { color: rgba(169, 158, 140, 0.55); }
+.sw-next { margin-top: 4px; font: 800 22px/1.25 var(--font); font-stretch: 80%; color: #a99e8c; text-shadow: 2px 2px 0 #000; min-height: 1.25em; }
+.sw-badge { margin-top: 8px; display: inline-block; padding: 3px 10px 4px; font: 700 11px 'Typewriter Stagehand', 'Liberation Mono', monospace; letter-spacing: 0.04em; color: #231d17; background: #e6dfcf; box-shadow: 0 1px 3px #000a; transform: rotate(-0.6deg); }
+.sw-badge[hidden] { display: none; }
+.hw-card-ring.sing { --c: #33c8e0; }
+.hw-card-titles p svg { width: 14px; height: 14px; vertical-align: -2px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.hw-card-sing { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(51, 200, 224, 0.08); box-shadow: inset 0 0 0 1px rgba(51, 200, 224, 0.25); font-size: 12.5px; color: var(--ink-2); }
+.hw-card-sing .sing-pct { display: inline-flex; align-items: center; gap: 6px; color: #33c8e0; }
+.hw-card-sing .sing-pct b { font-size: 19px; font-weight: 900; }
+.hw-card-sing svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.mic-level { --lv: 0; display: inline-block; width: 84px; height: 8px; border-radius: 4px; background: #252d45; overflow: hidden; vertical-align: middle; }
+.mic-level i { display: block; height: 100%; width: calc(var(--lv) * 100%); background: #7e87a6; border-radius: 4px; transition: width 0.05s linear; }
+.mic-level.voiced i { background: #33c8e0; box-shadow: 0 0 8px #33c8e0; }
+
+/* 4.12 karaoke: the lane goes big, still up top; the guitar's score steps aside */
+.hw-sing[data-k] { top: max(110px, 13vh); width: min(92vw, 1500px); }
+.highway.hw-repeating .hw-sing[data-k] { top: max(150px, 13vh); }
+.hw-sing[data-k] canvas { height: 310px; }
+.hw-sing[data-k][data-look='words'] .sw-words { justify-content: center; gap: 26px; }
+.hw-sing[data-k] .sw-now { font-size: clamp(34px, 4.6vw, 64px); }
+.hw-sing[data-k] .sw-next { margin-top: 12px; font-size: clamp(20px, 2.4vw, 32px); }
+.hw-sing[data-k] .sw-meter { width: 14px; }
+.hw-sing[data-k] .sw-badge { font-size: 13px; }
+.highway.hw-karaoke .hw-score { visibility: hidden; }
+
+/* 4.12 the Karaoke page: your songs with words, as covers to pick from */
+#page-karaoke { flex-direction: column; overflow: auto; background: radial-gradient(1000px 460px at 30% -8%, rgba(51, 200, 224, 0.07), transparent 70%); }
+.kk-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.kk-head .page-title { margin: 0; }
+.kk-sub { margin: 4px 0 0; color: var(--ink-3); max-width: 62ch; }
+.kk-levels { display: inline-flex; border-radius: 999px; overflow: hidden; box-shadow: inset 0 0 0 1px #30383d; }
+.kk-levels button { padding: 6px 13px; font: 600 12.5px var(--font); color: var(--ink-2); background: transparent; border: 0; cursor: pointer; }
+.kk-levels button[aria-pressed='true'] { color: #06222a; background: #33c8e0; }
+.kk-head .btn svg { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.kk-search { max-width: 420px; flex: none; }
+.kk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px 16px; }
+.kk-card { position: relative; display: flex; flex-direction: column; gap: 3px; padding: 0; text-align: left; color: inherit; background: none; border: 0; cursor: pointer; min-width: 0; }
+.kk-card .cover { width: 100%; aspect-ratio: 1; border-radius: 10px; margin-bottom: 6px; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.kk-card:hover .cover, .kk-card:focus-visible .cover { transform: translateY(-2px); box-shadow: 0 0 0 2px #33c8e0, 0 10px 24px rgba(0, 0, 0, 0.45); }
+.kk-card b { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kk-card > span { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kk-card .kk-play { position: absolute; right: 8px; top: 8px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #06222a; background: #33c8e0; opacity: 0; transition: opacity 0.12s ease; }
+.kk-card:hover .kk-play, .kk-card:focus-visible .kk-play { opacity: 1; }
+.kk-card .kk-play svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+.kk-card .kk-best { color: #33c8e0; font-weight: 700; }
+.kk-empty, .kk-more { color: var(--ink-3); }
+
+/* 4.12: while the highway shows, nothing floating over it blurs the moving picture behind it.
+   On Windows a blur over a picture redrawn 165 times a second can flicker when a panel opens;
+   these panels are nearly solid anyway, so they look the same without it. */
+body:has(> .highway:not([hidden])) :is(.hw-opts, .hw-card, .speed-pop, .rep-bar, .modal-backdrop) { -webkit-backdrop-filter: none; backdrop-filter: none; }

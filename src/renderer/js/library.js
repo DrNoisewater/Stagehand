@@ -765,7 +765,12 @@ on('stems', debounce(() => {
   for (const [id, el] of rowEls) {
     const s = state.songs.get(id);
     const cell = el.children[8];
-    if (s && cell) cell.innerHTML = stemHtml(s);
+    if (!s || !cell) continue;
+    const html = stemHtml(s);
+    if (cell.dataset.stem !== html) {
+      cell.dataset.stem = html; // (4.12: only cells that changed, so the list doesn't flicker)
+      cell.innerHTML = html;
+    }
   }
 }, 120));
 on('scan', () => {

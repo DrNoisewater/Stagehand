@@ -1,0 +1,899 @@
+{
+"Amp_AT120": {
+"about": "A combo amp in the British style, with a bright, chiming clean tone that crunches up as you turn the gain. That sound suits jangly pop, indie and classic British rock. It has a simple gain, bass, middle and treble layout.",
+"real": ""
+},
+"Amp_AT20": {
+"about": "A small combo amp with a bright, chiming British-style voice. It keeps a sparkling clean sound at low gain and gives a light, ringing crunch when pushed. With only gain, bass and treble, it is quick to set up for strumming and jangly parts.",
+"real": ""
+},
+"Amp_BT15": {
+"about": "A small boutique-style tube head with a rich, saturated voice. It can go from a thick crunch to a smooth, heavy lead sound, which suits modern rock. Four simple controls make it easy to dial in.",
+"real": ""
+},
+"Amp_BT30": {
+"about": "A mid-size boutique-style tube head built for rock crunch. Its sound is tight and punchy, like a British stack pushed hard, good for chunky rhythm parts and singing leads. It has gain, bass, middle and treble.",
+"real": ""
+},
+"Amp_BT45": {
+"about": "A boutique-style tube head with a vintage British voice. It gives an open, roaring crunch that cleans up as you play softer, the sound of classic hard rock. Four controls keep it straightforward.",
+"real": ""
+},
+"Amp_CA100": {
+"about": "A 100-watt American high-gain head from the 1990s. It is known for a huge, tight, heavy distortion with deep lows, and it became the sound of nu-metal and much modern metal and hard rock. It has a presence control to sharpen the top end.",
+"guess": true,
+"real": "Mesa/Boogie Dual Rectifier"
+},
+"Amp_CA38": {
+"about": "A California-style tube head with a focused, punchy midrange. Pushed up, it gives a tight crunch that works well for hard rock rhythm and lead. Gain, bass, middle and treble keep it simple.",
+"real": ""
+},
+"Amp_CA85": {
+"about": "A California-style tube head with a warm, round voice. At lower gain it gives full, sparkling cleans, and it warms into a smooth, bluesy crunch when pushed. It has gain, bass, middle and treble.",
+"real": ""
+},
+"Amp_CS100": {
+"about": "A clean solid-state head, built to stay clear and loud rather than distort. It gives a crisp, bright, even clean sound for funk, jazz and chord work, and takes pedals well. It has gain, bass, middle and treble.",
+"real": ""
+},
+"Amp_CS120": {
+"about": "A powerful clean solid-state head, designed to stay clear even at high volume. Its sound is crisp and glassy, good for funk, jazz, new wave and clean chord parts, and it works well with effects pedals.",
+"real": ""
+},
+"Amp_CS90": {
+"about": "A clean solid-state head with a clear, bright and even voice. It keeps chords defined and notes crisp, a good base for funk, pop and jazz, or for building a sound with pedals. Four simple controls.",
+"real": ""
+},
+"Amp_EN30": {
+"about": "A British-style head with a bright, chiming voice and a bright switch and presence control for extra sparkle. It gives jangly cleans and a ringing, open crunch, the sound of British pop and rock from the 1960s on.",
+"real": ""
+},
+"Amp_EN50": {
+"about": "A head with a vintage British look and a bright switch, but a lot more gain on tap. It can go from a chiming crunch to a thick, heavy distortion for hard rock and metal. It has gain, bass, middle and treble.",
+"real": ""
+},
+"Amp_EpiphoneElectarCentury": {
+"about": "A small tube amp from Epiphone's early electric years, around the 1930s and 1940s. It has one volume knob and a warm, soft, rounded sound that breaks up gently when turned up, the tone of early jazz and swing guitar.",
+"real": "Epiphone Electar Century"
+},
+"Amp_EpiphoneElectarM": {
+"about": "One of Epiphone's early Electar tube amps from the late 1930s. With a single knob, it is as simple as it gets: a warm, dark, slightly gritty sound that suits early jazz, blues and old-time music.",
+"real": "Epiphone Electar Model M"
+},
+"Amp_EpiphoneElectricHawaiian": {
+"about": "An early Epiphone tube amp from the 1930s, made in the time when electric lap steel and Hawaiian guitar were very popular. It has a warm, mellow, low-power sound with a single tone knob, and it breaks up softly when pushed.",
+"real": "Epiphone Electric Hawaiian"
+},
+"Amp_EpiphoneZephyr": {
+"about": "A vintage Epiphone tube amp from the 1940s and 1950s, made to go with the Zephyr hollowbody guitars. It has a warm, full and slightly gritty sound, good for jazz, early rock and roll and roots music.",
+"real": "Epiphone Zephyr"
+},
+"Amp_GB100": {
+"about": "A 100-watt high-gain head with a big, tight and aggressive sound. It is made for heavy rhythm parts and saturated leads in hard rock and metal. A presence control lets you add bite on top.",
+"real": ""
+},
+"Amp_GB38": {
+"about": "A tube head with a punchy, mid-forward rock voice. Pushed up, it gives a tight, biting crunch that suits hard rock and classic metal. It has gain, bass, middle, treble and presence.",
+"real": ""
+},
+"Amp_GB50": {
+"about": "A 50-watt tube head with an open, classic rock voice. It gives a warm, roaring crunch with good note definition, good for riffs and solos in classic and hard rock. It has a presence control for more bite.",
+"real": ""
+},
+"Amp_GibsonGA79": {
+"about": "A 1960s Gibson tube combo with two speakers, built-in reverb and tremolo, and stereo outputs. It has a warm, smooth clean sound with a soft break-up, well suited to jazz, blues and surf-tinged playing.",
+"guess": true,
+"real": "Gibson GA-79RVT"
+},
+"Amp_GibsonGA8": {
+"about": "A small, low-power Gibson tube amp from the 1950s and 1960s, made for practice and small rooms. It has a warm, compressed sound that breaks up easily into a gritty, bluesy growl when turned up.",
+"real": "Gibson GA-8"
+},
+"Amp_GibsonGA88": {
+"about": "A vintage Gibson tube amp from the 1960s. It has a warm, round clean sound with a gentle, woody break-up when pushed, good for blues, jazz and early rock. It has volume, bass and treble controls.",
+"guess": true,
+"real": "Gibson GA-88"
+},
+"Amp_HG100": {
+"about": "A 100-watt high-gain head built for heavy music. It gives a thick, tight and aggressive distortion with plenty of sustain, made for metal riffs and fast leads. Gain, bass, middle and treble keep it simple.",
+"real": ""
+},
+"Amp_HG180": {
+"about": "A high-gain head with a fierce, saturated sound. It is made for chugging metal rhythm and searing solos, with a tight low end and lots of sustain. It has gain, bass, middle and treble.",
+"real": ""
+},
+"Amp_HG500": {
+"about": "A high-gain head with the most control of its family: a middle-frequency knob lets you move the midrange around to shape the distortion. Its sound is heavy, tight and modern, made for metal and hard rock.",
+"real": ""
+},
+"Amp_Marshall1962Bluesbreaker": {
+"about": "A Marshall tube combo from the mid-1960s with two 12-inch speakers. Eric Clapton used one on John Mayall's Blues Breakers album in 1966, and its warm, thick, singing overdrive became a model for blues-rock guitar.",
+"real": "Marshall 1962 Bluesbreaker"
+},
+"Amp_MarshallDSL100H": {
+"about": "A 100-watt, two-channel Marshall tube head. One channel goes from clean to classic crunch, the other gives a hotter, high-gain sound. It covers classic rock to modern hard rock, with a resonance knob to firm up the low end.",
+"real": "Marshall DSL100H"
+},
+"Amp_MarshallDSL15H": {
+"about": "A 15-watt, two-channel Marshall tube head. It gives the classic Marshall crunch and a hotter lead sound at a lower volume than the big heads, good for practice, recording and small gigs in rock and hard rock.",
+"real": "Marshall DSL15H"
+},
+"Amp_MarshallJCM800": {
+"about": "A Marshall tube head from the early 1980s, one of the best-known rock amps ever made. It has a bright, aggressive and punchy crunch, and it was the sound of a great deal of 1980s hard rock and heavy metal.",
+"real": "Marshall JCM800"
+},
+"Amp_MarshallJTM45": {
+"about": "Marshall's first amp, from 1962, based on the Fender Bassman. It has a warm, fat and smooth tube overdrive, softer than later Marshalls, and it shaped the sound of early British blues and rock.",
+"real": "Marshall JTM45"
+},
+"Amp_MarshallJVM410H": {
+"about": "A 100-watt Marshall tube head with four channels, from clean through crunch to two lead sounds. It covers everything from classic Marshall crunch to tight modern high gain, and is used for hard rock and metal.",
+"real": "Marshall JVM410H"
+},
+"Amp_MarshallPlexi": {
+"about": "The late-1960s Marshall 100-watt head, named for its plexiglass front panel. Turned up loud, it gives the big, open, roaring crunch heard on records by Jimi Hendrix and countless classic rock bands.",
+"real": "Marshall 1959 Super Lead (Plexi)"
+},
+"Amp_OrangeAD50": {
+"about": "A 50-watt Orange tube head with a simple layout. It has a warm, thick and slightly raw sound, clean when played softly and a rich, chunky crunch when pushed, good for classic rock and blues.",
+"guess": true,
+"real": "Orange AD50"
+},
+"Amp_OrangeJimmyBean": {
+"about": "An Orange tube amp with a simple volume, bass, middle and treble layout. It has Orange's warm, thick British voice, going from full cleans to a fat, gritty crunch as the volume goes up.",
+"real": ""
+},
+"Amp_OrangeOR100": {
+"about": "A 100-watt Orange tube head in the spirit of the company's classic 1970s heads. It has a big, thick, midrange-heavy crunch with a lot of low end, a favourite sound for stoner rock, doom and heavy classic rock.",
+"guess": true,
+"real": "Orange OR100"
+},
+"Amp_OrangeOR50H": {
+"about": "A 50-watt single-channel Orange tube head based on the company's classic 1970s sound. It has a thick, warm and punchy crunch that goes to heavy distortion, popular in classic rock, stoner and doom.",
+"guess": true,
+"real": "Orange OR50H"
+},
+"Amp_OrangeRockerverb": {
+"about": "A 50-watt, two-channel Orange tube head with built-in reverb. The clean channel is warm and full, and the dirty channel gives a thick, saturated, midrange-rich distortion used widely in hard rock, stoner and metal.",
+"real": "Orange Rockerverb 50 MkII"
+},
+"Amp_OrangeTinyTerror": {
+"about": "A 15-watt Orange tube head about the size of a lunchbox, from 2006. With just gain, tone and volume, it gives a warm, chunky crunch that goes into a thick classic-rock distortion. Popular for home and small gigs.",
+"real": "Orange Tiny Terror"
+},
+"Amp_TW22": {
+"about": "An American-style tube combo with a warm, sparkling clean sound. Turned up, it breaks up into a smooth, bluesy crunch. That sound fits country, blues, soul and roots rock. It has gain, bass, middle and treble.",
+"real": ""
+},
+"Amp_TW26": {
+"about": "An American-style tube combo with a full, bright clean sound and a presence knob for extra sparkle. It stays clean a little longer, then gives a warm, bluesy break-up, good for country, blues and classic rock.",
+"real": ""
+},
+"Amp_TW40": {
+"about": "An American-style tube amp with a warm, fat voice. It gives full cleans and a thick, chewy crunch when pushed, good for blues and rock and roll. It has gain, bass, middle, treble and presence.",
+"real": ""
+},
+"Bass_Amp_BT600B": {
+"about": "A bass head with lots of tone control: separate knobs for several narrow bands, plus a built-in compressor to even out your playing. It can sound warm and round or punchy and growling, good for rock and funk.",
+"real": ""
+},
+"Bass_Amp_BT880B": {
+"about": "A bass head with a very detailed tone section: low, middle and high-middle knobs, each with its own frequency control. That lets you shape the sound precisely, from deep and round to punchy and growling.",
+"real": ""
+},
+"Bass_Amp_BT975B": {
+"about": "A bass head with low and high shift switches to move the bass and treble around. It has a big, warm tube-style voice with a growl when pushed, the classic sound of rock bass.",
+"real": ""
+},
+"Bass_Amp_CH300B": {
+"about": "A bass head with a tight, punchy and clear sound that cuts through a band. An enhance knob adds sparkle and depth, and a movable middle control helps shape it. Good for rock, funk and slap playing.",
+"real": ""
+},
+"Bass_Amp_CH350B": {
+"about": "A bass head with a seven-band graphic equaliser, from deep lows to airy highs. Its sound is punchy, tight and clear, and the bands make it easy to scoop the middle for slap or push it for rock.",
+"real": ""
+},
+"Bass_Amp_CH600B": {
+"about": "A powerful bass head with a six-band graphic equaliser and a built-in compressor. It gives a punchy, tight and even sound that cuts through a loud band, good for rock, funk and slap bass.",
+"real": ""
+},
+"Bass_Amp_CS240B": {
+"about": "A simple solid-state bass amp with just gain, bass and treble. It gives a clean, punchy and dependable sound, easy to set up for practice or for a straightforward rock or pop bass tone.",
+"real": ""
+},
+"Bass_Amp_CS300B": {
+"about": "A solid-state bass head with separate low-middle and high-middle knobs. It has a clean, punchy and clear sound, and the two middle controls help bass lines sit well in a band mix.",
+"real": ""
+},
+"Bass_Amp_CS75B": {
+"about": "A small solid-state bass amp with gain, bass, middle and treble. It gives a clean, tight and punchy sound, good for practice and for simple pop and rock bass parts.",
+"real": ""
+},
+"Bass_Amp_EdenE300": {
+"about": "A bass head from Eden, an American maker known for clear, detailed and hi-fi bass sound. It has a simple layout with an enhance knob that adds depth and sparkle. Good for clean, modern bass tones in any style.",
+"guess": true,
+"real": "Eden E300"
+},
+"Bass_Amp_EdenWT550": {
+"about": "A head from Eden's World Tour line, known among bass players for a clean, detailed and natural sound. It has a precise middle section with frequency controls and an enhance knob, good for jazz, funk, pop and rock.",
+"real": "Eden WT550"
+},
+"Bass_Amp_EdenWT800": {
+"about": "A powerful head from Eden's World Tour line, prized for a big, clear and detailed bass sound with lots of headroom. It has a precise middle section and an enhance knob, and suits big stages in any style.",
+"real": "Eden WT800"
+},
+"Bass_Amp_HT100B": {
+"about": "A 100-watt-style tube bass head with a warm, thick and growling voice. Pushed up, it gives a gritty, punchy rock bass sound. It has gain, bass, middle, treble and presence.",
+"real": ""
+},
+"Bass_Amp_HT300B": {
+"about": "A big tube-style bass head with a warm, powerful sound and plenty of bite. Low and high shift switches and a movable middle knob help shape it, from deep and round to aggressive and growling. Built for rock.",
+"real": ""
+},
+"Bass_Amp_HT400B": {
+"about": "A powerful tube-style bass head with a big, warm and punchy voice. Low and high shift switches add depth or bite. It suits rock and heavy music where the bass needs to be felt as well as heard.",
+"real": ""
+},
+"Bass_Amp_LT25B": {
+"about": "A small, low-power bass amp with a warm, tube-style voice. A movable middle knob and low and high shift switches help shape it, and it breaks up into a gentle growl when pushed. Good for vintage bass sounds.",
+"real": ""
+},
+"Bass_Amp_LT85B": {
+"about": "A mid-size bass amp with a warm, round tube-style sound. A high shift switch adds bite, and turning it up gives a smooth growl. Good for classic rock, soul and vintage bass sounds.",
+"real": ""
+},
+"Bass_Amp_OrangeAD200B": {
+"about": "A 200-watt all-tube bass head from Orange. It has a warm, thick and powerful vintage sound with a lot of low end, and it growls when driven hard. Popular for rock, stoner and heavy bass playing.",
+"real": "Orange AD200B"
+},
+"Bass_Cab_AT1150BC": {
+"about": "A closed-back bass cab with one 15-inch speaker. A single 15 gives a deep, round, warm low end that sits well under a band, at the cost of some snap and top end.",
+"real": ""
+},
+"Bass_Cab_AT810BC": {
+"about": "A tall bass cab with eight 10-inch speakers. This big closed-back layout is the classic rock bass 'fridge': loud, punchy and full, with a strong low-mid growl.",
+"real": ""
+},
+"Bass_Cab_BT115BC": {
+"about": "A bass cab with one 15-inch speaker. Expect a warm, rounded, deep tone with a softer attack than a cab full of 10s; good for smooth, old-school lines.",
+"real": ""
+},
+"Bass_Cab_BT212BC": {
+"about": "A bass cab with two 12-inch speakers. Two 12s sit between 10s and 15s: deeper than a 10-inch cab, tighter and quicker than a 15, with a solid middle.",
+"real": ""
+},
+"Bass_Cab_BT410BC": {
+"about": "A bass cab with four 10-inch speakers. 4x10s are the all-rounder of bass cabs: punchy, clear and quick to respond, with enough low end for most styles.",
+"real": ""
+},
+"Bass_Cab_CA1510BC": {
+"about": "A bass cab that pairs a 15-inch speaker with a 10-inch one. The 15 brings the deep lows while the 10 adds punch and clarity, giving a full but defined sound.",
+"real": ""
+},
+"Bass_Cab_CH210BC": {
+"about": "A small bass cab with two 10-inch speakers. Light and punchy with a clear, tight sound; it has less deep low end than bigger cabs and suits smaller rooms.",
+"real": ""
+},
+"Bass_Cab_CH310BC": {
+"about": "A bass cab with several 10-inch speakers in a compact box. Expect a punchy, focused sound with a firm attack, a middle ground between a 2x10 and a 4x10.",
+"real": ""
+},
+"Bass_Cab_CH410BC": {
+"about": "A punchy bass cab with four 10-inch speakers. It gives a tight, clear attack with a lively upper end that helps a bass line cut through a busy mix.",
+"real": ""
+},
+"Bass_Cab_CS112BC": {
+"about": "A compact bass cab with one 12-inch speaker. Small and focused: a tight, clean low end with a clear middle, good for practice, small gigs and recording.",
+"real": ""
+},
+"Bass_Cab_CS15BC": {
+"about": "A bass cab with one 15-inch speaker. It leans toward a deep, round, warm sound with a softer attack, the kind that suits vintage and soul-style playing.",
+"real": ""
+},
+"Bass_Cab_CS410BC": {
+"about": "A bass cab with four 10-inch speakers. Punchy and articulate with a quick attack, and enough low end to fill a room; a common choice for rock, funk and pop.",
+"real": ""
+},
+"Bass_Cab_EdenD115XLT": {
+"about": "A bass cab with one 15-inch speaker and a tweeter. Eden cabs are known for a clean, detailed, hi-fi bass sound; this one adds a deep, round low end.",
+"real": "Eden D115XLT"
+},
+"Bass_Cab_EdenD212XLT": {
+"about": "A bass cab with two 12-inch speakers and a tweeter. It gives Eden's clean, detailed sound with a firm low end and a strong, clear middle.",
+"real": "Eden D212XLT"
+},
+"Bass_Cab_EdenD410XST": {
+"about": "A bass cab with four 10-inch speakers and a tweeter. Eden's 4x10s are known for a clean, punchy, detailed sound that keeps every note clear, even on fast lines.",
+"real": "Eden D410XST"
+},
+"Bass_Cab_EdenD610XST": {
+"about": "A large bass cab with six 10-inch speakers and a tweeter. It has the punch and clarity of 10-inch speakers with a lot more volume and low end; built for big stages.",
+"real": "Eden D610XST"
+},
+"Bass_Cab_GB415BC": {
+"about": "A large bass cab with four 15-inch speakers. Lots of speaker area means huge, deep low end and a big wall of sound, with a softer attack than cabs with 10s.",
+"real": ""
+},
+"Bass_Cab_OrangeOBC115": {
+"about": "A closed-back bass cab with one 15-inch speaker. It gives a deep, warm, rounded tone and suits Orange bass heads; a good pick for classic and doom-style rock.",
+"real": "Orange OBC115"
+},
+"Bass_Cab_OrangeOBC810": {
+"about": "Orange's biggest bass cab, with eight 10-inch speakers in a tall, closed-back box. Very loud, with a thick, punchy low end; often paired with Orange's big bass heads.",
+"real": "Orange OBC810"
+},
+"Bass_Cab_TW215BC": {
+"about": "A vintage-style closed-back bass cab with two 15-inch speakers. It gives a big, warm, round low end with a soft attack, suited to old-school bass tones.",
+"real": ""
+},
+"Bass_Pedal_BassAutoFilter": {
+"about": "A filter that opens and closes with how hard you play, giving bass that funky, quacky \"wow\" on each note. Sensitivity sets how easily it reacts, attack and release set how fast it sweeps, and Mix blends in your clean low end so the bottom stays solid.",
+"real": ""
+},
+"Bass_Pedal_BassChorus": {
+"about": "Chorus for bass: it adds a slightly detuned, gently moving copy of your sound for a shimmering, wider tone. The Low Filter keeps the deepest notes clean so your low end stays tight. Nice on fretless lines, ballads and clean grooves.",
+"real": ""
+},
+"Bass_Pedal_BassDistortion": {
+"about": "A distortion made for bass that adds grit and growl. Gain sets how dirty it gets, Tone shapes the brightness, and Filter helps keep the low end from turning to mush. Good for rock and heavier styles where the bass needs to bite.",
+"real": ""
+},
+"Bass_Pedal_BassEQ8": {
+"about": "An eight-slider graphic EQ tuned for bass, from deep 30 Hz rumble up to 16 kHz string sizzle. Use it to boost or cut exact parts of your tone: more thump, less boom, extra punch in the mids, or brighter slap.",
+"real": ""
+},
+"Bass_Pedal_BassEnbig": {
+"about": "A bass version of a thickening modulation effect: it makes your tone sound bigger and wider with a slow, moving shimmer. The Filter keeps the lowest notes steady while the effect works on the upper part of the sound.",
+"real": ""
+},
+"Bass_Pedal_BassFilterDelay": {
+"about": "A delay for bass that repeats what you play. Time sets the gap between repeats, Feedback how many you hear, and Mix how loud they are. The Low Filter keeps the repeats out of the deep end so your groove stays clear.",
+"real": ""
+},
+"Bass_Pedal_BassFilterEcho": {
+"about": "An echo for bass, with repeats that sit behind your playing. Time, Feedback and Mix set the gap, the number of repeats and their level, while the Low Filter thins the echoes so they don't cloud your low notes.",
+"real": ""
+},
+"Bass_Pedal_BassFlanger": {
+"about": "A flanger for bass: a sweeping, jet-plane whoosh that moves through your tone. Rate sets the speed, Depth how far it sweeps, and Filter keeps the very lowest notes clean so the bass still feels solid.",
+"real": ""
+},
+"Bass_Pedal_BassFuzz": {
+"about": "A fuzz for bass: thick, buzzy, saturated tone with lots of sustain. Gain sets how fuzzy it gets, Tone the brightness, and Filter helps keep the low end firm. Great for stoner rock, garage and big, fat riffs.",
+"real": ""
+},
+"Bass_Pedal_BassOverdrive": {
+"about": "A bass overdrive that adds warm grit, like a tube amp pushed hard. The Blend knob mixes in your clean signal so you keep your full low end under the dirt. Good for rock and anything that needs a growling edge.",
+"real": ""
+},
+"Bass_Pedal_BassPhase": {
+"about": "A phaser for bass: a smooth, swirling sweep that gives your lines a watery, moving sound. Rate sets the speed and Depth how strong it is, while Filter keeps the low end steady. Classic on funk and spacey grooves.",
+"real": ""
+},
+"Bass_Pedal_BassSubOctave": {
+"about": "Adds a second note one octave below what you play, for a huge, synth-like low end. Mix sets how loud the low octave is, and Tone darkens or brightens it. Best on single notes rather than chords.",
+"real": ""
+},
+"Bass_Pedal_BassWah": {
+"about": "A wah for bass. With the pedal, rock your foot to sweep from deep to bright; in Auto mode it sweeps by itself, following how hard you play. Great for funk lines and vocal \"wah\" sounds.",
+"real": ""
+},
+"Bass_Pedal_EdenWTDI": {
+"about": "A bass preamp and direct box: gain, three-band EQ, extra bass boost, a movable mid control, an Enhance knob and built-in compression, all to shape a finished studio-ready bass tone. The real Eden WTDI is a pedal-sized version of the preamp from Eden's World Tour bass amps.",
+"real": "Eden WTDI"
+},
+"Bass_Pedal_MBComp": {
+"about": "A multi-band compressor for bass: it evens out your volume separately in the low and high parts of the sound, so the bottom stays steady while the attack still comes through. Transition Band sets where the split is, Recovery Speed how fast it lets go.",
+"real": ""
+},
+"Cab_AT0112C": {
+"about": "A US-style open-back cab with one 12-inch speaker. Open backs sound airy and wide with a lighter low end; this kind of cab shines with clean and lightly driven tones.",
+"real": ""
+},
+"Cab_AT1121C": {
+"about": "A guitar cab with one 12-inch speaker. A 1x12 is small and focused, with a direct, mid-forward sound that works well for blues, clean and crunch tones.",
+"real": ""
+},
+"Cab_Audiophile": {
+"about": "A pair of home stereo speakers rather than a guitar cab. Expect a full, flat, clear sound that shows the amp as it is, with no guitar-speaker colour.",
+"real": ""
+},
+"Cab_BT1120C": {
+"about": "A guitar cab with one 12-inch speaker. It gives a focused, punchy sound with a strong middle; a good size for practice, recording and smaller gigs.",
+"real": ""
+},
+"Cab_BT1121C": {
+"about": "A boutique-style closed-back cab with one 12-inch speaker. The closed back tightens the low end and makes the sound more direct, so it handles both clean and driven tones well.",
+"real": ""
+},
+"Cab_BT410C": {
+"about": "A guitar cab with four 10-inch speakers. 10-inch speakers are quick and bright, so a 4x10 sounds lively and punchy, with a sparkly top and a snappy attack.",
+"real": ""
+},
+"Cab_BoomBox": {
+"about": "A portable boom box with small built-in speakers. Thin and boxy with little low end, it is a fun lo-fi effect, like hearing the guitar through a radio on the street.",
+"real": ""
+},
+"Cab_CA112C": {
+"about": "A guitar cab with one 12-inch speaker. Compact and direct, with a tight, mid-focused sound that suits both clean playing and heavier lead tones.",
+"real": ""
+},
+"Cab_CA215C": {
+"about": "A guitar cab with two 15-inch speakers. 15-inch speakers give a big, warm, rounded sound with a deep bottom and softer highs, good for big clean tones.",
+"real": ""
+},
+"Cab_CA412C": {
+"about": "A guitar cab with four 12-inch speakers. A 4x12 gives a big, thick sound with a strong low end, the standard choice for loud rock and high-gain tones.",
+"real": ""
+},
+"Cab_CS1120C": {
+"about": "A guitar cab with one 12-inch speaker. Small and focused, with a clean, direct sound; a good match for clean, jazzy and lightly driven tones.",
+"real": ""
+},
+"Cab_CS1515C": {
+"about": "A guitar cab built around 15-inch speakers. 15s give a big, warm, full sound with a round low end and soft highs, which suits clean and jazz tones.",
+"real": ""
+},
+"Cab_CS212C": {
+"about": "A classic jazz-style cab with two 12-inch speakers. It gives a clean, even, full sound with plenty of headroom, made for clean chords and smooth jazz tones.",
+"real": ""
+},
+"Cab_CabinetRadio": {
+"about": "An old wooden radio cabinet with its own speaker. It sounds warm, boxy and old-fashioned, with soft highs and little low end; a fun vintage effect.",
+"real": ""
+},
+"Cab_EN212C": {
+"about": "A guitar cab with two 12-inch speakers. A 2x12 is fuller than a 1x12 but easier to carry than a 4x12, with a balanced, open sound that suits chime and crunch.",
+"real": ""
+},
+"Cab_EN4120C": {
+"about": "A guitar cab with four 12-inch speakers. Big and thick with a strong low end and plenty of push, a solid match for classic rock and heavier tones.",
+"real": ""
+},
+"Cab_GB412CMKI": {
+"about": "A vintage UK-style cab with four 12-inch speakers. It has the big, warm, midrange-rich sound of older British 4x12s, great for classic rock crunch.",
+"real": ""
+},
+"Cab_GB412CMKII": {
+"about": "A UK-style cab with four 12-inch speakers. It gives the big, punchy 4x12 sound with a tight low end and a strong middle, a natural pick for rock and heavy tones.",
+"real": ""
+},
+"Cab_GB412CMKIII": {
+"about": "A UK-style cab with four 12-inch speakers. 4x12s give a big, thick sound with a strong low end and a lot of punch, ideal for rock and high-gain tones.",
+"real": ""
+},
+"Cab_Gramophone": {
+"about": "An old wind-up gramophone horn instead of a speaker cab. Very thin, nasal and boxy, it makes the guitar sound like an old record; a fun novelty effect.",
+"real": ""
+},
+"Cab_HG2120C": {
+"about": "A modern cab with two 12-inch speakers and a back that is half open and half closed. It blends the tight low end of a closed back with the airy feel of an open one.",
+"real": ""
+},
+"Cab_HG212C": {
+"about": "A modern closed-back cab with two 12-inch speakers. The closed back gives a tight, focused low end and a direct sound that works well for high-gain playing.",
+"real": ""
+},
+"Cab_HG215C": {
+"about": "A guitar cab with two 15-inch speakers. 15s add a big, deep bottom and softer highs, giving a huge, heavy sound that is less bright than 12-inch cabs.",
+"real": ""
+},
+"Cab_JukeBox": {
+"about": "A jukebox's built-in speakers rather than a guitar cab. Warm and slightly boxy, with a vintage, room-filling feel, like a guitar on an old record playing in a diner.",
+"real": ""
+},
+"Cab_Marshall1936": {
+"about": "Marshall's closed-back cab with two 12-inch speakers. It gives much of the classic Marshall 4x12 punch in a smaller box, and pairs with Marshall heads for rock tones.",
+"real": "Marshall 1936"
+},
+"Cab_Marshall1960AX": {
+"about": "Marshall's angled 4x12 loaded with vintage-style Celestion Greenback speakers. It has a warm, rich, midrange-heavy sound that suits classic rock and pairs with older-style Marshall heads.",
+"real": "Marshall 1960AX"
+},
+"Cab_Marshall1960TV": {
+"about": "Marshall's tall, straight-front cab with four 12-inch speakers. The deeper, taller box gives a fuller low end than the standard 4x12, with a warm vintage sound.",
+"real": "Marshall 1960TV"
+},
+"Cab_Marshall1960a": {
+"about": "Marshall's classic angled cab with four 12-inch speakers, closed back. It is the standard rock 4x12: big, punchy and tight, seen on countless stages with Marshall heads.",
+"real": "Marshall 1960A"
+},
+"Cab_OrangeJimmyBean": {
+"about": "Orange's 1970s 'Jimmy Bean' cab, from a stack covered in denim and leather. A rare piece of Orange history; expect Orange's warm, thick British sound.",
+"guess": true,
+"real": "Orange Jimmy Bean"
+},
+"Cab_OrangePPC212OB": {
+"about": "Orange's open-back cab with two 12-inch speakers. The open back gives a more airy, spread-out sound with a looser low end, good for clean and crunchy tones.",
+"real": "Orange PPC212OB"
+},
+"Cab_OrangePPC412": {
+"about": "Orange's closed-back cab with four 12-inch speakers. It has a thick, heavy, warm sound with a strong low end, and is a common partner for Orange heads in rock and metal.",
+"real": "Orange PPC412"
+},
+"Cab_PA1152C": {
+"about": "A PA speaker with a 15-inch speaker for the lows. PA speakers are built to sound full and even rather than to colour the tone, so the guitar sounds clear and wide.",
+"real": ""
+},
+"Cab_PA600C": {
+"about": "A PA speaker, made to play back sound evenly rather than colour it like a guitar cab. Expect a clear, full, uncoloured sound with more top end than a guitar cab.",
+"real": ""
+},
+"Cab_PA999C": {
+"about": "A PA speaker, built for clear, even playback rather than guitar tone. It gives a wide, uncoloured sound with more top end than a usual guitar cab.",
+"real": ""
+},
+"Cab_TW110C": {
+"about": "A small guitar cab with one 10-inch speaker. Bright and focused with little low end; small amps like this break up early and sound great for blues and recording.",
+"real": ""
+},
+"Cab_TW112C": {
+"about": "A guitar cab with one 12-inch speaker. It has a warm, slightly loose vintage American sound that suits blues, country and crunchy rock.",
+"real": ""
+},
+"Cab_TW410C": {
+"about": "A US-style open-back cab with four 10-inch speakers. Open backs and 10-inch speakers make it bright, lively and wide, a classic sound for blues and early rock'n'roll.",
+"real": ""
+},
+"Cab_VintageHiFi": {
+"about": "An old home hi-fi speaker setup rather than a guitar cab. Warm and slightly soft, with a vintage, living-room sound; a fun change from a usual guitar speaker.",
+"real": ""
+},
+"DI_Amp_BassDriver": {
+"about": "A bass preamp and direct box that plugs straight into a mixing desk. It gives a warm, amp-like growl without an amp, and a blend knob mixes the dry and driven sound. It is a standard on stages and in studios.",
+"guess": true,
+"real": "Tech 21 SansAmp Bass Driver DI"
+},
+"DI_Amp_MixerPre": {
+"about": "A clean direct sound, as if the bass were plugged straight into a mixing desk. It keeps the bass natural and clear, with simple bass, middle and treble controls for shaping, good for pop, funk and recording.",
+"real": ""
+},
+"DI_Amp_TubePre": {
+"about": "A tube preamp for plugging the bass straight into a mixing desk. It adds warmth and a little thickness to the direct sound, and a middle frequency switch helps shape the tone. Good for clean, warm studio bass.",
+"real": ""
+},
+"Pedal_80sFlanger": {
+"about": "A flanger with a big, glossy sweep in the style of 1980s rock and metal records. It makes a whooshing, jet-plane sound that moves through your tone. Rate sets the speed, Depth how deep the sweep goes, and Mix how strong the effect is.",
+"real": ""
+},
+"Pedal_AcousticEmulator": {
+"about": "Makes an electric guitar sound closer to an acoustic. Body adds the hollow, woody fullness, the mid controls scoop or shape the middle, and Tone sets the brightness. Handy for strummed parts and quiet sections without changing guitars.",
+"real": ""
+},
+"Pedal_AmpEQ": {
+"about": "A tone-control section like the one on an amp, but with movable bands: you choose which bass, mid and treble frequency each knob works on. Use it to fine-tune your sound, such as cutting boom, pushing mids for solos, or taming harsh highs.",
+"real": ""
+},
+"Pedal_AmpTrem": {
+"about": "The pulsing volume tremolo built into many classic amps: your sound gently throbs up and down in level. Speed sets how fast it pulses and Mix how deep. Great for surf, rockabilly, blues and moody clean parts.",
+"real": ""
+},
+"Pedal_AmpVibe": {
+"about": "A wobbling vibrato like the one found on some classic amps: it gently bends your pitch up and down for a warbly, seasick feel. Speed sets the rate and Mix how strong it is. Lovely on clean chords and slow ballads.",
+"real": ""
+},
+"Pedal_AnalogueDelay": {
+"about": "A warm delay in the style of analog delay pedals: each repeat comes back a little darker and softer than the last, so echoes sit nicely behind your playing. Time sets the gap, Feedback the number of repeats, and Mix their level.",
+"real": ""
+},
+"Pedal_AutoFilter": {
+"about": "An envelope filter: the harder you pick, the more the filter opens, giving a funky, quacky \"wow\" on every note. Sensitivity sets how easily it reacts, attack and release how fast it moves, and Filter Type changes its character. Classic on funk rhythm parts.",
+"real": ""
+},
+"Pedal_AutoVibe": {
+"about": "A vibrato that follows your playing instead of running at a fixed speed: hit the strings harder and the wobble reacts. Sensitivity sets how much it responds, attack and release how quickly. Good for expressive, shifting clean or lead tones.",
+"real": ""
+},
+"Pedal_BakedRotatoe": {
+"about": "Imitates a rotating speaker cabinet, the swirling, spinning sound famous on organs and also used on guitar. Rate sets how fast it spins, Depth how strong the swirl is, and Balance shifts the mix between the low and high parts.",
+"real": ""
+},
+"Pedal_BassEmulator": {
+"about": "Makes a guitar sound more like a bass by thickening and darkening the tone. Body adds low-end weight and Tone sets the brightness. Handy for sketching bass lines on guitar; pairs best with an octave-down pedal for real bass range.",
+"real": ""
+},
+"Pedal_BitCruncher": {
+"about": "A lo-fi effect that makes your sound gritty and digital, like an old video game or a broken sampler. Bit Depth and Downsample chew up the audio, Rectify adds harsh buzz, and Mix blends it with your clean tone. Great for experimental and electronic sounds.",
+"real": ""
+},
+"Pedal_BobFilter": {
+"about": "An analog-style filter that sweeps with your playing for synth-like, squelchy tones. The harder you pick, the more it opens. Sensitivity, attack and release control how it moves, Filter Type its character, and Mix blends it with your dry sound.",
+"real": ""
+},
+"Pedal_BuzzOne": {
+"about": "A vintage-style fuzz with a raw, buzzy, splatty character, the kind of sound heard on 1960s rock records. Gain sets how much fuzz and Tone how bright it is. Best for single-note riffs and gritty, retro leads.",
+"real": ""
+},
+"Pedal_BuzzToo": {
+"about": "A thick, heavy fuzz with lots of sustain and a creamy, wall-of-sound character. Gain sets how saturated it gets and Tone moves it from dark and smooth to bright and cutting. Great for big riffs and singing leads.",
+"real": ""
+},
+"Pedal_CaptFuzzle": {
+"about": "A vintage fuzz with a buzzy, slightly sputtery 1960s character. Gain controls how much fuzz you get and Tone sets the brightness. Works well for retro riffs and garage-rock sounds.",
+"real": ""
+},
+"Pedal_Chorus": {
+"about": "Adds a slightly detuned, moving copy of your sound to make it shimmer and sound wider, like two guitars playing together. Rate sets the speed, Depth how strong the wobble is, and Mix the blend. Classic on clean arpeggios and 80s-style parts.",
+"real": ""
+},
+"Pedal_Chorus20": {
+"about": "A chorus that thickens and widens your tone with a gentle, swirling shimmer. Rate sets how fast it moves, Depth how wide it swings, and Mix how much is blended in. Use it on clean chords or to fatten up a lead.",
+"real": ""
+},
+"Pedal_ClassicFlanger": {
+"about": "A classic flanger: a sweeping, whooshing \"jet plane\" sound that moves up and down through your tone. Rate sets the speed, Depth the size of the sweep, and Mix how much you hear. Great on riffs and clean chords alike.",
+"real": ""
+},
+"Pedal_Compression": {
+"about": "Evens out your volume: quiet notes get louder and loud ones are held back, so everything sounds smoother and sustains longer. Compression sets how strong it is, Attack and Release how fast it acts. A staple for country, funk and clean playing.",
+"real": ""
+},
+"Pedal_CosmicEcho": {
+"about": "A spacey echo for long, trailing repeats that can build into a swirling wash. Time sets the gap between repeats, Feedback how many come back, and Mix how loud they are. Turn Feedback up for atmospheric, out-there sounds.",
+"real": ""
+},
+"Pedal_CustomDrive": {
+"about": "An overdrive that adds warm, amp-like grit to your tone. Gain sets how much drive, Tone the brightness, and Voicing changes its character. Use it for crunchy rhythm parts or to push your amp into a solo.",
+"real": ""
+},
+"Pedal_DigitalChorus": {
+"about": "A clean, precise chorus that widens and thickens your sound with a smooth, shimmering movement. Rate and Depth set the speed and amount, Mix the blend, and the low and high filters let you keep the effect off the bass or the treble.",
+"real": ""
+},
+"Pedal_DigitalVerb": {
+"about": "A clean digital reverb that puts your guitar in a room, hall or larger space. Time sets how long the reverb rings, Depth how big it feels, Tone how bright it is, and Mix how much you hear. Good for adding space to almost anything.",
+"real": ""
+},
+"Pedal_Distortion": {
+"about": "A straightforward distortion for rock and metal: it adds heavy crunch and sustain. Gain sets how dirty it gets and Tone how bright. A good all-round choice for power chords and solos.",
+"real": ""
+},
+"Pedal_EQ5": {
+"about": "A five-slider graphic EQ: each slider boosts or cuts one part of your sound, from deep lows to crisp highs. Use it to fine-tune your tone, for example to scoop the mids for metal, push them for solos, or tame harsh treble.",
+"real": ""
+},
+"Pedal_EQ8": {
+"about": "An eight-slider graphic EQ covering lows to highs in finer steps. Each slider boosts or cuts one band, so you can shape your tone precisely: more punch, less mud, brighter or darker. Also handy as a clean volume boost for solos.",
+"real": ""
+},
+"Pedal_Enbiggenator": {
+"about": "A modulation effect that makes your guitar sound bigger and wider, with a gentle, moving thickness. Rate sets how fast it moves, Depth how much, and Mix how much is blended in. Good for fattening up clean or lightly driven parts.",
+"real": ""
+},
+"Pedal_FuzzWasHe": {
+"about": "A fuzz pedal with a thick, buzzing, saturated sound and lots of sustain. Gain sets how fuzzy it gets and Tone how bright. Great for classic rock riffs, garage tones and wild, sustaining leads.",
+"real": ""
+},
+"Pedal_GermaniumDrive": {
+"about": "A drive in the style of old germanium-transistor pedals, known for a warm, soft and slightly rough edge. Gain sets how much grit you get, Tone the brightness. It responds to your guitar's volume knob and picking, cleaning up when you play softly.",
+"real": ""
+},
+"Pedal_Limiter": {
+"about": "Puts a ceiling on your volume: loud peaks get held back so nothing jumps out too much. Limit sets where the ceiling is and Speed how quickly it reacts. Useful for keeping your level steady, especially with heavy picking.",
+"real": ""
+},
+"Pedal_LineDrive": {
+"about": "A drive pedal that adds light grit and push to your sound. Gain sets how much drive and Tone the brightness. Use it gently to fatten up a clean tone or to push an already dirty amp a little harder for solos.",
+"real": ""
+},
+"Pedal_LoFiFilter": {
+"about": "Cuts the highs and lows to make your guitar sound small and old, like it is coming out of a cheap radio or telephone. Hi Cut removes treble and Lo Cut removes bass. Great for intros, breakdowns and vintage-style effects.",
+"real": ""
+},
+"Pedal_MarshallGuvnorPlus": {
+"about": "An overdrive and distortion that aims to put the sound of a cranked Marshall amp in a pedal, with Gain, a full three-band EQ and a Deep knob for extra low end. The real Guv'nor Plus is Marshall's 1990s update of its original Guv'nor pedal.",
+"real": "Marshall Guv'nor Plus GV-2"
+},
+"Pedal_MarshallSupervibe": {
+"about": "A chorus and vibrato pedal that adds a swirling, moving shimmer to your tone. Speed and Depth set how fast and how strong the movement is, Wave changes its shape, and Filter its brightness. The real Supervibe was part of Marshall's 1990s line of effect pedals.",
+"real": "Marshall Supervibe SV-1"
+},
+"Pedal_MetalDistortion": {
+"about": "A high-gain distortion built for metal: thick, aggressive and full of sustain. Gain sets how heavy it gets and Tone how bright or dark. Good for chugging rhythm riffs and fast solos.",
+"real": ""
+},
+"Pedal_ModDelay": {
+"about": "A delay with a gentle wobble on the repeats, giving them a warm, chorus-like, slightly seasick movement. Time, Feedback and Mix set the gap, number and level of repeats, while Mod Depth and Mod Rate set how much and how fast the repeats waver.",
+"real": ""
+},
+"Pedal_ModernFlanger": {
+"about": "A flanger with strong, clear sweeps, from subtle shimmer to dramatic jet-plane whoosh. Rate and Depth set the speed and size of the sweep, Mix the blend, and Regen. feeds the sound back in for a sharper, more metallic ring.",
+"real": ""
+},
+"Pedal_ModernWah": {
+"about": "A wah pedal: rock your foot to sweep your tone from dark to bright, making the guitar \"talk\". In Auto mode it sweeps by itself, following how hard you play. A staple for funk rhythm and expressive solos.",
+"real": ""
+},
+"Pedal_MultiPitch": {
+"about": "A pitch shifter that adds a second note at an interval you choose, from octaves to harmonies. Pitch 1 sets the interval, Mix how loud the new note is, and Tone its brightness. Good for thick octave riffs or quick harmony lines.",
+"real": ""
+},
+"Pedal_MultiTrem": {
+"about": "A tremolo that pulses your volume up and down, with a choice of wave shapes from smooth and gentle to sharp and choppy. Speed sets how fast it pulses, Mix how deep, and Waveform the shape. Great for surf, indie and rhythmic effects.",
+"real": ""
+},
+"Pedal_MultiVibe": {
+"about": "A vibrato that wobbles your pitch up and down, with a choice of wave shapes for a smooth or more uneven warble. Speed sets how fast, Mix how strong, and Waveform the shape. Nice on clean chords and lazy, dreamy parts.",
+"real": ""
+},
+"Pedal_NPNDelay": {
+"about": "A classic-style delay with warm, slightly soft repeats. Time sets the gap between repeats, Feedback how many you hear, and Mix how loud they are. A good choice for slapback echoes, rhythmic repeats or a touch of space on solos.",
+"real": ""
+},
+"Pedal_NoFiEcho": {
+"about": "A deliberately rough, lo-fi echo: the repeats come back dirty and worn, like an old, battered tape machine. Time sets the gap, Feedback how many repeats, and Mix their level. Good for gritty, vintage character.",
+"real": ""
+},
+"Pedal_NoiseGate": {
+"about": "Cuts out hiss and hum when you are not playing, so the sound goes quiet between notes. Threshold sets how quiet a sound must be before it is silenced, and Rate how fast it closes. Very useful with high-gain tones and tight, stop-start riffs.",
+"real": ""
+},
+"Pedal_OctaveUp": {
+"about": "Adds a high, bright note an octave above what you play, giving a ringing, almost synth-like edge, especially with distortion. Octave-UP! sets how much of the high octave you hear and Tone the brightness. Works best on single notes played high on the neck.",
+"real": ""
+},
+"Pedal_Octavius": {
+"about": "Adds a second note one octave below what you play, making your guitar sound thicker and more bass-like. Mix sets how loud the lower octave is and Tone how dark or bright. Best on single notes; good for big riffs and bass-like lines.",
+"real": ""
+},
+"Pedal_OilCanEcho": {
+"about": "An echo in the style of old oil-can delay units, which give repeats a warm, slightly warbly, watery character. Time sets the gap, Feedback how many repeats, and Mix their level. Great for vintage surf and rockabilly sounds.",
+"real": ""
+},
+"Pedal_OmniMod": {
+"about": "A general-purpose modulation effect that adds movement to your sound, from a subtle shimmer to a deep wobble. Rate sets how fast it moves, Depth how strong, and Mix how much is blended in. Try it on clean parts to add life.",
+"real": ""
+},
+"Pedal_Phaser": {
+"about": "A one-knob phaser that adds a smooth, swirling, \"swooshing\" movement to your tone. Rate sets how fast it sweeps. The real MXR Phase 90 is a famously simple orange pedal, heard on many classic rock recordings, including early Van Halen.",
+"guess": true,
+"real": "MXR Phase 90"
+},
+"Pedal_PlanePhase": {
+"about": "A phaser with a swooshing, jet-plane-like sweep. Rate sets how fast it moves, Depth how strong it is, and Mix how much is blended in. Use it slow for gentle swirl, or faster and deeper for dramatic, spacey effects.",
+"real": ""
+},
+"Pedal_PlateVerb": {
+"about": "Imitates a studio plate reverb, a bright, smooth and dense reverb used on countless records. Time sets how long it rings, Depth how big it feels, Mix how much you hear, and Voice changes its character. Lovely on clean parts and vocals-style leads.",
+"real": ""
+},
+"Pedal_RangeBooster": {
+"about": "A treble booster: it pushes the upper mids and highs and drives your amp harder, for a cutting, crunchy tone. One knob sets the amount of boost. The real Dallas Rangemaster from the 1960s was used by players such as Brian May, Tony Iommi and Rory Gallagher.",
+"guess": true,
+"real": "Dallas Rangemaster"
+},
+"Pedal_RingMod": {
+"about": "A ring modulator: it mixes your notes with a hidden tone to create strange, bell-like and robotic sounds that don't follow the usual pitches. Rate sets that hidden tone, Depth and Mix how strong the effect is. Best for experimental and sci-fi sounds.",
+"real": ""
+},
+"Pedal_SendInTheClones": {
+"about": "A chorus-style effect that makes your guitar sound like several players at once, with a thick, shimmering width. CLONES! sets how strong the copies are, Depth how much they waver, and Mix the blend with your dry sound.",
+"real": ""
+},
+"Pedal_ShaverPhaser": {
+"about": "A phaser that gives your sound a smooth, swirling sweep, from slow and subtle to fast and bubbly. Rate sets the speed and Depth how strong the effect is. Great on funk rhythm, clean chords and spacey leads.",
+"real": ""
+},
+"Pedal_ShredZone": {
+"about": "A high-gain distortion with a three-band EQ, aimed at fast, heavy playing. Gain sets how saturated it is, and Bass, Mid and Treble let you shape it, from scooped metal rhythm to a mid-heavy solo tone.",
+"real": ""
+},
+"Pedal_SpringReverb": {
+"about": "Imitates the spring reverb built into many guitar amps: a slightly bouncy, splashy echo of space around your notes. Time sets how long it rings, Depth how big it feels, and Mix how much you hear. Classic for surf, blues and clean tones.",
+"real": ""
+},
+"Pedal_SuperDrive": {
+"about": "An overdrive that adds smooth, warm grit, like a tube amp starting to break up. Gain sets how much drive and Tone the brightness. Use it for bluesy crunch or to push a dirty amp harder for solos.",
+"real": ""
+},
+"Pedal_Swole": {
+"about": "A strong compressor that squeezes your playing so every note comes out even and sustains longer. Smash sets how hard it squeezes and Rate how quickly it reacts. Good for punchy, tight rhythm parts and long, singing notes.",
+"real": ""
+},
+"Pedal_TremOle": {
+"about": "A tremolo that reacts to your playing: instead of pulsing at a fixed speed, the volume movement follows how hard you hit the strings. Sensitivity sets how much it responds, and attack and release how fast. Good for expressive, unusual textures.",
+"real": ""
+},
+"Pedal_Tremolo": {
+"about": "A classic tremolo: it pulses your volume up and down for a throbbing, rhythmic sound. Speed sets how fast it pulses and Mix how deep. Great for surf, blues, country and moody clean parts.",
+"real": ""
+},
+"Pedal_TubeSpring": {
+"about": "Imitates a standalone tube spring reverb unit, with a wetter, splashier and more dramatic sound than an amp's built-in reverb. Mix sets how much reverb you hear and Depth how deep it sounds. The go-to sound for surf guitar.",
+"real": ""
+},
+"Pedal_UKWah": {
+"about": "A wah pedal with a vocal, slightly smoother sweep: rock your foot to go from dark to bright, or use Auto mode to let your playing drive it. The real Vox V847 is a reissue of Vox's original 1960s wah, the pedal that started the wah sound.",
+"guess": true,
+"real": "Vox V847"
+},
+"Pedal_USWah": {
+"about": "A wah pedal: rock your foot to sweep from dark to bright, making the guitar \"cry\" or \"talk\". In Auto mode it sweeps by itself, following your playing. The real Dunlop Cry Baby is the best-known wah pedal, used by countless rock and funk players.",
+"guess": true,
+"real": "Dunlop Cry Baby"
+},
+"Pedal_ValveEcho": {
+"about": "An echo in the style of old tube tape-echo machines, with warm, slightly worn repeats that soften as they fade. Time sets the gap, Feedback how many repeats, and Mix their level. Great for vintage rock, rockabilly and slapback echo.",
+"real": ""
+},
+"Pedal_VintageChorus": {
+"about": "A warm, old-school chorus that adds a lush, gently wobbling shimmer, like two guitars playing together. Rate sets how fast it moves, Depth how wide, and Mix the blend. Classic on clean chords and arpeggios.",
+"real": ""
+},
+"Pedal_VintageDistortion": {
+"about": "A distortion with an older, rawer flavour: less polished than modern high-gain, with a rough, crunchy edge. Gain sets how dirty it gets and Tone how bright. Good for classic rock riffs and punk.",
+"real": ""
+},
+"Pedal_VintageFlanger": {
+"about": "A vintage-style flanger with a warm, rich sweep, from gentle shimmer to deep jet-plane whoosh. Rate sets the speed, Depth the size of the sweep, and Mix how much you hear. Lovely on clean chords and slow riffs.",
+"real": ""
+},
+"Rack_RotaVibe": {
+"about": "A rotating speaker effect, like the spinning speaker cabinets used with organs. It gives a swirling, throbbing sound that can be slow and dreamy or fast and wobbling. It suits psychedelic rock, blues and soul.",
+"real": ""
+},
+"Rack_StereoAnalogVibe": {
+"about": "A stereo vibrato that gently bends the pitch of your notes up and down. It gives a warbling, seasick wobble, and a waveform control changes how smooth or choppy it feels. Great for dreamy, psychedelic and surf sounds.",
+"real": ""
+},
+"Rack_StereoPhaser": {
+"about": "A stereo phaser that sweeps a swirling, whooshing movement across your sound. Slow, it adds a gentle shimmer to chords; fast, it gives a bubbly, watery effect. Phasers are common on 1970s rock and funk guitar.",
+"real": ""
+},
+"Rack_StereoTubeTrem": {
+"about": "A stereo tremolo that pulses your volume up and down. It ranges from a gentle shimmer to a choppy stutter, and the waveform control sets how smooth the pulse is. It is a classic sound in surf, rockabilly and blues.",
+"real": ""
+},
+"Rack_StudioChamber": {
+"about": "A reverb in the style of the echo chambers used in old recording studios, where sound was played into a real room and recorded back. It gives a natural, roomy space around your guitar, warm and not too bright.",
+"real": ""
+},
+"Rack_StudioChorus": {
+"about": "A studio chorus that doubles your sound with a slightly moving copy, making it wide, shimmering and lush. It has extra controls for stereo width and filtering. It is the sound of many clean 1980s guitar parts.",
+"real": ""
+},
+"Rack_StudioCompressor": {
+"about": "A studio compressor that evens out loud and soft notes. It makes your playing sound smoother and more consistent and gives notes more sustain. It is useful for clean funk and country parts and for keeping bass steady.",
+"real": ""
+},
+"Rack_StudioDelay": {
+"about": "A studio delay that repeats your notes as echoes, with separate times for left and right. You can set how many repeats and how bright they are, from a short slap to long, wide echoes for leads and ambient parts.",
+"real": ""
+},
+"Rack_StudioEQ": {
+"about": "A studio equaliser that lets you boost or cut chosen parts of your sound with precision, from the deep lows to the highs. It is used to fix muddiness or harshness, or to help your guitar sit in a mix.",
+"real": ""
+},
+"Rack_StudioFlanger": {
+"about": "A studio flanger that adds a sweeping, jet-plane whoosh to your sound. Gentle settings give a soft shimmer, and with more regeneration it becomes a metallic, dramatic swoosh, heard on lots of 1970s and 1980s rock.",
+"real": ""
+},
+"Rack_StudioGraphicEQ": {
+"about": "A studio equaliser with five bands, each with its own frequency control. It lets you shape your tone in detail, adding weight, clearing up mud or bringing out bite, so the guitar sits where you want it.",
+"real": ""
+},
+"Rack_StudioPitch": {
+"about": "A pitch shifter that adds a second voice at a different pitch to the notes you play. It can thicken your sound with a slight detune, add an octave, or create harmonies, and can be panned left or right.",
+"real": ""
+},
+"Rack_StudioPlate": {
+"about": "A reverb in the style of the metal plate reverbs used in studios. It gives a smooth, bright and dense ambience that flatters guitar and vocals, a classic sound on many records from the 1960s on.",
+"real": ""
+},
+"Rack_StudioVerb": {
+"about": "A hall reverb that puts your guitar in a big room or concert hall. It gives long, spacious and smooth trails, good for slow ballads, ambient parts and soaring solos that need room to ring.",
+"real": ""
+},
+"Rack_StudioWahFilter": {
+"about": "A wah filter that can follow how hard you pick or be moved like a pedal. It gives the vocal, quacking wah sound heard in funk and rock, from subtle movement to strong, expressive sweeps.",
+"real": ""
+},
+"Rack_SynthFilter": {
+"about": "An envelope filter that reacts to how hard you play, sweeping the tone open as you pick. It gives squelchy, synth-like and funky sounds, popular on funk guitar and bass.",
+"real": ""
+},
+"Rack_TapeEcho": {
+"about": "A tape echo in the style of the 1960s and 1970s units that recorded your playing on a loop of tape. Its repeats are warm and a little dark and wobbly, a classic sound in rockabilly, reggae, surf and psychedelic music.",
+"real": ""
+}
+}
