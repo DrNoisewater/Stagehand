@@ -1,3 +1,32 @@
+# 4.15.1 — full audit after 4.15.0: bass scoring, top bar, song list (2026-11-13)
+
+User: "merge and release. But then we need to do a full audit to make sure everything's working. If that's good, we
+can go ahead and start the quest app". 4.15.0 released, then every check in CLAUDE.md run (npm test, detect.test,
+rig-chromium, ui3 full visit, sing/discover/gear-about/stems audits, highway stills, timing check, tuning card, sing
+variants, piano variants, moving backgrounds, lost graphics context). Found and fixed:
+- **Bass: about one wrong note in eight counted as right** (`detect.test.mjs`: "bass down to the low E" and "a
+  real-sounding bass" failed, wrong 13–15 % against ≤10 %; every run, not flaky). Came in with the 3.10–3.11 import
+  (`d69fb44`): `Judge.push` confirms a note the first frame `_evaluate` says hit, while its window is open; one frame
+  can look right by chance. Now it must look right on two looks in a row (`seenHit`). Wrong bass 13 → 8 %, right
+  notes unchanged (guitar 98 %, bass 100 %), the whole detect test passes again.
+- **The highway's top bar overflowed** below ~1700 px once Piano was added (the title squeezed to nothing, Settings
+  off the edge at 1600). Sing and Piano are icon buttons until switched on (`.icon-only`, label when on); the title
+  keeps its room (`flex-shrink:0`, max 180 px); under 1440 px the score drops its words (numbers stay); under
+  1340 px the on-chips drop their label. Checked at 1280/1366/1600/1920 with `TOPBAR=1 VW=… shoot.js` (new).
+- **The song list drew a cream box when you used the arrow keys** in the Rehearsal Room look
+  (`rockopera.css` `#app :focus-visible` outweighed `.scroller:focus-visible { outline:0 }`): `:not(.scroller)`.
+- **Song tags cut in half** ("NE" for NEW) when a title is long: a row's badges sit in one strip (`.tbs` in
+  library.js) that wraps a badge that doesn't fit onto a hidden second line.
+- Audit tools: ui3's knob check now closes level-up cards first (they can stack over the rig) and turns a knob on the
+  piece's panel (since 4.6); its moving-scene check shows a venue the way the app does (`stagehand:preview-venue`;
+  `prefs.venue` alone no longer changes it since venues are picked per song). New `test/e2e/piano-audit.js` (Piano
+  keyboard in Settings, Piano on a real library song in the full page, a key scored, plus the three checks above).
+- Not fixed, older and in the test setup: `test/visuals/shoot.js strings` times out taking the "strings behind the
+  highway" picture in software graphics (same on 4.14.0); ui3's own check of that scene passes. Electron-only tests
+  (crash, finder, tones) can't run here (no Electron, package installs are off); CI covers the Windows build.
+- Timing-sensitive checks (sing/piano pretend players, tuning card, rig clock) fail when run alongside ui3 on this
+  machine: run them on their own.
+
 # 4.15.0 — Piano: sheet music written from the song, falling notes, a USB keyboard (2026-11-13)
 
 User: "I really wanted to add piano, but I don't have any sheet music … the ability to play a song on piano, and it be

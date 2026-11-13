@@ -239,6 +239,7 @@ export class Judge {
   reset(t) {
     this.state.clear();
     this.confirmed=new Map();
+    this.seenHit=new Map();
     this.events=[];
     this.onsets = [];
     this.frames = [];
@@ -252,6 +253,7 @@ export class Judge {
   /** Forget results from `t` on (after a seek backwards or a loop). */
   rewind(t) {
     for(const [id]of this.confirmed||[])if(this.targets[id]?.t>=t)this.confirmed.delete(id);
+    for(const [id]of this.seenHit||[])if(this.targets[id]?.t>=t)this.seenHit.delete(id);
     for (const [id, st] of this.state) {
       const tg = this.targets[id];
       if (tg && tg.t >= t - this.early) {
@@ -286,7 +288,22 @@ export class Judge {
     if (this.debug) this.debug.push({ t, midi: frame.midi, rms: frame.rms, flux: frame.flux, onset: onsetKind });
     while (this.onsets.length && this.onsets[0].t < t - 1.5) this.onsets.shift();
     this.confirmed ||= new Map();
-    for(let i=this.next;i<this.targets.length;i++){const tg=this.targets[i];if(tg.t>t+this.early)break;if(t>tg.t+this.late||this.confirmed.has(tg.id))continue;const result=this._evaluate(tg);if(result.hit)this.confirmed.set(tg.id,result);}
+    this.seenHit ||= new Map();
+    // a note counts as soon as it's heard right, while its window is open (frames for fast passages can
+    // scroll away before the window closes). Heard right on two looks in a row, not one: a single frame
+    // can look right by chance, which let about one wrong bass note in eight count (4.15.1)
+    for (let i = this.next; i < this.targets.length; i++) {
+      const tg = this.targets[i];
+      if (tg.t > t + this.early) break;
+      if (t > tg.t + this.late || this.confirmed.has(tg.id)) continue;
+      const result = this._evaluate(tg);
+      if (!result.hit) {
+        this.seenHit.delete(tg.id);
+        continue;
+      }
+      if (this.seenHit.has(tg.id)) this.confirmed.set(tg.id, result);
+      else this.seenHit.set(tg.id, result);
+    }
     this._judge(t);
   }
 

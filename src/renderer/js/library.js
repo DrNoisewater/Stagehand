@@ -188,6 +188,12 @@ function tuningText(s) {
 }
 
 /** 3.7: your best accuracy (full speed), as a small badge to the upper right of the title. */
+/** A row's badges in one strip: a badge that doesn't fit wholly drops out of sight, never half cut (4.15.1). */
+function rowBadges(s) {
+  const b = `${bestBadge(s)}${noAudioBadge(s)}${badgesHtml(s)}`;
+  return b ? `<span class="tbs">${b}</span>` : '';
+}
+
 function bestBadge(s) {
   const b = bestOf(s);
   if (b === null) return '';
@@ -214,7 +220,7 @@ function buildRow(s) {
   el.dataset.id = s.id;
   el.innerHTML = `
     <div><div class="thumb">${thumbHtml(s, 64)}</div></div>
-    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}${badgesHtml(s)}${micHtml(s)}</div>
+    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${rowBadges(s)}${micHtml(s)}</div>
     <div>${s.artist ? `<span class="go" data-go="artist" title="All songs by ${esc(s.artist)}">${esc(s.artist)}</span>` : ''}</div>
     <div>${s.album ? `<span class="go" data-go="album" title="Everything from ${esc(s.album)}">${esc(s.album)}</span>` : ''}</div>
     <div class="num">${s.year ? `<span class="go" data-go="year" title="Songs from ${s.year}">${s.year}</span>` : ''}</div>

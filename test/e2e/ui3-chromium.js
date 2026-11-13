@@ -914,17 +914,26 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(600);
   const on4 = await page.locator('.slot.on .num').textContent().catch(() => '');
   check(on4 === '4', `key 4 picks slot 4 (${on4})`);
-  // turn a knob on the amp
-  const knob = page.locator('.rknob').first();
-  const kb = await knob.boundingBox();
+  // turn a knob on the amp (since 4.6 the knobs are on the piece's panel under the rig: a visible one)
+  // a level-up card can land over the rig after picking a slot: close it, as you would ("Rock on")
+  await page.waitForTimeout(800); // (they can stack: close each one, as you would)
+  for (let i = 0; i < 4 && (await page.locator('.lvup button').count()); i++) {
+    await page.locator('.lvup button').first().click().catch(() => {});
+    await page.waitForTimeout(500);
+  }
+  const knob = page.locator('#page-play .rknob:visible').first();
+  // (the rig redraws now and then: find the knob again if it went)
+  for (let i = 0; i < 3; i++) if (await knob.scrollIntoViewIfNeeded({ timeout: 3000 }).then(() => true, () => false)) break;
+  await page.waitForTimeout(300);
+  const kb = await knob.boundingBox({ timeout: 3000 }).catch(() => null);
   if (kb) {
-    await page.mouse.move(kb.x + kb.width / 2, kb.y + 20);
+    await page.mouse.move(kb.x + kb.width / 2, kb.y + kb.height / 2);
     await page.mouse.down();
-    await page.mouse.move(kb.x + kb.width / 2, kb.y - 30, { steps: 6 });
+    await page.mouse.move(kb.x + kb.width / 2, kb.y + kb.height / 2 - 50, { steps: 8 });
     await page.mouse.up();
   }
   await page.waitForTimeout(500);
-  check(await page.locator('.rig-card .glow-primary:has-text("Save")').count(), 'turning a knob offers Save');
+  check(await page.locator('#page-play .glow-primary:has-text("Save")').count(), 'turning a knob offers Save');
   // drums
   await page.locator('.drums3 .start').click();
   await page.waitForTimeout(900);
@@ -1010,13 +1019,14 @@ class FakePortMain extends EventEmitter {
   await shot('6c-highway');
   // 3.12: the moving scenes behind the highway
   for (const id of ['nebula', 'swarm', 'mandala', 'strings']) {
-    await page.evaluate((v) => { document.querySelector('.highway').__hw.prefs.venue = v; }, id);
+    // (since 4.6 the venue on show is picked per song; this is how the app shows one)
+    await page.evaluate((v) => window.dispatchEvent(new CustomEvent('stagehand:preview-venue', { detail: v })), id);
     await page.waitForTimeout(2500);
     const drawn = await page.evaluate(() => !!document.querySelector('.highway canvas.hw-visual') && !document.querySelector('.highway iframe.hw-fluid'));
     check(drawn, `${id} draws behind the highway`);
     await shot(`6g-highway-${id}`);
   }
-  await page.evaluate(() => { document.querySelector('.highway').__hw.prefs.venue = 'warehouse'; });
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('stagehand:preview-venue', { detail: 'warehouse' })));
   await page.waitForTimeout(600);
   check(await page.evaluate(() => !document.querySelector('.highway canvas.hw-visual')), 'a photo venue puts the scene away');
   // a correct note: the bracket flashes but stays its own height

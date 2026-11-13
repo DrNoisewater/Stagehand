@@ -275,7 +275,7 @@ html[data-look='opera'] #app :is(.gseg,.seg) button { color:var(--rr-bone-2); }
 html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'] { color:#1d1814; background:linear-gradient(180deg,#e6dbc2,#d2c4a2); box-shadow:inset 0 -2px 0 #0002; }
 html[data-look='opera'] #app :is(.input,select,textarea,input[type='text'],input[type='number']) { background:#0b0a09; border-color:#352f29; color:var(--rr-bone); box-shadow:inset 0 2px 4px #000; }
 html[data-look='opera'] #app :is(.input,select,textarea,input[type='text']):focus { border-color:var(--rr-cream); }
-html[data-look='opera'] #app :focus-visible { outline:2px solid var(--rr-cream); outline-offset:3px; }
+html[data-look='opera'] #app :focus-visible:not(.scroller) { /* the song list moves its own highlight with the keys (no box round the list) */ outline:2px solid var(--rr-cream); outline-offset:3px; }
 html[data-look='opera'] ::selection { background:#8c2a22; color:#fff; }
 html[data-look='opera'] #app ::-webkit-scrollbar { width:10px; height:10px; }
 html[data-look='opera'] #app ::-webkit-scrollbar-track { background:#0c0b0a; }

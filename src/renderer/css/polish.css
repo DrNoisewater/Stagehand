@@ -62,6 +62,9 @@ html[data-look='opera'] #app .row .t { font-weight:760; color:#efe6d3; }
 /* the title wins the room: badges shrink first, the mic always stays */
 #app .row .t .tt-text { flex:0 0 auto; max-width:calc(100% - 34px); }
 #app .row .t > :not(.tt-text):not(.kk-mic) { flex-shrink:40; min-width:0; overflow:hidden; }
+/* the badges wrap onto a hidden second line instead of being cut in half (4.15.1) */
+#app .row .t > .tbs { flex:0 1 auto; display:flex; flex-wrap:wrap; align-items:center; align-content:flex-start; height:22px; }
+#app .row .t > .tbs > * { flex:none; }
 
 /* ---- Karaoke page (4.14) ---- */
 #page-karaoke { gap:16px; padding:22px 28px 40px; }
