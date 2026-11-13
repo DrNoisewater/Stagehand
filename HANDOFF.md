@@ -1,4 +1,11 @@
-# Quest companion, step 2b: the headset's highway made to look like the PC's (same branch, 2026-11-13)
+# 4.16.0 — Quest companion (steps 1–2), released 2026-11-13
+
+User: "do whatever else you need to do. And let's merge, release so we can continue". #43 (4.15.1) merged, then #44;
+released as 4.16.0 (it carries 4.15.1's fixes too). README has a Meta Quest section (how to open it in the headset).
+**Ask the user next:** try it on the Quest: pairing, Enter VR, how smooth it feels, the highway's height/distance,
+whether notes look early or late (Notes sooner/later), and any venue that looks wrong. Then step 3 (piano).
+
+## Step 2b: the headset's highway made to look like the PC's
 
 User on the first pictures: "That highway looks a little low quality" … "We want it to look the same as the pc app.
 Everything buttery smooth".
@@ -29,7 +36,7 @@ catalogue. Scoring: exact with the keyboard's USB into the PC (a longer USB cabl
 only it's rougher (PianoVision does that too). Suggested: keep the subscription until they've tried Stagehand's piano
 in the headset. Scoring is wanted ("keep track of how well you do").
 
-# Quest companion, step 2: the guitar highway in the headset (not released yet, same branch, 2026-11-13)
+## Step 2: the guitar highway in the headset
 
 User chose "Keep building: VR highway" over releasing step 1 first. **Not tried on a real headset yet.**
 
@@ -75,7 +82,7 @@ keyboard is placed by touching its ends with tracked fingertips (not by pressing
 presses read from **hand tracking** in the headset (like PianoVision) or not scored at all ("for fun"); the song's
 sound in the **Quest's headphones** fits well here (the piano makes its own sound, the PC is 5 ft away).
 
-# Quest companion, step 1: the bridge (not released yet, branch `claude/quest-companion`, 2026-11-13)
+## Step 1: the bridge (branch `claude/quest-companion`)
 
 User: "a VR app for the Quest 3 that mimics PianoVision in most ways, but connects to my computer to use my Stagehand
 library … play guitar while watching the highway through the Quest". Must: Stagehand works exactly as today without the

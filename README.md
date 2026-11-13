@@ -93,6 +93,17 @@ Time played, day streak, accuracy over time, goals, what's improving, and **your
 
 Just above Getting started on the menu. **Everyone** shows who has Stagehand open right now (a green dot) and the clips they show. **My clips** has everything you've recorded. Press **Show backstage** on a video and everyone with Stagehand can watch it while your Stagehand is open. Each clip shows the song, the part and the tone: try or keep someone's tone, open the song if you have it (or find it on CustomsForge), and message them about it. No codes, no accounts: just a name.
 
+### 🥽 Meta Quest
+
+Play along in a Meta Quest headset: the highway in front of you and the venue all around you. Your guitar, the sound and the scoring stay on your PC, exactly as without the headset.
+
+1. On the PC: **Settings › Quest headset**, switch it on. It shows an address and a 4-digit code.
+2. In the headset: open the **Browser** and type that address. The first time it says the connection isn't private: tap **Advanced**, then **Proceed** (Stagehand made its own certificate for your home network).
+3. Type the code. Bookmark the page: next time it connects by itself.
+4. Pick a song in the headset (or on the PC; both follow), then **Enter VR** or **Passthrough** (your room, with the highway floating in front of you).
+
+The Quest must be on the same home network as the PC. Nothing is installed on the headset, and the switch is off until you turn it on.
+
 ---
 
 ## Keyboard
@@ -172,6 +183,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.16.0:** Meta Quest: play along in the headset with the highway in front of you and your venue all around you, pick songs and play, pause or skip from either the headset or the PC. Off until you switch it on in Settings › Quest headset; nothing to install on the headset.
 - **4.15.1:** On bass, a wrong note no longer counts as right now and then. The highway's top bar fits smaller screens (Sing and Piano are small buttons until you turn them on), the song list has no outline box when you use the arrow keys, and song tags no longer get cut in half.
 - **4.15.0:** Piano: plug a digital piano or keyboard in by USB and play any song on it. Stagehand writes the piano part from the song itself (the singer's tune, the guitar's riffs, the band's real chords, the bass line) as real sheet music, over glowing notes falling onto a keyboard, in Easy, Medium and Hard, for either hand or both, and scores every note.
 - **4.14.1:** Singing is steadier: your voice's dot glides instead of jumping, settles onto the bar when you're on the note, and a breath or a crack in your voice no longer knocks you off. Once you're on a note it's easier to hold it. The singing lane is cleaner, with the score on a strip of tape.
