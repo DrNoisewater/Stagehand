@@ -30,7 +30,7 @@ The rest of the user's 4.13 list (see below).
   embedded (`fonts/`, made by `make-fonts.py` from Archivo + Liberation Mono, ~70 KB, RCDATA 10–13,
   `AddFontMemResourceEx`, Segoe UI if that fails), a banner header (stripes, typewriter kicker, the name in
   the poster type, gold bar, the version on a strip of tape), square cards with hard shadows, dashed row rules,
-  uppercase buttons. Window 700×700 (uninstall 420). CI now uploads pictures of the window
+  uppercase buttons. Window 700×680 (uninstall 400). CI now uploads pictures of the window
   (`test-windows.ps1` → artifact `setup-shots`) since Linux can't show it.
 - **Progress** singing XP (4.13) unchanged. The in-app stem setup window already had the app's look.
 

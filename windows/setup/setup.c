@@ -1772,7 +1772,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show) {
   wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
   wc.lpszClassName = L"StagehandSetup";
   RegisterClassExW(&wc);
-  int ww = px(700), wh = px(S.uninstall ? 420 : 700);
+  int ww = px(700), wh = px(S.uninstall ? 400 : 680); /* fits a 768-pixel-tall laptop screen */
   RECT wr = {0, 0, ww, wh};
   DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
   AdjustWindowRectExForDpi(&wr, style, FALSE, 0, S.dpi);
