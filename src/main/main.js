@@ -34,6 +34,7 @@ const { CareerBackups } = require('./services/profile-backup');
 const { lifetime } = require('./services/lifetime');
 const { Captures } = require('./services/captures');
 const { GreenRoom } = require('./services/greenroom');
+const { Companion } = require('./services/companion');
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'stagehand', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true, codeCache: true } },
@@ -74,6 +75,8 @@ let importer;
 let songFinder = null; // 4.12: CustomsForge in a Stagehand window
 let covers;
 let tabs;
+let companion = null; // 4.16: the Quest companion (off until switched on in Settings › Quest)
+let companionStore = null;
 let toneStore;
 let toneIndex;
 let stats;
@@ -130,6 +133,7 @@ function makeDirs() {
 
 function send(channel, payload) {
   if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
+  if (companion && companion.running && channel.startsWith('library:')) companion.libraryChanged();
 }
 
 function handle(channel, fn) {
@@ -955,6 +959,20 @@ function registerIpc() {
   handle('tools:vgmstream', () => ({ path: tools.vgmstreamPath() }));
   handle('tools:installVgmstream', () => tools.installVgmstream((p) => send('tools:progress', p)));
 
+  // 4.16: the Quest companion
+  handle('companion:status', () => (companion ? companion.status() : { on: false }));
+  handle('companion:set', async (on) => {
+    if (!companion) throw new Error('Not ready yet');
+    companionStore.set({ on: !!on });
+    const st = on ? await companion.start() : await companion.stop();
+    send('companion:clients', st.clients || 0);
+    return st;
+  });
+  handle('companion:newCode', () => companion.newCode());
+  handle('companion:forget', (id) => companion.forget(String(id)));
+  ipcMain.on('companion:state', (_e, st) => companion && companion.running && companion.setState(st));
+  ipcMain.on('companion:judged', (_e, j) => companion && companion.running && companion.judged(j));
+
   handle('settings:get', () => settings.get());
   handle('settings:set', (patch) => {
     const before = settings.get().stems.model;
@@ -1376,6 +1394,7 @@ app.whenReady().then(async () => {
   });
   stems.on('update', (p) => send('stems:update', p));
   stems.on('done', (p) => send('stems:done', p));
+  await setupCompanion();
 
   protocol.handle('stagehand', (req) =>
     serve(req).catch((err) => {
@@ -1390,6 +1409,48 @@ app.whenReady().then(async () => {
   setTimeout(() => importer.start().catch((e) => log(`Import watcher failed: ${e.message}`)), 1500);
 });
 
+// ------------------------------------------------------- Quest companion --
+// 4.16: its own small file (the switch, the code, the headsets it knows, its certificate),
+// kept apart from settings so the certificate's key never travels to the window.
+async function setupCompanion() {
+  const { readJson, writeJsonAtomic } = require('./core/files');
+  const { merge } = require('./services/settings');
+  const file = path.join(D.roaming, 'companion.json');
+  let data = merge({ on: false, port: 4180, code: null, devices: [], cert: null }, await readJson(file, {}));
+  let timer = null;
+  companionStore = {
+    get: () => data,
+    set: (patch) => {
+      data = { ...data, ...patch };
+      clearTimeout(timer);
+      timer = setTimeout(() => writeJsonAtomic(file, data).catch((e) => log(`Quest companion: couldn’t save (${e.message})`)), 300);
+    },
+    flush: () => (clearTimeout(timer), writeJsonAtomic(file, data)),
+  };
+  companion = new Companion({
+    pageDir: path.join(__dirname, '..', 'companion'),
+    fontDir: path.join(RENDERER, 'fonts'),
+    store: companionStore,
+    songs: () => Object.values((library.data && library.data.songs) || {}),
+    loadTab: (songId, arrId) => {
+      const song = requireSong(songId);
+      return withFileRead(song.path, () => tabs.load(song, arrId));
+    },
+    cover: async (songId, size) => {
+      const song = library.get(songId);
+      return song ? art.file(song, size) : null;
+    },
+    version: app.getVersion(),
+    log,
+  });
+  const tell = () => send('companion:status', companion.status());
+  companion.on('status', tell);
+  companion.on('clients', (n) => send('companion:clients', n));
+  companion.on('command', (m) => send('companion:command', m));
+  // only when it was left on: nothing listens otherwise
+  if (data.on) companion.start().catch((e) => log(e.message));
+}
+
 let flushed = false;
 app.on('before-quit', async (e) => {
   if (flushed) return;
@@ -1401,7 +1462,7 @@ app.on('before-quit', async (e) => {
     importer.stop();
     discover.cancelGaps();
     stems.stopAll();
-    await Promise.all([room ? room.close() : null, library.save(), settings.save(), discover.save(), importer.save(), toneStore.flush(), stats.flush(), toneIndex ? toneIndex.flush() : null]);
+    await Promise.all([companion ? companion.stop() : null, companionStore ? companionStore.flush().catch(() => {}) : null, room ? room.close() : null, library.save(), settings.save(), discover.save(), importer.save(), toneStore.flush(), stats.flush(), toneIndex ? toneIndex.flush() : null]);
   } catch (_) {}
   app.quit();
 });

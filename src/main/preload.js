@@ -35,6 +35,9 @@ const EVENTS = new Set(['nav:back', 'win:state', 'audio:search',
   'updates:progress',
   'app:recovered',
   'finder:event',
+  'companion:status',
+  'companion:clients',
+  'companion:command',
 ]);
 
 contextBridge.exposeInMainWorld('stagehand', {
@@ -200,6 +203,15 @@ contextBridge.exposeInMainWorld('stagehand', {
   tools: {
     vgmstream: () => call('tools:vgmstream'),
     installVgmstream: () => call('tools:installVgmstream'),
+  },
+  // 4.16: the Quest companion (off until switched on)
+  companion: {
+    status: () => call('companion:status'),
+    set: (on) => call('companion:set', on),
+    newCode: () => call('companion:newCode'),
+    forget: (id) => call('companion:forget', id),
+    state: (st) => ipcRenderer.send('companion:state', st),
+    judged: (j) => ipcRenderer.send('companion:judged', j),
   },
   settings: {
     get: () => call('settings:get'),

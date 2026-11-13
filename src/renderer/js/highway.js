@@ -237,7 +237,13 @@ export function createHighway(stage) {
   root.__openSync = () => openSync(); // for tests
   H.openSync = () => openSync();
   // practice.js logs your sessions (Progress) from the highway's own score while it's open
-  window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on && !aside() ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave() };
+  window.__shHighway = { open: () => H.open, judge: () => (prefs.detect && rig.on && !aside() ? H.judge : null), songId: () => H.song && H.song.id, part: () => (H.tab ? (H.tab.type === 'combo' ? 'lead' : H.tab.type) : null), tab: () => H.tab, targets: () => H.targets, leave: () => leave(),
+    // 4.16: the Quest companion picks the part from the headset
+    setPart: async (arrId) => {
+      if (!H.song || !H.parts.some((p) => p.id === arrId) || (H.tab && H.tab.id === arrId)) return;
+      await loadSong(H.song, arrId);
+      H.cam.ready = false;
+    } };
   const extras = createPerformanceTools({root,top,stage,H,rig});
   top.append(mixBtn); // after Tools: the last thing in the top bar
   const practiceCheckpoint = () => window.__shPractice && window.__shPractice.checkpoint();
@@ -2693,6 +2699,7 @@ export function createHighway(stage) {
     extras.judged(e);
     const tg = H.targets[e.id];
     if (!tg) return;
+    if (window.__shCompanionJudged) window.__shCompanionJudged(e, tg); // 4.16: the headset lights it up too (only while the Quest is on)
     watchNote(e, tg);
     if (e.hit) for (const n of tg.notes) if (!n.mute) feat.note(n.s, n.f, true);
     const now = performance.now();

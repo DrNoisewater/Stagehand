@@ -172,6 +172,7 @@ export async function settings(tab = 'library') {
     ['guitar', 'Guitar & audio'],
     ['amps', 'Real amps'],
     ['playback', 'Playback'],
+    ['quest', 'Quest headset'],
     ['stems', 'Stems'],
     ['saving', 'Saving and backups'],
     ['storage', 'Storage'],
@@ -200,6 +201,9 @@ const PANES = {
   async appearance(el) { (await import('./identity.js')).appearancePane(el); },
   async guitar(el) {
     await (await import('./guitarsettings.js')).pane(el, setting);
+  },
+  async quest(el) {
+    await (await import('./questsettings.js')).pane(el, setting);
   },
   async amps(el) {
     await (await import('./realamps.js')).pane(el, setting);

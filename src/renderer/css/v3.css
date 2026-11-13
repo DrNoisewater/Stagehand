@@ -2295,3 +2295,29 @@ body:has(> .highway:not([hidden])) :is(.hw-opts, .hw-card, .speed-pop, .rep-bar,
 .hw-top .hw-score { min-width: 0; overflow: hidden; flex-shrink: 3; }
 @media (max-width: 1440px) { .hw-top .hw-score > b + span { display: none; } }
 @media (max-width: 1340px) { .hw-keys-chip > span, .hw-sing-chip > span { display: none; } }
+
+/* 4.16: Settings › Quest headset */
+.quest-body { display: flex; flex-direction: column; gap: 12px; padding: 14px 0 6px; }
+.quest-off { display: flex; align-items: center; gap: 18px; padding: 18px; border: 1px dashed var(--rule); border-radius: var(--r-lg); color: var(--ink-3); font-size: 13px; line-height: 1.5; }
+.quest-off p { margin: 0; max-width: 460px; }
+.quest-off-art { width: 64px; flex: 0 0 64px; color: var(--ink-3); opacity: 0.7; }
+.quest-off-art svg, .quest-dev-ic svg { width: 100%; display: block; }
+.quest-card { border: 1px solid var(--rule-soft); border-radius: var(--r-lg); background: var(--deck); padding: 16px 18px 12px; }
+.quest-steps { margin: 0; padding: 0; list-style: none; counter-reset: qs; display: flex; flex-direction: column; gap: 16px; }
+.quest-steps li { counter-increment: qs; position: relative; padding-left: 38px; display: flex; flex-direction: column; gap: 8px; color: var(--ink-2); font-size: 13.5px; }
+.quest-steps li::before { content: counter(qs); position: absolute; left: 0; top: -2px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--tungsten); color: var(--tungsten-ink); font-weight: 800; font-size: 13px; }
+.quest-steps small { color: var(--ink-3); font-size: 12px; line-height: 1.45; }
+.quest-addr { display: flex; align-items: center; gap: 10px; }
+.quest-addr b { font-size: 22px; font-weight: 750; letter-spacing: 0.01em; color: var(--ink); background: var(--house); border: 1px solid var(--rule); border-radius: var(--r-md); padding: 6px 12px; font-variant-numeric: tabular-nums; user-select: all; }
+.quest-code { display: flex; gap: 8px; }
+.quest-code i { font-style: normal; width: 44px; height: 54px; display: grid; place-items: center; border-radius: var(--r-md); background: var(--house); border: 1px solid var(--tungsten-line); color: var(--tungsten-hi); font-size: 30px; font-weight: 800; box-shadow: 0 0 0 3px var(--tungsten-soft); }
+.quest-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rule-soft); }
+.quest-row .d { color: var(--ink-3); font-size: 12px; }
+.quest-fine { margin: 0; color: var(--ink-3); font-size: 12.5px; }
+.quest-fine.bad { color: var(--danger); }
+.quest-h { margin: 8px 0 0; font-size: 14px; color: var(--ink); }
+.quest-dev { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rule-soft); }
+.quest-dev > div { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.quest-dev b { font-size: 13.5px; color: var(--ink); }
+.quest-dev span { color: var(--ink-3); font-size: 12px; }
+.quest-dev-ic { width: 34px; flex: 0 0 34px; color: var(--ink-2); }

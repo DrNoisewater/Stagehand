@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Stagehand</title>
+<link rel="stylesheet" href="/app/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="bar">
+    <div class="brand"><span class="mark"></span><b>Stagehand</b><span class="sub">on the Quest</span></div>
+    <div class="link" id="link"><i></i><span>Connecting…</span></div>
+  </header>
+
+  <!-- connecting / pairing -->
+  <section id="pair" class="pair" hidden>
+    <div class="pair-card">
+      <h1>Connect to your PC</h1>
+      <p>Type the 4 numbers shown on the PC in Stagehand › Settings › Quest.<br>You only do this once.</p>
+      <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
+      <p class="msg" id="pairMsg"></p>
+      <div class="pad" id="pad"></div>
+    </div>
+  </section>
+
+  <section id="wait" class="wait">
+    <div class="spinner"></div>
+    <p id="waitMsg">Looking for Stagehand on your PC…</p>
+  </section>
+
+  <!-- the library and what's playing -->
+  <main id="main" class="main" hidden>
+    <section class="lib">
+      <div class="lib-head">
+        <input id="search" type="search" placeholder="Search your songs" autocomplete="off" spellcheck="false">
+        <span class="count" id="count"></span>
+      </div>
+      <div class="list" id="list"></div>
+    </section>
+    <section class="now" id="now">
+      <div class="now-empty" id="nowEmpty">
+        <b>Pick a song</b>
+        <span>It opens on the PC too, and both follow each other.</span>
+      </div>
+      <div class="now-song" id="nowSong" hidden>
+        <div class="art" id="art"></div>
+        <div class="meta">
+          <div class="title" id="title"></div>
+          <div class="artist" id="artist"></div>
+          <div class="parts" id="parts"></div>
+        </div>
+        <div class="clock">
+          <div class="time"><b id="tNow">0:00</b><span id="tDur">/ 0:00</span></div>
+          <div class="track"><i id="tBar"></i></div>
+        </div>
+        <div class="transport">
+          <button class="btn round" id="back5" title="Back 5 seconds">−5</button>
+          <button class="btn round big" id="playBtn" title="Play or pause"></button>
+          <button class="btn round" id="fwd5" title="On 5 seconds">+5</button>
+        </div>
+        <div class="score" id="score"></div>
+        <button class="btn primary wide" id="vrBtn" disabled>Enter VR · coming next</button>
+        <div class="sync" id="sync"></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script type="module" src="/app/app.js"></script>
+</body>
+</html>
