@@ -118,3 +118,35 @@ html[data-look='roadshow'] .kk-title-big { color:#d9f0dc; }
 .kk-diff.none { color:#6c655a; }
 .kk-best { margin-left:auto; display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:700; color:#9fe9f5; font-variant-numeric:tabular-nums; }
 .kk-best svg { width:11px; height:11px; fill:none; stroke:currentColor; stroke-width:2; }
+
+/* ---- menu groups (4.14): folded groups show how many are inside ---- */
+.nav-toggle .nav-gcount { margin-left:6px; font-size:10.5px; font-weight:600; color:var(--ink-3); opacity:.7; font-variant-numeric:tabular-nums; }
+
+/* ---- the guitar, top right of the banner (4.14): a small chip, the full card on hover ---- */
+#app .banner-corner { position:absolute; top:10px; right:14px; z-index:60; display:flex; align-items:center; gap:8px; }
+html[data-look] #app .banner-corner .identity-options { position:static; align-self:auto; top:auto; right:auto; }
+.gchip { display:flex; align-items:center; height:28px; border-radius:4px; border:1px solid #ffffff1f; background:#0b0a09b3; backdrop-filter:blur(6px); color:#cfc6b4; font:600 11.5px var(--font); transition:border-color .14s, background .14s; }
+.gchip:hover, .gchip.open { border-color:#ffffff44; background:#0b0a09e0; }
+.gchip-head { display:flex; align-items:center; gap:7px; height:100%; padding:0 9px; cursor:default; outline:none; border-radius:4px; }
+.gchip-head:focus-visible { box-shadow:0 0 0 2px var(--focus); }
+.gchip-dot { width:7px; height:7px; border-radius:50%; background:#6c655a; flex:none; }
+.gchip[data-state='on'] .gchip-dot { background:#5bd88a; box-shadow:0 0 6px #5bd88a; }
+.gchip[data-state='muted'] .gchip-dot, .gchip[data-state='warn'] .gchip-dot { background:#f2b33d; }
+.gchip[data-state='err'] .gchip-dot { background:#e5533c; box-shadow:0 0 6px #e5533c; }
+.gchip-text { letter-spacing:.01em; }
+.gchip[data-state='on'] .gchip-text { color:#a99e8c; }
+.gchip-tuner { display:flex; align-items:center; gap:6px; height:100%; padding:0 8px 0 9px; border:0; border-left:1px solid #ffffff1a; background:none; color:#e3d8bf; font:inherit; cursor:pointer; border-radius:0 4px 4px 0; }
+.gchip-tuner svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:1.9; }
+.gchip-tuner kbd { font:700 10px 'Typewriter Stagehand','Liberation Mono',monospace; padding:1px 4px; border-radius:2px; border:1px solid #ffffff2e; color:#a99e8c; background:#ffffff0a; }
+.gchip-tuner:hover { color:#fff; background:#ffffff10; }
+.gchip-tuner:hover kbd { color:#fff; border-color:#ffffff55; }
+.gchip-tuner[hidden] { display:none; }
+.gchip-pop { position:fixed; z-index:900; width:250px; filter:drop-shadow(0 14px 28px #000c); animation:gchipIn .12s ease-out; }
+.gchip-pop[hidden] { display:none; }
+.gchip-pop::before { content:''; position:absolute; left:0; right:0; top:-8px; height:8px; } /* a bridge for the pointer */
+.gchip-pop .guitar-card { margin:0; }
+@keyframes gchipIn { from { opacity:0; transform:translateY(-4px); } }
+html[data-look='roadshow'] .gchip { border-radius:1px; border-color:#77644e; background:#29241de0; color:#e5d5b9; }
+html[data-look='roadshow'] .gchip-tuner { border-left-color:#77644e; }
+html[data-look='roadshow'] .gchip-pop .guitar-card { background:#211d17; border:1px solid #77644e; border-radius:1px; }
+html[data-look='opera'] .gchip-pop .guitar-card { border-radius:3px; background:#151311; border:1px solid #2f2a25; }

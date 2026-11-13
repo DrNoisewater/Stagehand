@@ -10,7 +10,8 @@ module.exports = async ({ page, outDir, check }) => {
   await page.setViewportSize({ width: 1500, height: 900 });
   for (const pg of ['songs', 'tones', 'progress', 'discover']) {
     await go(pg);
-    check((await page.locator('.guitar-card .gc-tuner').count()) === 1, `the Tuner button is on your guitar’s card on the ${pg} page`);
+    // 4.14: the guitar's chip in the banner's top-right corner carries the tuner
+    check((await page.locator('.gchip .gchip-tuner:visible').count()) === 1, `the Tuner button is in the top-right corner on the ${pg} page`);
   }
   await go('songs');
   await page.evaluate(() => document.activeElement && document.activeElement.blur());

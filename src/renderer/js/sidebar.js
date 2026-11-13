@@ -1,8 +1,8 @@
 import { decorativeImage } from './menu-art.js';
 /**
  * Left menu (Stagehand 3): Play, Songs (with its lists, setlists, tunings,
- * artists and folders), Tones, Progress, Discover, and
- * the guitar status card at the bottom.
+ * artists), Karaoke, Tones, Progress, Discover. (4.14: the guitar status lives in
+ * the top-right of the page banner now; folders are in Settings.)
  */
 import { openJam } from './jam.js';
 import { api } from './api.js';
@@ -24,7 +24,15 @@ const fold = (page) => {
   folded = folded === page ? null : page;
   render();
 };
-const collapsed = new Set(JSON.parse(localStorage.getItem('stagehand.nav') || '["artists"]'));
+// 4.14: every group starts folded the first time; after that it stays the way you left it
+const NAV_KEY = 'stagehand.nav2';
+const collapsed = new Set((() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(NAV_KEY));
+    if (Array.isArray(v)) return v;
+  } catch (_) {}
+  return ['setlists', 'levels', 'tunings', 'artists'];
+})());
 
 function isCurrent(kind, id) {
   return state.view.kind === kind && (id === undefined || state.view.id === id);
@@ -65,16 +73,18 @@ function section({ page, label, iconName, gel, onClick, sub, badge = '' }) {
   return b;
 }
 
-function group(key, label, children, { action, collapsible = false } = {}) {
+function group(key, label, children, { action, collapsible = false, onContext, count } = {}) {
   const open = !collapsed.has(key);
   const g = h('div.nav-group');
   const head = h('div.nav-label');
   if (collapsible) {
-    const t = h('button.nav-toggle', { type: 'button', 'aria-expanded': String(open), html: `${icon('chevron')}<span>${esc(label)}</span>` });
+    const t = h('button.nav-toggle', { type: 'button', 'aria-expanded': String(open), html: `${icon('chevron')}<span>${esc(label)}</span>${!open && count ? `<small class="nav-gcount">${count}</small>` : ''}` });
     t.onclick = () => {
       if (collapsed.has(key)) collapsed.delete(key);
       else collapsed.add(key);
-      localStorage.setItem('stagehand.nav', JSON.stringify([...collapsed]));
+      try {
+        localStorage.setItem(NAV_KEY, JSON.stringify([...collapsed]));
+      } catch (_) {}
       render();
     };
     head.append(t);
@@ -82,6 +92,10 @@ function group(key, label, children, { action, collapsible = false } = {}) {
     head.append(h('span', { text: label }));
   }
   if (action) head.append(...[].concat(action));
+  if (onContext) head.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    onContext(e);
+  });
   g.append(head);
   if (!collapsible || open) g.append(...children);
   return g;
@@ -128,6 +142,48 @@ function renameSetlist(id) {
   });
   input.addEventListener('blur', () => commit(true));
   input.addEventListener('click', (e) => e.stopPropagation());
+}
+
+// 4.14: the note under the menu changes with the page and with what's in your library,
+// picked once per visit (not on every redraw) so it doesn't flicker while you work
+let tagShown = { page: null, text: '' };
+const plural = (n, one, many = one + 's') => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+const PAGE_TAGS = {
+  play: ['TUNE FIRST. THEN TUNE AGAIN.', 'NEIGHBORS: WARNED.', 'NOODLING COUNTS AS PRACTICE.', 'THE AMP IS WARM. ARE YOU?'],
+  songs: ['ONE MORE SONG. THEN BED.', 'REQUESTS: NO. OKAY, ONE.', 'SKIP THE INTRO. WE ALL DO.'],
+  karaoke: ['THE MIC IS LIVE.', 'HUM THE BITS YOU DON’T KNOW.', 'NO FREEBIRD. OKAY, ONE VERSE.'],
+  tones: ['EVERYTHING ON 7. EXCEPT THAT ONE.', 'ONE MORE PEDAL. FINE.', 'IT’S THE FINGERS. MOSTLY.'],
+  gear: ['TOUCH EVERYTHING.', 'NOBODY’S COUNTING PEDALS.', 'GOES TO 11. ASK WHY LATER.'],
+  progress: ['CALLUSES DON’T GROW THEMSELVES.', 'SLOW IS SMOOTH. SMOOTH IS FAST.', 'THE BRIDGE AGAIN. FROM THE TOP.'],
+  discover: ['DIG DEEPER.', 'THE NEXT OBSESSION IS IN HERE.', 'CRATE DIGGERS WELCOME.'],
+  greenroom: ['BAND ONLY. AND THE DRUMMER.', 'THE SNACKS WERE A LIE.', 'LOAD-IN AT SIX. NOBODY’S HERE AT SIX.'],
+};
+function tagline(page, songs) {
+  if (tagShown.page === page && tagShown.text) return tagShown.text;
+  const pool = [...(PAGE_TAGS[page] || PAGE_TAGS.songs)];
+  const n = songs.length;
+  if (n) pool.push(`${plural(n, 'SONG')}. ZERO EXCUSES.`);
+  const { accBand } = storeFns;
+  const bands = { mastered: 0, close: 0, learning: 0 };
+  for (const s of songs) bands[accBand(s)] = (bands[accBand(s)] || 0) + 1;
+  if (bands.mastered) pool.push(`${plural(bands.mastered, 'SONG')} MASTERED. ${bands.close ? `${bands.close.toLocaleString()} CLOSE.` : 'SHOW-OFF.'}`);
+  if (bands.close) pool.push(`${plural(bands.close, 'SONG')} SO CLOSE. GO ON.`);
+  const tunings = new Map();
+  for (const s of songs) if (s.tuning) tunings.set(s.tuning, (tunings.get(s.tuning) || 0) + 1);
+  const odd = [...tunings.keys()].filter((t) => !/^E Standard$/i.test(t));
+  if (odd.length >= 3) pool.push(`${odd.length} TUNINGS. YOUR TUNER IS TIRED.`);
+  const last = songs.filter((s) => s.user && s.user.lastPlayed).sort((a, b) => b.user.lastPlayed - a.user.lastPlayed)[0];
+  if (last && last.title && last.title.length <= 26) pool.push(`LAST UP: ${last.title.toUpperCase()}. AGAIN?`);
+  const sung = songs.filter((s) => (s.arrangements || []).some((a) => a.type === 'vocals')).length;
+  if (page === 'karaoke' && sung) pool.push(`${plural(sung, 'SONG')} TO SING. PICK ONE.`);
+  if (state.setlists.length) pool.push(`${plural(state.setlists.length, 'SETLIST')}. NO STAIRWAY.`);
+  const hr = new Date().getHours();
+  if (hr >= 23 || hr < 5) pool.push('IT’S LATE. ONE MORE RUN.');
+  if (hr >= 5 && hr < 9) pool.push('EARLY RIFFS. RESPECT.');
+  const opts = pool.filter((t) => t !== tagShown.text);
+  const text = opts[Math.floor(Math.random() * opts.length)] || pool[0];
+  tagShown = { page, text };
+  return text;
 }
 
 export function render() {
@@ -193,7 +249,7 @@ export function render() {
   root.append(top);
   root.append(h('div.roadshow-sticker', { 'aria-hidden': 'true' },
     decorativeImage(`sidebar-${state.page}`, 'roadshow-side-art'),
-    h('span', { text:'PICKS VANISH. RIFFS REMAIN.' })));
+    h('span', { text: tagline(page, songs) })));
   // section highlight follows the page, not the Songs list
   for (const b of top.querySelectorAll('.nav-section')) b.setAttribute('aria-current', 'false');
   // (by page name, not position: Getting started opens a window, not a page)
@@ -241,6 +297,9 @@ function renderSongGroups(append, songs) {
       onContext: (e) =>
         showMenu(e.clientX, e.clientY, [
           { label: 'Rename', icon: 'edit', onClick: () => renameSetlist(sl.id) },
+          { label: 'New setlist', icon: 'plus', onClick: () => newSetlist() },
+          rsImportItem(),
+          '-',
           {
             label: 'Delete setlist',
             icon: 'trash',
@@ -265,7 +324,12 @@ function renderSongGroups(append, songs) {
   }
   const bring = importRow();
   if (bring) sls.push(bring);
-  append(group('setlists', 'Setlists', sls, { action: addSl }));
+  append(group('setlists', 'Setlists', sls, {
+    action: addSl,
+    collapsible: true,
+    count: state.setlists.length,
+    onContext: (e) => showMenu(e.clientX, e.clientY, [{ label: 'New setlist', icon: 'plus', onClick: () => newSetlist() }, rsImportItem()]),
+  }));
 
   // 3.8: songs by how well you play them (your best at full speed)
   const { accBand } = storeFns;
@@ -293,7 +357,7 @@ function renderSongGroups(append, songs) {
   const tuningItems = [...tunings.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([t, n]) => item({ kind: 'tuning', id: t, label: t, count: n, cls: 'sub' }));
-  if (tuningItems.length) append(group('tunings', 'Tunings', tuningItems, { collapsible: true }));
+  if (tuningItems.length) append(group('tunings', 'Tunings', tuningItems, { collapsible: true, count: tuningItems.length }));
 
   const artists = new Map();
   for (const s of songs) artists.set(s.artist || '', (artists.get(s.artist || '') || 0) + 1);
@@ -301,39 +365,26 @@ function renderSongGroups(append, songs) {
   const artistItems = [...artists.entries()]
     .sort((a, b) => coll.compare(a[0].replace(/^the\s+/i, ''), b[0].replace(/^the\s+/i, '')))
     .map(([a, n]) => item({ kind: 'artist', id: a, label: a || 'Unknown artist', count: n, cls: 'sub' }));
-  if (artistItems.length) append(group('artists', `Artists`, artistItems, { collapsible: true }));
-
-  const addF = h('button.icon-btn', { type: 'button', title: 'Add folder', html: icon('plus') });
-  addF.onclick = () => addFolder();
-  const folderItems = state.folders.map((f) =>
-    item({
-      kind: 'folder',
-      id: f.path,
-      label: f.path.split(/[\\/]/).filter(Boolean).slice(-2).join(' / '),
-      iconName: 'folder',
-      cls: f.exists ? '' : 'missing',
-      onContext: (e) =>
-        showMenu(e.clientX, e.clientY, [
-          { label: 'Show in Explorer', icon: 'external', onClick: () => api.shell.openPath(f.path) },
-          { label: 'Rescan', icon: 'refresh', onClick: () => api.library.rescan() },
-          '-',
-          {
-            label: 'Remove from library',
-            icon: 'trash',
-            danger: true,
-            onClick: async () => {
-              if (await confirmDialog({ title: 'Remove folder?', message: `Stagehand will stop showing songs from ${f.path}. No files are deleted.`, confirm: 'Remove', danger: true })) {
-                await api.library.removeFolder(f.path);
-                if (isCurrent('folder', f.path)) setView({ kind: 'all' });
-                await loadLibrary();
-              }
-            },
-          },
-        ]),
-    })
-  );
-  append(group('folders', 'Folders', folderItems, { action: addF }));
+  if (artistItems.length) append(group('artists', `Artists`, artistItems, { collapsible: true, count: artistItems.length }));
+  // 4.14: folders live in Settings › Library (Add folder is there); the menu has no use for them
 }
+
+/** 4.14: the right-click item that copies Rocksmith's song lists into setlists: all of them, or one. */
+function rsImportItem() {
+  const r = state.rs;
+  const ids = r && r.profile ? rsListIds().filter((id) => rsListKeys(id).length) : [];
+  if (!ids.length) return { label: 'Import Rocksmith lists', icon: 'download', disabled: true, hint: r && r.profile ? 'none found' : 'no profile' };
+  return {
+    label: 'Import Rocksmith lists',
+    icon: 'download',
+    submenu: [
+      { label: `All ${ids.length} lists`, icon: 'download', onClick: () => importRocksmithLists() },
+      '-',
+      ...ids.map((id) => ({ label: id === 'favorites' ? 'Favorites' : rsListLabel(id), icon: 'setlist', hint: String(rsListKeys(id).length), onClick: () => importRocksmithLists([id]) })),
+    ],
+  };
+}
+
 
 function discoverGroup() {
   const c = discoverCounts();
@@ -382,20 +433,27 @@ function importRow() {
   return row;
 }
 
-export async function importRocksmithLists() {
+export async function importRocksmithLists(only = null) {
   const { songsByKey } = await import('./store.js');
   const byKey = songsByKey();
-  const have = new Set(state.setlists.map((sl) => sl.name.toLowerCase()));
+  const have = new Map(state.setlists.map((sl) => [sl.name.toLowerCase(), sl]));
   let made = 0;
   let songs = 0;
-  for (const id of rsListIds()) {
+  let topped = 0;
+  for (const id of only || rsListIds()) {
     const ids = rsListKeys(id)
       .map((k) => byKey.get(k.toLowerCase()))
       .filter(Boolean)
       .map((s) => s.id);
     if (!ids.length) continue;
     const name = id === 'favorites' ? 'Rocksmith favorites' : rsListLabel(id);
-    if (have.has(name.toLowerCase())) continue;
+    const old = have.get(name.toLowerCase());
+    if (old) {
+      // 4.14: brought over before: add what's new in the Rocksmith list since then
+      const add = ids.filter((x) => !old.songIds.includes(x));
+      if (add.length) await api.setlists.add(old.id, add), (topped++, (songs += add.length));
+      continue;
+    }
     const sl = await api.setlists.create(name);
     await api.setlists.add(sl.id, ids);
     made++;
@@ -405,7 +463,8 @@ export async function importRocksmithLists() {
     localStorage.setItem(IMPORTED, '1');
   } catch (_) {}
   await loadLibrary();
-  toast({ title: made ? `${made} setlist${made === 1 ? '' : 's'} made` : 'Nothing new to bring over', message: made ? `${songs} songs from your Rocksmith lists.` : '', kind: 'ok' });
+  const title = made ? `${made} setlist${made === 1 ? '' : 's'} made` : topped ? `${topped} setlist${topped === 1 ? '' : 's'} brought up to date` : 'Nothing new to bring over';
+  toast({ title, message: songs ? `${songs} song${songs === 1 ? '' : 's'} from your Rocksmith lists.` : 'Your setlists already have everything in those lists.', kind: 'ok' });
 }
 
 export async function addFolder(p) {
