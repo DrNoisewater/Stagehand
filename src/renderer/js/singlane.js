@@ -144,6 +144,7 @@ export function tuneMenu() {
   ];
 }
 
+const NOTE_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
   const chip = h('button.hw-chip.hw-mode.hw-sing-chip', { type: 'button', hidden: true });
   const kchip = h('button.hw-chip.hw-mode.hw-karaoke-chip', { type: 'button', hidden: true });
@@ -567,6 +568,16 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     for (const p of S.rng.rows) {
       const y = Y(p);
       if (y > top - 2 && y < bot + 2) g.fillRect(nowX, Math.round(y), W - nowX - 8, 1);
+    }
+    if (lane.dataset.k) {
+      // karaoke: each line is named at the left edge, so the note to sing can be read off
+      g.font = `700 9px ${FONT}`;
+      g.textBaseline = 'middle';
+      g.fillStyle = 'rgba(245, 237, 218, 0.42)';
+      for (const p of S.rng.rows) {
+        const y = Y(p);
+        if (y > top - 2 && y < bot + 2) g.fillText(NOTE_NAMES[((p % 12) + 12) % 12], 8, Math.round(y));
+      }
     }
     // bars: plain pills, the one to sing now a little brighter
     const BH = Z.bh;

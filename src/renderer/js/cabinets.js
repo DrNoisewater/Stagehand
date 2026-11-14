@@ -12,6 +12,15 @@ export function cabinetFor(tone,capture){
     if(/410/i.test(cab))return 'bass-410';
     return 'bass-810';
   }
+  // 4.18: the song's own cabinet says how many speakers it has (…112…, …212…, …412…): go by that
+  // first, and by the amp only when it doesn't say
+  const cabKey=(tone.gear?.find(g=>g.slot==='cab')?.key||'').replace(/^Cab_/,'');
+  const size=/(?:^|[A-Za-z_0])([1248])(10|12|15)(?!\d)/.exec(cabKey);
+  if(size&&size[2]==='12'){
+    if(size[1]==='1')return '1x12_open';
+    if(size[1]==='2')return '2x12_closed';
+    if(size[1]==='4')return /Marshall|Plexi|JCM|GB/i.test(amp+' '+cabKey)?'4x12_slant':'4x12_straight';
+  }
   if(/TW|Tweed|Deluxe|Champ|Princeton/i.test(amp))return '1x12_open';
   if(/AT120|Vox|AC30|Twin/i.test(amp))return '2x12_closed';
   if(/Marshall|Plexi|JCM/i.test(amp))return '4x12_slant';
