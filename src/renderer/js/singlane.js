@@ -129,24 +129,24 @@ export function tuneLabel() {
 }
 /** Auto-tune and the voice changer as menu lines (the Sing menu and the Karaoke page). */
 export function tuneMenu() {
-  const check = (v) => (v ? '✓' : '');
+  // the ticks are read again after every press, so the menu stays open while you try things
+  const check = (f) => () => (f() ? '✓' : '');
   return [
     { heading: true, label: 'Auto-tune' },
-    ...TUNE_STYLES.map(([id, name]) => ({ label: name, hint: check(autotune.style === id), onClick: () => (autotune.setStyle(id), autotune.setMuted(false), tuneTip()) })),
+    ...TUNE_STYLES.map(([id, name]) => ({ label: name, hint: check(() => autotune.style === id), keep: true, onClick: () => (autotune.setStyle(id), autotune.setMuted(false), tuneTip()) })),
     '-',
-    { label: `Tune to: ${nameOf(TUNE_NOTES, autotune.notes).toLowerCase()}`, submenu: TUNE_NOTES.map(([id, name]) => ({ label: name, hint: check(autotune.notes === id), onClick: () => autotune.setNotes(id) })) },
-    { label: `Voice: ${nameOf(TUNE_VOICES, autotune.voice).toLowerCase()}`, submenu: TUNE_VOICES.map(([id, name]) => ({ label: name, hint: check(autotune.voice === id), onClick: () => (autotune.setVoice(id), autotune.setMuted(false), tuneTip()) })) },
+    { label: () => `Tune to: ${nameOf(TUNE_NOTES, autotune.notes).toLowerCase()}`, submenu: TUNE_NOTES.map(([id, name]) => ({ label: name, hint: check(() => autotune.notes === id), keep: true, onClick: () => autotune.setNotes(id) })) },
+    { label: () => `Voice: ${nameOf(TUNE_VOICES, autotune.voice).toLowerCase()}`, submenu: TUNE_VOICES.map(([id, name]) => ({ label: name, hint: check(() => autotune.voice === id), keep: true, onClick: () => (autotune.setVoice(id), autotune.setMuted(false), tuneTip()) })) },
     '-',
     // muted: the choices above are kept for next time, but your voice isn't played
-    autotune.picked
-      ? { label: 'Mute my voice', hint: check(autotune.muted), onClick: () => (autotune.setMuted(!autotune.muted), tuneTip()) }
-      : { label: 'Mute my voice', hint: 'not playing', disabled: true },
-    { label: 'Voice volume', submenu: TUNE_LEVELS.map(([v, name]) => ({ label: name, hint: check(Math.abs(autotune.vol - v) < 0.01), onClick: () => autotune.setVol(v) })) },
+    { label: 'Mute my voice', hint: () => (autotune.picked ? (autotune.muted ? '✓' : '') : 'not playing'), keep: true, onClick: () => autotune.picked && (autotune.setMuted(!autotune.muted), tuneTip()) },
+    { label: 'Voice volume', submenu: TUNE_LEVELS.map(([v, name]) => ({ label: name, hint: check(() => Math.abs(autotune.vol - v) < 0.01), keep: true, onClick: () => autotune.setVol(v) })) },
   ];
 }
 
-export function createSing({ root, stage, onKaraoke, onLeave }) {
-  const chip = h('button.hw-chip.hw-sing-chip', { type: 'button', hidden: true });
+export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
+  const chip = h('button.hw-chip.hw-mode.hw-sing-chip', { type: 'button', hidden: true });
+  const kchip = h('button.hw-chip.hw-mode.hw-karaoke-chip', { type: 'button', hidden: true });
   const lane = h('div.hw-sing', { hidden: true, 'aria-hidden': 'true' });
   const cv = h('canvas');
   // the voice dot rides on a little LED meter (green, amber, red as you get louder)
@@ -203,14 +203,25 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
 
   const live = () => S.on && S.open && !!S.judge;
 
+  /**
+   * 4.18: Sing and Karaoke are two buttons that are always there, always the same size (nothing in the
+   * top bar jumps). The one that's on is lit and opens its options; a song with no words dims them.
+   */
   function paintChip() {
-    chip.hidden = !S.base.syl.length;
-    chip.setAttribute('aria-pressed', String(S.on));
-    chip.title = S.on ? (S.karaoke ? 'Karaoke: level, microphone, look' : 'Singing is on: level, microphone, look') : 'Sing along: score your singing beside your guitar part, with a microphone';
-    // off, it's a small icon button (the top bar is full); on, it says what's on
-    chip.innerHTML = S.on ? `${icon('mic')}<span>${S.karaoke ? 'Karaoke' : 'Sing'} · ${SING_LEVELS[prefs().level].name}</span>${icon('chevron')}` : icon('mic');
-    chip.classList.toggle('icon-only', !S.on);
-    chip.setAttribute('aria-label', S.on ? chip.title : 'Sing');
+    const words = S.base.syl.length > 0;
+    const singing = S.on && !S.karaoke && !S.held;
+    const kar = S.on && S.karaoke;
+    const paint = (el, on, name, offTitle, onTitle) => {
+      el.hidden = !S.song;
+      el.setAttribute('aria-pressed', String(on));
+      el.classList.toggle('dim', !words);
+      el.classList.toggle('has-menu', on);
+      el.title = !words ? 'This song has no words in it' : on ? onTitle : offTitle;
+      const html = `${icon(name === 'Sing' ? 'mic' : 'music')}<span>${name}</span>${icon('chevron')}`;
+      if (el.__html !== html) el.innerHTML = el.__html = html;
+    };
+    paint(chip, singing, 'Sing', 'Sing along: score your singing beside your guitar part, with a microphone', 'Singing is on: level, microphone, auto-tune, look');
+    paint(kchip, kar, 'Karaoke', 'Karaoke: just the words, big, and your singing scored', 'Karaoke is on: level, microphone, auto-tune, look');
   }
 
   function vocalsTrack() {
@@ -384,38 +395,53 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
     return sum;
   }
 
-  chip.onclick = async () => {
-    if (!S.on) return turn(true);
-    const r = chip.getBoundingClientRect();
-    const p = prefs();
-    const check = (v) => (v ? '✓' : '');
-    const list = await mic.devices().catch(() => []);
+  const noWords = () => toast({ title: 'No words to sing', message: 'This song has no lyrics in it.', kind: 'info' });
+  async function options(el) {
+    const r = el.getBoundingClientRect();
+    const check = (f) => () => (f() ? '✓' : '');
+    // the menu opens at once; the microphones are read when their side menu opens
+    let list = [];
+    mic.devices().then((l) => (list = l)).catch(() => {});
     const v = vocalsTrack();
     showMenu(r.left, r.bottom + 6, [
       { heading: true, label: 'How strict' },
       ...Object.entries(SING_LEVELS).map(([id, l]) => ({
         label: l.name,
-        hint: check(p.level === id),
+        hint: check(() => prefs().level === id),
+        keep: true,
         onClick: () => {
+          if (prefs().level === id) return;
           setPref('level', id);
           log(false);
           if (S.judge) newJudge();
-          paintChip();
         },
       })),
       '-',
-      v ? { label: 'Take the singer out of the song', hint: check(v.muted), onClick: () => stage.setStem('vocals', { muted: !v.muted }) } : null,
+      v ? { label: 'Take the singer out of the song', hint: check(() => v.muted), keep: true, onClick: () => stage.setStem('vocals', { muted: !v.muted }) } : null,
       {
         label: 'Microphone',
-        submenu: list.length
-          ? list.map((d) => ({ label: d.label, hint: check(d.id === mic.deviceId), onClick: () => mic.setDevice(d.id, d.label) }))
-          : [{ label: 'No microphone found', disabled: true }],
+        submenu: () =>
+          list.length
+            ? list.map((d) => ({ label: d.label, hint: check(() => d.id === mic.deviceId), keep: true, onClick: () => mic.setDevice(d.id, d.label) }))
+            : [{ label: 'No microphone found', disabled: true }],
       },
-      { label: tuneLabel(), submenu: tuneMenu() },
-      { label: 'Look', submenu: SING_LOOKS.map(([id, name]) => ({ label: name, hint: check(singLook() === id), onClick: () => setSingLook(id) })) },
+      { label: () => tuneLabel(), submenu: () => tuneMenu() },
+      { label: 'Look', submenu: SING_LOOKS.map(([id, name]) => ({ label: name, hint: check(() => singLook() === id), keep: true, onClick: () => setSingLook(id) })) },
       '-',
       S.karaoke ? { label: 'Leave karaoke', icon: 'x', onClick: () => onLeave && onLeave() } : { label: 'Stop singing', icon: 'x', onClick: () => turn(false) },
     ]);
+  }
+  chip.onclick = () => {
+    if (!S.base.syl.length) return noWords();
+    if (S.on && !S.karaoke && !S.held) return options(chip);
+    if (onAsk) onAsk('sing');
+    else turn(true);
+  };
+  kchip.onclick = () => {
+    if (!S.base.syl.length) return noWords();
+    if (S.on && S.karaoke) return options(kchip);
+    if (onAsk) onAsk('karaoke');
+    else setKaraoke(true);
   };
   window.addEventListener('sing-look', () => {
     lane.dataset.look = singLook();
@@ -777,6 +803,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
 
   return {
     chip,
+    kchip,
     /** Singing is on and showing: the plain lyrics step aside. */
     get active() {
       return live();
@@ -859,7 +886,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
       if (S.held === v) return;
       S.held = v;
       lane.style.display = v ? 'none' : '';
-      chip.style.display = v ? 'none' : '';
+      paintChip(); // while Piano shows, Sing isn't lit: pressing it comes back to singing
     },
     turn,
     setKaraoke,

@@ -58,6 +58,8 @@ html[data-look='opera'] #app .row .t { font-weight:760; color:#efe6d3; }
 .cv-sing { color:#9fe9f5; }
 .cv-sing:hover { background:#0f2f36cc; }
 .cv-along { color:#ffd58f; }
+.cv-piano { color:#d9c8ff; }
+.cv-piano:hover { background:#2a2140cc; }
 .cv-along:hover { background:#3a2a12cc; }
 /* the title wins the room: badges shrink first, the mic always stays */
 #app .row .t .tt-text { flex:0 0 auto; max-width:calc(100% - 34px); }

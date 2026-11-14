@@ -16,10 +16,7 @@ import { arrange, KeysJudge, KEYS_LEVELS, noteName } from './piano-arrange.js';
 import { createSheet } from './piano-sheet.js';
 
 const KEY = 'stagehand.keys';
-/** The hands' colours: the piano's own green (right) and a cool blue (left). */
-const HAND = { R: '#8fe36a', L: '#5fb0ff' };
-const HAND_HOT = { R: '#e4ffd2', L: '#dcefff' };
-const WRONG = '#ff8a5c';
+const WRONG = '#ff5c5c';
 /** Seconds of music falling above the keyboard. */
 const AHEAD = 3;
 
@@ -28,25 +25,92 @@ export const KEYS_LOOKS = [
   ['fall', 'Falling notes only'],
   ['sheet', 'Sheet music only'],
 ];
+/** 4.18 the colours of the notes: one for each hand (right, left), or one for every note across the keys. */
+export const KEYS_COLOURS = {
+  neon: { name: 'Violet and gold', R: '#ffc83a', L: '#a47bff' },
+  stage: { name: 'Green and blue', R: '#8fe36a', L: '#5fb0ff' },
+  sunset: { name: 'Pink and orange', R: '#ff9838', L: '#ff5aa5' },
+  ice: { name: 'Ice', R: '#7fe9ff', L: '#7a8cff' },
+  rainbow: { name: 'Rainbow across the keys', R: '#ffd166', L: '#4fd1c5', rainbow: true },
+};
+const GLOWS = [
+  ['low', 'A little', 0.5],
+  ['mid', 'Glowing', 1],
+  ['high', 'Lots', 1.7],
+];
+const BACKDROPS = [
+  ['dark', 'Dark, like the piano videos'],
+  ['stage', 'The stage behind'],
+];
+/** How many keys are drawn: a real piano's sizes (lowest and highest key), or just what the song uses. */
+export const KEYS_SIZES = [
+  ['88', '88 keys (a full piano)', 21, 108],
+  ['76', '76 keys', 28, 103],
+  ['61', '61 keys', 36, 96],
+  ['49', '49 keys', 36, 84],
+  ['fit', 'Only the keys this song uses', 0, 0],
+];
+const DEFAULTS = { on: {}, level: 'medium', hands: 'both', look: 'both', colours: 'neon', glow: 'mid', backdrop: 'dark', size: '88', names: true };
 const HANDS = [
   ['both', 'Both hands'],
   ['R', 'Right hand only'],
   ['L', 'Left hand only'],
 ];
 
+let prefCache = null;
+let prefRaw;
 function prefs() {
+  let raw = null;
   try {
-    return { on: {}, level: 'medium', hands: 'both', look: 'both', ...(JSON.parse(localStorage.getItem(KEY) || '{}') || {}) };
+    raw = localStorage.getItem(KEY);
+  } catch (_) {}
+  if (prefCache && raw === prefRaw) return prefCache;
+  prefRaw = raw;
+  try {
+    prefCache = { ...DEFAULTS, ...(JSON.parse(raw || '{}') || {}) };
   } catch (_) {
-    return { on: {}, level: 'medium', hands: 'both', look: 'both' };
+    prefCache = { ...DEFAULTS };
   }
+  if (!KEYS_COLOURS[prefCache.colours]) prefCache.colours = DEFAULTS.colours;
+  return prefCache;
 }
 function setPref(k, v) {
-  const p = prefs();
-  p[k] = v;
+  const p = { ...prefs(), [k]: v };
   try {
     localStorage.setItem(KEY, JSON.stringify(p));
-  } catch (_) {}
+  } catch (_) {
+    prefCache = p;
+  }
+}
+
+/** A colour moved towards white (0 = itself, 1 = white). */
+function lighten(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = (sh) => Math.round(((n >> sh) & 255) + (255 - ((n >> sh) & 255)) * k);
+  return `rgb(${c(16)}, ${c(8)}, ${c(0)})`;
+}
+function hsl(hh, sat, li) {
+  // to #rrggbb, so it can be lightened like the others
+  const a = sat * Math.min(li, 1 - li);
+  const f = (n) => {
+    const k = (n + hh / 30) % 12;
+    return Math.round(255 * (li - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+  };
+  return `#${[f(0), f(8), f(4)].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
+/** Rainbow: teal at the bottom of the piano, through green, gold and orange, to pink at the top. */
+const rainbowAt = (midi) => hsl((((172 - ((Math.max(21, Math.min(108, midi)) - 21) / 87) * 210) % 360) + 360) % 360, 0.95, 0.6);
+const tintCache = new Map();
+/** The colour of a note (its bar, its key, its sparks) and the same colour white-hot. */
+function tint(theme, midi, hand) {
+  const key = `${theme}|${KEYS_COLOURS[theme].rainbow ? midi : hand}`;
+  let c = tintCache.get(key);
+  if (!c) {
+    const base = KEYS_COLOURS[theme].rainbow ? rainbowAt(midi) : KEYS_COLOURS[theme][hand] || KEYS_COLOURS[theme].R;
+    c = { base, top: lighten(base, 0.45), hot: lighten(base, 0.82) };
+    tintCache.set(key, c);
+  }
+  return c;
 }
 
 const isBlack = (m) => [1, 3, 6, 8, 10].includes(((m % 12) + 12) % 12);
@@ -56,8 +120,8 @@ const isBlack = (m) => [1, 3, 6, 8, 10].includes(((m % 12) + 12) % 12);
  * parts { lead, rhythm, bass, lyrics, beats, length }; onShow(on): the
  * highway steps the neck aside (on) or brings it back.
  */
-export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
-  const chip = h('button.hw-chip.hw-keys-chip', { type: 'button', hidden: true });
+export function createKeys({ root, stage, parts, onShow, onAsk, notesFromStem }) {
+  const chip = h('button.hw-chip.hw-mode.hw-keys-chip', { type: 'button', hidden: true });
   const view = h('div.hw-piano', { hidden: true, 'aria-hidden': 'true' });
   const sheetCv = h('canvas.pk-sheet');
   const fallCv = h('canvas.pk-fall');
@@ -92,7 +156,7 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
     lastResult: null,
     best: undefined,
     sparks: [],
-    flare: new Map(), // key → { t, hand } a burst where a note was hit
+    flare: new Map(), // key → { at, c } a burst where a note was hit
     wrongAt: new Map(), // key → when a wrong key went down
     playing: false,
   };
@@ -101,12 +165,25 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
   function paintChip() {
     chip.hidden = !S.song;
     chip.setAttribute('aria-pressed', String(S.on));
-    chip.title = S.on ? 'Piano is on: level, hands, look, keyboard' : 'Piano: play this song on a keyboard plugged in by USB, from sheet music written from the song';
-    // off, it's a small icon button (the top bar is full); on, it says what's on
-    chip.innerHTML = S.on ? `${icon('piano')}<span>Piano · ${KEYS_LEVELS[prefs().level].name}</span>${icon('chevron')}` : icon('piano');
-    chip.classList.toggle('icon-only', !S.on);
-    chip.setAttribute('aria-label', S.on ? chip.title : 'Piano');
+    chip.title = S.on ? 'Piano is on: level, hands, look, piano size, keyboard' : 'Piano: play this song on a keyboard plugged in by USB, from sheet music written from the song';
+    // always the same size, so nothing in the top bar jumps; lit, it opens its options
+    chip.classList.toggle('has-menu', S.on);
+    const html = `${icon('piano')}<span>Piano</span>${icon('chevron')}`;
+    if (chip.__html !== html) chip.innerHTML = chip.__html = html;
   }
+
+  /** How the view looks: what shows, the colours, the backdrop. */
+  function paintLook() {
+    const p = prefs();
+    view.dataset.look = p.look;
+    view.dataset.backdrop = p.backdrop;
+    root.classList.toggle('hw-keys-dark', !view.hidden && p.backdrop === 'dark');
+  }
+  /** The two hands' colours on the sheet music (Rainbow keeps its two plain ones there). */
+  const handColours = () => {
+    const c = KEYS_COLOURS[prefs().colours];
+    return { R: c.R, L: c.L };
+  };
 
   function paintBadge(text, action = null) {
     badge.textContent = text || '';
@@ -135,10 +212,7 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
       hi = Math.max(hi, n.midi);
     }
     if (lo === Infinity) (lo = 48), (hi = 84);
-    lo = Math.max(21, lo - (((lo % 12) + 12) % 12) - 0);
-    hi = Math.min(108, hi + (11 - (((hi % 12) + 12) % 12)));
-    while (hi - lo < 36) (lo = Math.max(21, lo - 12)), hi - lo < 36 && (hi = Math.min(108, hi + 12));
-    S.range = [lo, hi];
+    S.range = keyRange(lo, hi, p.size);
     sheet.set({ notes: S.notes, grid: S.arr.grid, key: S.arr.key, chords: S.arr.chords, feel: S.arr.feel, words: S.arr.sources.tuneless ? S.arr.words : [] });
     keyName.textContent = `${S.arr.key.name} · ${S.arr.grid.bars[1] ? S.arr.grid.bars[1].beats : 4}/4${S.arr.feel === 'swing' ? ' · swing' : ''}`;
     S.secs = 0;
@@ -147,6 +221,27 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
     S.sparks = [];
     S.flare.clear();
     paintScore();
+  }
+
+  /**
+   * The keys drawn. A piano size (88, 76, 61, 49) draws that whole keyboard, so the picture lines up with
+   * the piano in front of you (wider if the song goes past it); 'fit' draws only the octaves the song uses.
+   */
+  function keyRange(lo, hi, size) {
+    const sz = KEYS_SIZES.find((x) => x[0] === String(size));
+    if (sz && sz[0] !== 'fit') {
+      let a = Math.min(sz[2], lo);
+      let b = Math.max(sz[3], hi);
+      if (isBlack(a)) a--;
+      if (isBlack(b)) b++;
+      return [Math.max(21, a), Math.min(108, b)];
+    }
+    lo = Math.max(21, lo - (((lo % 12) + 12) % 12));
+    hi = Math.min(108, hi + (11 - (((hi % 12) + 12) % 12)));
+    while (hi - lo < 36) (lo = Math.max(21, lo - 12)), hi - lo < 36 && (hi = Math.min(108, hi + 12));
+    if (isBlack(lo)) lo--;
+    if (isBlack(hi)) hi++;
+    return [lo, hi];
   }
 
   async function prepare() {
@@ -184,7 +279,7 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
   async function begin() {
     if (!live() || !S.song) return;
     view.hidden = false;
-    view.dataset.look = prefs().look;
+    paintLook();
     onShow && onShow(true);
     const ok = await keyboard.start('keys');
     if (!live()) return;
@@ -197,6 +292,7 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
     log(false);
     keyboard.stop('keys');
     view.hidden = true;
+    paintLook();
     onShow && onShow(false);
   }
 
@@ -248,9 +344,9 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
     if (e.on) {
       const i = S.judge.press(t, e.midi);
       if (i >= 0) {
-        const n = S.notes[i];
-        S.flare.set(e.midi, { at: performance.now(), hand: n.hand });
-        burst(e.midi, n.hand);
+        const c = tint(prefs().colours, e.midi, S.notes[i].hand);
+        S.flare.set(e.midi, { at: performance.now(), c });
+        burst(e.midi, c);
       } else S.wrongAt.set(e.midi, performance.now());
       if (S.lastResult) S.lastResult = null;
     } else S.judge.release(t, e.midi);
@@ -261,63 +357,80 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
     if (keyboard.input && /Plug your piano/.test(badge.textContent)) paintBadge('');
   });
 
-  chip.onclick = async () => {
-    if (!S.on) return turn(true);
+  chip.onclick = () => {
+    if (!S.on) return onAsk ? onAsk() : turn(true);
     const r = chip.getBoundingClientRect();
-    const p = prefs();
-    const check = (v) => (v ? '✓' : '');
-    const list = await keyboard.devices().catch(() => []);
+    const check = (f) => () => (f() ? '✓' : '');
+    const P = (k, v) => check(() => String(prefs()[k]) === String(v));
+    // the menu opens at once; the keyboards are read when their side menu opens
+    let list = [];
+    keyboard.devices().then((l) => (list = l)).catch(() => {});
     const vocals = stage.stems && stage.stems().includes('vocals') ? stage.engine.tracks[stage.trackIndex('vocals')] : null;
+    const repick = (k, v) => () => {
+      if (String(prefs()[k]) === String(v)) return;
+      log(false);
+      setPref(k, v);
+      pick();
+    };
+    const look = (k, v) => () => (setPref(k, v), paintLook());
     showMenu(r.left, r.bottom + 6, [
       { heading: true, label: 'How much to play' },
-      ...Object.entries(KEYS_LEVELS).map(([id, l]) => ({
-        label: l.name,
-        hint: check(p.level === id),
-        title: l.hint,
-        onClick: () => {
-          log(false);
-          setPref('level', id);
-          pick();
-          paintChip();
-        },
-      })),
+      ...Object.entries(KEYS_LEVELS).map(([id, l]) => ({ label: l.name, hint: P('level', id), title: l.hint, keep: true, onClick: repick('level', id) })),
       '-',
+      { label: 'Hands', submenu: HANDS.map(([id, label]) => ({ label, hint: P('hands', id), keep: true, onClick: repick('hands', id) })) },
+      { label: 'Show', submenu: KEYS_LOOKS.map(([id, label]) => ({ label, hint: P('look', id), keep: true, onClick: look('look', id) })) },
       {
-        label: 'Hands',
-        submenu: HANDS.map(([id, label]) => ({
-          label,
-          hint: check(p.hands === id),
-          onClick: () => {
-            log(false);
-            setPref('hands', id);
-            pick();
-          },
-        })),
+        label: 'Look',
+        submenu: [
+          { heading: true, label: 'Colours' },
+          ...Object.entries(KEYS_COLOURS).map(([id, c]) => ({ label: c.name, hint: P('colours', id), keep: true, onClick: look('colours', id) })),
+          '-',
+          { heading: true, label: 'Glow' },
+          ...GLOWS.map(([id, label]) => ({ label, hint: P('glow', id), keep: true, onClick: look('glow', id) })),
+          '-',
+          { heading: true, label: 'Behind the notes' },
+          ...BACKDROPS.map(([id, label]) => ({ label, hint: P('backdrop', id), keep: true, onClick: look('backdrop', id) })),
+          '-',
+          { label: 'Note names on the notes', hint: check(() => prefs().names !== false), keep: true, onClick: () => setPref('names', prefs().names === false) },
+        ],
       },
-      { label: 'Look', submenu: KEYS_LOOKS.map(([id, label]) => ({ label, hint: check(p.look === id), onClick: () => (setPref('look', id), (view.dataset.look = id)) })) },
-      vocals ? { label: 'Take the singer out of the song', hint: check(vocals.muted), onClick: () => stage.setStem('vocals', { muted: !vocals.muted }) } : null,
+      { label: 'Piano size', submenu: KEYS_SIZES.map(([id, label]) => ({ label, hint: P('size', id), keep: true, onClick: () => (setPref('size', id), S.arr && rerange()) })) },
+      vocals ? { label: 'Take the singer out of the song', hint: check(() => vocals.muted), keep: true, onClick: () => stage.setStem('vocals', { muted: !vocals.muted }) } : null,
       {
         label: 'Keyboard',
-        submenu: list.length ? list.map((d) => ({ label: d.label, hint: check(keyboard.input && keyboard.input.id === d.id), onClick: () => keyboard.setDevice(d.id, d.label) })) : [{ label: 'No keyboard plugged in', disabled: true }],
+        submenu: () => (list.length ? list.map((d) => ({ label: d.label, hint: check(() => keyboard.input && keyboard.input.id === d.id), keep: true, onClick: () => keyboard.setDevice(d.id, d.label) })) : [{ label: 'No keyboard plugged in', disabled: true }]),
       },
       '-',
       { label: 'Stop playing piano', icon: 'x', onClick: () => turn(false) },
     ]);
   };
+  /** The piano size changed: the same part, the same score, a different keyboard drawn. */
+  function rerange() {
+    const all = S.arr.levels[prefs().level] || S.arr.levels.medium;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const n of all) (lo = Math.min(lo, n.midi)), (hi = Math.max(hi, n.midi));
+    if (lo === Infinity) (lo = 48), (hi = 84);
+    S.range = keyRange(lo, hi, prefs().size);
+    S.sparks = [];
+  }
 
   // ----------------------------------------------------------- drawing --
-  function burst(midi, hand) {
-    for (let i = 0; i < 14; i++) {
-      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
-      const v = 120 + Math.random() * 260;
-      S.sparks.push({ midi, x: 0, y: 0, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.35 + Math.random() * 0.45, age: 0, hand, size: 1 + Math.random() * 2 });
+  /** Sparks thrown up where a note you hit lands (placed on its key the next time the keys are drawn). */
+  function burst(midi, c) {
+    for (let i = 0; i < 16; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.7;
+      const v = 120 + Math.random() * 280;
+      S.sparks.push({ midi, x: 0, y: 0, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.35 + Math.random() * 0.5, age: 0, c, size: 1 + Math.random() * 2.2, g: 520 });
     }
-    if (S.sparks.length > 400) S.sparks.splice(0, S.sparks.length - 400);
+    if (S.sparks.length > 500) S.sparks.splice(0, S.sparks.length - 500);
   }
 
   /** The keyboard's layout across width W: x and width of each key. */
+  let laid = null;
   function layout(W) {
     const [lo, hi] = S.range;
+    if (laid && laid.W === W && laid.lo === lo && laid.hi === hi) return laid;
     let whites = 0;
     for (let m = lo; m <= hi; m++) if (!isBlack(m)) whites++;
     const ww = W / whites;
@@ -329,12 +442,13 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
         wi++;
       } else pos.set(m, { x: wi * ww - ww * 0.31, w: ww * 0.62, black: true });
     }
-    return { pos, ww };
+    laid = { pos, ww, W, lo, hi };
+    return laid;
   }
 
   function roundRect(x, y, w, hh, r) {
     g.beginPath();
-    if (g.roundRect) g.roundRect(x, y, w, hh, Math.min(r, w / 2, hh / 2));
+    if (g.roundRect) g.roundRect(x, y, w, hh, Math.max(0, Math.min(r, w / 2, hh / 2)));
     else g.rect(x, y, w, hh);
   }
 
@@ -349,25 +463,29 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
     }
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, Hh);
+    const P = prefs();
+    const theme = P.colours;
+    const glow = (GLOWS.find((x) => x[0] === P.glow) || GLOWS[1])[2];
+    const dark = P.backdrop === 'dark';
     const { pos, ww } = layout(W);
-    const kh = Math.round(Math.min(Hh * 0.3, Math.max(70, ww * 5.4)));
+    const kh = Math.round(Math.min(Hh * 0.3, Math.max(64, ww * 5.4)));
     const line = Hh - kh;
     const pps = line / AHEAD;
     const Y = (time) => line - (time - t) * pps;
     const now = performance.now();
 
-    // the floor the notes fall through: darker lanes for the black keys, a line at each C, bar lines across
-    const bg = g.createLinearGradient(0, 0, 0, line);
-    bg.addColorStop(0, 'rgba(8, 9, 14, 0.0)');
-    bg.addColorStop(1, 'rgba(8, 9, 14, 0.55)');
-    g.fillStyle = bg;
-    g.fillRect(0, 0, W, line);
+    // the floor the notes fall through: a line at each C (fainter at each F), bar lines across
+    if (!dark) {
+      const bg = g.createLinearGradient(0, 0, 0, line);
+      bg.addColorStop(0, 'rgba(8, 9, 14, 0.0)');
+      bg.addColorStop(1, 'rgba(8, 9, 14, 0.55)');
+      g.fillStyle = bg;
+      g.fillRect(0, 0, W, line);
+    }
     for (const [m, p] of pos) {
-      if (p.black) {
-        g.fillStyle = 'rgba(0, 0, 0, 0.22)';
-        g.fillRect(p.x, 0, p.w, line);
-      } else if (m % 12 === 0 || m % 12 === 5) {
-        g.fillStyle = m % 12 === 0 ? 'rgba(255, 255, 255, 0.09)' : 'rgba(255, 255, 255, 0.04)';
+      if (p.black) continue;
+      if (m % 12 === 0 || m % 12 === 5) {
+        g.fillStyle = m % 12 === 0 ? 'rgba(255, 255, 255, 0.085)' : 'rgba(255, 255, 255, 0.035)';
         g.fillRect(Math.round(p.x), 0, 1, line);
       }
     }
@@ -377,19 +495,20 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
         const y = Y(G.timeOf(b.k0));
         if (y < -2) break;
         if (y > line) continue;
-        g.fillStyle = 'rgba(255, 255, 255, 0.07)';
+        g.fillStyle = 'rgba(255, 255, 255, 0.06)';
         g.fillRect(0, Math.round(y), W, 1);
       }
     }
 
-    // the notes: long glowing bars, the tune brightest
+    // the notes: long glowing bars. First every halo (wide and soft), then every bar on top.
     const j = S.judge;
     const notes = S.notes;
-    const sounding = new Map(); // key → hand, notes that should be down now
+    const sounding = new Map(); // key → its colour, for notes that should be down now
+    const from = j ? Math.max(0, j.next - 40) : 0;
     g.globalCompositeOperation = 'lighter';
-    // first the glow (wide and faint), then the bars
     for (let pass = 0; pass < 2; pass++) {
-      for (let i = j ? Math.max(0, j.next - 40) : 0; i < notes.length; i++) {
+      if (pass === 1) g.globalCompositeOperation = 'source-over';
+      for (let i = from; i < notes.length; i++) {
         const n = notes[i];
         if (n.t > t + AHEAD + 0.1) break;
         if (n.t + n.d < t - 0.3) continue;
@@ -400,106 +519,150 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
         const y1 = Math.min(line, Y(n.t));
         if (y1 <= y0) continue;
         const on = t >= n.t && t < n.t + n.d;
-        if (on && pass === 1) sounding.set(n.midi, n.hand);
-        const pad = p.black ? 1 : Math.max(1.5, p.w * 0.08);
+        const c = tint(theme, n.midi, n.hand);
+        if (on && pass === 1) sounding.set(n.midi, c);
+        const pad = p.black ? 0.5 : Math.max(1.5, p.w * 0.1);
         const x = p.x + pad;
         const w = p.w - pad * 2;
-        const col = res === 'miss' ? '#7c7a86' : HAND[n.hand];
-        const dim = n.role === 'chord' ? 0.72 : 1;
+        const rad = Math.min(7, w / 2);
+        const miss = res === 'miss';
+        const dim = n.role === 'chord' ? 0.78 : 1;
         if (pass === 0) {
-          if (res === 'miss') continue;
-          // a soft halo in three layers (cheap stand-in for a blur)
-          const boost = on || res === 'hit' ? 1.7 : 1;
-          g.fillStyle = col;
-          g.globalAlpha = 0.06 * dim * boost;
-          roundRect(x - 14, y0 - 14, w + 28, y1 - y0 + 28, 16);
-          g.fill();
-          g.globalAlpha = 0.11 * dim * boost;
-          roundRect(x - 7, y0 - 7, w + 14, y1 - y0 + 14, 10);
-          g.fill();
-          g.globalAlpha = 0.2 * dim * boost;
-          roundRect(x - 3, y0 - 3, w + 6, y1 - y0 + 6, 7);
-          g.fill();
+          if (miss) continue;
+          // the halo, in four soft layers (a blur would cost far more)
+          const k = glow * dim * (on || res === 'hit' ? 1.8 : 1);
+          g.fillStyle = c.base;
+          const halo = (grow, a) => {
+            g.globalAlpha = Math.min(1, a * k);
+            roundRect(x - grow, y0 - grow, w + grow * 2, y1 - y0 + grow * 2, rad + grow);
+            g.fill();
+          };
+          halo(22, 0.028);
+          halo(13, 0.055);
+          halo(7, 0.1);
+          halo(3, 0.2);
           continue;
         }
-        // the bar: a gradient tube, lighter at its leading edge, a bright core down the middle
-        g.globalAlpha = (res === 'miss' ? 0.35 : 0.92) * dim;
+        // the bar: light at the top, its full colour where it lands, a bright rim, a gloss down one side
+        g.globalAlpha = miss ? 0.3 : dim;
         const grd = g.createLinearGradient(0, y0, 0, y1);
-        grd.addColorStop(0, col);
-        grd.addColorStop(1, res === 'miss' ? col : HAND_HOT[n.hand]);
+        if (miss) (grd.addColorStop(0, '#6c6a78'), grd.addColorStop(1, '#6c6a78'));
+        else (grd.addColorStop(0, c.top), grd.addColorStop(Math.min(0.9, 60 / Math.max(61, y1 - y0)), c.base), grd.addColorStop(1, on ? c.hot : c.base));
         g.fillStyle = grd;
-        roundRect(x, y0, w, y1 - y0, Math.min(6, w / 2));
+        roundRect(x, y0, w, y1 - y0, rad);
         g.fill();
-        if (res !== 'miss') {
-          g.globalAlpha = 0.5 * dim;
-          g.fillStyle = '#ffffff';
-          g.fillRect(x + w * 0.38, y0 + 3, Math.max(1, w * 0.24), Math.max(0, y1 - y0 - 6));
+        if (!miss) {
+          g.globalAlpha = 0.85 * dim;
+          g.lineWidth = 1.25;
+          g.strokeStyle = c.hot;
+          roundRect(x + 0.6, y0 + 0.6, w - 1.2, y1 - y0 - 1.2, rad);
+          g.stroke();
+          if (w > 7 && y1 - y0 > 10) {
+            g.globalAlpha = 0.28 * dim;
+            g.fillStyle = '#ffffff';
+            roundRect(x + w * 0.16, y0 + 4, Math.max(1.5, w * 0.2), y1 - y0 - 8, 2);
+            g.fill();
+          }
         }
-        // held right: the part you've held burns white
+        // held right: the part you've held burns white-hot
         if (j && res === 'hit' && j.heldTo[i] > n.t) {
-          const yh = Y(Math.min(j.heldTo[i], n.t + n.d));
-          g.globalAlpha = 0.55;
-          g.fillStyle = HAND_HOT[n.hand];
-          roundRect(x, Math.max(y0, yh), w, Math.max(0, y1 - Math.max(y0, yh)), Math.min(6, w / 2));
+          const yh = Math.max(y0, Y(Math.min(j.heldTo[i], n.t + n.d)));
+          g.globalAlpha = 0.6;
+          g.fillStyle = c.hot;
+          roundRect(x, yh, w, Math.max(0, y1 - yh), rad);
           g.fill();
         }
         // the note's name on long enough bars
-        if (y1 - y0 > 26 && w >= 13) {
-          g.globalCompositeOperation = 'source-over';
-          g.globalAlpha = 0.85;
-          g.fillStyle = '#0b1210';
+        if (P.names !== false && y1 - y0 > 26 && w >= 13) {
+          g.globalAlpha = 0.9;
+          g.fillStyle = '#0b0d12';
           g.font = `800 ${Math.max(9, Math.min(13, w * 0.5))}px 'Archivo', 'Segoe UI', sans-serif`;
           g.textAlign = 'center';
-          g.fillText(noteName(n.midi, S.arr ? S.arr.key.fifths : 0), x + w / 2, y1 - 6);
+          g.fillText(noteName(n.midi, S.arr ? S.arr.key.fifths : 0), x + w / 2, y1 - 7);
           g.textAlign = 'left';
-          g.globalCompositeOperation = 'lighter';
         }
+      }
+    }
+    g.globalAlpha = 1;
+
+    // where a note is landing: a beam of light up its lane, a white-hot spot on the line, sparks drifting up
+    g.globalCompositeOperation = 'lighter';
+    for (const [m, c] of sounding) {
+      const p = pos.get(m);
+      const cx = p.x + p.w / 2;
+      const beam = g.createLinearGradient(0, line, 0, line - line * 0.55);
+      beam.addColorStop(0, c.base);
+      beam.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalAlpha = Math.min(0.5, 0.16 * glow);
+      g.fillStyle = beam;
+      g.fillRect(p.x - 1, line - line * 0.55, p.w + 2, line * 0.55);
+      const r = Math.max(18, ww * 1.5) * (0.8 + 0.4 * glow);
+      const spot = g.createRadialGradient(cx, line, 0, cx, line, r);
+      spot.addColorStop(0, '#ffffff');
+      spot.addColorStop(0.25, c.top);
+      spot.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalAlpha = Math.min(1, 0.75 * glow);
+      g.fillStyle = spot;
+      g.fillRect(cx - r, line - r, r * 2, r);
+      if (S.playing && S.sparks.length < 500 && Math.random() < 0.5 * glow) {
+        S.sparks.push({ x: cx + (Math.random() - 0.5) * p.w, y: line - 2, vx: (Math.random() - 0.5) * 46, vy: -(40 + Math.random() * 130), life: 0.5 + Math.random() * 0.8, age: 0.001, c, size: 1 + Math.random() * 1.8, g: -20 });
       }
     }
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
 
-    // the line the notes land on: a band of light
-    const lg = g.createLinearGradient(0, line - 18, 0, line + 2);
-    lg.addColorStop(0, 'rgba(241, 206, 104, 0)');
-    lg.addColorStop(1, 'rgba(241, 206, 104, 0.28)');
-    g.fillStyle = lg;
-    g.fillRect(0, line - 18, W, 20);
-    g.fillStyle = 'rgba(255, 226, 150, 0.9)';
+    // the line the notes land on: a thin line of light (every colour of the keys under Rainbow)
+    let edge = '#ffe9b0';
+    if (KEYS_COLOURS[theme].rainbow) {
+      edge = g.createLinearGradient(0, 0, W, 0);
+      const [lo, hi] = S.range;
+      for (let i = 0; i <= 8; i++) edge.addColorStop(i / 8, rainbowAt(lo + ((hi - lo) * i) / 8));
+    }
+    g.globalCompositeOperation = 'lighter';
+    g.fillStyle = edge;
+    g.globalAlpha = Math.min(0.5, 0.1 * glow);
+    g.fillRect(0, line - 7, W, 9);
+    g.globalAlpha = Math.min(0.7, 0.22 * glow);
+    g.fillRect(0, line - 3, W, 5);
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 0.95;
     g.fillRect(0, line - 1, W, 2);
+    g.globalAlpha = 1;
 
     // the keys
     const held = keyboard.held;
     const keyCol = (m) => {
+      if (!held.has(m)) return null;
       const f = S.flare.get(m);
-      if (held.has(m)) {
-        const hand = (f && f.hand) || sounding.get(m);
-        if (hand && (f || sounding.has(m))) return HAND[hand];
-        return WRONG;
-      }
-      return null;
+      const c = (f && f.c) || sounding.get(m);
+      return c ? c.base : WRONG;
     };
     const drawKey = (m, p) => {
       const top = line + 1;
       const kH = p.black ? kh * 0.62 : kh - 1;
       const hot = keyCol(m);
       const want = sounding.get(m);
+      const lit = hot || (want && want.base);
       if (!p.black) {
         const kg = g.createLinearGradient(0, top, 0, top + kH);
-        kg.addColorStop(0, hot ? hot : want ? '#e9f3e4' : '#f3efe6');
-        kg.addColorStop(1, hot ? hot : '#d9d3c6');
+        kg.addColorStop(0, '#fbf9f4');
+        kg.addColorStop(0.86, '#e9e5dc');
+        kg.addColorStop(1, '#c9c4b8');
         g.fillStyle = kg;
-        g.fillRect(p.x + 0.5, top, p.w - 1, kH);
-        if (want && !hot) {
-          g.fillStyle = HAND[want];
-          g.globalAlpha = 0.35;
-          g.fillRect(p.x + 0.5, top, p.w - 1, kH);
+        roundRect(p.x + 0.5, top, p.w - 1, kH, 3);
+        g.fill();
+        if (lit) {
+          const lg = g.createLinearGradient(0, top, 0, top + kH);
+          lg.addColorStop(0, hot ? hot : lighten(lit, 0.25));
+          lg.addColorStop(1, hot ? lighten(hot, 0.35) : lighten(lit, 0.55));
+          g.globalAlpha = hot ? 1 : 0.8;
+          g.fillStyle = lg;
+          roundRect(p.x + 0.5, top, p.w - 1, kH, 3);
+          g.fill();
           g.globalAlpha = 1;
         }
-        g.fillStyle = 'rgba(0,0,0,0.35)';
-        g.fillRect(p.x + p.w - 1, top, 1, kH);
-        if (m % 12 === 0) {
-          g.fillStyle = 'rgba(40, 34, 28, 0.55)';
+        if (m % 12 === 0 && p.w >= 13) {
+          g.fillStyle = 'rgba(40, 34, 28, 0.5)';
           g.font = `700 ${Math.max(8, Math.min(12, p.w * 0.42))}px 'Archivo', 'Segoe UI', sans-serif`;
           g.textAlign = 'center';
           g.fillText(`C${Math.floor(m / 12) - 1}`, p.x + p.w / 2, top + kH - 6);
@@ -507,57 +670,73 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
         }
       } else {
         const kg = g.createLinearGradient(0, top, 0, top + kH);
-        kg.addColorStop(0, hot || '#2a2622');
-        kg.addColorStop(1, hot || '#0d0b0a');
+        kg.addColorStop(0, '#1c1b1f');
+        kg.addColorStop(0.85, '#0a0a0c');
+        kg.addColorStop(1, '#26252b');
         g.fillStyle = kg;
-        roundRect(p.x, top - 1, p.w, kH, 2);
+        roundRect(p.x, top - 1, p.w, kH, 2.5);
         g.fill();
-        if (want && !hot) {
-          g.fillStyle = HAND[want];
-          g.globalAlpha = 0.45;
-          roundRect(p.x, top - 1, p.w, kH, 2);
+        if (lit) {
+          g.globalAlpha = hot ? 1 : 0.85;
+          g.fillStyle = hot || lit;
+          roundRect(p.x + 1, top - 1, p.w - 2, kH - 2, 2);
           g.fill();
           g.globalAlpha = 1;
         }
       }
-      if (hot) {
-        // a burst of light rising off a pressed key
-        const rg = g.createRadialGradient(p.x + p.w / 2, line, 0, p.x + p.w / 2, line, ww * 2.6);
-        rg.addColorStop(0, hot);
-        rg.addColorStop(1, 'rgba(0,0,0,0)');
-        g.globalCompositeOperation = 'lighter';
-        g.globalAlpha = 0.55;
-        g.fillStyle = rg;
-        g.fillRect(p.x + p.w / 2 - ww * 2.6, line - ww * 2.6, ww * 5.2, ww * 2.6);
-        g.globalAlpha = 1;
-        g.globalCompositeOperation = 'source-over';
-      }
     };
-    g.fillStyle = '#0b0a09';
+    g.fillStyle = '#060608';
     g.fillRect(0, line, W, kh);
     for (const [m, p] of pos) if (!p.black) drawKey(m, p);
     for (const [m, p] of pos) if (p.black) drawKey(m, p);
-    // a felt strip along the top of the keys
-    g.fillStyle = '#5a1d1d';
-    g.fillRect(0, line, W, 3);
+    // a soft shadow under the line, so the keys sit below it
+    const sh = g.createLinearGradient(0, line + 1, 0, line + 9);
+    sh.addColorStop(0, 'rgba(0,0,0,0.45)');
+    sh.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = sh;
+    g.fillRect(0, line + 1, W, 8);
 
-    // sparks off notes you hit
+    // light rising off the keys you're holding, sparks, a flash up the lane of a note just hit
     g.globalCompositeOperation = 'lighter';
-    for (const sp of S.sparks) {
-      const p = pos.get(sp.midi);
+    for (const m of held.keys()) {
+      const p = pos.get(m);
       if (!p) continue;
-      if (!sp.age) (sp.x = p.x + p.w / 2 + (Math.random() - 0.5) * p.w), (sp.y = line - 2);
+      const col = keyCol(m);
+      const r = ww * 2.4;
+      const rg = g.createRadialGradient(p.x + p.w / 2, line, 0, p.x + p.w / 2, line, r);
+      rg.addColorStop(0, col);
+      rg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalAlpha = Math.min(0.9, 0.5 * glow);
+      g.fillStyle = rg;
+      g.fillRect(p.x + p.w / 2 - r, line - r, r * 2, r);
+    }
+    for (const sp of S.sparks) {
+      if (!sp.age) {
+        const p = pos.get(sp.midi);
+        if (!p) {
+          sp.age = 9;
+          continue;
+        }
+        sp.x = p.x + p.w / 2 + (Math.random() - 0.5) * p.w;
+        sp.y = line - 2;
+      }
       sp.age += dtReal;
       sp.x += sp.vx * dtReal;
       sp.y += sp.vy * dtReal;
-      sp.vy += 520 * dtReal;
+      sp.vy += sp.g * dtReal;
       const a = Math.max(0, 1 - sp.age / sp.life);
       g.globalAlpha = a;
-      g.fillStyle = sp.age < 0.08 ? '#ffffff' : HAND_HOT[sp.hand];
-      g.fillRect(sp.x, sp.y, sp.size, sp.size);
+      g.fillStyle = sp.age < 0.08 ? '#ffffff' : sp.c.hot;
+      g.beginPath();
+      g.arc(sp.x, sp.y, sp.size * 0.7, 0, 6.3);
+      g.fill();
+      g.globalAlpha = a * 0.25;
+      g.fillStyle = sp.c.base;
+      g.beginPath();
+      g.arc(sp.x, sp.y, sp.size * 2.4, 0, 6.3);
+      g.fill();
     }
     S.sparks = S.sparks.filter((sp) => sp.age < sp.life);
-    // a flash up the lane of a note just hit
     for (const [m, f] of S.flare) {
       const age = (now - f.at) / 1000;
       if (age > 0.35 && !held.has(m)) {
@@ -569,7 +748,7 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
       const a = Math.max(0, 0.5 - age);
       if (a <= 0) continue;
       const fg = g.createLinearGradient(0, line, 0, line - ww * 7);
-      fg.addColorStop(0, HAND[f.hand]);
+      fg.addColorStop(0, f.c.base);
       fg.addColorStop(1, 'rgba(0,0,0,0)');
       g.globalAlpha = a;
       g.fillStyle = fg;
@@ -630,9 +809,10 @@ export function createKeys({ root, stage, parts, onShow, notesFromStem }) {
         j.events.length = 0;
       }
       S.lastT = vis;
+      S.playing = playing;
       const look = view.dataset.look;
       if (look !== 'sheet') drawFall(vis, dtReal);
-      if (look !== 'fall') sheet.draw(vis, { W: sheetBox.clientWidth, H: sheetBox.clientHeight, colors: HAND, state: (i) => (j ? j.result[i] : null) });
+      if (look !== 'fall') sheet.draw(vis, { W: sheetBox.clientWidth, H: sheetBox.clientHeight, colors: handColours(), state: (i) => (j ? j.result[i] : null) });
       if (playing) paintScore();
     },
     ended() {

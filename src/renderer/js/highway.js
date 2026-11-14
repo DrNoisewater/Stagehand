@@ -25,13 +25,13 @@ import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShi
 import { createRenderer3D, col, mix, rodShades } from './highway3d.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
-import { tuningGuide } from './tuning-check.js';
+import { tuningGuide, checkTuning } from './tuning-check.js';
 import { dropSection, dropInUse } from './dropui.js';
 import { createTuner } from './tuner.js';
 import { breakdown, cheer } from './scorecard.js';
 import { cameo } from './cameo.js';
 import { StruggleWatch, nearestPick } from './struggle.js';
-import { state, on, splitFirst } from './store.js';
+import { state, on, splitFirst, setPage } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
 import { trainingChart, trainingTimes, trainingAudio, TRAINING_SONG } from './training-song.js';
 import { createRepeat } from './repeat.js';
@@ -137,6 +137,8 @@ export function createHighway(stage) {
   const canvas = h('canvas.hw-canvas');
   const top = h('div.hw-top');
   const back = h('button.hw-back', { type: 'button', title: 'Back (Esc)', html: `${icon('chevronLeft')}<span>Back</span>` });
+  // 4.18: every page of Stagehand is one click away from the highway (the song keeps playing)
+  const goBtn = h('button.hw-chip.hw-go icon-only'.replace(' icon-only', '.icon-only'), { type: 'button', title: 'Go to another page of Stagehand', 'aria-label': 'Go to another page', 'aria-haspopup': 'menu', html: icon('grid') });
   const titleBox = h('div.hw-title');
   const parts = h('div.hw-parts');
   const playAlong = h('button.hw-chip', { type: 'button' });
@@ -173,7 +175,7 @@ export function createHighway(stage) {
   const rep = stage.repeat || createRepeat({ engine: stage.engine, setLoop: (l) => stage.setLoop(l), getLoop: () => (stage.getLoop ? stage.getLoop() : null) });
   speedChip.onclick = () => openSpeedPopover(speedChip, { engine: stage.engine, repeat: rep });
   const transport = h('div.hw-transport', null, playBtn, time, speedChip);
-  top.append(back, titleBox, transport, h('span.grow'), score, h('span.grow'), views, parts, playAlong, rigBox);
+  top.append(back, goBtn, titleBox, transport, h('span.grow'), score, h('span.grow'), views, parts, playAlong, rigBox);
   const msg = h('div.hw-msg', { hidden: true });
   // what the song is doing when it isn't playing yet: loading, waiting for stems, or failed (with a way out)
   const statusBox = h('div.hw-status', { hidden: true, role: 'status' });
@@ -189,18 +191,14 @@ export function createHighway(stage) {
   const sing = createSing({
     root,
     stage,
-    onLeave: () => window.__shHighway.leave(),
+    onLeave: () => playAs('guitar'),
+    onAsk: (mode) => playAs(mode),
     onKaraoke: (on) => {
       root.classList.toggle('hw-karaoke', on);
-      if (!on && H.judge) {
-        // back to the guitar: its score starts again from here
-        H.judge.rewind(stage.engine.position);
-        H.judge.next = lower(H.targets, stage.engine.position - H.judge.early);
-        H.judge.events = []; H.judge.frames = []; H.judge.onsets = [];
-      }
+      asideChanged();
     },
   });
-  parts.after(sing.chip);
+  parts.after(sing.chip, sing.kchip);
   H.sing = sing; // tests
   // 4.15: Piano, an add-on. Off until its chip is pressed: then the neck steps aside for sheet music and
   // falling notes written from the song, played on a keyboard plugged in by USB.
@@ -209,20 +207,88 @@ export function createHighway(stage) {
     stage,
     parts: pianoParts,
     notesFromStem: (song, lyrics) => notesFromStem(song, lyrics.map((w) => ({ t: w.t, d: w.d || 0.3 })), stage.engine),
+    onAsk: () => playAs('piano'),
     onShow: (on) => {
       root.classList.toggle('hw-keys-on', on);
-      if (!on && H.judge) {
-        // back to the guitar: its score starts again from here
+      asideChanged();
+    },
+  });
+  sing.kchip.after(keys.chip);
+  H.keys = keys; // tests
+  /** The guitar steps aside (karaoke, or piano): no neck, no guitar score. */
+  const aside = () => sing.karaoke || keys.active;
+  /**
+   * 4.18: one way to change what you're playing, from anywhere on the highway:
+   * 'guitar' (the part showing, or the part given), 'sing' (beside your part), 'karaoke', 'piano'.
+   * Whatever was on steps aside by itself; the song keeps playing.
+   */
+  async function playAs(mode, partId = null) {
+    if (!H.song || H.training || trainSnap) return;
+    if (mode === 'piano') {
+      sing.setKaraoke(false);
+      keys.turn(true);
+    } else if (mode === 'karaoke') {
+      keys.turn(false);
+      if (!sing.setKaraoke(true)) toast({ title: 'No words to sing', message: 'This song has no lyrics in it.', kind: 'info' });
+    } else if (mode === 'sing') {
+      keys.turn(false);
+      sing.setKaraoke(false);
+      sing.turn(true);
+    } else {
+      keys.turn(false);
+      sing.setKaraoke(false);
+      if (partId && !(H.tab && H.tab.id === partId)) {
+        await loadSong(H.song, partId);
+        H.cam.ready = false;
+      }
+    }
+    paintModes();
+  }
+  H.playAs = playAs; // tests
+  /** The part buttons light only while the guitar (or bass) is what's showing. */
+  function paintModes() {
+    const on = !aside();
+    for (const b of parts.children) b.setAttribute('aria-pressed', String(on && !!H.tab && b.dataset.id === H.tab.id));
+  }
+  let wasAside = false;
+  /** Karaoke or Piano came on or went away. */
+  function asideChanged() {
+    const now = aside();
+    paintModes();
+    if (wasAside && !now && H.open) {
+      // back to the guitar: its score starts again from here, and now is the time to say it needs tuning
+      if (H.judge) {
         H.judge.rewind(stage.engine.position);
         H.judge.next = lower(H.targets, stage.engine.position - H.judge.early);
         H.judge.events = []; H.judge.frames = []; H.judge.onsets = [];
       }
-    },
-  });
-  sing.chip.after(keys.chip);
-  H.keys = keys; // tests
-  /** The guitar steps aside (karaoke, or piano): no neck, no guitar score. */
-  const aside = () => sing.karaoke || keys.active;
+      if (H.tab && H.song && !H.training) checkTuning({ ...H.tab, type: instrument() === 'bass' ? 'bass' : H.tab.type }, H.song, { engine: stage.engine });
+    }
+    wasAside = now;
+  }
+  goBtn.onclick = () => {
+    const r = goBtn.getBoundingClientRect();
+    const go = (page) => () => {
+      close();
+      if (page === 'guide') return (setPage('songs'), import('./guide.js').then((g) => g.openGuide()));
+      if (page === 'settings') return (setPage('songs'), import('./dialogs.js').then((m) => m.settings()));
+      setPage(page);
+    };
+    showMenu(r.left, r.bottom + 6, [
+      { heading: true, label: 'Go to' },
+      { label: 'Songs', icon: 'library', onClick: go('songs') },
+      { label: 'Jam', icon: 'guitar', onClick: go('play') },
+      { label: 'Karaoke', icon: 'mic', onClick: go('karaoke') },
+      { label: 'Tones', icon: 'tones', onClick: go('tones') },
+      { label: 'Gear', icon: 'amp', onClick: go('gear') },
+      { label: 'Progress', icon: 'chart', onClick: go('progress') },
+      { label: 'Discover', icon: 'compass', onClick: go('discover') },
+      { label: 'Backstage', icon: 'people', onClick: go('greenroom') },
+      '-',
+      { label: 'Settings', icon: 'sliders', onClick: go('settings') },
+      { label: 'Getting started', icon: 'info', onClick: go('guide') },
+    ]);
+  };
   /** The song's parts for the piano part: lead, rhythm and bass (whichever it has), its words and beats. */
   async function pianoParts(song) {
     const list = H.song && H.song.id === song.id && H.parts ? H.parts : await api.tab.list(song.id);
@@ -249,9 +315,11 @@ export function createHighway(stage) {
 
   let lastInteraction = performance.now();
   const wakeControls = () => { lastInteraction = performance.now(); root.classList.remove('hw-quiet'); };
-  root.addEventListener('pointermove', wakeControls);
-  root.addEventListener('pointerdown', wakeControls);
+  // anywhere in the window counts (menus sit outside the highway): the top bar never fades under your mouse
+  document.addEventListener('pointermove', () => H.open && wakeControls());
+  document.addEventListener('pointerdown', () => H.open && wakeControls());
   root.addEventListener('focusin', wakeControls);
+  window.addEventListener('menu-close', () => H.open && wakeControls());
   document.addEventListener('keydown', () => { if (H.open) wakeControls(); });
 
   back.onclick = () => (trainSnap || !syncBox.hidden ? closeSync() : leave());
@@ -1215,8 +1283,16 @@ export function createHighway(stage) {
     if (state.karaokeNext) {
       const want = state.karaokeNext === song.id;
       state.karaokeNext = null;
-      if (want && !sing.setKaraoke(true)) toast({ title: 'No words to sing', message: 'This song has no lyrics in it.', kind: 'info' });
+      if (want) (keys.turn(false), sing.setKaraoke(true) || toast({ title: 'No words to sing', message: 'This song has no lyrics in it.', kind: 'info' }));
     }
+    // 4.18: opened from a "play it on…" button somewhere else in Stagehand
+    if (state.modeNext) {
+      const m = state.modeNext;
+      state.modeNext = null;
+      if (m.id === song.id) playAs(m.mode);
+    }
+    wasAside = aside();
+    paintModes();
     newWatch();
     hideCard();
     resetJudge();
@@ -3001,12 +3077,9 @@ export function createHighway(stage) {
     titleBox.innerHTML = H.song ? `<b>${esc(H.song.title)}</b><span>${esc(H.song.artist)}${t ? ` · ${esc(t.tuningName || '')}${t.capo ? `, capo ${t.capo}` : ''}` : ''}</span>` : '';
     parts.innerHTML = '';
     for (const p of H.parts) {
-      const b = h('button.hw-chip', { type: 'button', 'aria-pressed': String(!!(t && t.id === p.id)), text: p.name });
-      b.onclick = async () => {
-        if (t && t.id === p.id) return;
-        await loadSong(H.song, p.id);
-        H.cam.ready = false;
-      };
+      const b = h('button.hw-chip', { type: 'button', 'aria-pressed': String(!!(t && t.id === p.id) && !aside()), text: p.name, title: `Play the ${String(p.name).toLowerCase()} part on your ${p.type === 'bass' ? 'bass' : 'guitar'}` });
+      b.dataset.id = p.id;
+      b.onclick = () => playAs('guitar', p.id);
       parts.append(b);
     }
     const hasStems = stage.stems().length > 0;

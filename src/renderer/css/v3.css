@@ -2192,7 +2192,7 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 html[data-decoration='reduced'] .guitar-card .gc-cable { display: none; }
 
 /* 4.12 sing along (an add-on): the Sing chip, the lane where the lyrics sit, and its line on the score card */
-.hw-sing-chip[aria-pressed='true'] svg:last-child { width: 12px; height: 12px; opacity: 0.7; }
+
 .hw-sing { position: absolute; left: 50%; top: 96px; z-index: 3; width: min(82vw, 1500px); transform: translateX(-50%); pointer-events: none; } /* across the top, as in the band games */
 .hw-sing .sw-words { justify-content: center; }
 .highway.hw-repeating .hw-sing { top: 142px; }
@@ -2284,7 +2284,7 @@ html[data-decoration='reduced'] .guitar-card .gc-cable { display: none; }
 body:has(> .highway:not([hidden])) :is(.hw-opts, .hw-card, .speed-pop, .rep-bar, .modal-backdrop) { -webkit-backdrop-filter: none; backdrop-filter: none; }
 
 /* 4.15 piano (an add-on): sheet music on a road case up top, glowing notes falling onto a keyboard below */
-.hw-keys-chip[aria-pressed='true'] svg:last-child { width: 12px; height: 12px; opacity: 0.7; }
+
 .highway.hw-keys-on .hw-score, .highway.hw-keys-on .hw-lyrics { visibility: hidden; }
 .hw-piano { position: absolute; left: 0; right: 0; top: 92px; bottom: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 14px; pointer-events: none; }
 .highway.hw-repeating .hw-piano { top: 138px; }
@@ -2329,3 +2329,38 @@ body:has(> .highway:not([hidden])) :is(.hw-opts, .hw-card, .speed-pop, .rep-bar,
 .quest-devices { display: grid; gap: 6px; margin-top: 6px; }
 .quest-dev { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--rule-soft); }
 .quest-dev-name { color: var(--ink); font-size: 13px; }
+
+/* 4.18 menus that stay put: no pop-in, no row lit before you touch one, side menus beside their row */
+.menu { animation: none; border-radius: 10px; padding: 6px; }
+.menu:focus { outline: none; }
+.menu .menu-gap { width: 16px; flex: none; }
+.menu button { height: 32px; border-radius: 6px; transition: none; }
+.menu button .hint { min-width: 14px; text-align: right; display: inline-flex; align-items: center; justify-content: flex-end; padding-left: 14px; }
+.menu button .hint svg { width: 13px; height: 13px; }
+.menu button.hot { background: var(--riser-2); }
+.menu button:focus-visible { outline: 2px solid color-mix(in srgb, var(--tungsten) 70%, transparent); outline-offset: -2px; }
+body:has(.highway:not([hidden])) .menu { border-radius: 10px; border-color: #6d5d44; box-shadow: 0 18px 44px #000c; }
+body:has(.highway:not([hidden])) .menu button.hot { background: #3a332b; color: #ffe4a0; }
+body:has(.highway:not([hidden])) .menu .label { color: #a99e8c; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10.5px; font-weight: 800; }
+
+/* 4.18 what you're playing, one row on the highway: the parts, Sing, Karaoke, Piano. Always there and
+   always the same size, so the top bar never jumps; the one that's on is lit and opens its options. */
+.hw-mode svg:last-child { width: 11px; height: 11px; margin-left: -2px; opacity: 0; }
+.hw-mode.has-menu svg:last-child { opacity: 0.75; }
+.hw-mode.dim { opacity: 0.45; }
+.hw-parts { margin-right: 2px; }
+.hw-go { margin-left: 2px; }
+.highway.hw-training :is(.hw-mode, .hw-go) { display: none !important; }
+@media (max-width: 1500px) { .hw-mode > span { display: none; } .hw-mode { padding-left: 9px; padding-right: 7px; gap: 2px; } }
+@media (max-width: 1340px) { .hw-keys-chip > span, .hw-sing-chip > span { display: none; } }
+
+/* 4.18 piano, the dark look (like the piano videos): the stage steps back, the sheet sits on dark glass */
+.highway.hw-keys-dark .hw-canvas { visibility: hidden; }
+.highway.hw-keys-dark { background: radial-gradient(120% 90% at 50% 0%, #161a2a 0%, #0a0c14 45%, #050609 100%); }
+.hw-piano[data-backdrop='dark'] .pk-sheet-box { border-radius: 14px; background: linear-gradient(180deg, #151926f2, #0d1019f2); box-shadow: inset 0 0 0 1px #ffffff14, 0 14px 40px #000a; }
+.hw-piano[data-backdrop='dark'] :is(.pk-tape, .pk-key, .pk-score, .pk-badge) { transform: none; clip-path: none; border-radius: 999px; font: 700 11.5px var(--font); letter-spacing: 0.04em; box-shadow: none; }
+.hw-piano[data-backdrop='dark'] .pk-tape { top: -12px; background: #f4f1ea; color: #11131a; padding: 4px 13px; }
+.hw-piano[data-backdrop='dark'] .pk-key { top: -12px; left: 104px; background: #1c2132; color: #d9deee; border: 1px solid #ffffff22; padding: 3px 12px; }
+.hw-piano[data-backdrop='dark'] .pk-score { top: -13px; background: #f4f1ea; color: #11131a; padding: 3px 14px; font-size: 14px; font-weight: 900; }
+.hw-piano[data-backdrop='dark'] .pk-badge { background: #1c2132; color: #e6e9f4; border: 1px solid #ffffff22; padding: 6px 14px; transform: translateX(-50%); }
+.hw-piano[data-backdrop='dark'] .pk-badge button { border-radius: 999px; }
