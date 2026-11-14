@@ -224,6 +224,16 @@ export function createHighway(stage) {
    */
   async function playAs(mode, partId = null) {
     if (!H.song || H.training || trainSnap) return;
+    switching = true; // one mode steps aside before the next steps in: look once, at the end
+    try {
+      await switchTo(mode, partId);
+    } finally {
+      switching = false;
+    }
+    asideChanged();
+  }
+  var switching = false; // var: asked about before this line runs
+  async function switchTo(mode, partId) {
     if (mode === 'piano') {
       sing.setKaraoke(false);
       keys.turn(true);
@@ -253,6 +263,7 @@ export function createHighway(stage) {
   let wasAside = false;
   /** Karaoke or Piano came on or went away. */
   function asideChanged() {
+    if (switching) return;
     const now = aside();
     paintModes();
     if (wasAside && !now && H.open) {

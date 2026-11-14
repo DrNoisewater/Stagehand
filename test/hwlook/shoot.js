@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require(process.env.PLAYWRIGHT || '/opt/npm-tools/node_modules/playwright');
 const R = path.join(__dirname, '..', '..', 'src', 'renderer');
+const PORT = Number(process.env.PORT || 8765);
 const STUBS = ['api.js', 'rig.js', 'tab.js', 'tonelib.js', 'captures.js', 'realamps.js', 'drums.js'];
 const types = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.ttf': 'font/ttf', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.avif': 'image/avif' };
 const srv = http.createServer((req, res) => {
@@ -20,7 +21,7 @@ const srv = http.createServer((req, res) => {
   });
 });
 (async () => {
-  await new Promise((r) => srv.listen(8765, r));
+  await new Promise((r) => srv.listen(PORT, r));
   const out = process.argv[2];
   fs.mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--single-process', '--no-zygote', '--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
@@ -29,7 +30,7 @@ const srv = http.createServer((req, res) => {
   page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text()));
   for (const spec of process.argv.slice(3)) {
     const [scene, t, play, hits, file, part] = spec.split(':');
-    await page.goto(`http://localhost:8765/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}${process.env.SING ? `&sing=${process.env.SING}` : ''}${process.env.PIANO ? `&piano=${process.env.PIANO}` : ''}${process.env.NONOTES ? '&nonotes=1' : ''}${process.env.TOPBAR ? '&piano=tune&sing=1' : ''}`);
+    await page.goto(`http://localhost:${PORT}/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}${process.env.SING ? `&sing=${process.env.SING}` : ''}${process.env.PIANO ? `&piano=${process.env.PIANO}` : ''}${process.env.NONOTES ? '&nonotes=1' : ''}${process.env.TOPBAR || process.env.MODES ? '&piano=tune&sing=1' : ''}`);
     await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     if (process.env.VENUE) {
       await page.evaluate((v) => { const p = JSON.parse(localStorage.getItem('stagehand.highway') || '{}'); p.venue = v; p.v = 36; localStorage.setItem('stagehand.highway', JSON.stringify(p)); localStorage.setItem('stagehand.fluidDye', '256'); }, process.env.VENUE);
@@ -186,6 +187,94 @@ const srv = http.createServer((req, res) => {
         await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `seq_${String(i).padStart(3, '0')}.jpg`), quality: 70 });
       }
+      continue;
+    }
+    if (process.env.MODES) {
+      // one song, four ways to play it, from the top bar: the Sing, Karaoke and Piano chips never move or
+      // vanish, side menus open under the mouse and stay put, ticks change in place, the tuning card waits
+      // for the guitar, and the bar doesn't fade right after a menu
+      const fail = (m) => { throw new Error('modes: ' + m); };
+      await page.evaluate(() => {
+        navigator.requestMIDIAccess = async () => ({ inputs: new Map(), onstatechange: null });
+        const ac = new AudioContext();
+        const dest = ac.createMediaStreamDestination();
+        navigator.mediaDevices.getUserMedia = async () => dest.stream;
+        navigator.mediaDevices.enumerateDevices = async () => [{ kind: 'audioinput', deviceId: 'default', label: 'Default' }];
+        localStorage.removeItem('stagehand.keys');
+        localStorage.removeItem('stagehand.myTuning');
+      });
+      const snap = () => page.evaluate(() => {
+        const root = document.querySelector('.highway');
+        const H = root.__hw;
+        const box = (q) => { const e = document.querySelector(q); if (!e || !e.offsetParent) return null; const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.width)]; };
+        const pressed = (q) => document.querySelector(q).getAttribute('aria-pressed') === 'true';
+        return { sing: box('.hw-sing-chip'), karaoke: box('.hw-karaoke-chip'), piano: box('.hw-keys-chip'), go: box('.hw-go'), on: { sing: pressed('.hw-sing-chip'), karaoke: pressed('.hw-karaoke-chip'), piano: pressed('.hw-keys-chip'), part: [...document.querySelectorAll('.hw-parts button')].filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.dataset.id).join() }, view: !document.querySelector('.hw-piano').hidden, kar: root.classList.contains('hw-karaoke'), tab: H.tab && H.tab.id, card: !!document.querySelector('.tcheck') };
+      });
+      const same = (a, b, what) => { for (const k of ['sing', 'karaoke', 'piano', 'go']) { if (!a[k] || !b[k]) fail(`${what}: the ${k} button is gone ${JSON.stringify(b)}`); if (Math.abs(a[k][0] - b[k][0]) > 1 || Math.abs(a[k][1] - b[k][1]) > 1) fail(`${what}: the ${k} button moved ${a[k]} -> ${b[k]}`); } };
+      const s0 = await snap();
+      if (s0.on.sing || s0.on.karaoke || s0.on.piano || !s0.on.part) fail('at the start: ' + JSON.stringify(s0));
+      // piano
+      await page.click('.hw-keys-chip');
+      await page.waitForFunction(() => document.querySelector('.highway').__hw.keys.state.arr && !document.querySelector('.hw-piano').hidden, null, { timeout: 15000 });
+      const s1 = await snap();
+      same(s0, s1, 'piano on');
+      if (!s1.on.piano || s1.on.part || s1.on.sing) fail('piano on: ' + JSON.stringify(s1.on));
+      const range = () => page.evaluate(() => { const K = document.querySelector('.highway').__hw.keys.state; return [...K.range]; });
+      const r88 = await range();
+      if (!(r88[0] <= 21 && r88[1] >= 108)) fail('88 keys: ' + r88);
+      await page.screenshot({ path: path.join(out, 'modes-1-piano.png') });
+      // its menu: side menus open under the mouse, the first menu stays the same one
+      await page.click('.hw-keys-chip');
+      await page.waitForSelector('.menu');
+      await page.evaluate(() => { window.__m0 = document.querySelector('.menu'); window.__m0.dataset.mark = '1'; });
+      const row = (text, nth = 0) => page.locator('.menu').nth(nth).locator('button', { hasText: text }).first();
+      await row('Look').hover();
+      await page.waitForFunction(() => document.querySelectorAll('.menu').length === 2, null, { timeout: 3000 }).catch(() => fail('the Look side menu did not open under the mouse'));
+      await page.locator('.menu').nth(1).locator('button', { hasText: 'Rainbow' }).click();
+      const m1 = await page.evaluate(() => ({ kept: document.querySelector('.menu') === window.__m0 && document.querySelectorAll('.menu').length === 2, colours: JSON.parse(localStorage.getItem('stagehand.keys')).colours, anim: getComputedStyle(document.querySelector('.menu')).animationName }));
+      if (!m1.kept || m1.colours !== 'rainbow' || m1.anim !== 'none') fail('picking a colour: ' + JSON.stringify(m1));
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: path.join(out, 'modes-2-menu.png') });
+      await row('Piano size').hover();
+      await page.waitForFunction(() => { const m = document.querySelectorAll('.menu'); return m.length === 2 && /61 keys/.test(m[1].textContent); }, null, { timeout: 3000 }).catch(() => fail('the Piano size side menu did not take over'));
+      await page.locator('.menu').nth(1).locator('button', { hasText: '61 keys' }).click();
+      const r61 = await range();
+      if (r61[0] !== 36 || r61[1] !== 96) fail('61 keys: ' + r61);
+      await page.locator('.menu').nth(1).locator('button', { hasText: '88 keys' }).click();
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+      const m2 = await page.evaluate(() => ({ menus: document.querySelectorAll('.menu').length, quiet: document.querySelector('.highway').classList.contains('hw-quiet') }));
+      if (m2.menus || m2.quiet) fail('after closing the menu: ' + JSON.stringify(m2));
+      // the song wants Drop D: nothing about tuning while the guitar is aside
+      await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.tab.tuning = [-2, 0, 0, 0, 0, 0]; });
+      await page.click('.hw-karaoke-chip');
+      await page.waitForTimeout(600);
+      const s2 = await snap();
+      same(s0, s2, 'karaoke');
+      if (!s2.on.karaoke || s2.on.piano || s2.view || !s2.kar || s2.card) fail('karaoke: ' + JSON.stringify(s2));
+      await page.screenshot({ path: path.join(out, 'modes-3-karaoke.png') });
+      await page.click('.hw-sing-chip');
+      await page.waitForTimeout(600);
+      const s3 = await snap();
+      same(s0, s3, 'sing');
+      if (!s3.on.sing || s3.on.karaoke || s3.kar || !s3.on.part) fail('sing with the part: ' + JSON.stringify(s3));
+      if (!s3.card) fail('back on the guitar in a Drop D song: no tuning card');
+      await page.screenshot({ path: path.join(out, 'modes-4-sing.png') });
+      await page.click('text=Skip, keep going');
+      await page.waitForFunction(() => !document.querySelector('.tcheck'), null, { timeout: 4000 }).catch(() => fail('the tuning card did not close'));
+      await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.tab.tuning = [0, 0, 0, 0, 0, 0]; });
+      // another part, then the go-anywhere menu
+      await page.click('.hw-parts button[data-id="bass"]');
+      await page.waitForFunction(() => document.querySelector('.highway').__hw.tab.id === 'bass', null, { timeout: 8000 }).catch(() => fail('the Bass button did not load the bass part'));
+      same(s0, await snap(), 'bass');
+      await page.click('.hw-go');
+      await page.waitForSelector('.menu');
+      const go = await page.evaluate(() => [...document.querySelectorAll('.menu button')].map((b) => b.textContent.trim()));
+      for (const w of ['Songs', 'Karaoke', 'Tones', 'Settings']) if (!go.some((x) => x.startsWith(w))) fail('the go menu has no ' + w + ': ' + go.join(' | '));
+      await page.screenshot({ path: path.join(out, 'modes-5-go.png') });
+      await page.keyboard.press('Escape');
+      console.log('PASS modes: Sing, Karaoke and Piano stay put in every mode, side menus open under the mouse and ticks change in place, 61 and 88 keys, the tuning card waits for the guitar, any part and any page from the top bar');
       continue;
     }
     if (process.env.TOPBAR) {
