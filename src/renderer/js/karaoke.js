@@ -15,7 +15,8 @@ import * as actions from './actions.js';
 import { coverEl } from './shell.js';
 import { mic } from './mic.js';
 import { SING_LEVELS } from './sing.js';
-import { singLevel, setSingLevel } from './singlane.js';
+import { singLevel, setSingLevel, tuneLabel, tuneMenu } from './singlane.js';
+import { autotune } from './autotune.js';
 
 const root = document.getElementById('page-karaoke');
 const MOST = 240; // cards drawn at once; search narrows it
@@ -282,6 +283,18 @@ function render() {
   }
   const micBtn = h('button.btn.small.soft.kk-micbtn', { type: 'button', html: `${icon('mic')}<span>${mic.label ? mic.label : 'Microphone'}</span>`, title: 'Choose and try your microphone' });
   micBtn.onclick = () => import('./dialogs.js').then((d) => d.settings('guitar'));
+  // auto-tune for the songs you sing from here: off, or a style
+  const tuneBtn = h('button.btn.small.soft.kk-micbtn.kk-tunebtn', { type: 'button', title: 'Auto-tune and the voice changer: your voice moved onto the right notes, made deep or high, and played with the song', 'aria-pressed': String(autotune.wanted) });
+  const paintTune = () => {
+    tuneBtn.innerHTML = `${icon('wand')}<span>${tuneLabel()}</span>`;
+    tuneBtn.setAttribute('aria-pressed', String(autotune.wanted));
+  };
+  paintTune();
+  tuneBtn.onclick = () => {
+    const r = tuneBtn.getBoundingClientRect();
+    showMenu(r.left, r.bottom + 6, tuneMenu());
+  };
+  autotune.addEventListener('change', () => tuneBtn.isConnected && paintTune());
   const split = list.filter((s) => actions.stemPhase(s) === 'ready').length;
   root.append(
     h(
@@ -290,6 +303,7 @@ function render() {
       h('div', null, h('h2.kk-title-big', { text: 'Sing it' }), h('p.kk-sub', { text: `${list.length} song${list.length === 1 ? '' : 's'} with words · ${split} with the singer taken out. Click one to sing.` })),
       h('span.grow'),
       levels,
+      tuneBtn,
       micBtn
     ),
     h('div.kk-tools', null, search, chips(list), h('span.grow'), sortSelect()),

@@ -74,6 +74,8 @@ html[data-look='roadshow'] .kk-title-big { color:#d9f0dc; }
 .kk-levels { border-radius:3px; box-shadow:inset 0 0 0 1px #3d3832; }
 .kk-levels button { padding:6px 12px; font:700 11px 'Typewriter Stagehand','Liberation Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:#a99e8c; }
 .kk-levels button[aria-pressed='true'] { color:#06222a; background:var(--gel-vocals); }
+/* 4.17: the Auto-tune button on the Karaoke page lights up like the level when a style is on */
+.kk-tunebtn[aria-pressed='true'] { color:#06222a; background:var(--gel-vocals); border-color:transparent; }
 .kk-tools { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .kk-search { max-width:340px; }
 .kk-show { display:inline-flex; gap:6px; }

@@ -1,7 +1,8 @@
 /**
  * The singer's microphone (Sing along). A second input beside the guitar
- * cable: the page listens to it only while someone is singing, reads the
- * note being sung, and never plays the voice back.
+ * cable: the page listens to it only while someone is singing and reads the
+ * note being sung. The voice is played back only with auto-tune on
+ * (autotune.js takes it from `src` here).
  */
 import { detectPitch } from './pitch.js';
 import { VoiceTracker } from './sing.js';
@@ -25,6 +26,7 @@ export const mic = new (class extends EventTarget {
     this.stream = null;
     this.ctx = null;
     this.node = null;
+    this.src = null; // the microphone's sound, for auto-tune
     this.buf = null;
     this.voice = new VoiceTracker();
     this.last = { voiced: false, midi: null, level: 0 };
@@ -99,8 +101,14 @@ export const mic = new (class extends EventTarget {
         if (!other) throw new Error('Only the guitar cable was found. Plug in a microphone (USB, headset or webcam).');
         this.stream = await ask(other.id);
       }
-      this.ctx = new AudioContext({ latencyHint: 'interactive' });
-      const src = this.ctx.createMediaStreamSource(this.stream);
+      // no speakers of its own: listening needs none, and an open output can stop the sound
+      // engine taking the speakers for itself. Auto-tune gives it speakers when it needs them.
+      try {
+        this.ctx = new AudioContext({ latencyHint: 'interactive', sinkId: { type: 'none' } });
+      } catch (_) {
+        this.ctx = new AudioContext({ latencyHint: 'interactive' });
+      }
+      const src = (this.src = this.ctx.createMediaStreamSource(this.stream));
       this.node = this.ctx.createAnalyser();
       this.node.fftSize = 2048;
       this.node.smoothingTimeConstant = 0;
@@ -122,6 +130,7 @@ export const mic = new (class extends EventTarget {
     this.stream = null;
     this.ctx = null;
     this.node = null;
+    this.src = null;
     const was = this.on;
     this.on = false;
     this.last = { voiced: false, midi: null, level: 0 };

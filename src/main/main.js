@@ -546,8 +546,9 @@ function registerIpc() {
   // Native guitar rig: the page asks for a port, we hand one end to the helper relay.
   ipcMain.on('rig:connect', (e, kind) => {
     const { port1, port2 } = new MessageChannelMain();
-    rigAudio.attach(port1, kind === 'song' ? 'song' : 'control');
-    e.sender.postMessage('rig:port', { kind: kind === 'song' ? 'song' : 'control' }, [port2]);
+    const k = kind === 'song' || kind === 'voice' ? kind : 'control';
+    rigAudio.attach(port1, k);
+    e.sender.postMessage('rig:port', { kind: k }, [port2]);
   });
   handle('rig:available', () => rigAudio.available());
 

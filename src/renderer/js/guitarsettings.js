@@ -3,6 +3,7 @@ import { h, toast } from './ui.js';
 import { rig } from './rig.js';
 import { guitarStatus } from './shell.js';
 import { mic } from './mic.js';
+import { autotune, TUNE_STYLES, TUNE_NOTES, TUNE_LEVELS, TUNE_VOICES } from './autotune.js';
 import { keyboard } from './midi.js';
 
 export async function pane(el, setting) {
@@ -113,6 +114,7 @@ export async function pane(el, setting) {
     el.append(setting('Guitar or bass', 'What you’re playing. Stagehand scores a bass part played on guitar an octave up, and the tuner shows its strings. Your tone never changes by itself.', inst));
     el.append(h('p.np-fine', { text: 'If you hear yourself twice, turn off “Listen to this device” for the cable in Windows sound settings.', style: { marginTop: '10px' } }));
     el.append(micSetting(setting));
+    el.append(tuneSetting(setting));
     el.append(keyboardSetting(setting));
   };
   await draw();
@@ -154,7 +156,29 @@ function micSetting(setting) {
       level.classList.toggle('voiced', !!v.voiced);
     }, 40);
   };
-  return setting('Microphone for singing', 'For Sing along (the Sing chip on the highway). Any microphone works: USB, a headset, a webcam. Your voice is only listened to for scoring; it isn’t played through Stagehand. The guitar cable stays for the guitar.', sel, level, tryBtn);
+  return setting('Microphone for singing', 'For Sing along (the Sing chip on the highway). Any microphone works: USB, a headset, a webcam. Your voice is only listened to for scoring; it isn’t played through Stagehand unless Auto-tune is on. The guitar cable stays for the guitar.', sel, level, tryBtn);
+}
+
+/** 4.17: auto-tune for the singer: the style, which notes, how loud. Try it (above) lets you hear it here. */
+function tuneSetting(setting) {
+  const pick = (label, list, cur, set) => {
+    const sel = h('select.input', { 'aria-label': label });
+    for (const [id, name, about] of list) sel.append(h('option', { value: String(id), text: about ? `${name}: ${about}` : name, selected: String(id) === String(cur) ? true : null }));
+    sel.onchange = () => set(sel.value);
+    return sel;
+  };
+  const style = pick('Auto-tune', TUNE_STYLES, autotune.style, (v) => autotune.setStyle(v));
+  const notes = pick('Tune to', TUNE_NOTES, autotune.notes, (v) => autotune.setNotes(v));
+  const voice = pick('Voice changer', TUNE_VOICES, autotune.voice, (v) => autotune.setVoice(v));
+  const vol = pick('Voice volume', TUNE_LEVELS.map(([v, n]) => [v, `Voice ${n.toLowerCase()}`]), (TUNE_LEVELS.find(([v]) => Math.abs(v - autotune.vol) < 0.01) || [0.8])[0], (v) => autotune.setVol(Number(v)));
+  return setting(
+    'Auto-tune and voice changer',
+    'Your singing voice, moved onto the right notes and played with the song, in Sing along and Karaoke. Natural is gentle, Pop is tight, Hard tune is the T-Pain sound. The voice changer makes you deep, giant, high or tiny, with auto-tune or on its own. Press Try it above to hear yourself (away from a song it tunes to the nearest note). Headphones are best: with speakers, keep the microphone away from them. Scoring still listens to your real voice.',
+    style,
+    notes,
+    voice,
+    vol
+  );
 }
 
 /** Piano: the keyboard plugged in by USB. Pressing keys here lights them up, to check it's connected. */
