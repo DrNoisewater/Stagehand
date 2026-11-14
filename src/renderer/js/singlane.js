@@ -524,24 +524,37 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       if (syl[m].t + syl[m].d < t - nowX / pps - 0.2) a = m + 1;
       else b = m;
     }
-    // the notes in view decide how high and low the lane reaches (it glides, never jumps)
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (let i = a; i < syl.length && syl[i].t < t + AHEAD + 0.5; i++) {
-      if (syl[i].p === null) continue;
-      lo = Math.min(lo, syl[i].p);
-      hi = Math.max(hi, syl[i].p);
+    // 4.18: the same note sits at the same height all song. The lane's reach is worked out once from
+    // the whole tune; only a song too wide to fit moves it, and then only as far as the next notes need.
+    const CAP = lane.dataset.k ? 22 : 15; // semitones the lane can show and still tell neighbours apart
+    if (!S.rng || S.rng.of !== syl) {
+      const ps = [];
+      for (const x of syl) if (x.p !== null) ps.push(x.p);
+      ps.sort((x, y) => x - y);
+      const sLo = ps.length ? ps[Math.floor((ps.length - 1) * 0.02)] : 55;
+      const sHi = ps.length ? ps[Math.ceil((ps.length - 1) * 0.98)] : 65;
+      const span = Math.max(10, sHi - sLo + 3);
+      const size = Math.min(span, CAP);
+      const rows = [...new Set(ps.map((x) => Math.round(x)))];
+      S.rng = { of: syl, size, fits: span <= CAP, lo: (sLo + sHi) / 2 - size / 2, hi: (sLo + sHi) / 2 + size / 2, rows };
     }
-    if (lo === Infinity) {
-      lo = S.rng ? S.rng.lo + 2 : 55;
-      hi = S.rng ? S.rng.hi - 2 : 65;
-    }
-    const mid = (lo + hi) / 2;
-    const half = Math.max(5, (hi - lo) / 2 + 2);
-    if (!S.rng) S.rng = { lo: mid - half, hi: mid + half };
-    else {
-      S.rng.lo += (mid - half - S.rng.lo) * 0.06;
-      S.rng.hi += (mid + half - S.rng.hi) * 0.06;
+    if (!S.rng.fits) {
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let i = a; i < syl.length && syl[i].t < t + AHEAD + 0.5; i++) {
+        if (syl[i].p === null) continue;
+        lo = Math.min(lo, syl[i].p);
+        hi = Math.max(hi, syl[i].p);
+      }
+      if (lo !== Infinity) {
+        let want = S.rng.want ?? S.rng.lo;
+        if (hi - lo + 3 > S.rng.size) want = (lo + hi) / 2 - S.rng.size / 2;
+        else if (lo - 1.5 < want) want = lo - 1.5;
+        else if (hi + 1.5 > want + S.rng.size) want = hi + 1.5 - S.rng.size;
+        S.rng.want = want;
+        S.rng.lo += (want - S.rng.lo) * 0.05;
+        S.rng.hi = S.rng.lo + S.rng.size;
+      }
     }
     const Y = (p) => bot - ((p - S.rng.lo) / (S.rng.hi - S.rng.lo)) * (bot - top);
     const clampY = (y) => Math.max(top - 6, Math.min(bot + 6, y));
@@ -549,6 +562,12 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     const fade = (x) => (x < nowX ? Math.max(0, Math.min(1, x / (nowX * 0.35))) : 1);
     const target = sylAt(t - MIC_DELAY);
 
+    // a faint line for every note the tune uses: the ladder the bars sit on
+    g.fillStyle = 'rgba(245, 237, 218, 0.055)';
+    for (const p of S.rng.rows) {
+      const y = Y(p);
+      if (y > top - 2 && y < bot + 2) g.fillRect(nowX, Math.round(y), W - nowX - 8, 1);
+    }
     // bars: plain pills, the one to sing now a little brighter
     const BH = Z.bh;
     for (let i = a; i < syl.length; i++) {

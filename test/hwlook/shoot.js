@@ -466,7 +466,7 @@ const srv = http.createServer((req, res) => {
       await page.evaluate(() => { window.__frames = 0; const f = () => { window.__frames++; requestAnimationFrame(f); }; f(); });
       await until(4.6);
       if (kar) {
-        const k = await page.evaluate(() => ({ cls: document.querySelector('.highway').classList.contains('hw-karaoke'), big: document.querySelector('.hw-sing').dataset.k, muted: window.__vocals.muted, chip: document.querySelector('.hw-sing-chip').textContent, guitar: window.__shHighway.judge() }));
+        const k = await page.evaluate(() => ({ cls: document.querySelector('.highway').classList.contains('hw-karaoke'), big: document.querySelector('.hw-sing').dataset.k, muted: window.__vocals.muted, chip: document.querySelector('.hw-karaoke-chip').getAttribute('aria-pressed') === 'true' ? 'Karaoke' : '', guitar: window.__shHighway.judge() }));
         if (!k.cls || k.big !== '1' || !k.muted || !/Karaoke/.test(k.chip) || k.guitar) fail('karaoke on: ' + JSON.stringify(k));
       }
       await page.screenshot({ path: path.join(out, 'sing-1-bars.png') });

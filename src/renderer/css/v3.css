@@ -2364,3 +2364,8 @@ body:has(.highway:not([hidden])) .menu .label { color: #a99e8c; text-transform: 
 .hw-piano[data-backdrop='dark'] .pk-score { top: -13px; background: #f4f1ea; color: #11131a; padding: 3px 14px; font-size: 14px; font-weight: 900; }
 .hw-piano[data-backdrop='dark'] .pk-badge { background: #1c2132; color: #e6e9f4; border: 1px solid #ffffff22; padding: 6px 14px; transform: translateX(-50%); }
 .hw-piano[data-backdrop='dark'] .pk-badge button { border-radius: 999px; }
+
+/* 4.18: no blur behind anything, anywhere. A blurred panel over a moving picture (the highway, the Jam
+   backgrounds, covers sliding by) is redrawn every frame and can flicker on Windows when a menu or a
+   card opens. Every panel that used it is nearly solid, so it looks the same without. */
+*, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
