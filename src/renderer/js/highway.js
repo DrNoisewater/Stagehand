@@ -266,6 +266,7 @@ export function createHighway(stage) {
     if (switching) return;
     const now = aside();
     paintModes();
+    syncDropPop();
     if (wasAside && !now && H.open) {
       // back to the guitar: its score starts again from here, and now is the time to say it needs tuning
       if (H.judge) {
@@ -484,10 +485,10 @@ export function createHighway(stage) {
       const el = dropSection({
         kind,
         compact: true,
-        onOpen: (v, why) => {
-          if (why === 'auto') pop.closed = false;
-          syncDropPop();
-        },
+        // 4.18: it never opens by itself here. Folded to its head while the Drop is working, nothing otherwise.
+        open: false,
+        autoOpen: false,
+        onOpen: () => syncDropPop(),
       });
       el.querySelector('.dc-fold-head').append(x);
       pop.el = el;
@@ -497,8 +498,12 @@ export function createHighway(stage) {
   }
   function syncDropPop() {
     if (!pop.el) return;
-    if (dropInUse() || (!!rig.dropSong && !!H.tab)) pop.seen = true;
-    dropPop.hidden = !(H.open && !mixOpen && !pop.closed && pop.seen && !H.training);
+    // 4.18: only while the Drop is really working (a song that would like it is the tuning card's job),
+    // and never while the guitar is aside (karaoke, piano)
+    const use = dropInUse();
+    if (use && !pop.was) pop.closed = false; // hidden with ×: back when it next starts working
+    pop.was = use;
+    dropPop.hidden = !(H.open && !mixOpen && !pop.closed && use && !H.training && !aside());
   }
   rig.addEventListener('drop', () => H.open && renderDropPop());
 

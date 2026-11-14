@@ -408,7 +408,7 @@ export function dropSection(o = {}) {
     foot.setAttribute('aria-pressed', String(!!d.on));
     state.textContent = !d.on ? (needed ? `Off · this song wants −${rig.dropSong}` : 'Off') : amt >= 12 ? 'Down an octave' : amt ? `−${amt} · ${soundsLike(amt, o.kind || 'guitar')}` : 'On, nothing to drop';
     // opens itself when it starts working, or when a song turns up that wants it
-    if ((using && !wasUsing) || (needed && !wasNeeded)) setOpen(true, 'auto');
+    if (o.autoOpen !== false && ((using && !wasUsing) || (needed && !wasNeeded))) setOpen(true, 'auto');
     wasUsing = using;
     wasNeeded = needed;
   };
