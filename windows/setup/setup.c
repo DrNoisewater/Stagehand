@@ -40,6 +40,9 @@
 #include <math.h>
 #include <winhttp.h>
 #include <bcrypt.h>
+#include <initguid.h>
+#include <mmdeviceapi.h>
+#include <functiondiscoverykeys_devpkey.h>
 #include "setup_core.h"
 #include "miniz_tinfl.h"
 
@@ -88,7 +91,7 @@
 #define C_GREY RGB(108, 101, 90)
 
 enum { ST_CHECK, ST_HAVE, ST_WILL, ST_BUSY, ST_DONE, ST_LATER, ST_SKIP, ST_ERR };
-enum { R_APP, R_RUNTIME, R_DECODER, R_VCRT, R_STEMS, R_DATA, NROWS };
+enum { R_APP, R_RUNTIME, R_DECODER, R_VCRT, R_STEMS, R_DATA, R_SOUND, NROWS };
 
 typedef struct {
   const wchar_t *title;
@@ -123,7 +126,9 @@ static struct {
   char variant[16]; /* PyTorch build: cu128, cu126 or cpu */
   wchar_t gpu[128];
   HANDLE child;     /* the step running now (so Skip can stop it) */
-  RECT b_stems;
+  RECT b_stems, b_sound;
+  volatile LONG sound_busy; /* the sound check is running */
+  wchar_t sound_help[700];  /* the whole story, shown when the row is clicked */
   wchar_t last_line[200]; /* the failing step's last words, for the error */
   int app_open;  /* Stagehand is running */
   double total;  /* overall progress 0..1 */
@@ -439,6 +444,149 @@ static uint64_t file_size(const wchar_t *path) {
   return ((uint64_t)a.nFileSizeHigh << 32) | a.nFileSizeLow;
 }
 
+/* ------------------------------------------------------- sound check -- */
+/* 4.18: a friend's playing came out late through his TV. Stagehand plays through
+   Windows' own fast mode (as quick as ASIO4ALL is for Rocksmith; Stagehand doesn't use
+   ASIO4ALL). What adds delay no setting in Stagehand can remove: a TV or monitor over
+   HDMI, Bluetooth, or a PC that won't let programs take over the sound (then Stagehand
+   falls back to a slower shared mode). Read-only: nothing here changes the PC. */
+static void short_name(const wchar_t *full, wchar_t *out, int n) {
+  /* "LG TV (NVIDIA High Definition Audio)" -> "LG TV" */
+  wcsncpy(out, full, n - 1);
+  out[n - 1] = 0;
+  wchar_t *p = wcsstr(out, L" (");
+  if (p && p != out) *p = 0;
+  if (wcslen(out) > 40) wcscpy(out + 37, L"…");
+}
+
+static int has_word(const wchar_t *s, const wchar_t *const *words) {
+  wchar_t low[512];
+  int i = 0;
+  for (; s[i] && i < 511; i++) low[i] = (wchar_t)towlower(s[i]);
+  low[i] = 0;
+  for (; *words; words++)
+    if (wcsstr(low, *words)) return 1;
+  return 0;
+}
+
+/* Sound settings › the device › Advanced › "Allow applications to take exclusive control".
+   Windows keeps it in the registry; missing means allowed (the default). */
+static int exclusive_allowed(const wchar_t *id, int capture) {
+  const wchar_t *g = wcsrchr(id, L'.');
+  if (!g) return 1;
+  wchar_t key[400];
+  _snwprintf(key, 400, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\%s\\%s\\Properties", capture ? L"Capture" : L"Render", g + 1);
+  HKEY k;
+  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, key, 0, KEY_READ | KEY_WOW64_64KEY, &k) != ERROR_SUCCESS) return 1;
+  DWORD v = 1, n = sizeof v, type = 0;
+  LONG r = RegQueryValueExW(k, L"{b3f8fa53-0004-438e-9003-51a46e139bfc},3", NULL, &type, (BYTE *)&v, &n);
+  RegCloseKey(k);
+  return r != ERROR_SUCCESS || type != REG_DWORD || v != 0;
+}
+
+typedef struct {
+  wchar_t name[256], id[256], path[512];
+  UINT form;
+  int ok;
+} SoundDev;
+
+static void dev_read(IMMDevice *d, SoundDev *o) {
+  memset(o, 0, sizeof *o);
+  LPWSTR id = NULL;
+  if (SUCCEEDED(IMMDevice_GetId(d, &id)) && id) {
+    wcsncpy(o->id, id, 255);
+    CoTaskMemFree(id);
+  }
+  IPropertyStore *ps = NULL;
+  if (FAILED(IMMDevice_OpenPropertyStore(d, STGM_READ, &ps)) || !ps) return;
+  /* the endpoint's device path: "{1}.BTHENUM\…" for Bluetooth, "{1}.HDAUDIO\…" and so on */
+  static const PROPERTYKEY K_PATH = {{0xb3f8fa53, 0x0004, 0x438e, {0x90, 0x03, 0x51, 0xa4, 0x6e, 0x13, 0x9b, 0xfc}}, 2};
+  static const PROPERTYKEY K_FORM = {{0x1da5d803, 0xd492, 0x4edd, {0x8c, 0x23, 0xe0, 0xc0, 0xff, 0xee, 0x7f, 0x0e}}, 0}; /* the form factor */
+  PROPVARIANT v;
+  PropVariantInit(&v);
+  if (SUCCEEDED(IPropertyStore_GetValue(ps, &PKEY_Device_FriendlyName, &v)) && v.vt == VT_LPWSTR && v.pwszVal) wcsncpy(o->name, v.pwszVal, 255);
+  PropVariantClear(&v);
+  if (SUCCEEDED(IPropertyStore_GetValue(ps, &K_FORM, &v)) && v.vt == VT_UI4) o->form = v.ulVal;
+  PropVariantClear(&v);
+  if (SUCCEEDED(IPropertyStore_GetValue(ps, &K_PATH, &v)) && v.vt == VT_LPWSTR && v.pwszVal) wcsncpy(o->path, v.pwszVal, 511);
+  PropVariantClear(&v);
+  IPropertyStore_Release(ps);
+  o->ok = 1;
+}
+
+static void sound_check(void) {
+  if (InterlockedExchange(&S.sound_busy, 1)) return;
+  HRESULT ci = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+  IMMDeviceEnumerator *e = NULL;
+  SoundDev out, cable;
+  memset(&out, 0, sizeof out);
+  memset(&cable, 0, sizeof cable);
+  if (SUCCEEDED(CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL, &IID_IMMDeviceEnumerator, (void **)&e)) && e) {
+    IMMDevice *d = NULL;
+    if (SUCCEEDED(IMMDeviceEnumerator_GetDefaultAudioEndpoint(e, eRender, eConsole, &d)) && d) {
+      dev_read(d, &out);
+      IMMDevice_Release(d);
+    }
+    IMMDeviceCollection *col = NULL;
+    if (SUCCEEDED(IMMDeviceEnumerator_EnumAudioEndpoints(e, eCapture, DEVICE_STATE_ACTIVE, &col)) && col) {
+      UINT n = 0;
+      IMMDeviceCollection_GetCount(col, &n);
+      for (UINT i = 0; i < n && !cable.ok; i++) {
+        if (FAILED(IMMDeviceCollection_Item(col, i, &d)) || !d) continue;
+        SoundDev c;
+        dev_read(d, &c);
+        IMMDevice_Release(d);
+        static const wchar_t *const rs[] = {L"rocksmith", NULL};
+        if (c.ok && has_word(c.name, rs)) cable = c;
+      }
+      IMMDeviceCollection_Release(col);
+    }
+    IMMDeviceEnumerator_Release(e);
+  }
+  if (SUCCEEDED(ci)) CoUninitialize();
+
+  static const wchar_t *const bt_words[] = {L"bluetooth", L"hands-free", L"airpods", L"buds", NULL};
+  static const wchar_t *const bt_path[] = {L"bthenum", L"bthhfenum", L"bthledevice", NULL};
+  static const wchar_t *const tv_words[] = {L"hdmi", L" tv", L"tv ", L"television", L"displayport", NULL};
+  wchar_t nm[64], help[700] = L"";
+  short_name(out.name, nm, 64);
+  const wchar_t *fix = L"\n\nClick OK to open Sound settings. On the Playback tab (the Recording tab for the Rocksmith cable), "
+                       L"double-click the device, open Advanced and tick “Allow applications to take exclusive control of this device”.";
+  if (!out.ok) {
+    set_row(R_SOUND, ST_LATER, L"No speakers or headphones found. Plug them in before you play");
+    _snwprintf(help, 700, L"Setup couldn't find any speakers or headphones. Plug them in, then come back to this window: it checks again.");
+  } else if (has_word(out.path, bt_path) || has_word(out.name, bt_words)) {
+    set_row(R_SOUND, ST_LATER, L"%s is Bluetooth: your guitar will sound late. Click for why", nm);
+    _snwprintf(help, 700, L"Your sound goes to %s over Bluetooth. Bluetooth always plays a little late (often a fifth of a second), "
+               L"and no setting in Stagehand can take that away.\n\nTo play, use wired headphones or speakers plugged into the PC, "
+               L"and make them the default in Sound settings.", nm);
+  } else if (out.form == 9 /* a TV or monitor over HDMI or DisplayPort */ || has_word(out.name, tv_words)) {
+    set_row(R_SOUND, ST_LATER, L"Sound goes to a TV or screen (%s): your guitar will sound late. Click for why", nm);
+    _snwprintf(help, 700, L"Your sound goes to %s, a TV or screen. TVs work on the picture and sound before playing them, "
+               L"which makes your guitar come out late, and no setting in Stagehand can take that away.\n\n"
+               L"• Turn on the TV's Game Mode (in its picture settings). It cuts most of the delay.\n"
+               L"• Better: plug headphones or speakers into the PC and make them the default in Sound settings.", nm);
+  } else if (!exclusive_allowed(out.id, 0)) {
+    set_row(R_SOUND, ST_LATER, L"Windows won't let Stagehand take over %s, so it plays slower. Click to fix", nm);
+    _snwprintf(help, 700, L"Windows won't let programs take over %s, so Stagehand has to share it and your guitar comes out later.%s", nm, fix);
+  } else if (cable.ok && !exclusive_allowed(cable.id, 1)) {
+    set_row(R_SOUND, ST_LATER, L"Windows won't let Stagehand take over the Rocksmith cable, so it plays slower. Click to fix");
+    _snwprintf(help, 700, L"Windows won't let programs take over the Rocksmith cable, so Stagehand has to share it and your guitar comes out later.%s", fix);
+  } else if (cable.ok) set_row(R_SOUND, ST_HAVE, L"Ready for the fast mode: %s and the Rocksmith cable", nm);
+  else set_row(R_SOUND, ST_HAVE, L"%s is ready for the fast mode. Plug in the Rocksmith cable before you play", nm);
+  EnterCriticalSection(&S.cs);
+  wcscpy(S.sound_help, help);
+  LeaveCriticalSection(&S.cs);
+  InterlockedExchange(&S.sound_busy, 0);
+}
+
+static DWORD WINAPI sound_thread(void *arg) {
+  (void)arg;
+  sound_check();
+  update();
+  return 0;
+}
+
 static DWORD WINAPI detect_thread(void *arg) {
   (void)arg;
   wchar_t path[MAX_PATH];
@@ -490,6 +638,9 @@ static DWORD WINAPI detect_thread(void *arg) {
     _snwprintf(path, MAX_PATH, L"%s\\settings.json", S.roaming);
     if (wexists(S.roaming)) set_row(R_DATA, ST_HAVE, L"Found. Your library, settings, stems and tones stay as they are");
     else set_row(R_DATA, ST_SKIP, L"None yet. Stagehand finds your songs when it opens");
+
+    /* your speakers and the Rocksmith cable: what would make your playing come out late */
+    sound_check();
 
     /* your graphics card decides which PyTorch the stem splitter needs */
     detect_gpu();
@@ -1548,11 +1699,11 @@ static void paint(HDC dc, RECT cr) {
   text(dc, S.f_body, S.finished == 2 ? C_RED : S.finished == 1 ? C_GREEN : C_DIM, r, sub, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
 
   /* rows */
-  static const int order_install[] = {R_APP, R_RUNTIME, R_DECODER, R_VCRT, R_STEMS, R_DATA};
+  static const int order_install[] = {R_APP, R_RUNTIME, R_DECODER, R_VCRT, R_STEMS, R_DATA, R_SOUND};
   static const int order_uninstall[] = {R_APP, R_DATA};
   const int *order = S.uninstall ? order_uninstall : order_install;
-  int nr = S.uninstall ? 2 : 6;
-  int y = hh + px(44), rh = px(54);
+  int nr = S.uninstall ? 2 : 7;
+  int y = hh + px(44), rh = px(nr > 6 ? 48 : 54), tp = nr > 6 ? 4 : 7; /* 4.18: seven rows still fit a 768-pixel screen */
   RECT panel = {m, y, W - m, y + rh * nr + px(8)};
   {
     RECT ps = panel;
@@ -1580,10 +1731,11 @@ static void paint(HDC dc, RECT cr) {
     }
     badge(dc, m + px(34), ry + rh / 2, row->state);
     if (order[i] == R_STEMS) S.b_stems = (RECT){m, ry, W - m, ry + rh};
-    RECT t = {m + px(62), ry + px(7), W - m - px(16), ry + px(29)};
+    if (order[i] == R_SOUND) S.b_sound = (RECT){m, ry, W - m, ry + rh};
+    RECT t = {m + px(62), ry + px(tp), W - m - px(16), ry + px(tp + 22)};
     text(dc, S.f_body, C_TEXT, t, row->title, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
-    t.top = ry + px(28);
-    t.bottom = ry + rh - px(6);
+    t.top = ry + px(tp + 21);
+    t.bottom = ry + rh - px(tp > 4 ? 6 : 3);
     COLORREF nc = row->state == ST_HAVE || row->state == ST_DONE ? RGB(150, 214, 170) : row->state == ST_ERR ? C_RED : row->state == ST_LATER ? RGB(150, 225, 238) : C_DIM;
     text(dc, S.f_small, nc, t, row->note, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
     if (row->state == ST_BUSY) {
@@ -1705,7 +1857,7 @@ static LRESULT CALLBACK wndproc(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
     return 0;
   case WM_MOUSEMOVE: {
     int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
-    int hv = hit(S.b_main, x, y) ? 1 : hit(S.b_alt, x, y) ? 2 : hit(S.b_check, x, y) ? 3 : (!S.uninstall && S.checked && !S.running && !S.finished && !S.stems_found && hit(S.b_stems, x, y)) ? 4 : 0;
+    int hv = hit(S.b_main, x, y) ? 1 : hit(S.b_alt, x, y) ? 2 : hit(S.b_check, x, y) ? 3 : (!S.uninstall && S.checked && !S.running && !S.finished && !S.stems_found && hit(S.b_stems, x, y)) ? 4 : (!S.uninstall && S.checked && hit(S.b_sound, x, y)) ? 5 : 0;
     if (hv != S.hover) {
       S.hover = hv;
       InvalidateRect(w, NULL, FALSE);
@@ -1719,6 +1871,10 @@ static LRESULT CALLBACK wndproc(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
     S.hover = 0;
     InvalidateRect(w, NULL, FALSE);
     return 0;
+  case WM_ACTIVATE:
+    /* back from Sound settings (or after plugging something in): look again */
+    if (LOWORD(wp) != WA_INACTIVE && S.checked && !S.uninstall && !S.sound_busy) CreateThread(NULL, 0, sound_thread, NULL, 0, NULL);
+    break;
   case WM_SETCURSOR:
     if (LOWORD(lp) == HTCLIENT && S.hover) {
       SetCursor(LoadCursorW(NULL, IDC_HAND));
@@ -1735,6 +1891,15 @@ static LRESULT CALLBACK wndproc(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
     else if (!S.uninstall && S.checked && !S.running && !S.finished && !S.stems_found && hit(S.b_stems, x, y)) {
       S.stems_now = !S.stems_now;
       stems_note();
+    }
+    else if (!S.uninstall && S.checked && hit(S.b_sound, x, y)) {
+      /* the Sound control panel (Playback and Recording); the check runs again when Setup is back in front */
+      wchar_t help[700];
+      EnterCriticalSection(&S.cs);
+      wcscpy(help, S.sound_help);
+      LeaveCriticalSection(&S.cs);
+      if (!help[0] || MessageBoxW(w, help, L"Sound check", MB_OKCANCEL | MB_ICONINFORMATION) == IDOK)
+        ShellExecuteW(NULL, L"open", L"control.exe", L"mmsys.cpl", NULL, SW_SHOWNORMAL);
     }
     else if (hit(S.b_check, x, y) && !S.running && !S.finished) {
       if (S.uninstall) {
@@ -1879,6 +2044,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show) {
   S.rows[R_STEMS].title = L"Stem splitter (Python, PyTorch, Demucs)";
   S.rows[R_VCRT].title = L"Microsoft Visual C++ runtime";
   S.rows[R_DATA].title = S.uninstall ? L"Your library data" : L"Your library and settings";
+  S.rows[R_SOUND].title = L"Sound check (what could make your playing late)";
   for (int i = 0; i < NROWS; i++) {
     S.rows[i].state = ST_CHECK;
     wcscpy(S.rows[i].note, L"Checking…");
@@ -1904,7 +2070,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show) {
   wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
   wc.lpszClassName = L"StagehandSetup";
   RegisterClassExW(&wc);
-  int ww = px(700), wh = px(S.uninstall ? 440 : 680); /* fits a 768-pixel-tall laptop screen */
+  int ww = px(700), wh = px(S.uninstall ? 440 : 692); /* fits a 768-pixel-tall laptop screen */
   RECT wr = {0, 0, ww, wh};
   DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
   AdjustWindowRectExForDpi(&wr, style, FALSE, 0, S.dpi);

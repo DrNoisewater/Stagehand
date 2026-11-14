@@ -255,7 +255,7 @@ const G = { meter: null, raf: 0 };
 export function guitarStatus() {
   if (rig.on) {
     const how = rig.kind === 'native' ? (rig.info && rig.info.mode === 'exclusive' ? 'direct' : 'shared output') : 'in-app engine';
-    return { cls: rig.muted ? 'warn' : '', title: rig.muted ? 'Guitar muted' : 'Guitar ready', line: `${esc((rig.info && rig.info.inName) || 'Rocksmith cable')} → ${esc((rig.info && rig.info.outName) || 'your speakers')}`, sub: `${rig.latencyMs ? `${rig.latencyMs} ms delay · ` : ''}${how}` };
+    return { cls: rig.muted || rig.outputWarning ? 'warn' : '', title: rig.muted ? 'Guitar muted' : rig.outputWarning ? 'Guitar ready (plays late)' : 'Guitar ready', line: `${esc((rig.info && rig.info.inName) || 'Rocksmith cable')} → ${esc((rig.info && rig.info.outName) || 'your speakers')}`, sub: `${rig.latencyMs ? `${rig.latencyMs} ms delay · ` : ''}${how}` };
   }
   if (rig.status === 'starting' || rig._starting) return { cls: 'warn', title: 'Starting your guitar…', line: 'Opening the Rocksmith cable', sub: '' };
   if (rig.status === 'error') return { cls: 'err', title: 'Guitar didn’t start', line: esc(rig.error || 'The sound engine stopped.'), sub: 'Trying again in a moment' };

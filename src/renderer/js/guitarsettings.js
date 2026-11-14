@@ -20,6 +20,7 @@ export async function pane(el, setting) {
     };
     el.append(setting('Your guitar', `${s.title}. ${s.line.replace(/<[^>]+>/g, '')}${s.sub ? ` · ${s.sub}` : ''}`, pill, restart));
     if (rig.notice) el.append(h('div.play-note', { text: rig.notice, style: { margin: '6px 0' } }));
+    if (rig.outputWarning) el.append(h('div.play-note', { text: rig.outputWarning, style: { margin: '6px 0' } }));
 
     const inSel = h('select.input', { 'aria-label': 'Input' });
     const outSel = h('select.input', { 'aria-label': 'Output' });

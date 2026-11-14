@@ -63,6 +63,22 @@ Work notes with the full list and who did what: `docs/notes/4.18-playground.md`.
   the file (what Drive does) was dropped, because the finder refused every new window. Now an empty new window is
   let open out of sight (`popup()`), its download is taken, it shows only if a real page loads in it (Drive's
   "can't scan this file" page) and closes when the file is in. NOT tried on the real Drive: ask the user.
+- **Sound check** (Setup's last row, `windows/setup/setup.c` `sound_check`; the app: `lateout.js`, `rig.outputWarning`,
+  shown in the rig panel, Settings › Guitar and the guitar status): the user's friend heard a bad delay; the user
+  thought it was because the user has **ASIO4ALL** and the friend didn't, and asked for it in the installer. Stagehand
+  doesn't use ASIO at all (WASAPI exclusive, same speed class), so installing ASIO4ALL changes nothing for Stagehand
+  (explained to the user). The friend's sound **goes through his TV**: that is the delay. Setup now
+  reads (read-only) the default output's type (form factor 9 = TV/monitor over HDMI/DisplayPort), Bluetooth (endpoint
+  path `{b3f8fa53-…},2` with BTHENUM, or the name), Windows' "Allow applications to take exclusive control" for the
+  output and the Rocksmith cable (registry `MMDevices\Audio\Render|Capture\{guid}\Properties`,
+  `{b3f8fa53-0004-438e-9003-51a46e139bfc},3`, 0 = blocked), and whether the cable is plugged in. Warnings are blue
+  "info" rows; clicking the row explains in a message box and opens Sound settings; the check runs again when Setup
+  comes back to the front. Seven rows: row height 48 (was 54), window 692 tall (fits 768). The app only knows the
+  output's name, so `lateKind` goes by words (HDMI, Display Audio, NVIDIA/AMD High Definition Audio, TV brands,
+  Bluetooth, Hands-Free, Buds). `test/lateout.test.mjs` (in `npm test`). **Untested on Windows**: ask the user to run
+  Setup and say what the Sound check row says on their PC (speakers) and on the friend's (TV), and ask the friend to
+  try the TV's Game Mode or speakers on the PC. Not done: an ASIO path in the engine (only if the fast mode on wired
+  speakers still feels slow to the friend).
 - **Speed** (Speed checker's audit; the safe ones done): the Now playing page no longer redraws while another page
   shows (`stage.js` `frame`), search suggestions reuse each song's index (`searchmatch.js`), the fast graphics card on
   two-card laptops (`main.js`). Not done: background stem splits at low priority, note detection off the screen loop,
