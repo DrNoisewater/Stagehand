@@ -75,6 +75,24 @@ Work notes with the full list and who did what: `docs/notes/4.18-playground.md`.
   trails (`upSoft`, `acrossSoft`). Sharper when paused or before the first note (`govern()` draws up to 1.5x then,
   never while notes are moving, so play stays smooth). Two new switches in the highway's Settings: **String sway**
   and **Reflections** (both on). At rest it looks almost the same as 4.17; the difference is in motion and on hits.
+- **Famous tones** (Tone builder: `famous-tones.js`, `rigbuild.js`, `css/rigbuild.css`, `rigroom.js`): a gold
+  **Famous tones** tab, first on Create a Tone's gear wall. 55 sounds (44 guitar, 11 bass), each named for the
+  sound ("Brown sound", "Texas blues lead", "Motown thump") with an "In the style of…" line, the chain, a pickup tip
+  and style chips. The search box finds them by player, band, song or style (`searchFamous`). Clicking one builds it
+  on the board through the normal `change()` path (Undo works) and names the tone unless it has a name.
+  `famousTone(e)` makes an ordinary tone, so it runs through the same engine as any other. Left out because the gear
+  can't do them: rotating speaker, Whammy dives, reverse reverb, talk box. Built from rig rundowns and descriptions,
+  NOT matched by ear against the records.
+- **Build and save animations** (`rigbuild.js` `playBuild`, `playSave`): gear drops onto the board one piece at a
+  time in signal order with a small bounce and glow (amp and cabinet give the board a 1.5 px thud), a strip of dials
+  turns up to its settings under each, cables fade in last; 2–3 s in all. Saving ticks each piece in order, then the
+  sticker. Any click or key finishes it. No movement with reduced motion or Calmer interface. Only position and
+  fade move (no blur, no flashes). In one test picture the cabinet's photo was missing for a frame during the save
+  ticks (believed to be the slow test machine): ask the user to watch for it.
+- **Piano timing** (`keys.js`, the keyboard's `note` listener): a key press is timed from when the key moved, not
+  from the last picture drawn (it used to be up to one picture early: 16 ms at 60 a second, far more on a busy PC).
+  Found because the pretend pianist scored 50–65 % on this slow machine; now 94 % (bar 4 left out on purpose).
+  The pretend pianist in `shoot.js` reads the same clock.
 - **Research** (in the notes file): Feedback is Slopsmith renamed; its "Virtuoso" is a guitar practice studio, its
   piano ("Piano Highway") and vocals are thinner than ours. Ideas worth taking: wait-for-note mode, a mic delay test,
   per-hand piano practice, golden notes.

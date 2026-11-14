@@ -340,7 +340,10 @@ export function createKeys({ root, stage, parts, onShow, onAsk, notesFromStem })
   keyboard.addEventListener('note', (e) => {
     if (!live() || !S.judge) return;
     // when the key went down, in song time (on the clock the notes are drawn by)
-    const t = S.vis - ((performance.now() - e.at) / 1000) * S.speed;
+    // 4.18: counted from the moment the key moved, not from the last picture drawn (a busy PC draws
+    // late, and a press between two pictures was timed as if it came with the first)
+    const since = S.playing && S.clockAt ? Math.max(-250, Math.min(250, e.at - S.clockAt)) : 0;
+    const t = S.vis + (since / 1000) * S.speed;
     if (e.on) {
       const i = S.judge.press(t, e.midi);
       if (i >= 0) {
@@ -796,6 +799,7 @@ export function createKeys({ root, stage, parts, onShow, onAsk, notesFromStem })
       const dtReal = Math.min(0.1, (now - (S.clockAt || now)) / 1000);
       S.clockAt = now;
       S.vis = vis;
+      S.playing = playing;
       S.speed = speed;
       const j = S.judge;
       if (j) {

@@ -331,7 +331,8 @@ const srv = http.createServer((req, res) => {
         let wrongs = 0;
         window.__pianist = setInterval(() => {
           if (!window.__stage.engine.playing) return;
-          const t = K.vis;
+          // (the song's time now: the picture's clock plus the time since it was drawn)
+          const t = K.vis + (K.clockAt ? Math.min(250, performance.now() - K.clockAt) / 1000 : 0);
           K.notes.forEach((n, i) => {
             const jit = ((i * 37) % 11) / 11 * 0.08 - 0.04;
             if (!down.has(i) && !skip(n) && t >= n.t + jit && t < n.t + 0.1) { window.__press(n.midi, true); down.set(i, n); }
@@ -340,6 +341,7 @@ const srv = http.createServer((req, res) => {
           if (t > 6 && wrongs < 3 && Math.random() < 0.002) { wrongs++; window.__press(61, true); setTimeout(() => window.__press(61, false), 120); }
         }, 4);
         const e = window.__stage.engine; e.position = 0; e.dispatchEvent(new Event('seek')); e.play();
+        window.__pf = { n: 0, long: 0, last: performance.now() }; const fr = () => { const now = performance.now(); window.__pf.n++; if (now - window.__pf.last > 100) window.__pf.long++; window.__pf.last = now; requestAnimationFrame(fr); }; fr();
       });
       const until = (t) => page.waitForFunction((t) => window.__stage.engine.position > t, t, { timeout: 90000 });
       const shots = (process.env.PIANO_SHOTS || '5,9,13').split(',').map(Number);
@@ -349,7 +351,7 @@ const srv = http.createServer((req, res) => {
       const r = await page.evaluate(async () => {
         const H = document.querySelector('.highway').__hw;
         const j = H.keys.state.judge;
-        const live = { hits: j.hits, judged: j.judged, acc: j.accuracy, wrong: j.wrong.length };
+        const live = { hits: j.hits, judged: j.judged, acc: j.accuracy, wrong: j.wrong.length, frames: window.__pf.n, longFrames: window.__pf.long };
         clearInterval(window.__pianist);
         const e = window.__stage.engine;
         e.pause();
