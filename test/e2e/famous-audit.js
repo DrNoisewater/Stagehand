@@ -102,13 +102,15 @@ module.exports = async ({ page, outDir, check }) => {
   await page.waitForTimeout(220);
   const ticks = await page.locator('.rr-board .rbk-tick').count();
   check(ticks > 0, `saving ticks the pieces in order (${ticks} so far)`);
+  const t0 = Date.now();
+  const stampAt = await page.waitForSelector('.rr-board .saved-stamp', { state: 'attached', timeout: 3000 }).then(() => Date.now() - t0 + 220, () => -1);
+  check(stampAt > 0 && stampAt < 1500, `the saved sticker lands ${stampAt} ms after Save`);
   await shot('save-ticks');
-  await page.waitForTimeout(100);
   const saved = await page.evaluate(async () => {
     const { listTones } = await import('./js/tonelib.js').catch(() => ({}));
     return { stamp: !!document.querySelector('.rr-board .saved-stamp'), btn: document.querySelector('.rr-save').textContent, list: listTones ? listTones().map((t) => t.name) : null };
   });
-  check(saved.stamp && saved.btn === 'Saved', `then the saved sticker (${saved.btn})`);
+  check(saved.btn === 'Saved', `and the button says so (${saved.btn})`);
   await shot('save-done');
   await page.waitForTimeout(1200);
 

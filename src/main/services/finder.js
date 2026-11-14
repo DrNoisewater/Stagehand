@@ -148,7 +148,9 @@ function createFinder(o) {
   const FILE_HOST = /(^|\.)(drive\.google\.com|docs\.google\.com|drive\.usercontent\.google\.com|mediafire\.com|dropbox\.com|mega\.nz|mega\.io|1drv\.ms|onedrive\.live\.com|pixeldrain\.com|gofile\.io)$/i;
   const onFileHost = (url) => {
     try {
-      return FILE_HOST.test(new URL(url).hostname);
+      const u = new URL(url);
+      if (extra.includes(u.host) && /^\/(host|warn)\b/.test(u.pathname)) return true; // (tests: a pretend file host)
+      return FILE_HOST.test(u.hostname);
     } catch (_) {
       return false;
     }
@@ -174,7 +176,33 @@ function createFinder(o) {
     return false;
   }
 
-  function onDownload(_e, item) {
+  // 4.18: a file host often starts its download in a new, empty window (Drive's Download button does).
+  // That window is let open, out of sight, so the download is taken; it shows only if a real page
+  // loads in it (Drive's "can't scan this file" page, with its own button), and closes once the file is in.
+  const pops = new Set();
+  function popup(child) {
+    pops.add(child);
+    child.setMenuBarVisibility(false);
+    guard(child.webContents, true);
+    child.webContents.on('did-finish-load', () => {
+      if (child.isDestroyed() || child.__took) return;
+      const u = child.webContents.getURL();
+      if (u && !u.startsWith('about:')) child.show();
+    });
+    child.on('closed', () => pops.delete(child));
+    // an empty window nothing came of
+    setTimeout(() => {
+      if (!child.isDestroyed() && !child.isVisible() && !child.__took) child.close();
+    }, 20000);
+  }
+
+  function onDownload(_e, item, from) {
+    const pop = [...pops].find((w) => !w.isDestroyed() && w.webContents === from);
+    if (pop) {
+      pop.__took = true;
+      pop.hide();
+      item.once('done', () => !pop.isDestroyed() && pop.close()); // (closed after: closing it now could stop the download)
+    }
     const name = item.getFilename() || 'song';
     const song = SONG_FILE.test(name);
     const dir = song ? path.join(o.stagingDir, 'Finder', String(Date.now())) : o.downloadsDir();
@@ -228,7 +256,7 @@ function createFinder(o) {
     });
   }
 
-  function guard(wc) {
+  function guard(wc, isPop) {
     // links to other sites open in your browser; this window stays on song sites
     wc.on('will-navigate', (e, url) => {
       if (allowed(url, extra)) return;
@@ -236,10 +264,27 @@ function createFinder(o) {
       if (/^https?:/.test(url)) o.openExternal(url);
     });
     wc.setWindowOpenHandler(({ url }) => {
+      if (!url || url.startsWith('about:')) {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            show: false,
+            width: 820,
+            height: 600,
+            title: 'Download · Stagehand',
+            backgroundColor: '#14110d',
+            autoHideMenuBar: true,
+            icon: o.icon && fs.existsSync(o.icon) ? o.icon : undefined,
+            webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+          },
+        };
+      }
       if (allowed(url, extra)) setImmediate(() => wc.loadURL(url).catch(() => {}));
       else if (/^https?:/.test(url)) o.openExternal(url);
       return { action: 'deny' };
     });
+    wc.on('did-create-window', (child) => popup(child));
+    if (isPop) return;
     wc.on('did-navigate', tell);
     wc.on('did-navigate-in-page', tell);
     wc.on('did-finish-load', () => {
@@ -284,6 +329,7 @@ function createFinder(o) {
     win.on('closed', () => {
       win = bar = site = null;
       loaded = false;
+      for (const w of pops) if (!w.isDestroyed()) w.close();
       st.downloads = [];
       o.onEvent({ type: 'closed' });
     });

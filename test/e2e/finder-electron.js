@@ -28,6 +28,18 @@ const site = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': 'attachment; filename="pack.rar"' });
     return res.end('Rar!not really');
   }
+  // a file host's page, the way Drive does it: its Download button opens an empty new window and
+  // sends that to the file; a big file first shows a "can't scan it" page there with its own button
+  if (u.pathname === '/warn') {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    return res.end('<!doctype html><title>Can\'t scan this file</title><body><form action="/song_p.psarc"><button id="anyway">Download anyway</button></form></body>');
+  }
+  if (u.pathname === '/host') {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    return res.end(`<!doctype html><title>No preview available</title><body style="background:#333;color:#eee">
+      <button id="blank" onclick="const w = window.open('', '_blank'); setTimeout(() => { w.location = '/song_p.psarc'; }, 150)">Download</button>
+      <button id="big" onclick="const w = window.open('', '_blank'); setTimeout(() => { w.location = '/warn'; }, 150)">Download big</button></body>`);
+  }
   if (u.pathname === '/search') searches.push(u.searchParams.get('q'));
   res.writeHead(200, { 'Content-Type': 'text/html' });
   const q = u.searchParams.get('q');
@@ -106,6 +118,33 @@ const site = http.createServer((req, res) => {
     said = await msg();
   }
   check(/Downloads/.test(said) && fs.existsSync(path.join(downloads, 'pack.rar')), `a file Stagehand can't open goes to Downloads with a note (“${said}”)`);
+  // a file host that downloads through a new window (Drive): the song still lands in the library
+  const windows = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed() && w.getTitle() !== 'Stagehand').map((w) => ({ title: w.getTitle(), shown: w.isVisible(), url: w.webContents.getURL() })));
+  const sayAfter = async (re) => { let t = ''; for (let i = 0; i < 60 && !re.test(t); i++) { await wait(250); t = await msg(); } return t; };
+  await run('/search', "location.href = '/host'; 1");
+  await wait(800);
+  await run('/host', "document.getElementById('blank').click(); 1");
+  await sayAfter(/Downloading|Adding/);
+  said = await sayAfter(/already have|in your library|couldn/);
+  check(/already have|in your library/.test(said), `a download a file host starts in a new, empty window is taken (“${said}”)`);
+  await wait(600);
+  let left = (await windows()).filter((w) => w.shown && !/Find songs/.test(w.title));
+  check(!left.length, `no empty window is left behind (${JSON.stringify(left)})`);
+  check((await contents()).some((c) => c.url.includes('/search?q=')), 'the finder is back on the song site, not stranded on the file host');
+  // the "can't scan it" page in a new window: it shows, its button downloads, it closes
+  await run('/search', "location.href = '/host'; 1");
+  await wait(800);
+  await app.evaluate(({ webContents }) => { for (const w of webContents.getAllWebContents()) if (w.getURL().includes('bar.html')) w.executeJavaScript("document.getElementById('msg').textContent = ''"); });
+  await run('/host', "document.getElementById('big').click(); 1");
+  let warn = null;
+  for (let i = 0; i < 40 && !warn; i++) { await wait(250); warn = (await windows()).find((w) => w.url.includes('/warn') && w.shown); }
+  check(!!warn, `a file host's second page (“can't scan this file”) opens in its own window (${JSON.stringify(await windows())})`);
+  await run('/warn', "document.getElementById('anyway').click(); 1");
+  said = await sayAfter(/already have|in your library|couldn/);
+  check(/already have|in your library/.test(said), `its Download anyway button brings the song in (“${said}”)`);
+  await wait(600);
+  left = (await windows()).filter((w) => w.shown && !/Find songs/.test(w.title));
+  check(!left.length, `that window closes by itself (${JSON.stringify(left)})`);
   const shot = await app.evaluate(async ({ BaseWindow }) => {
     const w = BaseWindow.getAllWindows().find((x) => x.getTitle().startsWith('Find songs'));
     if (!w) return null;

@@ -58,6 +58,11 @@ Work notes with the full list and who did what: `docs/notes/4.18-playground.md`.
   (`cabinets.js` `cabinetFor`). Ideas not done: the song's own mic position, a per-tone level trim, softer tone switches.
 - **Finder** (`finder.js` `leaveFileHost`): when a song from a file host (Drive, MediaFire…) is in, the window steps
   back to the song site instead of sitting on "No preview available".
+  The user then said Drive's pages never let a download through at all. Found with a pretend file host in the real
+  app (`test/e2e/finder-electron.js`, new cases): a Download button that opens a new, empty window and sends that to
+  the file (what Drive does) was dropped, because the finder refused every new window. Now an empty new window is
+  let open out of sight (`popup()`), its download is taken, it shows only if a real page loads in it (Drive's
+  "can't scan this file" page) and closes when the file is in. NOT tried on the real Drive: ask the user.
 - **Speed** (Speed checker's audit; the safe ones done): the Now playing page no longer redraws while another page
   shows (`stage.js` `frame`), search suggestions reuse each song's index (`searchmatch.js`), the fast graphics card on
   two-card laptops (`main.js`). Not done: background stem splits at low priority, note detection off the screen loop,
