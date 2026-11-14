@@ -1030,6 +1030,7 @@ export function createTabView(host, stage) {
     panel.append(h('div.rig-head', null, h('div', null, h('b', { text: 'Your guitar' }), h('span.rig-status', { text: how })), power, close));
     if (rig.error) panel.append(h('div.rig-error', { text: rig.error }));
     else if (rig.notice) panel.append(h('div.rig-note', { text: rig.notice }));
+    if (!rig.error && rig.outputWarning) panel.append(h('div.rig-note', { text: rig.outputWarning }));
 
     const sel = h('select.input.small', { 'aria-label': 'Input' });
     sel.append(h('option', { value: '', text: 'Finding inputs…' }));

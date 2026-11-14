@@ -5,6 +5,7 @@ import { InstrumentSense, reading } from './instrument.js';
 import { instrumentShift } from './detect.js';
 import { loadGear, toSpec, ampGain, describe } from './gearspec.js';
 import { resolveCapture, caps } from './captures.js';
+import { lateWarning } from './lateout.js';
 
 /**
  * Your guitar through Stagehand.
@@ -1273,6 +1274,11 @@ export class Rig extends EventTarget {
 
   get sampleRate() {
     return (this.backend && this.backend.rate) || 48000;
+  }
+
+  /** 4.18: a TV or Bluetooth output plays the guitar late whatever we do; say so. */
+  get outputWarning() {
+    return this.on && this.info ? lateWarning(this.info.outName) : '';
   }
 
   get latencyMs() {
