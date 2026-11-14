@@ -63,7 +63,6 @@ let library;
 let tools;
 let audio;
 let finder;
-let dlcImporter;
 let stems;
 let art;
 let companion = null; // 4.16: the Quest companion
@@ -977,30 +976,6 @@ function registerIpc() {
     if (s.stems.model !== before) send('stems:model', s.stems.model);
     return s;
   });
-
-  handle('dlc:scan', async () => {
-    if (dlcImporter?.busy) throw new Error('An import operation is already running.');
-    let dir = settings.get().rocksmith.gameDir;
-    const valid = async (folder) => {
-      if (!folder) return false;
-      try { const archive = await Psarc.open(path.join(folder, 'songs.psarc')); await archive.close(); return true; } catch (_) { return false; }
-    };
-    if (!await valid(dir)) {
-      const r = await dialog.showOpenDialog(win, { title: 'Select Rocksmith installation folder (contains songs.psarc)', properties: ['openDirectory'] });
-      if (r.canceled || !r.filePaths.length) return null;
-      dir = r.filePaths[0];
-      if (!await valid(dir)) throw new Error('Select the Rocksmith folder containing a valid songs.psarc.');
-      settings.set({ rocksmith: { gameDir: dir } });
-    }
-    if (!dlcImporter) {
-      const { DlcImporter } = require('./services/dlc-importer');
-      dlcImporter = new DlcImporter({ library, audio, tabs, cacheFile: path.join(D.local, 'dlc-audio-index.json'),
-        onProgress: (p) => send('dlc:progress', p) });
-    }
-    return dlcImporter.scan(dir);
-  });
-  handle('dlc:import', (ids) => dlcImporter?.importSelected(ids));
-  handle('dlc:cancel', () => { dlcImporter?.cancel(); return true; });
 
   handle('rs:read', () => rsprofiles.read());
   handle('rs:apply', (ops) => {

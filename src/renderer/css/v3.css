@@ -1296,6 +1296,19 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 /* 4.1.6 Getting started: groups, step count, Show me, the keys */
 .gs-group { margin: 12px 10px 4px; color: var(--ink-3); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .gs-group:first-child { margin-top: 0; }
+/* 4.17.1: the parts you're not in fold to one line you can press; everything on one page of cards */
+.gs-group.on { color: var(--tungsten-hi); }
+.gs-group-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0 0; padding: 8px 10px; border: 0; border-radius: 8px; background: none; font-family: inherit; text-align: left; cursor: pointer; }
+.gs-group-btn:hover { background: var(--deck-2); color: var(--ink); }
+.gs-group-btn i { display: grid; place-items: center; flex: none; min-width: 20px; height: 20px; border-radius: 10px; background: var(--deck-2); font-style: normal; font-size: 11px; letter-spacing: 0; }
+.gs-group-btn i svg { width: 12px; height: 12px; }
+.gs-group-btn.done i { color: #45d07c; }
+.gs-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin: 4px 0 6px; }
+.gs-card { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 10px; row-gap: 2px; align-items: center; padding: 10px 12px; border: 1px solid var(--rule-soft); border-radius: 10px; background: var(--deck-2); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.gs-card:hover { border-color: var(--tungsten-hi); }
+.gs-card svg { width: 20px; height: 20px; color: var(--tungsten-hi); }
+.gs-card b { font-size: 13.5px; font-weight: 650; }
+.gs-card span { grid-column: 2; color: var(--ink-3); font-size: 12px; line-height: 1.4; }
 .gs-steps { overflow-y: auto; max-height: min(70vh, 640px); }
 .gs-body { overflow-y: auto; max-height: min(70vh, 640px); padding-right: 6px; }
 .gs-count { margin-bottom: 4px; color: var(--ink-3); font-size: 11.5px; letter-spacing: 0.02em; }

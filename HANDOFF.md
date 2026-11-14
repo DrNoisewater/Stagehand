@@ -1,3 +1,26 @@
+# 4.17.1 — Getting started cut down and brought up to date; the DLC import button removed (2026-11-14, not released)
+
+User: "The getting started section is going to need a little bit of an update to show off everything without making it
+super overwhelming. Also, remove the button in the library that says import rocksmith dlc, and all code under that
+button".
+- **Getting started** (`src/renderer/js/guide.js`, styles in `v3.css` under "4.17.1"): 17 short pages in four parts.
+  Every page is a line or two and at most four steps, with nothing to scroll.
+  - *Get set up* (4): Welcome, Your guitar, Get songs (three old pages in one), Tune up (tuner, Drop, timing check).
+  - *Play a song* (3): **What's in Stagehand** (11 cards, one line each, a click jumps to that page; the "show me
+    around" button and the toast land here), The highway, Stems.
+  - *Around Stagehand* (6): Songs, Jam, Tones and Gear, Progress, Discover, Backstage.
+  - *More to try* (4): Sing and Karaoke (auto-tune, voice changer), Piano, Quest headset, Keys (11 keys, was 14).
+  - The list on the left shows only the part you're in; the other parts fold to one line each (`.gs-group-btn`).
+  - People who saw the old tour get one note (`ui.guideVersion` 3).
+  - Check: `test/e2e/guide-audit.js`.
+- **Import Rocksmith DLC removed**: the button in Settings › Library, its window (`js/dlc-import.js`), its engine
+  (`services/dlc-importer.js`), the `dlc:*` messages in `main.js` and `preload.js`, its tests and
+  `docs/DLC-IMPORT-CHANGES.md`. **Kept on purpose**: the few `dlcImport` lines in `library.js` and `tabs.js`, so songs
+  someone already brought in with it stay in the library and still play. Remove those too if the user says nobody
+  used it.
+- **Ask the user**: is the tour the right length now? Anything missing from the cards? Were any songs imported with
+  the old button (if not, the leftover lines can go)?
+
 # 4.17.0 — Auto-tune and voice changer (released 2026-11-14; user: "Merge and release"; not tried with a real voice)
 
 User: "We need to get auto tune working for the voice input … while you're playing or doing karaoke, you can enable
