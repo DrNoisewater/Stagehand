@@ -1,4 +1,4 @@
-# 4.17.1 — Getting started cut down and brought up to date; the DLC import button removed (2026-11-14, not released)
+# 4.17.1 — Getting started cut down and brought up to date; the DLC import button removed (released 2026-11-14; user: "merge and release")
 
 User: "The getting started section is going to need a little bit of an update to show off everything without making it
 super overwhelming. Also, remove the button in the library that says import rocksmith dlc, and all code under that
@@ -13,6 +13,9 @@ button".
   - The list on the left shows only the part you're in; the other parts fold to one line each (`.gs-group-btn`).
   - People who saw the old tour get one note (`ui.guideVersion` 3).
   - Check: `test/e2e/guide-audit.js`.
+- User then asked for a mute ("Add the mute button"): **Mute my voice** in the auto-tune menu (`tuneMenu()` in
+  `singlane.js`; `autotune.muted` / `setMuted`, pref `muted`). Your style and voice are kept but nothing is played;
+  the tape on the lane says "Voice muted". Picking a style or a voice un-mutes. Greyed out when nothing is picked.
 - **Import Rocksmith DLC removed**: the button in Settings › Library, its window (`js/dlc-import.js`), its engine
   (`services/dlc-importer.js`), the `dlc:*` messages in `main.js` and `preload.js`, its tests and
   `docs/DLC-IMPORT-CHANGES.md`. **Kept on purpose**: the few `dlcImport` lines in `library.js` and `tabs.js`, so songs

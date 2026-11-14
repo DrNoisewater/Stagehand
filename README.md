@@ -183,7 +183,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
-- **4.17.1:** Getting started is shorter and up to date: everything in Stagehand on one page, then a short page for each part, with singing and auto-tune, piano and the Quest headset. The Import Rocksmith DLC button in Settings › Library is gone.
+- **4.17.1:** Getting started is shorter and up to date: everything in Stagehand on one page, then a short page for each part, with singing and auto-tune, piano and the Quest headset. Mute my voice in the auto-tune menu keeps your choices but stops your voice being played. The Import Rocksmith DLC button in Settings › Library is gone.
 - **4.17.0:** Auto-tune and a voice changer for singing. In Sing along or Karaoke, pick Natural, Pop or Hard tune (the T-Pain sound) and hear your voice lifted onto the song's notes, with the song. Sing as a deep voice, a giant, a high voice or a chipmunk, with auto-tune or on its own. Headphones are best.
 - **4.16.3:** Setup looks like the app now: the torn flyer on the rehearsal-room wall, a character, cream buttons.
 - **4.16.2:** A more modern highway: round, shiny strings with a soft shadow, round metal frets, and round inlay dots on the neck (gold where your hand is).
