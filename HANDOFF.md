@@ -1,3 +1,76 @@
+# 4.18.0 — One playground: jump between guitar, singing, karaoke and piano; steady menus; the voice comes through (2026-11-14, NOT released; nothing tried on the user's PC yet)
+
+The user on 4.17.1 (several messages): "Cant find where to sing from highway… singing, i want to play that on guitar
+now. Playing guitar, oh snap lets see piano, nah lets go singing jump straight to karaoke" · "lots of flickering
+everywhere, when touching menus. the submenus only show when i click them" · "piano should allow for up to 88 keys…
+more modern… like the glowing photo" · "UI/UX is core. everything easily doable from everywhere. one ecosystem." ·
+"sometimes it shows guitar is needing tuning after a karaoke song is started" · "a lot of difficulty getting my own
+voice to come through at all… there is a small delay" · "i imagined the hard tune to make me sound like t pain… carry
+my voice up to the correct note" · "these song bars move around too, so how is someone supposed to know what note to
+sing" · "i couldn't connect to the app from my quest. the page never seemed to load" · "chipmunk sounded like an old
+lady… Giant… was like Jigsaw" · "do the tones it pulls from songs go through the same processes" · "Some times the
+drop pedal shows by itself" · "Make sure entire program… uses cpu cores and gpu efficiently" · (finder screenshot of a
+Drive "No preview available" page) "i get to screens like this and i can see that the download is initiated".
+Work notes with the full list and who did what: `docs/notes/4.18-playground.md`.
+
+- **Menus** (`ui.js`, between `// --- menus --` and `// --- modals --`): cascading panels. A row with `submenu` opens
+  its side menu under the mouse (90 ms) beside the row; the first menu is never rebuilt. `keep: true` rows run and
+  stay open (ticks repaint: `label`, `hint`, `submenu` may be functions). No pop animation, no focus ring on open, a
+  `menu-close` window event. All 41 `showMenu` callers keep working.
+- **Play it as** (`highway.js` `playAs(mode, partId)`: 'guitar' | 'sing' | 'karaoke' | 'piano'): the Sing, Karaoke and
+  Piano chips (`.hw-mode`) are always in the top bar, never hidden, never change width (the label is fixed; a chevron
+  appears when it is on and a second press opens its options). Part chips call `playAs('guitar', id)`. A switch is one
+  step (`switching`), then `asideChanged()`. A grid button (`.hw-go`) by Back opens any page. From the library:
+  right-click › Play it on (`actions.playAs`, `state.modeNext`), a piano button on the cover (`inspector.js`), and on
+  the Karaoke page's cards.
+- **Top bar fade**: woken by the mouse anywhere (document) and when a menu closes, so it doesn't fade under a menu.
+- **Blur**: `backdrop-filter` is off everywhere (end of `v3.css`): a blurred panel over a moving picture flickers on
+  Windows. Panels were nearly solid already.
+- **Tuning card** (`practice.js` `guitarAside`, `highway.js` `asideChanged`): not shown when a song opens for karaoke
+  or piano; shown when you switch to the guitar.
+- **Drop pedal pop-up** (`highway.js` `syncDropPop`, `dropui.js` `autoOpen`): only while the Drop is really working,
+  folded to its head, never while the guitar is aside. A song that would like the Drop is the tuning card's job.
+- **Piano** (`keys.js`): `KEYS_COLOURS` (Violet and gold, Green and blue, Pink and orange, Ice, Rainbow across the
+  keys), `GLOWS`, `BACKDROPS` (dark, or the stage behind), `KEYS_SIZES` (88 default, 76, 61, 49, only the keys the song
+  uses), note names on the notes. `drawFall` redone: halos, gradient bars, a beam and sparks where a note lands.
+  Menu: How much to play, Hands, Show, Look, Piano size, Keyboard.
+- **Singing lane** (`singlane.js` `drawBars`): each note sits at one height for the whole song (`S.rng`, worked out
+  once; it only moves when the tune is wider than the lane can show), a faint line per note, note names at the left in
+  karaoke.
+- **Voice** (Voice fixer: `autotune-worklet.js`, `autotune.js`, `mic.js`, `test/autotune.test.mjs`): the voice was
+  buried: no make-up gain and a fixed gate. Now automatic level (a quiet mic comes out healthy, up to 24×), a gate
+  that learns the room, **Hear my voice** (`autotune.hear` / `setHear`: the plain voice, zero added delay), the tuned
+  voice 1–4 ms late instead of 6–17, 128-sample blocks to the engine, song notes reached from any distance in the
+  nearest octave (held per note), Pop/Natural jump 75% at once, Hard tune instant with a 35-cent hold band, consonants
+  passed dry. Voices: `giant` is now named **Villain** (same id), new Monster, Robot (`droid`), Alien, Radio, Stadium;
+  Chipmunk fixed. The menu (`singlane.js` `tuneMenu`) is in three parts: Your voice in the song, Auto-tune, Just for fun.
+  `autotune.listen(who)` posts the sound thread's note readings (every 5 ms); `mic.feed()` gives them to the tracker
+  the score reads (`mic.read()` falls back to its own slower look when none arrive).
+  **Still to do there:** `native/host/host.c` keeps a 25 ms safety buffer for the voice (`H.voice_target`); ~8 ms should
+  do with 128-sample blocks. Needs `native/build.sh` and the rebuilt .exe/.wasm committed.
+- **Quest** (Quest finder: `companion.js`, `selfcert.js`, `questsettings.js`): most likely Windows Firewall (nothing
+  added a rule). The port now answers plain http too (sent on to https); Settings shows how far the headset got, the
+  firewall and Public/Private state (read-only PowerShell), VPN warnings, adapters ranked, and a **Let the headset in**
+  button (`companion.allowFirewall()`: one Windows prompt, a rule for home-network addresses only). Pi-hole is not it:
+  the address is numbers and the page loads nothing from the internet. Untested on Windows.
+- **Song tones** (Tone checker's finding): same engine, circuits, loudness matching and real amps as hand-built tones.
+  The one difference was the cabinet, picked from the amp's name; now from the song's own cabinet first
+  (`cabinets.js` `cabinetFor`). Ideas not done: the song's own mic position, a per-tone level trim, softer tone switches.
+- **Finder** (`finder.js` `leaveFileHost`): when a song from a file host (Drive, MediaFire…) is in, the window steps
+  back to the song site instead of sitting on "No preview available".
+- **Speed** (Speed checker's audit; the safe ones done): the Now playing page no longer redraws while another page
+  shows (`stage.js` `frame`), search suggestions reuse each song's index (`searchmatch.js`), the fast graphics card on
+  two-card laptops (`main.js`). Not done: background stem splits at low priority, note detection off the screen loop,
+  ffmpeg priority, `tools.js` `dirBytes` async, `visuals.js` `size()` per frame, DirectML.
+- **Research** (in the notes file): Feedback is Slopsmith renamed; its "Virtuoso" is a guitar practice studio, its
+  piano ("Piano Highway") and vocals are thinner than ours. Ideas worth taking: wait-for-note mode, a mic delay test,
+  per-hand piano practice, golden notes.
+- **Checks**: `MODES=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <out> T:3` (new). `PORT=` picks shoot.js's port.
+
+**Ask the user:** does the voice come through now, and how is the delay (headphones)? Do Hard tune and the new voices
+sound right (Chipmunk, Villain)? Are menus and the top bar flicker-free? Does the Quest connect after "Let the headset
+in"? Do song tones sound better or worse with the new cabinet choice? Is the piano look what they pictured?
+
 # 4.17.1 — Getting started cut down and brought up to date; the DLC import button removed (released 2026-11-14; user: "merge and release")
 
 User: "The getting started section is going to need a little bit of an update to show off everything without making it

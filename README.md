@@ -183,6 +183,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.18.0:** One playground. Sing, Karaoke and Piano buttons are always at the top of the highway, so you can jump between guitar, singing, karaoke and piano in one click, and a new button there opens any page. Menus stay put and their side menus open under the mouse. Piano shows up to 88 keys with a darker, glowing look and colours to pick. Your voice comes through clearly and faster, with a plain Hear my voice choice and new fun voices. The singing lane keeps each note at the same height. Settings now says why a Quest headset can’t reach the PC and can fix the usual cause.
 - **4.17.1:** Getting started is shorter and up to date: everything in Stagehand on one page, then a short page for each part, with singing and auto-tune, piano and the Quest headset. Mute my voice in the auto-tune menu keeps your choices but stops your voice being played. The Import Rocksmith DLC button in Settings › Library is gone.
 - **4.17.0:** Auto-tune and a voice changer for singing. In Sing along or Karaoke, pick Natural, Pop or Hard tune (the T-Pain sound) and hear your voice lifted onto the song's notes, with the song. Sing as a deep voice, a giant, a high voice or a chipmunk, with auto-tune or on its own. Headphones are best.
 - **4.16.3:** Setup looks like the app now: the torn flyer on the rehearsal-room wall, a character, cream buttons.
