@@ -22,7 +22,7 @@ import { VENUES, VENUE_ALIAS, venueThumb, createVenue, createFire } from './venu
 import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShift } from './detect.js';
-import { createRenderer3D, col, mix, rodShades } from './highway3d.js';
+import { createRenderer3D, col, mix, mixHex, rodShades } from './highway3d.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { tuningGuide, checkTuning } from './tuning-check.js';
@@ -1619,23 +1619,47 @@ export function createHighway(stage) {
     canvas.height = Math.round(HH * dpr);
     canvas.style.width = `${W}px`;
     canvas.style.height = `${HH}px`;
-    if (R3) R3.resize(W, HH, Math.min(dpr, 1.5)); // the 3D picture needs no more than 1.5x on 4K screens (text stays sharp)
+    if (R3) {
+      R3.resize(W, HH, Math.min(dpr, 1.5)); // the 3D picture needs no more than 1.5x on 4K screens (text stays sharp)
+      if (R3.scale > 1 && Math.min(dpr, 1.5) * R3.scale > 1.5 + 1e-6) R3.setScale(1, Math.min(dpr, 1.5)); // moved to a sharper screen
+    }
   }
   window.addEventListener('resize', () => H.open && resize());
 
   // Keeps the highway smooth on slow graphics: if frames take too long, the
-  // glow goes first, then the 3D picture renders at a lower resolution.
-  const perf = { noGlow: false, acc: 0, n: 0, since: 0 };
+  // 3D picture renders at a lower resolution.
+  // 4.17: and sharper on fast ones: on an ordinary screen a PC with time to spare draws the picture
+  // above its size (up to 1.5x, then shrunk to fit: smoother strings and edges, less shimmer). That is
+  // only decided while paused or before the first note, never while you play; if frames then suffer,
+  // it steps back down (and never tries that size again this session).
+  const perf = { noGlow: false, acc: 0, n: 0, since: 0, msAcc: 0, best: Infinity, cap: 1.5 };
   H.perfState = perf;
   function govern(ms, dt) {
     if (!R3) return;
     perf.acc += Math.max(ms, dt * 1000);
+    perf.msAcc += ms;
     perf.n++;
     if (perf.n < 60 && perf.acc < 1200) return;
     const avg = perf.acc / perf.n;
+    const cpu = perf.msAcc / perf.n;
     perf.acc = 0;
+    perf.msAcc = 0;
     perf.n = 0;
-    if (avg > 26 && R3.scale > 0.5) R3.setScale(R3.scale > 0.75 ? 0.75 : 0.5, Math.min(dpr, 1.5));
+    perf.best = Math.min(perf.best, avg); // about one screen refresh
+    const ratio = Math.min(dpr, 1.5);
+    const top = Math.min(perf.cap, 1.5 / ratio); // never more than 1.5 pixels per screen pixel
+    const calm = !stage.engine.playing || (H.targets && H.targets.length && H.clock < H.targets[0].t - 1.5);
+    if (avg > 26 && R3.scale > 1) {
+      perf.cap = 1;
+      R3.setScale(1, ratio);
+    } else if (avg > 26 && R3.scale > 0.5) R3.setScale(R3.scale > 0.75 ? 0.75 : 0.5, ratio);
+    else if (calm && R3.scale > 1 && avg > perf.best * 1.25) {
+      // the sharper picture costs frames: back down a step, and stay there
+      perf.cap = R3.scale - 0.25;
+      R3.setScale(perf.cap, ratio);
+    } else if (calm && R3.scale >= 1 && R3.scale + 0.25 <= top + 1e-6 && avg < Math.min(18, perf.best * 1.1) && cpu < 6) {
+      R3.setScale(R3.scale + 0.25, ratio);
+    }
     H.perf = { avg, glow: R3.glow, scale: R3.scale };
   }
 
@@ -1902,6 +1926,7 @@ export function createHighway(stage) {
     geometry(t);
     camera(t, dt);
     drawBackdrop(t);
+    streakLook(dt);
     if (aside()) {
       // karaoke or piano: the stage only, no neck and no guitar notes
       R3.begin();
@@ -2110,6 +2135,17 @@ export function createHighway(stage) {
     }
   }
 
+  // 4.17: a streak you can see, in gentle steps at 10, 20 and 30 in a row: the fret wires, the rails'
+  // glow and the sparks warm a little more at each. G.tierW goes 0..1 and eases (no jumps, no pulsing).
+  function streakLook(dt) {
+    const streak = prefs.fx ? H.forceStreak ?? (H.judge && prefs.detect && rig.on ? H.judge.streak : 0) : 0;
+    const want = streak >= 30 ? 1 : streak >= 20 ? 0.66 : streak >= 10 ? 0.33 : 0;
+    const cur = H.tierW || 0;
+    H.tierW = cur + (want - cur) * Math.min(1, (dt || 0.016) * (want < cur ? 4 : 1.5));
+    if (Math.abs(H.tierW - want) < 0.002) H.tierW = want;
+    G.tierW = H.tierW;
+  }
+
   // Audio-driven backgrounds follow the audible song bus and processed instrument.
   const FALLBACK_VENUE = VENUES.find((x) => x.id === 'warehouse' && x.photo) || VENUES.find((x) => x.photo) || null;
   const fluid = createFluid(root);
@@ -2134,6 +2170,7 @@ export function createHighway(stage) {
   const RAIL = '#50e8ff';
   const RAIL_HOT = '#ff963c';
   const railCol = (a, k = 1) => mix(RAIL, RAIL_HOT, G.heat || 0, a, k);
+  const BLANK = col('#000000', 0); // no light (the soft edge of a glow)
   function railColor(a) {
     const k = G.heat || 0;
     return `rgba(${Math.round(80 + 175 * k)}, ${Math.round(232 - 82 * k)}, ${Math.round(255 - 195 * k)}, ${a})`;
@@ -2166,9 +2203,14 @@ export function createHighway(stage) {
       }
       for (let f = an.fret; f < an.fret - 1 + (an.width || 4); f++) floor.bar([XF(f), 0.006, za], [XF(f), 0.006, zb], 0.04, col('#78e6ff', 0.55));
       // the bright rails
+      const tw = G.tierW || 0;
       for (const x of [xa, xb]) {
         floor.bar([x, 0.008, za], [x, 0.008, zb], 0.07, railCol(0.95, 1.1));
-        glow.bar([x, 0.01, za], [x, 0.01, zb], 0.26, railCol(0.14, 1));
+        // 4.17: a soft glow either side of the rail (was a flat band), wider and brighter on a streak
+        const gw = 0.18 + 0.1 * tw;
+        const gc = railCol(0.2 + 0.1 * tw, 1);
+        glow.q(x - gw, 0.01, za, x, 0.01, za, x, 0.01, zb, x - gw, 0.01, zb, BLANK, gc, gc, BLANK);
+        glow.q(x, 0.01, za, x + gw, 0.01, za, x + gw, 0.01, zb, x, 0.01, zb, gc, BLANK, BLANK, gc);
       }
       // a new hand position: a light bar across its front edge and its fret numbers on the floor
       if (za > G.zs * 0.3 && za < zF * 0.9) {
@@ -2180,6 +2222,13 @@ export function createHighway(stage) {
           label(String(f), laneC(f), 0, za - 0.35, { size: 0.42 * laneW(f), min: 9, max: 26, weight: 800, color: inA(f) ? '#ffffff' : 'rgba(90, 210, 220, 0.8)', alpha: Math.max(0, Math.min(1, (zF - za) / (zF * 0.45))) });
         }
       }
+    }
+    // 4.17: a soft glow where the highway meets the distance, so the far end melts into the stage
+    // light instead of just stopping (steady: it never pulses)
+    if (prefs.fx !== false) {
+      const an = anchorAt(t + G.L * 0.9);
+      const hx = mixHex(RAIL, RAIL_HOT, G.heat || 0, 8);
+      glow.halo((anX0(an) + anX1(an)) / 2, 0.5, zF * 0.82, 10, 2.6, hx, 0.32, 1, 'z', 24);
     }
     // beat lines across the hand position: bars brighter
     const beats = H.tab.beats || [];
@@ -2224,32 +2273,79 @@ export function createHighway(stage) {
       const ys = f % 12 === 0 ? [G.hl + (G.yTop - G.hl) * 0.28, G.hl + (G.yTop - G.hl) * 0.72] : [midY];
       for (const y of ys) {
         disc(alpha, c, y, 0.055, r, inA ? col('#ffe39a', 0.9) : col('#7fdce4', 0.42), inA ? col('#ffc040', 0.82) : col('#4fb8c4', 0.36));
-        if (inA) disc(glow, c, y, 0.06, r * 1.9, col('#ffc446', 0.12), col('#000000', 0));
+        // 4.17: a soft round glow (was a hard-edged disc)
+        glow.halo(c, y, 0.06, r * 3, r * 3, inA ? '#ffc446' : '#4fb8c4', inA ? 0.2 : 0.06);
       }
     }
     // fret wires: round metal posts standing across the strings (lit from above, a bright edge
-    // where the light catches them), the nut ivory and a little wider
+    // where the light catches them), the nut ivory and a little wider. 4.17: polished, with a sharper
+    // shine; a streak warms them (10, 20, 30 in a row), most in your hand position
+    const warm = G.tierW || 0;
+    const inHand = (f) => f >= a.fret - 1 && f <= a.fret - 1 + (a.width || 4);
     for (let f = Math.max(0, f0 - 1); f <= Math.min(24, f1 + 1); f++) {
       const x = XF(f);
       if (f === 0) solid.rodY(x, 0, yb, yt, 0.04, rodShades('#e4dcc6', 'post', 6));
-      else solid.rodY(x, 0, yb, yt, 0.021, rodShades('#a9adb8', 'post', 4));
+      else {
+        const w = warm * (inHand(f) ? 0.6 : 0.3);
+        solid.rodY(x, 0, yb, yt, 0.021, rodShades(w > 0.01 ? mixHex('#a9adb8', '#ffbe82', w, 12) : '#a9adb8', 'wire', 6));
+        if (w > 0.05) glow.upSoft(x - 0.09, x + 0.09, yb, yt, -0.01, col('#ff9a50', 0.14 * w), col('#ffb070', 0.05 * w));
+      }
     }
     // strings: round and coloured, a touch thicker toward the low E, with a bright line along the top
     // where the light catches them and a soft glow behind (4.16.2: were flat boxes)
+    const sway = stringSway(a);
     for (let s = 0; s < n; s++) {
       const y = strH(s);
       const th = (n === 4 ? 0.034 : 0.028) - s * (n === 4 ? 0.0035 : 0.0024);
-      solid.rodX(xn, xe, y, 0, th, rodShades(STRING[s], 'string', 6));
+      const sh = rodShades(STRING[s], 'string', 6);
+      const sw = sway.get(s);
+      if (!sw) solid.rodX(xn, xe, y, 0, th, sh);
+      else {
+        // 4.17: the string you hit sways a little around its fret, slowly, and settles at once
+        const xa = Math.max(xn, sw.x - SWAY_W * 2.2);
+        const xb = Math.min(xe, sw.x + SWAY_W * 2.2);
+        solid.rodX(xn, xa, y, 0, th, sh);
+        let px = xa;
+        let py = y;
+        for (let k = 1; k <= 16; k++) {
+          const x = xa + ((xb - xa) * k) / 16;
+          const u = (x - sw.x) / SWAY_W;
+          const yy = y + sw.d * Math.exp(-u * u);
+          solid.rodX(px, x, py, 0, th, sh, yy);
+          px = x;
+          py = yy;
+        }
+        solid.rodX(xb, xe, y, 0, th, sh);
+      }
       R3.L.floor.bar([xn, 0.004, 0.05 + s * 0.012], [xe, 0.004, 0.05 + s * 0.012], th * 2.2, col('#000000', 0.22)); // its shadow on the floor
-      glow.up(xn, xe, y - th * 3, y + th * 3, 0.03, col(STRING[s], 0.07));
+      glow.acrossSoft(xn, xe, y - th * 4, y + th * 4, 0.03, col(STRING[s], 0.12));
     }
     // the hand position's edges at the neck: two bright posts, the same height as the frets
     // (3.12: they used to stand taller, which looked off to the user)
     for (const x of [anX0(a), anX1(a)]) {
       solid.rodY(x, -0.05, yb, yt, 0.03, rodShades('#fff4fb', 'post', 6));
-      glow.up(x - 0.1, x + 0.1, yb, yt, -0.085, col('#ff7ad2', 0.12), col('#50e8ff', 0.1));
+      glow.upSoft(x - 0.15, x + 0.15, yb, yt, -0.085, col('#ff7ad2', 0.22), col('#50e8ff', 0.18));
     }
+  }
 
+  // 4.17: how the strings you just hit sway: a small, slow swing around the fret, gone in half a second
+  // (slow and soft on purpose: a thin line that shakes fast reads as flicker)
+  const SWAY_W = 1.3; // how far along the string the swing reaches (world units, about a fret)
+  const SWAY_HZ = 4.5;
+  function stringSway(a) {
+    const out = new Map();
+    if (prefs.stringSway === false || !H.bursts || !H.bursts.length) return out;
+    const now = performance.now();
+    for (const b of H.bursts) {
+      const age = (now - b.at) / 1000;
+      if (age < 0 || age > 0.7) continue;
+      const cur = out.get(b.s);
+      if (cur && cur.at >= b.at) continue;
+      const d = 0.034 * Math.exp(-age / 0.17) * Math.sin(2 * Math.PI * SWAY_HZ * age);
+      out.set(b.s, { at: b.at, x: b.f === 0 ? noteX(b, a) : laneC(b.f), d });
+    }
+    for (const [s, v] of out) if (Math.abs(v.d) < 0.0015) out.delete(s);
+    return out;
   }
 
   // ------------------------------------------------------- approach --
@@ -2370,14 +2466,14 @@ export function createHighway(stage) {
         glow.up(x0 + p, x1 - p, y + hh - r - p * 0.3, y + hh - p, z - 0.002, col('#ffffff', 0.85 * hot, 1.4));
         glow.up(x0 + p, x1 - p, y - hh + p, y - hh + r + p * 0.3, z - 0.002, col('#ffffff', 0.85 * hot, 1.4));
         const R = (x1 - x0) * 0.35;
-        glow.up(x0 - R, x1 + R, y - hh - R * 0.6, y + hh + R * 0.6, z + 0.006, col(hex, (landed ? 0.32 : 0.2) * hot, 1.3));
+        glow.halo((x0 + x1) / 2, y, z + 0.006, (x1 - x0) / 2 + R * 1.4, hh + R, hex, (landed ? 0.42 : 0.27) * hot, 1.3);
       }
     }
     // the fret wires: a white post with a warm pink glow, the same height as the frets
     for (const [xs, k] of posts) {
       const x = Number(xs);
       solid.box(x - 0.03, x + 0.03, -0.2, G.yTop + 0.32, -0.1, -0.03, col('#fff6ee', Math.min(1, k * 1.1), 1 + 1.2 * k));
-      glow.up(x - 0.16, x + 0.16, -0.2, G.yTop + 0.32, -0.105, col('#ff7a9a', 0.32 * k, 1.2), col('#ff9a6a', 0.12 * k));
+      glow.upSoft(x - 0.22, x + 0.22, -0.2, G.yTop + 0.32, -0.105, col('#ff7a9a', 0.5 * k, 1.2), col('#ff9a6a', 0.18 * k));
     }
     // the chord's box at the neck (as in Rocksmith): a rectangle as wide as the chord's frame,
     // from under the bottom string to just above the top one. Thin neon lines with a soft
@@ -2592,6 +2688,13 @@ export function createHighway(stage) {
         const ec = missed ? col('#7a7f96', 0.8) : lift > 0.05 ? col('#fff3d6', 0.95, 1.4 + lift) : col(hex, 0.95, holding ? 2.2 : 1.5);
         for (const side of [-1, 1]) alpha.bar([prev[0] + side * half, prev[1] + 0.002, prev[2]], [p[0] + side * half, p[1] + 0.002, p[2]], trem ? 0.06 : vib ? 0.05 : 0.035, trem && !missed && lift <= 0.05 ? col('#ffffff', 0.95, holding ? 1.8 : 1.3) : ec);
         if (!missed) glow.quad([prev[0] - half * 1.6, prev[1], prev[2]], [prev[0] + half * 1.6, prev[1], prev[2]], [p[0] + half * 1.6, p[1], p[2]], [p[0] - half * 1.6, p[1], p[2]], col(hex, holding ? 0.3 : 0.12));
+        // 4.17: while you hold it, a white-hot core runs down its middle with a slow, faint ripple
+        // travelling along it (about once a second at any spot, and only ±15 %: no flashing)
+        if (holding && !missed && prefs.fx !== false) {
+          const rip = (zz) => 0.5 * (0.85 + 0.15 * Math.sin(zz * 0.9 - G.t * 7.5));
+          const cw = half * 0.32;
+          glow.quad([prev[0] - cw, prev[1] + 0.003, prev[2]], [prev[0] + cw, prev[1] + 0.003, prev[2]], [p[0] + cw, p[1] + 0.003, p[2]], [p[0] - cw, p[1] + 0.003, p[2]], col('#ffffff', rip(prev[2]), 1.3), col('#ffffff', rip(prev[2]), 1.3), col('#ffffff', rip(p[2]), 1.3), col('#ffffff', rip(p[2]), 1.3));
+        }
       }
       prev = p;
     }
@@ -2646,6 +2749,17 @@ export function createHighway(stage) {
   }
 
   /**
+   * 4.17: a note's dim reflection in the stage floor (a wet-stage look): the block mirrored under the
+   * floor, faint, fading away from the floor line, gone near the neck and far away.
+   */
+  function gemReflection(x0, x1, y0, y1, z, hex, fade) {
+    if (z < 0.05 || prefs.reflections === false) return;
+    const k = Math.min(1, z / (G.zs * 0.35)) * Math.max(0, Math.min(1, (G.zF * 0.8 - z) / (G.zF * 0.3))) * fade;
+    if (k < 0.02) return;
+    R3.L.floor.q(x0, -y0, z, x1, -y0, z, x1, -y1, z, x0, -y1, z, col(hex, 0.2 * k, 1.1), col(hex, 0.2 * k, 1.1), col(hex, 0.03 * k), col(hex, 0.03 * k));
+  }
+
+  /**
    * A note: a glassy block in its string's colour at its string's height in
    * its fret's lane, facing you, with a bright rim; a thin stem down to the
    * floor with its fret number there.
@@ -2669,6 +2783,12 @@ export function createHighway(stage) {
       const hh = G.gy * 0.14 * big;
       solid.box(xa, xb, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, 0.42, fade), col(hex, fade, 1.2), col(dark, fade));
       glow.up(xa, xb, y - hh, y + hh, z - 0.005, col(hex, 0.55 * fade * (missed ? 0.3 : 1), rimK));
+      // 4.17: a light line along its top edge, a soft glow as it nears, its reflection on the floor
+      if (!missed) {
+        glow.up(xa, xb, y + hh * 0.45, y + hh, z - 0.007, col('#ffffff', 0.35 * fade, 1));
+        if (near > 0.05) glow.acrossSoft(xa - 0.1, xb + 0.1, y - hh * 4, y + hh * 4, z + 0.01, col(hex, 0.16 * near * fade));
+        gemReflection(xa, xb, y - hh, y + hh, z, hex, fade * 0.5);
+      }
       return;
     }
     const x = laneC(nt.f);
@@ -2685,15 +2805,46 @@ export function createHighway(stage) {
     solid.box(x - hw, x + hw, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, missed ? 0.15 : 0.42, fade, 1 + 0.3 * near), col(hex, fade, 1.1), col(dark, fade, 0.85));
     // bright rim around the front, and a light bar across the middle
     const rim = Math.min(hw, hh) * 0.3;
+    // 4.17: inside the rim the face is raised and bevelled like a cut stone: the top bevel catches the
+    // light, the bottom one is in shadow, the face itself lighter at the top
+    const bev = rim * 0.75;
+    const BZ = 0.02;
+    const ox = hw - rim;
+    const oy = hh - rim;
+    const ix = ox - bev;
+    const iy = oy - bev;
+    const zb = z - 0.001;
+    const zi = z - BZ;
+    const kf = 1 + 0.3 * near;
+    const cTop = mix(hex, '#ffffff', missed ? 0.1 : 0.4, fade, 1.15 * kf);
+    const cBot = col(dark, fade, 0.8);
+    const cL = mix(dark, hex, 0.62, fade, kf);
+    const cR = mix(dark, hex, 0.38, fade, kf);
+    solid.q(x - ox, y + oy, zb, x + ox, y + oy, zb, x + ix, y + iy, zi, x - ix, y + iy, zi, cTop, cTop, cTop, cTop);
+    solid.q(x - ix, y - iy, zi, x + ix, y - iy, zi, x + ox, y - oy, zb, x - ox, y - oy, zb, cBot, cBot, cBot, cBot);
+    solid.q(x - ox, y - oy, zb, x - ix, y - iy, zi, x - ix, y + iy, zi, x - ox, y + oy, zb, cL, cL, cL, cL);
+    solid.q(x + ix, y - iy, zi, x + ox, y - oy, zb, x + ox, y + oy, zb, x + ix, y + iy, zi, cR, cR, cR, cR);
+    const fTop = mix(dark, hex, missed ? 0.25 : 0.62, fade, kf);
+    const fBot = mix(dark, hex, missed ? 0.1 : 0.3, fade, kf);
+    solid.q(x - ix, y - iy, zi, x + ix, y - iy, zi, x + ix, y + iy, zi, x - ix, y + iy, zi, fBot, fBot, fTop, fTop);
     // 4.2.1: in its last tenth of a second the rim goes white-hot, as in Rocksmith
     const rc = flare > 0.05 || (near > 0.8 && !missed) ? col('#ffffff', fade, rimK) : col(hex, fade, rimK);
-    const zf = z - 0.006;
+    const zf = zi - 0.006;
     glow.up(x - hw, x + hw, y + hh - rim, y + hh, zf, rc);
     glow.up(x - hw, x + hw, y - hh, y - hh + rim, zf, rc);
     glow.up(x - hw, x - hw + rim, y - hh, y + hh, zf, rc);
     glow.up(x + hw - rim, x + hw, y - hh, y + hh, zf, rc);
     glow.up(x - hw * 0.55, x + hw * 0.55, y - rim * 0.45, y + rim * 0.45, zf, col(hex, fade * 0.9, rimK * 0.9));
-    if (!missed && near > 0.05) glow.up(x - hw * 1.8, x + hw * 1.8, y - hh * 1.8, y + hh * 1.8, z + 0.01, col(hex, 0.12 * near * fade));
+    if (!missed) {
+      // a soft shine across the top left of the face (still: it never moves or blinks)
+      glow.bar([x - ix, y + iy * 0.05, zf], [x - ix * 0.05, y + iy, zf], Math.min(ix, iy) * 0.55, col('#ffffff', 0.05 * fade), col('#ffffff', 0.2 * fade), 'z');
+      // a light inside that grows as the note reaches the neck, and a soft round glow around it
+      if (near > 0.05) {
+        glow.halo(x, y, zf - 0.002, ix * 1.3, iy * 1.4, mixHex(hex, '#ffffff', 0.5, 8), 0.5 * near * near * fade, 1.2);
+        glow.halo(x, y, z + 0.01, hw * 2.6, hh * 2.4, hex, 0.24 * near * fade, 1.1);
+      }
+      gemReflection(x - hw, x + hw, y - hh, y + hh, z, hex, fade);
+    }
     if (nt.accent && !missed) {
       const p = rim * 1.6;
       for (const [a0, a1, b0, b1] of [[x - hw - p, x + hw + p, y + hh + p * 0.4, y + hh + p], [x - hw - p, x + hw + p, y - hh - p, y - hh - p * 0.4], [x - hw - p, x - hw - p * 0.4, y - hh - p, y + hh + p], [x + hw + p * 0.4, x + hw + p, y - hh - p, y + hh + p]]) glow.up(a0, a1, b0, b1, zf, col('#ffffff', 0.9 * fade, 1.5));
@@ -2815,18 +2966,7 @@ export function createHighway(stage) {
     const chord = isChord(tg);
     H.hits.push({ id: e.id, at: now, chord, until: tg.t + (tg.sus || 0), offset: st ? st.offset : null });
     for (const nt of tg.notes) H.bursts.push({ s: nt.s, f: nt.f, at: now, until: tg.t + (tg.sus || 0) });
-    if (!G.F || !R3) return;
-    const an = anchorAt(tg.t);
-    for (const nt of tg.notes) {
-      const [px, py] = R3.project(noteX(nt, an), strH(nt.s), 0);
-      const n = chord ? 2 : 4;
-      for (let k = 0; k < n; k++) {
-        const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
-        const sp = 65 + Math.random() * 110;
-        sparks.push({ x: px, y: py, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 0, max: 0.18 + Math.random() * 0.16, col: Math.random() < 0.35 ? '#ffffff' : STRING[nt.s] });
-      }
-    }
-    if (sparks.length > 400) sparks.splice(0, sparks.length - 400);
+    // 4.17: the sparks are worked out from the hit itself, in buildSparks
   }
 
   function buildHits(t, a) {
@@ -2850,8 +2990,8 @@ export function createHighway(stage) {
       glow.quad([xn, y, -0.06], [xe, y, -0.06], [xe, y + G.gy * 0.45, -0.06], [xn, y + G.gy * 0.45, -0.06], col(STRING[s], 0.45 * k), col(STRING[s], 0.45 * k), col(STRING[s], 0), col(STRING[s], 0));
       glow.up(xn, xe, y - 0.02, y + 0.02, -0.065, col('#ffffff', 0.9 * k, 1.5));
       const x = b.f === 0 ? noteX(b, a) : laneC(b.f);
-      const r = laneW(Math.max(1, b.f || a.fret)) * (0.7 + 0.4 * k);
-      glow.up(x - r, x + r, y - r * 0.5, y + r * 0.5, -0.07, col(STRING[s], 0.5 * k, 1.6));
+      const r = laneW(Math.max(1, b.f || a.fret)) * (0.9 + 0.5 * k);
+      glow.halo(x, y, -0.07, r, r * 0.6, STRING[s], 0.75 * k, 1.6); // 4.17: a round flare (was a rectangle)
     }
     // 2. light posts at the fret wires around what you hit (the chord's box for a chord)
     const posts = new Map();
@@ -2867,7 +3007,7 @@ export function createHighway(stage) {
       const x = Number(xs);
       // no taller than the frets (4.0.6: taller ones read as pieces sticking out of the neck)
       solid.box(x - 0.035, x + 0.035, -0.2, G.yTop + 0.32, -0.1, -0.03, col('#fff0f8', k, 2.2));
-      glow.up(x - 0.18, x + 0.18, -0.2, G.yTop + 0.32, -0.11, col('#ff5aaa', 0.4 * k, 1.3), col('#ff5aaa', 0.1 * k));
+      glow.upSoft(x - 0.25, x + 0.25, -0.2, G.yTop + 0.32, -0.11, col('#ff5aaa', 0.62 * k, 1.3), col('#ff5aaa', 0.15 * k));
     }
     // 3. the note flares on the neck: a bright pop, held while you sustain
     for (const h of H.hits) {
@@ -2887,47 +3027,94 @@ export function createHighway(stage) {
     // in the string's colour, white-hot when you were right on time (within 30 ms). It lives for a
     // third of a second on the glow layer only: nothing about the notes, the neck, the timing or
     // the scoring changes. Sound & settings › Hit burst turns it off.
+    // 4.17: a round shock wave (was four bars making a rectangle), soft on both sides, growing and fading.
     if (prefs.hitBurst !== false) {
       for (const h of H.hits) {
         const age = (now - h.at) / 1000;
-        if (age > 0.34) continue;
+        if (age > 0.36) continue;
         const tg = H.targets[h.id];
         if (!tg) continue;
-        const p = age / 0.34;
+        const p = age / 0.36;
+        const e = 1 - (1 - p) * (1 - p) * (1 - p); // fast out, slowing down
         const k = (1 - p) * (1 - p);
-        const dead = h.offset !== null && h.offset !== undefined && Math.abs(h.offset) <= 30;
+        const dead = deadOn(h);
         const an = anchorAt(tg.t);
-        const th = 0.03 + 0.02 * (1 - p);
         for (const nt of tg.notes) {
           const x = nt.f === 0 ? noteX(nt, an) : laneC(nt.f);
           const y = strH(nt.s);
-          const w = laneW(Math.max(1, nt.f || an.fret)) * (0.5 + (dead ? 1.15 : 0.85) * p);
-          const hh = G.gy * (0.5 + (dead ? 1.3 : 1.0) * p);
-          const c = dead ? col('#ffffff', 0.9 * k, 2.2) : col(STRING[nt.s], 0.8 * k, 1.7);
-          glow.up(x - w, x + w, y + hh - th, y + hh + th, -0.075, c);
-          glow.up(x - w, x + w, y - hh - th, y - hh + th, -0.075, c);
-          glow.up(x - w - th, x - w + th, y - hh, y + hh, -0.075, c);
-          glow.up(x + w - th, x + w + th, y - hh, y + hh, -0.075, c);
+          const lw = laneW(Math.max(1, nt.f || an.fret));
+          const rx = lw * (0.35 + (dead ? 1.25 : 0.95) * e);
+          const ry = rx * 0.62;
+          const th = 0.07 + 0.1 * (1 - p);
+          glow.ring(x, y, -0.075, rx, ry, th, dead ? '#ffffff' : STRING[nt.s], (dead ? 0.95 : 0.85) * k, dead ? 2.2 : 1.7);
+          // a second, fainter ring just behind it, in the string's colour
+          if (dead) glow.ring(x, y, -0.074, rx * 0.72, ry * 0.72, th * 0.8, STRING[nt.s], 0.6 * k, 1.6);
+        }
+      }
+    }
+    buildSparks(now);
+  }
+
+  const deadOn = (h) => h.offset !== null && h.offset !== undefined && Math.abs(h.offset) <= 30;
+  // a small, fixed random sequence per hit (the same every frame, so sparks never flicker)
+  function seeded(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  /**
+   * 4.17: sparks in the 3D world (were 2-pixel lines on the screen): little streaks of light that fly
+   * up and out from the note you hit, fall, and fade, white-hot at first and cooling to the string's
+   * colour (to gold on a long streak). More of them on a dead-on hit. Where each one goes is fixed when
+   * you hit, so the same moment always looks the same.
+   */
+  function buildSparks(now) {
+    const { glow } = R3.L;
+    const warm = G.tierW || 0;
+    for (const h of H.hits) {
+      const age = (now - h.at) / 1000;
+      if (age > 0.5) continue;
+      const tg = H.targets[h.id];
+      if (!tg) continue;
+      const an = anchorAt(tg.t);
+      const dead = deadOn(h);
+      const chord = tg.notes.length > 1;
+      for (const nt of tg.notes) {
+        if (nt.mute) continue;
+        const rnd = seeded((h.id + 1) * 7919 + nt.s * 104729);
+        const x0 = noteX(nt, an);
+        const y0 = strH(nt.s);
+        const n = (chord ? 3 : 6) + (dead ? (chord ? 2 : 4) : 0) + Math.round(warm * 2);
+        const hot = warm > 0.5 ? mixHex(STRING[nt.s], '#ffc060', (warm - 0.3) * 0.8, 8) : STRING[nt.s];
+        for (let i = 0; i < n; i++) {
+          const ang = Math.PI / 2 + (rnd() - 0.5) * 2.8; // mostly up, fanning out
+          const sp = (2.6 + rnd() * 3.4) * (dead ? 1.15 : 1);
+          const vx = Math.cos(ang) * sp;
+          const vy = Math.sin(ang) * sp * 0.8;
+          const vz = -(0.4 + rnd() * 1.2); // toward you
+          const life = 0.26 + rnd() * 0.22 + (dead ? 0.08 : 0);
+          if (age > life) continue;
+          const u = age / life;
+          const at = (tt) => [x0 + vx * tt, y0 + vy * tt - 7 * tt * tt, -0.1 + vz * tt];
+          const head = at(age);
+          const tail = at(Math.max(0, age - 0.06));
+          const cool = Math.min(1, u * 1.6);
+          const a = (1 - u) * (1 - u * 0.4);
+          const c = mix('#ffffff', hot, cool, Math.min(1, a), 2.2 - 0.7 * cool);
+          glow.bar(head, tail, 0.034 * (1 - u * 0.5), c, col(hot, 0), 'z');
         }
       }
     }
   }
 
-  /** Sparks, MISS and EARLY / LATE on the 2D layer. */
+  /** MISS and EARLY / LATE on the text layer. */
   function drawHitsFront(t, a, dt) {
     const now = performance.now();
-    for (const p of sparks) {
-      p.life += dt;
-      p.vy += 900 * dt;
-      p.vx *= 1 - 1.8 * dt;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-    }
-    for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].life > sparks[i].max) sparks.splice(i, 1);
-    for (const p of sparks) {
-      const k = 1 - p.life / p.max;
-      R3.text.line(p.x, p.y, p.x - p.vx * 0.025, p.y - p.vy * 0.025, 2, col(p.col, k));
-    }
     // a small MISS over the note you missed (only the latest, so they never pile up)
     H.misses = (H.misses || []).filter((m) => now - m.at < 700).slice(-1);
     for (const m of H.misses) {
@@ -2963,8 +3150,8 @@ export function createHighway(stage) {
       for (const nt of tg.notes) {
         const x = noteX(nt, an);
         const y = strH(nt.s);
-        const r = laneW(Math.max(1, nt.f || an.fret)) * 0.75;
-        glow.up(x - r, x + r, y - r * 0.45, y + r * 0.45, -0.07, col(STRING[nt.s], 0.45 * k, 1.4));
+        const r = laneW(Math.max(1, nt.f || an.fret)) * 0.95;
+        glow.halo(x, y, -0.07, r, r * 0.55, STRING[nt.s], 0.6 * k, 1.4); // 4.17: round and soft (was a rectangle)
       }
       const box = isChord(tg) ? chordBox(tg, an) : null;
       for (const nt of tg.notes) buildGem(nt, -0.02, an, false, tg.kind === 'mute', true, box, 0, k * 0.8);

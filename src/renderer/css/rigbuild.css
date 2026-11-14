@@ -1,0 +1,57 @@
+/* 4.18: Create a Tone's famous tones shelf, the board building itself and the save check-over
+   (rigroom.js, rigbuild.js). Moves use transforms and opacity only. */
+
+/* ------------------------------------------------------------ the build -- */
+/* pieces wait off the board until their turn; the cables and stickers come last */
+.rb.rbk-building > .rb-piece:not(.rbk-in),
+.rb.rbk-building > .rb-cables,
+.rb.rbk-building > .rb-deco { opacity:0; }
+.rb.rbk-building > .rb-cables, .rb.rbk-building > .rb-deco { transition:opacity .38s ease-out; }
+.rb.rbk-building.rbk-wired > .rb-cables, .rb.rbk-building.rbk-wired > .rb-deco { opacity:1; }
+
+/* a soft warm light under a piece as it lands (behind its picture) */
+.rbk-glow { position:absolute; inset:-18% -22%; z-index:-1; pointer-events:none; border-radius:50%;
+  background:radial-gradient(closest-side,#ffcf7a66,#ff8a3d26 55%,transparent 75%); opacity:0; }
+.rbk-glow.cool { background:radial-gradient(closest-side,#7fe0ff55,#33c8e01f 55%,transparent 75%); }
+
+/* the strip of small dials turning to the piece's settings, like a label-maker strip */
+.rbk-dials { position:absolute; z-index:7; display:flex; gap:7px; padding:6px 9px 5px; pointer-events:none; transform:translate(-50%,0);
+  background:linear-gradient(180deg,#26211c,#17130f); border:1px solid #4a3d2c; border-radius:3px; box-shadow:0 6px 14px #000c; rotate:-.6deg; }
+.rbk-dial { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:32px; }
+.rbk-dial i { position:relative; display:block; width:24px; height:24px; border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#5b544b,#24201c 62%,#110f0d); box-shadow:0 0 0 2px #0a0908,0 2px 3px #000c; }
+.rbk-dial b { position:absolute; inset:0; display:block; transform:rotate(-135deg); }
+.rbk-dial b::after { content:''; position:absolute; left:50%; top:3px; width:2px; height:8px; margin-left:-1px; border-radius:1px; background:#ffcf7a; box-shadow:0 0 4px #ffcf7a; }
+.rbk-dial em { font:700 10px/1 var(--rr-mono,'Typewriter Stagehand',monospace); font-style:normal; color:#ffcf7a; font-variant-numeric:tabular-nums; }
+.rbk-dial small { font:700 8.5px/1 var(--rr-mono,monospace); letter-spacing:.06em; text-transform:uppercase; color:#a99a80; white-space:nowrap; }
+
+/* the save check-over: a tick on each piece */
+.rbk-tick { position:absolute; z-index:7; width:22px; height:22px; display:grid; place-items:center; border-radius:50%; pointer-events:none;
+  background:#5f8a35; color:#fff; font:700 13px/1 system-ui,sans-serif; box-shadow:0 0 0 2px #1b1611,0 2px 6px #000b; transform:translate(-50%,-50%); }
+
+/* -------------------------------------------------------- famous tones -- */
+.rr-shelf.rr-famous-tab { border-color:#8c7349; color:#ffcf7a; }
+.rr-shelf.rr-famous-tab[aria-selected='true'] { background:#ffcf7a; color:#1b1611; border-color:#ffcf7a; }
+.rr-genres { display:flex; flex-wrap:wrap; gap:5px; margin:0 0 6px; }
+.rr-genre { font-size:11px; padding:2px 8px; border-radius:10px; border:1px solid #3d342a; background:none; color:#bdb3a1; cursor:pointer; }
+.rr-genre:hover { border-color:#8c7349; color:#e6dfcf; }
+.rr-genre[aria-pressed='true'] { background:#3a2f22; border-color:#c7a564; color:#ffcf7a; }
+.rr-grid.rr-ftgrid { grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); }
+.rr-ft { position:relative; display:flex; flex-direction:column; align-items:stretch; gap:4px; padding:9px 11px 9px; border-radius:3px; border:1px solid #2f2922;
+  background:linear-gradient(180deg,#1f1b17,#171411); color:#e6dfcf; cursor:pointer; text-align:left; }
+.rr-ft:hover { border-color:#8c7349; background:#25201b; }
+.rr-ft:focus-visible { outline:2px solid #e3d8bf; outline-offset:2px; }
+.rr-ft.now { border-color:#c7a564; box-shadow:inset 0 0 0 1px #c7a56455; }
+.rr-ft-name { font-family:'Typewriter Stagehand',var(--rr-mono,monospace); font-size:13px; font-weight:700; color:#ffcf7a; }
+.rr-ft-after { font-size:11px; color:#c9bda6; font-style:italic; }
+.rr-ft-why { margin:0; font-size:11.5px; line-height:1.35; color:#ded5c3; }
+.rr-ft-chain { font:700 9.5px/1.4 var(--rr-mono,monospace); letter-spacing:.05em; text-transform:uppercase; color:#8f8676; }
+.rr-ft-tags { display:flex; flex-wrap:wrap; gap:4px; }
+.rr-ft-tags span { font-size:9.5px; padding:1px 5px; border-radius:2px; background:#2c261f; color:#bdb3a1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rb.rbk-building > .rb-piece, .rb.rbk-building > .rb-cables, .rb.rbk-building > .rb-deco { opacity:1; }
+  .rbk-dials, .rbk-tick, .rbk-glow { display:none; }
+}
+html[data-calm='true'] .rb.rbk-building > * { opacity:1; }
+html[data-calm='true'] .rbk-dials, html[data-calm='true'] .rbk-tick, html[data-calm='true'] .rbk-glow { display:none; }

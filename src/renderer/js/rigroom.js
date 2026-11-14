@@ -28,6 +28,8 @@ import { demoButton, stopDemo, demoPlaying } from './rigui.js';
 import { realAmpStrip } from './realamps.js';
 import { loadCaptures } from './captures.js';
 import { gearItems, GEAR_CATS, gearPanel, micPanel, rigBoard, gearThumb, knobHelp, defaultSlot, CAB_RE } from './gearbench.js';
+import { FAMOUS, GENRES, famousTone, searchFamous } from './famous-tones.js';
+import { playBuild, playSave } from './rigbuild.js';
 
 const MAX = { pre: 6, post: 6, rack: 4 };
 let open = null;
@@ -66,6 +68,8 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
     touched: false,
     heard: false,
     lastKnob: { key: '', t: 0 },
+    genre: '', // 4.18: the famous tones shelf's style chip
+    famous: null, // the famous tone last built on the board (its id)
   };
   if (!R.t.name) R.t.name = '';
   // what you were playing through, to go back to if you leave without saving
@@ -290,9 +294,9 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
   }
 
   // ------------------------------------------------------------ drawing --
-  function drawAll() {
+  function drawAll({ animate = false } = {}) {
     drawTop();
-    drawBoard();
+    drawBoard({ animate });
     drawInspect();
     drawWall();
   }
@@ -382,7 +386,10 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
   };
 
   let board = null;
-  function drawBoard() {
+  let build = null; // 4.18: the board laying itself down (rigbuild.js)
+  function drawBoard({ animate = false } = {}) {
+    if (build) build.skip();
+    build = null;
     const sx = boardWrap.scrollLeft;
     if (board) board.dispose();
     board = rigBoard(R.t, {
@@ -408,6 +415,8 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
     const refocus = f && boardWrap.contains(f) ? [f.dataset.i, document.activeElement.classList.contains('rb-switch') ? '.rb-switch' : '.rb-art'] : null;
     boardWrap.innerHTML = '';
     boardWrap.append(board);
+    // before the next paint, so the pieces never show first and then vanish
+    if (animate) build = playBuild(board, R.t, { onSkipKey: (e) => !['Shift', 'Control', 'Alt', 'Meta'].includes(e.key) });
     boardWrap.scrollLeft = sx;
     if (refocus) board.querySelector(`.rb-piece[data-i="${refocus[0]}"] ${refocus[1]}`)?.focus({ preventScroll: true });
   }
@@ -502,9 +511,24 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
   wall.append(h('div.rr-wallhead', null, wallFind, onlyMine), wallTabs, wallHint, wallGrid);
   wallFind.oninput = () => ((R.q = wallFind.value.trim().toLowerCase()), drawWall());
   onlyMine.querySelector('input').onchange = drawWall;
+  const genreRow = h('div.rr-genres', { role: 'group', 'aria-label': 'Styles' });
+  wallHint.after(genreRow);
 
   function drawWall() {
+    const fam = R.cat === 'famous';
+    wallFind.placeholder = fam ? 'Find a sound: player, band, song or style' : 'Find gear (e.g. fuzz, plexi, echo)';
+    wallFind.setAttribute('aria-label', fam ? 'Find a famous tone' : 'Find gear');
+    onlyMine.style.display = fam ? 'none' : '';
+    genreRow.style.display = fam ? '' : 'none';
+    wallGrid.classList.toggle('rr-ftgrid', fam);
     wallTabs.innerHTML = '';
+    const ft = h('button.rr-shelf.rr-famous-tab', { type: 'button', role: 'tab', 'aria-selected': String(fam), title: 'Well-known sounds of players and records, built from our gear', text: 'Famous tones' });
+    ft.onclick = () => {
+      if (!fam) ((R.q = ''), (wallFind.value = ''));
+      R.cat = 'famous';
+      drawWall();
+    };
+    wallTabs.append(ft);
     for (const c of GEAR_CATS) {
       const b = h('button.rr-shelf', { type: 'button', role: 'tab', 'aria-selected': String(R.cat === c.id && !R.q), title: c.hint, text: c.label });
       b.onclick = () => {
@@ -515,6 +539,7 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
       };
       wallTabs.append(b);
     }
+    if (fam) return drawFamous();
     const mineFirst = onlyMine.querySelector('input').checked;
     const words = R.q.split(/\s+/).filter(Boolean);
     let list = items.filter((it) => (words.length ? words.every((w) => `${it.name} ${it.sub} ${it.key} ${GEAR_CATS.find((c) => c.id === it.cat).label}`.toLowerCase().includes(w)) : it.cat === R.cat));
@@ -533,6 +558,57 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
     }
     if (!list.length) wallGrid.append(h('p.rr-none', { text: 'Nothing matches.' }));
     wallGrid.scrollTop = words.length ? 0 : sy;
+  }
+
+  // ------------------------------------------------------- famous tones --
+  // 4.18: well-known sounds (famous-tones.js), found by player, band, song or style
+  function drawFamous() {
+    const mine = FAMOUS.filter((e) => e.kind === k);
+    genreRow.innerHTML = '';
+    for (const g of ['', ...GENRES.filter((g) => mine.some((e) => e.tags.includes(g)))]) {
+      const b = h('button.rr-genre', { type: 'button', 'aria-pressed': String(R.genre === g), text: g || 'All' });
+      b.onclick = () => ((R.genre = g), drawWall());
+      genreRow.append(b);
+    }
+    const list = searchFamous(R.q, { kind: k, genre: R.genre });
+    const other = R.q ? searchFamous(R.q, { kind: k === 'bass' ? 'guitar' : 'bass', genre: R.genre }).length : 0;
+    wallHint.textContent = list.length
+      ? `${list.length} ${list.length === 1 ? 'sound' : 'sounds'}${R.q || R.genre ? ' found' : ` for ${k}`}. Click one to build it on your board, then name it, tweak it and save it.`
+      : other ? `No ${k} sounds match, but ${other} ${k === 'bass' ? 'guitar' : 'bass'} ${other === 1 ? 'sound does' : 'sounds do'}: they’re in Create a tone for ${k === 'bass' ? 'guitar' : 'bass'}.` : 'Nothing matches. Try a player, a band, a song or a style.';
+    const sy = wallGrid.scrollTop;
+    wallGrid.innerHTML = '';
+    for (const e of list) {
+      const chain = famousTone(e).gear.filter((g) => g.slot !== 'cab').map((g) => gearName(g.key).replace(/\s*\(.*\)$/, '') + (g.bypass ? ' (off)' : '')).join(' → ');
+      const card = h(`button.rr-ft${R.famous === e.id ? '.now' : ''}`, { type: 'button', title: e.pickup ? `Play it with: ${e.pickup}` : e.name },
+        h('span.rr-ft-name', { text: e.name }),
+        h('span.rr-ft-after', { text: e.after }),
+        h('p.rr-ft-why', { text: e.why }),
+        h('span.rr-ft-chain', { text: chain }),
+        h('span.rr-ft-tags', null, ...e.tags.filter((t) => GENRES.includes(t) && t !== 'Bass').map((t) => h('span', { text: t }))));
+      card.onclick = () => applyFamous(e);
+      wallGrid.append(card);
+    }
+    if (!list.length) wallGrid.append(h('p.rr-none', { text: 'Nothing matches.' }));
+    wallGrid.scrollTop = R.q ? 0 : sy;
+  }
+  function applyFamous(e) {
+    const t = famousTone(e);
+    const before = FAMOUS.find((x) => x.id === R.famous);
+    change(() => {
+      R.t.gear = t.gear;
+      R.t.cabId = t.cabId;
+      R.t.autoCab = true;
+      R.t.ir = null;
+      R.t.capture = null;
+      // it takes the sound's name unless you've named the tone yourself
+      if (!R.t.name || (before && R.t.name === before.name)) R.t.name = e.name;
+    }, { structure: false });
+    R.famous = e.id;
+    R.replace = null;
+    R.sel = Math.max(0, R.t.gear.findIndex((g) => g.slot === 'amp'));
+    if (document.activeElement !== nameIn) nameIn.value = R.t.name || '';
+    drawAll({ animate: true });
+    toast({ title: `Built “${e.name}”`, message: e.pickup ? `Play it with: ${e.pickup}.` : 'Rename it, tweak it and save it as yours.', kind: 'info', timeout: 4200, actions: [{ label: 'Undo', onClick: undo }] });
   }
 
   // the live strip + the pulse along the cables
@@ -575,6 +651,10 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
       useTone(t.id);
       fillKeys();
       drawTop();
+      // 4.18: each piece checked over in order, then the sticker
+      if (build) build.skip();
+      const b = board;
+      await playSave(b, R.t);
       // 4.9: the inspection sticker slapped on the board
       stamp(boardWrap, scrap(Math.random() < 0.75 ? 'engineers-inspection' : 'eq-sign', { cls: 'saved-stamp' }));
       toast({ title: `Saved “${t.name}”`, message: t.slot ? `On key ${t.slot}: press ${t.slot} while you play.` : 'It’s in Tones › Your tones.', kind: 'ok', timeout: 3000 });
@@ -596,6 +676,7 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
     clearTimeout(liveTimer);
     rig.removeEventListener('change', showLive);
     document.removeEventListener('keydown', keys, true);
+    if (build) build.skip();
     if (board) board.dispose();
     if (panel && panel.dispose) panel.dispose();
     if (demoPlaying() === 'rigroom') stopDemo();
@@ -604,6 +685,7 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
   }
   function keys(e) {
     if (topModal() !== m) return; // a question on top of the rig
+    if (build && build.running() && e.key === 'Escape') return (e.preventDefault(), e.stopPropagation(), build.skip());
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     const ctrl = e.ctrlKey || e.metaKey;
     if (ctrl && e.key.toLowerCase() === 'z' && !typing) (e.preventDefault(), e.stopPropagation(), e.shiftKey ? redo() : undo());
@@ -625,7 +707,7 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
     }
   }
   hear();
-  drawAll();
+  drawAll({ animate: isNew && !add });
   setTimeout(() => (isNew && !add ? nameIn.focus() : room.focus()), 40);
   return m;
 }

@@ -101,6 +101,12 @@ export function rodShades(hex, kind = 'string', facets = 6) {
       const a = -Math.PI / 2 + (Math.PI * i) / facets; // left side → front → right side
       lit = 0.42 + 0.58 * Math.max(0, Math.cos(a + 0.35));
       spec = Math.pow(Math.max(0, Math.cos(a + 0.5)), 18) * 0.85;
+    } else if (kind === 'wire') {
+      // 4.17: polished fret wire: darker flanks, a sharp white line where the light catches it and a
+      // second, softer one from the stage lights on the other side
+      const a = -Math.PI / 2 + (Math.PI * i) / facets;
+      lit = 0.32 + 0.72 * Math.max(0, Math.cos(a + 0.3));
+      spec = Math.min(1, Math.pow(Math.max(0, Math.cos(a + 0.45)), 24) * 1.0 + Math.pow(Math.max(0, Math.cos(a - 0.9)), 10) * 0.3);
     } else {
       const a = ROD_A0 + (ROD_SPAN * i) / facets;
       // normal (sin a up, -cos a towards you); light from above and in front
@@ -114,6 +120,43 @@ export function rodShades(hex, kind = 'string', facets = 6) {
   }
   RODS.set(key, out);
   return out;
+}
+
+// ------------------------------------------------------- soft light (4.17) --
+// Round glows instead of rectangles: a fan bright in the middle, fading to nothing at the rim, in
+// three steps so the edge is soft (the light falls off like a lamp's, not like a cone).
+const CIRCLES = new Map();
+function circle(n) {
+  let c = CIRCLES.get(n);
+  if (!c) {
+    c = [];
+    for (let i = 0; i <= n; i++) c.push([Math.cos((i / n) * Math.PI * 2), Math.sin((i / n) * Math.PI * 2)]);
+    CIRCLES.set(n, c);
+  }
+  return c;
+}
+const HALO_R = [0, 0.3, 0.62, 1]; // radii of the steps …
+const HALO_K = [1, 0.5, 0.14, 0]; // … and how bright each is
+const BLACK0 = [0, 0, 0, 0];
+/** A colour as a hex string, mixed and stepped (so caches keyed by it stay small). */
+export function mixHex(hexA, hexB, t, steps = 16) {
+  const x = hexInt(hexA);
+  const y = hexInt(hexB);
+  const u = Math.round(Math.max(0, Math.min(1, t)) * steps) / steps;
+  const ch = (s) => Math.round(((x >> s) & 255) + (((y >> s) & 255) - ((x >> s) & 255)) * u);
+  return '#' + ((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0');
+}
+// a frame's corner colours, made once per (hex, a, k) and kept for a while
+const HALOS = new Map();
+function haloCols(hex, a, k) {
+  const key = `${hex}|${Math.round(a * 255)}|${Math.round(k * 8)}`;
+  let c = HALOS.get(key);
+  if (!c) {
+    c = HALO_K.map((f) => (f ? col(hex, a * f, k) : BLACK0));
+    if (HALOS.size > 6000) HALOS.clear();
+    HALOS.set(key, c);
+  }
+  return c;
 }
 
 /** A vertex buffer rebuilt every frame: quads with a colour per corner. */
@@ -215,8 +258,10 @@ class Layer {
    * facets around its front and top, lit from above the camera, with a bright line where the light catches it,
    * so it reads as a round string and not a flat line. `shades` comes from rodShades(hex).
    */
-  rodX(x0, x1, y, z, r, shades) {
+  rodX(x0, x1, y, z, r, shades, yEnd = y) {
+    // yEnd: the right end's height, when the rod is a piece of a string that sways (4.17)
     const n = shades.length - 1;
+    const dy = yEnd - y;
     for (let i = 0; i < n; i++) {
       const a0 = ROD_A0 + (ROD_SPAN * i) / n;
       const a1 = ROD_A0 + (ROD_SPAN * (i + 1)) / n;
@@ -224,8 +269,66 @@ class Layer {
       const z0 = z - r * Math.cos(a0);
       const y1 = y + r * Math.sin(a1);
       const z1 = z - r * Math.cos(a1);
-      this.q(x0, y0, z0, x1, y0, z0, x1, y1, z1, x0, y1, z1, shades[i], shades[i], shades[i + 1], shades[i + 1]);
+      this.q(x0, y0, z0, x1, y0 + dy, z0, x1, y1 + dy, z1, x0, y1, z1, shades[i], shades[i], shades[i + 1], shades[i + 1]);
     }
+  }
+  /**
+   * 4.17: a soft round light: bright in the middle (hex at alpha a, brightness k), fading to nothing at the
+   * rim, rx × ry. plane 'z' stands upright facing you at depth z; plane 'y' lies flat on height y.
+   */
+  halo(x, y, z, rx, ry, hex, a, k = 1, plane = 'z', segs = 16) {
+    if (a < 0.004 || rx <= 0 || ry <= 0) return;
+    const C = circle(segs);
+    const cs = haloCols(hex, a, k);
+    const flat = plane === 'y';
+    for (let i = 0; i < segs; i++) {
+      const [c0, s0] = C[i];
+      const [c1, s1] = C[i + 1];
+      for (let b = 0; b < 3; b++) {
+        const ra = HALO_R[b];
+        const rb = HALO_R[b + 1];
+        const ca = cs[b];
+        const cb = cs[b + 1];
+        if (flat) {
+          this.q(x + c0 * rx * ra, y, z + s0 * ry * ra, x + c0 * rx * rb, y, z + s0 * ry * rb, x + c1 * rx * rb, y, z + s1 * ry * rb, x + c1 * rx * ra, y, z + s1 * ry * ra, ca, cb, cb, ca);
+        } else {
+          this.q(x + c0 * rx * ra, y + s0 * ry * ra, z, x + c0 * rx * rb, y + s0 * ry * rb, z, x + c1 * rx * rb, y + s1 * ry * rb, z, x + c1 * rx * ra, y + s1 * ry * ra, z, ca, cb, cb, ca);
+        }
+      }
+    }
+  }
+  /**
+   * 4.17: a soft ring of light (the hit's shock wave): radius rx × ry, th thick, brightest along its middle
+   * and fading to nothing on both sides. Upright, facing you at depth z.
+   */
+  ring(x, y, z, rx, ry, th, hex, a, k = 1, segs = 24) {
+    if (a < 0.004) return;
+    const C = circle(segs);
+    const c = col(hex, a, k);
+    const h = th * 0.5;
+    const R = [-h, 0, h];
+    const K = [BLACK0, c, BLACK0];
+    for (let i = 0; i < segs; i++) {
+      const [c0, s0] = C[i];
+      const [c1, s1] = C[i + 1];
+      for (let b = 0; b < 2; b++) {
+        const ia = R[b];
+        const ib = R[b + 1];
+        this.q(x + c0 * (rx + ia), y + s0 * (ry + ia), z, x + c0 * (rx + ib), y + s0 * (ry + ib), z, x + c1 * (rx + ib), y + s1 * (ry + ib), z, x + c1 * (rx + ia), y + s1 * (ry + ia), z, K[b], K[b + 1], K[b + 1], K[b]);
+      }
+    }
+  }
+  /** 4.17: an upright band of light from x0 to x1, brightest along x (its middle), fading to nothing at both sides. */
+  upSoft(x0, x1, y0, y1, z, cBot, cTop = cBot) {
+    const xm = (x0 + x1) / 2;
+    this.q(x0, y0, z, xm, y0, z, xm, y1, z, x0, y1, z, BLACK0, cBot, cTop, BLACK0);
+    this.q(xm, y0, z, x1, y0, z, x1, y1, z, xm, y1, z, cBot, BLACK0, BLACK0, cTop);
+  }
+  /** 4.17: a horizontal band of light from y0 to y1, brightest along its middle, fading at top and bottom. */
+  acrossSoft(x0, x1, y0, y1, z, c) {
+    const ym = (y0 + y1) / 2;
+    this.q(x0, y0, z, x1, y0, z, x1, ym, z, x0, ym, z, BLACK0, BLACK0, c, c);
+    this.q(x0, ym, z, x1, ym, z, x1, y1, z, x0, y1, z, c, c, BLACK0, BLACK0);
   }
   /** A round post standing up (a fret wire): at x, depth z, from y0 to y1, radius r; `shades` from rodShades(hex, 'post'). */
   rodY(x, z, y0, y1, r, shades) {
@@ -660,7 +763,7 @@ export function createRenderer3D(canvas) {
       camera.aspect = W / H;
       camera.updateProjectionMatrix();
     },
-    /** Render at a fraction of full resolution. */
+    /** Render at a fraction of full resolution (or above it, 4.17: a fast PC sharpens the picture up to 1.5x). */
     setScale(s, ratio) {
       if (s === scale) return;
       scale = s;
