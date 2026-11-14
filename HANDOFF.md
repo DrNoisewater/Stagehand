@@ -62,6 +62,14 @@ Work notes with the full list and who did what: `docs/notes/4.18-playground.md`.
   shows (`stage.js` `frame`), search suggestions reuse each song's index (`searchmatch.js`), the fast graphics card on
   two-card laptops (`main.js`). Not done: background stem splits at low priority, note detection off the screen loop,
   ffmpeg priority, `tools.js` `dirBytes` async, `visuals.js` `size()` per frame, DirectML.
+- **Highway graphics** (Highway painter: `highway.js` drawing code, `highway3d.js`; the 3D highway only, the classic
+  flat one and the Quest's are untouched): the same design, finer. Round soft glows (`halo()`), a round ring that
+  opens on a hit (`ring()`), sparks off a hit (`buildSparks`), an extra flash for a dead-on note (`deadOn`), a streak
+  look that warms the lane as the streak grows (`streakLook()`), strings that shiver after a hit (`stringSway`), a
+  faint reflection of each note on the lane (`gemReflection`), strings shaded like wire, soft edges on lane and
+  trails (`upSoft`, `acrossSoft`). Sharper when paused or before the first note (`govern()` draws up to 1.5x then,
+  never while notes are moving, so play stays smooth). Two new switches in the highway's Settings: **String sway**
+  and **Reflections** (both on). At rest it looks almost the same as 4.17; the difference is in motion and on hits.
 - **Research** (in the notes file): Feedback is Slopsmith renamed; its "Virtuoso" is a guitar practice studio, its
   piano ("Piano Highway") and vocals are thinner than ours. Ideas worth taking: wait-for-note mode, a mic delay test,
   per-hand piano practice, golden notes.

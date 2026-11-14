@@ -429,6 +429,8 @@ export function createHighway(stage) {
         toggle('Fire on a streak', prefs.fx, () => setPref('fx', !prefs.fx)),
         toggle('Score card at the end', prefs.scoreCard !== false, () => setPref('scoreCard', prefs.scoreCard === false)),
         toggle('Hit burst', prefs.hitBurst !== false, () => setPref('hitBurst', prefs.hitBurst === false)),
+        toggle('String sway', prefs.stringSway !== false, () => setPref('stringSway', prefs.stringSway === false)),
+        toggle('Reflections', prefs.reflections !== false, () => setPref('reflections', prefs.reflections === false)),
         toggle('Offer help when notes aren’t counting', !prefs.struggleOff, () => setPref('struggleOff', !prefs.struggleOff)),
         toggle('Frame rate', !!prefs.showFps, () => setPref('showFps', !prefs.showFps))
       )
