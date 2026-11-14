@@ -1,4 +1,4 @@
-# 4.17.0 — Auto-tune and voice changer (2026-11-13, not released; not tried with a real voice)
+# 4.17.0 — Auto-tune and voice changer (released 2026-11-14; user: "Merge and release"; not tried with a real voice)
 
 User: "We need to get auto tune working for the voice input … while you're playing or doing karaoke, you can enable
 auto tune, it needs to be just like the real auto tune", then "I want auto tune to raise your voice to the correct
