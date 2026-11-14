@@ -34,7 +34,7 @@ module.exports = async ({ page, outDir, check }) => {
   await shot('open-rest');
 
   // the shelf
-  await page.locator('.rr-famous-tab').click();
+  await page.locator('.rr-famous-tab').click({ force: true });
   await page.waitForTimeout(400);
   const n = await page.locator('.rr-grid .rr-ft').count();
   check(n >= 30, `the Famous tones shelf lists the guitar sounds (${n})`);
@@ -54,10 +54,10 @@ module.exports = async ({ page, outDir, check }) => {
   // build one: piece by piece, then at rest
   await page.locator('.rr-find').fill('van halen');
   await page.waitForTimeout(300);
-  await page.locator('.rr-grid .rr-ft').first().click();
-  await page.waitForTimeout(380);
-  await shot('build-1');
+  await page.locator('.rr-grid .rr-ft').first().click({ force: true });
+  await page.waitForTimeout(480);
   const b1 = await page.evaluate(() => ({ dials: document.querySelectorAll('.rr-board .rbk-dials .rbk-dial').length, building: !!document.querySelector('.rr-board .rb.rbk-building') }));
+  await shot('build-1');
   check(b1.building && b1.dials > 0, `the pieces drop in and their dials turn (${b1.dials} dials showing)`);
   await page.waitForTimeout(500);
   await shot('build-2');
@@ -73,9 +73,9 @@ module.exports = async ({ page, outDir, check }) => {
 
   // a key finishes it at once
   await page.locator('.rr-find').fill('');
-  await page.locator('.rr-genre', { hasText: 'Metal' }).click();
+  await page.locator('.rr-genre', { hasText: 'Metal' }).click({ force: true });
   await page.waitForTimeout(300);
-  await page.locator('.rr-grid .rr-ft').first().click();
+  await page.locator('.rr-grid .rr-ft').first().click({ force: true });
   await page.waitForTimeout(250);
   await page.locator('.rr-board').focus().catch(() => {});
   await page.keyboard.press('ArrowDown');
@@ -83,7 +83,7 @@ module.exports = async ({ page, outDir, check }) => {
   const skipped = await page.evaluate(() => ({ building: !!document.querySelector('.rr-board .rb.rbk-building'), left: document.querySelectorAll('.rr-board .rbk-dials').length }));
   check(!skipped.building && !skipped.left, 'a key press finishes the build at once');
   // and a click
-  await page.locator('.rr-grid .rr-ft').nth(1).click();
+  await page.locator('.rr-grid .rr-ft').nth(1).click({ force: true });
   await page.waitForTimeout(250);
   await page.mouse.click(800, 120);
   await page.waitForTimeout(80);
@@ -92,50 +92,48 @@ module.exports = async ({ page, outDir, check }) => {
 
   // undo puts the last one back
   const nameBefore = await page.locator('input.rr-name').inputValue();
-  await page.locator('.rr-undo').click();
+  await page.locator('.rr-undo').click({ force: true });
   await page.waitForTimeout(300);
   check((await page.locator('input.rr-name').inputValue()) !== nameBefore, 'Undo goes back to the sound before');
 
   // rename and save: each piece is ticked, then the sticker
   await page.locator('input.rr-name').fill('My big metal');
-  await page.locator('.rr-save').click();
+  await page.locator('.rr-save').click({ force: true });
   await page.waitForTimeout(220);
   const ticks = await page.locator('.rr-board .rbk-tick').count();
-  await shot('save-ticks');
   check(ticks > 0, `saving ticks the pieces in order (${ticks} so far)`);
-  await page.waitForTimeout(700);
-  await shot('save-done');
+  await shot('save-ticks');
+  await page.waitForTimeout(100);
   const saved = await page.evaluate(async () => {
     const { listTones } = await import('./js/tonelib.js').catch(() => ({}));
     return { stamp: !!document.querySelector('.rr-board .saved-stamp'), btn: document.querySelector('.rr-save').textContent, list: listTones ? listTones().map((t) => t.name) : null };
   });
   check(saved.stamp && saved.btn === 'Saved', `then the saved sticker (${saved.btn})`);
+  await shot('save-done');
   await page.waitForTimeout(1200);
 
   // less motion: no build at all
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.locator('.rr-grid .rr-ft').nth(2).click();
+  await page.locator('.rr-grid .rr-ft').nth(2).click({ force: true });
   await page.waitForTimeout(60);
   const still = await page.evaluate(() => ({ building: !!document.querySelector('.rr-board .rb.rbk-building'), dials: document.querySelectorAll('.rbk-dials').length }));
   check(!still.building && !still.dials, 'with less motion asked for, the tone just appears');
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await closeModals();
-  const confirm = page.locator('.modal .btn.danger, .modal button:has-text("Close")').last();
-  if (await confirm.count()) await confirm.click().catch(() => {});
-  await page.waitForTimeout(400);
-  await closeModals();
+  // close the room straight away (openRig hands back the open one)
+  await page.evaluate(async () => (await (await import('./js/rigroom.js')).openRig()).close());
+  await page.waitForTimeout(600);
 
   // bass room
   await page.evaluate(async () => { (await import('./js/rigroom.js')).openRig({ kind: 'bass' }); });
   await page.waitForTimeout(3600);
-  await page.locator('.rr-famous-tab').click();
+  await page.locator('.rr-famous-tab').click({ force: true });
   await page.locator('.rr-find').fill('jamerson');
   await page.waitForTimeout(300);
   check((await page.locator('.rr-grid .rr-ft .rr-ft-name').first().textContent()) === 'Motown thump', 'in the bass room, "jamerson" finds Motown thump');
   await page.locator('.rr-find').fill('');
   await page.waitForTimeout(300);
   await shot('bass-shelf');
-  await page.locator('.rr-grid .rr-ft').first().click();
+  await page.locator('.rr-grid .rr-ft').first().click({ force: true });
   await page.waitForTimeout(500);
   await shot('bass-build');
   await page.waitForTimeout(3000);

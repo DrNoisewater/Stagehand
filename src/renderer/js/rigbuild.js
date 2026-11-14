@@ -83,6 +83,8 @@ function makeRun(board, onSkipKey) {
         } catch (_) {}
       }
       run.extras.forEach((x) => x.remove());
+      board.classList.remove('rbk-building', 'rbk-wired');
+      board.querySelectorAll(':scope > .rbk-in').forEach((el) => el.classList.remove('rbk-in'));
       document.removeEventListener('pointerdown', skip, true);
       document.removeEventListener('keydown', skipKey, true);
     },
@@ -133,14 +135,16 @@ function dialStrip(run, board, at, dials, ms) {
     cell.append(face, val, lab);
     strip.append(cell);
     const p = Math.max(0, Math.min(1, (d.v - d.min) / (d.max - d.min || 1)));
-    anim(run, ptr, [{ transform: 'rotate(-135deg)' }, { transform: `rotate(${-135 + 270 * p}deg)` }], { duration: ms, delay: 60, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'both' });
+    anim(run, ptr, [{ transform: 'rotate(-135deg)' }, { transform: `rotate(${-135 + 270 * p}deg)` }], { duration: ms, delay: 180, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'both' });
     vals.push([val, d]);
   }
+  strip.finish = () => vals.forEach(([el, d]) => (el.textContent = fmt(d.v, d.min, d.max)));
   board.append(strip);
   run.extras.push(strip);
-  anim(run, strip, [{ opacity: 0, transform: 'translate(-50%,6px)' }, { opacity: 1, transform: 'translate(-50%,0)' }], { duration: 140, easing: 'ease-out', fill: 'both' });
+  // it shows as the piece lands, then the pointers turn
+  anim(run, strip, [{ opacity: 0, transform: 'translate(-50%,6px)' }, { opacity: 1, transform: 'translate(-50%,0)' }], { duration: 140, delay: 120, easing: 'ease-out', fill: 'both' });
   // the numbers count up with the pointers
-  const t0 = performance.now() + 60;
+  const t0 = performance.now() + 180;
   const tick = (now) => {
     if (!run.alive() || !strip.isConnected) return;
     const k = Math.max(0, Math.min(1, (now - t0) / ms));
@@ -152,6 +156,7 @@ function dialStrip(run, board, at, dials, ms) {
   return strip;
 }
 function fadeAway(run, strip, delay) {
+  strip.finish && strip.finish();
   const a = anim(run, strip, [{ opacity: 1 }, { opacity: 0 }], { duration: 220, delay, easing: 'ease-in', fill: 'forwards' });
   if (a) a.onfinish = () => strip.remove();
   else setTimeout(() => strip.remove(), delay + 220);
@@ -169,8 +174,14 @@ export function playBuild(board, tone, { onSkipKey = null } = {}) {
   board.classList.add('rbk-building');
   const run = makeRun(board, onSkipKey);
   const done = (async () => {
-    // the board lays itself out on the next frame
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // the board lays itself out on the next frame (or now, when frames are slow to come)
+    await new Promise((r) => {
+      let go = () => ((go = () => {}), r());
+      requestAnimationFrame(() => requestAnimationFrame(() => go()));
+      run.timers.push(setTimeout(() => go(), 80));
+      run.wakers.push(() => go());
+    });
+    if (run.alive() && board.redraw) board.redraw();
     const list = run.alive() ? piecesInOrder(board, tone) : [];
     const step = Math.max(180, Math.min(300, 2400 / Math.max(1, list.length)));
     let prev = null;
@@ -199,8 +210,6 @@ export function playBuild(board, tone, { onSkipKey = null } = {}) {
       await wait(620, run);
     }
     run.end();
-    board.classList.remove('rbk-building', 'rbk-wired');
-    board.querySelectorAll('.rbk-in').forEach((el) => el.classList.remove('rbk-in'));
   })();
   return { running: () => !run.over, skip: () => run.end(), done };
 }
