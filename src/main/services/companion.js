@@ -17,12 +17,15 @@ const fs = require('fs');
 const fsp = fs.promises;
 const os = require('os');
 const path = require('path');
+const net = require('net');
+const http = require('http');
 const https = require('https');
+const { execFile } = require('child_process');
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const { performance } = require('perf_hooks');
 const ws = require('../core/ws');
-const { makeCert } = require('../core/selfcert');
+const { makeCert, certNames } = require('../core/selfcert');
 
 const DEFAULT_PORT = 7787;
 const MAX_CONNS = 8;
@@ -35,20 +38,31 @@ const nowMs = () => performance.timeOrigin + performance.now();
 const hash = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 const code4 = () => String(crypto.randomInt(0, 10000)).padStart(4, '0');
 
-/** The PC's addresses on the home network, the likeliest first. */
-function addresses() {
+// network cards that aren't the home network: virtual machines, WSL, VPNs
+const VIRTUAL = /vEthernet|VirtualBox|VMware|WSL|Hyper-V|Default Switch|Host-Only|Loopback|docker|veth|^br-|Bluetooth|Teredo|isatap|Npcap|Virtual/i;
+const VPN = /VPN|tailscale|ZeroTier|Hamachi|Radmin|WireGuard|Wintun|NordLynx|OpenVPN|TAP-|^tun|^tap|Mullvad|Proton|Surfshark|ExpressVPN|Cisco AnyConnect|GlobalProtect|FortiClient|Zscaler|Cloudflare WARP/i;
+
+/** The PC's addresses on the home network, the likeliest first (with the network card's name). */
+function addresses(ifaces = os.networkInterfaces()) {
   const out = [];
-  for (const [name, list] of Object.entries(os.networkInterfaces())) {
+  for (const [name, list] of Object.entries(ifaces)) {
     for (const a of list || []) {
       if (a.internal || (a.family !== 'IPv4' && a.family !== 4)) continue;
       if (/^169\.254\./.test(a.address)) continue; // no network yet
-      const virtual = /vEthernet|VirtualBox|VMware|WSL|Hyper-V|Loopback|docker|veth|br-|tailscale|ZeroTier|Bluetooth/i.test(name);
-      const home = /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address);
-      out.push({ address: a.address, name, rank: (virtual ? 2 : 0) + (home ? 0 : 1) });
+      const vpn = VPN.test(name);
+      const virtual = vpn || VIRTUAL.test(name);
+      // home routers almost always hand out 192.168.x.x or 10.x.x.x; 172.16–31 is mostly WSL, Docker or Hyper-V
+      const home = /^192\.168\./.test(a.address) ? 0 : /^10\./.test(a.address) ? 1 : /^172\.(1[6-9]|2\d|3[01])\./.test(a.address) ? 2 : 3;
+      out.push({ address: a.address, name, vpn, rank: (virtual ? 10 : 0) + home });
     }
   }
-  return out.sort((a, b) => a.rank - b.rank).map(({ address, name }) => ({ address, name }));
+  return out.sort((a, b) => a.rank - b.rank).map(({ address, name, vpn }) => ({ address, name, vpn }));
 }
+
+const isLoopback = (ip) => !ip || /^(127\.|::1$|::ffff:127\.)/.test(ip);
+const plainIp = (ip) => String(ip || '').replace(/^::ffff:/, '');
+// how far a visitor from another device got, furthest last
+const STEPS = ['knock', 'cert', 'page', 'link'];
 
 function songRow(s) {
   const parts = [];
@@ -65,7 +79,7 @@ class Companion extends EventEmitter {
    * library: { songs() } → song records. staticDir: the page. fontsDir: the app's fonts.
    * artFile(song, size) → a picture file for a song (or null).
    */
-  constructor({ dir, settings, library, staticDir, fontsDir = null, rendererDir = null, artFile = null, version = '', log = () => {}, pcName = os.hostname() }) {
+  constructor({ dir, settings, library, staticDir, fontsDir = null, rendererDir = null, artFile = null, version = '', log = () => {}, pcName = os.hostname(), exe = process.execPath, platform = process.platform, countLoopback = false }) {
     super();
     this.dir = dir;
     this.settings = settings;
@@ -88,6 +102,14 @@ class Companion extends EventEmitter {
     this.score = null;
     this.error = null;
     this._libTimer = null;
+    this.exe = exe;
+    this.platform = platform;
+    this.countLoopback = countLoopback; // tests: a visit from this PC counts as one from the headset
+    this.reach = null; // the furthest another device got since switched on: { at, from, step }
+    this.firewall = null; // Windows Firewall, as last checked (Windows only)
+    this._fwAt = 0;
+    this._fwBusy = null;
+    this._sockets = new Set();
   }
 
   cfg() {
@@ -102,13 +124,22 @@ class Companion extends EventEmitter {
 
   status() {
     const c = this.cfg();
+    // Windows Firewall looked at again now and then while no headset has got through (Settings shows it)
+    if (this.server && this.platform === 'win32' && !this._fwBusy && Date.now() - this._fwAt > 60e3 && !(this.reach && this.reach.step === 'link')) {
+      this._fwAt = Date.now();
+      setImmediate(() => this.checkFirewall().catch(() => {}));
+    }
     const online = new Set([...this.conns].filter((x) => x.device).map((x) => x.device.id));
     return {
       on: !!this.server,
       wanted: c.on,
       port: this.port,
       addresses: this.server ? addresses().map((a) => a.address) : [],
+      where: this.server ? addresses().map(({ address, name }) => ({ address, name })) : [],
+      vpn: this.server ? (addresses().find((a) => a.vpn) || {}).name || null : null,
       url: this.server ? this.urls()[0] || null : null,
+      reach: this.server ? this.reach : null,
+      firewall: this.server ? this.firewall : null,
       code: this.server ? this.code : null,
       error: this.error,
       clients: online.size,
@@ -133,9 +164,12 @@ class Companion extends EventEmitter {
     try {
       const [key, cert] = await Promise.all([fsp.readFile(keyFile, 'utf8'), fsp.readFile(certFile, 'utf8')]);
       const x = new crypto.X509Certificate(cert);
-      if (new Date(x.validTo) - Date.now() > 30 * 24 * 3600e3) return { key, cert };
+      // kept while it lasts and still names the PC's address (a router can give the PC a new one)
+      const main = addresses()[0];
+      const named = !main || (x.subjectAltName || '').split(/,\s*/).includes(`IP Address:${main.address}`);
+      if (new Date(x.validTo) - Date.now() > 30 * 24 * 3600e3 && new Date(x.validFrom) <= Date.now() && named) return { key, cert };
     } catch (_) {}
-    const made = makeCert({ names: [...addresses().map((a) => a.address), this.pcName] });
+    const made = makeCert({ names: certNames([...addresses().map((a) => a.address), this.pcName]) });
     await fsp.mkdir(this.dir, { recursive: true });
     await fsp.writeFile(keyFile, made.key, { mode: 0o600 });
     await fsp.writeFile(certFile, made.cert);
@@ -145,14 +179,42 @@ class Companion extends EventEmitter {
   async start() {
     if (this.server) return this.status();
     this.error = null;
-    const { key, cert } = await this._cert();
-    const server = https.createServer({ key, cert }, (req, res) => this._http(req, res).catch((e) => {
+    let key, cert;
+    try {
+      ({ key, cert } = await this._cert());
+    } catch (e) {
+      this.error = `Its security certificate couldn't be made (${e.message})`;
+      this._changed();
+      throw e;
+    }
+    const tlsServer = https.createServer({ key, cert }, (req, res) => this._http(req, res).catch((e) => {
       this.log(`Quest companion: ${req.url} failed: ${e.message}`);
       if (!res.headersSent) res.writeHead(500);
       res.end();
     }));
-    server.on('upgrade', (req, socket) => this._upgrade(req, socket));
-    server.on('tlsClientError', () => {}); // the headset's first visit (before the certificate is accepted) ends this way
+    tlsServer.on('upgrade', (req, socket) => this._upgrade(req, socket));
+    // the headset's first visit, before the certificate is accepted on its warning page, ends this way
+    tlsServer.on('tlsClientError', (_e, sock) => this._reached(sock && (sock.remoteAddress || (sock._parent && sock._parent.remoteAddress)), 'cert'));
+    // someone typed the address without https:// (the headset's browser then asks with plain http): sent on to https
+    const plain = http.createServer((req, res) => this._redirect(req, res));
+    // one port for both: a secure visit starts with a TLS handshake (first byte 22), a plain one with text
+    const server = net.createServer((sock) => {
+      this._sockets.add(sock);
+      sock.on('close', () => this._sockets.delete(sock));
+      sock.on('error', () => {});
+      this._reached(sock.remoteAddress, 'knock');
+      sock.setTimeout(15e3, () => sock.destroy());
+      sock.once('data', (buf) => {
+        sock.setTimeout(0);
+        sock.pause();
+        sock.unshift(buf);
+        (buf[0] === 0x16 ? tlsServer : plain).emit('connection', sock);
+        process.nextTick(() => sock.resume());
+      });
+    });
+    server.on('error', () => {});
+    this._tls = tlsServer;
+    this._plain = plain;
     const want = this.cfg().port;
     let port = null;
     // the same address every time if we can (the headset keeps it); a nearby one if it's taken
@@ -176,15 +238,20 @@ class Companion extends EventEmitter {
     }
     if (!port) {
       this.error = 'No free network port';
+      this._changed();
       throw new Error(this.error);
     }
     this.server = server;
     this.port = port;
+    this.reach = null;
+    this.firewall = null;
+    this._fwAt = 0;
     if (port !== want && want === DEFAULT_PORT && !this.cfg().devices.length) this.settings.set({ companion: { port } });
     this.code = code4();
     this.wrong = 0;
     this.log(`Quest companion on ${this.urls().join(', ') || `port ${port}`}`);
     this._changed();
+    this.checkFirewall().catch(() => {});
     return this.status();
   }
 
@@ -196,8 +263,12 @@ class Companion extends EventEmitter {
     this.code = null;
     for (const c of this.conns) c.close(1001);
     this.conns.clear();
-    await new Promise((r) => s.close(() => r()));
-    s.closeAllConnections && s.closeAllConnections();
+    const closed = new Promise((r) => s.close(() => r()));
+    for (const sock of this._sockets) sock.destroy();
+    this._sockets.clear();
+    for (const x of [this._tls, this._plain]) if (x && x.closeAllConnections) x.closeAllConnections();
+    this._tls = this._plain = null;
+    await closed;
     this.log('Quest companion off');
     this._changed();
     return this.status();
@@ -289,6 +360,86 @@ class Companion extends EventEmitter {
     this.emit('status', this.status());
   }
 
+  // ------------------------------------------------- can the headset get here --
+  /** Another device got this far (only the furthest step is kept; a new device starts over). */
+  _reached(ip, step) {
+    if (!this.server) return;
+    if (isLoopback(ip) && !this.countLoopback) return;
+    const from = plainIp(ip);
+    const r = this.reach;
+    if (r && r.from === from && STEPS.indexOf(step) <= STEPS.indexOf(r.step)) {
+      r.at = Date.now();
+      return;
+    }
+    if (r && r.from !== from && STEPS.indexOf(step) < STEPS.indexOf(r.step) && Date.now() - r.at < 60e3) return;
+    this.reach = { at: Date.now(), from, step };
+    this._changed();
+  }
+
+  _redirect(req, res) {
+    const host = /^[A-Za-z0-9.\-[\]:]{1,100}$/.test(req.headers.host || '') ? req.headers.host : `${addresses()[0] ? addresses()[0].address : 'localhost'}:${this.port}`;
+    const to = `https://${host}${req.url && req.url.startsWith('/') ? req.url : '/'}`;
+    const safe = to.replace(/[<>"&]/g, '');
+    res.writeHead(307, { Location: to, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', Connection: 'close' });
+    res.end(`<!doctype html><meta charset="utf-8"><title>Stagehand</title><p>Stagehand is at <a href="${safe}">${safe}</a></p>`);
+  }
+
+  /**
+   * Windows Firewall (Windows only): which network the PC is on (Private or Public) and whether
+   * Stagehand is let in, blocked, or has no rule yet. Asks Windows only; changes nothing.
+   * → { state: 'allowed' | 'blocked' | 'no-rule' | 'off' | 'unknown', network, netName, at }
+   */
+  async checkFirewall() {
+    if (this.platform !== 'win32' || !this.server) return null;
+    if (this._fwBusy) return this._fwBusy;
+    this._fwBusy = (async () => {
+      const main = addresses()[0];
+      const exe = this.exe.replace(/'/g, "''");
+      const script = `$ErrorActionPreference='SilentlyContinue'
+$exe='${exe}'
+$o=@{}
+$o.nets=@(Get-NetConnectionProfile | % { @{ alias=$_.InterfaceAlias; name=$_.Name; cat=$_.NetworkCategory.ToString() } })
+$o.profiles=@(Get-NetFirewallProfile -PolicyStore ActiveStore | % { @{ name=$_.Name; on=$_.Enabled.ToString(); allowRules=$_.AllowInboundRules.ToString(); inbound=$_.DefaultInboundAction.ToString() } })
+$f=@(Get-NetFirewallApplicationFilter -PolicyStore ActiveStore | ? { $_.Program -and ([Environment]::ExpandEnvironmentVariables($_.Program) -ieq $exe) })
+$r=@($f | Get-NetFirewallRule) + @(Get-NetFirewallRule -DisplayName 'Stagehand Quest headset' -PolicyStore ActiveStore)
+$o.rules=@($r | ? { $_ -and $_.Direction.ToString() -eq 'Inbound' -and $_.Enabled.ToString() -eq 'True' } | % { @{ name=$_.DisplayName; action=$_.Action.ToString(); profile=$_.Profile.ToString() } })
+$o | ConvertTo-Json -Depth 4 -Compress`;
+      const out = await runPowerShell(script, 30e3).catch(() => null);
+      this.firewall = readFirewall(out, main ? main.name : null);
+      this._fwAt = Date.now();
+      this._changed();
+      return this.firewall;
+    })().finally(() => (this._fwBusy = null));
+    return this._fwBusy;
+  }
+
+  /**
+   * The "let the headset in" button: one rule letting devices on the home network reach
+   * Stagehand's companion port (Windows asks for permission first), and the block rules
+   * Windows makes when its own question was closed turned off.
+   * → { ok, cancelled, firewall }
+   */
+  async allowFirewall() {
+    if (this.platform !== 'win32') return { ok: false, firewall: null };
+    const exe = this.exe.replace(/'/g, "''");
+    const ports = [...new Set([this.port || DEFAULT_PORT, DEFAULT_PORT, DEFAULT_PORT + 1, DEFAULT_PORT + 2, DEFAULT_PORT + 3])].join(',');
+    const inner = `$exe='${exe}'
+Get-NetFirewallApplicationFilter | ? { $_.Program -and ([Environment]::ExpandEnvironmentVariables($_.Program) -ieq $exe) } | Get-NetFirewallRule | ? { $_.Direction.ToString() -eq 'Inbound' -and $_.Action.ToString() -eq 'Block' } | Disable-NetFirewallRule
+Remove-NetFirewallRule -DisplayName 'Stagehand Quest headset' -ErrorAction SilentlyContinue
+New-NetFirewallRule -DisplayName 'Stagehand Quest headset' -Description 'Lets a Meta Quest on your home network open Stagehand (Settings, Quest headset).' -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${ports} -Program $exe -RemoteAddress @('10.0.0.0/8','172.16.0.0/12','192.168.0.0/16') -Profile Any | Out-Null
+exit 0`;
+    const b64 = Buffer.from(inner, 'utf16le').toString('base64');
+    const outer = `try { $p = Start-Process powershell -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand','${b64}'; exit $p.ExitCode } catch { exit 5 }`;
+    let code = 0;
+    try {
+      await runPowerShell(outer, 120e3);
+    } catch (e) {
+      code = typeof e.code === 'number' ? e.code : 1;
+    }
+    const firewall = await this.checkFirewall().catch(() => null);
+    return { ok: code === 0, cancelled: code === 5, firewall };
+  }
+
   // ------------------------------------------------------------ the page --
   async _http(req, res) {
     const u = new URL(req.url, 'https://x');
@@ -312,6 +463,7 @@ class Companion extends EventEmitter {
     }
     let base = this.staticDir;
     let rel = parts.length ? parts : ['index.html'];
+    if (rel.length === 1 && rel[0] === 'index.html') this._reached(req.socket && req.socket.remoteAddress, 'page');
     if (parts[0] === 'fonts' && this.fontsDir) {
       base = this.fontsDir;
       rel = parts.slice(1);
@@ -354,6 +506,7 @@ class Companion extends EventEmitter {
     if (u.pathname !== '/ws' || this.conns.size >= MAX_CONNS) return socket.end('HTTP/1.1 404 Not Found\r\n\r\n');
     const c = ws.accept(req, socket);
     if (!c) return;
+    this._reached(socket.remoteAddress, 'link');
     c.device = null;
     this.conns.add(c);
     c.waitTimer = setTimeout(() => !c.device && c.close(4000), PAIR_WAIT);
@@ -427,4 +580,37 @@ class Companion extends EventEmitter {
   }
 }
 
-module.exports = { Companion, addresses, nowMs, songRow, DEFAULT_PORT };
+/** Runs a PowerShell script (Windows); resolves with what it printed. */
+function runPowerShell(script, timeout) {
+  return new Promise((resolve, reject) => {
+    const b64 = Buffer.from(script, 'utf16le').toString('base64');
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', b64], { windowsHide: true, timeout, maxBuffer: 4 << 20 }, (err, stdout) => (err ? reject(err) : resolve(String(stdout || ''))));
+  });
+}
+
+/** What Windows said, in plain terms, for the network card the PC's address is on. */
+function readFirewall(text, cardName) {
+  const at = Date.now();
+  let o = null;
+  try {
+    o = JSON.parse(String(text || '').trim());
+  } catch (_) {}
+  if (!o || typeof o !== 'object') return { state: 'unknown', network: null, netName: null, at };
+  const arr = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+  const nets = arr(o.nets);
+  const net0 = nets.find((n) => cardName && String(n.alias).toLowerCase() === String(cardName).toLowerCase()) || nets[0] || null;
+  const network = net0 ? ({ Public: 'Public', Private: 'Private', DomainAuthenticated: 'Domain' }[net0.cat] || null) : null;
+  const profiles = arr(o.profiles);
+  const prof = network && profiles.find((p) => p.name === network);
+  if (prof && prof.on === 'False') return { state: 'off', network, netName: net0 && net0.name, at };
+  const applies = (r) => !network || /Any/i.test(r.profile) || String(r.profile).split(/,\s*/).includes(network);
+  const rules = arr(o.rules).filter(applies);
+  let state = 'no-rule';
+  if (rules.some((r) => r.action === 'Block')) state = 'blocked';
+  else if (prof && prof.allowRules === 'False') state = 'blocked';
+  else if (rules.some((r) => r.action === 'Allow')) state = 'allowed';
+  else if (prof && prof.inbound === 'Allow') state = 'allowed';
+  return { state, network, netName: net0 ? net0.name || null : null, at };
+}
+
+module.exports = { Companion, addresses, nowMs, songRow, readFirewall, DEFAULT_PORT };

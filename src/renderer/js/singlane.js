@@ -125,18 +125,23 @@ export function tuneLabel() {
   const a = autotune.style === 'off' ? '' : nameOf(TUNE_STYLES, autotune.style);
   const v = autotune.voice === 'normal' ? '' : nameOf(TUNE_VOICES, autotune.voice);
   if (autotune.picked && autotune.muted) return 'Voice muted';
-  return a && v ? `${a} · ${v}` : a ? `Auto-tune: ${a}` : v ? `Voice: ${v}` : 'Auto-tune';
+  return a && v ? `${a} · ${v}` : a ? `Auto-tune: ${a}` : v ? `Voice: ${v}` : autotune.hear ? 'My voice' : 'Auto-tune';
 }
-/** Auto-tune and the voice changer as menu lines (the Sing menu and the Karaoke page). */
+/** Your voice in the song: plain, auto-tuned, or changed for fun (the Sing menu and the Karaoke page). */
 export function tuneMenu() {
   // the ticks are read again after every press, so the menu stays open while you try things
   const check = (f) => () => (f() ? '✓' : '');
+  const HOW = { off: 'No tuning', natural: 'A gentle nudge onto the note', pop: 'Tight, like a pop record', robot: 'Snaps hard from note to note: the T-Pain sound' };
   return [
-    { heading: true, label: 'Auto-tune' },
-    ...TUNE_STYLES.map(([id, name]) => ({ label: name, hint: check(() => autotune.style === id), keep: true, onClick: () => (autotune.setStyle(id), autotune.setMuted(false), tuneTip()) })),
+    { heading: true, label: 'Your voice in the song' },
+    { label: 'Hear my voice', title: 'Your voice played with the song, as it is', hint: check(() => autotune.hear), keep: true, onClick: () => (autotune.setHear(!autotune.hear), tuneTip()) },
     '-',
+    { heading: true, label: 'Auto-tune: carries you onto the right note' },
+    ...TUNE_STYLES.map(([id, name]) => ({ label: name, title: HOW[id] || '', hint: check(() => autotune.style === id), keep: true, onClick: () => (autotune.setStyle(id), autotune.setMuted(false), tuneTip()) })),
     { label: () => `Tune to: ${nameOf(TUNE_NOTES, autotune.notes).toLowerCase()}`, submenu: TUNE_NOTES.map(([id, name]) => ({ label: name, hint: check(() => autotune.notes === id), keep: true, onClick: () => autotune.setNotes(id) })) },
-    { label: () => `Voice: ${nameOf(TUNE_VOICES, autotune.voice).toLowerCase()}`, submenu: TUNE_VOICES.map(([id, name]) => ({ label: name, hint: check(() => autotune.voice === id), keep: true, onClick: () => (autotune.setVoice(id), autotune.setMuted(false), tuneTip()) })) },
+    '-',
+    { heading: true, label: 'Just for fun' },
+    { label: () => `Voice: ${nameOf(TUNE_VOICES, autotune.voice).toLowerCase()}`, submenu: TUNE_VOICES.map(([id, name, about]) => ({ label: name, title: about || '', hint: check(() => autotune.voice === id), keep: true, onClick: () => (autotune.setVoice(id), autotune.setMuted(false), tuneTip()) })) },
     '-',
     // muted: the choices above are kept for next time, but your voice isn't played
     { label: 'Mute my voice', hint: () => (autotune.picked ? (autotune.muted ? '✓' : '') : 'not playing'), keep: true, onClick: () => autotune.picked && (autotune.setMuted(!autotune.muted), tuneTip()) },
@@ -144,6 +149,8 @@ export function tuneMenu() {
   ];
 }
 
+// the sound thread's note readings go to the microphone's tracker, which the score reads
+autotune.addEventListener('pitch', (e) => mic.feed(e.detail));
 const NOTE_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
   const chip = h('button.hw-chip.hw-mode.hw-sing-chip', { type: 'button', hidden: true });
@@ -312,6 +319,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     prepare();
     stageKaraoke(S.karaoke);
     const ok = await mic.start('sing');
+    if (ok && !window.__NOFAST) autotune.listen('sing', true); // the fast note reader, for the score
     if (token !== S.token || !S.on) return;
     if (!ok) {
       turn(false);
@@ -335,6 +343,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
   function end() {
     log(false);
     S.token++;
+    autotune.listen('sing', false);
     mic.stop('sing');
     autotune.setSong(null);
     S.judge = null;

@@ -964,6 +964,7 @@ function registerIpc() {
   handle('companion:setOn', (on) => companion.setOn(!!on));
   handle('companion:forget', (id) => companion.forget(String(id || '')));
   handle('companion:newCode', () => companion.newCode());
+  handle('companion:allowFirewall', () => companion.allowFirewall()); // 4.18: asks Windows (one prompt) to let the headset in
   ipcMain.on('companion:state', (_e, st) => companion && companion.pushState(st));
   ipcMain.on('companion:chart', (_e, ch) => companion && companion.pushChart(ch));
 
@@ -1200,6 +1201,9 @@ app.on('second-instance', () => {
     win.focus();
   }
 });
+
+// 4.18: on a laptop with two graphics cards, draw on the fast one (the highway and the moving backgrounds)
+app.commandLine.appendSwitch('force_high_performance_gpu');
 
 app.whenReady().then(async () => {
   if (IS_WIN) app.setAppUserModelId('app.stagehand.desktop');

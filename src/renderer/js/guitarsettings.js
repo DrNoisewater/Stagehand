@@ -173,7 +173,7 @@ function tuneSetting(setting) {
   const vol = pick('Voice volume', TUNE_LEVELS.map(([v, n]) => [v, `Voice ${n.toLowerCase()}`]), (TUNE_LEVELS.find(([v]) => Math.abs(v - autotune.vol) < 0.01) || [0.8])[0], (v) => autotune.setVol(Number(v)));
   return setting(
     'Auto-tune and voice changer',
-    'Your singing voice, moved onto the right notes and played with the song, in Sing along and Karaoke. Natural is gentle, Pop is tight, Hard tune is the T-Pain sound. The voice changer makes you deep, giant, high or tiny, with auto-tune or on its own. Press Try it above to hear yourself (away from a song it tunes to the nearest note). Headphones are best: with speakers, keep the microphone away from them. Scoring still listens to your real voice.',
+    'Your singing voice, moved onto the right notes and played with the song, in Sing along and Karaoke. Natural is gentle, Pop is tight, Hard tune is the T-Pain sound. The voice changer is for fun: a villain, a monster, a chipmunk, a robot, an alien, an old radio or a stadium, with auto-tune or on its own. To hear your plain voice with the song, pick Hear my voice in the Sing menu. Press Try it above to hear yourself (away from a song it tunes to the nearest note). Headphones are best: with speakers, keep the microphone away from them. Scoring still listens to your real voice.',
     style,
     notes,
     voice,

@@ -138,14 +138,15 @@ export function suggest(raw, songs, setlists = [], { perGroup = { song: 5, artis
   for (const s of songs) {
     const sc = matchSong(s, terms, q);
     if (sc) hits.push({ kind: 'song', id: s.id, label: s.title || s.fileName || 'Untitled', sub: [s.artist, s.tuning].filter(Boolean).join(' · '), score: sc });
+    const f = indexed(s); // worked out once per song, not on every key press
     if (s.artist) {
-      const k = normText(s.artist);
+      const k = f.artist;
       const a = artists.get(k) || { name: s.artist, n: 0 };
       a.n++;
       artists.set(k, a);
     }
     if (s.album) {
-      const k = `${normText(s.artist)}\u0000${normText(s.album)}`;
+      const k = `${f.artist}\u0000${f.album}`;
       const a = albums.get(k) || { name: s.album, artist: s.artist || '', n: 0 };
       a.n++;
       albums.set(k, a);

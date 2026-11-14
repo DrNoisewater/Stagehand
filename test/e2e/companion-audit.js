@@ -36,6 +36,18 @@ module.exports = async ({ page, outDir, check, companion }) => {
   check(/^\d{4}$/.test(code) && code === companion.code, `a 4-digit code shows (${code})`);
   check(/^https:\/\/.+:\d+$/.test(addr), `the address shows (${addr})`);
   await shot(page, '2-settings-on');
+  // nothing has reached the PC yet; pretend Windows said the firewall blocks it on a Public network
+  companion.firewall = { state: 'blocked', network: 'Public', netName: 'MyHome', at: Date.now() };
+  companion._changed();
+  await wait(500);
+  const help = await page.locator('.modal').textContent();
+  check(/Nothing has reached this PC/.test(help) && /Windows Firewall is blocking Stagehand/.test(help) && /as Public/.test(help) && /Allow an app through Windows Firewall/.test(help), 'nothing reached yet: Settings says the firewall blocks it and what to click');
+  await shot(page, '2b-settings-blocked');
+  companion.firewall = null;
+  companion.countLoopback = true; // the pretend headset below is on this PC
+  // typed without https://: sent on to the secure page
+  const redir = await new Promise((resolve) => require('http').get({ host: '127.0.0.1', port: companion.port, path: '/' }, (res) => (res.resume(), resolve(res.headers.location || ''))).on('error', () => resolve('')));
+  check(redir === `https://127.0.0.1:${companion.port}/`, `http:// is sent on to https:// (${redir})`);
 
   // ---- the headset
   // its own browser (the app's runs as one process, which can't open a second window)
@@ -47,6 +59,9 @@ module.exports = async ({ page, outDir, check, companion }) => {
   await q.goto(url);
   await q.waitForSelector('#pair:not([hidden])', { timeout: 8000 });
   check(true, 'the headset page asks for the code');
+  await wait(400);
+  const seen = await page.locator('.modal').textContent();
+  check(/The headset reached Stagehand|The page opened in the headset/.test(seen), 'Settings says the headset got through');
   await q.locator('#pad button:has-text("1")').first().click(); // a wrong first try
   for (const d of '234') await q.locator(`#pad button:text-is("${d}")`).click();
   await q.waitForTimeout(400);

@@ -143,6 +143,37 @@ function createFinder(o) {
     return true;
   }
 
+  // 4.18: a file host's own page (Drive's "No preview available" and the like) is a dead end once the
+  // download has started from it: when the song is in, step back to the last page of the song site.
+  const FILE_HOST = /(^|\.)(drive\.google\.com|docs\.google\.com|drive\.usercontent\.google\.com|mediafire\.com|dropbox\.com|mega\.nz|mega\.io|1drv\.ms|onedrive\.live\.com|pixeldrain\.com|gofile\.io)$/i;
+  const onFileHost = (url) => {
+    try {
+      return FILE_HOST.test(new URL(url).hostname);
+    } catch (_) {
+      return false;
+    }
+  };
+  function leaveFileHost() {
+    if (!site || site.webContents.isDestroyed()) return false;
+    const nav = site.webContents.navigationHistory;
+    if (!onFileHost(site.webContents.getURL())) return false;
+    try {
+      const all = nav.getAllEntries();
+      for (let i = nav.getActiveIndex() - 1; i >= 0; i--) {
+        if (!onFileHost(all[i].url)) {
+          nav.goToIndex(i);
+          return true;
+        }
+      }
+    } catch (_) {
+      if (nav.canGoBack()) {
+        nav.goBack();
+        return true;
+      }
+    }
+    return false;
+  }
+
   function onDownload(_e, item) {
     const name = item.getFilename() || 'song';
     const song = SONG_FILE.test(name);
@@ -186,6 +217,7 @@ function createFinder(o) {
         else if (had) say(`You already have ${name}.`, 'good');
         else say(`${name} couldn’t be added${why ? `: ${why}` : '.'}`, 'warn');
         o.onEvent({ type: 'downloaded', name, file, want, added: good.length > 0 || had });
+        if (good.length || had) leaveFileHost();
       } catch (err) {
         d.state = 'failed';
         log(`Finder: import of ${name} failed: ${err.message}`);

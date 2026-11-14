@@ -208,6 +208,7 @@ contextBridge.exposeInMainWorld('stagehand', {
     setOn: (on) => call('companion:setOn', on),
     forget: (id) => call('companion:forget', id),
     newCode: () => call('companion:newCode'),
+    allowFirewall: () => call('companion:allowFirewall'),
     state: (st) => ipcRenderer.send('companion:state', st),
     chart: (ch) => ipcRenderer.send('companion:chart', ch),
   },

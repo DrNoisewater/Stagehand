@@ -10,9 +10,11 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { PcClock, songPos } from '../src/companion/clock.js';
 const require = createRequire(import.meta.url);
-const { Companion, nowMs } = require('../src/main/services/companion.js');
+const { Companion, nowMs, addresses, readFirewall } = require('../src/main/services/companion.js');
 const { Settings } = require('../src/main/services/settings.js');
-const { makeCert } = require('../src/main/core/selfcert.js');
+const { makeCert, certNames } = require('../src/main/core/selfcert.js');
+import http from 'node:http';
+import tls from 'node:tls';
 const ws = require('../src/main/core/ws.js');
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..'); // a real path on Windows too
@@ -23,11 +25,11 @@ const SONGS = [
 ];
 const library = { songs: () => SONGS, get: (id) => SONGS.find((s) => s.id === id) || null };
 
-async function make(port = 0) {
+async function make(port = 0, extra = {}) {
   const settings = new Settings(path.join(tmp, `settings-${crypto.randomBytes(3).toString('hex')}.json`));
   await settings.load();
   settings.set({ companion: { port } });
-  const c = new Companion({ dir: path.join(tmp, 'Quest'), settings, library, staticDir: path.join(ROOT, 'src/companion'), rendererDir: path.join(ROOT, 'src/renderer'), version: 'test', pcName: 'STAGE-PC' });
+  const c = new Companion({ dir: path.join(tmp, 'Quest'), settings, library, staticDir: path.join(ROOT, 'src/companion'), rendererDir: path.join(ROOT, 'src/renderer'), version: 'test', pcName: 'STAGE-PC', ...extra });
   return { c, settings };
 }
 const ca = () => fs.readFileSync(path.join(tmp, 'Quest', 'companion-cert.pem'), 'utf8');
@@ -298,4 +300,97 @@ test('a headset joining mid-song gets the notes and every mark so far', async ()
   assert.equal((await get(c.port, '/three/three.module.min.js')).status, 200);
   assert.equal((await get(c.port, '/vr.js')).status, 200);
   await c.stop();
+});
+
+test('the address typed without https:// is sent on to the secure page, on the same port', async () => {
+  const { c } = await make();
+  await c.setOn(true);
+  const r = await new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port: c.port, path: '/?x=1', headers: { Host: `192.168.1.20:${c.port}` } }, (res) => {
+      res.resume();
+      res.on('end', () => resolve(res));
+    }).on('error', reject);
+  });
+  assert.equal(r.statusCode, 307);
+  assert.equal(r.headers.location, `https://192.168.1.20:${c.port}/?x=1`);
+  // a strange Host is not echoed back
+  const r2 = await new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port: c.port, path: '/', headers: { Host: 'evil"<x>' } }, (res) => (res.resume(), res.on('end', () => resolve(res)))).on('error', reject);
+  });
+  assert.match(r2.headers.location, /^https:\/\/[0-9.a-z]+:\d+\/$/);
+  // the secure page still works on that port
+  assert.equal((await get(c.port, '/')).status, 200);
+  await c.stop();
+  assert.equal(c.server, null);
+});
+
+test('Settings can tell how far the headset got: the certificate warning, the page, the link', async () => {
+  const { c } = await make(0, { countLoopback: true });
+  const seen = [];
+  c.on('status', (s) => s.reach && seen.push(s.reach.step));
+  await c.setOn(true);
+  assert.equal(c.status().reach, null, 'nothing yet');
+  // a browser that hasn't accepted the certificate yet hangs up during the handshake
+  await new Promise((resolve) => {
+    const s = tls.connect({ host: '127.0.0.1', port: c.port, rejectUnauthorized: true }, () => s.end());
+    s.on('error', () => resolve());
+    s.on('close', () => resolve());
+  });
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(c.status().reach.step, 'cert', 'it found this PC but refused the certificate');
+  await get(c.port, '/');
+  assert.equal(c.status().reach.step, 'page');
+  const q = await headset(c.port);
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(c.status().reach.step, 'link');
+  assert.equal(c.status().reach.from, '127.0.0.1');
+  await get(c.port, '/app.js');
+  assert.equal(c.status().reach.step, 'link', 'only ever moves forward');
+  assert.deepEqual([...new Set(seen)], ['knock', 'cert', 'page', 'link'], 'Settings is told each step once it happens');
+  q.conn.close();
+  await c.stop();
+  // a visit from this PC itself proves nothing about the network: not counted normally
+  const { c: c2 } = await make();
+  await c2.setOn(true);
+  await get(c2.port, '/');
+  assert.equal(c2.status().reach, null);
+  await c2.stop();
+});
+
+test('the address shown is the home network, not a VPN, WSL or a virtual machine', () => {
+  const list = addresses({
+    'vEthernet (WSL)': [{ family: 'IPv4', address: '172.22.32.1', internal: false }],
+    'NordLynx': [{ family: 'IPv4', address: '10.5.0.2', internal: false }],
+    'Ethernet 2': [{ family: 'IPv4', address: '169.254.10.3', internal: false }],
+    'Wi-Fi': [{ family: 'IPv6', address: 'fe80::1', internal: false }, { family: 'IPv4', address: '192.168.1.37', internal: false }],
+    'Loopback Pseudo-Interface 1': [{ family: 'IPv4', address: '127.0.0.1', internal: true }],
+  });
+  assert.equal(list[0].address, '192.168.1.37');
+  assert.equal(list[0].name, 'Wi-Fi');
+  assert.ok(!list.some((a) => a.address.startsWith('169.254')), 'no "no network yet" address');
+  assert.equal(list.find((a) => a.vpn).name, 'NordLynx');
+});
+
+test('certificate names: a PC name a browser can’t read is left out', () => {
+  assert.deepEqual(certNames(['192.168.1.37', 'DESKTOP-AB12', 'Jörg’s PC', '']), ['192.168.1.37', 'desktop-ab12']);
+  const r = makeCert({ names: ['192.168.1.37', 'Jörg’s PC'] });
+  const x = new crypto.X509Certificate(r.cert);
+  assert.ok(!/J/.test(x.subjectAltName));
+  assert.ok(new Date(x.validFrom) < Date.now(), 'already valid even if the headset’s clock is a little behind');
+});
+
+test('Windows Firewall, read in plain terms', () => {
+  const j = (o) => JSON.stringify(o);
+  const nets = [{ alias: 'Wi-Fi', name: 'MyHome', cat: 'Private' }];
+  const profiles = [{ name: 'Private', on: 'True', allowRules: 'True', inbound: 'NotConfigured' }, { name: 'Public', on: 'True', allowRules: 'True', inbound: 'NotConfigured' }];
+  assert.equal(readFirewall(j({ nets, profiles, rules: [] }), 'Wi-Fi').state, 'no-rule');
+  assert.equal(readFirewall(j({ nets, profiles, rules: [{ name: 'Stagehand', action: 'Allow', profile: 'Private' }] }), 'Wi-Fi').state, 'allowed');
+  // the question closed: Windows adds block rules, and they win
+  assert.equal(readFirewall(j({ nets, profiles, rules: [{ name: 'Stagehand', action: 'Allow', profile: 'Private' }, { name: 'Stagehand', action: 'Block', profile: 'Private, Public' }] }), 'Wi-Fi').state, 'blocked');
+  // allowed only on Private, but the PC's network is Public
+  const pub = readFirewall(j({ nets: [{ alias: 'Wi-Fi', name: 'MyHome', cat: 'Public' }], profiles, rules: [{ name: 'Stagehand', action: 'Allow', profile: 'Private' }] }), 'Wi-Fi');
+  assert.deepEqual([pub.state, pub.network, pub.netName], ['no-rule', 'Public', 'MyHome']);
+  assert.equal(readFirewall(j({ nets, profiles: [{ name: 'Private', on: 'False' }], rules: [] }), 'Wi-Fi').state, 'off');
+  assert.equal(readFirewall(j({ nets: { alias: 'Wi-Fi', name: 'MyHome', cat: 'Private' }, profiles, rules: { name: 'x', action: 'Allow', profile: 'Any' } }), 'Wi-Fi').state, 'allowed', 'one item comes back as an object, not a list');
+  assert.equal(readFirewall('', 'Wi-Fi').state, 'unknown');
 });
