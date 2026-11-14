@@ -1,4 +1,4 @@
-# 4.18.0 — One playground: jump between guitar, singing, karaoke and piano; steady menus; the voice comes through (2026-11-14, NOT released; nothing tried on the user's PC yet)
+# 4.18.0 — One playground: jump between guitar, singing, karaoke and piano; steady menus; the voice comes through (2026-11-14, merged to main; the Release workflow not run yet; nothing tried on the user’s PC yet)
 
 The user on 4.17.1 (several messages): "Cant find where to sing from highway… singing, i want to play that on guitar
 now. Playing guitar, oh snap lets see piano, nah lets go singing jump straight to karaoke" · "lots of flickering
