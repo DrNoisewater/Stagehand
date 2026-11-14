@@ -78,9 +78,17 @@ export const autotune = new (class extends EventTarget {
   get voice() {
     return TUNE_VOICES.some(([id]) => id === this.p.voice) ? this.p.voice : 'normal';
   }
-  /** Is the voice wanted out loud (a tuning style or a changed voice is picked)? */
-  get wanted() {
+  /** A tuning style or a changed voice is picked (whether or not it is muted). */
+  get picked() {
     return this.style !== 'off' || this.voice !== 'normal';
+  }
+  /** Muted: your choices are kept, but your voice isn't played (4.17.1). */
+  get muted() {
+    return !!this.p.muted;
+  }
+  /** Is the voice wanted out loud (something is picked, and it isn't muted)? */
+  get wanted() {
+    return this.picked && !this.muted;
   }
   get vol() {
     return Number.isFinite(this.p.vol) ? this.p.vol : 0.8;
@@ -100,13 +108,18 @@ export const autotune = new (class extends EventTarget {
     this.dispatchEvent(new Event('change'));
   }
   setStyle(v) {
+    this.p.muted = false; // picking something turns your voice back on
     this._save('style', v);
   }
   setNotes(v) {
     this._save('notes', v === 'near' ? 'near' : 'song');
   }
   setVoice(v) {
+    this.p.muted = false; // picking something turns your voice back on
     this._save('voice', v);
+  }
+  setMuted(on) {
+    this._save('muted', !!on);
   }
   setVol(v) {
     this._save('vol', Math.max(0, Math.min(1.5, Number(v) || 0)));

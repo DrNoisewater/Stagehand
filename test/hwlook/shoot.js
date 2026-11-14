@@ -389,8 +389,22 @@ const srv = http.createServer((req, res) => {
         if (!/Hard tune/.test(m.menu) || !/Voice:/.test(m.menu) || !/Tune to/.test(m.menu)) fail('the lane\'s auto-tune button opens no menu: ' + JSON.stringify(m));
         if (m.pressed !== String(!!tuneStyle)) fail('the lane\'s auto-tune button shows the wrong state: ' + JSON.stringify(m));
         await page.screenshot({ path: path.join(out, 'sing-1-tune-menu.png') });
-        await page.keyboard.press('Escape');
-        await page.mouse.click(4, 400);
+        if (tuneStyle) {
+          // Mute my voice: the voice stops, the choice is kept; pressing it again brings the voice back
+          const press = async () => { await page.locator('.menu button', { hasText: 'Mute my voice' }).last().click(); await page.waitForTimeout(500); };
+          const now = () => page.evaluate(async () => { const { autotune } = await import('/js/autotune.js'); return { on: autotune.on, muted: autotune.muted, style: autotune.style, label: document.querySelector('.hw-sing .sw-tune').textContent }; });
+          await press();
+          const off = await now();
+          if (off.on || !off.muted || off.style !== tuneStyle || !/muted/i.test(off.label)) fail('Mute my voice did not stop the voice: ' + JSON.stringify(off));
+          await page.click('.hw-sing .sw-tune');
+          await page.waitForTimeout(250);
+          await press();
+          const back = await now();
+          if (!back.on || back.muted) fail('un-muting did not bring the voice back: ' + JSON.stringify(back));
+          console.log('MUTE', JSON.stringify({ off, back }));
+        }
+        // (Escape only while a menu is open: with none, it would leave the song)
+        if (await page.locator('.menu').count()) await page.keyboard.press('Escape');
       }
       await until(11.2);
       await page.screenshot({ path: path.join(out, 'sing-2-bars-after-line.png') });

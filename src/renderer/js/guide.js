@@ -1,13 +1,18 @@
 import { decorativeImage } from './menu-art.js';
 import { scrap } from './cameo.js';
 /**
- * Getting started (4.1.2, grown into a full tour in 4.1.6): a skippable
- * walk-through in three parts.
- *  - Get set up: what you need, song files, getting ready for songs, a first
- *    song, tuning up and the timing check.
- *  - Play a song: reading the highway and its controls; stems and the mix.
- *  - Around Stagehand: one page per menu section (Songs, Jam, Tones,
- *    Progress, Discover, Backstage), then the keys.
+ * Getting started (4.1.2, a full tour in 4.1.6, cut down and brought up to
+ * date in 4.17.1): a skippable walk-through in four parts. Every page is
+ * short: a line or two and at most four steps.
+ *  - Get set up: welcome, the cable, getting songs, tuning up.
+ *  - Play a song: everything in Stagehand on one page of cards (each jumps
+ *    to its page), the highway, stems.
+ *  - Around Stagehand: Songs, Jam, Tones and Gear, Progress, Discover,
+ *    Backstage.
+ *  - More to try: Sing and Karaoke (auto-tune, voice changer), Piano, the
+ *    Quest headset, then the keys.
+ * The list on the left shows only the part you're in; the others fold to
+ * one line each.
  * Every tour page has "Show me": the guide steps aside, goes there and rings
  * the control it's talking about, with a way back to the same page.
  * Offered once on a fresh install with no songs; people who saw the old,
@@ -89,9 +94,22 @@ export function openGuide({ step = null } = {}) {
   function go(i) {
     at = Math.max(0, Math.min(PAGES.length - 1, i));
     side.innerHTML = '';
+    // only the part you're in is listed in full; the others are one line each (less to take in)
+    const cur = PAGES[at].group;
+    const mine = PAGES.filter((pg) => pg.group === cur);
     PAGES.forEach((pg, j) => {
-      if (pg.group && (j === 0 || PAGES[j - 1].group !== pg.group)) side.append(h('div.gs-group', { text: pg.group }));
-      const b = h(`button.gs-step${j === at ? '.on' : ''}${j < at ? '.done' : ''}`, { type: 'button', html: `<i>${j < at ? icon('check') : j + 1}</i><span>${esc(pg.title)}</span>` });
+      const first = j === 0 || PAGES[j - 1].group !== pg.group;
+      if (pg.group !== cur) {
+        if (!first) return;
+        const n = PAGES.filter((x) => x.group === pg.group).length;
+        const g = h(`button.gs-group.gs-group-btn${j < at ? '.done' : ''}`, { type: 'button', html: `<span>${esc(pg.group)}</span><i>${j < at ? icon('check') : n}</i>` });
+        g.onclick = () => go(j);
+        side.append(g);
+        return;
+      }
+      if (first) side.append(h('div.gs-group.on', { text: pg.group }));
+      const k = mine.indexOf(pg);
+      const b = h(`button.gs-step${j === at ? '.on' : ''}${j < at ? '.done' : ''}`, { type: 'button', html: `<i>${j < at ? icon('check') : k + 1}</i><span>${esc(pg.title)}</span>` });
       b.onclick = () => go(j);
       side.append(b);
     });
@@ -99,7 +117,7 @@ export function openGuide({ step = null } = {}) {
     body.innerHTML = '';
     body.scrollTop = 0;
     const ctx = { close: () => m.close(), go, at };
-    body.append(h('div.gs-count', { text: `${PAGES[at].group || ''}${PAGES[at].group ? ' · ' : ''}step ${at + 1} of ${PAGES.length}` }), h('h3', { text: PAGES[at].title }), PAGES[at].draw(ctx));
+    body.append(h('div.gs-count', { text: `${cur} · ${mine.indexOf(PAGES[at]) + 1} of ${mine.length}` }), h('h3', { text: PAGES[at].title }), PAGES[at].draw(ctx));
     if (PAGES[at].show) body.append(h('div.gs-actions.gs-show', null, btn('Show me', { iconName: 'compass', cls: 'primary', onClick: () => showMe(PAGES[at].show, at, () => m.close()) })));
     back.disabled = at === 0;
     next.querySelector('span').textContent = at === PAGES.length - 1 ? 'Done' : 'Next';
@@ -113,12 +131,12 @@ export function openGuide({ step = null } = {}) {
 export function offerGuide() {
   const ui = (state.settings && state.settings.ui) || {};
   if (!ui.guideSeen && !state.songs.size) return openGuide();
-  // 4.1.6: you saw the short guide (or already have songs): the tour of every section is new
-  if ((ui.guideVersion || 1) < 2) {
-    api.settings.set({ ui: { guideVersion: 2 } }).catch(() => {});
+  // 4.17.1: the tour is shorter and has the newer things (singing, auto-tune, piano, the headset)
+  if ((ui.guideVersion || 1) < 3) {
+    api.settings.set({ ui: { guideVersion: 3 } }).catch(() => {});
     toast({
-      title: 'New: a tour of Stagehand',
-      message: 'Getting started now shows every part of Stagehand: stems, muting parts, the tuner, the timing check, Jam and more. Two minutes, any time.',
+      title: 'Getting started has a new tour',
+      message: 'Everything in Stagehand on one page, then a short page for each: singing with auto-tune, piano, the Quest headset and more. Dip in any time.',
       kind: 'info',
       timeout: 16000,
       actions: [{ label: 'Take the tour', onClick: () => openGuide({ step: TOUR }) }],
@@ -195,6 +213,24 @@ function pickASong() {
   if (id && !state.selection.has(id)) setSelection([id], { anchor: id, focus: id });
 }
 
+/** Opens Settings on one of its pages (the guide steps aside). */
+const openSettings = (tab) => import('./dialogs.js').then((m) => m.settings(tab)).catch(() => {});
+
+/** Everything in Stagehand on one page: a card each, one line, click to read more. */
+const OVERVIEW = [
+  ['highway', 'Play along', 'Notes come down the highway; Stagehand listens and scores you.', 'The highway'],
+  ['split', 'Stems', 'Mute the guitar, solo the bass, take the singer out.', 'Stems: mute any part'],
+  ['library', 'Songs', 'Your library: search, lists, your best scores.', 'Songs'],
+  ['guitar', 'Jam', 'Just play: tones, tuner, drums and a looper.', 'Jam'],
+  ['tones', 'Tones and Gear', 'Amps and pedals you can turn, and tones of your own.', 'Tones and Gear'],
+  ['mic', 'Sing and Karaoke', 'Sing any song, with auto-tune and funny voices.', 'Sing and Karaoke'],
+  ['piano', 'Piano', 'Play any song on a USB keyboard, with sheet music.', 'Piano'],
+  ['chart', 'Progress', 'Levels, streaks and what to practise next.', 'Progress'],
+  ['compass', 'Discover', 'Find new songs and keep a Wanted list.', 'Discover'],
+  ['people', 'Backstage', 'Record clips and show them to other players.', 'Backstage'],
+  ['globe', 'Quest headset', 'Play with the highway in front of you in VR.', 'Quest headset'],
+];
+
 const PAGES = [
   {
     group: 'Get set up',
@@ -204,46 +240,35 @@ const PAGES = [
         'div',
         null,
         p('Stagehand teaches you songs on your real guitar or bass. The notes come toward you on a moving “highway”, you play them, and Stagehand listens and tells you how you did.'),
-        p('You don’t need the Rocksmith game. You need your instrument, a cable, and some song files. This guide takes about ten minutes and you can leave it any time: it’s always under Getting started in the menu.'),
-        steps(['Plug in', 'Connect your guitar or bass with the cable.'], ['Get songs', 'Make a free CustomsForge account and download a song.'], ['Play', 'Open the song, tune up, and play along.']),
-        p('Then a quick tour: the highway, stems (mute any part of a song), and every section in the menu. Each page has a Show me button that takes you there.'),
-        h('div.gs-actions', null, btn('I’m set up: show me around', { iconName: 'compass', onClick: () => go(TOUR) }))
+        steps(['Plug in', 'Connect your guitar or bass with the cable.'], ['Get songs', 'Download a song, or use the ones you have.'], ['Play', 'Open the song, tune up, and play along.']),
+        p('That’s the whole setup: four short pages. After that there’s a tour you can dip into whenever you like. Leave any time; this guide is always under Getting started in the menu.'),
+        h('div.gs-actions', null, btn('I’m set up: show me what’s here', { iconName: 'compass', onClick: () => go(TOUR) }))
       ),
   },
   {
+    group: 'Get set up',
     title: 'Your guitar',
     draw: () =>
       h(
         'div',
         null,
-        p('Stagehand uses the Rocksmith Real Tone Cable: one end goes in your guitar or bass like a normal cable, the other into a USB port on your PC. (It’s sold on its own; you don’t need the game.)'),
+        p('Stagehand uses the Rocksmith Real Tone Cable: one end goes in your guitar or bass like a normal cable, the other into a USB port on your PC. You don’t need the game.'),
         p('Plug it in and Stagehand finds it by itself. You hear yourself through your PC speakers or headphones, with an amp sound already set up.'),
         rig.on ? status(true, 'Your instrument is connected. Strum a string: you should hear it.') : status(false, 'No cable found yet. Plug it in; this turns green when Stagehand hears it.'),
         h('p.fine', { text: 'Too loud, too quiet, or a delay? Settings › Guitar & audio has the input level and the “fastest” sound mode.' })
       ),
   },
   {
-    title: 'What a song file is',
-    draw: () =>
-      h(
-        'div',
-        null,
-        p('Each Rocksmith song is one file ending in .psarc. It holds the music and the notes for guitar and bass.'),
-        p('Fans make songs that aren’t in the game and share them for free. They’re called custom songs (or CDLC), and CustomsForge is the big site where they’re shared. Its song search is called Ignition.'),
-        steps(['Make an account', 'CustomsForge needs a free account before you can download. Sign up once.'], ['PC files', 'Pick the PC version when there’s a choice. PC files usually end in _p.psarc; Mac files end in _m.psarc and won’t work.'], ['ZIP files', 'Now and then a song comes as a .zip. Drag the .zip onto the Stagehand window and it takes the songs out for you.']),
-        h('div.gs-actions', null, btn('Open CustomsForge', { iconName: 'external', cls: 'primary', onClick: () => api.discover.customsforge({ open: true }).catch(() => {}) })),
-        h('p.fine', { text: 'CustomsForge doesn’t allow apps to download for you, so you download in your web browser and Stagehand picks it up from there.' })
-      ),
-  },
-  {
-    title: 'Get ready for songs',
+    group: 'Get set up',
+    title: 'Get songs',
     draw: () => {
+      const n = state.songs.size;
       const box = h('div');
-      box.append(p('Stagehand watches your Downloads folder: when a song finishes downloading, it moves it into your library by itself. If you have the Rocksmith game, songs go into the game too.'));
+      box.append(p('Songs are files ending in .psarc. Fans make them for free and share them on a site called CustomsForge (free account). Stagehand watches your Downloads folder and adds each song by itself.'));
       const st = h('div', null, status(false, 'Checking…'));
-      const go = btn('Set it up for me', { cls: 'primary', iconName: 'check' });
-      go.onclick = async () => {
-        go.disabled = true;
+      const set = btn('Set it up for me', { cls: 'primary', iconName: 'check' });
+      set.onclick = async () => {
+        set.disabled = true;
         try {
           const r = await api.imports.readySongs();
           if (r.made) toast({ title: 'Made a songs folder', message: r.made, kind: 'ok' });
@@ -251,53 +276,39 @@ const PAGES = [
         } catch (e) {
           toast({ title: 'Couldn’t set it up', message: e.message, kind: 'err' });
         }
-        go.disabled = false;
+        set.disabled = false;
       };
       const show = (s) => {
         st.innerHTML = '';
         const ready = s && s.watch && s.target;
-        st.append(
-          ready ? status(true, `Ready. New songs in ${s.watchDir} go to ${s.target.path}${s.target.game ? ' (your Rocksmith songs)' : ''}.`) : status(false, s && s.target ? 'Downloads aren’t being watched yet.' : 'Stagehand doesn’t have a place for songs yet.')
-        );
-        go.hidden = !!ready;
+        st.append(ready ? status(true, `Ready. New songs in ${s.watchDir} go to ${s.target.path}${s.target.game ? ' (your Rocksmith songs)' : ''}.`) : status(false, s && s.target ? 'Downloads aren’t being watched yet.' : 'Stagehand doesn’t have a place for songs yet.'));
+        set.hidden = !!ready;
       };
       api.imports.status().then(show).catch(() => show(null));
-      box.append(st, h('div.gs-actions', null, go));
-      box.append(h('p.fine', { text: 'You can change these folders any time in Discover › Imports.' }));
-      return box;
-    },
-  },
-  {
-    title: 'Download your first song',
-    draw: () => {
-      const n = state.songs.size;
-      const box = h(
-        'div',
-        null,
-        p('Pick a song you know and like, and not too fast. Then:'),
-        steps(['Search', 'In Ignition, type the artist or song in the search box.'], ['Download', 'Click the song, then the download button. Some songs open a file site (like Google Drive): press download there too.'], ['Wait a moment', 'When the download finishes, Stagehand adds it and says so in the corner.']),
+      box.append(
+        st,
+        h('div.gs-actions', null, set),
+        steps(['Search', 'On CustomsForge, type an artist or song you know. Pick something not too fast.'], ['Download', 'Press download. Pick the PC version when there’s a choice.'], ['It arrives', 'Stagehand adds it and says so in the corner.']),
         h('div.gs-actions', null, btn('Open CustomsForge', { iconName: 'external', cls: 'primary', onClick: () => api.discover.customsforge({ open: true }).catch(() => {}) }), btn('Look in Downloads now', { iconName: 'search', onClick: lookNow })),
         n ? status(true, `You have ${n} song${n === 1 ? '' : 's'}. On to playing!`) : status(false, 'No songs yet. This turns green when the first one arrives.'),
-        h('p.fine', { text: 'Tip: Discover (in the menu) suggests songs by artists you like and keeps a Wanted list.' })
+        h('p.fine', { text: 'A song that comes as a .zip: drag it onto the Stagehand window. Already have Rocksmith songs? Add their folder in Settings › Library.' })
       );
       return box;
     },
   },
   {
+    group: 'Get set up',
     title: 'Tune up',
     draw: (ctx) =>
       h(
         'div',
         null,
-        p('Each song is made for a tuning: most are E Standard, some are Drop D, E♭ Standard and so on. Stagehand remembers what your instrument is tuned to and tells you before you play when a song needs something else.'),
+        p('Stagehand tells you before you play when a song needs a different tuning.'),
         steps(
-          ['The tuner follows the song', 'Open the tuner (on the Jam page, or press U on the highway or in the tab view) and it’s already set to the tuning the song needs. Play one open string at a time; the string lights up and the needle shows how close you are. Pick another tuning in its menu if you like; the next song sets it back.'],
-          ['Or let the Drop do it', 'When a song is the same tuning, just lower (E♭ or D Standard, Drop C from Drop D), the Drop lowers your sound for you: no retuning. Click “Match the song” in Master Settings, or turn on Match on the Jam page and it follows every song.'],
-          ['String by string', 'For a different tuning (E Standard to Drop D, say), the tuning guide lists which strings to change and listens as you go: Master Settings › Tuning guide.']
+          ['The tuner', 'Press U (or the Tuner button, top right). It’s already set to what the song needs: play one string at a time and follow the needle.'],
+          ['The Drop', 'For songs tuned lower (E♭, D…), the Drop lowers your sound for you, so you don’t retune. Press D.'],
+          ['The timing check', 'If notes you play on time count as late, run this once: a 30-second song that lines the highway up with your playing.']
         ),
-        h('h4', { text: 'The timing check (calibration)' }),
-        p('Every PC’s sound arrives a little late. If notes you play on time count as late or missed, run the timing check: a short, easy song of its own on the highway, a few notes on the top three strings. Play along like any song and Stagehand lines the highway up with how you play. It takes about 30 seconds and you only do it once.'),
-        p('Stagehand offers it by itself if it can hear you playing but lots of notes aren’t counting. It’s also under Tools › Timing check on the highway, and in Master Settings.'),
         h(
           'div.gs-actions',
           null,
@@ -309,8 +320,27 @@ const PAGES = [
             },
           })
         ),
-        h('h4', { text: 'Your input level' }),
-        p('The other calibration: on the Jam page press Set input level and strum as hard as you play for 4 seconds. Stagehand sets your level so it hears every note, quiet or loud. Do it once, and again if you change guitars.')
+        h('p.fine', { text: 'One more for later: Set input level on the Jam page. Strum hard for 4 seconds and Stagehand hears every note, quiet or loud.' })
+      ),
+  },
+  {
+    group: 'Play a song',
+    title: 'What’s in Stagehand',
+    draw: ({ go }) =>
+      h(
+        'div',
+        null,
+        p('Everything on one page. Click anything to read about it, or just press Next.'),
+        h(
+          'div.gs-cards',
+          null,
+          ...OVERVIEW.map(([ic, name, line, to]) => {
+            const b = h('button.gs-card', { type: 'button', html: `${icon(ic)}<b>${esc(name)}</b><span>${esc(line)}</span>` });
+            b.onclick = () => go(PAGES.findIndex((pg) => pg.title === to));
+            return b;
+          })
+        ),
+        h('p.fine', { text: 'Every page has a Show me button that takes you to the real thing and circles it.' })
       ),
   },
   {
@@ -320,36 +350,33 @@ const PAGES = [
       h(
         'div',
         null,
-        p('Double-click a song (or select it and press Play along) to open the highway. Pick Lead, Rhythm or Bass at the top.'),
-        p('The highway is like looking down your guitar neck. Each string has a colour, the same everywhere in Stagehand:'),
+        p('Double-click a song to open the highway, and pick Lead, Rhythm or Bass at the top. It’s like looking down your guitar neck. Each string has a colour:'),
         h('ul.gs-strings', null, ...STRINGS.map(([c, name, what]) => h('li', null, h('i', { style: { background: c } }), h('b', { text: name }), h('span', { text: what })))),
-        p('The number on a note is the fret to press (0 means play the string open). Wide shapes are chords. A long tail means let the note ring; a curve means bend the string; a wavy tail is vibrato.'),
-        h('h4', { text: 'Along the top' }),
+        p('The number on a note is the fret to press (0 is the open string). Wide shapes are chords; a long tail means let it ring.'),
         steps(
-          ['Play, time and speed', 'Space plays and pauses. The speed chip slows the song down (try 70 % on something new) or speeds it up to 150 %, without changing its pitch. [ and ] change it too. ← and → skip 5 seconds.'],
-          ['Sections', 'The strip of sections (Intro, Verse, Chorus…): click one to jump there, or its ⟲ to repeat it until you’ve got it. L repeats the section you’re in.'],
-          ['Tab, Highway, Waveform', 'Switch views any time; T shows the tab.'],
-          ['Tools', 'Score attack (a full run for points), Record a video clip, and the Timing check.'],
-          ['Master Settings', 'The pull-out tab on the side: the mix (turn the song, the guitar or any stem up and down), the Drop and tuning, lyrics, chord names, the score card and more.']
+          ['Slow it down', 'The speed chip at the top: try 70 % on something new. The pitch stays the same.'],
+          ['Repeat a part', 'Click a section (Verse, Chorus…) to jump there, or press L to repeat it until you’ve got it.'],
+          ['Tools', 'Score attack, record a video clip, and the timing check.'],
+          ['Master Settings', 'The pull-out tab on the side: the mix, tuning, lyrics, chord names and more.']
         ),
-        p('At the end you get a score card: how each section went and what to practise. Click a section to repeat it. Back (or Esc, or your mouse’s back button) returns to your songs.'),
+        p('At the end, a score card shows how each section went and what to practise.')
       ),
   },
   {
+    group: 'Play a song',
     title: 'Stems: mute any part',
     show: { title: 'Split stems', at: [() => [...document.querySelectorAll('#inspector button')].find((b) => /stems/i.test(b.textContent)), '#inspector'], go: pickASong, tip: 'Select a song, then press Split stems here. It works in the background; the coloured bars next to the song fill in when its stems are ready.' },
     draw: () =>
       h(
         'div',
         null,
-        p('Stagehand can pull a song apart into its instruments: guitar, bass, drums, vocals, keys and everything else. These are called stems. Then you can mute the guitar and play the part yourself, solo the bass to hear it clearly, or turn the vocals down.'),
+        p('Stagehand can pull a song apart into guitar, bass, drums, vocals, keys and the rest. These are stems. Mute the guitar and play it yourself, or solo the bass to hear it clearly.'),
         steps(
-          ['Split a song', 'Select a song and press Split stems (or right-click songs › Split stems; it can do many at once). The first time, Stagehand sets up the splitter: a one-off download of about 1–3 GB.'],
-          ['Wait a little', 'A song takes under a minute on an NVIDIA graphics card, a few minutes without one. Keep playing while it works; Songs › Stems ready lists every song that has them.'],
-          ['Mute and solo', 'Play the song and open the Waveform view: each stem has its own lane with M (mute) and S (solo) and a volume. Shift+1 to Shift+6 mutes a stem from the keyboard.'],
-          ['On the highway', 'Master Settings › Mix has a slider for each stem, your guitar and the whole song. Stagehand remembers your mix for each song.']
+          ['Split a song', 'Select a song and press Split stems. The first time, Stagehand downloads its splitter (1–3 GB, once).'],
+          ['Keep playing', 'It works in the background: under a minute with an NVIDIA graphics card, a few minutes without.'],
+          ['Mute and solo', 'On the highway, Master Settings › Mix has a slider for every stem. Your mix is remembered for each song.']
         ),
-        h('p.fine', { text: 'M switches between the full song and your stems mix. Stems stay on your PC; nothing is uploaded.' })
+        h('p.fine', { text: 'Stems stay on your PC; nothing is uploaded.' })
       ),
   },
   {
@@ -362,91 +389,148 @@ const PAGES = [
         null,
         p('Every song you have, with its parts, tuning, length and your best score.'),
         steps(
-          ['Search', 'Ctrl+F or click the search box. Suggestions come up as you type, even with a typo; pick a song to jump to it, or an artist to see all of theirs.'],
-          ['Click to filter', 'Click an artist, album, year or tuning in the list to see the songs that share it. The L R B V letters show only songs with that part.'],
-          ['Your lists', 'Favorites (the heart), Recently added and played, Stems ready, Your level (mastered, getting there, learning), Tunings, Artists, and your own setlists: press + by Setlists, then drag songs onto it.'],
-          ['One click, two clicks', 'Click a song to see it on the right (parts, tuning, Edit details, Split stems, rating). Double-click to play along; Just listen plays it without the highway.'],
-          ['Tidy up', 'List or Tiles at the top; the ⋯ menu finds duplicate songs and keeps the best copy.']
+          ['Search', 'Ctrl+F, then type. It forgives typos.'],
+          ['Click to filter', 'Click an artist, album or tuning in the list to see the songs that share it.'],
+          ['Your lists', 'Favorites, Recently played, Stems ready, and your own setlists: press + by Setlists and drag songs onto it.'],
+          ['One click, two clicks', 'Click a song to see it on the right. Double-click to play along.']
         )
       ),
   },
   {
+    group: 'Around Stagehand',
     title: 'Jam',
     show: { title: 'Jam', at: '#page-play .slots', go: () => setPage('play'), tip: 'Your tone slots: keys 1–9 switch between them as you play. Above: Set input level, Choose song and Play over song. Below: the rig, the tuner, the Drop, drums and the looper.' },
     draw: () =>
       h(
         'div',
         null,
-        p('Play without the highway: the page Stagehand opens on.'),
+        p('Play without a song: the page Stagehand opens on.'),
         steps(
-          ['Tone slots', 'Nine sounds, keys 1–9. Click a piece of the rig (pedals, amp, cabinet) to turn its knobs; Edit this tone saves your changes.'],
-          ['Set input level', 'Strum as hard as you play for 4 seconds and Stagehand sets your level (Rocksmith’s calibration). Do it once when you start; notes are heard better.'],
-          ['Play over a song', 'Choose song, then Play over song: the song’s stems become your backing band with your part muted (Mute guitar or Mute bass).'],
-          ['Tuner and Drop', 'The tuner follows the tuning you’re in, or the song you last opened. The Drop lowers your sound without retuning; Match follows each song.'],
-          ['Drums & metronome', 'Pick a beat (Click, Rock, Shuffle, Metal…) and a tempo, and play along.'],
-          ['Looper', 'Press Record, play, press Stop: it loops straight away. Overdub to add layers; it locks to the drums when they’re on.'],
-          ['Record video', 'Records you jamming, with the sound. Find it Backstage, under My clips.'],
-          ['Visualizer', 'Open visualizer (or J) for a full screen with a moving background that reacts to what you play.']
+          ['Tone slots', 'Nine sounds on keys 1–9. Click a pedal, the amp or the cabinet to turn its knobs.'],
+          ['Play over a song', 'Choose a song and it becomes your backing band, with your part taken out.'],
+          ['Drums and looper', 'Pick a beat and a tempo. Record a riff and it loops straight away; add layers on top.'],
+          ['Full screen', 'Press J for a moving background that reacts to what you play.']
         )
       ),
   },
   {
-    title: 'Tones',
+    group: 'Around Stagehand',
+    title: 'Tones and Gear',
     show: { title: 'Create tone', at: ['.tw-create', '.tones-tabs'], go: () => setPage('tones'), tip: 'Create tone walks you through making your own sound, live as you play. Below it: My tones, From my songs (every tone in your songs) and Presets.' },
     draw: () =>
       h(
         'div',
         null,
-        p('Every amp sound you can use. Play your instrument while browsing and you hear each one live.'),
+        p('Every sound you can use. Play while you browse and you hear each one live.'),
         steps(
-          ['My tones, From my songs, Presets', 'The three tabs. Songs bring their own tones; Stagehand switches to the song’s tone as you play (unless you pick one).'],
-          ['Create tone', 'The easiest way to make your own: pick guitar or bass, a starting sound, the amp, the cabinet, turn the knobs and save it to a key. You hear every choice live as you play. On the Tones and Jam pages, and in the highway’s tone menu.'],
-          ['Edit and save', 'Change any knob, rename it, put it in a slot (2–9).'],
-          ['Real amps', 'Recordings of real amps (from TONE3000, free account). Create tone can get every one of them, whatever songs you have; From my songs › Get all gets the ones your songs use.']
+          ['Songs bring their tones', 'Stagehand switches to the song’s own tone as you play, unless you pick one.'],
+          ['Create tone', 'Build your own on a pedalboard: pick pedals, an amp and a cabinet, turn the knobs, save it to a key.'],
+          ['Gear', 'Its own page in the menu: every amp, cabinet and pedal as a photo with knobs that turn, and what real gear it’s based on.'],
+          ['Real amps', 'Recordings of real amps in place of the built-in ones (free TONE3000 account). Set up once in Settings › Real amps.']
         )
       ),
   },
   {
+    group: 'Around Stagehand',
     title: 'Progress',
     show: { title: 'Progress', at: '#page-progress', go: () => setPage('progress'), tip: 'How long you’ve played, your streak, the songs you’re working on, and how each section is going.' },
     draw: () =>
       h(
         'div',
         null,
-        p('Stagehand keeps track as you play: time played, your streak of days, accuracy, and the songs you’re working on with each section’s score, so you can see what to practise next. Your best for each song also shows as a small badge next to its title.')
+        p('Stagehand keeps track as you play, so you can see yourself getting better.'),
+        steps(
+          ['Levels', 'Playing well earns points. Levels open new venues, trophies and titles.'],
+          ['Streaks and challenges', 'Your run of days, plus something to aim at each day and week.'],
+          ['Song mastery', 'How each song and each section is going, and what to practise next.']
+        )
       ),
   },
   {
+    group: 'Around Stagehand',
     title: 'Discover',
     show: { title: 'Discover', at: '.nav-section[data-page="discover"]', go: () => setView({ kind: 'discover', id: 'search' }), tip: 'Search any artist, see what you’re missing, keep a Wanted list, and watch your Downloads.' },
     draw: () =>
       h(
         'div',
         null,
+        p('Where new songs come from.'),
         steps(
-          ['Search', 'Any artist or song in the world (MusicBrainz), with which ones you already have.'],
-          ['Collection gaps', 'Albums and songs by artists you like that you don’t have yet.'],
-          ['Wanted', 'Your list of songs to get. One click copies the name and opens CustomsForge.'],
-          ['Imports', 'Which folders Stagehand watches for new downloads, and where songs go.']
+          ['Search', 'Any artist or song, with the ones you already have marked.'],
+          ['What you’re missing', 'Albums and songs by artists you like that you don’t have yet.'],
+          ['Wanted and Find', 'Keep a list of songs to get. Find opens CustomsForge searching for that song, and what you download lands in your library.']
         )
       ),
   },
   {
+    group: 'Around Stagehand',
     title: 'Backstage',
     show: { title: 'Backstage', at: '.nav-section[data-page="greenroom"]', go: () => setPage('greenroom'), tip: 'Your clips, the clips other players show, and your messages.' },
     draw: () =>
       h(
         'div',
         null,
+        p('Record yourself and see what other players are up to.'),
         steps(
-          ['Video clips', 'On the highway, Tools › Record a video clip records you playing along, with the sound. Jam can record too. Each clip remembers the song, the part and your tone.'],
-          ['My clips', 'Everything you’ve recorded, looper takes too. Play, rename, delete, or show the file.'],
-          ['Show it', 'Press Show backstage on a video and everyone with Stagehand can watch it while your Stagehand is open. Pick a name the first time.'],
-          ['Everyone', 'See who’s here and what they’ve shown. Watch a clip, try or keep their tone, open the song if you have it, or message them.']
+          ['Record a clip', 'On the highway: Tools › Record a video clip. Jam can record too.'],
+          ['My clips', 'Everything you’ve recorded, with the song, the part and your tone.'],
+          ['Show it', 'Press Show backstage on a clip and everyone with Stagehand can watch it. Try their tones, or message them.']
         )
       ),
   },
   {
+    group: 'More to try',
+    title: 'Sing and Karaoke',
+    show: { title: 'Karaoke', at: '.nav-section[data-page="karaoke"]', go: () => setPage('karaoke'), tip: 'Every song with words. Click one to sing it. The wand at the top is auto-tune and the voice changer.' },
+    draw: () =>
+      h(
+        'div',
+        null,
+        p('Any microphone works: USB, a headset, a webcam. It stays off until you press it.'),
+        steps(
+          ['Sing along', 'Press Sing on the highway. The words become a lane with a bar for every syllable and a dot for your voice, and your singing gets its own score.'],
+          ['Karaoke', 'Its own page in the menu: pick a song and sing with the words big and the singer taken out.'],
+          ['Auto-tune', 'Hear your voice lifted onto the song’s notes: Natural, Pop, or Hard tune (the T-Pain sound).'],
+          ['Voice changer', 'Sing as a deep voice, a giant, a high voice or a chipmunk.']
+        ),
+        h('p.fine', { text: 'Auto-tune and the voices are on the strip of tape on the singing lane. Headphones are best.' })
+      ),
+  },
+  {
+    group: 'More to try',
+    title: 'Piano',
+    draw: ({ close }) =>
+      h(
+        'div',
+        null,
+        p('Plug a digital piano or keyboard in by USB and play any song on it.'),
+        steps(
+          ['Press Piano', 'On the highway. Stagehand writes a piano part from the song itself: the tune, the chords, the bass line.'],
+          ['Read it your way', 'Real sheet music on top, glowing notes falling onto a keyboard below.'],
+          ['Take it easy', 'Easy, Medium or Hard; one hand or both. Every note is scored.']
+        ),
+        h('div.gs-actions', null, btn('Pick my keyboard in Settings', { iconName: 'piano', onClick: () => (close(), openSettings('guitar')) }))
+      ),
+  },
+  {
+    group: 'More to try',
+    title: 'Quest headset',
+    draw: ({ close }) =>
+      h(
+        'div',
+        null,
+        p('Have a Meta Quest? Play with the highway in front of you and the venue all around you. Your guitar and the sound stay on the PC.'),
+        steps(
+          ['Switch it on', 'Settings › Quest headset. It shows an address and a 4-digit code.'],
+          ['In the headset', 'Open the Browser, type the address, then the code. Nothing to install.'],
+          ['Play', 'Pick a song in the headset or on the PC, then Enter VR, or Passthrough to see your room.']
+        ),
+        h('div.gs-actions', null, btn('Open Settings › Quest headset', { iconName: 'globe', onClick: () => (close(), openSettings('quest')) })),
+        h('p.fine', { text: 'The headset must be on the same home network as the PC.' })
+      ),
+  },
+  {
+    group: 'More to try',
     title: 'Keys and you’re set',
     draw: ({ close }) =>
       h(
@@ -457,26 +541,23 @@ const PAGES = [
           null,
           ...[
             ['Space', 'Play / pause'],
-            ['← →', 'Back / forward 5 s (Shift: 15 s)'],
-            ['H', 'Open the highway'],
-            ['T', 'Tab view'],
-            ['U', 'Tuner on the highway and in the tab view'],
+            ['← →', 'Back / forward 5 s'],
+            ['[ ]', 'Slower / faster'],
             ['L', 'Repeat this section'],
+            ['T', 'Tab view'],
+            ['U', 'Tuner'],
             ['D', 'The Drop on or off'],
-            ['M', 'Full song or your stems mix'],
             ['1–9', 'Tone slots'],
-            ['Shift+1–6', 'Mute a stem'],
             ['J', 'Full-screen Jam'],
             ['Ctrl+F', 'Search'],
-            ['Ctrl+,', 'Settings'],
-            ['Esc / mouse back', 'Back'],
+            ['Esc', 'Back'],
           ].map(([k, w]) => h('li', null, h('kbd', { text: k }), h('span', { text: w })))
         ),
-        p('That’s everything. Play slowly at first: speed comes by itself. This guide is always under Getting started in the menu.'),
+        p('That’s everything. Play slowly at first: speed comes by itself.'),
         h('div.gs-actions', null, btn('Go to my songs', { iconName: 'library', cls: 'primary', onClick: () => (close(), setPage('songs')) }), btn('Jam', { iconName: 'guitar', onClick: () => (close(), setPage('play')) }))
       ),
   },
 ];
 
-/** Where the tour of the sections starts (for people who've done the setup). */
-const TOUR = PAGES.findIndex((pg) => pg.title === 'The highway');
+/** Where the tour starts (for people who've done the setup): everything on one page. */
+const TOUR = PAGES.findIndex((pg) => pg.title === 'What’s in Stagehand');

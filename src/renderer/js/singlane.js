@@ -124,6 +124,7 @@ const nameOf = (list, id) => (list.find(([x]) => x === id) || list[0])[1];
 export function tuneLabel() {
   const a = autotune.style === 'off' ? '' : nameOf(TUNE_STYLES, autotune.style);
   const v = autotune.voice === 'normal' ? '' : nameOf(TUNE_VOICES, autotune.voice);
+  if (autotune.picked && autotune.muted) return 'Voice muted';
   return a && v ? `${a} · ${v}` : a ? `Auto-tune: ${a}` : v ? `Voice: ${v}` : 'Auto-tune';
 }
 /** Auto-tune and the voice changer as menu lines (the Sing menu and the Karaoke page). */
@@ -131,10 +132,15 @@ export function tuneMenu() {
   const check = (v) => (v ? '✓' : '');
   return [
     { heading: true, label: 'Auto-tune' },
-    ...TUNE_STYLES.map(([id, name]) => ({ label: name, hint: check(autotune.style === id), onClick: () => (autotune.setStyle(id), tuneTip()) })),
+    ...TUNE_STYLES.map(([id, name]) => ({ label: name, hint: check(autotune.style === id), onClick: () => (autotune.setStyle(id), autotune.setMuted(false), tuneTip()) })),
     '-',
     { label: `Tune to: ${nameOf(TUNE_NOTES, autotune.notes).toLowerCase()}`, submenu: TUNE_NOTES.map(([id, name]) => ({ label: name, hint: check(autotune.notes === id), onClick: () => autotune.setNotes(id) })) },
-    { label: `Voice: ${nameOf(TUNE_VOICES, autotune.voice).toLowerCase()}`, submenu: TUNE_VOICES.map(([id, name]) => ({ label: name, hint: check(autotune.voice === id), onClick: () => (autotune.setVoice(id), tuneTip()) })) },
+    { label: `Voice: ${nameOf(TUNE_VOICES, autotune.voice).toLowerCase()}`, submenu: TUNE_VOICES.map(([id, name]) => ({ label: name, hint: check(autotune.voice === id), onClick: () => (autotune.setVoice(id), autotune.setMuted(false), tuneTip()) })) },
+    '-',
+    // muted: the choices above are kept for next time, but your voice isn't played
+    autotune.picked
+      ? { label: 'Mute my voice', hint: check(autotune.muted), onClick: () => (autotune.setMuted(!autotune.muted), tuneTip()) }
+      : { label: 'Mute my voice', hint: 'not playing', disabled: true },
     { label: 'Voice volume', submenu: TUNE_LEVELS.map(([v, name]) => ({ label: name, hint: check(Math.abs(autotune.vol - v) < 0.01), onClick: () => autotune.setVol(v) })) },
   ];
 }
