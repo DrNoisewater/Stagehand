@@ -381,6 +381,17 @@ const srv = http.createServer((req, res) => {
         if (!k.cls || k.big !== '1' || !k.muted || !/Karaoke/.test(k.chip) || k.guitar) fail('karaoke on: ' + JSON.stringify(k));
       }
       await page.screenshot({ path: path.join(out, 'sing-1-bars.png') });
+      {
+        // auto-tune and the voice changer are on the lane itself: a strip of tape that opens their menu
+        await page.click('.hw-sing .sw-tune');
+        await page.waitForTimeout(250);
+        const m = await page.evaluate(() => { const all = document.querySelectorAll('.menu'); const e = all[all.length - 1]; const b = document.querySelector('.hw-sing .sw-tune'); return { menu: e ? e.textContent : '', label: b.textContent, pressed: b.getAttribute('aria-pressed') }; });
+        if (!/Hard tune/.test(m.menu) || !/Voice:/.test(m.menu) || !/Tune to/.test(m.menu)) fail('the lane\'s auto-tune button opens no menu: ' + JSON.stringify(m));
+        if (m.pressed !== String(!!tuneStyle)) fail('the lane\'s auto-tune button shows the wrong state: ' + JSON.stringify(m));
+        await page.screenshot({ path: path.join(out, 'sing-1-tune-menu.png') });
+        await page.keyboard.press('Escape');
+        await page.mouse.click(4, 400);
+      }
       await until(11.2);
       await page.screenshot({ path: path.join(out, 'sing-2-bars-after-line.png') });
       const last = await page.evaluate(() => { const l = window.__tab.lyrics; return l[l.length - 1].t + l[l.length - 1].d; });

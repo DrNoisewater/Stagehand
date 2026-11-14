@@ -23,6 +23,10 @@ with a high voice".
 - **Where you switch it**: the Sing chip's menu on the highway (`tuneMenu()` in `singlane.js`), the wand button on
   the Karaoke page, and Settings › Guitar & audio › "Auto-tune and voice changer". The first time, a note about
   headphones.
+- User then asked: "Can the options for the voice changing and autotune be in a menu that's near the singing
+  area". So the singing lane has its own strip of tape beside "Vocals" (`.sw-tune` in `singlane.js`, styles in
+  `v3.css`): it says what is on (gold when on) and opens `tuneMenu()` right there. In the Words look it sits above
+  the words. The Sing chip's menu line stays too.
 - **Scoring still listens to the real voice**, not the tuned one.
 - Tests: `test/autotune.test.mjs` (16, in `npm test`), `test/voice-native.js` (fake helper), `TUNE=robot SING=1` in
   `test/hwlook/shoot.js`, voice checks in `test/e2e/rig-chromium.js`.

@@ -2190,6 +2190,12 @@ html[data-decoration='reduced'] .guitar-card .gc-cable { display: none; }
 .hw-sing canvas { border-radius: 4px; background: var(--sc-screws), radial-gradient(circle at 7px calc(100% - 7px), #a4916f 0 1.3px, #14120f 1.3px 2.3px, transparent 3px), radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), #a4916f 0 1.3px, #14120f 1.3px 2.3px, transparent 3px), var(--sc-panel); box-shadow: inset 0 0 0 2px #0c0b0a, inset 0 0 0 3px #a88d5733, 0 10px 24px #0009; }
 .sw-tape { position: absolute; left: 22px; top: -11px; z-index: 1; padding: 3px 12px 4px; font: 700 11px 'Typewriter Stagehand', 'Liberation Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #231d17; background: #e6dfcf; box-shadow: 0 1px 3px #000a; transform: rotate(-1.5deg); clip-path: polygon(1% 4%, 99% 0, 100% 92%, 97% 100%, 2% 96%, 0 40%); }
 .hw-sing[data-look='words'] .sw-tape { display: none; }
+/* auto-tune and the voice changer: a strip of tape you can press, beside "Vocals" */
+.hw-sing .sw-tune { left: 112px; display: inline-flex; align-items: center; gap: 6px; border: 0; cursor: pointer; pointer-events: auto; transform: rotate(0.8deg); }
+.hw-sing .sw-tune:hover { background: #f4eedf; }
+.hw-sing .sw-tune[aria-pressed='true'] { background: #f1ce68; }
+.hw-sing .sw-tune svg { width: 12px; height: 12px; }
+.hw-sing[data-look='words'] .sw-tune { display: inline-flex; left: 22px; top: -30px; }
 .sw-score { position: absolute; right: 22px; top: -12px; z-index: 1; padding: 2px 12px 3px; font: 900 15px/1.2 var(--font); font-stretch: 80%; letter-spacing: 0.02em; color: #231d17; background: #e6dfcf; box-shadow: 0 1px 3px #000a; transform: rotate(1.2deg); clip-path: polygon(0 6%, 98% 0, 100% 94%, 3% 100%); } /* the score on a strip of tape */
 .sw-score[hidden] { display: none; }
 .hw-sing[data-look='words'] .sw-score { display: none; }

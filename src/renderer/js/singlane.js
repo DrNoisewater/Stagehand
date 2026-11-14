@@ -154,7 +154,21 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
   const tape = h('div.sw-tape', { text: 'Vocals' });
   // the score so far rides on a second strip of tape at the right, clear of the bars
   const score = h('div.sw-score', { hidden: true });
-  lane.append(tape, score, cv, wordsBox, badge);
+  // auto-tune and the voice changer on their own strip of tape, right on the lane
+  const tuneTape = h('button.sw-tape.sw-tune', { type: 'button', title: 'Auto-tune and the voice changer' });
+  const paintTune = () => {
+    tuneTape.innerHTML = icon('wand');
+    tuneTape.append(h('span', { text: tuneLabel() }));
+    tuneTape.setAttribute('aria-pressed', String(autotune.wanted));
+  };
+  paintTune();
+  autotune.addEventListener('change', paintTune);
+  tuneTape.onclick = (e) => {
+    e.stopPropagation();
+    const r = tuneTape.getBoundingClientRect();
+    showMenu(r.left, r.bottom + 6, tuneMenu());
+  };
+  lane.append(tape, tuneTape, score, cv, wordsBox, badge);
   root.append(lane);
   const g = cv.getContext('2d');
 
