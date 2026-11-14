@@ -60,6 +60,18 @@ export async function playKaraoke(id) {
   await playAlong(id);
 }
 
+/**
+ * 4.18: open a song straight into one way of playing it, from anywhere in Stagehand:
+ * 'guitar', 'sing' (beside your part), 'karaoke' or 'piano'. The highway picks this up when it opens.
+ */
+export async function playAs(id, mode) {
+  if (mode === 'karaoke') return playKaraoke(id);
+  const song = state.songs.get(id);
+  if (!song || !stageApi) return;
+  state.modeNext = { id, mode };
+  await playAlong(id);
+}
+
 /** 4.14: has this song been split into stems (or is it being split right now)? */
 export function stemPhase(song) {
   if (!song) return 'none';
@@ -362,6 +374,22 @@ export function songMenu(x, y, ids) {
   ];
   const items = [
     one ? { label: 'Play', icon: 'play', hint: 'Enter', onClick: () => playSong(one.id) } : null,
+    one
+      ? {
+          label: 'Play it on',
+          icon: 'highway',
+          submenu: [
+            { label: 'Guitar or bass', icon: 'guitar', onClick: () => playAs(one.id, 'guitar') },
+            { label: 'Piano', icon: 'piano', onClick: () => playAs(one.id, 'piano') },
+            ...((one.arrangements || []).some((a) => a.type === 'vocals' || a.type === 'jvocals')
+              ? [
+                  { label: 'Sing along with your part', icon: 'mic', onClick: () => playAs(one.id, 'sing') },
+                  { label: 'Karaoke', icon: 'music', onClick: () => playAs(one.id, 'karaoke') },
+                ]
+              : []),
+          ],
+        }
+      : null,
     { label: one ? 'Edit details' : `Edit ${songs.length} songs`, icon: 'edit', hint: 'F2', onClick: () => editSongs(ids) },
     { label: allFav ? 'Remove from favorites' : 'Add to favorites', icon: 'heart', onClick: () => toggleFav(ids) },
     { label: 'Add to setlist', icon: 'setlist', submenu: setlistItems },

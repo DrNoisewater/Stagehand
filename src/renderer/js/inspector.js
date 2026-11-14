@@ -111,6 +111,10 @@ function renderOne(s) {
     html: icon('highway'),
   });
   hw.onclick = () => actions.playAlongWithStems(s.id);
+  // 4.18: and on piano
+  const pno = h('button.cv-btn.cv-piano', { type: 'button', title: 'Play it on piano', 'aria-label': 'Play it on piano', html: icon('piano') });
+  pno.onclick = () => actions.playAs(s.id, 'piano');
+  btns.append(pno);
   const play = h('button.play', { type: 'button', title: 'Play', 'aria-label': 'Play', html: icon('play') });
   play.onclick = () => actions.playSong(s.id, { autoplay: true });
   btns.append(hw, play);

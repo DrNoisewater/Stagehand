@@ -2,7 +2,8 @@
  * Auto-tune and the voice changer for singing (4.17): your voice from the
  * microphone, moved onto the right notes (and made deep, high…) and played
  * with the song. Off until you pick a style or a voice (the Sing menu on the
- * highway, the Karaoke page, or Settings › Guitar & audio).
+ * highway, the Karaoke page, or Settings › Guitar & audio), or ask just to
+ * hear your own voice (4.17.2: no tuning, nothing changed, not late at all).
  *
  * The tuning itself is worklets/autotune-worklet.js. This file decides when
  * it runs (a microphone is open and a style is picked) and where the voice
@@ -27,9 +28,15 @@ export const TUNE_NOTES = [
 export const TUNE_VOICES = [
   ['normal', 'My own voice', ''],
   ['deep', 'Deep', 'Bigger and darker, the same notes'],
-  ['giant', 'Giant', 'An octave down, huge'],
   ['high', 'High', 'Smaller and brighter, the same notes'],
-  ['chipmunk', 'Chipmunk', 'An octave up, tiny'],
+  // 'giant' is the old id, kept so saved choices still work
+  ['giant', 'Villain', 'An octave down, dark and menacing, like a horror-film villain'],
+  ['monster', 'Monster', 'An octave down with a rough growl under it'],
+  ['chipmunk', 'Chipmunk', 'An octave up and tiny, like a sped-up tape'],
+  ['droid', 'Robot', 'Every line on one flat, buzzing note'],
+  ['alien', 'Alien', 'Wobbly and metallic, from another planet'],
+  ['radio', 'Radio', 'Thin and crunchy, like an old radio or a phone call'],
+  ['stadium', 'Stadium', 'Big echoes, like singing in an arena'],
 ];
 export const TUNE_LEVELS = [
   [0.5, 'Quiet'],
@@ -40,9 +47,9 @@ export const TUNE_LEVELS = [
 
 function saved() {
   try {
-    return { style: 'off', notes: 'song', vol: 0.8, voice: 'normal', ...(JSON.parse(localStorage.getItem(KEY) || '{}') || {}) };
+    return { style: 'off', notes: 'song', vol: 0.8, voice: 'normal', hear: false, ...(JSON.parse(localStorage.getItem(KEY) || '{}') || {}) };
   } catch (_) {
-    return { style: 'off', notes: 'song', vol: 0.8, voice: 'normal' };
+    return { style: 'off', notes: 'song', vol: 0.8, voice: 'normal', hear: false };
   }
 }
 
@@ -58,6 +65,7 @@ export const autotune = new (class extends EventTarget {
     this.song = null;
     this.state = { voiced: false, sung: null, target: null };
     this.lastClock = 0;
+    this.listeners = new Set(); // who wants the notes read (the scoring), even with nothing playing
     this._busy = Promise.resolve();
     mic.addEventListener('change', () => this.sync());
     rig.addEventListener('change', () => this.sync());
@@ -78,9 +86,13 @@ export const autotune = new (class extends EventTarget {
   get voice() {
     return TUNE_VOICES.some(([id]) => id === this.p.voice) ? this.p.voice : 'normal';
   }
-  /** A tuning style or a changed voice is picked (whether or not it is muted). */
+  /** Hear my voice: played with the song even with no style and no voice changer (4.17.2). */
+  get hear() {
+    return !!this.p.hear;
+  }
+  /** A tuning style or a changed voice is picked, or Hear my voice is on (whether or not it is muted). */
   get picked() {
-    return this.style !== 'off' || this.voice !== 'normal';
+    return this.style !== 'off' || this.voice !== 'normal' || this.hear;
   }
   /** Muted: your choices are kept, but your voice isn't played (4.17.1). */
   get muted() {
@@ -95,7 +107,7 @@ export const autotune = new (class extends EventTarget {
   }
   /** Is a tuned voice going out right now? */
   get on() {
-    return !!this.node;
+    return !!this.node && this.wanted;
   }
 
   _save(k, v) {
@@ -117,6 +129,11 @@ export const autotune = new (class extends EventTarget {
   setVoice(v) {
     this.p.muted = false; // picking something turns your voice back on
     this._save('voice', v);
+  }
+  /** Hear my voice on or off (on turns your voice back on if it was muted). */
+  setHear(on) {
+    if (on) this.p.muted = false;
+    this._save('hear', !!on);
   }
   setMuted(on) {
     this._save('muted', !!on);
@@ -142,7 +159,20 @@ export const autotune = new (class extends EventTarget {
   }
 
   _send() {
-    if (this.node) this.node.port.postMessage({ type: 'set', style: this.style, mode: this.notes, vol: this.vol, voice: this.voice });
+    // nothing wanted out loud (only listening for the scoring): silent
+    if (this.node) this.node.port.postMessage({ type: 'set', style: this.style, mode: this.notes, vol: this.wanted ? this.vol : 0, voice: this.voice });
+  }
+
+  /**
+   * `who` (a name) wants the notes read from the microphone while it is open, even with nothing
+   * playing: 'pitch' events then come every 20 ms ({ detail: { t, hop, midi, level } }: midi is a
+   * Float32Array of readings hop seconds apart, NaN where no note was heard, the last one read at
+   * about t on the microphone's sound clock, mic.ctx.currentTime).
+   */
+  listen(who, on = true) {
+    if (on) this.listeners.add(who);
+    else this.listeners.delete(who);
+    this.sync();
   }
 
   /** Starts, stops or re-routes the tuned voice to match what is open now. One at a time. */
@@ -153,13 +183,13 @@ export const autotune = new (class extends EventTarget {
   }
 
   async _sync() {
-    const want = mic.on && mic.ctx && mic.src && this.wanted;
+    const want = mic.on && mic.ctx && mic.src && (this.wanted || this.listeners.size);
     if (!want) return this._stop();
     const ctx = mic.ctx;
     if (this.ctx !== ctx) {
       this._stop();
       await ctx.audioWorklet.addModule(new URL('../worklets/autotune-worklet.js', import.meta.url));
-      if (mic.ctx !== ctx || !this.wanted) return;
+      if (mic.ctx !== ctx || !(this.wanted || this.listeners.size)) return;
       this.ctx = ctx;
       this.node = new AudioWorkletNode(ctx, 'stagehand-autotune', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 1, channelCountMode: 'explicit' });
       this.node.port.onmessage = (e) => {
@@ -167,12 +197,26 @@ export const autotune = new (class extends EventTarget {
         if (!m) return;
         if (m.type === 'state') this.state = m;
         else if (m.type === 'voice') this._relay(m.d);
+        else if (m.type === 'pitch') this.dispatchEvent(new CustomEvent('pitch', { detail: m }));
       };
       mic.src.connect(this.node);
       this.node.connect(ctx.destination);
       this._send();
       this.node.port.postMessage({ type: 'song', notes: this.song });
       this.route = null;
+    }
+    this._send();
+    if (!this.wanted) {
+      // only listening: nowhere to go
+      if (this.route) {
+        this._unline();
+        this.node.port.postMessage({ type: 'port', port: null });
+        this.node.port.postMessage({ type: 'relay', on: false });
+        if (ctx.setSinkId) await ctx.setSinkId({ type: 'none' }).catch(() => {});
+        this.route = null;
+        this.dispatchEvent(new Event('change'));
+      }
+      return;
     }
     // where the voice goes: the sound engine when it holds the speakers, else the speakers
     const engine = rig.voiceNative;
@@ -236,7 +280,7 @@ export const autotune = new (class extends EventTarget {
   }
 
   _stop() {
-    const was = !!this.node;
+    const was = this.on;
     this._unline();
     if (this.node) {
       try {

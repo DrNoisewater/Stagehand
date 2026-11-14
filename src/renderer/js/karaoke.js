@@ -204,7 +204,8 @@ root.addEventListener('contextmenu', (e) => {
   showMenu(e.clientX, e.clientY, [
     { label: 'Sing it', icon: 'mic', onClick: () => actions.playKaraoke(s.id) },
     { label: 'Just listen', icon: 'play', onClick: () => actions.playSong(s.id, { autoplay: true }) },
-    { label: 'Play along', icon: 'highway', onClick: () => actions.playAlong(s.id) },
+    { label: 'Play along on guitar', icon: 'guitar', onClick: () => actions.playAs(s.id, 'guitar') },
+    { label: 'Play it on piano', icon: 'piano', onClick: () => actions.playAs(s.id, 'piano') },
     p === 'none' ? { label: 'Split stems (take the singer out)', icon: 'split', onClick: () => actions.requestStems([s.id]) } : null,
     {
       label: 'Show in Songs',

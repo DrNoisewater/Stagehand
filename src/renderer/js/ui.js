@@ -158,77 +158,174 @@ export function fmtDateTime(ms) {
 }
 
 // ------------------------------------------------------------------ menus --
-let openMenu = null;
+// 4.18: one menu that stays put. Side menus open beside their row when the mouse rests on it (or on a
+// click, or →) and the menu they came from stays where it is; nothing is taken down and redrawn, so
+// nothing flickers. A row with keep:true (a tick you switch on and off) leaves the menu open and only
+// its ticks change.
+let openMenu = null; // the first panel
+let panels = []; // every open panel, the first one first
+let hoverTimer = 0;
 
 export function closeMenu() {
-  if (openMenu) {
-    openMenu.remove();
-    openMenu = null;
+  clearTimeout(hoverTimer);
+  if (!openMenu) return;
+  for (const p of panels) p.remove();
+  panels = [];
+  openMenu = null;
+  window.dispatchEvent(new Event('menu-close'));
+}
+
+/** Close the side menus deeper than this level (0 = only the first panel stays). */
+function closeFrom(level) {
+  while (panels.length > level + 1) {
+    const p = panels.pop();
+    p.remove();
+    if (p.__owner) {
+      p.__owner.classList.remove('hot');
+      p.__owner.setAttribute('aria-expanded', 'false');
+    }
   }
 }
 
-/**
- * items: [{label, icon, hint, danger, disabled, onClick, submenu:[...]}, '-' , {label:'Group', heading:true}]
- */
-export function showMenu(x, y, items, { align = 'left' } = {}) {
-  closeMenu();
-  const menu = h('div.menu', { role: 'menu' });
-  const build = (list, root) => {
-    for (const it of list) {
-      if (!it) continue;
-      if (it === '-') {
-        root.append(h('hr'));
-        continue;
-      }
-      if (it.heading) {
-        root.append(h('div.label', { text: it.label }));
-        continue;
-      }
-      const b = h('button', { role: 'menuitem', type: 'button', class: it.danger ? 'danger' : '', disabled: it.disabled });
-      b.innerHTML = `${it.icon ? icon(it.icon) : '<span style="width:16px"></span>'}<span>${esc(it.label)}</span>${it.hint ? `<span class="hint">${esc(it.hint)}</span>` : it.submenu ? `<span class="hint">${icon('chevronRight')}</span>` : ''}`;
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (it.submenu) {
-          const r = b.getBoundingClientRect();
-          showMenu(r.right + 2, r.top - 5, it.submenu);
-          return;
-        }
-        closeMenu();
-        it.onClick && it.onClick();
-      });
-      root.append(b);
-    }
-  };
-  build(items, menu);
-  document.body.append(menu);
+const val = (v) => (typeof v === 'function' ? v() : v);
+
+function place(menu, x, y, { align = 'left', beside = null } = {}) {
   const r = menu.getBoundingClientRect();
   let left = align === 'right' ? x - r.width : x;
   let top = y;
-  if (left + r.width > window.innerWidth - 8) left = window.innerWidth - r.width - 8;
-  if (top + r.height > window.innerHeight - 8) top = Math.max(8, y - r.height);
+  if (left + r.width > window.innerWidth - 8) left = beside ? beside.left - r.width - 2 : window.innerWidth - r.width - 8;
+  if (top + r.height > window.innerHeight - 8) top = beside ? Math.max(8, window.innerHeight - r.height - 8) : Math.max(8, y - r.height);
   menu.style.left = `${Math.max(8, left)}px`;
   menu.style.top = `${top}px`;
-  openMenu = menu;
-  const first = menu.querySelector('button:not([disabled])');
-  if (first) first.focus({ preventScroll: true });
+}
+
+function buildPanel(items, level) {
+  const menu = h('div.menu', { role: 'menu', tabindex: '-1' });
+  const rows = [];
+  const paint = () => {
+    for (const { it, b, hint, label } of rows) {
+      const l = val(it.label);
+      if (label.textContent !== l) label.textContent = l;
+      if (it.submenu) continue;
+      const v = val(it.hint) || '';
+      if (hint.textContent !== v) hint.textContent = v;
+    }
+  };
+  const openSub = (it, b, focus = false) => {
+    clearTimeout(hoverTimer);
+    if (panels[level + 1] && panels[level + 1].__owner === b) return panels[level + 1];
+    closeFrom(level);
+    const sub = buildPanel(val(it.submenu), level + 1);
+    sub.__owner = b;
+    b.classList.add('hot');
+    b.setAttribute('aria-expanded', 'true');
+    document.body.append(sub);
+    const r = b.getBoundingClientRect();
+    place(sub, r.right + 2, r.top - 5, { beside: r });
+    panels.push(sub);
+    if (focus) {
+      const first = sub.querySelector('button:not([disabled])');
+      if (first) first.focus({ preventScroll: true });
+    }
+    return sub;
+  };
+  for (const it of items) {
+    if (!it) continue;
+    if (it === '-') {
+      menu.append(h('hr'));
+      continue;
+    }
+    if (it.heading) {
+      menu.append(h('div.label', { text: it.label }));
+      continue;
+    }
+    const b = h('button', { role: 'menuitem', type: 'button', class: it.danger ? 'danger' : '', disabled: it.disabled });
+    if (it.title) b.title = it.title;
+    b.innerHTML = `${it.icon ? icon(it.icon) : '<span class="menu-gap"></span>'}<span>${esc(val(it.label))}</span>${it.submenu ? `<span class="hint">${icon('chevronRight')}</span>` : '<span class="hint"></span>'}`;
+    const hint = b.querySelector('.hint');
+    if (it.submenu) {
+      b.setAttribute('aria-haspopup', 'menu');
+      b.setAttribute('aria-expanded', 'false');
+    }
+    rows.push({ it, b, hint, label: hint.previousElementSibling });
+    // the mouse resting on a row opens its side menu; resting on a plain row puts the side menu away
+    b.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'touch') return;
+      clearTimeout(hoverTimer);
+      if (it.submenu) hoverTimer = setTimeout(() => b.isConnected && openSub(it, b), panels.length > level + 1 ? 220 : 90);
+      else if (panels.length > level + 1) hoverTimer = setTimeout(() => closeFrom(level), 260);
+    });
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (it.submenu) return void openSub(it, b);
+      if (it.keep) {
+        it.onClick && it.onClick();
+        for (const p of panels) p.__paint && p.__paint();
+        return;
+      }
+      closeMenu();
+      it.onClick && it.onClick();
+    });
+    b.addEventListener('keydown', (e) => {
+      if (it.submenu && (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ')) {
+        openSub(it, b, true);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    });
+    menu.append(b);
+  }
+  paint();
+  menu.__paint = paint;
+  // the mouse back on a side menu: it stays
+  menu.addEventListener('pointerenter', () => panels.length === level + 1 && clearTimeout(hoverTimer));
   menu.addEventListener('keydown', (e) => {
     const btns = [...menu.querySelectorAll('button:not([disabled])')];
     const i = btns.indexOf(document.activeElement);
     if (e.key === 'ArrowDown') {
-      btns[(i + 1) % btns.length].focus();
+      btns.length && btns[(i + 1) % btns.length].focus();
       e.preventDefault();
     } else if (e.key === 'ArrowUp') {
-      btns[(i - 1 + btns.length) % btns.length].focus();
+      btns.length && btns[(i - 1 + btns.length) % btns.length].focus();
+      e.preventDefault();
+    } else if (e.key === 'ArrowLeft' && level > 0) {
+      const owner = menu.__owner;
+      closeFrom(level - 1);
+      owner && owner.focus({ preventScroll: true });
       e.preventDefault();
     } else if (e.key === 'Escape') {
-      closeMenu();
-    }
+      if (level > 0) {
+        const owner = menu.__owner;
+        closeFrom(level - 1);
+        owner && owner.focus({ preventScroll: true });
+      } else closeMenu();
+    } else return;
+    e.stopPropagation();
   });
   return menu;
 }
 
+/**
+ * items: [{label, icon, hint, title, danger, disabled, keep, onClick, submenu:[...]}, '-' , {label:'Group', heading:true}]
+ * label, hint and submenu may be functions (read again each time they show).
+ */
+export function showMenu(x, y, items, { align = 'left' } = {}) {
+  closeMenu();
+  const menu = buildPanel(items, 0);
+  document.body.append(menu);
+  place(menu, x, y, { align });
+  openMenu = menu;
+  panels = [menu];
+  // the keys work straight away, with no row lit up before you touch one
+  menu.focus({ preventScroll: true });
+  return menu;
+}
+
 document.addEventListener('mousedown', (e) => {
-  if (openMenu && !openMenu.contains(e.target)) closeMenu();
+  if (openMenu && !panels.some((p) => p.contains(e.target))) closeMenu();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && openMenu && !panels.some((p) => p.contains(e.target))) closeMenu();
 });
 window.addEventListener('blur', closeMenu);
 window.addEventListener('resize', closeMenu);

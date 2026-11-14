@@ -96,7 +96,7 @@ test('Robot: a slide between notes comes out as steps', () => {
 test('The voice keeps its loudness and character when it is already on the note', () => {
   for (const m of [45, 57, 69]) {
     const inp = voice(() => m, 1.5);
-    const out = tune(inp, { style: 'robot' });
+    const out = tune(inp, { style: 'robot', auto: false });
     const a = rms(inp, 0.6, 1.4);
     const b = rms(out, 0.6, 1.4);
     assert.ok(b > a * 0.85 && b < a * 1.1, `loudness at ${m}: ${a} → ${b}`);
@@ -132,7 +132,7 @@ test('Breath and "sss" pass through; silence and a quiet room stay silent', () =
   let s = 7;
   const noise = (amp) => Float32Array.from({ length: sr * 1.5 }, () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296 - 0.5) * amp);
   const loud = noise(0.2);
-  const out = tune(loud, {});
+  const out = tune(loud, { auto: false });
   assert.ok(Math.abs(rms(out, 0.5, 1.4) / rms(loud, 0.5, 1.4) - 1) < 0.05, 'sss kept');
   assert.strictEqual(rms(tune(new Float32Array(sr), {}), 0, 0.99), 0);
   assert.ok(rms(tune(noise(0.006), {}), 0.3, 1.4) < 1e-5, 'the room is not played back');
@@ -250,9 +250,153 @@ test('Voice changer: breath and "sss" keep their loudness', () => {
   let s = 7;
   const n = Float32Array.from({ length: sr * 1.5 }, () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296 - 0.5) * 0.2);
   for (const vc of ['deep', 'giant', 'high', 'chipmunk']) {
-    const r = rms(tune(n, { voice: vc }), 0.5, 1.4) / rms(n, 0.5, 1.4);
+    const r = rms(tune(n, { voice: vc, auto: false }), 0.5, 1.4) / rms(n, 0.5, 1.4);
     assert.ok(r > 0.6 && r < 1.3, `${vc}: ${r}`);
   }
+});
+
+/** How late the output is (ms), and how alike: the best match of input and output within 50 ms. */
+function lateness(inp, out, from = 36000, n = 9600) {
+  let best = -1;
+  let at = 0;
+  let ei = 0;
+  for (let i = 0; i < n; i++) ei += inp[from + i] ** 2;
+  for (let l = 0; l < 2400; l++) {
+    let c = 0;
+    let eo = 0;
+    for (let i = 0; i < n; i++) {
+      c += inp[from + i] * out[from + i + l];
+      eo += out[from + i + l] ** 2;
+    }
+    const v = c / Math.sqrt(ei * eo + 1e-30);
+    if (v > best) {
+      best = v;
+      at = l;
+    }
+  }
+  return { ms: (at / sr) * 1000, match: best };
+}
+
+test('Hear my voice: with nothing picked the voice goes straight through, not late, on its own notes', () => {
+  for (const m of [45, 57, 69]) {
+    const v = voice(wobbly(m), 1.5);
+    const out = tune(v, { style: 'off', voice: 'normal', auto: false });
+    const { ms, match } = lateness(v, out);
+    assert.ok(ms === 0 && match > 0.93, `at ${m}: ${ms} ms late, ${match}`);
+    assert.ok(Math.abs(mean(notes(out, 0.5, 1.4)) - mean(notes(v, 0.5, 1.4))) < 0.02);
+  }
+});
+
+test('How late the tuned voice is: about half a cycle (under 6 ms), and it was 6 to 17 ms', () => {
+  for (const m of [45, 52, 57, 64, 69]) {
+    const v = voice(() => m, 1.5);
+    const { ms, match } = lateness(v, tune(v, { style: 'robot', auto: false }));
+    assert.ok(ms < 6 && match > 0.9, `at ${m}: ${ms.toFixed(2)} ms, ${match}`);
+  }
+});
+
+test('A quiet microphone is heard: auto-tune alone comes out at a healthy level, a loud one is kept in check', () => {
+  // 0.004 is a laptop microphone at arm's length: under the old gate, so nothing came out at all
+  const levels = [0.004, 0.02, 0.2, 1].map((amp) => {
+    const v = voice(() => 57.4, 1.5, { amp });
+    for (let i = 0; i < v.length; i++) v[i] += Math.sin(i * 0.37) * 0.0004; // a little hum in the room
+    const out = tune(v, { style: 'natural', mode: 'song', vol: 0.8 }, (at) => {
+      at.setSong([{ t: 0, d: 2, p: 57 }]);
+      at.setClock(0, 1);
+    });
+    assert.ok(Math.max(...out.map(Math.abs)) < 0.99, `no clipping at ${amp}`);
+    assert.ok(Math.abs(mean(notes(out, 0.6, 1.4)) - 57) < 0.05, `tuned at ${amp}`);
+    return rms(out, 0.6, 1.4);
+  });
+  for (const l of levels) assert.ok(l > 0.09 && l < 0.25, `${levels}`);
+  // and the room on its own still isn't played back
+  const room = Float32Array.from({ length: sr * 1.5 }, (_, i) => Math.sin(i * 0.37) * 0.0015);
+  assert.ok(rms(tune(room, { style: 'natural' }), 0.3, 1.4) < 1e-4, 'the room stays quiet');
+});
+
+test('The song’s notes: a singer five, six or seven notes off is carried onto the note, steadily', () => {
+  const song = [
+    { t: 0, d: 1, p: 60 },
+    { t: 1, d: 1, p: 67 },
+  ];
+  for (const style of ['robot', 'pop', 'natural']) {
+    for (const [sung, first, second] of [
+      [55, 60, 55], // 5 under; then 12 under: the same note an octave down
+      [53.8, 48, 55], // 6.2 under: nearer the octave below; then 1.2 under
+      [56.5, 60, 55], // 3.5 under; then 10.5 under: nearer the octave below
+      [66.2, 72, 67], // 6.2 over: the octave above; then just over
+    ]) {
+      const out = tune(voice(() => sung, 2), { style, mode: 'song' }, (at) => {
+        at.setSong(song);
+        at.setClock(0, 1);
+      });
+      // Natural glides there (about a tenth of a second), the others are there at once
+      const w = style === 'natural' ? 0.2 : 0;
+      const a = notes(out, 0.3 + w, 0.9);
+      const b = notes(out, 1.35 + w, 1.9);
+      assert.ok(Math.abs(mean(a) - first) < 0.06 && spread(a) < 0.08, `${style} ${sung}: ${mean(a)} ± ${spread(a)}`);
+      assert.ok(Math.abs(mean(b) - second) < 0.06 && spread(b) < 0.08, `${style} ${sung}: ${mean(b)} ± ${spread(b)}`);
+    }
+  }
+});
+
+test('Hard tune steps to the next song note at once (no glide)', () => {
+  const song = [
+    { t: 0, d: 1, p: 60 },
+    { t: 1, d: 1, p: 64 },
+  ];
+  const out = tune(voice(() => 61.3, 2), { style: 'robot', mode: 'song' }, (at) => {
+    at.setSong(song);
+    at.setClock(0, 1);
+  });
+  // the note changes at 1 s: every reading from there on (each spans 43 ms) is on the new note
+  const p = notes(out, 1, 1.3, 0.01);
+  assert.ok(p.every((x) => Math.abs(x - 64) < 0.06), p.map((x) => x.toFixed(2)).join(' '));
+});
+
+test('More voices: each one makes sound, never clips, and keeps to the song', () => {
+  const v = voice(wobbly(57), 2);
+  const loud = voice(() => 57, 2, { amp: 1.5 });
+  const plain = tune(v, { style: 'robot' });
+  const [bp] = [brightness(plain, 0.8, 1.3)];
+  for (const id of ['giant', 'monster', 'chipmunk', 'droid', 'alien', 'radio', 'stadium']) {
+    const out = tune(v, { style: 'robot', voice: id });
+    const r = rms(out, 0.6, 1.8);
+    assert.ok(r > 0.07 && r < 0.3, `${id}: level ${r}`);
+    assert.ok(Math.max(...tune(loud, { style: 'robot', voice: id, vol: 1.5 }).map(Math.abs)) < 0.99, `${id}: no clipping`);
+  }
+  for (const [id, m] of [['giant', 45], ['chipmunk', 69], ['radio', 57]]) {
+    const p = notes(tune(v, { style: 'robot', voice: id }), 0.5, 1.9);
+    assert.ok(p.length > 40 && Math.abs(mean(p) - m) < 0.15, `${id}: ${mean(p)}`);
+  }
+  const b = (id) => brightness(tune(v, { style: 'robot', voice: id }), 0.8, 1.3);
+  assert.ok(b('chipmunk') > b('high') * 1.2, 'Chipmunk: a much smaller mouth than High');
+  assert.ok(b('giant') < bp * 0.85 && b('monster') < b('giant'), 'Villain darker than plain, Monster darker still');
+  // the radio: no deep end
+  const low = (o) => {
+    let c = 0;
+    let q = 0;
+    for (let i = 0; i < 24000; i++) {
+      c += o[38400 + i] * Math.cos((2 * Math.PI * 220 * i) / sr);
+      q += o[38400 + i] * Math.sin((2 * Math.PI * 220 * i) / sr);
+    }
+    return Math.hypot(c, q) / rms(o, 0.8, 1.3);
+  };
+  assert.ok(low(tune(v, { style: 'robot', voice: 'radio' })) < low(plain) * 0.5, 'Radio: thin');
+});
+
+test('Robot voice: a melody comes out on one flat note per phrase', () => {
+  const out = tune(voice((t) => 57 + 3 * Math.sin(t * 3), 2), { style: 'off', voice: 'droid' });
+  const p = notes(out, 0.3, 1.9);
+  assert.ok(p.length > 60 && spread(p) < 0.08, `${spread(p)}`);
+});
+
+test('Stadium: the voice rings on after you stop', () => {
+  const v = voice(() => 57, 1.2);
+  const long = new Float32Array(sr * 2);
+  long.set(v);
+  const tail = (id) => rms(tune(long, { style: 'off', voice: id }), 1.45, 1.75);
+  assert.ok(tail('stadium') > tail('normal') * 5 && tail('stadium') > 0.01, `${tail('stadium')} vs ${tail('normal')}`);
 });
 
 console.log(`autotune: ${passed} passed`);

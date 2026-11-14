@@ -125,28 +125,36 @@ export function tuneLabel() {
   const a = autotune.style === 'off' ? '' : nameOf(TUNE_STYLES, autotune.style);
   const v = autotune.voice === 'normal' ? '' : nameOf(TUNE_VOICES, autotune.voice);
   if (autotune.picked && autotune.muted) return 'Voice muted';
-  return a && v ? `${a} · ${v}` : a ? `Auto-tune: ${a}` : v ? `Voice: ${v}` : 'Auto-tune';
+  return a && v ? `${a} · ${v}` : a ? `Auto-tune: ${a}` : v ? `Voice: ${v}` : autotune.hear ? 'My voice' : 'Auto-tune';
 }
-/** Auto-tune and the voice changer as menu lines (the Sing menu and the Karaoke page). */
+/** Your voice in the song: plain, auto-tuned, or changed for fun (the Sing menu and the Karaoke page). */
 export function tuneMenu() {
-  const check = (v) => (v ? '✓' : '');
+  // the ticks are read again after every press, so the menu stays open while you try things
+  const check = (f) => () => (f() ? '✓' : '');
+  const HOW = { off: 'No tuning', natural: 'A gentle nudge onto the note', pop: 'Tight, like a pop record', robot: 'Snaps hard from note to note: the T-Pain sound' };
   return [
-    { heading: true, label: 'Auto-tune' },
-    ...TUNE_STYLES.map(([id, name]) => ({ label: name, hint: check(autotune.style === id), onClick: () => (autotune.setStyle(id), autotune.setMuted(false), tuneTip()) })),
+    { heading: true, label: 'Your voice in the song' },
+    { label: 'Hear my voice', title: 'Your voice played with the song, as it is', hint: check(() => autotune.hear), keep: true, onClick: () => (autotune.setHear(!autotune.hear), tuneTip()) },
     '-',
-    { label: `Tune to: ${nameOf(TUNE_NOTES, autotune.notes).toLowerCase()}`, submenu: TUNE_NOTES.map(([id, name]) => ({ label: name, hint: check(autotune.notes === id), onClick: () => autotune.setNotes(id) })) },
-    { label: `Voice: ${nameOf(TUNE_VOICES, autotune.voice).toLowerCase()}`, submenu: TUNE_VOICES.map(([id, name]) => ({ label: name, hint: check(autotune.voice === id), onClick: () => (autotune.setVoice(id), autotune.setMuted(false), tuneTip()) })) },
+    { heading: true, label: 'Auto-tune: carries you onto the right note' },
+    ...TUNE_STYLES.map(([id, name]) => ({ label: name, title: HOW[id] || '', hint: check(() => autotune.style === id), keep: true, onClick: () => (autotune.setStyle(id), autotune.setMuted(false), tuneTip()) })),
+    { label: () => `Tune to: ${nameOf(TUNE_NOTES, autotune.notes).toLowerCase()}`, submenu: TUNE_NOTES.map(([id, name]) => ({ label: name, hint: check(() => autotune.notes === id), keep: true, onClick: () => autotune.setNotes(id) })) },
+    '-',
+    { heading: true, label: 'Just for fun' },
+    { label: () => `Voice: ${nameOf(TUNE_VOICES, autotune.voice).toLowerCase()}`, submenu: TUNE_VOICES.map(([id, name, about]) => ({ label: name, title: about || '', hint: check(() => autotune.voice === id), keep: true, onClick: () => (autotune.setVoice(id), autotune.setMuted(false), tuneTip()) })) },
     '-',
     // muted: the choices above are kept for next time, but your voice isn't played
-    autotune.picked
-      ? { label: 'Mute my voice', hint: check(autotune.muted), onClick: () => (autotune.setMuted(!autotune.muted), tuneTip()) }
-      : { label: 'Mute my voice', hint: 'not playing', disabled: true },
-    { label: 'Voice volume', submenu: TUNE_LEVELS.map(([v, name]) => ({ label: name, hint: check(Math.abs(autotune.vol - v) < 0.01), onClick: () => autotune.setVol(v) })) },
+    { label: 'Mute my voice', hint: () => (autotune.picked ? (autotune.muted ? '✓' : '') : 'not playing'), keep: true, onClick: () => autotune.picked && (autotune.setMuted(!autotune.muted), tuneTip()) },
+    { label: 'Voice volume', submenu: TUNE_LEVELS.map(([v, name]) => ({ label: name, hint: check(() => Math.abs(autotune.vol - v) < 0.01), keep: true, onClick: () => autotune.setVol(v) })) },
   ];
 }
 
-export function createSing({ root, stage, onKaraoke, onLeave }) {
-  const chip = h('button.hw-chip.hw-sing-chip', { type: 'button', hidden: true });
+// the sound thread's note readings go to the microphone's tracker, which the score reads
+autotune.addEventListener('pitch', (e) => mic.feed(e.detail));
+const NOTE_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
+  const chip = h('button.hw-chip.hw-mode.hw-sing-chip', { type: 'button', hidden: true });
+  const kchip = h('button.hw-chip.hw-mode.hw-karaoke-chip', { type: 'button', hidden: true });
   const lane = h('div.hw-sing', { hidden: true, 'aria-hidden': 'true' });
   const cv = h('canvas');
   // the voice dot rides on a little LED meter (green, amber, red as you get louder)
@@ -203,14 +211,25 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
 
   const live = () => S.on && S.open && !!S.judge;
 
+  /**
+   * 4.18: Sing and Karaoke are two buttons that are always there, always the same size (nothing in the
+   * top bar jumps). The one that's on is lit and opens its options; a song with no words dims them.
+   */
   function paintChip() {
-    chip.hidden = !S.base.syl.length;
-    chip.setAttribute('aria-pressed', String(S.on));
-    chip.title = S.on ? (S.karaoke ? 'Karaoke: level, microphone, look' : 'Singing is on: level, microphone, look') : 'Sing along: score your singing beside your guitar part, with a microphone';
-    // off, it's a small icon button (the top bar is full); on, it says what's on
-    chip.innerHTML = S.on ? `${icon('mic')}<span>${S.karaoke ? 'Karaoke' : 'Sing'} · ${SING_LEVELS[prefs().level].name}</span>${icon('chevron')}` : icon('mic');
-    chip.classList.toggle('icon-only', !S.on);
-    chip.setAttribute('aria-label', S.on ? chip.title : 'Sing');
+    const words = S.base.syl.length > 0;
+    const singing = S.on && !S.karaoke && !S.held;
+    const kar = S.on && S.karaoke;
+    const paint = (el, on, name, offTitle, onTitle) => {
+      el.hidden = !S.song;
+      el.setAttribute('aria-pressed', String(on));
+      el.classList.toggle('dim', !words);
+      el.classList.toggle('has-menu', on);
+      el.title = !words ? 'This song has no words in it' : on ? onTitle : offTitle;
+      const html = `${icon(name === 'Sing' ? 'mic' : 'music')}<span>${name}</span>${icon('chevron')}`;
+      if (el.__html !== html) el.innerHTML = el.__html = html;
+    };
+    paint(chip, singing, 'Sing', 'Sing along: score your singing beside your guitar part, with a microphone', 'Singing is on: level, microphone, auto-tune, look');
+    paint(kchip, kar, 'Karaoke', 'Karaoke: just the words, big, and your singing scored', 'Karaoke is on: level, microphone, auto-tune, look');
   }
 
   function vocalsTrack() {
@@ -300,6 +319,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
     prepare();
     stageKaraoke(S.karaoke);
     const ok = await mic.start('sing');
+    if (ok && !window.__NOFAST) autotune.listen('sing', true); // the fast note reader, for the score
     if (token !== S.token || !S.on) return;
     if (!ok) {
       turn(false);
@@ -323,6 +343,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
   function end() {
     log(false);
     S.token++;
+    autotune.listen('sing', false);
     mic.stop('sing');
     autotune.setSong(null);
     S.judge = null;
@@ -384,38 +405,53 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
     return sum;
   }
 
-  chip.onclick = async () => {
-    if (!S.on) return turn(true);
-    const r = chip.getBoundingClientRect();
-    const p = prefs();
-    const check = (v) => (v ? '✓' : '');
-    const list = await mic.devices().catch(() => []);
+  const noWords = () => toast({ title: 'No words to sing', message: 'This song has no lyrics in it.', kind: 'info' });
+  async function options(el) {
+    const r = el.getBoundingClientRect();
+    const check = (f) => () => (f() ? '✓' : '');
+    // the menu opens at once; the microphones are read when their side menu opens
+    let list = [];
+    mic.devices().then((l) => (list = l)).catch(() => {});
     const v = vocalsTrack();
     showMenu(r.left, r.bottom + 6, [
       { heading: true, label: 'How strict' },
       ...Object.entries(SING_LEVELS).map(([id, l]) => ({
         label: l.name,
-        hint: check(p.level === id),
+        hint: check(() => prefs().level === id),
+        keep: true,
         onClick: () => {
+          if (prefs().level === id) return;
           setPref('level', id);
           log(false);
           if (S.judge) newJudge();
-          paintChip();
         },
       })),
       '-',
-      v ? { label: 'Take the singer out of the song', hint: check(v.muted), onClick: () => stage.setStem('vocals', { muted: !v.muted }) } : null,
+      v ? { label: 'Take the singer out of the song', hint: check(() => v.muted), keep: true, onClick: () => stage.setStem('vocals', { muted: !v.muted }) } : null,
       {
         label: 'Microphone',
-        submenu: list.length
-          ? list.map((d) => ({ label: d.label, hint: check(d.id === mic.deviceId), onClick: () => mic.setDevice(d.id, d.label) }))
-          : [{ label: 'No microphone found', disabled: true }],
+        submenu: () =>
+          list.length
+            ? list.map((d) => ({ label: d.label, hint: check(() => d.id === mic.deviceId), keep: true, onClick: () => mic.setDevice(d.id, d.label) }))
+            : [{ label: 'No microphone found', disabled: true }],
       },
-      { label: tuneLabel(), submenu: tuneMenu() },
-      { label: 'Look', submenu: SING_LOOKS.map(([id, name]) => ({ label: name, hint: check(singLook() === id), onClick: () => setSingLook(id) })) },
+      { label: () => tuneLabel(), submenu: () => tuneMenu() },
+      { label: 'Look', submenu: SING_LOOKS.map(([id, name]) => ({ label: name, hint: check(() => singLook() === id), keep: true, onClick: () => setSingLook(id) })) },
       '-',
       S.karaoke ? { label: 'Leave karaoke', icon: 'x', onClick: () => onLeave && onLeave() } : { label: 'Stop singing', icon: 'x', onClick: () => turn(false) },
     ]);
+  }
+  chip.onclick = () => {
+    if (!S.base.syl.length) return noWords();
+    if (S.on && !S.karaoke && !S.held) return options(chip);
+    if (onAsk) onAsk('sing');
+    else turn(true);
+  };
+  kchip.onclick = () => {
+    if (!S.base.syl.length) return noWords();
+    if (S.on && S.karaoke) return options(kchip);
+    if (onAsk) onAsk('karaoke');
+    else setKaraoke(true);
   };
   window.addEventListener('sing-look', () => {
     lane.dataset.look = singLook();
@@ -498,24 +534,37 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
       if (syl[m].t + syl[m].d < t - nowX / pps - 0.2) a = m + 1;
       else b = m;
     }
-    // the notes in view decide how high and low the lane reaches (it glides, never jumps)
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (let i = a; i < syl.length && syl[i].t < t + AHEAD + 0.5; i++) {
-      if (syl[i].p === null) continue;
-      lo = Math.min(lo, syl[i].p);
-      hi = Math.max(hi, syl[i].p);
+    // 4.18: the same note sits at the same height all song. The lane's reach is worked out once from
+    // the whole tune; only a song too wide to fit moves it, and then only as far as the next notes need.
+    const CAP = lane.dataset.k ? 22 : 15; // semitones the lane can show and still tell neighbours apart
+    if (!S.rng || S.rng.of !== syl) {
+      const ps = [];
+      for (const x of syl) if (x.p !== null) ps.push(x.p);
+      ps.sort((x, y) => x - y);
+      const sLo = ps.length ? ps[Math.floor((ps.length - 1) * 0.02)] : 55;
+      const sHi = ps.length ? ps[Math.ceil((ps.length - 1) * 0.98)] : 65;
+      const span = Math.max(10, sHi - sLo + 3);
+      const size = Math.min(span, CAP);
+      const rows = [...new Set(ps.map((x) => Math.round(x)))];
+      S.rng = { of: syl, size, fits: span <= CAP, lo: (sLo + sHi) / 2 - size / 2, hi: (sLo + sHi) / 2 + size / 2, rows };
     }
-    if (lo === Infinity) {
-      lo = S.rng ? S.rng.lo + 2 : 55;
-      hi = S.rng ? S.rng.hi - 2 : 65;
-    }
-    const mid = (lo + hi) / 2;
-    const half = Math.max(5, (hi - lo) / 2 + 2);
-    if (!S.rng) S.rng = { lo: mid - half, hi: mid + half };
-    else {
-      S.rng.lo += (mid - half - S.rng.lo) * 0.06;
-      S.rng.hi += (mid + half - S.rng.hi) * 0.06;
+    if (!S.rng.fits) {
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let i = a; i < syl.length && syl[i].t < t + AHEAD + 0.5; i++) {
+        if (syl[i].p === null) continue;
+        lo = Math.min(lo, syl[i].p);
+        hi = Math.max(hi, syl[i].p);
+      }
+      if (lo !== Infinity) {
+        let want = S.rng.want ?? S.rng.lo;
+        if (hi - lo + 3 > S.rng.size) want = (lo + hi) / 2 - S.rng.size / 2;
+        else if (lo - 1.5 < want) want = lo - 1.5;
+        else if (hi + 1.5 > want + S.rng.size) want = hi + 1.5 - S.rng.size;
+        S.rng.want = want;
+        S.rng.lo += (want - S.rng.lo) * 0.05;
+        S.rng.hi = S.rng.lo + S.rng.size;
+      }
     }
     const Y = (p) => bot - ((p - S.rng.lo) / (S.rng.hi - S.rng.lo)) * (bot - top);
     const clampY = (y) => Math.max(top - 6, Math.min(bot + 6, y));
@@ -523,6 +572,22 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
     const fade = (x) => (x < nowX ? Math.max(0, Math.min(1, x / (nowX * 0.35))) : 1);
     const target = sylAt(t - MIC_DELAY);
 
+    // a faint line for every note the tune uses: the ladder the bars sit on
+    g.fillStyle = 'rgba(245, 237, 218, 0.055)';
+    for (const p of S.rng.rows) {
+      const y = Y(p);
+      if (y > top - 2 && y < bot + 2) g.fillRect(nowX, Math.round(y), W - nowX - 8, 1);
+    }
+    if (lane.dataset.k) {
+      // karaoke: each line is named at the left edge, so the note to sing can be read off
+      g.font = `700 9px ${FONT}`;
+      g.textBaseline = 'middle';
+      g.fillStyle = 'rgba(245, 237, 218, 0.42)';
+      for (const p of S.rng.rows) {
+        const y = Y(p);
+        if (y > top - 2 && y < bot + 2) g.fillText(NOTE_NAMES[((p % 12) + 12) % 12], 8, Math.round(y));
+      }
+    }
     // bars: plain pills, the one to sing now a little brighter
     const BH = Z.bh;
     for (let i = a; i < syl.length; i++) {
@@ -777,6 +842,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
 
   return {
     chip,
+    kchip,
     /** Singing is on and showing: the plain lyrics step aside. */
     get active() {
       return live();
@@ -859,7 +925,7 @@ export function createSing({ root, stage, onKaraoke, onLeave }) {
       if (S.held === v) return;
       S.held = v;
       lane.style.display = v ? 'none' : '';
-      chip.style.display = v ? 'none' : '';
+      paintChip(); // while Piano shows, Sing isn't lit: pressing it comes back to singing
     },
     turn,
     setKaraoke,

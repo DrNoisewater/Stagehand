@@ -6,7 +6,7 @@ const {gunzipSync}=require('zlib');
 const {createHash}=require('crypto');
 const URL='https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-win32-x64.gz';
 let preparing;
-function run(exe,args){return new Promise((resolve,reject)=>{const p=spawn(exe,args,{windowsHide:true});let tail='';p.stdout.resume();p.stderr.on('data',d=>tail=(tail+d).slice(-2500));p.on('error',reject);p.on('close',code=>code===0?resolve():reject(Error('MP4 encoder failed: '+tail)));});}
+function run(exe,args){return new Promise((resolve,reject)=>{const p=spawn(exe,args,{windowsHide:true});/* 4.18: saving a clip waits its turn behind the app and the sound */try{if(p.pid)require('os').setPriority(p.pid,require('os').constants.priority.PRIORITY_BELOW_NORMAL);}catch{}let tail='';p.stdout.resume();p.stderr.on('data',d=>tail=(tail+d).slice(-2500));p.on('error',reject);p.on('close',code=>code===0?resolve():reject(Error('MP4 encoder failed: '+tail)));});}
 async function ensureEncoder(tools){
  if(process.platform!=='win32')return 'ffmpeg';
  const exe=path.join(tools.toolsDir,'video','ffmpeg-6.1.1.exe');

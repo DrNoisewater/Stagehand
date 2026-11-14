@@ -13,6 +13,19 @@ import { breakdown, compact } from './scorecard.js';
 import { setMyTuning, tuningName } from './tuning.js';
 import { checkTuning } from './tuning-check.js';
 
+/** Is this song being opened (or showing) as karaoke or piano, with the guitar stepped aside? */
+function guitarAside(song) {
+  if (state.karaokeNext === song.id) return true;
+  if (state.modeNext && state.modeNext.id === song.id && (state.modeNext.mode === 'piano' || state.modeNext.mode === 'karaoke')) return true;
+  const hw = typeof window !== 'undefined' ? window.__shHighway : null;
+  if (hw && hw.open() && hw.aside && hw.aside()) return true;
+  try {
+    const on = (JSON.parse(localStorage.getItem('stagehand.keys') || '{}') || {}).on || {};
+    if (on[song.id] && !(state.modeNext && state.modeNext.id === song.id)) return true; // Piano is switched on for this song
+  } catch (_) {}
+  return false;
+}
+
 // 4.0.6: the tuning check is a card with every string (tuning-check.js); it replaced
 // the 3.7 notes in the corner.
 const PREF_KEY = 'stagehand.tab';
@@ -89,7 +102,9 @@ export const practice = new (class extends EventTarget {
     this.tab = tab;
     const kind = tab.type === 'bass' ? 'bass' : 'guitar';
     rig.setSongTuning(tab.tuning, kind, tab.cents || 0);
-    checkTuning(tab, song, { engine: stage.engine });
+    // 4.18: a song opened for karaoke or piano isn't asking for your guitar: the tuning card waits until
+    // you switch to the guitar on the highway (the highway shows it then)
+    if (!guitarAside(song)) checkTuning(tab, song, { engine: stage.engine });
     tuneShift.st = rig.dropAmount();
     this.targets = targetsFromTab(tab);
     this.resetJudge();

@@ -633,6 +633,12 @@ function frame() {
   // Under the full-screen highway nothing here is visible: drawing the stem
   // lanes, waveform and spectrum every frame only stole time from it (lag).
   if (document.getElementById('app').classList.contains('under-highway')) return;
+  // 4.18: the same on any other page (Songs, Jam, Tones…): this page isn't showing, so nothing is drawn.
+  // A slow look now and then picks it up again when you come back.
+  if (!root.offsetParent) {
+    if (engine.playing) setTimeout(requestDraw, 250);
+    return;
+  }
   drawScrub();
   const t = engine.position;
   const playing = engine.playing;
@@ -1395,6 +1401,7 @@ export function toggleTab() {
 waveViewBtn.onclick = () => setStageView('wave');
 tabViewBtn.onclick = () => setStageView('tab');
 
+on('page', () => requestDraw()); // back on this page: draw it again
 on('stems-update', (u) => {
   if (!S.song || u.songId !== S.song.id) return;
   S.status = u;

@@ -491,7 +491,7 @@ const PAGES = [
           ['Sing along', 'Press Sing on the highway. The words become a lane with a bar for every syllable and a dot for your voice, and your singing gets its own score.'],
           ['Karaoke', 'Its own page in the menu: pick a song and sing with the words big and the singer taken out.'],
           ['Auto-tune', 'Hear your voice lifted onto the song’s notes: Natural, Pop, or Hard tune (the T-Pain sound).'],
-          ['Voice changer', 'Sing as a deep voice, a giant, a high voice or a chipmunk.']
+          ['Voice changer', 'Just for fun: sing as a villain, a monster, a chipmunk, a robot or an alien.']
         ),
         h('p.fine', { text: 'Auto-tune and the voices are on the strip of tape on the singing lane. Headphones are best.' })
       ),

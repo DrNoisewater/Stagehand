@@ -67,7 +67,7 @@ function makeCert({ names = [], days = 3650, cn = 'Stagehand' } = {}) {
   const serial = crypto.randomBytes(16);
   serial[0] &= 0x7f;
   const general = [];
-  for (const n of new Set(['localhost', '127.0.0.1', ...names])) {
+  for (const n of new Set(['localhost', '127.0.0.1', ...certNames(names)])) {
     const ip = ipBytes(n);
     general.push(ip ? tlv(0x87, ip) : tlv(0x82, Buffer.from(n, 'ascii')));
   }
@@ -83,4 +83,19 @@ function makeCert({ names = [], days = 3650, cn = 'Stagehand' } = {}) {
   return { key: privateKey.export({ type: 'pkcs8', format: 'pem' }), cert: pem('CERTIFICATE', der) };
 }
 
-module.exports = { makeCert };
+/**
+ * The names a certificate may carry: IPv4 addresses, and host names a browser accepts
+ * (letters, digits, dots and dashes; a PC called "Jörg's PC" is left out rather than
+ * written wrongly, which would spoil the whole certificate).
+ */
+function certNames(list) {
+  const out = [];
+  for (const n of list || []) {
+    const s = String(n || '').trim();
+    if (ipBytes(s)) out.push(s);
+    else if (/^[A-Za-z0-9]([A-Za-z0-9-]{0,62})(\.[A-Za-z0-9]([A-Za-z0-9-]{0,62}))*$/.test(s)) out.push(s.toLowerCase());
+  }
+  return [...new Set(out)];
+}
+
+module.exports = { makeCert, certNames };

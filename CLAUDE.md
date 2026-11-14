@@ -53,7 +53,8 @@ TCHECK=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
 # the real app in Electron: crash the window mid-recording; it must reload with a note and save the clip
 # (electron 44 installed outside the project, e.g. npm install electron@44 in a scratch folder)
 ELECTRON=<electron> xvfb-run -a node test/e2e/crash-electron.js <outDir>
-# the song finder in the real app on a pretend song site: Discover's Find opens it, Find searches, downloads land in the library
+# the song finder in the real app on a pretend song site: Discover's Find opens it, Find searches, downloads land in the library,
+# also ones a file host starts in a new empty window (Drive)
 ELECTRON=<electron> xvfb-run -a node test/e2e/finder-electron.js <outDir>
 # Tones in the real app: one tone used for guitar and bass (each row picks itself), an empty key
 ELECTRON=<electron> xvfb-run -a node test/e2e/tones-electron.js <outDir>
@@ -69,6 +70,11 @@ PIANO=tune PIANO_END=46 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir>
 PIANO=real PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> R:0.5:::sugar.json
 # the highway's top bar fits (nothing off the edges, the title readable), Piano off and on, at a window width
 TOPBAR=1 VW=1366 VH=768 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
+# getting around: Sing, Karaoke and Piano chips stay put, side menus, 61/88 keys, the tuning card waits for the guitar
+MODES=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
+# (PORT=8771 before any shoot.js command picks another port, to run two at once)
+# Famous tones in Create a Tone: the tab, search, a build and a save, the bass room; writes famous-*.png
+SH_AUDIT=test/e2e/famous-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # Piano in the full page: the keyboard in Settings, Piano on a real library song, a key scored
 SH_AUDIT=test/e2e/piano-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # Sing along's settings in the full page (the microphone picker, the look) and the Karaoke page
@@ -91,7 +97,7 @@ SH_AUDIT=windows/setup/make-art.js node test/e2e/ui3-chromium.js native/build/st
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```
 
-Timing in this container: `ui3-chromium.js` takes ~20 min (run timing-sensitive checks such as SING/PIANO/TCHECK/rig on their own, not beside it); in `rig-chromium.js` tone builds can take 5–8 s under load, so its "Keep my tone", "bass heard" and "speakers got the song" checks fail now and then (also before 3.13).
+Timing in this container: the SING and PIANO checks fail when anything else is running (the picture drops to ~7 a second; untouched code fails too), so run them alone. Also: `ui3-chromium.js` takes ~20 min (run timing-sensitive checks such as SING/PIANO/TCHECK/rig on their own, not beside it); in `rig-chromium.js` tone builds can take 5–8 s under load, so its "Keep my tone", "bass heard" and "speakers got the song" checks fail now and then (also before 3.13).
 
 Also documented in HANDOFF.md but not re-run on 2026-11-01:
 - `bash scripts/session-setup.sh` fetches llvm-mingw (the Windows cross compiler) and the Setup payload zips, and builds the fake helper.

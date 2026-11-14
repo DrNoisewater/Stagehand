@@ -1,8 +1,8 @@
 /**
  * The singer's microphone (Sing along). A second input beside the guitar
  * cable: the page listens to it only while someone is singing and reads the
- * note being sung. The voice is played back only with auto-tune on
- * (autotune.js takes it from `src` here).
+ * note being sung. The voice is played back only when asked (auto-tune, the
+ * voice changer or Hear my voice: autotune.js takes it from `src` here).
  */
 import { detectPitch } from './pitch.js';
 import { VoiceTracker } from './sing.js';
@@ -80,7 +80,9 @@ export const mic = new (class extends EventTarget {
     this.error = null;
     const ask = (id) =>
       navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: id ? { exact: id } : undefined, echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+        // no clean-up by Windows or the browser (each adds delay and blurs the note), and the
+        // shortest capture the microphone can do (the voice is played back with the song)
+        audio: { deviceId: id ? { exact: id } : undefined, echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1, latency: 0 },
         video: false,
       });
     try {
@@ -143,9 +145,25 @@ export const mic = new (class extends EventTarget {
    * What the microphone hears now: { voiced, midi, level }. Read at most
    * every 15 ms (asking more often gives the last answer again).
    */
+  /**
+   * 4.18: notes read by the sound thread (every 5 ms, on a short window) instead of the slower look
+   * read() takes itself. { hop, midi (Float32Array, NaN = no note), level }. Used while they keep coming.
+   */
+  feed(d) {
+    if (!this.on || !d || !d.midi) return;
+    const now = performance.now() / 1000;
+    const n = d.midi.length;
+    for (let i = 0; i < n; i++) {
+      const m = d.midi[i];
+      this.last = this.voice.push(now - (n - 1 - i) * d.hop, Number.isNaN(m) ? null : m, d.level || 0);
+    }
+    this.fedAt = performance.now();
+  }
+
   read() {
     if (!this.on || !this.node) return this.last;
     const now = performance.now();
+    if (now - (this.fedAt || -1e9) < 120) return this.last; // the fast readings are coming in
     if (now - this.lastAt < 15) return this.last;
     this.lastAt = now;
     this.node.getFloatTimeDomainData(this.buf);
