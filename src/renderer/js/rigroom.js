@@ -565,7 +565,7 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
   function drawFamous() {
     const mine = FAMOUS.filter((e) => e.kind === k);
     genreRow.innerHTML = '';
-    for (const g of ['', ...GENRES.filter((g) => mine.some((e) => e.tags.includes(g)))]) {
+    for (const g of ['', ...GENRES.filter((g) => g !== 'Bass' && mine.some((e) => e.tags.includes(g)))]) {
       const b = h('button.rr-genre', { type: 'button', 'aria-pressed': String(R.genre === g), text: g || 'All' });
       b.onclick = () => ((R.genre = g), drawWall());
       genreRow.append(b);
