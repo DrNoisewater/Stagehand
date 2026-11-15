@@ -1,3 +1,19 @@
+# 4.18.2 — Singing follows the real tune (2026-11-14)
+
+The user (photo of karaoke on a song whose bars sat between E flat and F sharp the whole way): "Are the vocals always
+accurate? some of these songs… just stay in the same line and I cannot be accurate to how you're supposed to sing".
+
+- Rocksmith never scores singing, so many charts fill each syllable's note with a placeholder in the valid range (one
+  note, or a few close together); 4.12–4.18.1 took any chart with notes on 60% of syllables as the tune.
+  `sing.js` `flatChart(syl)`: true when 5th–95th percentile spans ≤ 4 semitones or one note has ≥ 60% of syllables.
+- `singlane.js` `prepare()`: a flat chart is treated like one without notes: the notes are read off the vocals stem
+  (chart notes dropped first, so `withPitches` doesn't keep them); no stems → timing only, and the badge says the
+  chart's notes are guesses and to split the song. Auto-tune's "song's notes" gets the real notes, or nearest note.
+- Sing menu › **Notes to sing** (per song, `stagehand.sing` prefs `notes`): Pick for me / The chart's notes / The
+  singer's, from the recording. Test in `test/sing.test.mjs`.
+- **Ask the user:** on that song (split it first), do the bars follow the singer now? Any song where a real tune was
+  wrongly called made up (they can pick The chart's notes)?
+
 # 4.18.1 — The microphone: no static, comes back when plugged in again (2026-11-14)
 
 The user on 4.18.0 (their mic is a headset microphone on an aux cable, desk-mounted): "a weird static on the karaoke

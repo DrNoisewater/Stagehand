@@ -72,6 +72,22 @@ export function pitchedShare(syl) {
 }
 
 /**
+ * 4.18.2: is the chart's tune made up? Rocksmith never scores singing, so many charts give every
+ * syllable the same note, or a few notes close together, just to fill the field. A real tune moves:
+ * true when nearly the whole song sits within four semitones, or one note takes most syllables.
+ */
+export function flatChart(syl) {
+  const ps = syl.filter((s) => s.p !== null).map((s) => s.p);
+  if (ps.length < 8) return false;
+  const sorted = [...ps].sort((a, b) => a - b);
+  const at = (q) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
+  const count = new Map();
+  for (const p of ps) count.set(Math.round(p), (count.get(Math.round(p)) || 0) + 1);
+  const top = Math.max(...count.values()) / ps.length;
+  return at(0.95) - at(0.05) <= 4 || top >= 0.6;
+}
+
+/**
  * Notes read off the recording, laid over the chart's own: the chart wins
  * where it has a note. Each note is moved by octaves to sit near the ones
  * before it, so the bars don't jump (octaves don't matter for scoring).
