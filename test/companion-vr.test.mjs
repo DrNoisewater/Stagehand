@@ -176,8 +176,9 @@ test('the menu: songs page scrolls, things that can’t work are dimmed, Leave V
   assert.equal(rows.length, ROWS);
   m.top = 20;
   rows = layout(m, c).filter((b) => b.kind === 'row');
-  assert.equal(rows.length, 3, 'the last page');
-  assert.equal(rows[0].id, `song:${c.list[20].id}`);
+  assert.equal(rows.length, ROWS, 'the last page stays full');
+  assert.equal(rows[0].id, `song:${c.list[23 - ROWS].id}`);
+  assert.equal(rows[ROWS - 1].id, `song:${c.list[22].id}`);
   // no room view in this browser: dimmed, and a press does nothing
   const v = layout({ ...menuModel(), tab: 'view' }, ctx({ canPassthrough: false }));
   const on = v.find((b) => b.id === 'pass:on');
