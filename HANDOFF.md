@@ -20,6 +20,10 @@ of static" · replugging "sometimes the static goes away. But so does my voice".
 - **Speakers** (`rig.js` `_plugged`): on `devicechange`, an engine that's off tries at once (not in 4–8 s); one
   playing to "whatever Windows uses" restarts when Windows' default output changes (it kept the device it opened).
   The song player re-sends to speakers you picked in Settings (`audio-engine.js` `_hookPlug`).
+- **The Auto-tune tape** (`singlane.js` `paintTune`, `v3.css` after `.sw-tune`): the user said it looks like a scrap of
+  tape (good) but not like a menu. Now a dashed tear line and a down arrow at its end, lifts on hover, presses on
+  click, and wiggles every few seconds until it has been opened once (`stagehand.tuneOpened`; off with calm/reduced
+  motion). Tooltip: "Click for auto-tune, voices and hearing yourself".
 - **Ask the user:** is the static gone, near and far from the mic? Does the mic come back after unplugging? Did a
   quiet voice get too quiet (raise `MAX_BOOST` a little)? They mentioned T-Pain's Auto-Tune settings ("Low Male,
   Speed 0"): Hard tune is already speed 0; a voice range choice (low male … soprano) to steady the note reading was
