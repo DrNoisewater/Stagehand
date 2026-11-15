@@ -236,9 +236,16 @@ async function boot() {
       s.hasStems = true;
       bump();
     }
-    if (s && u.state === 'none' && s.hasStems) {
+    if (s && u.state === 'none' && (s.hasStems || s.betterStems)) {
       s.hasStems = false;
+      s.betterStems = false;
       bump();
+    }
+    // 4.19: the split with the cleaner singer is in (the list and the Karaoke cards show which one a song has)
+    if (s && u.state === 'ready' && u.better && !s.betterStems) {
+      s.betterStems = true;
+      bump();
+      emit('stems', u);
     }
     if (!prev || prev.state !== u.state) emit('stems', u);
     else emit('stems-progress', u);

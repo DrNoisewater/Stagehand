@@ -177,6 +177,7 @@ contextBridge.exposeInMainWorld('stagehand', {
     list: (songId) => call('tab:list', songId),
     load: (songId, arrId) => call('tab:load', songId, arrId),
     vocals: (songId) => call('tab:vocals', songId),
+    vocalDiff: (lyrics) => call('tab:vocalDiff', lyrics),
   },
   stems: {
     status: (songId) => call('stems:status', songId),

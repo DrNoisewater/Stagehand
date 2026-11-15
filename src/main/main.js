@@ -16,6 +16,7 @@ const { AudioService } = require('./services/audio');
 const { ClipSessions } = require('./services/clip-sessions');
 const { AudioFinder } = require('./services/audiofind');
 const { StemService, MODELS } = require('./services/stems');
+const { vocalDifficulty } = require('./core/vocaldiff');
 const { ArtService } = require('./services/art');
 const { Companion } = require('./services/companion'); // 4.16: the Quest companion (off until switched on)
 const { Organizer } = require('./services/organize');
@@ -147,7 +148,7 @@ function handle(channel, fn) {
 }
 
 function withStems(s) {
-  return { ...s, hasStems: !!stems.ready(s), official: officialList.isOfficial(s) };
+  return { ...s, hasStems: !!stems.ready(s), betterStems: stems.better(s), official: officialList.isOfficial(s) };
 }
 
 function requireSong(id) {
@@ -928,6 +929,8 @@ function registerIpc() {
     const song = requireSong(songId);
     return withFileRead(song.path, () => tabs.vocals(song));
   });
+  // 4.19: how hard a set of words and notes is to sing (the real notes, once a song has been checked against its singer)
+  handle('tab:vocalDiff', (lyrics) => vocalDifficulty(Array.isArray(lyrics) ? lyrics.slice(0, 20000) : []));
   handle('tab:load', (songId, arrId) => {
     const song = requireSong(songId);
     return withFileRead(song.path, () => tabs.load(song, arrId ? String(arrId) : null));

@@ -361,6 +361,12 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
         S.mode = 'stem';
         S.check = check;
         keepCheck(song.id, check);
+        // how hard it is to sing, from the notes the singer really sang (the Karaoke page's mark)
+        if (api.tab && api.tab.vocalDiff)
+          api.tab
+            .vocalDiff(syl.map((x) => ({ t: x.t, d: x.d, p: x.p === null ? 0 : x.p })))
+            .then((d) => d && d.level && keepCheck(song.id, { ...check, diff: { level: d.level, score: d.score, rate: d.rate, range: d.range, guess: d.guess, why: d.why } }))
+            .catch(() => {});
         newJudge();
         autotune.setSong(tuneNotes(S.cur.syl));
       }

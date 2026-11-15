@@ -64,6 +64,17 @@ What the user decided after the comparison (in `docs/notes/4.19-singing-and-spli
 - The singing notes are read again by themselves from the new vocals (the cache goes by the stem's address).
 - Tests: `test/stems-queue.test.js` (the job waits its turn, the song stays ready, the new stems are used after), `SING=check` (the question shows once, Yes starts it).
 
+## Which split a song has, and how hard it is to sing (same release, asked 2026-11-15)
+
+The user: "There needs to be a clear way to see that. When you're looking at songs or tiles of songs in a smart way, karaoke menu should show you what version you have without obstructing the art. Karaoke mode needs to have a better grip on how easy medium or hard a song is, as well."
+
+- **Which split**: every song carries `betterStems` (main.js, from `StemService.better()`), kept fresh by `stems:update`.
+  - Library list: a small gold ✦ beside the five stem lights when the song has the cleaner singer (it breathes while one is being made); the tooltip says which split it is (`stemHtml` in `library.js`).
+  - Karaoke cards: the strip of tape that lay across the cover is gone. A line of its own under the difficulty says "With singer" (grey), "Singer out" (teal, the quick split), "Singer out · cleaning 42%", or "✦ Singer out · clean" (gold) (`stemTag` in `karaoke.js`, styles in `polish.css`).
+- **How hard to sing** (`src/main/core/vocaldiff.js`, rewritten): three words now, **Easy / Medium / Hard** (was five: Easy, Steady, Medium, Hard, Brutal). What was wrong before: pace was counted over the whole song, so a long solo made fast singing look slow; charts with made-up notes (one note all through) looked easy; breath wasn't counted. Now four things are measured: speed while singing (breaks left out) and in the fastest passages, how wide the tune goes, how far it jumps, and how long the lines run without a rest. One very hard side is enough to make a song hard. Made-up notes are left out and the tooltip says the mark goes by the words only. Once a split song has been sung, the mark is worked out again from **the notes the singer really sang** (`tab:vocalDiff`, kept with the song's check in `stagehand.singCheck`) and that one wins. The tooltip says why ("Hard to sing: fast words, a wide tune…") and what it was judged from. Sorting by easiest/hardest uses the finer score.
+- Tests: `test/vocaldiff.test.js` (11 cases), `test/e2e/sing-audit.js` (the mark is under the picture, the two splits are told apart, three words).
+- **Not checked against real songs**: the thresholds are set on made-up songs. Ask the user for a few songs whose mark feels wrong, and which way.
+
 # 4.18.2 — Singing follows the real tune (2026-11-14)
 
 The user (photo of karaoke on a song whose bars sat between E flat and F sharp the whole way): "Are the vocals always

@@ -353,6 +353,11 @@ class StemService extends EventEmitter {
     return this._readyIn(song.audioKey, BETTER) || this._readyIn(song.audioKey, pref) || Object.keys(MODELS).map((m) => this._readyIn(song.audioKey, m)).find(Boolean) || null;
   }
 
+  /** 4.19: this song has the split with the cleaner singer. */
+  better(song) {
+    return !!(song && song.audioKey && this._readyIn(song.audioKey, BETTER));
+  }
+
   status(song) {
     if (!song) return { state: 'none' };
     const live = this.states.get(song.id);

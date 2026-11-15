@@ -4,6 +4,7 @@ import { decorativeImage } from './menu-art.js';
 /** Centre pane: the song table (virtualised) and the cover grid. */
 import { api } from './api.js';
 import { isOfficial, state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, setView, accBand, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel, lastSearch, clearSearch, viewHas } from './store.js';
+import { singerJob } from './singer-upgrade.js';
 import { h, icon, esc, fmtDuration, debounce } from './ui.js';
 import * as actions from './actions.js';
 import { addFolder } from './sidebar.js';
@@ -149,8 +150,11 @@ function stemHtml(s) {
   const st = state.stems.get(s.id);
   const status = st ? st.state : s.hasStems ? 'ready' : 'none';
   const cls = status === 'ready' ? 'ready' : status === 'running' || status === 'queued' ? 'busy' : '';
-  const title = status === 'ready' ? 'Stems ready' : status === 'running' ? 'Separating stems' : status === 'queued' ? 'Waiting to separate' : 'No stems yet';
-  return `<span class="stem-gels ${cls}" title="${title}"><i></i><i></i><i></i><i></i><i></i></span>`;
+  // 4.19: which split a song has: the ordinary one, or the one with the cleaner singer (a gold mark beside the lights)
+  const better = status === 'ready' && s.betterStems;
+  const job = singerJob(s.id);
+  const title = better ? 'Stems ready, with the cleaner singer' : job ? 'Stems ready · the singer is being made cleaner' : status === 'ready' ? 'Stems ready (the quick split)' : status === 'running' ? 'Separating stems' : status === 'queued' ? 'Waiting to separate' : 'No stems yet';
+  return `<span class="stem-gels ${cls}${better ? ' better' : ''}${job ? ' cleaning' : ''}" title="${title}"><i></i><i></i><i></i><i></i><i></i>${better || job ? '<b>✦</b>' : ''}</span>`;
 }
 
 /** Your best accuracy (practice stats): a glowing bar and the percentage. */
@@ -777,6 +781,7 @@ on('page', () => {
 });
 on('selection', refreshDecorations);
 on('playing', refreshDecorations);
+on('singer-upgrade', () => emit('stems'));
 on('stems', debounce(() => {
   // stem markers live inside rows; refresh just those cells
   for (const [id, el] of rowEls) {
