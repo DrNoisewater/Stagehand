@@ -455,6 +455,8 @@ const srv = http.createServer((req, res) => {
         }, tuneStyle);
       }
       // the Sing button is singing beside the guitar part; karaoke is asked for by the Karaoke page
+      // 4.19: on a PC that can split, opening Sing on a split song asks about a cleaner singer
+      if (process.env.SING === 'check') await page.evaluate(async () => ((await import('/js/store.js')).state.engine = { installed: true, device: 'cuda' }));
       if (kar) await page.evaluate(() => document.querySelector('.highway').__hw.sing.setKaraoke(true));
       else await page.click('.hw-sing-chip');
       await page.waitForFunction(() => !document.querySelector('.hw-sing').hidden && document.querySelector('.highway').__hw.sing.active, null, { timeout: 8000 });
@@ -478,6 +480,11 @@ const srv = http.createServer((req, res) => {
         if (c.lines < 4) fail('the slides were not drawn as lines: ' + c.lines);
         if (!/checked against the singer: 100%/.test(c.badge)) fail('the mark: ' + c.badge);
         if (!Object.keys(c.stored).length) fail('the mark was not kept for the song');
+        // the question about a cleaner singer: asked once, Yes starts it, the song carries on
+        const asks = await page.evaluate(() => [...document.querySelectorAll('.toast')].filter((t) => /Make the singer cleaner for this song\?/.test(t.textContent)).length);
+        if (asks !== 1) fail('the cleaner-singer question should show once: ' + asks);
+        await page.evaluate(() => [...document.querySelectorAll('.toast')].find((t) => /Make the singer cleaner/.test(t.textContent)).querySelectorAll('button')[0].click());
+        await page.waitForFunction(() => window.__upgrade && [...document.querySelectorAll('.toast')].some((t) => /Making the singer cleaner/.test(t.textContent)), null, { timeout: 4000 }).catch(() => fail('Yes did not start the cleaner singer'));
       }
       // a run-up of 2.5 s before the first word: this machine draws slowly for a moment once the song starts
       await page.evaluate(() => { const e = window.__stage.engine; e.position = 0; e.dispatchEvent(new Event('seek')); e.play(); });

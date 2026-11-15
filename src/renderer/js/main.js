@@ -272,6 +272,8 @@ async function boot() {
     const acts = [];
     if (stage.current() && stage.current().id !== d.songId) acts.push({ label: 'Play', onClick: () => actions.playSong(s.id) });
     if (d.device !== 'cuda' && a && a.action) acts.push({ label: a.action === 'driver' ? 'Get driver' : 'Use GPU', onClick: () => dialogs.fixDevice(a) });
+    // 4.19: a cleaner singer made in the background for a song that was already split
+    if (d.upgrade) return toast({ title: `The singer is cleaner in ${s.title}`, message: stage.current() && stage.current().id === d.songId ? `Took ${took}. You hear it the next time you open the song.` : `Took ${took} ${where}.`, kind: 'ok', timeout: 9000 });
     toast({ title: `Stems ready for ${s.title}`, message: `Took ${took} ${where}.${hint}`, actions: acts, kind: hint ? 'info' : 'ok' });
   });
   api.on('engine:changed', async () => {

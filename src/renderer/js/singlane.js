@@ -13,6 +13,7 @@ import { api } from './api.js';
 import { state as store, on as onStore } from './store.js';
 import { h, icon, showMenu, toast } from './ui.js';
 import { mic } from './mic.js';
+import { offerSinger, singerJob } from './singer-upgrade.js';
 import { autotune, TUNE_STYLES, TUNE_NOTES, TUNE_LEVELS, TUNE_VOICES } from './autotune.js';
 import { buildSing, SingJudge, SING_LEVELS, SLACK, pitchedShare, nearOctave, foldCents, flatChart, checkNotes, noteAt, tuneNotes } from './sing.js';
 
@@ -340,6 +341,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     newJudge();
     paintBadge();
     autotune.setSong(S.mode === 'charted' ? S.cur.syl : null);
+    offerSinger(song); // 4.19: a cleaner singer for this song? (asks once, never waits)
     if (pick === 'chart') return;
     S.reading = true;
     paintBadge();
@@ -403,6 +405,9 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     const cw = S.mode === 'stem' ? checkWords(S.check) : null;
     badge.textContent = S.reading ? (S.mode === 'charted' ? 'Checking the notes against the singer…' : 'Listening to the singer…') : cw ? `✓ Notes checked against the singer: ${cw.pct}%` : S.mode === 'rhythm' ? rhythm : kNote;
     badge.title = cw ? cw.long : '';
+    // a cleaner singer being made in the background for this song: how far along it is
+    const up = S.song && !S.reading ? singerJob(S.song.id) : null;
+    if (up) badge.textContent = `${badge.textContent ? badge.textContent + ' · ' : ''}Making the singer cleaner${up.state === 'running' && up.progress ? ` ${Math.round(up.progress * 100)}%` : '…'}`;
     badge.classList.toggle('sw-checked', !!cw);
     badge.hidden = !badge.textContent;
   }
@@ -430,6 +435,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     S.split = splitPhase();
     paintBadge();
   }
+  onStore('singer-upgrade', (u) => S.song && u && u.songId === S.song.id && S.on && paintBadge());
   onStore('stems', () => {
     if (!S.on || !S.song) return;
     const was = S.split;

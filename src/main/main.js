@@ -945,6 +945,8 @@ function registerIpc() {
   // Stem storage formats (Stagehand 3): the page compresses, we store.
   handle('stems:store', (songId, model, name, ext, bytes) => stems.storeFile(library.get(songId), model, name, ext, bytes));
   handle('stems:finish', (songId, model, format) => stems.finishFormat(library.get(songId), model, format));
+  handle('stems:upgrade', (songId) => stems.upgrade(songId)); // 4.19: a cleaner singer for a song already split
+  handle('stems:upgradeCancel', (songId) => stems.cancelUpgrade(songId));
   handle('stems:formats', () => stems.formats(library.snapshot().songs));
 
   handle('engine:status', async (refresh) => {
@@ -1368,6 +1370,7 @@ app.whenReady().then(async () => {
   });
   stems.on('update', (p) => send('stems:update', p));
   stems.on('done', (p) => send('stems:done', p));
+  stems.on('upgrade', (p) => send('stems:upgrade', p));
 
   protocol.handle('stagehand', (req) =>
     serve(req).catch((err) => {

@@ -54,6 +54,16 @@ The user: "On turning any knobs… it is not intuitive for left and right turnin
 - Unchanged: scroll wheel, arrow keys, Shift for fine, double-click to reset, a click steps a switch. Faders on the photos still slide up and down (that's what a fader does). Tooltips say the new way.
 - Tests: `test/gear-controls.test.mjs` (in `npm test`) drags every direction with a wobbly hand. The held pointer could **not** be checked here: the test browser reports nonsense movement when the pointer is held, so two guards are in (the first move after taking hold is left out, and a leap of more than 150 pixels in one go is ignored). **Ask the user first thing**: does a knob feel right, does the pointer come back where it was, any jumps?
 
+## A cleaner singer, song by song (same release, decided 2026-11-15)
+
+What the user decided after the comparison (in `docs/notes/4.19-singing-and-split.md`): three minutes per song is not acceptable before playing ("I love this program because I can open the app and be playing a song in maybe 10-20 seconds"), and nobody should convert a library of two thousand songs. Their words: "I am in favor of keeping the current split format… Upon clicking on some form of singing or karaoke, it can then prompt the user if they want to upgrade the stems. With the option to make that the default action."
+
+- **Nothing changes for an ordinary split**: same model, same speed, same files.
+- **The question**: when Sing along or Karaoke opens on a song that is split, a note asks once (per song, per run of the app) "Make the singer cleaner for this song?" with **Yes**, **Always** and **Not now** (`src/renderer/js/singer-upgrade.js`, called from `prepare()` in `singlane.js`). It is a note, not a box in the way: the song plays on. Settings › Stems › **Cleaner singer** has Ask me each time / Always, without asking / Never (`stems.singer`).
+- **The work**: a new split kind, `singer_6s` (`MODELS` and `BETTER` in `src/main/services/stems.js`): a model made just for voices takes the singer out, then today's 6-stem model splits what is left. Same six files, same format, in its own folder beside the first split (which stays). `StemService.upgrade(songId)` puts it at the very end of the line: every ordinary split goes first, and a song opened to play stops it (it goes back to the end). The song stays "ready" on its old stems meanwhile (`status()` adds `better` and `upgrade`); when it is done the new stems are the ones used (`ready()` prefers them), from the next time the song is opened. The Sing badge shows "Making the singer cleaner 42%". "Split stems again" on such a song makes the cleaner kind again. The cleaner split's time is kept out of the time-left guess.
+- The singing notes are read again by themselves from the new vocals (the cache goes by the stem's address).
+- Tests: `test/stems-queue.test.js` (the job waits its turn, the song stays ready, the new stems are used after), `SING=check` (the question shows once, Yes starts it).
+
 # 4.18.2 — Singing follows the real tune (2026-11-14)
 
 The user (photo of karaoke on a song whose bars sat between E flat and F sharp the whole way): "Are the vocals always

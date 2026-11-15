@@ -17,6 +17,8 @@ const { EventEmitter } = require('events');
 
 const MODELS = {
   htdemucs_6s: { label: '6 stems: guitar, bass, drums, vocals, piano, other', stems: ['guitar', 'bass', 'drums', 'vocals', 'piano', 'other'] },
+  // 4.19: a model made just for voices takes the singer out first, then the 6-stem model splits the rest
+  singer_6s: { label: '6 stems with a cleaner singer (much slower)', stems: ['guitar', 'bass', 'drums', 'vocals', 'piano', 'other'] },
   htdemucs_ft: { label: '4 stems, highest quality (slower)', stems: ['bass', 'drums', 'vocals', 'other'] },
   htdemucs: { label: '4 stems, fast', stems: ['bass', 'drums', 'vocals', 'other'] },
 };
@@ -34,6 +36,9 @@ const KEY_RE = /^[a-f0-9]{8,40}$/;
  * "Artist - Title [1a2b3c4d]". The bracket holds the start of the audio key, and the
  * folder's meta.json holds the whole key: that is what the app goes by.
  */
+/** The split with the cleaner singer: used whenever a song has it. */
+const BETTER = 'singer_6s';
+
 function folderName(song, key) {
   const raw = [song && song.artist, song && song.title].filter(Boolean).join(' - ') || 'Song';
   let n = String(raw)
@@ -80,6 +85,7 @@ class StemService extends EventEmitter {
     this.queue = [];
     this.current = null;
     this.states = new Map(); // songId -> {state, progress, message}
+    this.upgrades = new Map(); // 4.19: songId -> the same, for a cleaner-singer job (the song stays ready meanwhile)
     this.seq = 0;
     this.rates = { cuda: [], cpu: [] }; // past splits: seconds per second of song
     // 4.4: which folder holds each audio key's stems, and what's in them, kept in memory:
@@ -303,6 +309,7 @@ class StemService extends EventEmitter {
 
   /** Remembers how fast a past split went, for the time-left guess. */
   _learn(meta, at) {
+    if (meta.model === BETTER) return; // (the cleaner singer takes far longer: it would spoil the time-left guess)
     if (!meta || !meta.seconds || !meta.frames || !meta.sampleRate) return;
     const list = this.rates[meta.device === 'cuda' ? 'cuda' : 'cpu'];
     list.push({ rate: meta.seconds / (meta.frames / meta.sampleRate), at: at || meta.createdAt || 0 });
@@ -343,7 +350,7 @@ class StemService extends EventEmitter {
   ready(song) {
     if (!song || !song.audioKey) return null;
     const pref = this.model();
-    return this._readyIn(song.audioKey, pref) || Object.keys(MODELS).map((m) => this._readyIn(song.audioKey, m)).find(Boolean) || null;
+    return this._readyIn(song.audioKey, BETTER) || this._readyIn(song.audioKey, pref) || Object.keys(MODELS).map((m) => this._readyIn(song.audioKey, m)).find(Boolean) || null;
   }
 
   status(song) {
@@ -351,7 +358,7 @@ class StemService extends EventEmitter {
     const live = this.states.get(song.id);
     if (live && (live.state === 'queued' || live.state === 'running')) return live;
     const ready = this.ready(song);
-    if (ready) return { state: 'ready', ...ready };
+    if (ready) return { state: 'ready', ...ready, better: !!this._readyIn(song.audioKey, BETTER), upgrade: this.upgrades.get(song.id) || null };
     if (live && live.state === 'error') return live;
     return { state: 'none' };
   }
@@ -361,15 +368,53 @@ class StemService extends EventEmitter {
     this.emit('update', { songId, ...st });
   }
 
+  /** A job's news: a cleaner-singer job tells its own story, the song stays "ready" meanwhile. */
+  _put(job, st) {
+    if (!job.upgrade) return this._set(job.songId, st);
+    this.upgrades.set(job.songId, st);
+    this.emit('upgrade', { songId: job.songId, ...st });
+  }
+
+  _cur(job) {
+    return (job.upgrade ? this.upgrades : this.states).get(job.songId) || {};
+  }
+
   /** A running split's news, with its time left. */
   _running(job, song, st) {
-    this._set(job.songId, { ...st, state: 'running', ...this._eta(job, song, st.progress || 0) });
+    this._put(job, { ...st, state: 'running', ...(job.upgrade ? {} : this._eta(job, song, st.progress || 0)) });
+  }
+
+  /**
+   * 4.19: makes the singer cleaner for a song that is already split. It waits behind every
+   * ordinary split, the song keeps its stems meanwhile, and the new ones are used from then on.
+   */
+  upgrade(songId) {
+    const song = this.library.get(songId);
+    if (!song || !song.audioKey || !this.tools.enginePython()) return { ok: false };
+    if (this._readyIn(song.audioKey, BETTER)) return { ok: true, better: true };
+    const mine = (j) => j && j.songId === songId && j.upgrade;
+    if (!mine(this.current) && !this.queue.some(mine)) {
+      this.queue.push({ songId, upgrade: true, model: BETTER, force: true });
+      this._put({ songId, upgrade: true }, { state: 'queued', progress: 0, message: 'Waiting' });
+      this._pump();
+    }
+    return { ok: true, upgrade: this.upgrades.get(songId) || null };
+  }
+
+  /** Stops a cleaner-singer job (running or waiting). */
+  cancelUpgrade(songId) {
+    const i = this.queue.findIndex((j) => j.songId === songId && j.upgrade);
+    if (i >= 0) this.queue.splice(i, 1);
+    if (this.current && this.current.songId === songId && this.current.upgrade) {
+      this.current.cancelled = true;
+      this._stop(this.current);
+    } else if (this.upgrades.delete(songId)) this.emit('upgrade', { songId, state: 'none' });
   }
 
   queueInfo() {
     const items = [];
-    if (this.current) items.push({ songId: this.current.songId, ...this.states.get(this.current.songId) });
-    for (const j of this.queue) items.push({ songId: j.songId, ...this.states.get(j.songId) });
+    if (this.current) items.push({ songId: this.current.songId, ...this._cur(this.current), upgrade: !!this.current.upgrade });
+    for (const j of this.queue) items.push({ songId: j.songId, ...this._cur(j), upgrade: !!j.upgrade });
     return items;
   }
 
@@ -379,11 +424,11 @@ class StemService extends EventEmitter {
       if (!song) continue;
       // no song audio anywhere: nothing to split (official DLC may have it in another file)
       if (song.audioEntry === null && !song.audioFrom && song.audioFail) continue; // its audio was looked for and not found
-      if (this.current && this.current.songId === id) {
+      if (this.current && this.current.songId === id && !this.current.upgrade) {
         this.current.ahead = false;
         continue;
       }
-      const queued = this.queue.find((j) => j.songId === id);
+      const queued = this.queue.find((j) => j.songId === id && !j.upgrade);
       if (queued) {
         // you asked for it: it stays in line, ahead of songs split on a hunch
         if (queued.ahead) {
@@ -404,7 +449,7 @@ class StemService extends EventEmitter {
 
   /** Where a song you asked for joins the line: after the others you asked for, before the ones split ahead. */
   _askedEnd() {
-    const at = this.queue.findIndex((j) => j.ahead);
+    const at = this.queue.findIndex((j) => j.ahead || j.upgrade); // (cleaner-singer jobs wait behind everything)
     return at < 0 ? this.queue.length : at;
   }
 
@@ -437,13 +482,13 @@ class StemService extends EventEmitter {
 
   /** Moves a queued song to the front (e.g. the one being listened to). */
   prioritize(songId, { now = false } = {}) {
-    const i = this.queue.findIndex((j) => j.songId === songId);
+    const i = this.queue.findIndex((j) => j.songId === songId && !j.upgrade);
     if (i > 0) this.queue.unshift(this.queue.splice(i, 1)[0]);
     if (i >= 0) {
       this.queue[0].ahead = false;
       if (now) this.queue[0].playing = true;
     }
-    if (this.current && this.current.songId === songId) {
+    if (this.current && this.current.songId === songId && !this.current.upgrade) {
       this.current.ahead = false;
       if (now && !this.current.playing) {
         // you're waiting for this one now: full speed
@@ -455,7 +500,7 @@ class StemService extends EventEmitter {
     // song that's running is stopped and put back in line right after it
     // 4.0: also while that split is still getting its audio ready (no engine running yet):
     // it used to carry on regardless, and the song you opened waited for the whole split
-    if (now && this.queue.length && this.queue[0].songId === songId && this.current && this.current.songId !== songId && !this.current.cancelled && !this.current.requeue) {
+    if (now && this.queue.length && this.queue[0].songId === songId && !this.queue[0].upgrade && this.current && (this.current.songId !== songId || this.current.upgrade) && !this.current.cancelled && !this.current.requeue) {
       this.current.requeue = true;
       this.log(`Stems: ${songId} jumps ahead of ${this.current.songId}`);
       this._stop(this.current);
@@ -463,13 +508,13 @@ class StemService extends EventEmitter {
   }
 
   cancel(songId) {
-    const i = this.queue.findIndex((j) => j.songId === songId);
+    const i = this.queue.findIndex((j) => j.songId === songId && !j.upgrade);
     if (i >= 0) {
       this.queue.splice(i, 1);
       this.states.delete(songId);
       this.emit('update', { songId, state: 'none' });
     }
-    if (this.current && this.current.songId === songId) {
+    if (this.current && this.current.songId === songId && !this.current.upgrade) {
       this.current.cancelled = true; // (checked before the engine starts, too)
       this._stop(this.current);
     }
@@ -520,6 +565,7 @@ class StemService extends EventEmitter {
     this._idx().delete(song.audioKey);
     this._forget(song.audioKey);
     this.states.delete(song.id);
+    this.cancelUpgrade(song.id);
     this.emit('update', { songId: song.id, state: 'none' });
   }
 
@@ -532,14 +578,21 @@ class StemService extends EventEmitter {
     } catch (err) {
       if (job.requeue) {
         // stopped so the song you're about to play could go first: back in line, right after it
-        this.queue.splice(Math.min(1, this.queue.length), 0, { songId: job.songId, force: job.force });
-        this._set(job.songId, { state: 'queued', progress: 0, message: 'Waiting' });
+        const again = { songId: job.songId, force: job.force, upgrade: job.upgrade, model: job.model };
+        if (job.upgrade) this.queue.push(again); // (a cleaner singer can wait: back to the end of the line)
+        else this.queue.splice(Math.min(1, this.queue.length), 0, again);
+        this._put(job, { state: 'queued', progress: 0, message: 'Waiting' });
       } else if (job.cancelled) {
-        this.states.delete(job.songId);
-        this.emit('update', { songId: job.songId, state: 'none' });
+        if (job.upgrade) {
+          this.upgrades.delete(job.songId);
+          this.emit('upgrade', { songId: job.songId, state: 'none' });
+        } else {
+          this.states.delete(job.songId);
+          this.emit('update', { songId: job.songId, state: 'none' });
+        }
       } else {
         this.log(`Stem separation failed: ${err.message}`);
-        this._set(job.songId, { state: 'error', progress: 0, message: err.message, code: err.code });
+        this._put(job, { state: 'error', progress: 0, message: err.message, code: err.code });
       }
     } finally {
       this.current = null;
@@ -570,7 +623,8 @@ class StemService extends EventEmitter {
     const info = await Promise.race([decoding, giveWay]);
     job.wake = null;
     stopped(); // another song jumped ahead (or this was cancelled) while the audio was being decoded
-    const model = this.model();
+    // a song that has the cleaner singer keeps it when it is split again
+    const model = job.model || (job.force && this._readyIn(song.audioKey, BETTER) ? BETTER : this.model());
     const work = path.join(this.dir, '.work', `${info.key}.${model}.${crypto.randomBytes(3).toString('hex')}`);
     await fsp.mkdir(work, { recursive: true });
     const tm = { start: job.startedAt, decoded: Date.now() };
@@ -620,7 +674,7 @@ class StemService extends EventEmitter {
           if (ev.event === 'status' && ev.message === 'Separating') tm.sep = Date.now();
           if (ev.event === 'status' && ev.message === 'Writing stems') tm.write = Date.now();
           if (ev.event === 'device' && !tm.device) tm.device = Date.now();
-          const cur = this.states.get(job.songId) || {};
+          const cur = this._cur(job);
           if (ev.event === 'progress') {
             if (!job.sepStart) job.sepStart = Date.now();
             this._running(job, song, { ...cur, progress: ev.value, message: device ? `Separating on ${device}` : 'Separating', device: job.deviceKind, deviceName: device });
@@ -684,8 +738,12 @@ class StemService extends EventEmitter {
       this.busy.delete(info.key);
     }
     const ready = this._readyIn(info.key, model);
-    this.states.delete(job.songId);
-    this.emit('update', { songId: job.songId, state: 'ready', ...ready });
+    if (job.upgrade) {
+      this.upgrades.delete(job.songId);
+      this.emit('upgrade', { songId: job.songId, state: 'done' });
+    } else this.states.delete(job.songId);
+    const waiting = this.states.get(job.songId); // (an ordinary split of the same song may be in line)
+    if (!waiting || !['queued', 'running'].includes(waiting.state)) this.emit('update', { songId: job.songId, state: 'ready', ...ready, better: model === BETTER, upgrade: null });
     this.doneAt.set(info.key, Date.now());
     const sec = (a, b) => (a && b ? `${((b - a) / 1000).toFixed(1)} s` : '?');
     this.log(
@@ -693,8 +751,8 @@ class StemService extends EventEmitter {
         `Timing: decode ${sec(tm.start, tm.decoded)}, engine start ${sec(tm.sent, tm.first)}, ` +
         `model ${sec(tm.load, tm.device)}, separate ${sec(tm.sep, tm.write)}, write ${sec(tm.write, tm.done)}, save ${sec(tm.done, Date.now())}`
     );
-    this.emit('done', { songId: job.songId, ...ready, seconds: meta.seconds, device: meta.device, deviceName: device, note });
+    this.emit('done', { songId: job.songId, ...ready, seconds: meta.seconds, device: meta.device, deviceName: device, note, upgrade: !!job.upgrade });
   }
 }
 
-module.exports = { StemService, MODELS, folderName };
+module.exports = { StemService, MODELS, BETTER, folderName };
