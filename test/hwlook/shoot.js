@@ -483,7 +483,7 @@ const srv = http.createServer((req, res) => {
         // the question about a cleaner singer: asked once, Yes starts it, the song carries on
         const asks = await page.evaluate(() => [...document.querySelectorAll('.toast')].filter((t) => /Make the singer cleaner for this song\?/.test(t.textContent)).length);
         if (asks !== 1) fail('the cleaner-singer question should show once: ' + asks);
-        await page.evaluate(() => [...document.querySelectorAll('.toast')].find((t) => /Make the singer cleaner/.test(t.textContent)).querySelectorAll('button')[0].click());
+        await page.evaluate(() => [...document.querySelectorAll('.toast')].find((t) => /Make the singer cleaner/.test(t.textContent)).querySelector('.act-row button').click());
         await page.waitForFunction(() => window.__upgrade && [...document.querySelectorAll('.toast')].some((t) => /Making the singer cleaner/.test(t.textContent)), null, { timeout: 4000 }).catch(() => fail('Yes did not start the cleaner singer'));
       }
       // a run-up of 2.5 s before the first word: this machine draws slowly for a moment once the song starts

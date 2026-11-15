@@ -59,8 +59,12 @@ function lifetime({ sessions = [], archive = null, songs = {}, now = Date.now() 
   let streakRun = null;
   for (const s of list) {
     T.seconds += Number(s.seconds) || 0;
-    T.notes += Number(s.notes) || 0;
-    T.hit += Number(s.hit) || 0;
+    // 4.19: sung words and piano keys are not guitar notes: their time counts, their notes don't
+    const played = s.part !== 'vocals' && s.part !== 'keys';
+    if (played) {
+      T.notes += Number(s.notes) || 0;
+      T.hit += Number(s.hit) || 0;
+    }
     T.longestSession = Math.max(T.longestSession, Number(s.seconds) || 0);
     if (!T.firstAt || s.at < T.firstAt) T.firstAt = s.at;
     T.lastAt = Math.max(T.lastAt, s.at);
@@ -71,8 +75,10 @@ function lifetime({ sessions = [], archive = null, songs = {}, now = Date.now() 
     const yk = d.slice(0, 4);
     const y = perYear.get(yk) || { seconds: 0, notes: 0, hit: 0, chords: 0, full: 0, songs: new Set(), days: new Set() };
     y.seconds += Number(s.seconds) || 0;
-    y.notes += Number(s.notes) || 0;
-    y.hit += Number(s.hit) || 0;
+    if (played) {
+      y.notes += Number(s.notes) || 0;
+      y.hit += Number(s.hit) || 0;
+    }
     y.days.add(d);
     if (s.full) y.full++;
     if (s.songId) y.songs.add(s.songId);
@@ -97,8 +103,8 @@ function lifetime({ sessions = [], archive = null, songs = {}, now = Date.now() 
       if (s.part === 'bass') T.bassFull++;
     }
     const acc = s.accuracy === null || s.accuracy === undefined ? null : Number(s.accuracy);
-    if (acc !== null && s.notes) (accN += s.notes), (accH += acc * s.notes);
-    if (acc !== null && s.full && isFull(s) && s.notes >= 50) {
+    if (acc !== null && s.notes && played) (accN += s.notes), (accH += acc * s.notes);
+    if (acc !== null && played && s.full && isFull(s) && s.notes >= 50) {
       if (acc > T.bestAcc || (acc === T.bestAcc && !bestRun)) (T.bestAcc = acc), (bestRun = s);
       if (acc >= 0.95) T.acc95++;
       if (acc >= 0.999) T.perfect++;

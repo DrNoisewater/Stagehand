@@ -93,4 +93,5 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .parts-pick .part { height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid var(--rule); background: var(--riser); font-weight: 700; font-size: 15px; }
 .parts-pick .part.on { background: var(--tungsten); color: var(--tungsten-ink); border: 0; }
 .parts-pick .part.bass.on { background: var(--gel-bass); color: #111; }
+.ico-svg { display: block; margin: 0 auto; width: 26px; height: 26px; }
 .stage-menu { left: auto; right: 16px; top: 56px; }

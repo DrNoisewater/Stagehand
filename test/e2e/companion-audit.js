@@ -3,7 +3,9 @@
  * - off until switched on (Settings › Quest headset); on: the address and a code
  * - the headset page: type the code, the library shows, the PC lists the headset as connected
  * - a song picked in the headset opens on the PC (paused); play, seek and pause go both ways
- * - the headset's song clock matches the PC's; a reload reconnects with no code; Forget and Off work */
+ * - the headset's song clock matches the PC's; a reload reconnects with no code; Forget and Off work
+ * - 4.19: every part reaches the headset and picking one switches the PC; start over, +10 s, play/pause and
+ *   speed from the headset's menu; its placement, hands and guitar outline are remembered */
 const path = require('path');
 const QUEST_UA = 'Mozilla/5.0 (X11; Linux x86_64; Quest 3) AppleWebKit/537.36 (KHTML, like Gecko) OculusBrowser/35.0 SamsungBrowser/4.0 Chrome/128.0.0.0 VR Safari/537.36';
 
@@ -11,7 +13,9 @@ module.exports = async ({ page, outDir, check, companion }) => {
   const errs = [];
   page.on('pageerror', (e) => errs.push(`pc: ${e.message}`));
   page.on('console', (m) => /Quest companion/.test(m.text()) && errs.push(`pc: ${m.text()}`));
-  const shot = (p, n) => p.screenshot({ path: path.join(outDir, `q-${n}.png`) });
+  // a picture that can't be taken (the software graphics here can stall a page's picture while two browsers draw)
+  // is noted, not a failure: the checks are what count
+  const shot = (p, n) => p.screenshot({ path: path.join(outDir, `q-${n}.png`), timeout: 15000 }).catch((e) => console.log(`(no picture q-${n}: ${String(e.message).split('\n')[0]})`));
   const wait = (ms) => page.waitForTimeout(ms);
   for (let i = 0; i < 3 && (await page.locator('.modal').count()); i++) await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 1600, height: 950 });
@@ -160,6 +164,84 @@ module.exports = async ({ page, outDir, check, companion }) => {
   await wait(900);
   check(!(await pc()).playing, 'and pauses it');
   await shot(q, '8-quest-highway-paused');
+
+  // ---- 4.19: everything from inside the headset: the song's parts, picking one, start over, speed, placement
+  let parts = [];
+  for (let i = 0; i < 30 && parts.length < 2; i++) {
+    parts = await q.evaluate(() => (window.__companion.parts && window.__companion.parts.list) || []);
+    if (parts.length < 2) await q.waitForTimeout(200);
+  }
+  const pcParts = await page.evaluate(async () => {
+    const st = await import('./js/stage.js');
+    const { api } = await import('./js/api.js');
+    return (await api.tab.list(st.current().id)).map((t) => t.id);
+  });
+  check(parts.length >= 2 && parts.length === pcParts.length, `the headset gets every part of the song (${parts.map((x) => x.name).join(', ')}; the PC has ${pcParts.length})`);
+  check((await q.locator('#parts .part').count()) === parts.length, 'the headset page shows a button for each part');
+  const partNow = await q.evaluate(() => window.__companion.state.partId);
+  const other = parts.find((x) => x.id !== partNow);
+  check(!!partNow && !!other, `the headset knows which part is on (${partNow})`);
+  if (other) {
+    await q.evaluate((id) => window.__companion.stage.press(`part:${id}`), other.id);
+    let pcTab = null;
+    for (let i = 0; i < 40; i++) {
+      await wait(150);
+      pcTab = await page.evaluate(() => (window.__shHighway.tab() ? window.__shHighway.tab().id : null));
+      if (pcTab === other.id) break;
+    }
+    check(pcTab === other.id, `a part picked in the headset's menu switches the PC (${other.name}: ${pcTab})`);
+    let qPart = null;
+    for (let i = 0; i < 20 && qPart !== other.id; i++) {
+      await q.waitForTimeout(150);
+      qPart = await q.evaluate(() => window.__companion.state.partId);
+    }
+    check(qPart === other.id, 'and the headset shows that part as on');
+    await shot(q, '8b-quest-part');
+  }
+  // start over, ±10 s, play and pause from the menu
+  await page.evaluate(async () => (await import('./js/stage.js')).seekTo(20));
+  await wait(500);
+  await q.evaluate(() => window.__companion.stage.press('restart'));
+  await wait(900);
+  check((await pc()).pos < 1, `Start over in the headset goes back to the start (${(await pc()).pos.toFixed(2)} s)`);
+  await q.evaluate(() => window.__companion.stage.press('fwd10'));
+  await wait(900);
+  const fw = (await pc()).pos;
+  check(Math.abs(fw - 10) < 1.5, `+10 s in the headset moves the PC on (${fw.toFixed(1)} s)`);
+  await q.evaluate(() => window.__companion.stage.press('play'));
+  await wait(900);
+  check((await pc()).playing, 'Play in the headset menu plays the PC');
+  await q.evaluate(() => window.__companion.stage.press('play'));
+  await wait(900);
+  check(!(await pc()).playing, 'and pauses it again');
+  // speed
+  const sp = () => page.evaluate(async () => (await import('./js/stage.js')).engine.speed || 1);
+  const sp0 = await sp();
+  await q.evaluate(() => window.__companion.stage.press('speed-'));
+  await wait(700);
+  const sp1 = await sp();
+  check(Math.abs(sp1 - (sp0 - 0.05)) < 0.011, `slower in the headset slows the PC (${Math.round(sp0 * 100)}% → ${Math.round(sp1 * 100)}%)`);
+  await q.evaluate(() => window.__companion.stage.press('speed1'));
+  await wait(700);
+  check(Math.abs((await sp()) - 1) < 0.001, 'and back to 100%');
+  // placement, the hands, the guitar outline: remembered in the headset
+  await q.evaluate(() => {
+    const s = window.__companion.stage;
+    s.press('h:height-');
+    s.press('h:tilt+');
+    s.press('hands:faint');
+    s.press('what:guitar');
+    s.press('g:angle+'); // Steeper: the board stands up more (a smaller angle from upright)
+  });
+  const kept = await q.evaluate(() => JSON.parse(localStorage.getItem('stagehand.vr') || '{}'));
+  check(kept.v === 2 && Math.abs(kept.height - (-0.55 - 0.04)) < 1e-6 && kept.tilt === 17 && kept.hands === 'faint' && kept.guitar && kept.guitar.angle === 50, `the headset remembers its placement (${JSON.stringify(kept)})`);
+  // the menu opens and closes, and the song list is there
+  await q.evaluate(() => window.__companion.stage.menu.open('songs'));
+  const songRows = await q.evaluate(() => window.__companion.stage.menu.buttons().filter((b) => b.id.startsWith('song:')).length);
+  check(songRows > 0, `the headset's menu lists songs (${songRows} on the first page)`);
+  await shot(q, '8c-quest-menu');
+  await q.evaluate(() => window.__companion.stage.menu.close());
+  check(!(await q.evaluate(() => window.__companion.stage.menu.shown)), 'the menu closes');
   await q.locator('#stageBack').click();
   await q.waitForTimeout(300);
   check(await q.locator('#stageWrap').isHidden(), 'Back leaves the highway');
