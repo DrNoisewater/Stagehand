@@ -33,14 +33,22 @@ static void pluck(float *y, int len, int at, double hz, float amp, double dur, i
 
 typedef struct {
   const char *key;
-  int bit;
+  int bit;  /* the old fourteen: their bit in SHP_WK_HOLD */
+  int word; /* 4.20's thirty: the bits held in their own slot (SHP_LABW0 + kind) */
 } pedal;
-static const pedal PEDALS[14] = {{"Pedal_Quack", 1}, {"Pedal_Croak", 2}, {"Pedal_Caterwaul", 3}, {"Pedal_Blorp", 4}, {"Pedal_Gobble", 5}, {"Pedal_Slug", 6}, {"Pedal_Boing", 7},
-                                 {"Pedal_Gremlin", 8}, {"Pedal_Invader", 9}, {"Pedal_Confetti", 10}, {"Pedal_Blender", 11}, {"Pedal_Fossil", 12}, {"Pedal_Charmer", 13}, {"Pedal_Haunt", 14}};
+#define NP 44
+static const pedal PEDALS[NP] = {{"Pedal_Quack", 1}, {"Pedal_Croak", 2}, {"Pedal_Caterwaul", 3}, {"Pedal_Blorp", 4}, {"Pedal_Gobble", 5}, {"Pedal_Slug", 6}, {"Pedal_Boing", 7},
+                                 {"Pedal_Gremlin", 8}, {"Pedal_Invader", 9}, {"Pedal_Confetti", 10}, {"Pedal_Blender", 11}, {"Pedal_Fossil", 12}, {"Pedal_Charmer", 13}, {"Pedal_Haunt", 14},
+                                 {"Pedal_Annwn", -1, 1}, {"Pedal_Apoptosis", -1, 1}, {"Pedal_Bifrost", -1, 1}, {"Pedal_BluePrince", -1, 1}, {"Pedal_Claude", -1, 1},
+                                 {"Pedal_DejaVu", -1, 3}, {"Pedal_Duat", -1, 1}, {"Pedal_EventHorizon", -1, 1}, {"Pedal_Fenrir", -1, 1}, {"Pedal_Inanna", -1, 1},
+                                 {"Pedal_Janus", -1, 1}, {"Pedal_Kitsune", -1, 1}, {"Pedal_Kukulkan", -1, 1}, {"Pedal_Long", -1, 1}, {"Pedal_Maui", -1, 1},
+                                 {"Pedal_Mimic", -1, 1}, {"Pedal_Molt", -1, 1}, {"Pedal_Nataraja", -1, 1}, {"Pedal_Nothing", -1, 0}, {"Pedal_Olympus", -1, 3},
+                                 {"Pedal_Ouroboros", -1, 1}, {"Pedal_Parasite", -1, 1}, {"Pedal_Reliquary", -1, 0}, {"Pedal_Seance", -1, 1}, {"Pedal_Severed", -1, 1},
+                                 {"Pedal_Shango", -1, 1}, {"Pedal_Tezcatl", -1, 1}, {"Pedal_Veles", -1, 1}, {"Pedal_WhoAreYou", -1, 0}, {"Pedal_Wukong", -1, 1}};
 
 /* one pedal (its own defaults, Mix 100) over the whole input in blocks of `bs`; footswitch held from h0 to h1 (samples) */
 static double run(const pedal *p, int bass, int sr, const float *in, float *out, int len, int bs, int h0, int h1, float mixv) {
-  static uint8_t mem[8 << 20];
+  static uint8_t mem[7u << 20]; /* one tone slot (SLOT_BYTES in sh_engine.c) */
   sh_arena a = {mem, sizeof mem, 0, 0};
   sh_gear g;
   sh_memset(&g, 0, sizeof g);
@@ -60,8 +68,14 @@ static double run(const pedal *p, int bass, int sr, const float *in, float *out,
   for (int o = 0; o < len; o += bs) {
     int n = len - o < bs ? len - o : bs;
     int held = o >= h0 && o < h1;
-    live[SHP_WK_HOLD] = held ? (float)(1 << p->bit) : 0.f;
-    live[SHP_WK_LEVER] = held ? 0.7f : 0.f;
+    if (p->bit >= 0) {
+      live[SHP_WK_HOLD] = held ? (float)(1 << p->bit) : 0.f;
+      live[SHP_WK_LEVER] = held ? 0.7f : 0.f;
+    } else {
+      int kind = wacky_kind(p->key);
+      live[SHP_LABW0 + kind] = held ? (float)p->word : 0.f;
+      live[SHP_LABV0 + kind] = held ? 0.7f : 0.f;
+    }
     for (int j = 0; j < n; j++) out[o + j] = in[o + j];
     b.in0 = in + o;
     b.process(&b, out + o, NULL, n);
@@ -74,7 +88,7 @@ int main(void) {
   const double bas[8] = {41.2, 49, 55, 61.7, 73.4, 82.4, 98, 55};
   const int rates[3] = {44100, 48000, 96000};
   printf("%-10s %-6s %8s %8s %8s %8s\n", "pedal", "kind", "cpu48k%", "cpu96k%", "peak", "late ms");
-  for (int k = 0; k < 14; k++)
+  for (int k = 0; k < NP; k++)
     for (int bass = 0; bass < 2; bass++) {
       const pedal *p = &PEDALS[k];
       double cpu[3] = {0}, pk = 0, late = -1;
@@ -83,7 +97,9 @@ int main(void) {
         int sr = rates[r];
         int nn = bass ? 8 : 10;
         double gap = bass ? 0.42 : 0.36;
-        int len = (int)((nn * gap + 5.0) * sr);
+        /* the cathedral, the deepest gate and the echo that eats itself ring on longest */
+        int longtail = !strcmp(p->key, "Pedal_Reliquary") || !strcmp(p->key, "Pedal_Duat") || !strcmp(p->key, "Pedal_Ouroboros");
+        int len = (int)((nn * gap + (longtail ? 9.0 : 5.0)) * sr);
         float *in = calloc(len, sizeof(float)), *out = calloc(len, sizeof(float)), *out2 = calloc(len, sizeof(float));
         for (int i = 0; i < nn; i++) pluck(in, len, (int)(i * gap * sr), bass ? bas[i] : gtr[i], 0.12f, i == nn - 1 ? 1.4 : gap * 0.95, sr);
         int h0 = (int)(1.0 * sr), h1 = (int)(2.2 * sr);

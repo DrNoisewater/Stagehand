@@ -49,7 +49,12 @@ enum {
   SHP_WK_LEVER,  /* Boing's Bend lever, 0..1 (springs back to 0) */
   SHP_WK_LATCH,  /* switches that change while you play: bit per pedal (Haunt: 1 = Fast) */
   SHP_TEMPO,     /* the song's (or the drums') beats a minute, 0 = none; Invader's Sync follows it */
-  SHP_COUNT
+  /* 4.20: each Lab pedal's own live slot, by its number in sh_wacky.h (never part of a tone):
+     LABW: footswitches and buttons held or latched (a bit each, in the order of the pedal's list);
+     LABV: one live value (a lever, or a control that moves while you play, such as Blue Prince's room) */
+  SHP_LABW0,
+  SHP_LABV0 = SHP_LABW0 + 64,
+  SHP_COUNT = SHP_LABV0 + 64
 };
 void sh_engine_param(sh_engine *e, int id, float v);
 
