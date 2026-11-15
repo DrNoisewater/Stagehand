@@ -123,6 +123,7 @@ html[data-look='roadshow'] .kk-title-big { color:#d9f0dc; }
 .kk-diff[data-level='3'] i.on { background:#e5533c; }
 .kk-diff i { width:9px; }
 .kk-diff.guess em { font-style:italic; opacity:.75; }
+.kk-diff u { text-decoration:none; margin-left:4px; opacity:.7; }
 .kk-diff em { font-style:normal; margin-left:6px; font-weight:600; letter-spacing:.01em; }
 .kk-diff.wait i { animation:kkpulse 1.4s ease-in-out infinite; }
 .kk-diff.wait i:nth-child(2) { animation-delay:.1s } .kk-diff.wait i:nth-child(3) { animation-delay:.2s }

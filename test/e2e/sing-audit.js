@@ -106,7 +106,7 @@ module.exports = async ({ page, outDir, check }) => {
   await page.locator('#page-karaoke .kk-card').first().click();
   await page.waitForFunction(() => { const r = document.querySelector('.highway'); return r && !r.hidden; }, null, { timeout: 30000 });
   await page.waitForTimeout(2500);
-  const kk = await page.evaluate(() => { const r = document.querySelector('.highway'); return { k: r.classList.contains('hw-karaoke'), chip: r.querySelector('.hw-sing-chip').textContent, words: r.__hw.sing.state.base.syl.length }; });
+  const kk = await page.evaluate(() => { const r = document.querySelector('.highway'); return { k: r.classList.contains('hw-karaoke'), chip: r.querySelector('.hw-karaoke-chip[aria-pressed="true"]')?.textContent || '', words: r.__hw.sing.state.base.syl.length }; });
   check(kk.words ? kk.k && /Karaoke/.test(kk.chip) : !kk.k, `picking a song opens it as karaoke (${JSON.stringify(kk)})`);
   await page.screenshot({ path: path.join(outDir, 'karaoke-open.png') });
   await page.evaluate(() => window.__shHighway.leave());

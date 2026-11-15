@@ -107,7 +107,7 @@ function diffHtml(s) {
   const because = d.why && d.why.length ? `: ${d.why.join(', ')}` : '';
   const basis = d.heard ? 'Judged from the notes the singer really sang.' : d.guess ? 'Judged by the words only: this chart has no real notes. Split it and sing it once for a surer mark.' : 'Judged from the chart’s notes.';
   const why = `${DIFF_NAMES[d.level - 1]} to sing${because}. About ${d.rate} syllables a minute while singing${d.range ? `, the tune spans ${d.range} semitones` : ''}. ${basis}`;
-  return `<span class="kk-diff${d.guess && !d.heard ? ' guess' : ''}" data-level="${d.level}" title="${esc(why)}">${pips}<em>${DIFF_NAMES[d.level - 1]}</em></span>`;
+  return `<span class="kk-diff${d.guess && !d.heard ? ' guess' : ''}" data-level="${d.level}" title="${esc(why)}">${pips}<em>${DIFF_NAMES[d.level - 1]}</em><u>to sing</u></span>`;
 }
 function paintDiff(s) {
   const el = root.querySelector(`.kk-card[data-id="${CSS.escape(s.id)}"] .kk-diff`);
