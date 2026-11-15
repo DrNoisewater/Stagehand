@@ -11,6 +11,20 @@ accurate? some of these songs… just stay in the same line and I cannot be accu
   chart's notes are guesses and to split the song. Auto-tune's "song's notes" gets the real notes, or nearest note.
 - Sing menu › **Notes to sing** (per song, `stagehand.sing` prefs `notes`): Pick for me / The chart's notes / The
   singer's, from the recording. Test in `test/sing.test.mjs`.
+- Then (photo of karaoke with a crowded note-name column; "they always move around a little bit… super confusing";
+  "I was on karaoke and clicked Sing, and it took me to the highway with guitar, is that intended?"; "why are some
+  notes full and others a dotted outline"):
+  - **The lane never moves** (`drawBars`): its reach is worked out once from the 3rd–97th percentile of the tune
+    (no cap; stray notes sit on the edge). 4.18 capped it at 15 semitones beside the highway / 22 in karaoke and
+    crept along (5% a frame) for wider tunes, which most are. Small lane's note area is taller (18–78 of 124).
+  - Note names at the left skip any that would overlap (were a crowded column).
+  - Dotted bars = syllables with no note (any voice counts); they now sit at their neighbour's height (`near`,
+    worked out with the range), not mid-lane.
+  - The **Sing** chip is now **Sing & play** (singing while your guitar/bass part plays; Karaoke is just the words).
+    Intended behaviour, but the name read like karaoke.
+- **Not done (offered):** a chart whose tune is real in some lines and placeholder in others (only whole-song flat is
+  spotted; Notes to sing › the recording works around it on split songs); "Leave karaoke" goes to the guitar, not
+  back to the Karaoke page.
 - **Ask the user:** on that song (split it first), do the bars follow the singer now? Any song where a real tune was
   wrongly called made up (they can pick The chart's notes)?
 

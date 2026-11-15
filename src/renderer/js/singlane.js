@@ -255,10 +255,11 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       el.classList.toggle('dim', !words);
       el.classList.toggle('has-menu', on);
       el.title = !words ? 'This song has no words in it' : on ? onTitle : offTitle;
-      const html = `${icon(name === 'Sing' ? 'mic' : 'music')}<span>${name}</span>${icon('chevron')}`;
+      const html = `${icon(name === 'Sing & play' ? 'mic' : 'music')}<span>${name}</span>${icon('chevron')}`;
       if (el.__html !== html) el.innerHTML = el.__html = html;
     };
-    paint(chip, singing, 'Sing', 'Sing along: score your singing beside your guitar part, with a microphone', 'Singing is on: level, microphone, auto-tune, look');
+    // 4.18.2: "Sing" read like karaoke; this one is singing while your part plays on the highway
+    paint(chip, singing, 'Sing & play', 'Sing & play: sing into a microphone while you play your guitar or bass part', 'Sing & play is on: level, microphone, auto-tune, look');
     paint(kchip, kar, 'Karaoke', 'Karaoke: just the words, big, and your singing scored', 'Karaoke is on: level, microphone, auto-tune, look');
   }
 
@@ -516,7 +517,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
 
   // ------------------------------------------------------------ drawing --
   /** Sizes of the Bars look: the small lane beside the highway, or the big one in karaoke. */
-  const SMALL = { H: 124, top: 20, bot: 70, bh: 11, font: 17, wordY: 108, dot: 6, nextY: 14, nextFont: 15 };
+  const SMALL = { H: 124, top: 18, bot: 78, bh: 11, font: 17, wordY: 108, dot: 6, nextY: 14, nextFont: 15 };
   const BIG = { H: 310, top: 40, bot: 210, bh: 20, font: 27, wordY: 282, dot: 10, nextY: 28, nextFont: 20 };
   const lay = () => (lane.dataset.k ? BIG : SMALL);
 
@@ -590,36 +591,25 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       if (syl[m].t + syl[m].d < t - nowX / pps - 0.2) a = m + 1;
       else b = m;
     }
-    // 4.18: the same note sits at the same height all song. The lane's reach is worked out once from
-    // the whole tune; only a song too wide to fit moves it, and then only as far as the next notes need.
-    const CAP = lane.dataset.k ? 22 : 15; // semitones the lane can show and still tell neighbours apart
+    // 4.18.2: the lane never moves. Its reach is worked out once from the whole tune (all but the odd
+    // stray note at either end, which sits on the edge), so the same note is at the same height all song.
     if (!S.rng || S.rng.of !== syl) {
       const ps = [];
       for (const x of syl) if (x.p !== null) ps.push(x.p);
       ps.sort((x, y) => x - y);
-      const sLo = ps.length ? ps[Math.floor((ps.length - 1) * 0.02)] : 55;
-      const sHi = ps.length ? ps[Math.ceil((ps.length - 1) * 0.98)] : 65;
-      const span = Math.max(10, sHi - sLo + 3);
-      const size = Math.min(span, CAP);
-      const rows = [...new Set(ps.map((x) => Math.round(x)))];
-      S.rng = { of: syl, size, fits: span <= CAP, lo: (sLo + sHi) / 2 - size / 2, hi: (sLo + sHi) / 2 + size / 2, rows };
-    }
-    if (!S.rng.fits) {
-      let lo = Infinity;
-      let hi = -Infinity;
-      for (let i = a; i < syl.length && syl[i].t < t + AHEAD + 0.5; i++) {
-        if (syl[i].p === null) continue;
-        lo = Math.min(lo, syl[i].p);
-        hi = Math.max(hi, syl[i].p);
-      }
-      if (lo !== Infinity) {
-        let want = S.rng.want ?? S.rng.lo;
-        if (hi - lo + 3 > S.rng.size) want = (lo + hi) / 2 - S.rng.size / 2;
-        else if (lo - 1.5 < want) want = lo - 1.5;
-        else if (hi + 1.5 > want + S.rng.size) want = hi + 1.5 - S.rng.size;
-        S.rng.want = want;
-        S.rng.lo += (want - S.rng.lo) * 0.05;
-        S.rng.hi = S.rng.lo + S.rng.size;
+      const sLo = ps.length ? ps[Math.floor((ps.length - 1) * 0.03)] : 55;
+      const sHi = ps.length ? ps[Math.ceil((ps.length - 1) * 0.97)] : 65;
+      const size = Math.max(10, sHi - sLo + 3);
+      const rows = [...new Set(ps.map((x) => Math.round(x)))].filter((p) => p >= sLo - 1.5 && p <= sHi + 1.5);
+      S.rng = { of: syl, size, lo: (sLo + sHi) / 2 - size / 2, hi: (sLo + sHi) / 2 + size / 2, rows };
+      // a syllable with no note (any voice counts) sits beside its neighbours, not in the middle
+      let last = null;
+      for (const x of syl) x.p !== null ? (last = x.p) : (x.near = last);
+      last = null;
+      for (let i = syl.length - 1; i >= 0; i--) {
+        const x = syl[i];
+        if (x.p !== null) last = x.p;
+        else if (x.near === null || x.near === undefined) x.near = last;
       }
     }
     const Y = (p) => bot - ((p - S.rng.lo) / (S.rng.hi - S.rng.lo)) * (bot - top);
@@ -639,9 +629,13 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       g.font = `700 9px ${FONT}`;
       g.textBaseline = 'middle';
       g.fillStyle = 'rgba(245, 237, 218, 0.42)';
-      for (const p of S.rng.rows) {
+      let lastY = Infinity;
+      for (const p of [...S.rng.rows].sort((x, y) => x - y)) {
         const y = Y(p);
-        if (y > top - 2 && y < bot + 2) g.fillText(NOTE_NAMES[((p % 12) + 12) % 12], 8, Math.round(y));
+        if (y > top - 2 && y < bot + 2 && lastY - y >= 10) {
+          g.fillText(NOTE_NAMES[((p % 12) + 12) % 12], 8, Math.round(y));
+          lastY = y; // names close enough to overlap are skipped (the line is still drawn)
+        }
       }
     }
     // bars: plain pills, the one to sing now a little brighter
@@ -651,7 +645,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       if (s.t > t + AHEAD + 0.3) break;
       const x0 = X(s.t);
       const x1 = Math.max(x0 + BH, X(s.t + s.d) - 3);
-      const y = clampY(s.p === null ? midY : Y(s.p));
+      const y = clampY(s.p === null ? (Number.isFinite(s.near) ? Y(s.near) : midY) : Y(s.p));
       const res = j ? j.result[i] : null;
       const gold = j && j.lineResult[s.line] === 1;
       g.globalAlpha = fade((x0 + x1) / 2) * (x0 > W - 40 ? Math.max(0, (W - x0) / 40) : 1);
