@@ -181,6 +181,9 @@ int rev_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int stereo)
 int drive_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr);  /* sh_drive.c */
 int boost_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr);  /* sh_drive.c */
 int pitch_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr);  /* sh_pitch.c */
+/* the wacky pedals (sh_wacky.h, built inside sh_fx.c): Quack, Croak, Caterwaul, Blorp */
+int wacky_kind(const char *key); /* 0 = not one of them */
+int wacky_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int bass);
 /* Stagehand's own noise gate, in front of every tone. live (owned by the engine, read as it plays):
    live[0] = the player's measured noise floor (dB, peak envelope; < -150 = not known yet),
    live[1] = threshold offset (dB, + = stronger), live[2] = 1 when the gate is switched off;

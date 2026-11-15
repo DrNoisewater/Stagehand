@@ -17,6 +17,7 @@ const GROUPS = [
   ['filter', 'Wah, filters and EQ'],
   ['mod', 'Chorus, flanger, phaser, tremolo'],
   ['time', 'Echo and reverb'],
+  ['wacky', 'Wacky: a duck, a frog, a cat, an alien'],
 ];
 
 const fmtKnob = (min, max) => (v) => (max - min > 20 ? String(Math.round(v)) : (Math.round(v * 10) / 10).toFixed(1));

@@ -556,7 +556,7 @@ function gearChoices(slotType, kind) {
     if ((slotType === 'pre' || slotType === 'post') && t !== 'pedal') continue;
     if (slotType === 'rack' && t !== 'rack') continue;
     if (slotType === 'cab') continue;
-    out.push({ key, name: g.n, cat: g.c, bass: isBass });
+    out.push({ key, name: g.n, cat: g.c, bass: g.a ? bass : isBass }); // a: for guitar and bass alike
   }
   out.sort((a, b) => (a.bass === bass ? 0 : 1) - (b.bass === bass ? 0 : 1) || a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name));
   return out;

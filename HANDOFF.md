@@ -102,6 +102,22 @@ The user said: the highway was almost at eye level and should be way lower; with
 - **Never tried on a real Quest**: hands, pinches, the wrist button and controllers were driven by pretend poses only; frame rate, comfort, and whether the passthrough-capable session behaves as full VR in the Quest browser are unknown.
 - **Ask next:** is the height right (lower? steeper?); does the outline sit near the real neck, and do they play left-handed; dim, faint or bright hands; is the menu easy to reach at about 50 cm and the wrist button comfortable; does pinching with a pick open things by accident.
 
+## Wacky pedals: Quack, Croak, Caterwaul, Blorp (same release, asked 2026-11-15)
+
+The user sent four pedal pictures (a duck, a frog, a cat, an alien) and asked for them "with the actual effects… We want these to actually work. And sound like real pedal effects."
+
+- **Real effects in the sound engine** (`native/dsp/sh_wacky.h`, included only by `sh_fx.c`; ids `Pedal_Quack`, `Pedal_Croak`, `Pedal_Caterwaul`, `Pedal_Blorp`). Each works off the playing itself (no samples), sits before the amp, has the three knobs printed on its picture, and a level keeper that holds the effect near the dry loudness. Blend 0 is the dry sound exactly.
+  - **Quack**: each new note quacks (a mouth sweep closing down, a nasal honk). Beak 60 (how wide and nasal, how fast it closes), Wobble 25 (a warble on the held note), Blend 70.
+  - **Croak**: an octave down, a deep throat, a fast rattle of pulses. Throat 50, Hop 50 (rattle speed, about 12 to 45 a second), Blend 65.
+  - **Caterwaul**: a meow on each note (the vowel glides, the pitch bends up and back, a wailing vibrato). Meow 60, Hiss 25, Blend 70.
+  - **Blorp**: a ring modulator whose hidden tone swoops on each note, through a bubbling talking filter. Vowel 50, Orbit 40, Blend 65.
+- **In the app**: a "Wacky" group wherever pedals are picked (Gear page with words, Create a Tone, the rig chain, the tone editor), guitar and bass, saved in tones. The user's pictures are the art (`art/gear/full/Pedal_*.avif`, `thumb/Pedal_*.webp`, borders cropped), with working knobs on the photo (`gear-photos.js`, `tools/gear/audit.json`, `trims.json`). Data: `gear2014.json`, `gear-about.json`, `gear-live.json`.
+- **Engine rebuilt and committed**: `native/bin/stagehand-audio.exe`, `src/renderer/worklets/rig-dsp.wasm`.
+- Tests: `node test/wacky-pedals.cjs` (in `npm test`, about a minute: each pedal's own character, every knob heard, levels); `native/build/wacky_test` after `bash native/build.sh` (44.1/48/96 kHz, guitar and bass: level, peaks, no DC, silence, Blend 0); `SH_AUDIT=test/e2e/wacky-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>` (the shelf, photos, knobs, rig, a saved tone, bass).
+- Peaks run up to about 3.6 times the input's peak (the resonances), though the average level stays within 1 dB of dry: if the user hears clipping into a hot amp, lower the effect's level.
+- **Nobody has heard them** (made-up notes and measurements only), and the Windows engine was built but not run.
+- **Ask next:** do they sound like a duck, a frog, a cat and an alien; is the quack too fast or slow; is Blend 65–70 a good start; is the cat's hiss too much; how are they on bass.
+
 ## Which split a song has, and how hard it is to sing (same release, asked 2026-11-15)
 
 The user: "There needs to be a clear way to see that. When you're looking at songs or tiles of songs in a smart way, karaoke menu should show you what version you have without obstructing the art. Karaoke mode needs to have a better grip on how easy medium or hard a song is, as well."

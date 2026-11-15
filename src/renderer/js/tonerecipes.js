@@ -42,6 +42,14 @@ export const AMPS = {
  * The pedals you can add. knobs: [the pedal's own knob, what it's called here].
  * where: 'pre' = between guitar and amp, 'post' = after the amp (the effects loop).
  */
+// 4.20: the wacky pedals work for guitar and bass alike
+const WACKY = [
+  { key: 'Pedal_Quack', name: 'Quack', what: 'Every note quacks like a duck', where: 'pre', group: 'wacky', knobs: [['Beak', 'Beak'], ['Wobble', 'Wobble'], ['Blend', 'Blend']], start: { Beak: 60, Wobble: 25, Blend: 70 } },
+  { key: 'Pedal_Croak', name: 'Croak', what: 'A frog: the octave below, chopped into a croak', where: 'pre', group: 'wacky', knobs: [['Throat', 'Throat'], ['Hop', 'Hop'], ['Blend', 'Blend']], start: { Throat: 50, Hop: 50, Blend: 65 } },
+  { key: 'Pedal_Caterwaul', name: 'Caterwaul', what: 'Each note meows and wails like a cat', where: 'pre', group: 'wacky', knobs: [['Meow', 'Meow'], ['Hiss', 'Hiss'], ['Blend', 'Blend']], start: { Meow: 60, Hiss: 25, Blend: 70 } },
+  { key: 'Pedal_Blorp', name: 'Blorp', what: 'An alien voice: clangy, bubbling, not from here', where: 'pre', group: 'wacky', knobs: [['Vowel', 'Vowel'], ['Orbit', 'Orbit'], ['Blend', 'Blend']], start: { Vowel: 50, Orbit: 40, Blend: 65 } },
+];
+
 export const PEDALS = {
   guitar: [
     { key: 'Pedal_SuperDrive', name: 'Tube drive', what: 'Pushes the mids and tightens a big amp. The metal secret.', where: 'pre', group: 'drive', knobs: [['Gain', 'Drive'], ['Tone', 'Tone']], start: { Gain: 10, Tone: 60 } },
@@ -62,6 +70,7 @@ export const PEDALS = {
     { key: 'Pedal_Tremolo', name: 'Tremolo', what: 'The volume pulses', where: 'post', group: 'mod', knobs: [['Speed', 'Speed'], ['Mix', 'Depth']], start: { Speed: 60, Mix: 50 } },
     { key: 'Pedal_AnalogueDelay', name: 'Echo', what: 'Warm repeats, for leads', where: 'post', group: 'time', knobs: [['Time', 'Time'], ['Feedback', 'Repeats'], ['Mix', 'Mix']], start: { Time: 380, Feedback: 25, Mix: 22 } },
     { key: 'Pedal_SpringReverb', name: 'Spring reverb', what: 'The drip of an old amp', where: 'post', group: 'time', knobs: [['Time', 'Time'], ['Mix', 'Mix']], start: { Time: 50, Depth: 50, Mix: 30 } },
+    ...WACKY,
   ],
   bass: [
     { key: 'Bass_Pedal_BassOverdrive', name: 'Bass drive', what: 'Grit, blended with your clean low end', where: 'pre', group: 'drive', knobs: [['Gain', 'Drive'], ['Tone', 'Tone'], ['Blend', 'Blend']], start: { Gain: 35, Tone: 45, Blend: 45, Filter: 75 } },
@@ -71,6 +80,7 @@ export const PEDALS = {
     { key: 'Bass_Pedal_BassAutoFilter', name: 'Envelope filter', what: 'Funky, quacking notes', where: 'pre', group: 'filter', knobs: [['Sensitivity', 'Sensitivity'], ['Mix', 'Mix']], start: { Sensitivity: 80, Mix: 45 } },
     { key: 'Bass_Pedal_BassSubOctave', name: 'Sub octave', what: 'A second note an octave below', where: 'pre', group: 'filter', knobs: [['Mix', 'Mix'], ['Tone', 'Tone']], start: { Mix: 50, Tone: 80 } },
     { key: 'Bass_Pedal_BassChorus', name: 'Bass chorus', what: 'Wide and shimmering', where: 'post', group: 'mod', knobs: [['Rate', 'Speed'], ['Mix', 'Mix'], ['Depth', 'Depth']], start: { Rate: 1, Mix: 50, Depth: 50 } },
+    ...WACKY,
   ],
 };
 

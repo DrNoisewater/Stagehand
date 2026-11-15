@@ -143,6 +143,11 @@ function cabDrawing(key) {
 
 // stompbox colours by what the pedal does
 const PEDAL = [
+  // the wacky pedals, in the colours of their photos
+  [/Pedal_Quack/, '#e6c93a'],
+  [/Pedal_Croak/, '#3fae5a'],
+  [/Pedal_Caterwaul/, '#d6457b'],
+  [/Pedal_Blorp/, '#9b4fd6'],
   [/gate|noise/i, '#7d8696'],
   [/comp|sustain|limit/i, '#3f7fd1'],
   [/fuzz|buzz|muff|bender/i, '#9b4fd6'],

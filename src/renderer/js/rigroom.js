@@ -543,7 +543,7 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
     const mineFirst = onlyMine.querySelector('input').checked;
     const words = R.q.split(/\s+/).filter(Boolean);
     let list = items.filter((it) => (words.length ? words.every((w) => `${it.name} ${it.sub} ${it.key} ${GEAR_CATS.find((c) => c.id === it.cat).label}`.toLowerCase().includes(w)) : it.cat === R.cat));
-    const mine = (it) => (k === 'bass') === !!it.bass;
+    const mine = (it) => it.any || (k === 'bass') === !!it.bass;
     if (mineFirst) list = [...list.filter(mine), ...list.filter((it) => !mine(it))];
     const inUse = new Set(R.t.gear.map((g) => (g.slot === 'cab' ? (CAB_RE.exec(g.key) || [])[1] || g.key : g.key)));
     const rep = R.replace !== null ? R.t.gear[R.replace] : null;
