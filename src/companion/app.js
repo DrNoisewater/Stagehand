@@ -35,6 +35,8 @@ let pcName = '';
 let songs = [];
 let state = null;
 let chart = null; // the notes the PC's highway shows (step 2)
+let parts = null; // 4.19: the song's parts, as the PC lists them { song, list }
+let arOk = false; // the browser can show your room (passthrough)
 const marks = new Marks();
 let retry = 600;
 let pingTimer = 0;
@@ -144,7 +146,9 @@ function onMessage(m) {
   if (m.type === 'state') {
     const before = state && state.song && state.song.id;
     if (m.judge) marks.apply(m.judge, performance.now());
+    if (m.parts) parts = m.parts;
     state = m;
+    drawParts();
     if ((m.song && m.song.id) !== before) {
       drawNow();
       markRow();
@@ -327,7 +331,31 @@ function frame() {
 }
 requestAnimationFrame(frame);
 
+// 4.19: the song's parts, to pick from here too (the PC switches)
+const PART_NAME = { lead: 'Lead', combo: 'Lead', rhythm: 'Rhythm', bass: 'Bass' };
+let partsSig = '';
+function drawParts() {
+  const id = state && state.song && state.song.id;
+  const list = parts && parts.song === id ? parts.list : [];
+  const sig = `${id}|${state && state.partId}|${list.map((p) => p.id).join(',')}`;
+  if (sig === partsSig) return;
+  partsSig = sig;
+  const host = $('parts');
+  host.innerHTML = '';
+  for (const p of list) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `part ${p.type}${p.id === state.partId ? ' on' : ''}`;
+    b.dataset.id = p.id;
+    b.textContent = p.bonus ? `${p.name || PART_NAME[p.type] || 'Part'} (bonus)` : PART_NAME[p.type] || p.name || 'Part';
+    b.setAttribute('aria-pressed', String(p.id === state.partId));
+    b.onclick = () => send({ type: 'part', id: p.id });
+    host.append(b);
+  }
+}
+
 $('play').onclick = () => send({ type: 'toggle' });
+$('restart').onclick = () => send({ type: 'restart' });
 $('back').onclick = () => send({ type: 'seek', t: Math.max(0, songPos(state, clock.pcNow()) - 10) });
 $('fwd').onclick = () => send({ type: 'seek', t: songPos(state, clock.pcNow()) + 10 });
 $('bar').onclick = (e) => {
@@ -346,6 +374,9 @@ async function getStage() {
     canvas: $('stage'),
     getState: () => state,
     getChart: () => chart,
+    getSongs: () => songs,
+    getParts: () => parts,
+    arOk: () => arOk,
     marks,
     pcNow: () => clock.pcNow(),
     send,
@@ -375,12 +406,19 @@ $('preview').onclick = () => enter('preview');
 $('enterVr').onclick = () => enter('vr');
 $('enterAr').onclick = () => enter('ar');
 $('stageBack').onclick = () => (stage ? stage.exit() : closeStage());
+$('stageMenu').onclick = () => stage && stage.menu.toggle();
+addEventListener('keydown', (e) => {
+  if (stage && !$('stageWrap').hidden && (e.key === 'm' || e.key === 'M')) stage.menu.toggle();
+});
 setInterval(() => {
   if (stage && !$('stageWrap').hidden) $('stageInfo').textContent = `${stage.stats.fps} fps · ${stage.stats.drawn} notes`;
 }, 1000);
 if (navigator.xr) {
   navigator.xr.isSessionSupported('immersive-vr').then((ok) => ($('enterVr').hidden = !ok)).catch(() => {});
-  navigator.xr.isSessionSupported('immersive-ar').then((ok) => ($('enterAr').hidden = !ok)).catch(() => {});
+  navigator.xr.isSessionSupported('immersive-ar').then((ok) => {
+    arOk = !!ok;
+    $('enterAr').hidden = !ok;
+  }).catch(() => {});
 }
 function drawVrNote() {
   const id = state && state.song && state.song.id;
@@ -394,6 +432,6 @@ function drawVrNote() {
 drawVrNote();
 
 // for tests: what the page thinks
-window.__companion = { get chart() { return chart; }, marks, get stage() { return stage; }, clock, get state() { return state; }, get songs() { return songs; }, songPos: () => songPos(state, clock.pcNow()), get paired() { return paired; } };
+window.__companion = { get parts() { return parts; }, get chart() { return chart; }, marks, get stage() { return stage; }, clock, get state() { return state; }, get songs() { return songs; }, songPos: () => songPos(state, clock.pcNow()), get paired() { return paired; } };
 
 connect();

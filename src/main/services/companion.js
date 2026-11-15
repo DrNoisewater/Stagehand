@@ -70,7 +70,7 @@ function songRow(s) {
     const t = a.type === 'jvocals' ? 'vocals' : a.type;
     if (t && !parts.includes(t)) parts.push(t);
   }
-  // 4.20: when it was last played and added, for the headset's Recent list
+  // 4.19: when it was last played and added, for the headset's Recent list
   const u = s.user || {};
   return { id: s.id, title: s.title || '', artist: s.artist || '', album: s.album || '', year: s.year || null, length: Math.round(Number(s.length) || 0), parts, played: Number(u.lastPlayed) || 0, added: Number(s.addedAt) || 0 };
 }
@@ -112,7 +112,7 @@ class Companion extends EventEmitter {
     this.chart = null; // the notes the PC's highway shows
     this.marks = new Map(); // target id -> 1 hit / 0 miss, this time through
     this.score = null;
-    this.parts = null; // 4.20: the song's parts, as the PC last listed them { song, list }
+    this.parts = null; // 4.19: the song's parts, as the PC last listed them { song, list }
     this.error = null;
     this._libTimer = null;
     this.exe = exe;
@@ -322,7 +322,7 @@ class Companion extends EventEmitter {
       notice: st.notice ? String(st.notice) : null,
       partId: st.partId ? String(st.partId).slice(0, 80) : null,
     };
-    // 4.20: the song's parts (sent when they change; kept for a headset joining late)
+    // 4.19: the song's parts (sent when they change; kept for a headset joining late)
     if (st.parts) {
       const pl = partList(st.parts);
       if (pl) this.parts = pl;
@@ -597,7 +597,7 @@ exit 0`;
     if (m.type === 'pick' && typeof m.id === 'string' && this.library.get(m.id)) return this.emit('cmd', { type: 'pick', id: m.id, from: c.device.name });
     if (m.type === 'play' || m.type === 'pause' || m.type === 'toggle') return this.emit('cmd', { type: m.type });
     if (m.type === 'seek' && Number.isFinite(Number(m.t))) return this.emit('cmd', { type: 'seek', t: Math.max(0, Number(m.t)) });
-    // 4.20: everything from inside the headset: start over, the part, the speed
+    // 4.19: everything from inside the headset: start over, the part, the speed
     if (m.type === 'restart') return this.emit('cmd', { type: 'seek', t: 0 });
     if (m.type === 'part' && typeof m.id === 'string' && this.parts && this.parts.list.some((p) => p.id === m.id)) return this.emit('cmd', { type: 'part', id: m.id });
     if (m.type === 'speed' && Number.isFinite(Number(m.to))) return this.emit('cmd', { type: 'speed', to: Math.max(0.25, Math.min(1.5, Number(m.to))) });
