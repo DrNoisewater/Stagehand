@@ -44,7 +44,8 @@ export const VOICES = {
 };
 /** The voice comes out at about this loudness (before the volume), whatever the microphone. */
 const LEVEL = 0.18;
-const MAX_BOOST = 24; // up to about 28 dB for a quiet microphone
+// 4.18.1: was 24 (28 dB): singing from across the room turned the microphone's own hiss up with the voice
+const MAX_BOOST = 6; // up to about 16 dB for a quiet microphone
 const HANN = (() => {
   const t = new Float32Array(1025);
   for (let i = 0; i <= 1024; i++) t[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / 1024);
@@ -99,6 +100,13 @@ export class AutoTune {
     this.fast = 0; // the last few thousandths of a second (squared), so the gate opens on the first sound
     this.env = 0; // how loud the singer sings (for the automatic level)
     this.boost = 1; // the automatic level now
+    // 4.18.1: only a held, steady note counts as singing. The band from the speakers reaching the
+    // microphone opens the gate too, and was turned up as if it were a quiet singer (heard as static).
+    this.run = 0; // steady readings in a row
+    this.lastSung = null;
+    this.openedAt = 0; // when the gate last opened (samples)
+    this.vt = -1e9; // the last moment someone was really singing (samples)
+    this.liveK = 0; // 1 while singing: the full automatic level; 0: kept low
     this.sung = null; // the note sung (midi, with fractions)
     this.target = null; // the note it is moved to
     this.note = null;
@@ -304,17 +312,17 @@ export class AutoTune {
     const fl = this.floor;
     if (level < fl) this.floor += (level - fl) * 0.08;
     else if (!this.open) this.floor = Math.min(0.02, fl + (level - fl) * 0.006);
+    else if (this.w - Math.max(this.vt, this.openedAt) > this.sr) this.floor = Math.min(0.05, fl + (level - fl) * 0.02); // open a second with no singing: that's the room (a hissing microphone, the band leaking in)
     else this.floor = Math.min(0.012, fl + (level - fl) * 0.0001); // a room getting noisier while you sing
     const openAt = Math.max(0.0025, this.floor * 2.5);
     const stayAt = Math.max(0.0016, this.floor * 1.6);
+    const wasOpen = this.open;
     this.open = level > (this.open ? stayAt : openAt) || (!this.open && this.fast > openAt * openAt * 1.7);
+    if (this.open && !wasOpen) this.openedAt = this.w;
     if (!this.open) {
       this.monoNote = null;
       return this._heard(0);
     }
-    // the automatic level: follows the singer (quickly down, slowly up), never the room
-    if (!this.env) this.env = level;
-    else this.env += (level - this.env) * (level > this.env ? 0.25 : 0.012);
     let tau = -1;
     if (level > fl * 1.6) {
       let run = 0;
@@ -405,6 +413,8 @@ export class AutoTune {
         return;
       }
       this.voiced = false;
+      this.run = 0;
+      this.lastSung = null;
       this.hist.length = 0;
       this.prevTau = 0;
       this.sung = null;
@@ -417,6 +427,17 @@ export class AutoTune {
       return;
     }
     this.missed = 0;
+    // singing is a steady note held a little while (the band leaking in jumps about)
+    const now = 69 + 12 * Math.log2(this.sr / P / 440);
+    this.run = this.lastSung !== null && Math.abs(now - this.lastSung) < 0.8 ? this.run + 1 : 1;
+    this.lastSung = now;
+    if (this.run * this.hop >= this.sr * 0.04) {
+      this.vt = this.w;
+      // the automatic level: follows the singer (quickly down, slowly up), never the room or the band
+      const level = this.level;
+      if (!this.env) this.env = level;
+      else this.env += (level - this.env) * (level > this.env ? 0.25 : 0.012);
+    }
     const h = this.hist;
     h.push(P);
     if (h.length > 3) h.shift();
@@ -556,6 +577,8 @@ export class AutoTune {
     } else this.want = 1;
     const want = this.want;
     const vol = this.vol;
+    const liveFor = this.sr * 0.12; // a short gap between words keeps the level
+    const lowK = Math.max(0.3, Math.min(1, Math.sqrt(this.fast) / 0.04)); // quiet sounds that aren't singing: kept low
     const grit = v.grit || 0;
     const ringK = v.ring ? (2 * Math.PI * v.ring) / this.sr : 0;
     const E1 = Math.round(0.11 * this.sr);
@@ -614,7 +637,11 @@ export class AutoTune {
       const g = this.open ? 1 : 0;
       this.gain += (g - this.gain) * (g > this.gain ? 0.006 : 0.0004) * k48;
       this.boost += (want - this.boost) * (want < this.boost ? 0.002 : 0.0004) * k48;
-      o *= this.gain * this.boost;
+      // between songs lines (the band in the microphone, the room, a breath): never turned up
+      const live = t - this.vt < liveFor ? 1 : 0;
+      this.liveK += (live - this.liveK) * (live > this.liveK ? 0.01 : 0.0006) * k48;
+      const low = Math.min(this.boost, 1) * lowK; // a loud "sss" right at the microphone stays as it is
+      o *= this.gain * (low + (this.boost - low) * this.liveK);
       // the extras
       if (grit) o = (o * (1 + grit * 0.45)) / (1 + grit * 3 * Math.abs(o)); // a little rasp on the loud parts
       if (D) {

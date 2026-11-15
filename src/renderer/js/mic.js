@@ -33,6 +33,30 @@ export const mic = new (class extends EventTarget {
     this.lastAt = 0;
     this.open = false; // the level gate (opens a little louder than it closes)
     this.users = new Set();
+    // 4.18.1: a microphone pulled out and plugged back in is opened again by itself
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', () => {
+        clearTimeout(this._plugT);
+        this._plugT = setTimeout(() => this._plugged(), 800); // Windows settles first
+      });
+    }
+  }
+
+  async _plugged() {
+    if (!this.users.size || this._opening) return;
+    if (!this.on) {
+      const ok = await this._open();
+      if (ok && this.lost) {
+        this.lost = false;
+        this.dispatchEvent(new Event('back'));
+      }
+      return ok;
+    }
+    // using a stand-in because the one you picked was missing, and it's back: change over
+    if (this.deviceId && this.usingId !== this.deviceId && (await this.devices()).some((d) => d.id === this.deviceId)) {
+      this._close();
+      await this._open();
+    }
   }
 
   /** The microphone you picked ('' = whichever Windows uses). */
@@ -77,6 +101,12 @@ export const mic = new (class extends EventTarget {
   }
 
   async _open() {
+    if (this._opening) return this._opening;
+    this._opening = this._open1().finally(() => (this._opening = null));
+    return this._opening;
+  }
+
+  async _open1() {
     this.error = null;
     const ask = (id) =>
       navigator.mediaDevices.getUserMedia({
@@ -117,7 +147,22 @@ export const mic = new (class extends EventTarget {
       src.connect(this.node); // not connected to the speakers: the voice is only listened to
       this.buf = new Float32Array(this.node.fftSize);
       this.on = true;
-      this.name = (this.stream.getAudioTracks()[0] || {}).label || '';
+      const tr = this.stream.getAudioTracks()[0];
+      this.name = (tr || {}).label || '';
+      this.usingId = (tr && tr.getSettings && tr.getSettings().deviceId) || '';
+      if (this.usingId === 'default') this.usingId = '';
+      // pulled out: let go, say so, and wait for it to come back (see _plugged)
+      if (tr)
+        tr.addEventListener('ended', () => {
+          if (!this.stream || this.stream.getAudioTracks()[0] !== tr) return;
+          this._close();
+          if (this.users.size) {
+            this.error = 'Your microphone was unplugged. Plug it back in: it comes back by itself.';
+            this.lost = true;
+            this.dispatchEvent(new Event('change'));
+            this.dispatchEvent(new Event('lost'));
+          }
+        });
     } catch (e) {
       this._close();
       this.error = /NotAllowed|Permission/i.test(e.name || '') ? 'Windows isn’t letting Stagehand use the microphone (Windows Settings › Privacy › Microphone).' : /NotFound|Overconstrained/i.test(e.name || '') ? 'No microphone found. Plug one in (USB, headset or webcam).' : e.message || 'The microphone couldn’t be opened.';

@@ -152,6 +152,10 @@ export function tuneMenu() {
 // the sound thread's note readings go to the microphone's tracker, which the score reads
 autotune.addEventListener('pitch', (e) => mic.feed(e.detail));
 const NOTE_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+// 4.18.1: say when the microphone is pulled out and when it's back
+mic.addEventListener('lost', () => toast({ title: 'Microphone unplugged', message: 'Plug it back in: it comes back by itself.', kind: 'info' }));
+mic.addEventListener('back', () => toast({ title: 'Microphone back', message: mic.name ? mic.name.split(' (')[0] : '', kind: 'info' }));
+
 export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
   const chip = h('button.hw-chip.hw-mode.hw-sing-chip', { type: 'button', hidden: true });
   const kchip = h('button.hw-chip.hw-mode.hw-karaoke-chip', { type: 'button', hidden: true });
