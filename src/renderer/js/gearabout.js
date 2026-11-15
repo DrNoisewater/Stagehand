@@ -37,7 +37,7 @@ export function aboutCard(it, keyNow) {
   card.append(h('span.gear-about-tape', { text: 'The real thing' }));
   if (a.real) card.append(h('p.gear-about-real', null, h('small', { text: a.guess ? 'Probably based on' : 'Modelled on' }), h('b', { text: a.real })));
   if (a.about) card.append(h('p.gear-about-text', { text: a.about }));
-  const lines = it.t === 'cab' ? MIC_LINES : ((gearInfo(keyNow || it.key) || {}).k || []).map(([name]) => [name, knobHelp(name)]);
+  const lines = it.t === 'cab' ? MIC_LINES : ((gearInfo(keyNow || it.key) || {}).k || []).map(([name, , , , , o]) => [name, (o && o.help) || knobHelp(name)]);
   if (lines.length) {
     const dl = h('dl.gear-about-knobs');
     for (const [name, text] of lines) dl.append(h('dt', { text: name }), h('dd', { text }));

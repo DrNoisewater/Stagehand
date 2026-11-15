@@ -296,3 +296,59 @@ html[data-decoration='reduced'] .rb-piece.sel .rb-foot::before { display:none; }
 .rr-ititle h3::after { content:''; position:absolute; left:-2px; right:-14px; bottom:-3px; height:10px; background:url('../art/scraps/pick-underline.avif') left center/100% 100% no-repeat; filter:invert(1) hue-rotate(180deg) brightness(1.5); opacity:.85; }
 html[data-decoration='reduced'] .rr-ititle h3::after { display:none; }
 .rr-board .cameo-scrap.added-star { --size:74px; translate:-50% -50%; pointer-events:none; }
+
+/* 4.20 (The Lab): switches, faders, footswitches, the touch pad, push buttons and the lever on the
+   pedal pictures. Every one sits over the real control in the picture; nothing is drawn twice. */
+.gear-face .gear-slider.horiz { cursor:ew-resize; }
+.gear-face .gear-slider.horiz .photo-slide { top:0; height:100%; transition:left .05s linear; will-change:left; }
+.gear-face :is(.gear-switch,.gear-pushbtn,.gear-stomp) { position:absolute; display:block; padding:0; border:0; background:none; cursor:pointer; touch-action:none; z-index:2; border-radius:6px; }
+.gear-face :is(.gear-switch,.gear-pushbtn,.gear-stomp,.gear-pad,.gear-lever):focus-visible { outline:3px solid #ffe073; outline-offset:2px; z-index:5; }
+.gear-face .gear-switch:hover { box-shadow:0 0 0 1.5px #e3d8bfcc; }
+.gear-face .gear-switch:active { box-shadow:0 0 0 1.5px #d23a2ccc,0 0 8px 1px #d23a2c66; }
+/* the printed word for where a switch is lights up */
+.gear-face .gear-mark { position:absolute; width:9%; height:5.5%; transform:translate(-50%,-50%); border-radius:50%; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:radial-gradient(closest-side,#fff3b8cc,#ffd25a66 55%,transparent); mix-blend-mode:screen; z-index:1; }
+.gear-face .gear-mark.on { opacity:1; }
+.gear-face .gear-swtag { position:absolute; transform:translateX(-50%); pointer-events:none; z-index:2; font:700 11px/1 'Typewriter Stagehand',monospace; color:#231d17; background:#e6dfcf; padding:2px 5px; box-shadow:1px 1px 0 #0006; }
+/* push buttons: the chosen one glows, the others go dark */
+.gear-face .gear-pushbtn { border-radius:8%; transition:background .12s, box-shadow .12s; }
+.gear-face .gear-pushbtn:not(.on) { background:#000a; }
+.gear-face .gear-pushbtn.on { box-shadow:0 0 0 2px #fff6d0aa,0 0 14px 3px #fff6d088; }
+.gear-face .gear-pushbtn:hover:not(.on) { background:#0007; }
+/* footswitches: round ones sit on their centre; a held one looks pressed down */
+.gear-face .gear-stomp:not(.rect) { aspect-ratio:1; height:auto; transform:translate(-50%,-50%); border-radius:50%; }
+.gear-face .gear-stomp:hover { box-shadow:0 0 0 2px #e3d8bf99; }
+.gear-face .gear-stomp.momentary.held { box-shadow:inset 0 0 0 999px #0004,0 0 10px 2px #ffd25a88; transform:translate(-50%,-50%) scale(.96); }
+.gear-face .gear-stomp.rect.momentary.held { transform:scale(.99); }
+.gear-face .gear-led { position:absolute; width:3.2%; aspect-ratio:1; transform:translate(-50%,-50%); border-radius:50%; pointer-events:none; opacity:0; transition:opacity .08s;
+  background:radial-gradient(closest-side,#fffbe8,#ffe7a0cc 35%,#ffb84d55 65%,transparent); mix-blend-mode:screen; box-shadow:0 0 12px 4px #ffcf6a55; z-index:1; }
+.gear-face .gear-led.lit { opacity:1; }
+/* the touch pad */
+.gear-face .gear-pad { position:absolute; cursor:crosshair; touch-action:none; z-index:2; border-radius:3px; }
+.gear-face .gear-pad:hover { box-shadow:inset 0 0 0 1.5px #c9f7b866; }
+.gear-face .gp-dot { position:absolute; width:16%; aspect-ratio:1; transform:translate(-50%,-50%); pointer-events:none; }
+.gear-face .gp-dot i { position:absolute; inset:25%; border-radius:50%; background:radial-gradient(circle,#efffe6,#9cf08a 45%,#4fd34a00 75%); box-shadow:0 0 10px 3px #9cf08a99; }
+.gear-face .gear-pad.active .gp-dot i { box-shadow:0 0 16px 6px #9cf08acc; }
+.gear-face .gear-pad.auto .gp-dot::after { content:''; position:absolute; inset:-60%; border:1.5px dashed #9cf08a99; border-radius:50%; animation:gp-orbit 3s linear infinite; }
+@keyframes gp-orbit { to { transform:rotate(1turn); } }
+.gear-face .gear-pad .gsl-tip { display:none; }
+.gear-face .gear-pad:is(:hover,:focus-visible,.active) .gsl-tip { display:block; }
+/* Boing's lever: pull down; the glow shows how far, and it springs back */
+.gear-face .gear-lever { position:absolute; cursor:grab; touch-action:none; z-index:2; border-radius:6px; }
+.gear-face .gear-lever.held { cursor:grabbing; }
+.gear-face .gear-lever:hover { box-shadow:inset 0 0 0 1.5px #e3d8bf88; }
+.gear-face .gl-fill { position:absolute; left:30%; width:40%; top:0; height:0; border-radius:4px; pointer-events:none; background:linear-gradient(#ffd25a00,#ffb84dcc); mix-blend-mode:screen; transition:height .12s ease-out; }
+.gear-face .gear-lever.held .gl-fill { transition:height .03s linear; }
+/* a control that does nothing in the mode you're in */
+.gear-face .dim, .gb-knob.dim, .rknob.dim { opacity:.45; filter:grayscale(.6); }
+/* footswitches on the control strip: hold to play */
+.rhold { display:inline-flex; align-items:center; gap:6px; touch-action:none; user-select:none; }
+.rhold .rh-led { width:8px; height:8px; border-radius:50%; background:#3a2a22; box-shadow:inset 0 0 0 1px #0008; }
+.rhold.held { background:#3a2414; }
+.rhold.held .rh-led { background:#ffcf6a; box-shadow:0 0 8px 2px #ffcf6aaa; }
+.gb-holds { display:flex; gap:8px; flex-wrap:wrap; width:100%; }
+@media (prefers-reduced-motion: reduce) { .gear-face .gear-pad.auto .gp-dot::after { animation:none; } .gear-face .gl-fill { transition:none; } }
+.rknob.switch::after { content:none; } /* a few-position knob is not the on/off pill (.switch in v3.css) */
+/* a horizontal fader's cover-up is a little larger than the cap and soft at the ends, so the cap's
+   shadow in the photo doesn't show round it */
+.gear-face .photo-patch.horiz { -webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent); mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent); }

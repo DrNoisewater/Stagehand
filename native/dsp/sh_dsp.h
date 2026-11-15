@@ -164,6 +164,8 @@ struct sh_block {
   void *st;
   const char *name;
   void (*user)(sh_block *b, float gain, float bass, float mid, float treble); /* user knobs (amps) */
+  const float *in0; /* 4.20: the clean input to the whole chain for this call (same n), for pitch tracking */
+  int meas;         /* 4.20: 1 while the engine measures the tone's loudness (wacky pedals play dry) */
 };
 
 /* builders: return 0 on failure (unknown gear is skipped) */
@@ -181,9 +183,10 @@ int rev_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int stereo)
 int drive_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr);  /* sh_drive.c */
 int boost_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr);  /* sh_drive.c */
 int pitch_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr);  /* sh_pitch.c */
-/* the wacky pedals (sh_wacky.h, built inside sh_fx.c): Quack, Croak, Caterwaul, Blorp */
+/* the wacky pedals (sh_wacky.h, built inside sh_fx.c): the fourteen in the Wacky group */
 int wacky_kind(const char *key); /* 0 = not one of them */
-int wacky_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int bass);
+/* live: the engine's parameters (SHP_*), read as it plays, for footswitches and the like */
+int wacky_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int bass, const float *live);
 /* Stagehand's own noise gate, in front of every tone. live (owned by the engine, read as it plays):
    live[0] = the player's measured noise floor (dB, peak envelope; < -150 = not known yet),
    live[1] = threshold offset (dB, + = stronger), live[2] = 1 when the gate is switched off;

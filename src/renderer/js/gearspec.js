@@ -53,7 +53,8 @@ export function toSpec(tone) {
     const byName = {};
     for (const [k, v] of Object.entries(given)) byName[k.toLowerCase()] = v;
     if (info && info.k) {
-      for (const [name, key, min, max, def] of info.k) {
+      for (const [name, key, min, max, def, opt] of info.k) {
+        if (opt && opt.live) continue; // 4.20: played live (labLatch), never rebuilds the tone
         let v = given[key];
         if (v === undefined) v = byName[name.toLowerCase()];
         if (v === undefined || !Number.isFinite(Number(v))) v = def;
@@ -93,4 +94,24 @@ export function ampGain(tone) {
 export function describe(tone) {
   const gear = [...(tone.gear || [])].sort((a, b) => (ORDER[a.slot] ?? 9) - (ORDER[b.slot] ?? 9) || (a.order || 0) - (b.order || 0));
   return gear.map((g) => gearName(g.key)).join(' → ');
+}
+
+/** 4.20: The Lab's pedal numbers (native/dsp/sh_wacky.h): bit (1 << n) of the live footswitch and
+ * switch masks. Keep in step with the engine. */
+export const LAB_BITS = { Pedal_Quack: 1, Pedal_Croak: 2, Pedal_Caterwaul: 3, Pedal_Blorp: 4, Pedal_Gobble: 5, Pedal_Slug: 6, Pedal_Boing: 7, Pedal_Gremlin: 8, Pedal_Invader: 9, Pedal_Confetti: 10, Pedal_Blender: 11, Pedal_Fossil: 12, Pedal_Charmer: 13, Pedal_Haunt: 14 };
+
+/** 4.20: the switches in a tone that change while you play (Haunt's Slow/Fast), as the engine's mask. */
+export function labLatch(tone) {
+  let m = 0;
+  for (const g of (tone && tone.gear) || []) {
+    const info = g && !g.bypass && gearInfo(g.key);
+    if (!info || !info.k || !(g.key in LAB_BITS)) continue;
+    for (const [name, key, min, , def, opt] of info.k) {
+      if (!(opt && opt.live)) continue;
+      const given = g.knobs || {};
+      let v = given[key] ?? Object.entries(given).find(([k]) => k.toLowerCase() === name.toLowerCase())?.[1] ?? def;
+      if (Number(v) > min + 0.5) m |= 1 << LAB_BITS[g.key];
+    }
+  }
+  return m;
 }

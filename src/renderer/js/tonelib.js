@@ -301,18 +301,27 @@ export function orderedGear(tone) {
   return [...((tone && tone.gear) || [])].sort((a, b) => (ORDER[a.slot] ?? 9) - (ORDER[b.slot] ?? 9) || (a.order || 0) - (b.order || 0));
 }
 
-/** Knob list for one piece of gear: [{ name, key, min, max, def, value }]. */
+/** Knob list for one piece of gear: [{ name, key, min, max, def, value }]. 4.20: a knob may also
+ * carry labels (a switch's positions), unit, log (frequency and time knobs turn in octaves),
+ * step, side (shown beside the faceplate, not on it), off (its lowest setting is off), live (it
+ * changes while you play without rebuilding the tone) and help (what it does, in plain words). */
 export function knobsOf(g) {
   const info = gearInfo(g.key);
   const given = g.knobs || {};
   const byName = {};
   for (const [k, v] of Object.entries(given)) byName[k.toLowerCase()] = v;
-  return ((info && info.k) || []).map(([name, key, min, max, def]) => {
+  return ((info && info.k) || []).map(([name, key, min, max, def, opt]) => {
     let v = given[key];
     if (v === undefined) v = byName[name.toLowerCase()];
     if (v === undefined || !Number.isFinite(Number(v))) v = def;
-    return { name, key, min, max, def, value: Number(v) };
+    return { name, key, min, max, def, value: Number(v), ...(opt || {}) };
   });
+}
+
+/** 4.20: a piece's footswitches and levers (The Lab): [{ name, type: 'hold'|'lever' }]. Never saved. */
+export function momentsOf(g) {
+  const info = gearInfo(g.key);
+  return ((info && info.m) || []).map(([name, type]) => ({ name, type }));
 }
 
 export function shortGearName(key) {

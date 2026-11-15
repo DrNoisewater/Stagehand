@@ -61,7 +61,7 @@ for f in sorted(os.listdir(os.path.join(ART, 'full'))):
     w, h = (t[4], t[5]) if t else (1000, 1000)
     info = GEAR.get(key) or {}
     name = info.get('n') or cab_names.get(key) or key
-    params = {k[0].lower() for k in info.get('k', [])}
+    params = {k[0].lower() for k in info.get('k', [])} | {m[0].lower() for m in info.get('m', [])}
     e = {'file': f'full/{key}.avif', 'thumb': f'thumb/{key}.webp', 'name': name, 'width': w, 'height': h, 'knobs': {}}
     o = ovr.get(key, {})
     if key in old and not o.get('redo'):
@@ -96,6 +96,11 @@ for f in sorted(os.listdir(os.path.join(ART, 'full'))):
         e['how'] = 'audit'
         if au.get('sliders'):
             e['sliders'] = au['sliders']
+        # 4.20 (The Lab): selectors' printed positions, horizontal faders, switches and the words
+        # beside them, footswitches and their lights, the touch pad, push buttons and a lever
+        for extra in ('stops', 'hsliders', 'switches', 'marks', 'stomps', 'leds', 'pad', 'buttons', 'lever'):
+            if au.get(extra):
+                e[extra] = au[extra]
     if e.get('how') not in ('hand', 'audit'):
         # most photos show their knobs at noon; a measured pointer angle is too often fooled by
         # print and glare, and a wrong one would show the wrong setting

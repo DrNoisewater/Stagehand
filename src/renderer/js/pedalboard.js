@@ -9,7 +9,8 @@ import { h, icon } from './ui.js';
 import { rig } from './rig.js';
 import { pedalArt, ampArt } from './gearart.js';
 import { PEDALS, pedalFor, newPedal, pedalKnob, movePedal } from './tonerecipes.js';
-import { rotaryKnob, gearFaceplate } from './rigui.js';
+import { rotaryKnob, gearFaceplate, gearKnob, labStrip } from './rigui.js';
+import { knobsOf } from './tonelib.js';
 
 const GROUPS = [
   ['drive', 'Drive, distortion and fuzz'],
@@ -17,7 +18,7 @@ const GROUPS = [
   ['filter', 'Wah, filters and EQ'],
   ['mod', 'Chorus, flanger, phaser, tremolo'],
   ['time', 'Echo and reverb'],
-  ['wacky', 'Wacky: a duck, a frog, a cat, an alien'],
+  ['wacky', 'The Lab: animal voices, synths, pitch jumps, freezes and slicers'],
 ];
 
 const fmtKnob = (min, max) => (v) => (max - min > 20 ? String(Math.round(v)) : (Math.round(v * 10) / 10).toFixed(1));
@@ -46,6 +47,13 @@ export function pedalBoard({ kind, board, ampKey, onChange }) {
     right.onclick = () => set(movePedal(board, i, +1));
     del.onclick = () => set(board.filter((_, j) => j !== i));
     const knobs = h('div.pb-knobs');
+    if (info.group === 'wacky') {
+      // 4.20: The Lab's pedals: every control with its own units, switch names and footswitches
+      for (const k of knobsOf({ key: p.key, knobs: p.knobs })) {
+        knobs.append(gearKnob(k, { gel: 'var(--tungsten)', onInput: (v) => { p.knobs = { ...p.knobs, [k.name]: v }; set(board, false); } }));
+      }
+      knobs.append(...labStrip({ key: p.key }));
+    } else
     for (const [name, label] of info.knobs) {
       const spec = pedalKnob(p.key, name);
       if (!spec) continue;
@@ -69,7 +77,7 @@ export function pedalBoard({ kind, board, ampKey, onChange }) {
         })
       );
     }
-    const faceplate = gearFaceplate(p.key, knobs);
+    const faceplate = gearFaceplate(p.key, knobs, { bypass: { on: () => !p.off, toggle: () => led.onclick() } });
     c.append(
       h('div.pb-top', null, h('div.pb-art', { html: pedalArt(p.key) }), h('div.pb-name', null, h('b', { text: info.name }), h('span', { text: info.what }))),
       faceplate,
