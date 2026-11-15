@@ -175,7 +175,7 @@ export function gearPanel(g, { gel = '#c9a560', onKnob, disabled = false } = {})
       onChange: (v) => onKnob && onKnob(k.key, v, true),
     });
     knob.disabled = disabled;
-    const cell = h('div.gb-knob', { title: `${k.name}: ${knobHelp(k.name)}. Drag up or down, Shift for fine, double-click for the default.` }, knob);
+    const cell = h('div.gb-knob', { title: `${k.name}: ${knobHelp(k.name)}. Drag up or right for more, down or left for less (Shift for fine), double-click for the default.` }, knob);
     if (onPhoto.has(k.name.toLowerCase())) cell.classList.add('on-photo');
     strip.append(cell);
   }

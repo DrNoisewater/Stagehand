@@ -21,6 +21,7 @@
  *  - 'console': the 4.5 panel above.
  * dropSection() folds either one under a head that always shows the state (the highway uses it).
  */
+import { knobDrag } from './knobdrag.js';
 import { h } from './ui.js';
 import { rig } from './rig.js';
 import { did } from './rewards.js';
@@ -245,7 +246,7 @@ export function dropConsole(opts = {}) {
 function pedalPhoto({ kind, set, nudge, engage, release, isHeld }) {
   const el = h('div.dp', { style: { aspectRatio: `${PHOTO.w} / ${PHOTO.h}` } });
   const img = h('img.dp-img', { src: PHOTO.src, alt: 'DigiTech Drop pedal', draggable: 'false', decoding: 'async' });
-  const knob = h('button.dp-knob', { type: 'button', role: 'slider', 'aria-label': 'How far down', 'aria-valuemin': '0', 'aria-valuemax': '12', title: 'Turn: drag up or down, scroll, or click for one more (← → keys)', style: { left: px(KNOB.x - KNOB.r), top: py(KNOB.y - KNOB.r), width: px(KNOB.r * 2) } }, h('i.dp-pointer'));
+  const knob = h('button.dp-knob', { type: 'button', role: 'slider', 'aria-label': 'How far down', 'aria-valuemin': '0', 'aria-valuemax': '12', title: 'Turn: drag up or right for more, down or left for less, scroll, or click for one more (← → keys)', style: { left: px(KNOB.x - KNOB.r), top: py(KNOB.y - KNOB.r), width: px(KNOB.r * 2) } }, h('i.dp-pointer'));
   const leds = LEDS.map(([x, y], i) => {
     const st = DROP_STEPS[i];
     const b = h('button.dp-led', { type: 'button', style: { left: px(x), top: py(y) }, tabindex: '-1', title: i === 8 ? 'Octave plus dry: not on Stagehand’s Drop' : `Drop ${st === 12 ? 'an octave' : st}: sounds like ${soundsLike(st, kind)}`, 'aria-label': i === 8 ? 'Octave plus dry (not available)' : `Drop ${st === 12 ? 'an octave' : st}` });
@@ -290,37 +291,29 @@ function pedalPhoto({ kind, set, nudge, engage, release, isHeld }) {
       stomp(false);
     });
 
-  // the knob: drag up/down (about 26 px a step), scroll, click, keys
-  let drag = null;
-  knob.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
-    knob.setPointerCapture(e.pointerId);
-    drag = { y: e.clientY, x: e.clientX, moved: 0 };
-    e.preventDefault();
-    knob.focus({ preventScroll: true });
-  });
-  knob.addEventListener('pointermove', (e) => {
-    if (!drag) return;
-    const d = drag.y - e.clientY + (e.clientX - drag.x);
-    const steps = Math.trunc(d / 26);
-    if (steps) {
-      for (let i = 0; i < Math.abs(steps); i++) nudge(Math.sign(steps));
-      drag.y = e.clientY;
-      drag.x = e.clientX;
-      drag.moved += Math.abs(steps);
-    }
-  });
-  const endDrag = () => {
-    if (!drag) return;
-    if (!drag.moved) {
-      // a click: one more; from OCT round to −1
-      if (rig.drop.on && rig.dropAmount() >= 12) set({ st: 1, match: false, on: true });
-      else nudge(1);
-    }
-    drag = null;
-  };
-  knob.addEventListener('pointerup', endDrag);
-  knob.addEventListener('pointercancel', () => (drag = null));
+  // the knob: drag up or right for more, down or left for less (about 26 px a step; 4.19: the
+  // same drag as every other knob), scroll, click, keys
+  {
+    let acc = 0;
+    knobDrag(knob, {
+      start: () => {
+        acc = 0;
+      },
+      move: (px) => {
+        acc += px;
+        const steps = Math.trunc(acc / 26);
+        if (!steps) return;
+        acc -= steps * 26;
+        for (let i = 0; i < Math.abs(steps); i++) nudge(Math.sign(steps));
+      },
+      end: (moved) => {
+        if (moved >= 3) return;
+        // a click: one more; from OCT round to −1
+        if (rig.drop.on && rig.dropAmount() >= 12) set({ st: 1, match: false, on: true });
+        else nudge(1);
+      },
+    });
+  }
   knob.addEventListener('wheel', (e) => {
     e.preventDefault();
     nudge(e.deltaY < 0 ? 1 : -1);

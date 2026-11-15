@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
 import vm from 'node:vm';
 import {GEAR_PHOTOS,gearPhotoInfo} from '../src/renderer/js/gear-photos.js';
+import {knobDrag} from '../src/renderer/js/knobdrag.js';
+// the drag asks the page who holds the pointer: nobody does here
+globalThis.document={pointerLockElement:null,addEventListener(){},removeEventListener(){},exitPointerLock(){}};
+globalThis.window={addEventListener(){},removeEventListener(){}};
 
 // Exercise the production control functions with a small DOM event adapter.
 // Browser layout / pointer-capture behavior still needs the renderer audit.
@@ -18,7 +22,7 @@ function h(tag,attrs,...children){const [name,...classes]=tag.split('.');const e
 class Custom extends Event{constructor(type,opts={}){super(type);this.detail=opts.detail;}}
 const source=readFileSync(new URL('../src/renderer/js/rigui.js',import.meta.url),'utf8');
 const a=source.indexOf('export function rotaryKnob('),b=source.indexOf('/** The signal chain:');
-const ctx={h,CustomEvent:Custom,MouseEvent:Event,gearPhotoInfo,modal:()=>{}};
+const ctx={h,CustomEvent:Custom,MouseEvent:Event,gearPhotoInfo,modal:()=>{},knobDrag,showKnobGuide:()=>{}};
 vm.createContext(ctx);vm.runInContext(source.slice(a,b).replaceAll('export function','function')+';this.controls={rotaryKnob,gearFaceplate};',ctx);
 const {rotaryKnob,gearFaceplate}=ctx.controls;
 function event(target,type,data={}){const e=new Event(type,{cancelable:true});for(const [k,v]of Object.entries(data))Object.defineProperty(e,k,{value:v});target.dispatchEvent(e);}
@@ -60,4 +64,30 @@ console.log('gear controls: live updates, keyboard, reset, limits, read-only mod
     for (const [name, v] of Object.entries(item.knobs || {})) assert(Math.abs(v[3]) <= 180 && v[2] > 0.3 && v[2] < 30, `${key} ${name} knob is sane`);
   }
   console.log('gear sliders: photo and strip stay together; every knob and slider entry is sane');
+}
+// 4.19: a knob drags any natural way: up or right is more, down or left is less, and the way the
+// hand sets off is the only one that counts (a wobble the other way changes nothing)
+{
+  let val = 5, done = null;
+  const k = rotaryKnob({ name: 'Gain', min: 0, max: 10, value: 5, def: 5, onInput: (v) => (val = v), onChange: (v) => (done = v) });
+  const drag = (dx, dy, wobble = 0) => {
+    k.setValue(5);
+    event(k, 'pointerdown', { button: 0, clientX: 100, clientY: 100, pointerId: 1 });
+    for (let i = 1; i <= 8; i++) event(k, 'pointermove', { clientX: 100 + (dx * i) / 8 + (dy && i > 1 ? (i % 2 ? wobble : -wobble) : 0), clientY: 100 + (dy * i) / 8 + (dx && i > 1 ? (i % 2 ? wobble : -wobble) : 0) });
+    event(k, 'pointerup');
+    return val;
+  };
+  assert(Math.abs(drag(0, -48) - 8) < 0.01, 'up is more');
+  assert.equal(done, val, 'letting go reports the change');
+  assert(Math.abs(drag(48, 0) - 8) < 0.01, 'right is more');
+  assert(Math.abs(drag(0, 48) - 2) < 0.01, 'down is less');
+  assert(Math.abs(drag(-48, 0) - 2) < 0.01, 'left is less');
+  assert(Math.abs(drag(48, 0, 30) - 8) < 0.01, 'going right, a wobble up and down changes nothing');
+  assert(Math.abs(drag(0, -48, 30) - 8) < 0.01, 'going up, a wobble left and right changes nothing');
+  let sw = 0;
+  const mode = rotaryKnob({ name: 'Mode', min: 0, max: 2, value: 0, step: 1, onChange: (v) => (sw = v) });
+  event(mode, 'pointerdown', { button: 0, clientX: 5, clientY: 5, pointerId: 1 });
+  event(mode, 'pointerup');
+  assert.equal(sw, 1, 'a click steps a switch');
+  console.log('knob drag: up or right is more, down or left is less, a wobble is ignored, a click steps a switch');
 }

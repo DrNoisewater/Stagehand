@@ -44,6 +44,16 @@ of ~10 s per song on the 1080 Ti (estimates, never measured), and are not usable
 big backing vocals, one with long runs), do the bars follow the singer, and is the mark believable? Do ribbons read
 well or are they too busy? Is scoring along slides too strict on Medium? Which split option to build.
 
+## Knobs (same release, asked 2026-11-15)
+
+The user: "On turning any knobs… it is not intuitive for left and right turning of the knob. I have always found this to be a problem for years… you end up having your mouse all over the screen, trying to go up or down and left or right. There has to be a much smarter way. While still being interactive."
+
+- **One drag for every knob** (`src/renderer/js/knobdrag.js`, used by `rotaryKnob` in `rigui.js`, so also the knobs on the gear photos, and by the Drop knob in `dropui.js`): up **or** right is more, down **or** left is less. The way the hand sets off (first 5 pixels) is the only one that counts until the button is let go, so a wobble the other way does nothing (before: up/down only; on the Drop, up and left cancelled each other).
+- **The pointer stays put.** Once the drag starts the pointer is hidden and held where it is, and comes back on the knob when the button is let go: it can't wander off or hit the edge of the screen. Escape, or switching to another window, ends the drag. Not done under the test robot (it moves the pointer by position), and if the PC refuses to hold the pointer the drag works as an ordinary one.
+- **A guide pops up over the knob** while it is dragged: the name and value in big type, a bar from least to most, and "◀ ▼ less · more ▲ ▶".
+- Unchanged: scroll wheel, arrow keys, Shift for fine, double-click to reset, a click steps a switch. Faders on the photos still slide up and down (that's what a fader does). Tooltips say the new way.
+- Tests: `test/gear-controls.test.mjs` (in `npm test`) drags every direction with a wobbly hand. The held pointer could **not** be checked here: the test browser reports nonsense movement when the pointer is held, so two guards are in (the first move after taking hold is left out, and a leap of more than 150 pixels in one go is ignored). **Ask the user first thing**: does a knob feel right, does the pointer come back where it was, any jumps?
+
 # 4.18.2 — Singing follows the real tune (2026-11-14)
 
 The user (photo of karaoke on a song whose bars sat between E flat and F sharp the whole way): "Are the vocals always

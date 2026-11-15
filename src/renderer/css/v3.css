@@ -186,7 +186,7 @@ input[type='range'].glow-range:disabled { opacity: 0.4; }
 .knob-well .kw-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 650; flex-wrap: wrap; }
 .knob-well .kw-head .dot { background: var(--gel); box-shadow: 0 0 6px var(--gel); }
 .knobs3 { display: flex; gap: 18px; flex-wrap: wrap; }
-.rknob { --gel: var(--tungsten); display: flex; flex-direction: column; align-items: center; gap: 6px; width: 78px; border: 0; background: none; color: var(--ink); padding: 0; touch-action: none; cursor: ns-resize; }
+.rknob { --gel: var(--tungsten); display: flex; flex-direction: column; align-items: center; gap: 6px; width: 78px; border: 0; background: none; color: var(--ink); padding: 0; touch-action: none; cursor: grab; }
 .rknob .ring { position: relative; width: 62px; height: 62px; border-radius: 50%; background: conic-gradient(from 225deg, var(--gel) 0deg, var(--gel) var(--deg, 0deg), #262e47 var(--deg, 0deg), #262e47 270deg, transparent 270deg); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--gel) 45%, transparent)); }
 .rknob .cap { position: absolute; inset: 7px; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #343e60, #161b2a 72%); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
 .rknob .ptr { position: absolute; inset: 0; transform: rotate(var(--rot, -135deg)); }
@@ -2384,3 +2384,13 @@ body:has(.highway:not([hidden])) .menu .label { color: #a99e8c; text-transform: 
 .kk-check { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 700; color: #8fd9a8; font-variant-numeric: tabular-nums; cursor: help; }
 .kk-check svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 3; }
 .kk-best + .kk-check { margin-left: 8px; }
+
+/* 4.19: the guide that pops up over a knob while it is dragged (knobdrag.js) */
+.knob-guide { position: fixed; z-index: 9000; width: 168px; padding: 7px 10px 6px; border-radius: 8px; background: #14110d; color: #f5edda; box-shadow: 0 6px 18px #000c, inset 0 0 0 1px #f1ce6855; pointer-events: none; font-family: 'Archivo', 'Segoe UI', sans-serif; }
+.knob-guide[hidden] { display: none; }
+.knob-guide .kg-val { display: block; font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.knob-guide .kg-bar { display: block; height: 5px; margin: 5px 0 4px; border-radius: 3px; background: #3a342b; overflow: hidden; }
+.knob-guide .kg-bar i { display: block; height: 100%; background: #f1ce68; }
+.knob-guide .kg-ways { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 0.04em; color: #a99e8c; }
+.knob-guide .kg-ways em { font-style: normal; }
+.rknob:active { cursor: grabbing; }
