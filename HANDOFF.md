@@ -64,6 +64,30 @@ What the user decided after the comparison (in `docs/notes/4.19-singing-and-spli
 - The singing notes are read again by themselves from the new vocals (the cache goes by the stem's address).
 - Tests: `test/stems-queue.test.js` (the job waits its turn, the song stays ready, the new stems are used after), `SING=check` (the question shows once, Yes starts it).
 
+## Lifetime numbers checked (same release, asked 2026-11-15)
+
+The user asked: "Is the app counting lifetime stats? Are they accurate. Have I really hit 27K chords since 10/24. 115k notes?"
+
+- **Yes, they are counted** (since 4.5: Progress › Career stats, `services/lifetime.js`, added up from every session in stats.json plus its archive).
+- **What the audit found.** Nothing counts a note twice in the big totals: a loop or a seek back takes the earlier result away (`Judge.rewind`), an exact double log is dropped, and only time with the guitar on and a song playing is logged. Three things were off:
+  1. **The big "Chords played" number was chords that came by, not chords hit** (the hit count was the small print). So "27K" was chords that passed; the number hit is smaller. Now the card reads **Chords hit**, "of N that came by", and the notes card says a chord counts once. This year's card counts chords hit too.
+  2. **Chords were slightly under-counted**: a session with only one or two chords logged none (the score card's "three or more" rule leaked into the log). `compact()` now keeps every kind.
+  3. **Totals and kinds were counted two different ways** (the judge's running count against a place in the song), so after a checkpoint (opening Progress, opening or closing the highway) half a second of notes could land in two sessions' chord counts, and after a seek back the two could disagree. Now a session remembers what was already judged when it began (`session.seen`) and `breakdown(..., { skip })` counts every note judged since, each once; notes, hits, sections and kinds all come from that one count.
+- Old sessions are not rewritten: the numbers already saved stay as they were logged (the errors were small and mostly on the low side).
+- **Cannot be checked here:** whether each "hit" on the user's PC was a real hit (that is note detection, tested on made-up playing only). A sanity check for the user: notes that came by ÷ hours playing should be a believable pace (a busy bass line is about 100 to 200 a minute).
+- Tests: `node --no-warnings test/scorecard.test.mjs` (new, in `npm test`).
+- **Ask next:** does Chords hit look believable now, and is Career stats easy enough to find, or should a few lifetime numbers sit on Progress's first page?
+
+## The cleaner singer's engine side (same release, built 2026-11-15)
+
+- `engine/stagehand_stems.py`: model `singer_6s` = the voice model first (BS-RoFormer, vendored in `engine/roformer/`, MIT, needs only torch and einops), then htdemucs_6s on what is left; vocals = the voice model's vocals plus Demucs' vocal leftover. Same six files.
+- **The model file**: `model_bs_roformer_ep_317_sdr_12.9755.ckpt`, 639,331,213 bytes, SHA-256 `5b84f37e8d444c8cb30c79d77f613a41c05868ff9c9ac6c7049c00aefae115aa`, fetched on first use from the GitHub release it is published on into the same folder Demucs keeps its models (torch hub `checkpoints`). The download resumes, is checked, and can be cancelled; statuses: "Downloading the singer model (639 MB), one time", "…: N%", "Checking the singer model".
+- 8-second pieces, overlap 2 (the model's own setting is 4: slower, a touch cleaner), 2 at a time on a graphics card with 8 GB or more; a graphics card failure part way finishes on the processor.
+- **Measured here (4 processor cores, no graphics card):** real speech over a made-up band: 98.9% of the voice lands in vocals. About **9 to 10 minutes of work per minute of song** without a graphics card, so the question says "it can take an hour a song" on such PCs. About 2.7 GB of memory.
+- **Not checked here:** Demucs with its real model in the two-pass split (its download host is blocked in the cloud session; stand-in models were used), anything on a graphics card (speed, memory on the 1080 Ti), Windows.
+- Tests: `python test/singer_stems_test.py` (in `npm test`; 36 checks with PyTorch, the 16 PyTorch ones are skipped without it, as on CI).
+- **Ask next:** how long one song takes on the 1080 Ti, and whether the singer really sounds cleaner and the notes to sing are more exact.
+
 ## Which split a song has, and how hard it is to sing (same release, asked 2026-11-15)
 
 The user: "There needs to be a clear way to see that. When you're looking at songs or tiles of songs in a smart way, karaoke menu should show you what version you have without obstructing the art. Karaoke mode needs to have a better grip on how easy medium or hard a song is, as well."

@@ -80,7 +80,7 @@ function lifetime({ sessions = [], archive = null, songs = {}, now = Date.now() 
       const o = (T.kinds[k] = T.kinds[k] || [0, 0]);
       o[0] += Number(v[0]) || 0;
       o[1] += Number(v[1]) || 0;
-      if (k === 'chord') y.chords += Number(v[1]) || 0;
+      if (k === 'chord') y.chords += Number(v[0]) || 0;
     }
     perYear.set(yk, y);
     if (s.bestStreak > T.bestStreak) (T.bestStreak = s.bestStreak), (streakRun = s);

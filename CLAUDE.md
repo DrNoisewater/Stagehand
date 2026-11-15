@@ -63,6 +63,8 @@ SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
 # the chart checked against the singer: half the chart made up, a singer who slides, a second voice (4.19)
 SING=check PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
 node --no-warnings test/melody.test.mjs   # the singer's pitch line read off made-up voices (also in npm test, ~15 s)
+python3 test/singer_stems_test.py   # the cleaner singer's engine: download, resume, the two-pass split (also in npm test; the PyTorch checks skip without PyTorch)
+node --no-warnings test/scorecard.test.mjs   # the practice log's counting: each note once (also in npm test)
 # auto-tune: a pretend singer 40 cents flat hears their voice put on the note (robot, pop or natural)
 TUNE=robot SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
 # the tuned voice through the sound engine's own voice line (fake helper): whole, no gaps, the song beside it

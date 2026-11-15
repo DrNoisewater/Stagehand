@@ -46,7 +46,7 @@ export async function offerSinger(song) {
   const slow = state.engine.device && state.engine.device !== 'cuda';
   toast({
     title: 'Make the singer cleaner for this song?',
-    message: `Stagehand can split it once more with a model made just for voices: more exact notes to sing, and Karaoke takes the singer out more cleanly. It works in the background while you play${slow ? ', but without a graphics card it takes a long time (10 to 30 minutes)' : ' (a few minutes)'}. The first time, it downloads the model (about 640 MB).`,
+    message: `Stagehand can split it once more with a model made just for voices: more exact notes to sing, and Karaoke takes the singer out more cleanly. It works in the background while you play${slow ? ', but without a graphics card it is very slow (it can take an hour a song)' : ' (a few minutes)'}. The first time, it downloads the model (about 640 MB).`,
     kind: 'info',
     timeout: 30000,
     actions: [

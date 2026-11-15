@@ -70,7 +70,19 @@ function songRow(s) {
     const t = a.type === 'jvocals' ? 'vocals' : a.type;
     if (t && !parts.includes(t)) parts.push(t);
   }
-  return { id: s.id, title: s.title || '', artist: s.artist || '', album: s.album || '', year: s.year || null, length: Math.round(Number(s.length) || 0), parts };
+  // 4.20: when it was last played and added, for the headset's Recent list
+  const u = s.user || {};
+  return { id: s.id, title: s.title || '', artist: s.artist || '', album: s.album || '', year: s.year || null, length: Math.round(Number(s.length) || 0), parts, played: Number(u.lastPlayed) || 0, added: Number(s.addedAt) || 0 };
+}
+
+/** The parts of the song on the PC (lead, rhythm, bass, bonus ones), made safe to pass on. */
+function partList(p) {
+  if (!p || typeof p !== 'object' || !p.song || !Array.isArray(p.list)) return null;
+  const list = p.list
+    .filter((x) => x && typeof x.id === 'string' && x.id.length <= 80)
+    .slice(0, 12)
+    .map((x) => ({ id: x.id, name: String(x.name || x.type || 'Part').slice(0, 40), type: String(x.type || '').slice(0, 12), bonus: !!x.bonus, tuning: x.tuning ? String(x.tuning).slice(0, 40) : '' }));
+  return { song: String(p.song), list };
 }
 
 class Companion extends EventEmitter {
@@ -100,6 +112,7 @@ class Companion extends EventEmitter {
     this.chart = null; // the notes the PC's highway shows
     this.marks = new Map(); // target id -> 1 hit / 0 miss, this time through
     this.score = null;
+    this.parts = null; // 4.20: the song's parts, as the PC last listed them { song, list }
     this.error = null;
     this._libTimer = null;
     this.exe = exe;
@@ -307,7 +320,14 @@ class Companion extends EventEmitter {
       phase: st.phase ? String(st.phase) : null,
       part: st.part ? String(st.part) : null,
       notice: st.notice ? String(st.notice) : null,
+      partId: st.partId ? String(st.partId).slice(0, 80) : null,
     };
+    // 4.20: the song's parts (sent when they change; kept for a headset joining late)
+    if (st.parts) {
+      const pl = partList(st.parts);
+      if (pl) this.parts = pl;
+    }
+    if (this.parts && s.song && this.parts.song !== s.song.id) this.parts = null;
     // hits and misses from the PC's judge (only what's new; a headset joining late gets them all, below)
     const j = st.judge && typeof st.judge === 'object' ? st.judge : null;
     if (j) {
@@ -317,7 +337,8 @@ class Companion extends EventEmitter {
       s.judge = j.off ? { off: true } : { hits: Number(j.hits) || 0, judged: Number(j.judged) || 0, streak: Number(j.streak) || 0, best: Number(j.best) || 0, ev, reset: !!j.reset };
       this.score = j.off ? null : { ...s.judge, ev: undefined, reset: undefined };
     }
-    this.last = { ...s, judge: undefined };
+    if (st.parts && this.parts) s.parts = this.parts;
+    this.last = { ...s, judge: undefined, parts: undefined };
     const text = JSON.stringify(s);
     for (const c of this.conns) if (c.device) c.send(text);
   }
@@ -336,7 +357,7 @@ class Companion extends EventEmitter {
     if (this.chart) c.send(JSON.stringify(this.chart));
     if (this.last) {
       const judge = this.score ? { ...this.score, ev: [...this.marks], reset: true } : undefined;
-      c.send(JSON.stringify({ ...this.last, judge }));
+      c.send(JSON.stringify({ ...this.last, judge, parts: this.parts || undefined }));
     }
   }
 
@@ -576,6 +597,10 @@ exit 0`;
     if (m.type === 'pick' && typeof m.id === 'string' && this.library.get(m.id)) return this.emit('cmd', { type: 'pick', id: m.id, from: c.device.name });
     if (m.type === 'play' || m.type === 'pause' || m.type === 'toggle') return this.emit('cmd', { type: m.type });
     if (m.type === 'seek' && Number.isFinite(Number(m.t))) return this.emit('cmd', { type: 'seek', t: Math.max(0, Number(m.t)) });
+    // 4.20: everything from inside the headset: start over, the part, the speed
+    if (m.type === 'restart') return this.emit('cmd', { type: 'seek', t: 0 });
+    if (m.type === 'part' && typeof m.id === 'string' && this.parts && this.parts.list.some((p) => p.id === m.id)) return this.emit('cmd', { type: 'part', id: m.id });
+    if (m.type === 'speed' && Number.isFinite(Number(m.to))) return this.emit('cmd', { type: 'speed', to: Math.max(0.25, Math.min(1.5, Number(m.to))) });
     if (m.type === 'library') return c.send(JSON.stringify(this._libraryMsg()));
   }
 }
@@ -613,4 +638,4 @@ function readFirewall(text, cardName) {
   return { state, network, netName: net0 ? net0.name || null : null, at };
 }
 
-module.exports = { Companion, addresses, nowMs, songRow, readFirewall, DEFAULT_PORT };
+module.exports = { Companion, addresses, nowMs, songRow, partList, readFirewall, DEFAULT_PORT };

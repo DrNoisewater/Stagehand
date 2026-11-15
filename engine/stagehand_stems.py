@@ -83,9 +83,11 @@ ROFORMER = {
 # Two-pass models: the singer model first, then this Demucs model on what is left.
 TWO_PASS = {"singer_6s": {"demucs": "htdemucs_6s"}}
 
-# The singer pass's share of the progress bar (with one Demucs shift), from timing
-# both passes; more Demucs shifts make the second pass longer.
-SINGER_SHARE = {"cpu": 0.8, "cuda": 0.75}
+# The singer pass's share of the progress bar (with one Demucs shift); more Demucs
+# shifts make the second pass longer. CPU: timed on 4 cores (singer ~550 s, a
+# Demucs-shaped model ~40 s per minute of song). GPU: an estimate from the work
+# each pass does, not yet timed on a real card.
+SINGER_SHARE = {"cpu": 0.93, "cuda": 0.8}
 
 
 _out_lock = threading.Lock()

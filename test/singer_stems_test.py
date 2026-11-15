@@ -411,6 +411,18 @@ def torch_checks(root):
         seen.pop("demucs", None)
         eng.prefetch("singer_6s")
         check("--prefetch singer_6s fetches both models", fetched == [eng.ROFORMER["file"]] and seen.get("demucs") == "htdemucs_6s")
+
+        # serve mode keeps both models loaded for the next song
+        del fetched[:]
+        eng._MODELS.clear()
+        eng._DEVICES.clear()
+        for k in range(2):
+            del EVENTS[:]
+            eng.separate(SimpleNamespace(**dict(vars(args), outdir=os.path.join(root, "serve%d" % k))), keep=True)
+        check("serve mode keeps both models for the next song",
+              fetched == [eng.ROFORMER["file"]] and any(e["event"] == "done" for e in EVENTS)
+              and "Loading model" not in [e.get("message") for e in EVENTS])
+        eng._MODELS.clear()
     finally:
         eng.fetch_model, eng.load_roformer, eng.model_dir, eng.ROFORMER = real
         for k, v in saved.items():
