@@ -60,6 +60,7 @@ Double-click a song, or press **Play along**.
 ### 🔊 Tones and real amps
 
 - **Gear.** Every amp, cabinet, pedal and rack unit as a photo you can play with: turn the knobs right on the picture, hear it, compare it, play it with your guitar, start a tone with it.
+- **The Lab.** Fourteen strange pedals, each with its own picture and every knob, switch and footswitch on it working: a quacking envelope filter, a frog's croak, a gobbling talk filter, slow swells, an alien mouth pad, spring-loaded pitch jumps, a meowing cat, two synths that play the notes you play, pitch-climbing echoes, a slicer, a chord freezer, a sitar-like drone and a haunted spinning-speaker organ. For guitar and bass.
 - **Create a tone** on a real-looking pedalboard: your guitar, pedals, amp, cabinet and rack joined by cables that light up as you play. Pick gear from the wall beside it, turn any knob, stomp pedals on and off, undo anything, and move the mic in front of the speaker.
 - **My tones, From my songs, Presets.** ▶ plays a demo riff through any tone. Edit the pedals, amp, cabinet and mic, or load your own cabinet file (IR).
 - **Real amps.** Play your tones through recordings of real amps instead of simulated ones. Almost every Rocksmith amp has a real match. Press **Get the real amp**, or **Get all** for every amp your songs use. Set it up once in **Settings › Real amps** (a free [TONE3000](https://www.tone3000.com) account).

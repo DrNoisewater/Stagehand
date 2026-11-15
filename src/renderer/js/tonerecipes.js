@@ -42,12 +42,22 @@ export const AMPS = {
  * The pedals you can add. knobs: [the pedal's own knob, what it's called here].
  * where: 'pre' = between guitar and amp, 'post' = after the amp (the effects loop).
  */
-// 4.20: the wacky pedals work for guitar and bass alike
+// 4.20: The Lab's pedals work for guitar and bass alike (start: each pedal's own defaults)
 const WACKY = [
-  { key: 'Pedal_Quack', name: 'Quack', what: 'Every note quacks like a duck', where: 'pre', group: 'wacky', knobs: [['Beak', 'Beak'], ['Wobble', 'Wobble'], ['Blend', 'Blend']], start: { Beak: 60, Wobble: 25, Blend: 70 } },
-  { key: 'Pedal_Croak', name: 'Croak', what: 'A frog: the octave below, chopped into a croak', where: 'pre', group: 'wacky', knobs: [['Throat', 'Throat'], ['Hop', 'Hop'], ['Blend', 'Blend']], start: { Throat: 50, Hop: 50, Blend: 65 } },
-  { key: 'Pedal_Caterwaul', name: 'Caterwaul', what: 'Each note meows and wails like a cat', where: 'pre', group: 'wacky', knobs: [['Meow', 'Meow'], ['Hiss', 'Hiss'], ['Blend', 'Blend']], start: { Meow: 60, Hiss: 25, Blend: 70 } },
-  { key: 'Pedal_Blorp', name: 'Blorp', what: 'An alien voice: clangy, bubbling, not from here', where: 'pre', group: 'wacky', knobs: [['Vowel', 'Vowel'], ['Orbit', 'Orbit'], ['Blend', 'Blend']], start: { Vowel: 50, Orbit: 40, Blend: 65 } },
+  { key: 'Pedal_Quack', name: 'Quack', what: 'An envelope filter with a duck’s attitude', where: 'pre', group: 'wacky', knobs: [['Beak', 'Beak'], ['Sens', 'Sens'], ['Low/Band/High', 'Low/Band/High'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Croak', name: 'Croak', what: 'Frog-throat pulses', where: 'pre', group: 'wacky', knobs: [['Throat', 'Throat'], ['Hop', 'Hop'], ['Depth', 'Depth'], ['Low/High', 'Low/High'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Gobble', name: 'Gobble', what: 'A talking filter that gobbles', where: 'pre', group: 'wacky', knobs: [['Vowel', 'Vowel'], ['Sens', 'Sens'], ['Rate', 'Rate'], ['Auto/Hold', 'Auto/Hold'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Slug', name: 'Slug', what: 'Slow swells with no pick attack', where: 'pre', group: 'wacky', knobs: [['Rise', 'Rise'], ['Tail', 'Tail'], ['Sens', 'Sens'], ['Single/Flow', 'Single/Flow'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Blorp', name: 'Blorp', what: 'Alien vowels on a touch pad', where: 'pre', group: 'wacky', knobs: [['Mouth X', 'Mouth X'], ['Mouth Y', 'Mouth Y'], ['Orbit', 'Orbit'], ['Wobble', 'Wobble'], ['Talk/Auto', 'Talk/Auto'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Boing', name: 'Boing', what: 'Spring-loaded pitch jumps', where: 'pre', group: 'wacky', knobs: [['Interval', 'Interval'], ['Rise', 'Rise'], ['Fall', 'Fall'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Caterwaul', name: 'Caterwaul', what: 'A meow on every note, with purr and hiss', where: 'pre', group: 'wacky', knobs: [['Meow', 'Meow'], ['Purr', 'Purr'], ['Hiss', 'Hiss'], ['Tail', 'Tail'], ['Up/Down', 'Up/Down'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Gremlin', name: 'Gremlin', what: 'A synth fuzz from your notes', where: 'pre', group: 'wacky', knobs: [['Bite', 'Bite'], ['Glide', 'Glide'], ['Sub', 'Sub'], ['Root', 'Root'], ['Fifth', 'Fifth'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Invader', name: 'Invader', what: 'A space synth that follows you', where: 'pre', group: 'wacky', knobs: [['Voice', 'Voice'], ['Filter', 'Filter'], ['Speed', 'Speed'], ['Sync', 'Sync'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Confetti', name: 'Confetti', what: 'Echoes that climb or fall in pitch', where: 'pre', group: 'wacky', knobs: [['Pitch', 'Pitch'], ['Echo', 'Echo'], ['Chaos', 'Chaos'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Blender', name: 'Blender', what: 'Chopped, reversed, scattered slices', where: 'pre', group: 'wacky', knobs: [['Mode', 'Mode'], ['Size', 'Size'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Fossil', name: 'Fossil', what: 'Freezes a chord into a drone', where: 'pre', group: 'wacky', knobs: [['Fade', 'Fade'], ['Level', 'Level'], ['Hold/Latch', 'Hold/Latch'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Charmer', name: 'Charmer', what: 'Sitar-like buzz with drone strings', where: 'pre', group: 'wacky', knobs: [['Key', 'Key'], ['Buzz', 'Buzz'], ['Drone', 'Drone'], ['Min/Maj', 'Min/Maj'], ['Shift', 'Shift'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
+  { key: 'Pedal_Haunt', name: 'Haunt', what: 'An organ-like blend through a spinning speaker', where: 'pre', group: 'wacky', knobs: [['Low', 'Low'], ['Mid', 'Mid'], ['High', 'High'], ['Spin', 'Spin'], ['Slow/Fast', 'Slow/Fast'], ['Mix', 'Mix'], ['Trim', 'Trim']], start: {} },
 ];
 
 export const PEDALS = {

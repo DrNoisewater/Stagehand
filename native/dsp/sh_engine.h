@@ -44,6 +44,11 @@ enum {
   SHP_BYPASS,    /* 1 = dry input (for testing) */
   SHP_DROP,      /* pitch drop in semitones (0 = off, 1..12; 12 = an octave), like a DigiTech Drop */
   SHP_ROOM,      /* 0..1 stereo room around the cabinet (0.5 = default) */
+  /* 4.20: the wacky pedals' live controls (never part of a tone, so they never rebuild it) */
+  SHP_WK_HOLD,   /* footswitches held down: bit (1 << pedal number) per wacky pedal (see sh_wacky.h) */
+  SHP_WK_LEVER,  /* Boing's Bend lever, 0..1 (springs back to 0) */
+  SHP_WK_LATCH,  /* switches that change while you play: bit per pedal (Haunt: 1 = Fast) */
+  SHP_TEMPO,     /* the song's (or the drums') beats a minute, 0 = none; Invader's Sync follows it */
   SHP_COUNT
 };
 void sh_engine_param(sh_engine *e, int id, float v);

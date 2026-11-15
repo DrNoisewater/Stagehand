@@ -102,21 +102,17 @@ The user said: the highway was almost at eye level and should be way lower; with
 - **Never tried on a real Quest**: hands, pinches, the wrist button and controllers were driven by pretend poses only; frame rate, comfort, and whether the passthrough-capable session behaves as full VR in the Quest browser are unknown.
 - **Ask next:** is the height right (lower? steeper?); does the outline sit near the real neck, and do they play left-handed; dim, faint or bright hands; is the menu easy to reach at about 50 cm and the wrist button comfortable; does pinching with a pick open things by accident.
 
-## Wacky pedals: Quack, Croak, Caterwaul, Blorp (same release, asked 2026-11-15)
+## The Lab: fourteen pedals (replaces the four Wacky pedals, asked 2026-11-15)
 
-The user sent four pedal pictures (a duck, a frog, a cat, an alien) and asked for them "with the actual effects… We want these to actually work. And sound like real pedal effects."
+The user sent a pack of fourteen pedal pictures and briefs ("Stagehand-Wacky-Pedals-Complete": Quack, Croak, Gobble, Slug, Blorp, Boing, Caterwaul, Gremlin, Invader, Confetti, Blender, Fossil, Charmer, Haunt; the first four redesigned), asked for it on 4.19 "and make sure they all function like they should", then: "change the wacky section to The Lab". Full reference: `docs/lab-pedals.md`.
 
-- **Real effects in the sound engine** (`native/dsp/sh_wacky.h`, included only by `sh_fx.c`; ids `Pedal_Quack`, `Pedal_Croak`, `Pedal_Caterwaul`, `Pedal_Blorp`). Each works off the playing itself (no samples), sits before the amp, has the three knobs printed on its picture, and a level keeper that holds the effect near the dry loudness. Blend 0 is the dry sound exactly.
-  - **Quack**: each new note quacks (a mouth sweep closing down, a nasal honk). Beak 60 (how wide and nasal, how fast it closes), Wobble 25 (a warble on the held note), Blend 70.
-  - **Croak**: an octave down, a deep throat, a fast rattle of pulses. Throat 50, Hop 50 (rattle speed, about 12 to 45 a second), Blend 65.
-  - **Caterwaul**: a meow on each note (the vowel glides, the pitch bends up and back, a wailing vibrato). Meow 60, Hiss 25, Blend 70.
-  - **Blorp**: a ring modulator whose hidden tone swoops on each note, through a bubbling talking filter. Vowel 50, Orbit 40, Blend 65.
-- **In the app**: a "Wacky" group wherever pedals are picked (Gear page with words, Create a Tone, the rig chain, the tone editor), guitar and bass, saved in tones. The user's pictures are the art (`art/gear/full/Pedal_*.avif`, `thumb/Pedal_*.webp`, borders cropped), with working knobs on the photo (`gear-photos.js`, `tools/gear/audit.json`, `trims.json`). Data: `gear2014.json`, `gear-about.json`, `gear-live.json`.
+- **Sound** (`native/dsp/sh_wacky.h`): all fourteen rewritten to their briefs, every control on each picture doing what is printed. Reuses the Drop's splice-matched pitch shifter (variable speed) and adds a one-note pitch follower (YIN on the clean input) for Gremlin and Invader. Footswitches, Boing's lever, Haunt's Slow/Fast and the song's tempo are new live engine params (`SHP_WK_HOLD`, `SHP_WK_LEVER`, `SHP_WK_LATCH`, `SHP_TEMPO`): instant, never saved, never rebuild the tone. Engine: blocks get the chain's clean input (`in0`) and play the Lab dry while the tone's loudness is measured (`meas`).
+- **App**: "The Lab" everywhere the group shows (internal group id still `wacky`, so saved settings keep working). Knobs carry units, switch position names, octave (log) travel for frequencies and times, per-control help, and dim when their mode makes them do nothing. New picture controls in `rigui.js`: selectors that point at their printed positions, horizontal faders, toggle switches whose printed word lights up, footswitches with their lights (the ON one bypasses the pedal), Blorp's touch pad, Invader's voice buttons, Boing's spring-back lever. `lablive.js` holds footswitches and lets go on blur, hide, tone change and disconnect. Song tempo comes from the chart's beats (highway) or the drums.
+- **Saved tones from 4.19**: Quack/Croak/Caterwaul/Blorp keep Beak, Throat, Hiss and Blend (now Mix); controls whose meaning changed got new keys, so old values fall back to the new defaults instead of being misread.
 - **Engine rebuilt and committed**: `native/bin/stagehand-audio.exe`, `src/renderer/worklets/rig-dsp.wasm`.
-- Tests: `node test/wacky-pedals.cjs` (in `npm test`, about a minute: each pedal's own character, every knob heard, levels); `native/build/wacky_test` after `bash native/build.sh` (44.1/48/96 kHz, guitar and bass: level, peaks, no DC, silence, Blend 0); `SH_AUDIT=test/e2e/wacky-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>` (the shelf, photos, knobs, rig, a saved tone, bass).
-- Peaks run up to about 3.6 times the input's peak (the resonances), though the average level stays within 1 dB of dry: if the user hears clipping into a hot amp, lower the effect's level.
-- **Nobody has heard them** (made-up notes and measurements only), and the Windows engine was built but not run.
-- **Ask next:** do they sound like a duck, a frog, a cat and an alien; is the quack too fast or slow; is Blend 65–70 a good start; is the cat's hiss too much; how are they on bass.
+- Tests: `node test/wacky-pedals.cjs` (in `npm test`, about 4 minutes now); `native/build/wacky_test`; `test/gear-controls.test.mjs` Lab cases; `SH_AUDIT=test/e2e/wacky-audit.js …` (150 checks, all pass).
+- **Nobody has heard them**, and the Windows engine was built but not run on Windows. Haunt at 96 kHz uses about a fifth of a core.
+- **Ask next:** does each sound like its picture; Slug's Tail (it acts once a note falls to a third of its peak); the synths' note pickup (about 40 ms guitar, 75 ms bass); Haunt's spin speeds; whether any picture control sits off its printed spot.
 
 ## Which split a song has, and how hard it is to sing (same release, asked 2026-11-15)
 

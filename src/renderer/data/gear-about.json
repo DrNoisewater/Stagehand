@@ -829,19 +829,19 @@
 "real": ""
 },
 "Pedal_Quack": {
-"about": "A wacky envelope pedal that turns each note into a duck's quack: a buzzy, nasal voice that snaps open as you pick and closes with a downward wa-ack. Beak sets how sharp, quick and nasal the quack is, Wobble adds a warble, and Blend mixes it with your own sound.",
+"about": "An envelope filter with a duck's attitude: pick harder and the filter sweeps further open, then closes as the note dies, for a funky wa-ack. Beak sets how sharp and nasal it is, Sens how far your picking moves it, and Low/Band/High which side of the filter you hear. Hold Honk and the mouth jumps wide open with extra bite.",
 "real": ""
 },
 "Pedal_Croak": {
-"about": "A wacky pedal that makes your notes croak like a bullfrog: an octave down, a deep throat, and a fast rattle of pulses that starts quicker on each new note. Throat sets how big and low the throat is, Hop how fast the pulses come, and Blend mixes it with your own sound.",
+"about": "Your notes through a frog's throat: two vocal resonances that open with your picking and pulse. Short notes croak once, held notes keep pulsing. Throat goes from a small dark throat to a big bright one, Hop sets the pulses a second, Depth how much they pulse, and High moves the throat up.",
 "real": ""
 },
 "Pedal_Caterwaul": {
-"about": "A wacky pedal that makes each note meow: the voice glides through m, ee, ah and ow while the pitch bends up and back, and long notes end in a wailing vibrato. Meow sets how long and wide the meow is, Hiss adds breath and a snarl, and Blend mixes it with your own sound.",
+"about": "A meow on every note: the pitch slides up (or down) by Meow semitones and back within Tail, while a nasal mouth glides m-ee-ah-ow with it. Purr adds a fast flutter, and Hiss a breathy noise that only follows your playing.",
 "real": ""
 },
 "Pedal_Blorp": {
-"about": "A wacky pedal from another planet: a ring modulator whose hidden tone swoops down on every note and circles around, through a bubbling, talking filter. Vowel sets the mouth from a dark ooo to a bright eee, Orbit how fast it circles and bubbles, and Blend mixes it with your own sound.",
+"about": "An alien mouth you play on a touch pad: across moves one vocal resonance, up and down the other, so every corner is a different vowel. In Talk the mouth stays where you put it; in Auto it circles around that spot at Orbit speed. Wobble adds a small warble in pitch while you play.",
 "real": ""
 },
 "Rack_RotaVibe": {
@@ -910,6 +910,46 @@
 },
 "Rack_TapeEcho": {
 "about": "A tape echo in the style of the 1960s and 1970s units that recorded your playing on a loop of tape. Its repeats are warm and a little dark and wobbly, a classic sound in rockabilly, reggae, surf and psychedelic music.",
+"real": ""
+},
+"Pedal_Gobble": {
+"about": "A talking filter that gobbles. In Auto each note moves the mouth toward the chosen vowel (AH, OW or EE), further the harder you pick, and wobbles it at Rate while the note sounds. In Hold the vowel stays put. Sens sets how much your picking moves it.",
+"real": ""
+},
+"Pedal_Slug": {
+"about": "Slow volume swells: the pick's attack disappears and each note fades in over Rise, then fades out over Tail when you stop. Single swells every new note; Flow keeps one long swell through legato playing until there's a real gap. Sens sets how quietly you can play and still count.",
+"real": ""
+},
+"Pedal_Boing": {
+"about": "A spring-loaded pitch jump. Hold Jump and your notes spring up (or down) to the Interval over Rise, and drop back over Fall when you let go. Pull the Bend lever to move the pitch by hand; it springs back. At rest you hear your own sound, untouched.",
+"real": ""
+},
+"Pedal_Gremlin": {
+"about": "A synth fuzz that plays the note you play: an octave below (Sub), the note itself (Root) and a fifth above (Fifth), as loud as you pick. Bite goes from a round buzz to a torn, bright one, and Glide sets how it slides between notes. Play one note at a time: chords leave just your own sound.",
+"real": ""
+},
+"Pedal_Invader": {
+"about": "A space synth that follows your single notes. Bass is a square with a sub, Lead two saws a hair apart, Laser dives down on every note, and Step cycles the note, a fifth and the octave. Filter sets the brightness, Speed the sweep, zap or steps, and Sync locks Speed to the song's beat. Hold keeps the synth's note while you play over it.",
+"real": ""
+},
+"Pedal_Confetti": {
+"about": "Echoes that change pitch every time they come round, so they climb or tumble. Pitch sets the step per echo, Echo the time between them, and Chaos more repeats with a little random drift. Hold Burst and the echoes pile up into a wash, then settle when you let go.",
+"real": ""
+},
+"Pedal_Blender": {
+"about": "Your playing cut into slices. Chop stutters each slice, Reverse plays each one backwards, and Scatter throws slices from the last second or so back at you, slightly sharp or flat. Size sets the slice length. Hold Jam to keep chopping what it already has while you play over it.",
+"real": ""
+},
+"Pedal_Fossil": {
+"about": "Freezes a chord into a drone you can play over. Press Capture and the last moment of your playing becomes a steady sound that fades in over Fade. In Hold it lasts while you hold Capture; in Latch one press captures and the next lets go. Level sets how loud the drone sits under your playing.",
+"real": ""
+},
+"Pedal_Charmer": {
+"about": "Sitar-like: a bright buzz like a string on a flat bridge, a short metallic ring, and drone strings tuned to Key that ring along when your notes hit them. Buzz sets the buzz and ring, Drone how loud the drone strings are, and Min/Maj the third. Shift moves the key for sharps and flats.",
+"real": ""
+},
+"Pedal_Haunt": {
+"about": "An organ-like blend through a spinning speaker: Low adds an octave below, Mid your own note and High an octave above, like drawbars, with the pick's click softened. Spin sets how deep the swirl is, and Slow/Fast spins the speaker up or down like the real thing. It's an octave blend, not a true organ.",
 "real": ""
 }
 }

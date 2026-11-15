@@ -15,7 +15,7 @@ import { h, esc } from './ui.js';
 import { gearInfo, gearName } from './gearspec.js';
 import { gearPhotoInfo, GEAR_PHOTOS } from './gear-photos.js';
 import { gearArt } from './gearart.js';
-import { rotaryKnob, fmtKnob, gearFaceplate, stepFor } from './rigui.js';
+import { rotaryKnob, fmtKnob, gearFaceplate, stepFor, gearKnob, labStrip } from './rigui.js';
 import { knobsOf, orderedGear } from './tonelib.js';
 
 export const CAB_RE = /^(.*)_(57|Condenser|Ribbon|Tube)_(Cone|Edge|OffAxis)$/;
@@ -43,7 +43,7 @@ export const GEAR_CATS = [
   { id: 'filter', label: 'Wah & filter', hint: 'Wahs, auto-wahs, envelope filters' },
   { id: 'dynamics', label: 'Comp, gate & EQ', hint: 'Compressors, limiters, gates, EQs' },
   { id: 'pitch', label: 'Pitch & octave', hint: 'Octavers, pitch shifters, harmonizers' },
-  { id: 'wacky', label: 'Wacky', hint: 'Animal and alien voices: a duck, a frog, a cat, an alien' },
+  { id: 'wacky', label: 'The Lab', hint: 'Fourteen strange pedals: animal voices, synths, pitch jumps, freezes and slicers' },
   { id: 'rack', label: 'Rack units', hint: 'Studio effects after the cabinet' },
 ];
 
@@ -68,7 +68,7 @@ export function gearItems(db) {
     let cat;
     if (g.t === 'amp') cat = bass ? 'bassamps' : 'amps';
     else if (g.t === 'rack') cat = 'rack';
-    else cat = { Distortion: 'drive', Modulation: 'mod', Tremolo: 'mod', Delay: 'delay', Reverb: 'reverb', Filter: 'filter', Dynamics: 'dynamics', Pitch: 'pitch', Wacky: 'wacky' }[g.c] || 'drive';
+    else cat = { Distortion: 'drive', Modulation: 'mod', Tremolo: 'mod', Delay: 'delay', Reverb: 'reverb', Filter: 'filter', Dynamics: 'dynamics', Pitch: 'pitch', 'The Lab': 'wacky' }[g.c] || 'drive';
     out.push({ key, t: g.t, slot: g.t === 'amp' ? 'amp' : g.t === 'rack' ? 'rack' : defaultSlot(g.c), cat, bass, any: !!g.a, name: g.n, sub: g.c });
   }
   for (const f of Object.values(fams)) {
@@ -105,15 +105,6 @@ export const photoCount = () => Object.keys(GEAR_PHOTOS).length;
 
 // ------------------------------------------------------------ knob help --
 const HELP = [
-  // the wacky pedals
-  [/^beak$/, 'How sharp the quack is: a soft, slow quack to a short, snappy one'],
-  [/^wobble$/, 'A warble on the quack: none, to fast and wide'],
-  [/^throat$/, 'A bigger, lower frog: more of the octave below and a darker croak'],
-  [/^hop$/, 'How fast the croak pulses: a slow chug to a fast buzz'],
-  [/^meow$/, 'How long and how far each meow bends and slides'],
-  [/^hiss$/, 'Breath and snarl on each meow'],
-  [/^vowel$/, 'The alien mouth: a dark "ooo" to a bright "eee"'],
-  [/^orbit$/, 'How fast the alien sound circles and bubbles: a slow drift to frantic'],
   [/^(gain|drive|distortion|preamp|smash|overdrive)/, 'How hard the sound is pushed: low is clean, high is crunchy and saturated'],
   [/^(vol|volume|loudness|level|master|output|limit$)/, 'How loud this piece is. Turning it up on an old amp also adds grit'],
   [/^bass( boost)?$|^low$|^30hz|^50hz|^63hz|^75hz|^90hz|^100hz/, 'The low end: thump and weight'],
@@ -165,39 +156,36 @@ export function knobHelp(name) {
  * The big view of one piece in a tone: photo with its turning knobs + the control strip.
  * onKnob(key, value, final) is called as knobs move.
  */
-export function gearPanel(g, { gel = '#c9a560', onKnob, disabled = false } = {}) {
+export function gearPanel(g, { gel = '#c9a560', onKnob, disabled = false, bypass = null } = {}) {
   const box = h('div.gb-panel');
   const strip = h('div.gb-strip', { role: 'group', 'aria-label': `${gearName(g.key)} controls` });
   const ks = knobsOf(g);
   const photo = gearPhotoInfo(g.key);
-  const onPhoto = new Set([...Object.keys((photo && photo.knobs) || {}), ...Object.keys((photo && photo.sliders) || {})]);
+  const onPhoto = new Set([...Object.keys((photo && photo.knobs) || {}), ...Object.keys((photo && photo.sliders) || {}), ...Object.keys((photo && photo.hsliders) || {}), ...Object.keys((photo && photo.switches) || {}), ...Object.keys((photo && photo.buttons) || {}), ...(photo && photo.pad ? photo.pad.slice(4) : [])]);
   for (const k of ks) {
-    const knob = rotaryKnob({
-      name: k.name,
-      min: k.min,
-      max: k.max,
-      value: k.value,
-      def: k.def,
+    const knob = gearKnob(k, {
       gel,
       step: stepFor(k.min, k.max),
-      fmt: (v) => fmtKnob(k, v),
       onInput: (v) => onKnob && onKnob(k.key, v, false),
       onChange: (v) => onKnob && onKnob(k.key, v, true),
     });
     knob.disabled = disabled;
-    const cell = h('div.gb-knob', { title: `${k.name}: ${knobHelp(k.name)}. Drag up or right for more, down or left for less (Shift for fine), double-click for the default.` }, knob);
+    const cell = h('div.gb-knob', { title: `${k.name}: ${k.help || knobHelp(k.name)}. Drag up or right for more, down or left for less (Shift for fine), double-click for the default.` }, knob);
     if (onPhoto.has(k.name.toLowerCase())) cell.classList.add('on-photo');
     strip.append(cell);
   }
+  // 4.20: footswitches you hold (The Lab)
+  const holds = labStrip(g);
+  if (holds.length) strip.append(h('div.gb-holds', null, ...holds));
   if (!ks.length) strip.append(h('p.gb-none', { text: 'Nothing to set on this one: it just does its thing.' }));
-  const face = photo ? gearFaceplate(g.key, strip, { enlarged: true }) : null;
+  const face = photo ? gearFaceplate(g.key, strip, { enlarged: true, bypass }) : null;
   if (face) {
     face.querySelector('.gear-face-help')?.remove();
     box.append(h('div.gb-photo', { style: { '--ar': String(photo.width / photo.height) } }, face));
   } else box.append(h('div.gb-photo.drawing', { html: gearArt(g) }));
   const note = !ks.length ? '' : onPhoto.size === ks.length ? 'Work the controls on the photo or on the strip: they’re the same controls.' : onPhoto.size ? 'Controls you can’t see on the photo are on the strip.' : 'Set it with the knobs on the strip.';
   box.append(h('div.gb-strip-wrap', null, note ? h('small.gb-note', { text: note }) : '', strip));
-  box.dispose = () => face && face.dispose && face.dispose();
+  box.dispose = () => (face && face.dispose && face.dispose(), holds.forEach((b) => b._dispose && b._dispose()));
   return box;
 }
 

@@ -1368,6 +1368,7 @@ export function createHighway(stage) {
       prefs.part = H.tab.type === 'combo' ? 'lead' : H.tab.type;
       save();
       rig.setSongTuning(H.tab.tuning, instrument(), H.tab.cents || 0); // 4.3: this song's pitch, not the last one's
+      rig.setTempoFromBeats(H.tab.beats); // 4.20: Invader's Sync follows the song's beat
       H.scoringShift=tuneShift.st=rig.dropAmount();
       H.targets = buildTargets(H.tab);
       H.lyricLines = buildLyrics(H.tab.lyrics || []);

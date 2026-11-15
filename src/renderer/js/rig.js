@@ -3,7 +3,7 @@ import { detectPitch, PitchSmoother } from './pitch.js';
 import { tuningPlan, myTuning, dropStatus } from './tuning.js';
 import { InstrumentSense, reading } from './instrument.js';
 import { instrumentShift } from './detect.js';
-import { loadGear, toSpec, ampGain, describe } from './gearspec.js';
+import { loadGear, toSpec, ampGain, describe, labLatch } from './gearspec.js';
 import { resolveCapture, caps } from './captures.js';
 import { lateWarning } from './lateout.js';
 
@@ -75,7 +75,9 @@ const DEFAULT_KNOBS = { input: 0.5, bass: 0.5, mid: 0.5, treble: 0.5, fx: 0.5, v
 const NOTE = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
 // the engine's gate setting: 0 = auto, + = stronger (dB), -30 or lower = off
 export const GATE_MODES = { auto: 0, strong: 8, off: -40 };
-export const P = { input: 0, volume: 1, gain: 2, bass: 3, mid: 4, treble: 5, fx: 6, gate: 7, bypass: 8, drop: 9, room: 10 };
+export const P = { input: 0, volume: 1, gain: 2, bass: 3, mid: 4, treble: 5, fx: 6, gate: 7, bypass: 8, drop: 9, room: 10,
+  // 4.20 (The Lab): footswitches held (a bit per pedal), Boing's lever, switches played live, the song's tempo
+  labHold: 11, labLever: 12, labLatch: 13, tempo: 14 };
 const SLOTS = 8;
 
 function load(key, fallback) {
@@ -497,6 +499,7 @@ export class Rig extends EventTarget {
     this.kind = null; // 'native' | 'web'
     this.player = null; // AudioEngine (set by stage.js)
     this.slots = new Array(SLOTS).fill(null); // spec per slot
+    this.lab = { labHold: 0, labLever: 0, labLatch: 0, tempo: 0 }; // 4.20: The Lab's live controls
     this.active = -1;
     this.lastUse = new Array(SLOTS).fill(0);
     this.useSeq = 0;
@@ -857,6 +860,8 @@ export class Rig extends EventTarget {
 
   stop() {
     const was = this.backend;
+    this.lab.labHold = this.lab.labLever = 0; // nothing stays held when the guitar goes away
+    this.dispatchEvent(new Event('lab'));
     this._listen(false);
     this.on = false;
     this.backend = null;
@@ -1079,6 +1084,9 @@ export class Rig extends EventTarget {
       if (!tone) return { ok: false, tone: null, error: 'No tone to play.' };
       if (!this.on || !this.backend) return { ok: false, tone, error: 'Your guitar isn’t connected.' };
       const backend = this.backend;
+      // 4.20: a new or changed tone starts with every footswitch let go; its live switches (Haunt) follow it
+      if (this.lab.labHold || this.lab.labLever) this.live('labHold', 0), this.live('labLever', 0);
+      this.live('labLatch', labLatch(tone));
       const slot = await this._slotFor(tone);
       if (this.backend !== backend) return { ok: false, tone, error: 'The sound engine restarted. Try again.' };
       if (slot < 0) return { ok: false, tone, error: `${tone.name || 'That tone'} couldn’t be built.` };
@@ -1171,8 +1179,25 @@ export class Rig extends EventTarget {
     this.backend.param(P[name], v);
   }
 
+  /** 4.20: The Lab's live controls (footswitches, Boing's lever, Haunt's Slow/Fast, the song's
+   * tempo). They never rebuild the tone, so pressing one is instant. */
+  live(name, v) {
+    if (!(name in this.lab)) return;
+    this.lab[name] = Number(v) || 0;
+    if (this.backend) this.backend.param(P[name], this.lab[name]);
+    if (name === 'labHold' || name === 'labLever') this.dispatchEvent(new Event('lab'));
+  }
+
+  /** 4.20: the song's tempo from its beats (the median gap), for Invader's Sync; 0 = not known. */
+  setTempoFromBeats(beats) {
+    const t = (beats || []).map((b) => b.t).filter(Number.isFinite);
+    const gaps = t.slice(1).map((v, i) => v - t[i]).filter((d) => d > 0.15 && d < 2).sort((a, b) => a - b);
+    this.live('tempo', gaps.length >= 4 ? Math.round(600 / gaps[gaps.length >> 1]) / 10 : 0);
+  }
+
   _sendAllParams() {
     for (const k of ['input', 'volume', 'gain', 'bass', 'mid', 'treble', 'fx']) this._param(k);
+    if (this.backend) for (const k of ['labLatch', 'tempo']) this.backend.param(P[k], this.lab[k]);
     this._sendDrop();
   }
 

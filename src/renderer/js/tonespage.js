@@ -22,7 +22,7 @@ import { h, icon, esc, toast, showMenu, confirmDialog } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { loadGear } from './gearspec.js';
 import { readingBar, tonelib, byId, useTone, saveTone, removeTone, assignSlot, SLOT_GELS, SLOT_COUNT, TYPE_GELS, TYPE_NAMES, knobsOf, orderedGear, shortGearName, gelOf, chainText, songToneLibrary, bySlot, activeSlot } from './tonelib.js';
-import { chainEl, gearLineup, gearFaceplate, rotaryKnob, fmtKnob, gearSummary, demoButton, stopDemo } from './rigui.js';
+import { chainEl, gearLineup, gearFaceplate, rotaryKnob, fmtKnob, gearSummary, demoButton, stopDemo, gearKnob, labStrip } from './rigui.js';
 import { realAmpStrip, realBadge, getAllRealAmps, batch } from './realamps.js';
 import { caps, ampOf, packForCurated, resolveCapture } from './captures.js';
 import { slotChange, slotChangeText, isChanged } from './toneslots.js';
@@ -715,14 +715,8 @@ function renderAdvanced(d) {
     const knobs = h('div.knobs3');
     for (const k of knobsOf(g)) {
       knobs.append(
-        rotaryKnob({
-          name: k.name,
-          min: k.min,
-          max: k.max,
-          value: k.value,
-          def: k.def,
+        gearKnob(k, {
           gel: bg,
-          fmt: (v) => fmtKnob(k, v),
           onInput: (v) => {
             g.knobs = { ...(g.knobs || {}), [k.key]: v };
             changed();
@@ -730,8 +724,9 @@ function renderAdvanced(d) {
         })
       );
     }
+    knobs.append(...labStrip(g)); // 4.20: The Lab's footswitches, held to play
     if (!knobs.childNodes.length) knobs.append(h('span', { text: 'No knobs on this one.', style: { color: 'var(--ink-3)' } }));
-    const faceplate = gearFaceplate(g.key, knobs);
+    const faceplate = gearFaceplate(g.key, knobs, { bypass: { on: () => !g.bypass, toggle: () => byp.onclick() } });
     if (faceplate) card.append(faceplate);
     card.append(knobs);
     row.append(card);

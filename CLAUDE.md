@@ -90,9 +90,9 @@ SH_AUDIT=test/e2e/guide-audit.js node test/e2e/ui3-chromium.js native/build/stag
 SH_AUDIT=test/e2e/discover-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # the Gear page's spec sheet (real gear, words, every knob) on an EQ, a cabinet and an amp
 SH_AUDIT=test/e2e/gear-about-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
-# the wacky pedals in the full page: the shelf, photos with working knobs, the rig, a saved tone, bass
+# The Lab's fourteen pedals in the full page: every picture control, footswitches, the rig, a saved tone, bass (docs/lab-pedals.md)
 SH_AUDIT=test/e2e/wacky-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
-node test/wacky-pedals.cjs   # the wacky pedals' sound through the WebAssembly engine (also in npm test, ~1 min)
+node test/wacky-pedals.cjs   # The Lab's sound through the WebAssembly engine, each brief's checks (also in npm test, ~4 min)
 # stem splitting: a song in line names the one split first; a split moving along rebuilds nothing
 SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # the Quest companion: the real server and page with a pretend Quest browser (pair, library, pick, play/seek both ways, clock); writes q-*.png

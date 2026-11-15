@@ -290,6 +290,8 @@ function renderRigHeadOnly() {
 }
 
 // ---------------------------------------------------------------- drums --
+// 4.20: with the drums going, Invader's Sync follows them
+drums.addEventListener('change', () => drums.on && rig.live('tempo', drums.bpm));
 const D = { padEls: [], raf: 0, lastStep: -2 };
 function renderDrums() {
   const signature=drums.pattern+'|'+drums.on;

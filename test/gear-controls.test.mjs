@@ -22,9 +22,12 @@ function h(tag,attrs,...children){const [name,...classes]=tag.split('.');const e
 class Custom extends Event{constructor(type,opts={}){super(type);this.detail=opts.detail;}}
 const source=readFileSync(new URL('../src/renderer/js/rigui.js',import.meta.url),'utf8');
 const a=source.indexOf('export function rotaryKnob('),b=source.indexOf('/** The signal chain:');
-const ctx={h,CustomEvent:Custom,MouseEvent:Event,gearPhotoInfo,modal:()=>{},knobDrag,showKnobGuide:()=>{}};
+const ctx={h,CustomEvent:Custom,MouseEvent:Event,gearPhotoInfo,modal:()=>{},knobDrag,showKnobGuide:()=>{},
+  // 4.20: The Lab's footswitches talk to the rig; here nothing is listening
+  rig:{lab:{labHold:0,labLever:0},addEventListener(){},removeEventListener(){}},holdable:()=>()=>{},labHeld:()=>false,labLever:()=>{},momentsOf:()=>[],esc:(x)=>x,CSS:{escape:(x)=>x}};
 vm.createContext(ctx);vm.runInContext(source.slice(a,b).replaceAll('export function','function')+';this.controls={rotaryKnob,gearFaceplate};',ctx);
 const {rotaryKnob,gearFaceplate}=ctx.controls;
+const fmtOf=(labels)=>(v)=>labels[Math.round(v)];
 function event(target,type,data={}){const e=new Event(type,{cancelable:true});for(const [k,v]of Object.entries(data))Object.defineProperty(e,k,{value:v});target.dispatchEvent(e);}
 let live=5,calls=0;
 const knob=rotaryKnob({name:'PreAmp',min:0,max:10,value:5,def:3,step:.1,onInput:v=>{live=v;calls++;}});
@@ -91,3 +94,50 @@ console.log('gear controls: live updates, keyboard, reset, limits, read-only mod
   assert.equal(sw, 1, 'a click steps a switch');
   console.log('knob drag: up or right is more, down or left is less, a wobble is ignored, a click steps a switch');
 }
+
+// 4.20 (The Lab): a selector points at its printed positions; a horizontal fader, a toggle switch and
+// push buttons on the picture are the same controls as the strip, both ways
+{
+  let v = 1;
+  const vowel = rotaryKnob({ name: 'Vowel', min: 0, max: 2, value: 1, def: 1, labels: ['AH', 'OW', 'EE'], fmt: fmtOf(['AH', 'OW', 'EE']), onInput: (x) => (v = x) });
+  const face = gearFaceplate('Pedal_Gobble', h('div', null, vowel));
+  const sel = face.querySelectorAll('.gear-hotspot')[0];
+  assert(sel, 'Gobble has its Vowel selector on the picture');
+  assert.equal(sel.children[0].style['--rot'], '0deg', 'OW points straight up, where it is printed');
+  event(sel, 'keydown', { key: 'ArrowUp' });
+  assert.equal(v, 2);
+  assert.equal(sel.children[0].style['--rot'], '59deg', 'EE points at EE');
+  assert.equal(sel.getAttribute('aria-valuetext'), 'EE', 'and says its name');
+}
+{
+  let rise = 350, flow = 1;
+  const r = rotaryKnob({ name: 'Rise', min: 5, max: 1500, value: 350, def: 350, log: true, onInput: (x) => (rise = x) });
+  const f = rotaryKnob({ name: 'Single/Flow', min: 0, max: 1, value: 1, def: 1, labels: ['SINGLE', 'FLOW'], fmt: fmtOf(['SINGLE', 'FLOW']), onInput: (x) => (flow = x) });
+  const face = gearFaceplate('Pedal_Slug', h('div', null, r, f));
+  const fader = face.querySelectorAll('.gear-slider')[0];
+  assert(fader && fader.getAttribute('aria-orientation') === 'horizontal', 'Slug has its Rise fader on the picture');
+  event(fader, 'keydown', { key: 'End' });
+  assert.equal(rise, 1500, 'the fader moves the real control');
+  event(r, 'keydown', { key: 'ArrowDown' });
+  assert(rise < 1500 && rise > 1300, `Rise turns in small multiplying steps (log): ${rise}`);
+  const sw = face.querySelectorAll('.gear-switch')[0];
+  assert(sw, 'Slug has its Single/Flow switch on the picture');
+  sw.onclick();
+  assert.equal(flow, 0, 'a click flips it (Flow to Single)');
+  const marks = face.querySelectorAll('.gear-mark');
+  assert(marks.length === 2 && marks[0].classes.has('on') && !marks[1].classes.has('on'), 'the word SINGLE lights up, FLOW goes dark');
+  f.setValue(1, { emit: true });
+  assert(marks[1].classes.has('on'), 'and back when the strip changes it');
+}
+{
+  let voice = 1;
+  const k = rotaryKnob({ name: 'Voice', min: 0, max: 3, value: 1, def: 1, labels: ['BASS', 'LEAD', 'LASER', 'STEP'], fmt: fmtOf(['BASS', 'LEAD', 'LASER', 'STEP']), onInput: (x) => (voice = x) });
+  const face = gearFaceplate('Pedal_Invader', h('div', null, k));
+  const bs = face.querySelectorAll('.gear-pushbtn');
+  assert.equal(bs.length, 4, 'Invader has its four voice buttons on the picture');
+  assert(bs[1].classes.has('on') && !bs[0].classes.has('on'), 'LEAD glows to start');
+  bs[2].onclick();
+  assert.equal(voice, 2, 'LASER picks the Laser voice');
+  assert(bs[2].classes.has('on') && !bs[1].classes.has('on'), 'and alone glows');
+}
+console.log('The Lab: selectors on their printed positions, faders, switches with lit words and push buttons passed');

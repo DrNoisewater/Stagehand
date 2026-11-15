@@ -483,6 +483,7 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
       if (g.slot === 'amp' && !g.bypass) body.append(realAmpStrip(R.t, () => change(() => {}, { structure: true })));
       panel = gearPanel(g, {
         gel: g.slot === 'amp' ? '#ff6b3d' : g.slot === 'rack' ? '#33c8e0' : '#ff4d8d',
+        bypass: { on: () => !g.bypass, toggle: () => change(() => (g.bypass = !g.bypass)) },
         onKnob: (key, v) => {
           change(() => {
             g.knobs = { ...(g.knobs || {}), [key]: v };

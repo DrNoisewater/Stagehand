@@ -170,7 +170,7 @@ static int build_into(sh_engine *e, slot_t *s, const sh_spec *sp, const float *i
         if (ok) s->cab = bi;
       } else {
         /* the wacky pedals tune themselves for bass */
-        ok = wacky_kind(g->key) ? wacky_build(b, g, a, sr, sp->bass) : fx_build(b, g, a, sr, stereo);
+        ok = wacky_kind(g->key) ? wacky_build(b, g, a, sr, sp->bass, e->p) : fx_build(b, g, a, sr, stereo);
       }
       if (!ok) {
         s->nb--;
@@ -231,10 +231,11 @@ static void test_signal(float *x, int n, double sr, int bass, sh_arena *a) {
   }
 }
 
-static void run_chain(slot_t *s, float *L, float *R, int n) {
+static void run_chain(slot_t *s, float *L, float *R, int n, const float *in0) {
   for (int i = 0; i < s->nb; i++) {
     sh_block *b = &s->b[i];
     if (!b->process) continue;
+    b->in0 = in0;
     if (i == s->stereo_from) sh_memcpy(R, L, sizeof(float) * n);
     b->process(b, L, i >= s->stereo_from ? R : 0, n);
   }
@@ -256,7 +257,7 @@ static double low_vs_mid_db(slot_t *s, const float *x, int n, double sr, int bas
   for (int off = 0; off < n; off += 512) {
     int m = n - off < 512 ? n - off : 512;
     sh_memcpy(L, x + off, sizeof(float) * m);
-    run_chain(s, L, R, m);
+    run_chain(s, L, R, m, x + off);
     for (int i = 0; i < m; i++) {
       float a = bq_run(&il[1], bq_run(&il[0], x[off + i])), b = bq_run(&ol[1], bq_run(&ol[0], L[i]));
       float c = bq_run(&im[1], bq_run(&im[0], x[off + i])), d = bq_run(&om[1], bq_run(&om[0], L[i]));
@@ -282,7 +283,7 @@ int sh_engine_build(sh_engine *e, int si, const char *text) {
   float *L = (float *)ar_alloc(&s->ar, sizeof(float) * 512), *R = (float *)ar_alloc(&s->ar, sizeof(float) * 512);
   if (!x || !L || !R) return 0;
   test_signal(x, n, e->sr, sp.bass, &s->ar);
-  for (int i = 0; i < s->nb; i++) s->b[i].fxscale = 0;
+  for (int i = 0; i < s->nb; i++) s->b[i].fxscale = 0, s->b[i].meas = 1;
   /* 0) lows vs mids: if this tone booms (as some Rocksmith gear does here),
      add a low shelf that brings the lows back in line, at most 10 dB */
   {
@@ -296,7 +297,7 @@ int sh_engine_build(sh_engine *e, int si, const char *text) {
     L = (float *)ar_alloc(&s->ar, sizeof(float) * 512), R = (float *)ar_alloc(&s->ar, sizeof(float) * 512);
     if (!x || !L || !R) return 0;
     test_signal(x, n, e->sr, sp.bass, &s->ar);
-    for (int i = 0; i < s->nb; i++) s->b[i].fxscale = 0;
+    for (int i = 0; i < s->nb; i++) s->b[i].fxscale = 0, s->b[i].meas = 1;
     s->cls_db = (float)corr;
     for (int k = 0; k < 2; k++) bq_set(&s->cls[k], BQ_LSHELF, e->sr, sp.bass ? 150 : 250, 0.7, corr), bq_reset(&s->cls[k]);
   }
@@ -305,7 +306,7 @@ int sh_engine_build(sh_engine *e, int si, const char *text) {
   for (int off = 0; off < n; off += 512) {
     int m = n - off < 512 ? n - off : 512;
     sh_memcpy(L, x + off, sizeof(float) * m);
-    run_chain(s, L, R, m);
+    run_chain(s, L, R, m, x + off);
     for (int i = 0; i < m; i++)
       if (off + i >= skip) acc += (double)L[i] * L[i] + (double)R[i] * R[i], cnt += 2;
   }
@@ -583,12 +584,12 @@ void sh_engine_process(sh_engine *e, const float *in, float *outL, float *outR, 
   } else {
     slot_t *s = &e->slot[e->active];
     sh_memcpy(e->bufL, e->inb, sizeof(float) * n);
-    run_chain(s, e->bufL, e->bufR, n);
+    run_chain(s, e->bufL, e->bufR, n, e->inb);
     float g = s->out_gain;
     if (e->xf > 0 && e->prev >= 0) {
       slot_t *p = &e->slot[e->prev];
       sh_memcpy(e->pL, e->inb, sizeof(float) * n);
-      run_chain(p, e->pL, e->pR, n);
+      run_chain(p, e->pL, e->pR, n, e->inb);
       for (int i = 0; i < n; i++) {
         float t = e->xf > 0 ? (float)e->xf / e->xf_len : 0;
         if (e->xf > 0) e->xf--;
