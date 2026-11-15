@@ -1,3 +1,41 @@
+# 4.18.2 — Singing follows the real tune (2026-11-14)
+
+The user (photo of karaoke on a song whose bars sat between E flat and F sharp the whole way): "Are the vocals always
+accurate? some of these songs… just stay in the same line and I cannot be accurate to how you're supposed to sing".
+
+- Rocksmith never scores singing, so many charts fill each syllable's note with a placeholder in the valid range (one
+  note, or a few close together); 4.12–4.18.1 took any chart with notes on 60% of syllables as the tune.
+  `sing.js` `flatChart(syl)`: true when 5th–95th percentile spans ≤ 4 semitones or one note has ≥ 60% of syllables.
+- `singlane.js` `prepare()`: a flat chart is treated like one without notes: the notes are read off the vocals stem
+  (chart notes dropped first, so `withPitches` doesn't keep them); no stems → timing only, and the badge says the
+  chart's notes are guesses and to split the song. Auto-tune's "song's notes" gets the real notes, or nearest note.
+- Sing menu › **Notes to sing** (per song, `stagehand.sing` prefs `notes`): Pick for me / The chart's notes / The
+  singer's, from the recording. Test in `test/sing.test.mjs`.
+- Then (photo of karaoke with a crowded note-name column; "they always move around a little bit… super confusing";
+  "I was on karaoke and clicked Sing, and it took me to the highway with guitar, is that intended?"; "why are some
+  notes full and others a dotted outline"):
+  - **The lane never moves** (`drawBars`): its reach is worked out once from the 3rd–97th percentile of the tune
+    (no cap; stray notes sit on the edge). 4.18 capped it at 15 semitones beside the highway / 22 in karaoke and
+    crept along (5% a frame) for wider tunes, which most are. Small lane's note area is taller (18–78 of 124).
+  - Note names at the left skip any that would overlap (were a crowded column).
+  - Dotted bars = syllables with no note (any voice counts); they now sit at their neighbour's height (`near`,
+    worked out with the range), not mid-lane.
+  - The **Sing** chip is now **Sing & play** (singing while your guitar/bass part plays; Karaoke is just the words).
+    Intended behaviour, but the name read like karaoke.
+- **Singing splits the song** (user: "the game should probably force you to split the stems if you're gonna sing"):
+  `singlane.js` `needSplit()` from `begin()`: an unsplit song starts splitting (`actions.requestStems`, dynamic
+  import; engine not set up → its setup dialog), with a toast; the badge shows "Splitting the song for the real
+  notes… N% Timing only until it's done"; on the store's `stems` event turning ready, `prepare()` runs again and a
+  "Real notes ready" toast shows. (The stage reloads the stems itself when the song is playing.)
+- **Stems quality** (user asked whether a higher-quality split of only guitar, bass, vocals, drums would be better):
+  answered that quality comes from the model, not the stem count (default `htdemucs_6s`); offered a two-pass split
+  (vocals from a dedicated vocals model, the rest from 6 stems) for 4.19.
+- **Not done (offered):** a chart whose tune is real in some lines and placeholder in others (only whole-song flat is
+  spotted; Notes to sing › the recording works around it on split songs); "Leave karaoke" goes to the guitar, not
+  back to the Karaoke page.
+- **Ask the user:** on that song (split it first), do the bars follow the singer now? Any song where a real tune was
+  wrongly called made up (they can pick The chart's notes)?
+
 # 4.18.1 — The microphone: no static, comes back when plugged in again (2026-11-14)
 
 The user on 4.18.0 (their mic is a headset microphone on an aux cable, desk-mounted): "a weird static on the karaoke

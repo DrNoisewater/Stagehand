@@ -10,10 +10,11 @@
  * of the song when it has been split, and the guitar isn't scored.
  */
 import { api } from './api.js';
+import { state as store, on as onStore } from './store.js';
 import { h, icon, showMenu, toast } from './ui.js';
 import { mic } from './mic.js';
 import { autotune, TUNE_STYLES, TUNE_NOTES, TUNE_LEVELS, TUNE_VOICES } from './autotune.js';
-import { buildSing, SingJudge, SING_LEVELS, SLACK, pitchedShare, withPitches, nearOctave, foldCents } from './sing.js';
+import { buildSing, SingJudge, SING_LEVELS, SLACK, pitchedShare, withPitches, nearOctave, foldCents, flatChart } from './sing.js';
 
 const KEY = 'stagehand.sing';
 // the stage's own colours (as the highway's top bar and cards): warm cream ink, stage gold,
@@ -44,6 +45,19 @@ function prefs() {
     return { on: {}, level: 'medium', look: 'bars' };
   }
 }
+/** 4.18.2: where a song's notes to sing come from: 'auto', 'chart' or 'recording' (kept per song). */
+function notesPick(song) {
+  const n = (song && prefs().notes) || {};
+  return (song && n[song.id]) || 'auto';
+}
+function setNotesPick(song, id) {
+  if (!song) return;
+  const n = prefs().notes || {};
+  if (id === 'auto') delete n[song.id];
+  else n[song.id] = id;
+  setPref('notes', n);
+}
+
 function setPref(k, v) {
   const p = prefs();
   p[k] = v;
@@ -242,10 +256,11 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       el.classList.toggle('dim', !words);
       el.classList.toggle('has-menu', on);
       el.title = !words ? 'This song has no words in it' : on ? onTitle : offTitle;
-      const html = `${icon(name === 'Sing' ? 'mic' : 'music')}<span>${name}</span>${icon('chevron')}`;
+      const html = `${icon(name === 'Sing & play' ? 'mic' : 'music')}<span>${name}</span>${icon('chevron')}`;
       if (el.__html !== html) el.innerHTML = el.__html = html;
     };
-    paint(chip, singing, 'Sing', 'Sing along: score your singing beside your guitar part, with a microphone', 'Singing is on: level, microphone, auto-tune, look');
+    // 4.18.2: "Sing" read like karaoke; this one is singing while your part plays on the highway
+    paint(chip, singing, 'Sing & play', 'Sing & play: sing into a microphone while you play your guitar or bass part', 'Sing & play is on: level, microphone, auto-tune, look');
     paint(kchip, kar, 'Karaoke', 'Karaoke: just the words, big, and your singing scored', 'Karaoke is on: level, microphone, auto-tune, look');
   }
 
@@ -271,24 +286,31 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     const song = S.song;
     S.cur = S.base;
     const share = pitchedShare(S.base.syl);
-    S.mode = share >= 0.6 ? 'charted' : 'rhythm';
+    // 4.18.2: many charts carry a made-up tune (one note, or a few close together): the singer's own
+    // notes, read off the recording, are used instead when the song is split. Your choice wins.
+    S.flat = share >= 0.6 && flatChart(S.base.syl);
+    const pick = notesPick(song);
+    const chartOk = share >= 0.6 && (pick === 'chart' || (pick === 'auto' && !S.flat));
+    S.mode = chartOk ? 'charted' : 'rhythm';
     S.reading = false;
     newJudge();
     paintBadge();
     autotune.setSong(S.mode === 'charted' ? S.cur.syl : null);
     if (S.mode === 'charted') return;
+    // the chart's own notes are left out when they're the made-up ones (or you asked for the recording)
+    const base = share >= 0.6 ? S.base.syl.map((x) => ({ ...x, p: null })) : S.base.syl;
     S.reading = true;
     paintBadge();
     let found = null;
     try {
-      found = await notesFromStem(song, S.base.syl, stage.engine);
+      found = await notesFromStem(song, base, stage.engine);
     } catch (_) {
       found = null;
     }
     if (token !== S.token || !S.on) return;
     S.reading = false;
     if (found) {
-      const syl = withPitches(S.base.syl, found);
+      const syl = withPitches(base, found);
       if (pitchedShare(syl) >= 0.4) {
         S.cur = { syl, lines: S.base.lines };
         S.mode = 'stem';
@@ -324,9 +346,50 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
 
   function paintBadge() {
     const kNote = S.karaoke && S.on && !vocalsTrack() ? 'The singer stays in: split this song to sing it on your own' : '';
-    badge.textContent = S.reading ? 'Listening to the singer…' : S.mode === 'stem' ? 'Notes from the recording' : S.mode === 'rhythm' ? 'Timing only: this song has no notes to sing' : kNote;
+    const rhythm = S.flat || notesPick(S.song) === 'recording' ? 'Timing only: this chart’s notes are guesses. Split the song to sing the singer’s real notes' : 'Timing only: this song has no notes to sing';
+    const q = S.song && store.stems ? store.stems.get(S.song.id) : null;
+    const pct = q && Number.isFinite(q.progress) ? ` ${Math.round(q.progress * 100)}%` : '';
+    if (S.split === 'working' && S.mode !== 'stem' && notesPick(S.song) !== 'chart') {
+      badge.textContent = `Splitting the song for the real notes…${pct} Timing only until it’s done`;
+      badge.hidden = false;
+      return;
+    }
+    badge.textContent = S.reading ? 'Listening to the singer…' : S.mode === 'stem' ? 'Notes from the singer’s recording' : S.mode === 'rhythm' ? rhythm : kNote;
     badge.hidden = !badge.textContent;
   }
+
+  /**
+   * 4.18.2: singing needs the song split: only the singer on their own gives the real notes (charts
+   * often carry made-up ones), and karaoke takes the singer out. Starting to sing starts the split;
+   * until it's done the words are scored on timing only.
+   */
+  function splitPhase() {
+    const q = S.song && store.stems ? store.stems.get(S.song.id) : null;
+    if (!S.song) return 'none';
+    if (S.song.hasStems || (q && q.state === 'ready')) return 'ready';
+    if (q && (q.state === 'queued' || q.state === 'running')) return 'working';
+    return 'none';
+  }
+  async function needSplit() {
+    S.split = splitPhase();
+    if (S.split !== 'none') return paintBadge();
+    S.split = 'working';
+    paintBadge();
+    toast({ title: 'Splitting this song for singing', message: 'Stagehand takes the singer out to find their real notes (and for karaoke). Until it’s done, your words are scored on timing.', kind: 'info', timeout: 9000 });
+    const actions = await import('./actions.js');
+    await actions.requestStems([S.song.id]).catch(() => {});
+    S.split = splitPhase();
+    paintBadge();
+  }
+  onStore('stems', () => {
+    if (!S.on || !S.song) return;
+    const was = S.split;
+    S.split = splitPhase();
+    if (was === 'working' && S.split === 'ready') {
+      prepare(); // the singer's real notes, now that they can be read
+      toast({ title: 'Real notes ready', message: 'The song is split: the notes now follow the singer.', kind: 'ok' });
+    } else paintBadge();
+  });
 
   async function begin() {
     if (!S.on || !S.open || !S.song) return;
@@ -335,6 +398,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     const token = S.token + 1;
     prepare();
     stageKaraoke(S.karaoke);
+    needSplit();
     const ok = await mic.start('sing');
     if (ok && !window.__NOFAST) autotune.listen('sing', true); // the fast note reader, for the score
     if (token !== S.token || !S.on) return;
@@ -453,6 +517,24 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
             : [{ label: 'No microphone found', disabled: true }],
       },
       { label: () => tuneLabel(), submenu: () => tuneMenu() },
+      {
+        label: 'Notes to sing',
+        submenu: () =>
+          [
+            ['auto', S.flat ? 'Pick for me (this chart’s notes look made up)' : 'Pick for me'],
+            ['chart', 'The chart’s notes'],
+            ['recording', 'The singer’s, from the recording (split songs)'],
+          ].map(([id, name]) => ({
+            label: name,
+            hint: check(() => notesPick(S.song) === id),
+            keep: true,
+            onClick: () => {
+              if (notesPick(S.song) === id) return;
+              setNotesPick(S.song, id);
+              if (S.on && S.song) prepare();
+            },
+          })),
+      },
       { label: 'Look', submenu: SING_LOOKS.map(([id, name]) => ({ label: name, hint: check(() => singLook() === id), keep: true, onClick: () => setSingLook(id) })) },
       '-',
       S.karaoke ? { label: 'Leave karaoke', icon: 'x', onClick: () => onLeave && onLeave() } : { label: 'Stop singing', icon: 'x', onClick: () => turn(false) },
@@ -477,7 +559,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
 
   // ------------------------------------------------------------ drawing --
   /** Sizes of the Bars look: the small lane beside the highway, or the big one in karaoke. */
-  const SMALL = { H: 124, top: 20, bot: 70, bh: 11, font: 17, wordY: 108, dot: 6, nextY: 14, nextFont: 15 };
+  const SMALL = { H: 124, top: 18, bot: 78, bh: 11, font: 17, wordY: 108, dot: 6, nextY: 14, nextFont: 15 };
   const BIG = { H: 310, top: 40, bot: 210, bh: 20, font: 27, wordY: 282, dot: 10, nextY: 28, nextFont: 20 };
   const lay = () => (lane.dataset.k ? BIG : SMALL);
 
@@ -551,36 +633,25 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       if (syl[m].t + syl[m].d < t - nowX / pps - 0.2) a = m + 1;
       else b = m;
     }
-    // 4.18: the same note sits at the same height all song. The lane's reach is worked out once from
-    // the whole tune; only a song too wide to fit moves it, and then only as far as the next notes need.
-    const CAP = lane.dataset.k ? 22 : 15; // semitones the lane can show and still tell neighbours apart
+    // 4.18.2: the lane never moves. Its reach is worked out once from the whole tune (all but the odd
+    // stray note at either end, which sits on the edge), so the same note is at the same height all song.
     if (!S.rng || S.rng.of !== syl) {
       const ps = [];
       for (const x of syl) if (x.p !== null) ps.push(x.p);
       ps.sort((x, y) => x - y);
-      const sLo = ps.length ? ps[Math.floor((ps.length - 1) * 0.02)] : 55;
-      const sHi = ps.length ? ps[Math.ceil((ps.length - 1) * 0.98)] : 65;
-      const span = Math.max(10, sHi - sLo + 3);
-      const size = Math.min(span, CAP);
-      const rows = [...new Set(ps.map((x) => Math.round(x)))];
-      S.rng = { of: syl, size, fits: span <= CAP, lo: (sLo + sHi) / 2 - size / 2, hi: (sLo + sHi) / 2 + size / 2, rows };
-    }
-    if (!S.rng.fits) {
-      let lo = Infinity;
-      let hi = -Infinity;
-      for (let i = a; i < syl.length && syl[i].t < t + AHEAD + 0.5; i++) {
-        if (syl[i].p === null) continue;
-        lo = Math.min(lo, syl[i].p);
-        hi = Math.max(hi, syl[i].p);
-      }
-      if (lo !== Infinity) {
-        let want = S.rng.want ?? S.rng.lo;
-        if (hi - lo + 3 > S.rng.size) want = (lo + hi) / 2 - S.rng.size / 2;
-        else if (lo - 1.5 < want) want = lo - 1.5;
-        else if (hi + 1.5 > want + S.rng.size) want = hi + 1.5 - S.rng.size;
-        S.rng.want = want;
-        S.rng.lo += (want - S.rng.lo) * 0.05;
-        S.rng.hi = S.rng.lo + S.rng.size;
+      const sLo = ps.length ? ps[Math.floor((ps.length - 1) * 0.03)] : 55;
+      const sHi = ps.length ? ps[Math.ceil((ps.length - 1) * 0.97)] : 65;
+      const size = Math.max(10, sHi - sLo + 3);
+      const rows = [...new Set(ps.map((x) => Math.round(x)))].filter((p) => p >= sLo - 1.5 && p <= sHi + 1.5);
+      S.rng = { of: syl, size, lo: (sLo + sHi) / 2 - size / 2, hi: (sLo + sHi) / 2 + size / 2, rows };
+      // a syllable with no note (any voice counts) sits beside its neighbours, not in the middle
+      let last = null;
+      for (const x of syl) x.p !== null ? (last = x.p) : (x.near = last);
+      last = null;
+      for (let i = syl.length - 1; i >= 0; i--) {
+        const x = syl[i];
+        if (x.p !== null) last = x.p;
+        else if (x.near === null || x.near === undefined) x.near = last;
       }
     }
     const Y = (p) => bot - ((p - S.rng.lo) / (S.rng.hi - S.rng.lo)) * (bot - top);
@@ -600,9 +671,13 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       g.font = `700 9px ${FONT}`;
       g.textBaseline = 'middle';
       g.fillStyle = 'rgba(245, 237, 218, 0.42)';
-      for (const p of S.rng.rows) {
+      let lastY = Infinity;
+      for (const p of [...S.rng.rows].sort((x, y) => x - y)) {
         const y = Y(p);
-        if (y > top - 2 && y < bot + 2) g.fillText(NOTE_NAMES[((p % 12) + 12) % 12], 8, Math.round(y));
+        if (y > top - 2 && y < bot + 2 && lastY - y >= 10) {
+          g.fillText(NOTE_NAMES[((p % 12) + 12) % 12], 8, Math.round(y));
+          lastY = y; // names close enough to overlap are skipped (the line is still drawn)
+        }
       }
     }
     // bars: plain pills, the one to sing now a little brighter
@@ -612,7 +687,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       if (s.t > t + AHEAD + 0.3) break;
       const x0 = X(s.t);
       const x1 = Math.max(x0 + BH, X(s.t + s.d) - 3);
-      const y = clampY(s.p === null ? midY : Y(s.p));
+      const y = clampY(s.p === null ? (Number.isFinite(s.near) ? Y(s.near) : midY) : Y(s.p));
       const res = j ? j.result[i] : null;
       const gold = j && j.lineResult[s.line] === 1;
       g.globalAlpha = fade((x0 + x1) / 2) * (x0 > W - 40 ? Math.max(0, (W - x0) / 40) : 1);

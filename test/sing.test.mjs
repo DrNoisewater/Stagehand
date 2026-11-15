@@ -1,6 +1,6 @@
 /* Sing along: the scoring rules and reading notes off a recording. `node test/sing.test.mjs` */
 import assert from 'node:assert';
-import { buildSing, SingJudge, VoiceTracker, foldCents, nearOctave, withPitches, pitchedShare, hasPitch } from '../src/renderer/js/sing.js';
+import { buildSing, SingJudge, VoiceTracker, foldCents, nearOctave, withPitches, pitchedShare, hasPitch, flatChart } from '../src/renderer/js/sing.js';
 import { pitchesFromAudio } from '../src/renderer/js/vocal-pitch.js';
 
 let passed = 0;
@@ -213,6 +213,22 @@ test('holding a note: once on it, a wobble doesn\'t drop you off', () => {
     k.tick(t);
   }
   assert.strictEqual(k.result[0], 'miss');
+});
+
+test('4.18.2: a made-up chart tune (one note, or a few close together) is spotted; a real tune is not', () => {
+  const mk = (ps) => buildSing(ps.map((p, i) => ({ t: i * 0.5, d: 0.4, w: 'la', p }))).syl;
+  // every syllable on one note
+  assert.ok(flatChart(mk(Array(40).fill(60))));
+  // the user's song (4.18.1 photo): the whole song between E flat and F sharp
+  assert.ok(flatChart(mk(Array.from({ length: 60 }, (_, i) => [63, 64, 65, 66, 64][i % 5]))));
+  // mostly one note with a few others
+  assert.ok(flatChart(mk(Array.from({ length: 50 }, (_, i) => (i % 5 === 0 ? 67 + (i % 3) : 57)))));
+  // a real melody: an octave and more, many notes
+  const tune = [57, 59, 60, 62, 64, 62, 60, 59, 57, 64, 65, 67, 69, 67, 65, 64, 62, 60, 59, 57];
+  assert.ok(!flatChart(mk([...tune, ...tune, ...tune])));
+  // the scale the other tests use, and too few notes to tell
+  assert.ok(!flatChart(syl));
+  assert.ok(!flatChart(mk([60, 60, 60])));
 });
 
 console.log(`sing: ${passed} passed`);
