@@ -670,8 +670,33 @@ export class Rig extends EventTarget {
       this.addEventListener('change', () => {
         if (this.auto && !this.on && !this._starting) this._poll(4000);
       });
+      // 4.18.1: something plugged in or pulled out (speakers, headphones, the cable)
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+        navigator.mediaDevices.addEventListener('devicechange', () => {
+          clearTimeout(this._plugT);
+          this._plugT = setTimeout(() => this._plugged(), 1200); // Windows settles first
+        });
+      }
     }
     await this._tryStart();
+  }
+
+  /**
+   * Something was plugged in or pulled out. Off: try now, not in a few seconds. On, playing to
+   * "whatever Windows uses": follow Windows when it switches (speakers plugged back in), because
+   * the sound engine keeps the device it opened.
+   */
+  async _plugged() {
+    if (!this.auto) return;
+    if (!this.on) return this._starting ? undefined : this._tryStart();
+    if (this.kind !== 'native' || this.outputId || this._starting) return;
+    const list = await this.devices();
+    const def = (list.outputs || []).find((o) => o.isDefault);
+    const now = this.info && this.info.outName;
+    if (def && now && def.label !== now && this.on) {
+      this.notice = `Now playing through ${def.label.split(' (')[0]}.`;
+      await this.restart();
+    }
   }
 
   _poll(ms) {

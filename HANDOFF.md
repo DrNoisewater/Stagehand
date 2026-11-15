@@ -1,4 +1,35 @@
-# 4.18.0 — One playground: jump between guitar, singing, karaoke and piano; steady menus; the voice comes through (2026-11-14, merged to main; the Release workflow not run yet; nothing tried on the user’s PC yet)
+# 4.18.1 — The microphone: no static, comes back when plugged in again (2026-11-14)
+
+The user on 4.18.0 (their mic is a headset microphone on an aux cable, desk-mounted): "a weird static on the karaoke
+screen only… if I unplug my microphone and plug it back in it doesn't recognize it, and that might be the same for
+the speakers" · heard and seen · even when not singing, goes away with the voice off · "even when I closed the
+microphone off in my hand I still hear the static" · "up close… it seems to go away. When I back away, there's a lot
+of static" · replugging "sometimes the static goes away. But so does my voice".
+
+- **Static** (`autotune-worklet.js`): 4.18's automatic level (up to 24×) learnt from anything that opened the gate,
+  so a hissing microphone or the band leaking in from the speakers was turned up ~18× (measured: band in at 0.008
+  rms came out at 0.146). Now: the level only learns from singing (a steady note held 40 ms: `run`, `vt`); when no
+  one has sung for 120 ms the voice is never turned up and quiet sounds are kept at 0.3× (`liveK`, `lowK`; a loud
+  "sss" right at the mic stays as it is); a gate held open a second with no singing learns that level as the room
+  (`openedAt`, floor up to 0.05), so it closes; `MAX_BOOST` 24 → 6 (a far-away singer brought the hiss up with
+  them). The phantom notes the lane drew from the hiss go with it. Test: "a hissing microphone, or the band leaking
+  in…" in `test/autotune.test.mjs`; the quiet-mic test now expects the 0.004 voice heard (>0.02), not healthy.
+- **Microphone pulled out** (`mic.js`): the track's `ended` closes it (a toast "Microphone unplugged", `lost`), and
+  `devicechange` opens it again while someone still wants it ("Microphone back"); a stand-in mic changes back to
+  the picked one when it returns (`usingId`). One open at a time (`_opening`).
+- **Speakers** (`rig.js` `_plugged`): on `devicechange`, an engine that's off tries at once (not in 4–8 s); one
+  playing to "whatever Windows uses" restarts when Windows' default output changes (it kept the device it opened).
+  The song player re-sends to speakers you picked in Settings (`audio-engine.js` `_hookPlug`).
+- **The Auto-tune tape** (`singlane.js` `paintTune`, `v3.css` after `.sw-tune`): the user said it looks like a scrap of
+  tape (good) but not like a menu. Now a dashed tear line and a down arrow at its end, lifts on hover, presses on
+  click, and wiggles every few seconds until it has been opened once (`stagehand.tuneOpened`; off with calm/reduced
+  motion). Tooltip: "Click for auto-tune, voices and hearing yourself".
+- **Ask the user:** is the static gone, near and far from the mic? Does the mic come back after unplugging? Did a
+  quiet voice get too quiet (raise `MAX_BOOST` a little)? They mentioned T-Pain's Auto-Tune settings ("Low Male,
+  Speed 0"): Hard tune is already speed 0; a voice range choice (low male … soprano) to steady the note reading was
+  offered. They may buy a new microphone: a USB one, ideally dynamic (picks up less of the speakers).
+
+# 4.18.0 — One playground: jump between guitar, singing, karaoke and piano; steady menus; the voice comes through (2026-11-14, released; nothing tried on the user’s PC yet)
 
 The user on 4.17.1 (several messages): "Cant find where to sing from highway… singing, i want to play that on guitar
 now. Playing guitar, oh snap lets see piano, nah lets go singing jump straight to karaoke" · "lots of flickering

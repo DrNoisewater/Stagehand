@@ -271,7 +271,21 @@ export class AudioEngine extends EventTarget {
     return { ctx: this.ctx, node: this.extra };
   }
 
+  /** 4.18.1: speakers you picked, pulled out and plugged back in: send the song to them again. */
+  _hookPlug() {
+    if (this._plugHooked || typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.addEventListener) return;
+    this._plugHooked = true;
+    navigator.mediaDevices.addEventListener('devicechange', () => {
+      clearTimeout(this._plugT);
+      this._plugT = setTimeout(() => {
+        const c = this.ctx;
+        if (this.sinkId && !this.native && c && c.setSinkId) c.setSinkId('').then(() => this.sinkId && c.setSinkId(this.sinkId)).catch(() => {});
+      }, 1200);
+    });
+  }
+
   async setSink(id) {
+    this._hookPlug();
     this.sinkId = id || '';
     if (this.native) return; // the native engine owns the output for now
     if (this.ctx && this.ctx.setSinkId) await this.ctx.setSinkId(this.sinkId);

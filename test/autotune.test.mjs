@@ -131,11 +131,37 @@ test('A new note is heard within 30 ms', () => {
 test('Breath and "sss" pass through; silence and a quiet room stay silent', () => {
   let s = 7;
   const noise = (amp) => Float32Array.from({ length: sr * 1.5 }, () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296 - 0.5) * amp);
-  const loud = noise(0.2);
+  // an "sss" lasts well under a second (4.18.1: a hiss going on and on is the room, and is let go)
+  const loud = noise(0.2).fill(0, Math.round(sr * 0.7));
   const out = tune(loud, { auto: false });
-  assert.ok(Math.abs(rms(out, 0.5, 1.4) / rms(loud, 0.5, 1.4) - 1) < 0.05, 'sss kept');
+  assert.ok(Math.abs(rms(out, 0.15, 0.65) / rms(loud, 0.15, 0.65) - 1) < 0.05, 'sss kept');
   assert.strictEqual(rms(tune(new Float32Array(sr), {}), 0, 0.99), 0);
   assert.ok(rms(tune(noise(0.006), {}), 0.3, 1.4) < 1e-5, 'the room is not played back');
+});
+
+test('4.18.1: a hissing microphone, or the band leaking in from the speakers, is never turned up (it was heard as static)', () => {
+  let s = 3;
+  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296 - 0.5) * 2;
+  // hiss from a microphone covered by a hand
+  const hiss = Float32Array.from({ length: sr * 4 }, () => rnd() * 0.03);
+  // the band from the speakers: a chord of buzzing strings with some noise, swelling
+  const fs = [82.4, 110, 146.8, 196, 246.9];
+  const band = Float32Array.from({ length: sr * 4 }, (_, i) => {
+    let v = rnd() * 0.3;
+    for (const f of fs) v += (2 * ((i * f) / sr % 1) - 1) * 0.2;
+    return v * 0.03 * (0.6 + 0.4 * Math.abs(Math.sin((i / sr) * Math.PI * 2)));
+  });
+  for (const [name, inp] of [['hiss', hiss], ['band', band]])
+    for (const set of [{ hear: true }, { style: 'natural', mode: 'song' }, { voice: 'giant' }]) {
+      const out = tune(inp, { vol: 0.8, ...set });
+      assert.ok(rms(out, 0.3, 1.2) < rms(inp, 0.3, 1.2), `${name} ${JSON.stringify(set)}: not turned up`);
+      assert.ok(rms(out, 2, 4) < 0.002, `${name} ${JSON.stringify(set)}: let go after a moment (${rms(out, 2, 4)})`);
+    }
+  // and a singer over the band still comes out at a healthy level
+  const v = voice(() => 57.2, 4, { amp: 0.02, from: 2 });
+  for (let i = 0; i < v.length; i++) v[i] += band[i];
+  const out = tune(v, { style: 'natural', vol: 0.8 });
+  assert.ok(rms(out, 2.6, 3.9) > 0.07, `the singer is heard over the band (${rms(out, 2.6, 3.9)})`);
 });
 
 test('The song’s notes: a singer three notes off lands on the song’s note, in their own octave', () => {
@@ -308,7 +334,10 @@ test('A quiet microphone is heard: auto-tune alone comes out at a healthy level,
     assert.ok(Math.abs(mean(notes(out, 0.6, 1.4)) - 57) < 0.05, `tuned at ${amp}`);
     return rms(out, 0.6, 1.4);
   });
-  for (const l of levels) assert.ok(l > 0.09 && l < 0.25, `${levels}`);
+  // 4.18.1: turned up at most about 16 dB (was 28: a far-away singer brought the microphone's hiss up too),
+  // so a laptop microphone at arm's length is heard, quieter; anything closer comes out healthy
+  assert.ok(levels[0] > 0.02, `${levels}`);
+  for (const l of levels.slice(1)) assert.ok(l > 0.09 && l < 0.25, `${levels}`);
   // and the room on its own still isn't played back
   const room = Float32Array.from({ length: sr * 1.5 }, (_, i) => Math.sin(i * 0.37) * 0.0015);
   assert.ok(rms(tune(room, { style: 'natural' }), 0.3, 1.4) < 1e-4, 'the room stays quiet');

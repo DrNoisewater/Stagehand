@@ -2205,7 +2205,15 @@ html[data-decoration='reduced'] .guitar-card .gc-cable { display: none; }
 .hw-sing[data-look='words'] .sw-tape { display: none; }
 /* auto-tune and the voice changer: a strip of tape you can press, beside "Vocals" */
 .hw-sing .sw-tune { left: 112px; display: inline-flex; align-items: center; gap: 6px; border: 0; cursor: pointer; pointer-events: auto; transform: rotate(0.8deg); }
-.hw-sing .sw-tune:hover { background: #f4eedf; }
+/* 4.18.1: still a strip of tape, but plainly a button: an arrow, lifted with a deeper shadow on hover, a dashed tear line before the arrow */
+.hw-sing .sw-tune { box-shadow: 0 2px 4px #000b, inset 0 -2px 0 #0000001f; transition: transform .12s, box-shadow .12s, background .12s; }
+.hw-sing .sw-tune:hover { background: #f4eedf; transform: rotate(0deg) translateY(-2px); box-shadow: 0 5px 9px #000c, inset 0 -2px 0 #0000001f; }
+.hw-sing .sw-tune:active { transform: rotate(0deg) translateY(0); box-shadow: 0 1px 2px #000a; }
+.hw-sing .sw-tune .sw-tune-arrow { display: inline-flex; margin-left: 2px; padding-left: 6px; border-left: 1px dashed #231d1766; }
+.hw-sing .sw-tune .sw-tune-arrow svg { width: 11px; height: 11px; stroke-width: 3; }
+.hw-sing .sw-tune.sw-tune-new { animation: sw-tune-nudge 3.2s ease-in-out 1.2s infinite; }
+@keyframes sw-tune-nudge { 0%, 82%, 100% { transform: rotate(0.8deg); } 86% { transform: rotate(-3deg) translateY(-2px); } 90% { transform: rotate(3deg) translateY(-2px); } 94% { transform: rotate(-1.5deg); } }
+html[data-calm='true'] .hw-sing .sw-tune.sw-tune-new { animation: none; }
 .hw-sing .sw-tune[aria-pressed='true'] { background: #f1ce68; }
 .hw-sing .sw-tune svg { width: 12px; height: 12px; }
 .hw-sing[data-look='words'] .sw-tune { display: inline-flex; left: 22px; top: -30px; }
@@ -2369,3 +2377,4 @@ body:has(.highway:not([hidden])) .menu .label { color: #a99e8c; text-transform: 
    backgrounds, covers sliding by) is redrawn every frame and can flicker on Windows when a menu or a
    card opens. Every panel that used it is nearly solid, so it looks the same without. */
 *, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+@media (prefers-reduced-motion: reduce) { .hw-sing .sw-tune.sw-tune-new { animation: none; } }

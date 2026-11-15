@@ -152,6 +152,10 @@ export function tuneMenu() {
 // the sound thread's note readings go to the microphone's tracker, which the score reads
 autotune.addEventListener('pitch', (e) => mic.feed(e.detail));
 const NOTE_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+// 4.18.1: say when the microphone is pulled out and when it's back
+mic.addEventListener('lost', () => toast({ title: 'Microphone unplugged', message: 'Plug it back in: it comes back by itself.', kind: 'info' }));
+mic.addEventListener('back', () => toast({ title: 'Microphone back', message: mic.name ? mic.name.split(' (')[0] : '', kind: 'info' }));
+
 export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
   const chip = h('button.hw-chip.hw-mode.hw-sing-chip', { type: 'button', hidden: true });
   const kchip = h('button.hw-chip.hw-mode.hw-karaoke-chip', { type: 'button', hidden: true });
@@ -169,17 +173,30 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
   // the score so far rides on a second strip of tape at the right, clear of the bars
   const score = h('div.sw-score', { hidden: true });
   // auto-tune and the voice changer on their own strip of tape, right on the lane
-  const tuneTape = h('button.sw-tape.sw-tune', { type: 'button', title: 'Auto-tune and the voice changer' });
+  const tuneTape = h('button.sw-tape.sw-tune', { type: 'button', title: 'Click for auto-tune, voices and hearing yourself' });
   const paintTune = () => {
     tuneTape.innerHTML = icon('wand');
     tuneTape.append(h('span', { text: tuneLabel() }));
+    // 4.18.1: it looked like a label; the arrow says it opens a menu
+    tuneTape.insertAdjacentHTML('beforeend', `<i class="sw-tune-arrow">${icon('chevron')}</i>`);
     tuneTape.setAttribute('aria-pressed', String(autotune.wanted));
+    tuneTape.setAttribute('aria-haspopup', 'menu');
+    // a little wiggle until it has been opened once
+    let opened = false;
+    try {
+      opened = localStorage.getItem('stagehand.tuneOpened') === '1';
+    } catch (_) {}
+    tuneTape.classList.toggle('sw-tune-new', !opened);
   };
   paintTune();
   autotune.addEventListener('change', paintTune);
   tuneTape.onclick = (e) => {
     e.stopPropagation();
     const r = tuneTape.getBoundingClientRect();
+    try {
+      localStorage.setItem('stagehand.tuneOpened', '1');
+    } catch (_) {}
+    tuneTape.classList.remove('sw-tune-new');
     showMenu(r.left, r.bottom + 6, tuneMenu());
   };
   lane.append(tape, tuneTape, score, cv, wordsBox, badge);
