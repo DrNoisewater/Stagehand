@@ -1,4 +1,4 @@
-# 4.19.0 — Singing checked against the singer, note by note; the real pitch line (2026-11-15, not released; nothing tried on the user’s PC)
+# 4.19.0 — Singing checked against the singer, note by note; the real pitch line; The Lab's fourteen pedals (2026-11-15, released 2026-11-15; nothing tried on the user’s PC)
 
 The user: "I want singing to be as accurate as it can possibly be. Karaoke is the main way to sing; Sing & play is
 the option for two people." Five asks for singing, plus "look into a higher-quality stem split" (research first).
