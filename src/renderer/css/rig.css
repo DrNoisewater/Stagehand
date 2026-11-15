@@ -356,8 +356,8 @@ html[data-decoration='reduced'] .rr-ititle h3::after { display:none; }
 /* a painted cover-up (no clear slot left on the photo) has hard edges: it is the slot itself */
 .gear-face .photo-patch.drawn, .gear-face .photo-patch.horiz.drawn { -webkit-mask-image:none; mask-image:none; border-radius:2px; }
 /* buttons that each turn one thing on or off: off ones go dark, on ones glow */
-.gear-face .gear-pushbtn.toggle:not(.on) { background:#0009; }
-.gear-face .gear-pushbtn.toggle.on { background:none; box-shadow:0 0 0 1.5px #fff6d099,0 0 12px 3px #ffd25a77; }
+.gear-face .gear-pushbtn.onoff:not(.on) { background:#0009; }
+.gear-face .gear-pushbtn.onoff.on { background:none; box-shadow:0 0 0 1.5px #fff6d099,0 0 12px 3px #ffd25a77; }
 /* buttons printed on the pedal that act like footswitches (Claude's, Mimic's): a lit one glows */
 .gear-face .gear-stomp.momentary.latched { box-shadow:0 0 0 2px #fff3c4cc,0 0 14px 4px #ffcf6a99; }
 .gear-face .gear-stomp.rect.momentary.latched { transform:none; }

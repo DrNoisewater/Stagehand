@@ -1,4 +1,4 @@
-/** 4.20: The Lab's fourteen pedals on the real page. The Gear page's Lab shelf for guitar and bass;
+/** 4.20: The Lab's forty-four pedals on the real page, in their seven little sections. The Gear page's Lab shelf for guitar and bass;
  * each pedal's own picture with every control on it working (knobs, selectors, sliders, faders,
  * switches with their printed words lit, Invader's buttons, Blorp's pad, footswitches held and let
  * go, Boing's lever springing back); its spec sheet; the rig (Create a tone) with the pedal's own
@@ -9,6 +9,8 @@
 const path = require('path');
 const G = require('../../src/renderer/data/gear2014.json');
 const LAB = Object.keys(G).filter((k) => G[k].c === 'The Lab');
+const KIND = Object.fromEntries(['Annwn', 'Apoptosis', 'Bifrost', 'BluePrince', 'Claude', 'DejaVu', 'Duat', 'EventHorizon', 'Fenrir', 'Inanna', 'Janus', 'Kitsune', 'Kukulkan', 'Long', 'Maui', 'Mimic', 'Molt', 'Nataraja', 'Nothing', 'Olympus', 'Ouroboros', 'Parasite', 'Reliquary', 'Seance', 'Severed', 'Shango', 'Tezcatl', 'Veles', 'WhoAreYou', 'Wukong'].map((n, i) => [`Pedal_${n}`, 15 + i]));
+const SECTIONS = ['Voices and mouths', 'Synths and monsters', 'Pitch and harmony', 'Echoes and loops', 'Freezes, slices and slowdowns', 'Rooms and skies', 'Rhythm and shape'];
 const BITS = { Pedal_Quack: 1, Pedal_Croak: 2, Pedal_Caterwaul: 3, Pedal_Blorp: 4, Pedal_Gobble: 5, Pedal_Slug: 6, Pedal_Boing: 7, Pedal_Gremlin: 8, Pedal_Invader: 9, Pedal_Confetti: 10, Pedal_Blender: 11, Pedal_Fossil: 12, Pedal_Charmer: 13, Pedal_Haunt: 14 };
 
 module.exports = async ({ page, outDir, check }) => {
@@ -20,6 +22,9 @@ module.exports = async ({ page, outDir, check }) => {
     else await page.screenshot({ path: path.join(outDir, `lab-${name}.png`) });
   };
   const lab = () => page.evaluate(() => ({ ...window.__rig.lab }));
+  // is footswitch `bit` of pedal `key` down in the engine? (the thirty that followed have their own slot)
+  const down = async (key, bit) => page.evaluate(([k, n, b, old]) => (n ? (window.__rig.labWords[n] | 0) & (1 << b) : window.__rig.lab.labHold & (1 << old)) !== 0, [key, KIND[key] || 0, bit, BITS[key] || 0]);
+  const leverAt = (key) => page.evaluate(([n]) => (n ? window.__rig.labLevers[n] || 0 : window.__rig.lab.labLever), [KIND[key] || 0]);
   const strip = (root, n) => page.locator(`${root} .gb-strip .rknob[aria-label="${n}"]`).first();
   const val = async (loc) => Number(await loc.getAttribute('aria-valuenow'));
   const drag = async (loc, dx, dy) => {
@@ -43,7 +48,10 @@ module.exports = async ({ page, outDir, check }) => {
   await shelf.click();
   await page.waitForTimeout(500);
   const names = await page.locator('#page-gear .sr-grid .sr-card .sr-card-name').allTextContents();
-  check(LAB.every((k) => names.includes(G[k].n)) && names.length === 14, `The Lab holds the fourteen pedals (${names.join(', ')})`);
+  check(LAB.length === 44 && LAB.every((k) => names.includes(G[k].n)) && names.length === 44, `The Lab holds the forty-four pedals (${names.length})`);
+  const heads = await page.locator('#page-gear .sr-grid .lab-sec').allTextContents();
+  check(heads.join('|') === SECTIONS.join('|'), `The Lab is in seven little sections (${heads.join(', ')})`);
+  check(await page.locator('#page-gear .sr-grid').evaluate((g) => [...g.children].every((c, i, a) => !c.classList.contains('lab-sec') || (a[i + 1] && a[i + 1].classList.contains('sr-card')))), 'every section has its pedals under it');
   await shot('shelf');
   const R = '#page-gear .sr-show';
   for (const key of LAB) {
@@ -97,71 +105,124 @@ module.exports = async ({ page, outDir, check }) => {
       const marks = await page.locator(`${R} .gear-mark`).evaluateAll((els) => els.map((e) => e.classList.contains('on')));
       if ((photo.marks?.[n] || []).some(Boolean)) check(marks.filter(Boolean).length >= 1, `${name}: the word for ${label}'s position lights up`);
     }
-    // push buttons (Invader)
+    // push buttons that pick one of a few (Invader's voices, Annwn's textures, Tezcatl's arrows …)
     for (const n of Object.keys(photo.buttons || {})) {
-      const label = G[key].k.find(([x]) => x.toLowerCase() === n)[0];
-      const bs = page.locator(`${R} .gear-pushbtn`);
-      for (let i = 0; i < (await bs.count()); i++) {
-        await bs.nth(i).click();
+      const k = G[key].k.find(([x]) => x.toLowerCase() === n);
+      const label = k[0];
+      const words = k[5].labels;
+      const bs = page.locator(`${R} .gear-pushbtn:not(.onoff)[aria-label^="${label}: "]`);
+      const rects = photo.buttons[n];
+      let j = 0;
+      for (let i = 0; i < rects.length; i++) {
+        if (!rects[i]) continue;
+        const b = bs.nth(j++);
+        if ((await val(strip(R, label))) === i) await b.click(), await page.waitForTimeout(120); // press the lit one again: it stops (Tezcatl)
+        await b.click();
         await page.waitForTimeout(150);
         const on = await bs.evaluateAll((els) => els.map((e) => e.classList.contains('on')));
-        check((await val(strip(R, label))) === i && on.filter(Boolean).length === 1 && on[i], `${name}: button ${G[key].k.find(([x]) => x === label)[5].labels[i]} picks that voice and alone glows`);
+        check((await val(strip(R, label))) === i && on.filter(Boolean).length === 1, `${name}: button ${words[i]} picks it and alone glows`);
+      }
+      if (photo.unpick && photo.unpick[n] !== undefined) {
+        await bs.nth(j - 1).click();
+        await page.waitForTimeout(150);
+        check((await val(strip(R, label))) === photo.unpick[n], `${name}: pressing the lit ${label} button again goes back to ${words[photo.unpick[n]]}`);
       }
     }
-    // the pad (Blorp)
+    // buttons that each turn one thing on or off (Kitsune's tails, Nataraja's steps, Wukong's clones)
+    for (const n of Object.keys(photo.toggles || {})) {
+      const label = G[key].k.find(([x]) => x.toLowerCase() === n)[0];
+      const b = page.locator(`${R} .gear-pushbtn.onoff[aria-label="${label}"]`).first();
+      const before = await val(strip(R, label));
+      await b.click();
+      await page.waitForTimeout(150);
+      const after = await val(strip(R, label));
+      check(after !== before && (await b.evaluate((e) => e.classList.contains('on'))) === after > 0, `${name}: ${label} turns on and off on the picture (${before} → ${after})`);
+    }
+    // a saved lever or ribbon (Olympus's Thunder, Wukong's staff, Long's Breath)
+    for (const [n, vert] of [...Object.keys(photo.fills || {}).map((n) => [n, true]), ...Object.keys(photo.hfills || {}).map((n) => [n, false])]) {
+      const k = G[key].k.find(([x]) => x.toLowerCase() === n);
+      const f = page.locator(`${R} .gear-fill[aria-label="${k[0]}"]`).first();
+      const b = await f.boundingBox();
+      await page.mouse.move(b.x + (vert ? b.width / 2 : b.width * 0.9), b.y + (vert ? b.height * 0.1 : b.height / 2));
+      await page.mouse.down();
+      await page.mouse.up();
+      await page.waitForTimeout(200);
+      const v = await val(strip(R, k[0]));
+      check(v > k[2] + 0.8 * (k[3] - k[2]), `${name}: ${k[0]} set by its ${vert ? 'lever' : 'ribbon'} on the picture (${v})`);
+      await f.dblclick();
+      await page.waitForTimeout(150);
+    }
+    // the pad (Blorp's mouth, Annwn's veil, Event Horizon's gravity, Tezcatl's mirror)
     if (photo.pad) {
+      const [lx, ly] = [photo.pad[4], photo.pad[5]].map((n) => G[key].k.find(([x]) => x.toLowerCase() === n)[0]);
       const pad = page.locator(`${R} .gear-pad`).first();
       const b = await pad.boundingBox();
-      await page.mouse.move(b.x + b.width * 0.1, b.y + b.height * 0.1);
+      await page.mouse.move(b.x + b.width * 0.3, b.y + b.height * 0.3);
       await page.mouse.down();
       await page.mouse.move(b.x + b.width * 0.85, b.y + b.height * 0.8, { steps: 6 });
       await page.mouse.up();
       await page.waitForTimeout(200);
-      const x = await val(strip(R, 'Mouth X')), y = await val(strip(R, 'Mouth Y'));
-      check(x > 70 && y < 35, `${name}: dragging the mouth pad sets both (${Math.round(x)} across, ${Math.round(y)} up)`);
+      const x = await val(strip(R, lx)), y = await val(strip(R, ly));
+      check(x > 70 && y < 35, `${name}: dragging the pad sets both ${lx} and ${ly} (${Math.round(x)} across, ${Math.round(y)} up)`);
       await pad.focus();
       await page.keyboard.press('ArrowUp');
-      check((await val(strip(R, 'Mouth Y'))) > y, `${name}: the arrow keys move the mouth too`);
+      check((await val(strip(R, ly))) > y, `${name}: the arrow keys move it too`);
       await pad.dblclick();
       await page.waitForTimeout(150);
-      check((await val(strip(R, 'Mouth X'))) === 50 && (await val(strip(R, 'Mouth Y'))) === 50, `${name}: double-click puts the mouth back in the middle`);
+      check((await val(strip(R, lx))) === 50 && (await val(strip(R, ly))) === 50, `${name}: double-click puts it back in the middle`);
     }
-    // footswitches you hold: the engine hears it while held and lets go after
+    // footswitches and buttons that act at once: held ones play while held, a tap acts on the press,
+    // a lit one stays lit until pressed again. The engine hears each one; letting go lets go.
     for (const n of Object.keys(photo.stomps || {}).filter((n) => n !== 'on')) {
-      const st = page.locator(`${R} .gear-stomp.momentary`).first();
+      const [mn, type, bit = 0] = (G[key].m || []).find(([x]) => x.toLowerCase() === n);
+      const st = page.locator(`${R} .gear-stomp.momentary[aria-label="${mn}"]`).first();
       const b = await st.boundingBox();
+      if (type === 'latch') {
+        await st.click();
+        await page.waitForTimeout(150);
+        const lit = (await down(key, bit)) && (await st.evaluate((e) => e.classList.contains('held')));
+        await st.click();
+        await page.waitForTimeout(150);
+        check(lit && !(await down(key, bit)), `${name}: ${mn} lights with a click and goes out with the next`);
+        continue;
+      }
       await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
       await page.mouse.down();
       await page.waitForTimeout(150);
-      const held = (await lab()).labHold;
+      const held = await down(key, bit);
       const looks = await st.evaluate((e) => e.classList.contains('held'));
       await page.mouse.up();
       await page.waitForTimeout(150);
-      const after = (await lab()).labHold;
-      check((held & (1 << BITS[key])) && looks && !(after & (1 << BITS[key])), `${name}: holding ${n} on the picture plays it, letting go stops it (${held} then ${after})`);
+      check(held && looks && !(await down(key, bit)), `${name}: ${type === 'tap' ? 'pressing' : 'holding'} ${mn} on the picture plays it, letting go lets go`);
       // and from the keyboard on the strip
       const hb = page.locator(`${R} .rhold[data-moment="${n}"]`).first();
       await hb.focus();
       await page.keyboard.down('Space');
       await page.waitForTimeout(100);
-      const k1 = (await lab()).labHold;
+      const k1 = await down(key, bit);
       await page.keyboard.up('Space');
       await page.waitForTimeout(100);
-      check((k1 & (1 << BITS[key])) && !((await lab()).labHold & (1 << BITS[key])), `${name}: ${n} also holds from the keyboard (Space)`);
+      check(k1 && !(await down(key, bit)), `${name}: ${mn} also works from the keyboard (Space)`);
     }
-    // the lever (Boing): pulled halfway, then springs back
-    for (const n of Object.keys(photo.lever || {})) {
-      const lv = page.locator(`${R} .gear-lever`).first();
-      const b = await lv.boundingBox();
-      await page.mouse.move(b.x + b.width / 2, b.y + 5);
-      await page.mouse.down();
-      await page.mouse.move(b.x + b.width / 2, b.y + b.height * 0.5, { steps: 5 });
-      await page.waitForTimeout(100);
-      const mid = (await lab()).labLever;
-      await shot(`${name.toLowerCase()}-bend`, page.locator(`${R} .gear-face`).first());
-      await page.mouse.up();
-      await page.waitForTimeout(200);
-      check(mid > 0.35 && mid < 0.65 && (await lab()).labLever === 0, `${name}: pull the ${n} lever halfway (${mid.toFixed(2)}) and it springs back`);
+    // a footswitch in the list that isn't on the picture still works from the strip
+    for (const [mn, type, bit = 0] of (G[key].m || []).filter(([x, t]) => t !== 'lever' && !(photo.stomps || {})[x.toLowerCase()])) {
+      const hb = page.locator(`${R} .rhold[data-moment="${mn.toLowerCase()}"]`).first();
+      if (type === 'latch') {
+        await hb.click();
+        await page.waitForTimeout(100);
+        const lit = await down(key, bit);
+        await hb.click();
+        await page.waitForTimeout(100);
+        check(lit && !(await down(key, bit)), `${name}: ${mn} lights and goes out on the strip`);
+      } else {
+        await hb.focus();
+        await page.keyboard.down('Space');
+        await page.waitForTimeout(100);
+        const k1 = await down(key, bit);
+        await page.keyboard.up('Space');
+        await page.waitForTimeout(100);
+        check(k1 && !(await down(key, bit)), `${name}: ${mn} works on the strip`);
+      }
     }
     // what each control does, in words
     const sheet = await page.evaluate(() => {
@@ -169,7 +230,7 @@ module.exports = async ({ page, outDir, check }) => {
       return c ? { text: (c.querySelector('.gear-about-text') || {}).textContent || '', dd: [...c.querySelectorAll('dd')].map((d) => d.textContent.trim()) } : null;
     });
     check(!!sheet && sheet.text.length > 60 && sheet.dd.length >= G[key].k.length && sheet.dd.every((t) => t && t !== 'Turn it and listen'), `${name}: the spec sheet says what it and each control does`);
-    await shot(name.toLowerCase(), page.locator(`${R} .gear-face`).first());
+    await shot(name.toLowerCase().replace(/\s+/g, ''), page.locator(`${R} .gear-face`).first());
   }
   // a control that does nothing in the mode you're in is dimmed
   await page.locator('#page-gear .sr-grid .sr-card', { hasText: 'Gobble' }).first().click();
@@ -196,7 +257,7 @@ module.exports = async ({ page, outDir, check }) => {
   const liveSpec = () => page.evaluate(async () => { const { toSpec } = await import('./js/gearspec.js'); return window.__rig.liveTone ? toSpec(window.__rig.liveTone) : ''; });
   await page.locator('#page-gear .sr-live').click();
   await page.waitForTimeout(700);
-  check(/gear\tpre\tPedal_Confetti/.test(await liveSpec()), 'Play it with my guitar puts Confetti in front of the amp');
+  check(/gear\tpost\tPedal_Confetti/.test(await liveSpec()), 'Play it with my guitar puts Confetti after the amp, like any echo');
   await page.locator('#page-gear .sr-live').click();
   await page.waitForTimeout(300);
   // bass: all fourteen
@@ -207,7 +268,7 @@ module.exports = async ({ page, outDir, check }) => {
     await page.locator('#page-gear .sr-shelf', { hasText: 'The Lab' }).first().click();
     await page.waitForTimeout(400);
     const bn = await page.locator('#page-gear .sr-grid .sr-card .sr-card-name').allTextContents();
-    check(LAB.every((k) => bn.includes(G[k].n)), `with Bass picked The Lab still has all fourteen (${bn.length})`);
+    check(LAB.every((k) => bn.includes(G[k].n)), `with Bass picked The Lab still has all forty-four (${bn.length})`);
     const allB = page.locator('#page-gear .sr-who button', { hasText: 'All' }).first();
     if (await allB.count()) await allB.click();
   } else check(false, 'the Gear page has a Bass choice');
@@ -220,7 +281,8 @@ module.exports = async ({ page, outDir, check }) => {
     await page.locator('.rr-shelf', { hasText: 'The Lab' }).first().click();
     await page.waitForTimeout(400);
     const cards = await page.locator('.rr-grid .rr-card').evaluateAll((els) => els.map((e) => ({ n: (e.querySelector('.rr-card-name') || {}).textContent, other: e.classList.contains('other') })));
-    check(cards.length === 14 && cards.every((c) => !c.other), `the rig's Lab shelf: fourteen pedals, none greyed out for ${kind}`);
+    check(cards.length === 44 && cards.every((c) => !c.other), `the rig's Lab shelf: forty-four pedals, none greyed out for ${kind}`);
+    check((await page.locator('.rr-grid .lab-sec').allTextContents()).join('|') === SECTIONS.join('|'), `the rig's Lab shelf is in its seven sections (${kind})`);
     const pick = kind === 'guitar' ? 'Haunt' : 'Gremlin';
     await page.locator('.rr-grid .rr-card', { hasText: pick }).first().click();
     await page.waitForTimeout(900);
@@ -279,6 +341,7 @@ module.exports = async ({ page, outDir, check }) => {
     const groups = await page.locator('.modal .pb-pick h5').allTextContents();
     const choices = await page.locator('.modal .pb-pick .pb-choice').evaluateAll((els) => els.map((e) => e.getAttribute('data-key')));
     check(groups.some((g) => /The Lab/.test(g)) && LAB.every((k) => choices.includes(k)), `the Pedals step offers all of The Lab on bass (${groups.join(' | ')})`);
+    check((await page.locator('.modal .pb-pick h6.pb-sub').allTextContents()).join('|') === SECTIONS.join('|'), 'and in its seven sections');
     await page.locator('.modal .pb-choice[data-key="Pedal_Boing"]').first().click();
     await page.waitForTimeout(500);
     const knobs = await page.locator('.modal .pb-pedal .rknob').evaluateAll((els) => els.map((e) => e.getAttribute('aria-valuetext')));

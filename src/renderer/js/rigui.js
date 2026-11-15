@@ -567,7 +567,7 @@ export function gearFaceplate(key, controls, { enlarged = false, bypass = null }
     if (!original) continue;
     const name = original.getAttribute('aria-label');
     const min = Number(original.getAttribute('aria-valuemin'));
-    const b = h('button.gear-pushbtn.toggle', { type: 'button', 'aria-label': name, style: { left: `${x - w / 2}%`, top: `${y - hh / 2}%`, width: `${w}%`, height: `${hh}%` } });
+    const b = h('button.gear-pushbtn.onoff', { type: 'button', 'aria-label': name, style: { left: `${x - w / 2}%`, top: `${y - hh / 2}%`, width: `${w}%`, height: `${hh}%` } });
     b.setAttribute('data-ctl', n);
     b.disabled = original.disabled;
     let v = Number(original.getAttribute('aria-valuenow'));

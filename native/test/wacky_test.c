@@ -97,8 +97,8 @@ int main(void) {
         int sr = rates[r];
         int nn = bass ? 8 : 10;
         double gap = bass ? 0.42 : 0.36;
-        /* the cathedral, the deepest gate and the echo that eats itself ring on longest */
-        int longtail = !strcmp(p->key, "Pedal_Reliquary") || !strcmp(p->key, "Pedal_Duat") || !strcmp(p->key, "Pedal_Ouroboros");
+        /* the cathedral, the deepest gate, the echo that eats itself and the black hole ring on longest */
+        int longtail = !strcmp(p->key, "Pedal_Reliquary") || !strcmp(p->key, "Pedal_Duat") || !strcmp(p->key, "Pedal_Ouroboros") || !strcmp(p->key, "Pedal_EventHorizon");
         int len = (int)((nn * gap + (longtail ? 9.0 : 5.0)) * sr);
         float *in = calloc(len, sizeof(float)), *out = calloc(len, sizeof(float)), *out2 = calloc(len, sizeof(float));
         for (int i = 0; i < nn; i++) pluck(in, len, (int)(i * gap * sr), bass ? bas[i] : gtr[i], 0.12f, i == nn - 1 ? 1.4 : gap * 0.95, sr);
