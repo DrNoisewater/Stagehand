@@ -98,7 +98,7 @@ for f in sorted(os.listdir(os.path.join(ART, 'full'))):
             e['sliders'] = au['sliders']
         # 4.20 (The Lab): selectors' printed positions, horizontal faders, switches and the words
         # beside them, footswitches and their lights, the touch pad, push buttons and a lever
-        for extra in ('stops', 'hsliders', 'switches', 'marks', 'stomps', 'leds', 'pad', 'buttons', 'lever'):
+        for extra in ('stops', 'hsliders', 'switches', 'marks', 'stomps', 'leds', 'pad', 'buttons', 'lever', 'toggles', 'fills', 'hfills', 'unpick'):
             if au.get(extra):
                 e[extra] = au[extra]
     if e.get('how') not in ('hand', 'audit'):

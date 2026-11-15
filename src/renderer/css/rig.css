@@ -352,3 +352,32 @@ html[data-decoration='reduced'] .rr-ititle h3::after { display:none; }
 /* a horizontal fader's cover-up is a little larger than the cap and soft at the ends, so the cap's
    shadow in the photo doesn't show round it */
 .gear-face .photo-patch.horiz { -webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent); mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent); }
+/* 4.20 (the thirty that followed) */
+/* a painted cover-up (no clear slot left on the photo) has hard edges: it is the slot itself */
+.gear-face .photo-patch.drawn, .gear-face .photo-patch.horiz.drawn { -webkit-mask-image:none; mask-image:none; border-radius:2px; }
+/* buttons that each turn one thing on or off: off ones go dark, on ones glow */
+.gear-face .gear-pushbtn.toggle:not(.on) { background:#0009; }
+.gear-face .gear-pushbtn.toggle.on { background:none; box-shadow:0 0 0 1.5px #fff6d099,0 0 12px 3px #ffd25a77; }
+/* buttons printed on the pedal that act like footswitches (Claude's, Mimic's): a lit one glows */
+.gear-face .gear-stomp.momentary.latched { box-shadow:0 0 0 2px #fff3c4cc,0 0 14px 4px #ffcf6a99; }
+.gear-face .gear-stomp.rect.momentary.latched { transform:none; }
+.gear-face .gear-stomp.btnface.held { box-shadow:inset 0 0 0 999px #0003,0 0 12px 3px #ffd25a99; }
+/* a round pad (a mirror, a veil, a well of gravity) */
+.gear-face .gear-pad.round { border-radius:50%; }
+/* a saved lever or ribbon: the part up to its setting glows */
+.gear-face .gear-fill { position:absolute; display:block; padding:0; border:0; background:none; cursor:ns-resize; touch-action:none; z-index:2; border-radius:6px; }
+.gear-face .gear-fill.horiz { cursor:ew-resize; }
+.gear-face .gear-fill:hover { box-shadow:inset 0 0 0 1.5px #e3d8bf88; }
+.gear-face .gear-fill:focus-visible { outline:3px solid #ffe073; outline-offset:2px; z-index:5; }
+.gear-face .gf-glow { position:absolute; left:0; right:0; bottom:0; height:0; border-radius:inherit; pointer-events:none; background:linear-gradient(#ffd25a99,#ff9e3a44); mix-blend-mode:screen; }
+.gear-face .gear-fill.horiz .gf-glow { top:0; right:auto; width:0; height:auto; background:linear-gradient(90deg,#ff9e3a44,#ffd25a99); }
+.gear-face .gear-fill .gsl-tip { display:none; }
+.gear-face .gear-fill:is(:hover,:focus-visible) .gsl-tip { display:block; }
+/* a control that isn't a round knob (a mushroom, a wheel, a censer): nothing turns, a ring shows it */
+.gear-face .gear-hotspot.still .ring::after { content:''; position:absolute; inset:-7%; border-radius:50%; pointer-events:none; opacity:.75;
+  background:conic-gradient(from -135deg,#ffd25add var(--deg,0deg),#ffffff22 var(--deg,0deg) 270deg,transparent 270deg);
+  -webkit-mask:radial-gradient(closest-side,transparent 88%,#000 90%); mask:radial-gradient(closest-side,transparent 88%,#000 90%); }
+.gear-face .gear-hotspot.still:is(:hover,:focus-visible) .ring::after { opacity:1; }
+/* 4.20: The Lab's little sections on the gear shelves */
+:is(.rr-grid,.sr-grid) .lab-sec { grid-column:1 / -1; margin:10px 0 0; padding:0 0 3px; font:700 11px/1.2 'Typewriter Stagehand',monospace; letter-spacing:.08em; text-transform:uppercase; color:#cbbf9f; border-bottom:1px solid #3a3229; }
+:is(.rr-grid,.sr-grid) .lab-sec:first-child { margin-top:0; }

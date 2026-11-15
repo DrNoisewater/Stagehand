@@ -27,7 +27,7 @@ import { buildTone, freshChoices } from './tonerecipes.js';
 import { demoButton, stopDemo, demoPlaying } from './rigui.js';
 import { realAmpStrip } from './realamps.js';
 import { loadCaptures } from './captures.js';
-import { gearItems, GEAR_CATS, gearPanel, micPanel, rigBoard, gearThumb, knobHelp, defaultSlot, CAB_RE } from './gearbench.js';
+import { gearItems, GEAR_CATS, gearPanel, micPanel, rigBoard, gearThumb, knobHelp, defaultSlot, CAB_RE, labSections } from './gearbench.js';
 import { FAMOUS, GENRES, famousTone, searchFamous } from './famous-tones.js';
 import { playBuild, playSave } from './rigbuild.js';
 
@@ -551,11 +551,16 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
     wallHint.textContent = rep ? `Pick what replaces ${gearName(rep.key)}` : words.length ? `${list.length} found` : `${GEAR_CATS.find((c) => c.id === R.cat).hint}: click one to ${R.cat === 'amps' || R.cat === 'bassamps' ? 'use it as your amp' : R.cat === 'cabs' ? 'use it as your cabinet' : 'put it on your board'}`;
     const sy = wallGrid.scrollTop;
     wallGrid.innerHTML = '';
-    for (const it of list) {
+    // 4.20: The Lab is shelved in little sections of similar pedals
+    const groups = !words.length && R.cat === 'wacky' ? labSections(list) : [['', list]];
+    for (const [title, items] of groups) {
+    if (title) wallGrid.append(h('h4.lab-sec', { text: title }));
+    for (const it of items) {
       const used = inUse.has(it.key);
       const card = h(`button.rr-card${used ? '.used' : ''}${mine(it) ? '' : '.other'}`, { type: 'button', title: `${it.name}${it.bass ? ' (bass)' : ''}${used ? ' · on your board' : ''}` }, h('span.rr-card-art', null, gearThumb(it.key === it.defaultKey ? it.key : it.key, it.slot)), h('span.rr-card-name', { text: it.name }), used ? h('span.rr-card-badge', { text: 'In use' }) : it.bass && k !== 'bass' ? h('span.rr-card-badge.dim', { text: 'Bass' }) : '');
       card.onclick = () => addGear(it);
       wallGrid.append(card);
+    }
     }
     if (!list.length) wallGrid.append(h('p.rr-none', { text: 'Nothing matches.' }));
     wallGrid.scrollTop = words.length ? 0 : sy;

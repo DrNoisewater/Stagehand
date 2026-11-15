@@ -224,7 +224,7 @@ static float hil_run(wk_hil *h, float x, float hz, double sr) {
   h->ph += hz / sr;
   h->ph -= (double)(long long)h->ph;
   if (h->ph < 0) h->ph += 1;
-  return I * sh_sin01((float)h->ph + 0.25f) - b * sh_sin01((float)h->ph);
+  return I * sh_sin01((float)h->ph + 0.25f) + b * sh_sin01((float)h->ph); /* hz > 0 moves up */
 }
 
 /* ------------------------------------------------------------ recording -- */

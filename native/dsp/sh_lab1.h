@@ -122,7 +122,7 @@ static float apop_run(wk_c *c, float x, float in0, float *dry) {
     else gk = u < 2 ? sh_sinf_fast((float)SH_PI * 0.5f * u) : 0.f; /* grows in over its time, fades over the same */
     y += b[k] * gk, alive += gk;
   }
-  if (alive < 1e-4f) s->on = 0;
+  if (alive < 1e-4f && s->t > 0.01f) s->on = 0; /* (a bloom starts from nothing) */
   return y;
 }
 
@@ -212,7 +212,7 @@ static const float BP_ROOM[3][4] = {
     /* size, decay s, brightness Hz, wait ms */
     {0.45f, 0.7f, 7000, 6},
     {1.7f, 3.0f, 4800, 32},
-    {1.1f, 1.7f, 1100, 14},
+    {1.1f, 1.7f, 650, 14},
 };
 typedef struct {
   wk_c c;
@@ -331,9 +331,10 @@ static float eh_run(wk_c *c, float x, float in0, float *dry) {
   rec_push(&s->src, back);
   float semis = s->red * (col ? 2.f : 1.f);
   double rate = sh_exp2f_fast(-semis / 12.f);
-  s->rp += 1.0 / s->stretch; /* the read point moves slower than time: a stretch */
-  if (s->rp > 0) s->rp = 0;
-  if (s->rp < -(double)(s->src.len - 4 * s->glen)) s->rp = -(double)(s->src.len - 4 * s->glen);
+  /* the read point moves slower than time (a stretch), so it falls behind; when it has fallen as far
+     back as the recording reaches, it starts again from now (the grains hide the jump) */
+  s->rp += 1.0 / s->stretch - 1.0;
+  if (s->rp < -(double)(s->src.len - 4 * s->glen)) s->rp = 0;
   if (--s->cnt2 <= 0) {
     s->cnt2 = s->hop;
     double start = (double)s->src.w + s->rp - s->glen * 1.2;
@@ -458,15 +459,13 @@ static float olym_run(wk_c *c, float x, float in0, float *dry) {
   dl_push(&s->dl, v + 0.35f * e);
   s->f.freeze = lab_on(c, 1);
   float r = fdn_run(&s->f, v);
-  *dry = 0; /* the fuzz is the main sound */
-  return v + s->echo * e + s->cloud * 1.5f * r;
+  return v + s->echo * e + s->cloud * 1.5f * r; /* Mix: from your own sound to the storm */
 }
 
 static wk_c *olym_build(const sh_gear *g, sh_arena *a, double sr, int bass, const float *live) {
   olym_t *s = (olym_t *)ar_alloc(a, sizeof(olym_t));
   if (!s) return 0;
   wk_base(&s->c, WK_OLYMPUS, g, sr, bass, live, 1.f);
-  s->c.own = 1;
   s->thunder = (float)sh_clamp(wk_raw(g, "thunder", 45) / 100.0, 0, 1);
   s->sky = (float)sh_clamp(wk_raw(g, "sky", 55) / 100.0, 0, 1);
   s->rate = (float)sh_clamp(wk_raw(g, "storm", 4), 0, 10);

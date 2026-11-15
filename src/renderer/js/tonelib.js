@@ -318,10 +318,11 @@ export function knobsOf(g) {
   });
 }
 
-/** 4.20: a piece's footswitches and levers (The Lab): [{ name, type: 'hold'|'lever' }]. Never saved. */
+/** 4.20: a piece's footswitches and levers (The Lab): [{ name, type: 'hold'|'tap'|'latch'|'lever', bit }].
+ * Never saved. */
 export function momentsOf(g) {
   const info = gearInfo(g.key);
-  return ((info && info.m) || []).map(([name, type]) => ({ name, type }));
+  return ((info && info.m) || []).map(([name, type, bit]) => ({ name, type, bit: bit || 0 }));
 }
 
 export function shortGearName(key) {
