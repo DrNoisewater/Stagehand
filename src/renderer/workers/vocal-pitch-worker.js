@@ -1,5 +1,6 @@
 /* Sing along: reads each syllable's note off the vocals stem, away from the page. */
-import { pitchesFromAudio, pcmReader } from '../js/vocal-pitch.js';
+import { pcmReader } from '../js/vocal-pitch.js';
+import { melodyFromAudio } from '../js/vocal-melody.js';
 
 self.onmessage = (e) => {
   const { id, dataOffset, channels, sampleRate, syl } = e.data;
@@ -9,7 +10,8 @@ self.onmessage = (e) => {
     const at = dataOffset % 2 ? 0 : dataOffset;
     frames = Math.min(frames, Math.floor((buffer.byteLength - at) / (2 * channels)));
     const pcm = new Int16Array(buffer, at, frames * channels);
-    self.postMessage({ id, pitches: pitchesFromAudio(pcmReader(pcm, channels, frames), sampleRate, syl) });
+    // 4.19: the singer's whole line through each syllable ({ p, c, q }), the lead voice only
+    self.postMessage({ id, notes: melodyFromAudio(pcmReader(pcm, channels, frames), sampleRate, syl) });
   } catch (err) {
     self.postMessage({ id, error: String((err && err.message) || err) });
   }

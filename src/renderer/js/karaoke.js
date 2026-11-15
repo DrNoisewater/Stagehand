@@ -15,7 +15,7 @@ import * as actions from './actions.js';
 import { coverEl } from './shell.js';
 import { mic } from './mic.js';
 import { SING_LEVELS } from './sing.js';
-import { singLevel, setSingLevel, tuneLabel, tuneMenu } from './singlane.js';
+import { singLevel, setSingLevel, tuneLabel, tuneMenu, singCheck, checkWords } from './singlane.js';
 import { autotune } from './autotune.js';
 
 const root = document.getElementById('page-karaoke');
@@ -148,6 +148,9 @@ function card(s) {
   const cov = h('div.kk-cov', null, coverEl(s, 256), stemTag(s), h('span.kk-mic-big', { html: icon('mic'), 'aria-hidden': 'true' }), listen);
   const meta = h('div.kk-meta', { html: diffHtml(s) });
   if (best !== null) meta.append(h('span.kk-best', { title: 'Your best singing score', html: `${icon('mic')}${Math.round(best * 100)}%` }));
+  // 4.19: how far this song's notes were checked against the singer (once it has been sung, split)
+  const cw = actions.stemPhase(s) === 'ready' ? checkWords(singCheck(s.id)) : null;
+  if (cw) meta.append(h('span.kk-check', { title: `Notes checked against the singer. ${cw.long}`, html: `${icon('check')}${cw.pct}%` }));
   el.append(cov, h('b.kk-title', { text: s.title || 'Untitled' }), h('span.kk-artist', { text: s.artist || '' }), meta);
   seen.observe(el);
   return el;
@@ -324,6 +327,7 @@ on('stems', () => {
   const sig = allSung().map((s) => actions.stemPhase(s)[0]).join('');
   if (sig !== lastStems) (lastStems = sig), render();
 });
+window.addEventListener('sing-check', () => state.page === 'karaoke' && render());
 root.addEventListener('focusin', (e) => (focusSearch = e.target.classList && e.target.classList.contains('kk-search')));
 mic.addEventListener('change', () => state.page === 'karaoke' && !mic.on && render());
 render();

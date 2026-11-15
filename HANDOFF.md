@@ -1,3 +1,49 @@
+# 4.19.0 — Singing checked against the singer, note by note; the real pitch line (2026-11-15, not released; nothing tried on the user’s PC)
+
+The user: "I want singing to be as accurate as it can possibly be. Karaoke is the main way to sing; Sing & play is
+the option for two people." Five asks for singing, plus "look into a higher-quality stem split" (research first).
+4.18.2 was released first (Release run 46, checked: v4.18.2 with Stagehand-Setup-4.18.2.exe).
+Work notes (decisions, dead ends, the split research table): `docs/notes/4.19-singing-and-split.md`.
+
+**Part 1, built:**
+- **The singer's line** (`src/renderer/js/vocal-melody.js`, new; run by `workers/vocal-pitch-worker.js`):
+  `trackVoice` follows the vocals stem through every sung stretch (a reading every 10 ms), `readSyllable` gives each
+  syllable `{ p, c, q }`: its main note, its line as `[time, note]` points when it really moves (null when it holds
+  one note, vibrato evened out), and how much of it was clearly heard. A whole song reads in about 3 s.
+- **Lead only, blank rather than a guess**: the loudest voice is followed and may not hop to a quieter one; echo
+  tails and quiet leaks are skipped; two voices as loud as each other, whispers and gaps come out blank.
+- **Every chart note checked** (`sing.js` `checkNotes`, used by `singlane.js` `prepare()` on any split song): heard
+  clearly → the recording wins (note and line). Not heard → the chart's note is kept only in a line that agrees with
+  the singer elsewhere; in a made-up line it is left blank (any singing counts). Chart notes are moved to the
+  singer's octave so bars don't leap. Until the reading is in (first time only; then cached for the last 20 songs,
+  `stagehand.singLines`) the chart's notes show, and the label says "Checking the notes against the singer…".
+- **Notes to sing** (Sing menu, kept): Pick for me: the chart, checked against the singer / The chart's notes only /
+  The singer's notes only.
+- **Scoring follows the line** (`SingJudge.on(i, voice, t)`, `noteAt`): on a word with a line you must be where the
+  singer is (now, or within 80 ms either way). Plain words score as before.
+- **Drawing** (`singlane.js` `drawBars`): a word with a line is a ribbon along it, same thickness as a bar; the gold
+  pointer and your voice dot follow it. The lane's reach is still worked out once (it never moves).
+- **Auto-tune** gets a run of notes as separate notes (`tuneNotes`), so Hard tune walks a run.
+- **The mark**: the lane's label reads "✓ Notes checked against the singer: 94%" (hover: how many were replaced,
+  kept from the chart, left open); Karaoke's cards show a small green tick and the same number once a split song has
+  been sung (`singCheck`, `checkWords`; kept in `stagehand.singCheck`).
+- **Tests**: `test/melody.test.mjs` (7, in `npm test`): a clean singer, slides/bends/runs, backing voices + echo,
+  equal duet/whisper/gap left blank, a chart real in some lines and made up in others, scoring along a slide, and a
+  3-minute real-style song. Browser: `SING=check … shoot.js` (new: half the chart made up, a singer who slides, a
+  second voice). `SING=1/stem/words/karaoke` and `TUNE=robot` still pass.
+- **Not known**: how it does on real Demucs stems (only made-up voices here). Rough singers (screams, heavy rasp,
+  rap) will mostly come out blank or timing only, which is the intent.
+
+**Part 2, researched, not built (waiting for the user's pick):** see the table in the notes file. Short version:
+a two-pass split (Kim Mel-RoFormer vocals, then today's model on the rest) makes vocals clearly cleaner but guitar
+only a little; one newer model that does all six (BS-RoFormer SW) is far better on guitar, piano, bass and drums
+too, but nobody knows who made it or under what licence; both need a 0.7–0.9 GB download and take minutes instead
+of ~10 s per song on the 1080 Ti (estimates, never measured), and are not usable without a graphics card.
+
+**Ask the user:** on the song from 4.18.2 (bars stuck between E flat and F sharp) and a few others (a duet, one with
+big backing vocals, one with long runs), do the bars follow the singer, and is the mark believable? Do ribbons read
+well or are they too busy? Is scoring along slides too strict on Medium? Which split option to build.
+
 # 4.18.2 — Singing follows the real tune (2026-11-14)
 
 The user (photo of karaoke on a song whose bars sat between E flat and F sharp the whole way): "Are the vocals always

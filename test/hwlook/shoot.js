@@ -414,7 +414,7 @@ const srv = http.createServer((req, res) => {
           }
           gain.gain.value = on ? 0.3 : 0;
           // TUNE: the pretend singer is 40 cents flat (auto-tune must put that right)
-          if (on) osc.frequency.value = 440 * 2 ** ((window.__singTune[i] - 12 - (window.__flat || 0) - 69) / 12);
+          if (on) osc.frequency.value = 440 * 2 ** ((window.__singTune[i] - 12 - (window.__flat || 0) + (window.__singBend ? window.__singBend(i, t) : 0) - 69) / 12);
           window.__sungNow = on ? window.__singTune[i] - 12 : null;
         }, 4);
         const chip = document.querySelector('.hw-sing-chip');
@@ -461,7 +461,24 @@ const srv = http.createServer((req, res) => {
       const words = process.env.SING === 'words';
       // the song starts once the microphone is open and hearing (opening it takes a moment)
       await page.evaluate(async () => { const { mic } = await import('/js/mic.js'); for (let i = 0; i < 100 && !mic.on; i++) await new Promise((x) => setTimeout(x, 100)); await new Promise((x) => setTimeout(x, 400)); });
-      if (process.env.SING === 'stem') await page.waitForFunction(() => document.querySelector('.highway').__hw.sing.state.mode === 'stem', null, { timeout: 30000 });
+      const fromStem = process.env.SING === 'stem' || process.env.SING === 'check';
+      if (fromStem) await page.waitForFunction(() => document.querySelector('.highway').__hw.sing.state.mode === 'stem', null, { timeout: 30000 });
+      if (process.env.SING === 'check') {
+        // 4.19: the chart is made up in two lines of four: those notes come from the singer, the real
+        // lines agree (the made-up note, 61, happens to be right for a few words too), the last word of each line is a line (a slide), and the mark says how far it went
+        const c = await page.evaluate(() => {
+          const S = document.querySelector('.highway').__hw.sing.state;
+          const tune = window.__singTune;
+          return { check: S.check, lines: S.cur.syl.filter((x) => x.c).length, worst: Math.max(...S.cur.syl.map((x, i) => (x.p === null ? 99 : Math.abs(x.p - (tune[i] + 12))))), src: S.cur.syl.map((x) => (x.src || '_')[0]).join(''), badge: document.querySelector('.sw-badge').textContent, stored: JSON.parse(localStorage.getItem('stagehand.singCheck') || '{}') };
+        });
+        console.log('CHECK', JSON.stringify(c));
+        if (!c.check || c.check.heard !== c.check.notes || c.check.blank || c.check.kept) fail('every note should be heard on the singer: ' + JSON.stringify(c.check));
+        if (c.check.fixed < 5 || c.check.agreed < 12) fail('made-up lines put right, real lines agreed: ' + JSON.stringify(c.check));
+        if (c.worst > 1.6) fail('a note is off the singer by ' + c.worst);
+        if (c.lines < 4) fail('the slides were not drawn as lines: ' + c.lines);
+        if (!/checked against the singer: 100%/.test(c.badge)) fail('the mark: ' + c.badge);
+        if (!Object.keys(c.stored).length) fail('the mark was not kept for the song');
+      }
       // a run-up of 2.5 s before the first word: this machine draws slowly for a moment once the song starts
       await page.evaluate(() => { const e = window.__stage.engine; e.position = 0; e.dispatchEvent(new Event('seek')); e.play(); });
       const until = (t) => page.waitForFunction((t) => window.__stage.engine.position > t, t, { timeout: 60000 });
@@ -536,7 +553,7 @@ const srv = http.createServer((req, res) => {
         if (r.mode !== 'rhythm') fail('a song with no notes should be scored on timing only: ' + r.mode);
         if (!(r.lines[0] >= 0.5 && r.lines[1] >= 0.7 && r.lines[2] <= 0.15 && r.lines[3] >= 0.85)) fail('timing-only lines: ' + JSON.stringify(r.lines));
       } else {
-        if (r.mode !== (process.env.SING === 'stem' ? 'stem' : 'charted')) fail('mode ' + r.mode);
+        if (r.mode !== (fromStem ? 'stem' : 'charted')) fail('mode ' + r.mode);
         // (the first line only has to be mostly there: this machine draws slowly just after the song starts)
         if (!(r.lines[0] >= 0.5 && r.lines[1] >= 0.7 && r.lines[2] === 0 && r.lines[3] >= 0.85)) fail('lines: ' + JSON.stringify(r.lines));
       }
@@ -564,7 +581,7 @@ const srv = http.createServer((req, res) => {
       if (off.mic || off.lane || off.pressed !== 'false') fail('switching off: ' + JSON.stringify(off));
       if (await page.evaluate(async () => (await import('/js/autotune.js')).autotune.on)) fail('auto-tune still plays after singing stopped');
       if (tuneStyle) console.log(`PASS auto-tune (${tuneStyle}): a singer 40 cents flat comes out on the song's notes, and it stops with the singing`);
-      console.log(`PASS sing along (${words ? 'timing only' : process.env.SING === 'stem' ? 'notes read off the vocals stem' : 'notes from the chart'}): off until pressed, sung lines count (an octave down), a skipped line doesn't, the card and the stats get it, off lets the microphone go`);
+      console.log(`PASS sing along (${words ? 'timing only' : process.env.SING === 'check' ? 'chart notes checked against the vocals stem' : process.env.SING === 'stem' ? 'notes read off the vocals stem' : 'notes from the chart'}): off until pressed, sung lines count (an octave down), a skipped line doesn't, the card and the stats get it, off lets the microphone go`);
       continue;
     }
     if (process.env.TCHECK) {

@@ -2378,3 +2378,9 @@ body:has(.highway:not([hidden])) .menu .label { color: #a99e8c; text-transform: 
    card opens. Every panel that used it is nearly solid, so it looks the same without. */
 *, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 @media (prefers-reduced-motion: reduce) { .hw-sing .sw-tune.sw-tune-new { animation: none; } }
+
+/* 4.19: the mark that a song's notes were checked against the singer (the lane's label, Karaoke's cards) */
+.sw-badge.sw-checked { background: #cfeef3; color: #06313a; cursor: help; pointer-events: auto; }
+.kk-check { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 700; color: #8fd9a8; font-variant-numeric: tabular-nums; cursor: help; }
+.kk-check svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 3; }
+.kk-best + .kk-check { margin-left: 8px; }
