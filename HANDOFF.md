@@ -22,6 +22,14 @@ accurate? some of these songs… just stay in the same line and I cannot be accu
     worked out with the range), not mid-lane.
   - The **Sing** chip is now **Sing & play** (singing while your guitar/bass part plays; Karaoke is just the words).
     Intended behaviour, but the name read like karaoke.
+- **Singing splits the song** (user: "the game should probably force you to split the stems if you're gonna sing"):
+  `singlane.js` `needSplit()` from `begin()`: an unsplit song starts splitting (`actions.requestStems`, dynamic
+  import; engine not set up → its setup dialog), with a toast; the badge shows "Splitting the song for the real
+  notes… N% Timing only until it's done"; on the store's `stems` event turning ready, `prepare()` runs again and a
+  "Real notes ready" toast shows. (The stage reloads the stems itself when the song is playing.)
+- **Stems quality** (user asked whether a higher-quality split of only guitar, bass, vocals, drums would be better):
+  answered that quality comes from the model, not the stem count (default `htdemucs_6s`); offered a two-pass split
+  (vocals from a dedicated vocals model, the rest from 6 stems) for 4.19.
 - **Not done (offered):** a chart whose tune is real in some lines and placeholder in others (only whole-song flat is
   spotted; Notes to sing › the recording works around it on split songs); "Leave karaoke" goes to the guitar, not
   back to the Karaoke page.

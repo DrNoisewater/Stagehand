@@ -10,6 +10,7 @@
  * of the song when it has been split, and the guitar isn't scored.
  */
 import { api } from './api.js';
+import { state as store, on as onStore } from './store.js';
 import { h, icon, showMenu, toast } from './ui.js';
 import { mic } from './mic.js';
 import { autotune, TUNE_STYLES, TUNE_NOTES, TUNE_LEVELS, TUNE_VOICES } from './autotune.js';
@@ -346,9 +347,49 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
   function paintBadge() {
     const kNote = S.karaoke && S.on && !vocalsTrack() ? 'The singer stays in: split this song to sing it on your own' : '';
     const rhythm = S.flat || notesPick(S.song) === 'recording' ? 'Timing only: this chart’s notes are guesses. Split the song to sing the singer’s real notes' : 'Timing only: this song has no notes to sing';
+    const q = S.song && store.stems ? store.stems.get(S.song.id) : null;
+    const pct = q && Number.isFinite(q.progress) ? ` ${Math.round(q.progress * 100)}%` : '';
+    if (S.split === 'working' && S.mode !== 'stem' && notesPick(S.song) !== 'chart') {
+      badge.textContent = `Splitting the song for the real notes…${pct} Timing only until it’s done`;
+      badge.hidden = false;
+      return;
+    }
     badge.textContent = S.reading ? 'Listening to the singer…' : S.mode === 'stem' ? 'Notes from the singer’s recording' : S.mode === 'rhythm' ? rhythm : kNote;
     badge.hidden = !badge.textContent;
   }
+
+  /**
+   * 4.18.2: singing needs the song split: only the singer on their own gives the real notes (charts
+   * often carry made-up ones), and karaoke takes the singer out. Starting to sing starts the split;
+   * until it's done the words are scored on timing only.
+   */
+  function splitPhase() {
+    const q = S.song && store.stems ? store.stems.get(S.song.id) : null;
+    if (!S.song) return 'none';
+    if (S.song.hasStems || (q && q.state === 'ready')) return 'ready';
+    if (q && (q.state === 'queued' || q.state === 'running')) return 'working';
+    return 'none';
+  }
+  async function needSplit() {
+    S.split = splitPhase();
+    if (S.split !== 'none') return paintBadge();
+    S.split = 'working';
+    paintBadge();
+    toast({ title: 'Splitting this song for singing', message: 'Stagehand takes the singer out to find their real notes (and for karaoke). Until it’s done, your words are scored on timing.', kind: 'info', timeout: 9000 });
+    const actions = await import('./actions.js');
+    await actions.requestStems([S.song.id]).catch(() => {});
+    S.split = splitPhase();
+    paintBadge();
+  }
+  onStore('stems', () => {
+    if (!S.on || !S.song) return;
+    const was = S.split;
+    S.split = splitPhase();
+    if (was === 'working' && S.split === 'ready') {
+      prepare(); // the singer's real notes, now that they can be read
+      toast({ title: 'Real notes ready', message: 'The song is split: the notes now follow the singer.', kind: 'ok' });
+    } else paintBadge();
+  });
 
   async function begin() {
     if (!S.on || !S.open || !S.song) return;
@@ -357,6 +398,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     const token = S.token + 1;
     prepare();
     stageKaraoke(S.karaoke);
+    needSplit();
     const ok = await mic.start('sing');
     if (ok && !window.__NOFAST) autotune.listen('sing', true); // the fast note reader, for the score
     if (token !== S.token || !S.on) return;
