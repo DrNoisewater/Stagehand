@@ -101,27 +101,32 @@ html[data-look='roadshow'] .kk-title-big { color:#d9f0dc; }
 .kk-listen svg { width:13px; height:13px; margin-left:2px; }
 .kk-card:hover .kk-listen, .kk-card:focus-within .kk-listen { opacity:1; }
 .kk-listen:hover { background:var(--tungsten,#ffb547); color:#1a1205; border-color:transparent; transform:scale(1.08); }
-/* split or not, at a glance: a strip of tape on the cover */
-.kk-stem { position:absolute; left:-5px; top:9px; display:inline-flex; align-items:center; gap:5px; padding:3px 8px 3px 7px; font:700 10px 'Typewriter Stagehand','Liberation Mono',monospace; letter-spacing:.09em; text-transform:uppercase; transform:rotate(-2deg); box-shadow:1px 2px 0 #0007; }
+/* 4.19: which split a song has, in a line of its own under the picture (nothing lies across the art) */
+.kk-stem { display:inline-flex; align-items:center; gap:5px; margin-top:4px; font:700 10px 'Typewriter Stagehand','Liberation Mono',monospace; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; cursor:help; }
 .kk-stem svg { width:11px; height:11px; fill:none; stroke:currentColor; stroke-width:3; }
-.kk-stem.ready { background:#33c8e0; color:#04222a; }
-.kk-stem.working { background:#e9dfc8; color:#3b2f1c; }
-.kk-stem.working i { width:7px; height:7px; border-radius:50%; background:#d23a2c; animation:kkpulse 1s ease-in-out infinite; }
-.kk-stem.none { background:#1b1915e6; color:#8f8676; box-shadow:inset 0 0 0 1px #3d3832; font-weight:600; transform:none; left:6px; top:6px; padding:2px 6px; opacity:0; transition:opacity .14s; }
-.kk-card:hover .kk-stem.none { opacity:1; }
+.kk-stem.ready { color:#33c8e0; }
+.kk-stem.better { color:#f1ce68; }
+.kk-stem.better b { font-size:12px; line-height:1; text-shadow:0 0 6px #f1ce6899; }
+.kk-stem.working { color:#e9dfc8; }
+.kk-stem.working i, .kk-stem.cleaning i { width:7px; height:7px; border-radius:50%; background:#d23a2c; animation:kkpulse 1s ease-in-out infinite; }
+.kk-stem.cleaning i { background:#f1ce68; }
+.kk-stem.none { color:#6c655a; font-weight:600; }
 @keyframes kkpulse { 50% { opacity:.35; } }
 .kk-card .kk-title { font-size:14px; font-weight:740; font-stretch:90%; color:#f3ece0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .kk-card .kk-artist { font-size:12px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .kk-meta { display:flex; align-items:center; gap:10px; margin-top:5px; min-height:16px; }
-/* difficulty: five pips, the word beside them */
+/* difficulty: three pips (4.19: Easy, Medium, Hard), the word beside them */
 .kk-diff { display:inline-flex; align-items:center; gap:2px; font-size:11px; color:#a99e8c; }
 .kk-diff i { width:7px; height:9px; border-radius:1px; background:#3a352e; }
 .kk-diff i.on { background:#33c8e0; }
-.kk-diff[data-level='4'] i.on { background:#f2b33d; }
-.kk-diff[data-level='5'] i.on { background:#e5533c; }
+.kk-diff[data-level='2'] i.on { background:#f2b33d; }
+.kk-diff[data-level='3'] i.on { background:#e5533c; }
+.kk-diff i { width:9px; }
+.kk-diff.guess em { font-style:italic; opacity:.75; }
+.kk-diff u { text-decoration:none; margin-left:4px; opacity:.7; }
 .kk-diff em { font-style:normal; margin-left:6px; font-weight:600; letter-spacing:.01em; }
 .kk-diff.wait i { animation:kkpulse 1.4s ease-in-out infinite; }
-.kk-diff.wait i:nth-child(2) { animation-delay:.1s } .kk-diff.wait i:nth-child(3) { animation-delay:.2s } .kk-diff.wait i:nth-child(4) { animation-delay:.3s } .kk-diff.wait i:nth-child(5) { animation-delay:.4s }
+.kk-diff.wait i:nth-child(2) { animation-delay:.1s } .kk-diff.wait i:nth-child(3) { animation-delay:.2s }
 .kk-diff.none { color:#6c655a; }
 .kk-best { margin-left:auto; display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:700; color:#9fe9f5; font-variant-numeric:tabular-nums; }
 .kk-best svg { width:11px; height:11px; fill:none; stroke:currentColor; stroke-width:2; }

@@ -236,9 +236,16 @@ async function boot() {
       s.hasStems = true;
       bump();
     }
-    if (s && u.state === 'none' && s.hasStems) {
+    if (s && u.state === 'none' && (s.hasStems || s.betterStems)) {
       s.hasStems = false;
+      s.betterStems = false;
       bump();
+    }
+    // 4.19: the split with the cleaner singer is in (the list and the Karaoke cards show which one a song has)
+    if (s && u.state === 'ready' && u.better && !s.betterStems) {
+      s.betterStems = true;
+      bump();
+      emit('stems', u);
     }
     if (!prev || prev.state !== u.state) emit('stems', u);
     else emit('stems-progress', u);
@@ -272,6 +279,8 @@ async function boot() {
     const acts = [];
     if (stage.current() && stage.current().id !== d.songId) acts.push({ label: 'Play', onClick: () => actions.playSong(s.id) });
     if (d.device !== 'cuda' && a && a.action) acts.push({ label: a.action === 'driver' ? 'Get driver' : 'Use GPU', onClick: () => dialogs.fixDevice(a) });
+    // 4.19: a cleaner singer made in the background for a song that was already split
+    if (d.upgrade) return toast({ title: `The singer is cleaner in ${s.title}`, message: stage.current() && stage.current().id === d.songId ? `Took ${took}. You hear it the next time you open the song.` : `Took ${took} ${where}.`, kind: 'ok', timeout: 9000 });
     toast({ title: `Stems ready for ${s.title}`, message: `Took ${took} ${where}.${hint}`, actions: acts, kind: hint ? 'info' : 'ok' });
   });
   api.on('engine:changed', async () => {

@@ -18,6 +18,8 @@ export const SLACK = 0.15;
 export const GOOD_LINE = 0.7;
 /** Once on a note, the room to stay on it grows by this much. */
 export const HOLD_ROOM = 1.4;
+/** Following a moving line: how early or late along it you may be (seconds). */
+const LEAN = [0, -0.04, 0.04, -0.08, 0.08];
 
 /** Charts mark "no note" in several ways (0, 254, 255); a voice sits between these. */
 export const hasPitch = (p) => Number.isFinite(p) && p >= 36 && p <= 96;
@@ -104,6 +106,152 @@ export function withPitches(syl, found) {
     }
     recent.push(s.p);
     if (recent.length > 9) recent.shift();
+  }
+  return out;
+}
+
+/** How far apart (cents, any octave) a chart note and the singer's may be and still be the same note. */
+export const AGREE = 150;
+
+/** The note to sing at time t in syllable s: on its line when it has one, else its one note. */
+export function noteAt(s, t) {
+  const c = s.c;
+  if (!c || !c.length) return s.p;
+  if (t <= c[0][0]) return c[0][1];
+  for (let i = 1; i < c.length; i++) {
+    if (t <= c[i][0]) {
+      const u = (t - c[i - 1][0]) / (c[i][0] - c[i - 1][0] || 1);
+      return c[i - 1][1] + (c[i][1] - c[i - 1][1]) * u;
+    }
+  }
+  return c[c.length - 1][1];
+}
+
+/**
+ * 4.19: every chart note checked against the singer (`read`: one { p, c, q } per syllable, from
+ * the vocals stem; p null where the lead wasn't clearly heard).
+ * - Where the singer was heard, the recording wins: its note and its line are used.
+ * - Where the singer wasn't, the chart's note is kept only in a line whose other notes agree with
+ *   the singer (the chart is real there); in a line that disagrees (made up) it is left blank.
+ * mode 'recording' drops every chart note (the singer's notes only).
+ * Each syllable gets `src`: 'singer', 'chart' or null (blank). `check` says how it went.
+ */
+export function checkNotes(syl, read, lines, mode = 'auto') {
+  const n = syl.length;
+  const got = (i) => read && read[i] && hasPitch(read[i].p);
+  const agrees = (i) => Math.abs(foldCents(read[i].p, syl[i].p)) <= AGREE;
+  // is the chart real? song-wide first, then line by line
+  let both = 0;
+  let same = 0;
+  for (let i = 0; i < n; i++) {
+    if (syl[i].p !== null && got(i)) {
+      both++;
+      if (agrees(i)) same++;
+    }
+  }
+  const songReal = mode !== 'recording' && (both >= 4 ? same / both >= 0.6 : !flatChart(syl));
+  const lineReal = (lines || []).map((L) => {
+    if (mode === 'recording') return false;
+    let b = 0;
+    let s = 0;
+    for (let i = L.from; i < L.to; i++) {
+      if (syl[i].p !== null && got(i)) {
+        b++;
+        if (agrees(i)) s++;
+      }
+    }
+    return b >= 2 ? s / b >= 0.6 : songReal;
+  });
+  const check = { notes: n, heard: 0, agreed: 0, fixed: 0, added: 0, kept: 0, blank: 0, share: 0 };
+  const out = syl.map((s, i) => {
+    if (got(i)) {
+      check.heard++;
+      if (s.p === null) check.added++;
+      else if (agrees(i)) check.agreed++;
+      else check.fixed++;
+      return { ...s, p: read[i].p, c: read[i].c || null, src: 'singer' };
+    }
+    const real = lineReal.length ? lineReal[s.line] : songReal;
+    if (s.p !== null && real) {
+      check.kept++;
+      return { ...s, c: null, src: 'chart' };
+    }
+    check.blank++;
+    return { ...s, p: null, c: null, src: null };
+  });
+  check.share = n ? check.heard / n : 0;
+  tidyOctaves(out);
+  return { syl: out, check };
+}
+
+/** Moves a syllable (note and line) by whole octaves. */
+function shift(s, oct) {
+  if (!oct) return;
+  s.p += 12 * oct;
+  if (s.c) s.c = s.c.map(([t, v]) => [t, v + 12 * oct]);
+}
+
+/**
+ * Octaves don't matter for scoring, but bars that leap an octave and back are hard to read:
+ * a chart note is moved by octaves to sit with the singer's notes around it, and a singer's
+ * note that is alone an octave away from both its neighbours (a slip of the reading) is moved back.
+ */
+function tidyOctaves(out) {
+  const near = (i, want) => {
+    const v = [];
+    for (let k = i - 1; k >= 0 && v.length < 4; k--) if (out[k].p !== null && want(out[k])) v.push(out[k].p);
+    const half = v.length;
+    for (let k = i + 1; k < out.length && v.length < half + 4; k++) if (out[k].p !== null && want(out[k])) v.push(out[k].p);
+    if (v.length < 2) return null;
+    v.sort((a, b) => a - b);
+    return v[v.length >> 1];
+  };
+  for (let i = 0; i < out.length; i++) {
+    const s = out[i];
+    if (s.p === null || s.src !== 'singer') continue;
+    const mid = near(i, (x) => x.src === 'singer');
+    if (mid !== null && Math.abs(s.p - mid) > 9 && Math.abs(foldCents(s.p, mid)) <= 400) shift(s, Math.round((mid - s.p) / 12));
+  }
+  for (let i = 0; i < out.length; i++) {
+    const s = out[i];
+    if (s.p === null || s.src !== 'chart') continue;
+    const mid = near(i, (x) => x.src === 'singer');
+    if (mid !== null) shift(s, Math.round((mid - s.p) / 12));
+  }
+}
+
+/**
+ * The notes for auto-tune: a word that runs over several notes is given as those notes, one
+ * after the other (its line cut into steps), so a hard tune walks the run instead of one note.
+ */
+export function tuneNotes(syl) {
+  const out = [];
+  for (const s of syl) {
+    if (s.p === null || s.p === undefined) continue;
+    if (!s.c || s.c.length < 2) {
+      out.push({ t: s.t, d: s.d, p: s.p });
+      continue;
+    }
+    const off = s.p - Math.round(s.p); // the recording's own tuning is kept
+    const end = s.t + s.d;
+    let cur = null;
+    for (let t = s.t; t < end - 0.02; t += 0.04) {
+      const p = Math.round(noteAt(s, t + 0.02) - off) + off;
+      if (cur && Math.abs(cur.p - p) < 0.01) cur.d = t + 0.04 - cur.t;
+      else {
+        cur = { t, d: 0.04, p };
+        out.push(cur);
+      }
+    }
+    if (cur) cur.d = Math.max(cur.d, end - cur.t);
+  }
+  // a step too short to sing (the middle of a slide) joins the one after it
+  for (let i = out.length - 2; i >= 0; i--) {
+    if (out[i].d < 0.09 && Math.abs(out[i + 1].t - (out[i].t + out[i].d)) < 0.011) {
+      out[i + 1].d += out[i + 1].t - out[i].t;
+      out[i + 1].t = out[i].t;
+      out.splice(i, 1);
+    }
   }
   return out;
 }
@@ -249,14 +397,19 @@ export class SingJudge {
   }
 
   /** Is this voice on syllable i? A syllable with no note takes any voice. */
-  on(i, voice) {
+  on(i, voice, t = this.lastT) {
     if (!voice || !voice.voiced) return false;
-    const p = this.syl[i].p;
-    if (p === null) return true;
+    const s = this.syl[i];
+    if (s.p === null) return true;
     // once you're on the note, you get a little more room to stay there (holding a note is
     // the hard part; a wobble shouldn't drop you off it)
     const room = SING_LEVELS[this.level].cents * (this.held[i] ? HOLD_ROOM : 1);
-    return voice.midi !== null && voice.midi !== undefined && Math.abs(foldCents(voice.midi, p)) <= room;
+    if (voice.midi === null || voice.midi === undefined) return false;
+    if (!s.c) return Math.abs(foldCents(voice.midi, s.p)) <= room;
+    // 4.19: a word with a line of its own (a slide, a bend, a run of notes) is scored along the
+    // line: you're on it when you're where the singer is now, or was or will be within 80 ms
+    for (const k of LEAN) if (Math.abs(foldCents(voice.midi, noteAt(s, t + k))) <= room) return true;
+    return false;
   }
 
   /**
@@ -272,7 +425,7 @@ export class SingJudge {
       const s = this.syl[i];
       if (s.t - SLACK > t) break;
       if (t > s.t + s.d + SLACK) continue;
-      const on = this.on(i, voice);
+      const on = this.on(i, voice, t);
       this.held[i] = on ? 1 : 0;
       if (!on) continue;
       this.good[i] = Math.min(s.d, this.good[i] + dt);

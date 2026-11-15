@@ -239,6 +239,36 @@ async function until(fn, ms = 5000) {
   // new splits (above) went straight into named folders
   assert.ok(fs.existsSync(path.join(dir, `A [${keyOf('a').slice(0, 8)}]`, 'htdemucs', 'meta.json')), `new splits are stored by name (${fs.readdirSync(dir)})`);
   assert.ok(svc3.ready({ id: 'a', audioKey: keyOf('a') }), 'and found again too');
+  // 4.19: a cleaner singer for a song that is already split: the song stays ready and keeps its
+  // stems meanwhile, an ordinary split goes first, and the new stems are the ones used after
+  {
+    const ups = [];
+    svc.on('upgrade', (u) => ups.push(u));
+    const before = svc.status(songs.a);
+    assert.ok(before.state === 'ready' && !before.better, 'A is split the ordinary way');
+    const n0 = splits.length;
+    jobMs = 400;
+    songs.z = { id: 'z', title: 'Z', length: 200 };
+    assert.ok(svc.upgrade('a').ok, 'the cleaner singer is asked for');
+    svc.upgrade('a'); // (asking twice starts one)
+    svc.request(['z']);
+    const mid = svc.status(songs.a);
+    assert.ok(mid.state === 'ready' && mid.upgrade && mid.stems[0].url === before.stems[0].url, `A stays ready on its stems while the singer is made cleaner (${JSON.stringify(mid.upgrade)})`);
+    svc.prioritize('z', { now: true });
+    await until(() => ups.some((u) => u.state === 'done'), 8000);
+    assert.ok(ups.some((u) => u.state === 'done'), 'the cleaner singer was made');
+    assert.ok(ready.has('z') && svc.status(songs.z).state === 'ready', 'the song opened meanwhile was split');
+    const mine = splits.slice(n0).filter((x) => x.input.endsWith(`${keyOf('a')}.wav`));
+    assert.ok(mine.length >= 1 && mine.every((x) => x.child.args[x.child.args.indexOf('--model') + 1] === 'singer_6s'), 'with the singer model');
+    const zAt = splits.findIndex((x, i) => i >= n0 && x.input.endsWith(`${keyOf('z')}.wav`));
+    assert.ok(zAt >= 0 && splits.slice(zAt + 1).some((x) => x.input.endsWith(`${keyOf('a')}.wav`)), 'the ordinary split went first, the cleaner singer after');
+    const after = svc.status(songs.a);
+    assert.ok(after.state === 'ready' && after.better && !after.upgrade && /\/singer_6s\//.test(after.stems[0].url), 'A now uses the cleaner singer');
+    assert.ok(svc.fileFor(keyOf('a'), 'htdemucs', 'vocals.wav') && fs.existsSync(svc.fileFor(keyOf('a'), 'htdemucs', 'vocals.wav')), 'the first split is still there');
+    assert.ok(svc.upgrade('a').better, 'asking again does nothing');
+    jobMs = 300;
+    console.log('ok   a cleaner singer: the song stays ready, ordinary splits go first, the new stems are used after');
+  }
   fs.rmSync(dir, { recursive: true, force: true });
   console.log('PASS stem queue');
 })().catch((e) => {

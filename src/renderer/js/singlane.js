@@ -13,8 +13,9 @@ import { api } from './api.js';
 import { state as store, on as onStore } from './store.js';
 import { h, icon, showMenu, toast } from './ui.js';
 import { mic } from './mic.js';
+import { offerSinger, singerJob } from './singer-upgrade.js';
 import { autotune, TUNE_STYLES, TUNE_NOTES, TUNE_LEVELS, TUNE_VOICES } from './autotune.js';
-import { buildSing, SingJudge, SING_LEVELS, SLACK, pitchedShare, withPitches, nearOctave, foldCents, flatChart } from './sing.js';
+import { buildSing, SingJudge, SING_LEVELS, SLACK, pitchedShare, nearOctave, foldCents, flatChart, checkNotes, noteAt, tuneNotes } from './sing.js';
 
 const KEY = 'stagehand.sing';
 // the stage's own colours (as the highway's top bar and cards): warm cream ink, stage gold,
@@ -77,33 +78,72 @@ export function setSingLook(v) {
 }
 
 // ------------------------------------------- notes from the vocals stem --
-const PKEY = 'stagehand.singNotes';
+const PKEY = 'stagehand.singLines'; // 4.19: each syllable's note and line ('stagehand.singNotes' held one note each)
+try {
+  localStorage.removeItem('stagehand.singNotes');
+} catch (_) {}
 function cachedNotes(key) {
   try {
     const c = JSON.parse(localStorage.getItem(PKEY) || '[]');
     const e = c.find((x) => x.k === key);
-    return e ? e.p : null;
+    return e ? e.n.map((x) => (x ? { p: x[0], q: x[1], c: x[2] || null } : { p: null, c: null, q: 0 })) : null;
   } catch (_) {
     return null;
   }
 }
-function keepNotes(key, p) {
-  try {
-    const c = JSON.parse(localStorage.getItem(PKEY) || '[]').filter((x) => x.k !== key);
-    c.push({ k: key, p });
-    localStorage.setItem(PKEY, JSON.stringify(c.slice(-30))); // the last 30 songs sung
-  } catch (_) {}
+function keepNotes(key, notes) {
+  const pack = notes.map((x) => (x.p === null ? 0 : x.c ? [x.p, Math.round(x.q * 100) / 100, x.c] : [x.p, Math.round(x.q * 100) / 100]));
+  // the last 20 songs sung (fewer when the browser's store is full)
+  for (let keep = 19; keep >= 0; keep -= 5) {
+    try {
+      const c = JSON.parse(localStorage.getItem(PKEY) || '[]').filter((x) => x.k !== key);
+      localStorage.setItem(PKEY, JSON.stringify([...c.slice(c.length - keep), { k: key, n: pack }]));
+      return;
+    } catch (_) {}
+  }
 }
+
+// 4.19: how far each song's notes were checked against the singer (kept for every song sung)
+const CKEY = 'stagehand.singCheck';
+/** { share, heard, notes, fixed, kept, blank, agreed, added } for a song whose notes were checked, or null. */
+export function singCheck(songId) {
+  try {
+    return (JSON.parse(localStorage.getItem(CKEY) || '{}') || {})[songId] || null;
+  } catch (_) {
+    return null;
+  }
+}
+function keepCheck(songId, check) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CKEY) || '{}') || {};
+    if (check) all[songId] = check;
+    else delete all[songId];
+    localStorage.setItem(CKEY, JSON.stringify(all));
+  } catch (_) {}
+  window.dispatchEvent(new CustomEvent('sing-check', { detail: { songId } }));
+}
+/** The mark in words: "Checked 94%", and the long version for a tooltip. */
+export function checkWords(c) {
+  if (!c) return null;
+  const pct = Math.round(c.share * 100);
+  const parts = [`${c.heard} of ${c.notes} notes were heard clearly on the singer’s recording and are sung as the singer sang them`];
+  if (c.fixed) parts.push(`${c.fixed} of the chart’s notes were wrong and were replaced`);
+  if (c.added) parts.push(`${c.added} had no note in the chart`);
+  if (c.kept) parts.push(`${c.kept} couldn’t be heard and keep the chart’s note (the chart is right around them)`);
+  if (c.blank) parts.push(`${c.blank} couldn’t be heard and are left open: any singing counts there`);
+  return { short: `Checked ${pct}%`, pct, long: parts.join('. ') + '.' };
+}
+
 let worker = null;
 let jobs = 0;
-/** The note of each syllable, read off the song's vocals stem (null when it has none). */
+/** Every syllable's note and line ({ p, c, q }), read off the song's vocals stem (null when it has none). */
 export async function notesFromStem(song, syl, engine) {
   const st = await api.stems.status(song.id).catch(() => null);
   const f = st && st.state === 'ready' && Array.isArray(st.stems) ? st.stems.find((x) => x.name === 'vocals') : null;
   if (!f || !f.url) return null;
   const key = `${song.id}|${f.url}|${syl.length}`;
   const had = cachedNotes(key);
-  if (had) return had;
+  if (had && had.length === syl.length) return had;
   const { loadTrackData } = await import('./audio-engine.js');
   const data = await loadTrackData(f.url, undefined, { rate: engine.sampleRate, frames: engine.frames });
   if (!worker) worker = new Worker(new URL('../workers/vocal-pitch-worker.js', import.meta.url), { type: 'module' });
@@ -112,7 +152,7 @@ export async function notesFromStem(song, syl, engine) {
     const on = (e) => {
       if (e.data.id !== id) return;
       worker.removeEventListener('message', on);
-      e.data.error ? reject(new Error(e.data.error)) : resolve(e.data.pitches);
+      e.data.error ? reject(new Error(e.data.error)) : resolve(e.data.notes);
     };
     worker.addEventListener('message', on);
     worker.postMessage({ id, buffer: data.buffer, dataOffset: data.wav.dataOffset, frames: data.wav.frames, channels: data.wav.channels, sampleRate: data.wav.sampleRate, syl: syl.map((s) => ({ t: s.t, d: s.d })) }, [data.buffer]);
@@ -280,42 +320,55 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     S.line = -2;
   }
 
-  /** Works out what to sing: the chart's notes, or the recording's, or timing only. */
+  /**
+   * Works out what to sing. 4.19: on a split song every chart note is checked against the singer
+   * (the recording wins where they disagree; see checkNotes). Not split: the chart's notes, unless
+   * they look made up, then timing only. "Notes to sing" in the menu overrides it per song.
+   */
   async function prepare() {
     const token = ++S.token;
     const song = S.song;
     S.cur = S.base;
+    S.check = null;
     const share = pitchedShare(S.base.syl);
-    // 4.18.2: many charts carry a made-up tune (one note, or a few close together): the singer's own
-    // notes, read off the recording, are used instead when the song is split. Your choice wins.
     S.flat = share >= 0.6 && flatChart(S.base.syl);
     const pick = notesPick(song);
+    // until the singer has been read (a few seconds the first time), or when they can't be
     const chartOk = share >= 0.6 && (pick === 'chart' || (pick === 'auto' && !S.flat));
     S.mode = chartOk ? 'charted' : 'rhythm';
+    if (!chartOk && share > 0) S.cur = { syl: S.base.syl.map((x) => ({ ...x, p: null })), lines: S.base.lines };
     S.reading = false;
     newJudge();
     paintBadge();
     autotune.setSong(S.mode === 'charted' ? S.cur.syl : null);
-    if (S.mode === 'charted') return;
-    // the chart's own notes are left out when they're the made-up ones (or you asked for the recording)
-    const base = share >= 0.6 ? S.base.syl.map((x) => ({ ...x, p: null })) : S.base.syl;
+    offerSinger(song); // 4.19: a cleaner singer for this song? (asks once, never waits)
+    if (pick === 'chart') return;
     S.reading = true;
     paintBadge();
     let found = null;
     try {
-      found = await notesFromStem(song, base, stage.engine);
+      found = await notesFromStem(song, S.base.syl, stage.engine);
     } catch (_) {
       found = null;
     }
     if (token !== S.token || !S.on) return;
     S.reading = false;
     if (found) {
-      const syl = withPitches(base, found);
+      const { syl, check } = checkNotes(S.base.syl, found, S.base.lines, pick === 'recording' ? 'recording' : 'auto');
       if (pitchedShare(syl) >= 0.4) {
+        // carry on from where the song is: what was sung so far on the chart's notes is let go
         S.cur = { syl, lines: S.base.lines };
         S.mode = 'stem';
+        S.check = check;
+        keepCheck(song.id, check);
+        // how hard it is to sing, from the notes the singer really sang (the Karaoke page's mark)
+        if (api.tab && api.tab.vocalDiff)
+          api.tab
+            .vocalDiff(syl.map((x) => ({ t: x.t, d: x.d, p: x.p === null ? 0 : x.p })))
+            .then((d) => d && d.level && keepCheck(song.id, { ...check, diff: { level: d.level, score: d.score, rate: d.rate, range: d.range, guess: d.guess, why: d.why } }))
+            .catch(() => {});
         newJudge();
-        autotune.setSong(S.cur.syl);
+        autotune.setSong(tuneNotes(S.cur.syl));
       }
     }
     paintBadge();
@@ -350,11 +403,18 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     const q = S.song && store.stems ? store.stems.get(S.song.id) : null;
     const pct = q && Number.isFinite(q.progress) ? ` ${Math.round(q.progress * 100)}%` : '';
     if (S.split === 'working' && S.mode !== 'stem' && notesPick(S.song) !== 'chart') {
-      badge.textContent = `Splitting the song for the real notes…${pct} Timing only until it’s done`;
+      badge.textContent = S.mode === 'charted' ? `Splitting the song to check the notes against the singer…${pct}` : `Splitting the song for the real notes…${pct} Timing only until it’s done`;
       badge.hidden = false;
       return;
     }
-    badge.textContent = S.reading ? 'Listening to the singer…' : S.mode === 'stem' ? 'Notes from the singer’s recording' : S.mode === 'rhythm' ? rhythm : kNote;
+    // 4.19: the mark: how far this song's notes were checked against the singer
+    const cw = S.mode === 'stem' ? checkWords(S.check) : null;
+    badge.textContent = S.reading ? (S.mode === 'charted' ? 'Checking the notes against the singer…' : 'Listening to the singer…') : cw ? `✓ Notes checked against the singer: ${cw.pct}%` : S.mode === 'rhythm' ? rhythm : kNote;
+    badge.title = cw ? cw.long : '';
+    // a cleaner singer being made in the background for this song: how far along it is
+    const up = S.song && !S.reading ? singerJob(S.song.id) : null;
+    if (up) badge.textContent = `${badge.textContent ? badge.textContent + ' · ' : ''}Making the singer cleaner${up.state === 'running' && up.progress ? ` ${Math.round(up.progress * 100)}%` : '…'}`;
+    badge.classList.toggle('sw-checked', !!cw);
     badge.hidden = !badge.textContent;
   }
 
@@ -381,6 +441,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     S.split = splitPhase();
     paintBadge();
   }
+  onStore('singer-upgrade', (u) => S.song && u && u.songId === S.song.id && S.on && paintBadge());
   onStore('stems', () => {
     if (!S.on || !S.song) return;
     const was = S.split;
@@ -521,9 +582,9 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
         label: 'Notes to sing',
         submenu: () =>
           [
-            ['auto', S.flat ? 'Pick for me (this chart’s notes look made up)' : 'Pick for me'],
-            ['chart', 'The chart’s notes'],
-            ['recording', 'The singer’s, from the recording (split songs)'],
+            ['auto', 'Pick for me: the chart, checked against the singer'],
+            ['chart', S.flat ? 'The chart’s notes only (they look made up)' : 'The chart’s notes only'],
+            ['recording', 'The singer’s notes only, from the recording'],
           ].map(([id, name]) => ({
             label: name,
             hint: check(() => notesPick(S.song) === id),
@@ -589,16 +650,11 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     return best;
   }
 
-  function roundRect(x, y, w, hh, r) {
-    g.beginPath();
-    if (g.roundRect) g.roundRect(x, y, w, hh, r);
-    else g.rect(x, y, w, hh);
-  }
-
   /** What the voice dot shows: on the note it settles onto the bar, off the note it shows where you are. */
   function shownVoice(t, voice, target) {
     if (!voice || !voice.voiced) return null;
-    const near = target && target.p !== null ? target.p : S.rng ? (S.rng.lo + S.rng.hi) / 2 : 60;
+    const want = target && target.p !== null ? noteAt(target, t - MIC_DELAY) : null; // where the line is now
+    const near = want !== null ? want : S.rng ? (S.rng.lo + S.rng.hi) / 2 : 60;
     const p = voice.midi === null || voice.midi === undefined ? null : nearOctave(voice.midi, near);
     let ok = false;
     let show = p === null ? near : p;
@@ -606,7 +662,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       const i = S.cur.syl.indexOf(target);
       ok = i >= 0 && S.judge.on(i, voice);
       // on the note: drawn mostly on the bar, so a held note looks held
-      if (ok && target.p !== null && p !== null) show = target.p + (p - target.p) * 0.3;
+      if (ok && want !== null && p !== null) show = want + (p - want) * 0.3;
     }
     return { p: show, ok };
   }
@@ -637,12 +693,16 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     // stray note at either end, which sits on the edge), so the same note is at the same height all song.
     if (!S.rng || S.rng.of !== syl) {
       const ps = [];
-      for (const x of syl) if (x.p !== null) ps.push(x.p);
+      for (const x of syl) {
+        if (x.p === null) continue;
+        ps.push(x.p);
+        if (x.c) for (const [, v] of x.c) ps.push(v); // 4.19: a word's slide or run reaches further than its main note
+      }
       ps.sort((x, y) => x - y);
       const sLo = ps.length ? ps[Math.floor((ps.length - 1) * 0.03)] : 55;
       const sHi = ps.length ? ps[Math.ceil((ps.length - 1) * 0.97)] : 65;
       const size = Math.max(10, sHi - sLo + 3);
-      const rows = [...new Set(ps.map((x) => Math.round(x)))].filter((p) => p >= sLo - 1.5 && p <= sHi + 1.5);
+      const rows = [...new Set(syl.filter((x) => x.p !== null).map((x) => Math.round(x.p)))].filter((p) => p >= sLo - 1.5 && p <= sHi + 1.5);
       S.rng = { of: syl, size, lo: (sLo + sHi) / 2 - size / 2, hi: (sLo + sHi) / 2 + size / 2, rows };
       // a syllable with no note (any voice counts) sits beside its neighbours, not in the middle
       let last = null;
@@ -680,8 +740,11 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
         }
       }
     }
-    // bars: plain pills, the one to sing now a little brighter
+    // bars: plain pills, the one to sing now a little brighter. 4.19: a word the singer slides,
+    // bends or runs over several notes is drawn as its line (a ribbon the same thickness)
     const BH = Z.bh;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
     for (let i = a; i < syl.length; i++) {
       const s = syl[i];
       if (s.t > t + AHEAD + 0.3) break;
@@ -690,33 +753,57 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       const y = clampY(s.p === null ? (Number.isFinite(s.near) ? Y(s.near) : midY) : Y(s.p));
       const res = j ? j.result[i] : null;
       const gold = j && j.lineResult[s.line] === 1;
+      const line = s.c && s.p !== null && x1 - x0 > BH * 1.5;
+      // the shape: a pill at one height, or a ribbon along the line
+      const shape = () => {
+        g.beginPath();
+        if (!line) return g.roundRect ? g.roundRect(x0, y - BH / 2, x1 - x0, BH, BH / 2) : g.rect(x0, y - BH / 2, x1 - x0, BH);
+        const xa = x0 + BH / 2;
+        const xb = x1 - BH / 2;
+        g.moveTo(xa, clampY(Y(s.c[0][1])));
+        for (const [ct, cp] of s.c) g.lineTo(Math.max(xa, Math.min(xb, X(ct))), clampY(Y(cp)));
+        g.lineTo(xb, clampY(Y(s.c[s.c.length - 1][1])));
+      };
+      const paint = (style, outline) => {
+        shape();
+        if (line) {
+          g.strokeStyle = style;
+          g.lineWidth = outline ? 1 : BH;
+          g.stroke();
+        } else if (outline) {
+          g.strokeStyle = style;
+          g.lineWidth = 1;
+          g.stroke();
+        } else {
+          g.fillStyle = style;
+          g.fill();
+        }
+      };
       g.globalAlpha = fade((x0 + x1) / 2) * (x0 > W - 40 ? Math.max(0, (W - x0) / 40) : 1);
-      roundRect(x0, y - BH / 2, x1 - x0, BH, BH / 2);
       if (res === 'hit') {
-        g.fillStyle = gold ? GOLD : CYAN;
         g.shadowColor = gold ? GOLD : CYAN;
         g.shadowBlur = 8;
-        g.fill();
+        paint(gold ? GOLD : CYAN);
         g.shadowBlur = 0;
         continue;
       }
       const isNow = s === target;
-      g.fillStyle = res === 'miss' ? 'rgba(245, 237, 218, 0.07)' : isNow ? 'rgba(245, 237, 218, 0.34)' : 'rgba(245, 237, 218, 0.18)';
       if (s.p === null && !res) {
         // no note: any voice counts, so the bar is only an outline
-        g.strokeStyle = 'rgba(245, 237, 218, 0.4)';
-        g.lineWidth = 1;
         g.setLineDash([3, 3]);
-        g.stroke();
+        paint('rgba(245, 237, 218, 0.4)', true);
         g.setLineDash([]);
-      } else g.fill();
+      } else paint(res === 'miss' ? 'rgba(245, 237, 218, 0.07)' : isNow ? 'rgba(245, 237, 218, 0.34)' : 'rgba(245, 237, 218, 0.18)');
       // the stretches you were on the note fill in
       if (j && j.spans[i].length) {
         g.save();
-        roundRect(x0, y - BH / 2, x1 - x0, BH, BH / 2);
+        g.beginPath();
+        for (const [f, e] of j.spans[i]) {
+          const xf = Math.max(x0, X(f));
+          g.rect(xf, top - 20, Math.max(1.5, Math.min(x1, X(e)) - xf), bot - top + 40);
+        }
         g.clip();
-        g.fillStyle = CYAN;
-        for (const [f, e] of j.spans[i]) g.fillRect(Math.max(x0, X(f)), y - BH / 2, Math.max(1.5, Math.min(x1, X(e)) - Math.max(x0, X(f))), BH);
+        paint(CYAN);
         g.restore();
       }
     }
@@ -800,7 +887,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
       }
     }
     if (aim) {
-      const y = clampY(Y(aim.p));
+      const y = clampY(Y(noteAt(aim, Math.max(t, aim.t))));
       const r = Z.dot;
       g.globalAlpha = aim.t > t ? 0.45 : 0.95;
       g.fillStyle = GOLD;
@@ -921,7 +1008,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     const dot = meter.lastChild;
     const cents = SING_LEVELS[prefs().level].cents;
     if (voice && voice.voiced) {
-      let off = target && target.p !== null && voice.midi !== null && voice.midi !== undefined ? foldCents(voice.midi, target.p) : 0;
+      let off = target && target.p !== null && voice.midi !== null && voice.midi !== undefined ? foldCents(voice.midi, noteAt(target, t - MIC_DELAY)) : 0;
       const i = target ? syl.indexOf(target) : -1;
       const ok = i >= 0 && j ? j.on(i, voice) : !!target && Math.abs(off) <= cents;
       if (ok) off *= 0.3; // on the note: the dot settles in the middle

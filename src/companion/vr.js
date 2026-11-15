@@ -9,6 +9,11 @@
  */
 import * as THREE from '/three/three.module.min.js';
 import { nearTargets, anchorAt, beatsBetween, level, sectionAt, FLAG } from './chart.js';
+import { KEY, loadPlace, nudge, nudgeGuitar, resetHighway, resetGuitar, highwayPoint } from './place.js';
+import { menuModel, layout as menuLayout, hit as menuHit, sortSongs, jumpTo, clampTop, ROWS, W as MW, H as MH } from './menu.js';
+import { JOINTS as JOINT_NAMES, INDEX_TIP, MIDDLE_TIP, palmToward, pinching } from './handpose.js';
+import { createHandsView, controllerShape } from './hands.js';
+import { createGuitarOutline } from './guitar.js';
 
 const STRING = ['#ff4b55', '#ffcf3a', '#3da5ff', '#ff9a3c', '#45d07c', '#b67dff']; // the PC's string colours
 const FRET_W = 0.085; // metres per fret across
@@ -17,15 +22,18 @@ const SPEED = 2.4; // metres per second of song, towards you
 const AHEAD = 4.2; // seconds of notes shown
 const FRETS = 24;
 const MAX = 640; // notes drawn at once (plenty: a busy part shows ~150)
-const KEY = 'stagehand.vr';
+const DEG = Math.PI / 180;
+const RECENT = 'stagehand.vr.recent';
+const MENU_W = 0.64; // the menu panel, metres (1024 × 768 pixels on it)
+const MENU_H = 0.48;
 
 const fretX = (f) => (f - 0.5) * FRET_W; // the middle of a fret's lane (fret 0, open, is left of fret 1)
 
 function loadPrefs() {
   try {
-    return { dist: 0.75, height: -0.42, offset: 0, ...(JSON.parse(localStorage.getItem(KEY) || '{}') || {}) };
+    return loadPlace(localStorage.getItem(KEY));
   } catch (_) {
-    return { dist: 0.75, height: -0.42, offset: 0 };
+    return loadPlace(null);
   }
 }
 
@@ -68,7 +76,126 @@ function digitAtlas() {
   return t;
 }
 
-export function createStage({ canvas, getState, getChart, marks, pcNow, send, onExit }) {
+const PART_GEL = { lead: '#ff6b3d', combo: '#ff6b3d', rhythm: '#ff6b3d', bass: '#8c7bff', vocals: '#33c8e0' }; // the page's own colours
+const PART_TAG = { lead: 'LEAD', combo: 'LEAD', rhythm: 'RHY', bass: 'BASS', vocals: 'VOX' };
+/** Paints the menu's buttons on its picture (only when something on it changed). */
+function paintMenu({ g, c, t }, buttons, hoverId) {
+  const F = 'Archivo, system-ui, sans-serif';
+  g.clearRect(0, 0, c.width, c.height);
+  g.fillStyle = 'rgba(17,19,22,.95)';
+  g.strokeStyle = 'rgba(255,181,71,.55)';
+  g.lineWidth = 4;
+  g.beginPath();
+  g.roundRect(3, 3, c.width - 6, c.height - 6, 30);
+  g.fill();
+  g.stroke();
+  const box = (b, fill, r = 18) => {
+    g.fillStyle = fill;
+    g.beginPath();
+    g.roundRect(b.x, b.y, b.w, b.h, r);
+    g.fill();
+  };
+  for (const b of buttons) {
+    const hov = hoverId === b.id && !b.off;
+    g.globalAlpha = b.off ? 0.32 : 1;
+    g.textBaseline = 'middle';
+    if (b.kind === 'tab') {
+      box(b, b.on ? '#ffb547' : hov ? '#3a4249' : '#24292d');
+      g.fillStyle = b.on ? '#2a1c05' : '#eceef6';
+      g.font = `800 36px ${F}`;
+      g.textAlign = 'center';
+      g.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 2, b.w - 16);
+    } else if (b.kind === 'btn' || b.kind === 'primary') {
+      const prim = b.kind === 'primary';
+      box(b, prim ? (b.warn ? (hov ? '#f07a6c' : '#d9574a') : hov ? '#ffc978' : '#ffb547') : b.on ? (hov ? '#2a6370' : '#1f505b') : hov ? '#3a4249' : '#2c3135');
+      if (b.on && !prim) {
+        g.strokeStyle = '#5fe3ff';
+        g.lineWidth = 4;
+        g.beginPath();
+        g.roundRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4, 16);
+        g.stroke();
+      }
+      g.textAlign = 'center';
+      g.fillStyle = prim ? '#21170a' : '#eceef6';
+      const big = b.label.length <= 1 ? 54 : prim ? 40 : 32;
+      g.font = `${prim ? 800 : 700} ${big}px ${F}`;
+      const ty = b.sub ? b.y + b.h / 2 - 14 : b.y + b.h / 2 + 2;
+      g.fillText(b.label, b.x + b.w / 2, ty, b.w - 20);
+      if (b.sub) {
+        g.font = `500 24px ${F}`;
+        g.fillStyle = prim ? 'rgba(33,23,10,.75)' : '#9fb0b8';
+        g.fillText(b.sub, b.x + b.w / 2, b.y + b.h / 2 + 24, b.w - 20);
+      }
+    } else if (b.kind === 'row') {
+      box(b, b.on ? '#2a3238' : hov ? '#30373d' : '#1e2226', 16);
+      if (b.on) {
+        g.fillStyle = '#ffb547';
+        g.fillRect(b.x, b.y + 12, 8, b.h - 24);
+      }
+      g.textAlign = 'left';
+      g.fillStyle = '#eceef6';
+      g.font = `700 36px ${F}`;
+      const chipsW = (b.parts || []).filter((p) => PART_TAG[p]).length * 92;
+      g.fillText(b.label, b.x + 28, b.y + 36, b.w - 56 - chipsW);
+      g.fillStyle = '#97a3aa';
+      g.font = `500 26px ${F}`;
+      g.fillText(b.sub || '', b.x + 28, b.y + 76, b.w - 56 - chipsW);
+      let x = b.x + b.w - 20;
+      const seen = new Set();
+      for (const p of [...(b.parts || [])].reverse()) {
+        const tag = PART_TAG[p];
+        if (!tag || seen.has(tag)) continue;
+        seen.add(tag);
+        x -= 84;
+        g.fillStyle = PART_GEL[p];
+        g.beginPath();
+        g.roundRect(x, b.y + b.h / 2 - 20, 76, 40, 10);
+        g.fill();
+        g.fillStyle = '#111';
+        g.font = `800 22px ${F}`;
+        g.textAlign = 'center';
+        g.fillText(tag, x + 38, b.y + b.h / 2 + 1);
+        g.textAlign = 'left';
+        x -= 8;
+      }
+    } else if (b.kind === 'label') {
+      g.textAlign = b.right ? 'right' : 'left';
+      const x = b.right ? b.x + b.w - 8 : b.x + 8;
+      g.fillStyle = '#eceef6';
+      g.font = `${b.big ? 800 : 700} ${b.big ? 42 : 32}px ${F}`;
+      g.fillText(b.label, x, b.sub ? b.y + b.h / 2 - 16 : b.y + b.h / 2, b.w - 16);
+      if (b.sub) {
+        g.fillStyle = '#97a3aa';
+        g.font = `500 ${b.big ? 28 : 24}px ${F}`;
+        g.fillText(b.sub, x, b.y + b.h / 2 + 22, b.w - 16);
+      }
+    } else if (b.kind === 'value') {
+      g.textAlign = 'center';
+      g.fillStyle = '#ffc35a';
+      g.font = `800 38px ${F}`;
+      g.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 2, b.w - 8);
+    } else if (b.kind === 'bar') {
+      const y = b.y + b.h / 2;
+      g.fillStyle = hov ? '#3a4249' : '#2c3135';
+      g.beginPath();
+      g.roundRect(b.x, y - 9, b.w, 18, 9);
+      g.fill();
+      g.fillStyle = '#ffb547';
+      g.beginPath();
+      g.roundRect(b.x, y - 9, Math.max(18, b.w * (b.value || 0)), 18, 9);
+      g.fill();
+      g.fillStyle = '#eceef6';
+      g.beginPath();
+      g.arc(b.x + Math.max(9, b.w * (b.value || 0)), y, 20, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  g.globalAlpha = 1;
+  g.textBaseline = 'alphabetic';
+  t.needsUpdate = true;
+}
+
+export function createStage({ canvas, getState, getChart, getSongs = () => [], getParts = () => null, arOk = () => false, marks, pcNow, send, onExit }) {
   const prefs = loadPrefs();
   const savePrefs = () => {
     try {
@@ -167,8 +294,12 @@ export function createStage({ canvas, getState, getChart, marks, pcNow, send, on
   // Made to look like the PC's 3D highway: a dark floor with a faint fret grid fading into the
   // distance, the hand's frets as a lit lane with bright edges, metal fret posts and the strings
   // where you play, gold numbers under the hand's frets, glowing gems with their numbers on them.
-  const hw = new THREE.Group(); // placed in front of you (distance and height are yours to set)
-  scene.add(hw);
+  // everything placed around you hangs off `base` (its origin: your eyes when VR started, or where
+  // "Put it in front of me" was pressed)
+  const base = new THREE.Group();
+  scene.add(base);
+  const hw = new THREE.Group(); // low in front of you, sloping away (height, distance, tilt and size are yours to set)
+  base.add(hw);
   const neck = new THREE.Group(); // slides left and right to follow your hand on the neck
   hw.add(neck);
   const nStr = () => (getChart() && getChart().strings) || 6;
@@ -369,80 +500,10 @@ export function createStage({ canvas, getState, getChart, marks, pcNow, send, on
     chordLabels.push(m);
   }
 
-  // ------------------------------------------------- the score and the menu --
+  // ------------------------------------------------------------ the score --
   const hud = textCanvas(1024, 192);
   const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.225), new THREE.MeshBasicMaterial({ map: hud.t, transparent: true, depthWrite: false, fog: false }));
-  hw.add(hudMesh);
-  const menu = textCanvas(512, 640);
-  const menuMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.4), new THREE.MeshBasicMaterial({ map: menu.t, transparent: true, depthWrite: false, fog: false }));
-  scene.add(menuMesh);
-  const BTN = [
-    { id: 'play', label: () => (getState() && getState().playing ? 'Pause' : 'Play'), x: 24, y: 96, w: 464, h: 92, big: true },
-    { id: 'back', label: () => '−10 s', x: 24, y: 204, w: 224, h: 74 },
-    { id: 'fwd', label: () => '+10 s', x: 264, y: 204, w: 224, h: 74 },
-    { id: 'near', label: () => 'Nearer', x: 24, y: 294, w: 224, h: 62 },
-    { id: 'far', label: () => 'Farther', x: 264, y: 294, w: 224, h: 62 },
-    { id: 'up', label: () => 'Higher', x: 24, y: 368, w: 224, h: 62 },
-    { id: 'down', label: () => 'Lower', x: 264, y: 368, w: 224, h: 62 },
-    { id: 'sooner', label: () => 'Notes sooner', x: 24, y: 442, w: 224, h: 62 },
-    { id: 'later', label: () => 'Notes later', x: 264, y: 442, w: 224, h: 62 },
-    { id: 'exit', label: () => 'Leave VR', x: 24, y: 548, w: 464, h: 70 },
-  ];
-  let hover = null;
-  let menuSig = '';
-  function drawMenu() {
-    const st = getState();
-    const sig = `${st && st.playing}|${hover}|${prefs.offset}|${prefs.dist}|${prefs.height}`;
-    if (sig === menuSig) return;
-    menuSig = sig;
-    const { g, c, t } = menu;
-    g.clearRect(0, 0, c.width, c.height);
-    g.fillStyle = 'rgba(19,21,23,.92)';
-    g.strokeStyle = 'rgba(255,181,71,.5)';
-    g.lineWidth = 3;
-    g.beginPath();
-    g.roundRect(4, 4, c.width - 8, c.height - 8, 28);
-    g.fill();
-    g.stroke();
-    g.font = '800 34px Archivo, system-ui, sans-serif';
-    g.fillStyle = '#eceef6';
-    g.textAlign = 'left';
-    g.fillText('Stagehand', 28, 58);
-    g.font = '500 22px Archivo, system-ui, sans-serif';
-    g.fillStyle = '#97a3aa';
-    g.textAlign = 'right';
-    g.fillText(prefs.offset ? `notes ${prefs.offset > 0 ? '+' : ''}${prefs.offset} ms` : '', 484, 56);
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    for (const b of BTN) {
-      const on = hover === b.id;
-      g.fillStyle = b.big ? (on ? '#ffc978' : '#ffb547') : on ? '#3a4249' : '#2c3135';
-      g.beginPath();
-      g.roundRect(b.x, b.y, b.w, b.h, 16);
-      g.fill();
-      g.fillStyle = b.big ? '#2a1c05' : '#eceef6';
-      g.font = `${b.big ? 800 : 600} ${b.big ? 40 : 28}px Archivo, system-ui, sans-serif`;
-      g.fillText(b.label(), b.x + b.w / 2, b.y + b.h / 2 + 2);
-    }
-    g.textBaseline = 'alphabetic';
-    t.needsUpdate = true;
-  }
-  function press(id) {
-    const st = getState();
-    const pos = st ? songNow() : 0;
-    if (id === 'play') send({ type: 'toggle' });
-    else if (id === 'back') send({ type: 'seek', t: Math.max(0, pos - 10) });
-    else if (id === 'fwd') send({ type: 'seek', t: pos + 10 });
-    else if (id === 'near') prefs.dist = Math.max(0.35, prefs.dist - 0.05);
-    else if (id === 'far') prefs.dist = Math.min(1.6, prefs.dist + 0.05);
-    else if (id === 'up') prefs.height = Math.min(0.1, prefs.height + 0.03);
-    else if (id === 'down') prefs.height = Math.max(-0.9, prefs.height - 0.03);
-    else if (id === 'sooner') prefs.offset = Math.max(-300, prefs.offset - 10);
-    else if (id === 'later') prefs.offset = Math.min(300, prefs.offset + 10);
-    else if (id === 'exit') return api.exit();
-    savePrefs();
-    place();
-  }
+  base.add(hudMesh);
   let hudSig = '';
   function drawHud(now) {
     const st = getState();
@@ -478,43 +539,346 @@ export function createStage({ canvas, getState, getChart, marks, pcNow, send, on
     t.needsUpdate = true;
   }
 
+  // ------------------------------------------------- the guitar outline --
+  const guitar = createGuitarOutline({ colors: STRING });
+  base.add(guitar.root);
+  const nowNotes = Array.from({ length: 12 }, () => [0, 0, 0]);
+
+  // ------------------------------------------------------------ the menu --
+  // One panel with four pages; it opens in front of you, a little below your eyes, within reach.
+  const menuTex = textCanvas(MW, MH);
+  menuTex.t.generateMipmaps = false;
+  menuTex.t.minFilter = THREE.LinearFilter;
+  const menuMesh = new THREE.Mesh(new THREE.PlaneGeometry(MENU_W, MENU_H), new THREE.MeshBasicMaterial({ map: menuTex.t, transparent: true, depthTest: false, depthWrite: false, fog: false }));
+  menuMesh.renderOrder = 20; // always over the highway
+  menuMesh.visible = false;
+  scene.add(menuMesh);
+  const mm = menuModel();
+  let leaveUntil = 0; // Leave VR pressed once: a second press leaves
+  let menuOpen = false;
+  let hoverId = null;
+  let menuSig = '';
+  let buttons = [];
+  let recent = {};
+  try {
+    recent = JSON.parse(localStorage.getItem(RECENT) || '{}') || {};
+  } catch (_) {}
+  let sortedFor = null;
+  let sorted = [];
+  const songList = () => {
+    const songs = getSongs() || [];
+    const key = `${mm.sort}|${songs.length}`;
+    if (sortedFor !== songs || sorted.key !== key) {
+      sortedFor = songs;
+      sorted = sortSongs(songs, mm.sort, recent);
+      sorted.key = key;
+    }
+    return sorted;
+  };
+  // a small "Menu" button that floats by the highway while the song is stopped
+  const pillTex = textCanvas(256, 96);
+  {
+    const { g, t } = pillTex;
+    g.fillStyle = 'rgba(19,21,23,.92)';
+    g.strokeStyle = 'rgba(255,181,71,.8)';
+    g.lineWidth = 5;
+    g.beginPath();
+    g.roundRect(4, 4, 248, 88, 44);
+    g.fill();
+    g.stroke();
+    g.fillStyle = '#ffb547';
+    for (let i = 0; i < 3; i++) g.fillRect(40, 30 + i * 15, 40, 6);
+    g.font = '800 44px Archivo, system-ui, sans-serif';
+    g.textBaseline = 'middle';
+    g.fillStyle = '#eceef6';
+    g.fillText('Menu', 98, 50);
+    t.needsUpdate = true;
+  }
+  const pill = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.06), new THREE.MeshBasicMaterial({ map: pillTex.t, transparent: true, depthTest: false, depthWrite: false, fog: false }));
+  pill.renderOrder = 19;
+  base.add(pill);
+  // the same, small, over your wrist when you turn your palm to look at it
+  const wristBtn = new THREE.Mesh(new THREE.CircleGeometry(0.024, 32), new THREE.MeshBasicMaterial({ map: (() => {
+    const { g, t } = textCanvas(128, 128);
+    g.fillStyle = 'rgba(19,21,23,.95)';
+    g.beginPath();
+    g.arc(64, 64, 60, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#ffb547';
+    g.lineWidth = 7;
+    g.stroke();
+    g.fillStyle = '#ffb547';
+    for (let i = 0; i < 3; i++) g.fillRect(36, 40 + i * 20, 56, 9);
+    t.needsUpdate = true;
+    return t;
+  })(), transparent: true, depthTest: false, depthWrite: false }));
+  wristBtn.renderOrder = 21;
+  wristBtn.visible = false;
+  scene.add(wristBtn);
+
+  const fmtT = (t) => `${Math.floor(Math.max(0, t) / 60)}:${String(Math.floor(Math.max(0, t) % 60)).padStart(2, '0')}`;
+  let matchUntil = 0; // "line it up with my hand": when the hand is read
+  function menuCtx() {
+    const st = getState();
+    const ch = getChart();
+    const songId = st && st.song ? st.song.id : null;
+    const parts = getParts();
+    return {
+      list: songList(),
+      songId,
+      title: st && st.song ? st.song.title : '',
+      artist: st && st.song ? st.song.artist : '',
+      playing: !!(st && st.playing),
+      pos: rawNow(),
+      len: st && st.song ? st.song.length : 0,
+      parts: parts && parts.song === songId ? parts.list : [],
+      partId: st && st.partId,
+      speed: st && st.speed,
+      phase: st && st.phase,
+      aside: !!(ch && ch.aside),
+      prefs,
+      canPassthrough: canPass(),
+      leaving: performance.now() < leaveUntil,
+      passthrough,
+      handsSeen: handsSeen(),
+    };
+  }
+  function drawMenu() {
+    const c = menuCtx();
+    const left = matchUntil ? Math.ceil((matchUntil - performance.now()) / 1000) : 0;
+    const sig = `${mm.tab}|${mm.sort}|${mm.top}|${mm.letters}|${mm.placeWhat}|${hoverId}|${c.songId}|${c.title}|${c.playing}|${Math.floor(c.pos)}|${c.len}|${c.partId}|${c.parts.map((p) => p.id).join(',')}|${c.speed}|${c.phase}|${c.aside}|${JSON.stringify(prefs)}|${c.canPassthrough}|${passthrough}|${c.handsSeen}|${c.list.length}|${left}|${c.leaving}`;
+    if (sig === menuSig) return;
+    menuSig = sig;
+    buttons = menuLayout(mm, c);
+    if (left > 0) {
+      const b = buttons.find((x) => x.id === 'match');
+      if (b) Object.assign(b, { label: `Hold still… ${left}`, sub: 'fretting hand on the 5th fret', off: false });
+    }
+    paintMenu(menuTex, buttons, hoverId);
+  }
+  function openMenu(tab) {
+    if (tab) mm.tab = tab;
+    menuOpen = true;
+    // in front of you, where you look (but never above your eyes, nor down in your lap), turned to face you
+    const cam = viewCam();
+    cam.getWorldPosition(headP);
+    cam.getWorldDirection(fwd);
+    const down = Math.min(32, Math.max(10, (-Math.asin(Math.max(-1, Math.min(1, fwd.y))) * 180) / Math.PI)) * DEG;
+    fwd.y = 0;
+    if (fwd.lengthSq() < 1e-4) fwd.set(0, 0, -1);
+    fwd.normalize();
+    const far = renderer.xr.isPresenting ? 0.5 : 0.62;
+    menuMesh.position.copy(headP).addScaledVector(fwd, far * Math.cos(down));
+    menuMesh.position.y -= far * Math.sin(down);
+    menuMesh.lookAt(headP);
+    menuMesh.visible = true;
+    menuSig = '';
+  }
+  function closeMenu() {
+    menuOpen = false;
+    menuMesh.visible = false;
+    mm.letters = false;
+    hoverId = null;
+  }
+  let toggledAt = 0;
+  function toggleMenu() {
+    const t = performance.now();
+    if (t - toggledAt < 400) return; // one gesture, one toggle
+    toggledAt = t;
+    if (menuOpen) closeMenu();
+    else openMenu();
+  }
+
+  /** Does what a menu button says. fx: where along the button it was pressed (0–1, for the song bar). */
+  function act(id, fx = 0.5) {
+    const st = getState();
+    const i = id.indexOf(':');
+    const k = i < 0 ? id : id.slice(0, i);
+    const v = i < 0 ? '' : id.slice(i + 1);
+    const pos = st ? songNow() : 0;
+    const len = st && st.song ? st.song.length : 0;
+    const speedTo = (s) => send({ type: 'speed', to: Math.round(Math.max(0.25, Math.min(1.5, s)) * 100) / 100 });
+    if (k === 'tab') {
+      mm.tab = v;
+      mm.letters = false;
+    } else if (k === 'close') closeMenu();
+    else if (k === 'sort') {
+      mm.sort = v;
+      mm.top = 0;
+      mm.letters = false;
+    } else if (k === 'up') mm.top = clampTop(mm.top - ROWS, songList().length);
+    else if (k === 'down') mm.top = clampTop(mm.top + ROWS, songList().length);
+    else if (k === 'scroll') mm.top = clampTop(mm.top + Number(v), songList().length);
+    else if (k === 'letters') mm.letters = !mm.letters;
+    else if (k === 'letter') {
+      const at = jumpTo(songList(), mm.sort, v);
+      if (at >= 0) mm.top = clampTop(at, songList().length);
+      mm.letters = false;
+    } else if (k === 'song') {
+      send({ type: 'pick', id: v });
+      recent[v] = Date.now();
+      try {
+        localStorage.setItem(RECENT, JSON.stringify(recent));
+      } catch (_) {}
+      sortedFor = null;
+      mm.tab = 'play'; // next: the part, then Play
+    } else if (k === 'play') {
+      const was = !!(st && st.playing);
+      send({ type: 'toggle' });
+      if (!was) closeMenu(); // the song starts: the menu steps out of the way
+    } else if (k === 'restart') send({ type: 'restart' });
+    else if (k === 'back10') send({ type: 'seek', t: Math.max(0, pos - 10) });
+    else if (k === 'fwd10') send({ type: 'seek', t: pos + 10 });
+    else if (k === 'bar') len && send({ type: 'seek', t: Math.max(0, Math.min(1, fx)) * len });
+    else if (k === 'part') send({ type: 'part', id: v });
+    else if (k === 'speed-') speedTo(((st && st.speed) || 1) - 0.05);
+    else if (k === 'speed+') speedTo(((st && st.speed) || 1) + 0.05);
+    else if (k === 'speed1') speedTo(1);
+    else if (k === 'sooner') nudge(prefs, 'offset', -1);
+    else if (k === 'later') nudge(prefs, 'offset', 1);
+    else if (k === 'what') mm.placeWhat = v;
+    else if (/^h:\w+[-+]$/.test(id)) nudge(prefs, id.slice(2, -1), id.endsWith('+') ? 1 : -1);
+    else if (/^g:\w+[-+]$/.test(id)) {
+      const key = id.slice(2, -1);
+      let dir = id.endsWith('+') ? 1 : -1;
+      if (key === 'z' || key === 'angle') dir = -dir; // Nearer is towards you; Flatter lays it down
+      nudgeGuitar(prefs, key, dir);
+    } else if (k === 'front') recenter();
+    else if (k === 'resetHighway') {
+      resetHighway(prefs);
+      base.position.set(0, 0, 0);
+      base.rotation.set(0, 0, 0);
+    } else if (k === 'resetGuitar') resetGuitar(prefs);
+    else if (k === 'match') matchUntil = performance.now() + 3000;
+    else if (k === 'pass') setPassthrough(v === 'on');
+    else if (k === 'guitar') prefs.guitar.on = v === 'on';
+    else if (k === 'hands') prefs.hands = v;
+    else if (k === 'exit') {
+      // a second press within 4 s leaves, so a stray poke doesn't take the headset out of the song
+      if (performance.now() < leaveUntil || fx === 'now') return api.exit();
+      leaveUntil = performance.now() + 4000;
+    }
+    savePrefs();
+    place();
+    menuSig = '';
+  }
+
+  // the old menu's names (4.16), kept so nothing that pressed them breaks
+  const OLD_IDS = { near: 'h:dist-', far: 'h:dist+', up: 'h:height+', down: 'h:height-', back: 'back10', fwd: 'fwd10' };
+
+  function recenter() {
+    const cam = viewCam();
+    cam.getWorldPosition(headP);
+    cam.getWorldDirection(fwd);
+    base.position.copy(headP);
+    base.rotation.set(0, Math.atan2(-fwd.x, -fwd.z), 0);
+  }
+
   function place() {
     hw.position.set(0, prefs.height, -prefs.dist);
-    hudMesh.position.set(0, 0.55, -3.2);
+    hw.rotation.x = -prefs.tilt * DEG; // the far end down: the whole highway faces your eyes
+    hw.scale.setScalar(prefs.size);
+    // the score: above the highway's far part, a little below straight ahead
+    const far = highwayPoint(prefs, 3.6);
+    hudMesh.position.set(0, far.y + 0.6, far.z);
+    hudMesh.rotation.set(-Math.atan2(-(far.y + 0.6), -far.z), 0, 0);
     hudMesh.scale.setScalar(1.6);
-    menuMesh.position.set(-0.62, prefs.height + 0.32, -prefs.dist + 0.12);
-    menuMesh.lookAt(0, 0, 0);
+    pill.position.set(-0.36 * prefs.size - 0.12, prefs.height + 0.16, -prefs.dist + 0.05);
+    pill.lookAt(base.localToWorld(headP.set(0, 0, 0)));
+    guitar.place(prefs.guitar);
   }
-  place();
 
   // -------------------------------------------------- pointing and pressing --
+  // Controllers or hands: a ray from each (pinch or trigger presses), and with hands a fingertip
+  // that touches the panel presses too. While a song plays and the menu is closed, pinches do
+  // nothing (holding a pick is a pinch).
   const ray = new THREE.Raycaster();
-  const ctrls = [0, 1].map((i) => {
-    const c = renderer.xr.getController(i);
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0xffb547, transparent: true, opacity: 0.7 }));
-    line.scale.z = 2;
-    c.add(line);
-    c.addEventListener('selectstart', () => {
-      const id = pointAt(c);
-      if (id) press(id);
-    });
-    scene.add(c);
-    return c;
-  });
+  const headP = new THREE.Vector3();
+  const fwd = new THREE.Vector3();
   const tmpM = new THREE.Matrix4();
-  function buttonAt(uv) {
-    if (!uv) return null;
-    const x = uv.x * 512;
-    const y = (1 - uv.y) * 640;
-    const b = BTN.find((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
-    return b ? b.id : null;
-  }
-  function pointAt(c) {
-    tmpM.identity().extractRotation(c.matrixWorld);
-    ray.ray.origin.setFromMatrixPosition(c.matrixWorld);
+  const tv = new THREE.Vector3();
+  const tv2 = new THREE.Vector3();
+  const targets = [];
+  const handsView = createHandsView(scene);
+  const handData = [0, 1].map(() => ({ pts: new Float32Array(75), radii: new Float32Array(25), on: false, side: 'left' }));
+  let fake = null; // pretend hands (tests): [left points or null, right points or null]
+  const pointers = [0, 1].map((i) => {
+    const ctrl = renderer.xr.getController(i);
+    const grip = renderer.xr.getControllerGrip(i);
+    const hand = renderer.xr.getHand(i);
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0xffb547, transparent: true, opacity: 0.75 }));
+    line.visible = false;
+    ctrl.add(line);
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.006, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffd28a, depthTest: false }));
+    dot.renderOrder = 22;
+    dot.visible = false;
+    scene.add(dot);
+    const shape = controllerShape();
+    grip.add(shape);
+    const p = { i, ctrl, grip, hand, line, dot, shape, source: null, isHand: false, side: 'none', aim: null, buttons: [false, false], stickAt: 0, poked: false, pinch: false };
+    ctrl.addEventListener('connected', (e) => {
+      p.source = e.data;
+      p.isHand = !!(e.data && e.data.hand);
+      p.side = (e.data && e.data.handedness) || 'none';
+    });
+    ctrl.addEventListener('disconnected', () => {
+      p.source = null;
+      p.isHand = false;
+    });
+    ctrl.addEventListener('selectstart', () => {
+      const a = aim(p);
+      if (a) a.press();
+    });
+    scene.add(ctrl, grip, hand);
+    return p;
+  });
+  const hitRes = { press: null, point: new THREE.Vector3(), dist: 0, id: null };
+  /** What a pointer's ray is on: the menu's buttons, the Menu button, the wrist button (or null). */
+  function aim(p) {
+    tmpM.identity().extractRotation(p.ctrl.matrixWorld);
+    ray.ray.origin.setFromMatrixPosition(p.ctrl.matrixWorld);
     ray.ray.direction.set(0, 0, -1).applyMatrix4(tmpM);
-    const hit = ray.intersectObject(menuMesh, false)[0];
-    return hit ? buttonAt(hit.uv) : null;
+    return aimRay();
+  }
+  function aimRay() {
+    targets.length = 0;
+    if (menuMesh.visible) targets.push(menuMesh);
+    if (pill.visible) targets.push(pill);
+    if (wristBtn.visible) targets.push(wristBtn);
+    if (!targets.length) return null;
+    const h = ray.intersectObjects(targets, false)[0];
+    if (!h) return null;
+    hitRes.point.copy(h.point);
+    hitRes.dist = h.distance;
+    if (h.object === menuMesh) {
+      const b = menuHit(buttons, h.uv.x * MW, (1 - h.uv.y) * MH);
+      hitRes.id = b ? b.id : null;
+      const fx = b ? (h.uv.x * MW - b.x) / b.w : 0;
+      hitRes.press = b ? () => act(b.id, fx) : () => {};
+    } else {
+      hitRes.id = '#menu';
+      hitRes.press = toggleMenu;
+    }
+    return hitRes;
+  }
+  /** A fingertip touching the panel presses what's under it (once, until the finger comes away). */
+  function poke(p, tip) {
+    if (!menuMesh.visible) return null;
+    tv.set(tip[0], tip[1], tip[2]);
+    menuMesh.worldToLocal(tv);
+    if (Math.abs(tv.x) > MENU_W / 2 || Math.abs(tv.y) > MENU_H / 2) {
+      p.poked = false;
+      return null;
+    }
+    const x = (tv.x / MENU_W + 0.5) * MW;
+    const y = (0.5 - tv.y / MENU_H) * MH;
+    const b = menuHit(buttons, x, y);
+    if (tv.z > 0.035 || tv.z < -0.06) p.poked = false;
+    else if (tv.z < 0.012 && !p.poked) {
+      p.poked = true;
+      if (b) act(b.id, (x - b.x) / b.w);
+    }
+    return tv.z < 0.08 && b ? b.id : null;
   }
   // the flat preview: the mouse presses the same buttons
   const mouse = new THREE.Vector2();
@@ -522,10 +886,147 @@ export function createStage({ canvas, getState, getChart, marks, pcNow, send, on
     const r = canvas.getBoundingClientRect();
     mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(mouse, camera);
-    const hit = ray.intersectObject(menuMesh, false)[0];
-    const id = hit ? buttonAt(hit.uv) : null;
-    if (id) press(id);
+    const a = aimRay();
+    if (a) a.press();
   });
+  canvas.addEventListener('wheel', (e) => {
+    if (menuOpen && mm.tab === 'songs' && !mm.letters) act(`scroll:${e.deltaY > 0 ? 1 : -1}`);
+  }, { passive: true });
+
+  const handsSeen = () => handData[0].on || handData[1].on;
+  /** Reads the tracked hands (or the pretend ones) into handData. */
+  function readHands() {
+    for (let i = 0; i < 2; i++) {
+      const d = handData[i];
+      d.on = false;
+      if (fake) {
+        const pts = fake[i];
+        if (pts) {
+          d.pts.set(pts);
+          d.radii.fill(0);
+          d.on = true;
+          d.side = i === 0 ? 'left' : 'right';
+        }
+        continue;
+      }
+      const p = pointers[i];
+      if (!p.isHand || !p.hand.joints) continue;
+      const w = p.hand.joints.wrist;
+      if (!w || !w.visible) continue;
+      let j = 0;
+      let ok = true;
+      for (const name of JOINT_NAMES) {
+        const jt = p.hand.joints[name];
+        if (!jt) {
+          ok = false;
+          break;
+        }
+        d.pts[j * 3] = jt.position.x;
+        d.pts[j * 3 + 1] = jt.position.y;
+        d.pts[j * 3 + 2] = jt.position.z;
+        d.radii[j] = jt.jointRadius || 0;
+        j++;
+      }
+      if (!ok) continue;
+      d.on = true;
+      d.side = p.side === 'right' ? 'right' : 'left';
+    }
+  }
+  const tip = [0, 0, 0];
+  const eye = [0, 0, 0];
+  let wristTouch = false;
+  /** Pointers, fingertips, the wrist button and controller buttons, once a frame. */
+  function pointing(wall, playing) {
+    readHands();
+    const cam = viewCam();
+    cam.getWorldPosition(headP);
+    eye[0] = headP.x;
+    eye[1] = headP.y;
+    eye[2] = headP.z;
+    // the wrist button: over a hand whose palm you turn to look at (raised, not down on the guitar)
+    let wrist = -1;
+    for (let i = 0; i < 2; i++) {
+      const d = handData[i];
+      if (d.on && d.pts[1] - headP.y > -0.42 && palmToward(d.pts, d.side, eye) > 0.6) wrist = i;
+    }
+    wristBtn.visible = wrist >= 0;
+    if (wrist >= 0) {
+      const d = handData[wrist].pts;
+      // just above the wrist, towards your eyes
+      tv.set(d[0], d[1], d[2]);
+      tv2.set(eye[0], eye[1], eye[2]).sub(tv).normalize();
+      wristBtn.position.copy(tv).addScaledVector(tv2, 0.045);
+      wristBtn.lookAt(headP);
+      // the other hand's fingertip on it, or this hand pinching, opens or closes the menu
+      const o = handData[1 - wrist];
+      if (o.on) {
+        const dx = o.pts[INDEX_TIP * 3] - wristBtn.position.x;
+        const dy = o.pts[INDEX_TIP * 3 + 1] - wristBtn.position.y;
+        const dz = o.pts[INDEX_TIP * 3 + 2] - wristBtn.position.z;
+        const touch = Math.hypot(dx, dy, dz) < 0.028;
+        if (touch && !wristTouch) toggleMenu();
+        wristTouch = touch;
+      }
+      const pin = pinching(handData[wrist].pts, pointers[wrist].pinch);
+      if (pin && !pointers[wrist].pinch) toggleMenu();
+      pointers[wrist].pinch = pin;
+    }
+    // "line it up with my hand": after the count, the fretting hand's fingertips are the 5th fret
+    if (matchUntil && wall >= matchUntil) {
+      matchUntil = 0;
+      const d = handData[0].on && handData[0].side === 'left' ? handData[0] : handData[1].on && handData[1].side === 'left' ? handData[1] : handData[0].on ? handData[0] : handData[1];
+      if (d.on) {
+        tv.set((d.pts[INDEX_TIP * 3] + d.pts[MIDDLE_TIP * 3]) / 2, (d.pts[INDEX_TIP * 3 + 1] + d.pts[MIDDLE_TIP * 3 + 1]) / 2, (d.pts[INDEX_TIP * 3 + 2] + d.pts[MIDDLE_TIP * 3 + 2]) / 2);
+        base.worldToLocal(tv);
+        prefs.guitar.x = Math.round(tv.x * 1000) / 1000;
+        prefs.guitar.y = Math.round(tv.y * 1000) / 1000;
+        prefs.guitar.z = Math.round(tv.z * 1000) / 1000;
+        savePrefs();
+        place();
+      }
+      menuSig = '';
+    }
+    let hov = null;
+    for (const p of pointers) {
+      const live = renderer.xr.isPresenting && p.source;
+      // the controller drawn when there's no hand
+      p.shape.visible = !!(live && !p.isHand);
+      let a = null;
+      if (live && (menuOpen || !playing || !p.isHand)) a = aim(p);
+      const d = handData[p.i];
+      let poked = null;
+      if (d.on && menuOpen) {
+        tip[0] = d.pts[INDEX_TIP * 3];
+        tip[1] = d.pts[INDEX_TIP * 3 + 1];
+        tip[2] = d.pts[INDEX_TIP * 3 + 2];
+        poked = poke(p, tip);
+      }
+      if (poked) hov = poked;
+      else if (a && a.id && !hov) hov = a.id;
+      // the ray shows only while there's something to point at
+      const showRay = !!(live && a) || !!(live && menuOpen && !p.isHand);
+      p.line.visible = showRay;
+      p.line.scale.z = a ? a.dist : 1.2;
+      p.dot.visible = !!(live && a);
+      if (a) p.dot.position.copy(a.point);
+      // controller buttons: A/B or X/Y open and close the menu; the stick scrolls the songs
+      const gp = live && !p.isHand && p.source.gamepad;
+      if (gp) {
+        for (let b = 0; b < 2; b++) {
+          const down = !!(gp.buttons[4 + b] && gp.buttons[4 + b].pressed);
+          if (down && !p.buttons[b]) toggleMenu();
+          p.buttons[b] = down;
+        }
+        const y = gp.axes[3] || 0;
+        if (menuOpen && mm.tab === 'songs' && !mm.letters && Math.abs(y) > 0.6 && wall > p.stickAt) {
+          act(`scroll:${y > 0 ? 1 : -1}`);
+          p.stickAt = wall + 180;
+        }
+      }
+    }
+    if (hov !== hoverId) hoverId = hov;
+  }
+  place();
 
   // ------------------------------------------------------------ each frame --
   const col = new THREE.Color();
@@ -561,6 +1062,7 @@ export function createStage({ canvas, getState, getChart, marks, pcNow, send, on
     return shown;
   };
   const stats = { frames: 0, total: 0, drawn: 0, last: 0, fps: 0 };
+  const HAND_LEVEL = { bright: 0.8, dim: 0.38, faint: 0.16 };
 
   function frame() {
     const wall = performance.now();
@@ -722,15 +1224,38 @@ export function createStage({ canvas, getState, getChart, marks, pcNow, send, on
     sparks.count = si;
     sparks.instanceMatrix.needsUpdate = true;
     if (sparks.instanceColor) sparks.instanceColor.needsUpdate = true;
-    // the score and the menu (redrawn only when they change)
-    drawHud(Math.max(0, now));
-    drawMenu();
-    menuMesh.visible = renderer.xr.isPresenting;
-    if (renderer.xr.isPresenting) {
-      let h = null;
-      for (const c of ctrls) h = h || pointAt(c);
-      hover = h;
+    // the guitar outline (full VR only: in passthrough you see your own guitar)
+    guitar.root.visible = !passthrough && prefs.guitar.on;
+    if (guitar.root.visible) {
+      let k = 0;
+      for (const x of near) {
+        const d = Math.abs(x.t - now);
+        if (x.t - now > 0.3 || (d > 0.15 && x.t < now)) continue;
+        const strength = 1 - Math.min(1, d / 0.3);
+        for (const nn of x.n) {
+          if (k >= 12) break;
+          nowNotes[k][0] = nn[0];
+          nowNotes[k][1] = nn[1];
+          nowNotes[k][2] = strength;
+          k++;
+        }
+      }
+      guitar.update(n, a, nowNotes, k);
     }
+    // the score, the menu, your hands (redrawn only when they change)
+    drawHud(Math.max(0, now));
+    const playing = !!(st && st.playing);
+    if (playing && !wasPlaying && menuOpen) closeMenu(); // the song started: out of the way
+    wasPlaying = playing;
+    if (openSoon && renderer.xr.isPresenting && --openSoon.frames <= 0) {
+      openMenu(openSoon.tab);
+      openSoon = null;
+    }
+    pointing(wall, playing);
+    if (menuOpen) drawMenu();
+    pill.visible = !menuOpen && !playing;
+    const bright = menuOpen || !playing || matchUntil;
+    handsView.update(handData, bright ? 0.9 : HAND_LEVEL[prefs.hands] || 0.38, dt);
     renderer.render(scene, camera);
     stats.frames++;
     stats.total++;
@@ -755,26 +1280,121 @@ export function createStage({ canvas, getState, getChart, marks, pcNow, send, on
 
   let passthrough = false;
   let session = null;
+  let sessionMode = null;
+  let wasPlaying = false;
+  let openSoon = null;
+  const fog = scene.fog;
+  /** The camera you see through: the headset's, or the flat preview's. */
+  const viewCam = () => (renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
+  /** Your room can be shown: in a passthrough-capable session (or before one, if the browser can). */
+  const canPass = () => (session ? sessionMode === 'immersive-ar' : !!arOk());
+  function look() {
+    renderer.setClearColor(0x000000, passthrough ? 0 : 1);
+    scene.fog = passthrough ? null : fog;
+  }
+  function setPassthrough(on) {
+    if (on && !canPass()) return;
+    prefs.passthrough = !!on;
+    passthrough = !!on && (!session || sessionMode === 'immersive-ar');
+    look();
+  }
+  // the flat preview looks down the highway, as you would sitting with the guitar
+  function previewLook(down = null, turn = 0) {
+    camera.position.set(0, 0, 0);
+    camera.rotation.set(0, 0, 0);
+    if (down == null) {
+      const p = highwayPoint(prefs, 1.2);
+      camera.lookAt(0, p.y, p.z);
+    } else camera.rotation.set(-down * DEG, -turn * DEG, 0, 'YXZ');
+  }
+  previewLook();
   const api = {
     renderer,
     stats,
     prefs,
-    press,
+    /** Presses a menu button by its name (as the headset's menu does). */
+    press: (id, fx) => act(OLD_IDS[id] || id, fx),
+    menu: {
+      open: (tab) => openMenu(tab),
+      close: () => closeMenu(),
+      toggle: () => toggleMenu(),
+      get shown() {
+        return menuOpen;
+      },
+      get model() {
+        return mm;
+      },
+      buttons: () => (drawMenu(), buttons),
+      /** Where a button is in the room (its middle), for tests. */
+      pointOf(id) {
+        drawMenu();
+        const b = buttons.find((x) => x.id === id);
+        if (!b) return null;
+        menuMesh.updateMatrixWorld();
+        const p = menuMesh.localToWorld(new THREE.Vector3(((b.x + b.w / 2) / MW - 0.5) * MENU_W, (0.5 - (b.y + b.h / 2) / MH) * MENU_H, 0));
+        const n = new THREE.Vector3(0, 0, 1).transformDirection(menuMesh.matrixWorld);
+        return { at: [p.x, p.y, p.z], facing: [n.x, n.y, n.z] };
+      },
+    },
+    /** For tests: pretend hands (two arrays of 25 joints × xyz, or null) and where the flat preview looks. */
+    fakeHands(h) {
+      fake = h;
+    },
+    look: previewLook,
+    /** For tests: put the highway somewhere (not remembered). */
+    placeAt(o) {
+      Object.assign(prefs, o);
+      place();
+    },
+    /** For tests: the flat preview from somewhere else (e.g. the side, to see the heights). */
+    view(from, at) {
+      camera.position.set(from[0], from[1], from[2]);
+      camera.lookAt(at[0], at[1], at[2]);
+    },
+    get guitar() {
+      return guitar;
+    },
+    get passthrough() {
+      return passthrough;
+    },
+    get handsOpacity() {
+      return handsView.opacity;
+    },
     /** 'vr' (the venue around you) or 'ar' (your room); resolves once the headset shows it. */
     async enter(mode = 'vr') {
       if (!navigator.xr) throw new Error('This browser has no VR');
-      passthrough = mode === 'ar';
-      renderer.setClearColor(0x000000, passthrough ? 0 : 1);
-      scene.fog = passthrough ? null : new THREE.Fog(0x05070c, 6, 13);
-      session = await navigator.xr.requestSession(passthrough ? 'immersive-ar' : 'immersive-vr', { optionalFeatures: ['local-floor', 'hand-tracking'] });
+      // a passthrough-capable session when the browser has one, so your room can be switched on and off
+      // from the menu without leaving; the venue covers it while it's off
+      const want = mode === 'ar' || (mode === 'vr' && arOk()) ? 'immersive-ar' : 'immersive-vr';
+      const opts = { optionalFeatures: ['local-floor', 'hand-tracking'] };
+      let s = null;
+      try {
+        s = await navigator.xr.requestSession(want, opts);
+        sessionMode = want;
+      } catch (e) {
+        if (want !== 'immersive-ar' || mode === 'ar') throw e;
+        s = await navigator.xr.requestSession('immersive-vr', opts);
+        sessionMode = 'immersive-vr';
+      }
+      session = s;
+      passthrough = mode === 'ar' && sessionMode === 'immersive-ar';
+      prefs.passthrough = passthrough;
+      look();
       session.addEventListener('end', () => {
         session = null;
+        sessionMode = null;
         passthrough = false;
-        renderer.setClearColor(0x000000, 1);
+        closeMenu();
+        base.position.set(0, 0, 0);
+        base.rotation.set(0, 0, 0);
+        look();
         resize();
         if (onExit) onExit();
       });
       await renderer.xr.setSession(session);
+      // the menu, ready, unless the song is already playing (opened on the first frames, once the headset knows where you look)
+      const st = getState();
+      if (!(st && st.playing)) openSoon = { tab: st && st.song ? 'play' : 'songs', frames: 3 };
       // the smoothest the headset can do (Quest 3: 90 or 120 frames a second)
       try {
         const rates = session.supportedFrameRates ? [...session.supportedFrameRates] : [];

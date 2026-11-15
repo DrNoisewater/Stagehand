@@ -305,8 +305,8 @@ function career(body, st) {
   }
   const big = h('div.pg-bignums');
   const BIG = [
-    ['Chords played', l.chordsPlayed, `${n(l.chordsHit)} hit`, 'chords'],
-    ['Notes hit', l.notesHit, `of ${n(l.notes)} played`, 'notes'],
+    ['Chords hit', l.chordsHit, `of ${n(l.chordsPlayed)} that came by`, 'chords'],
+    ['Notes and chords hit', l.notesHit, `of ${n(l.notes)} that came by · a chord counts once`, 'notes'],
     ['Hours playing', l.seconds, `${n(l.sessions)} sessions`, 'hours'],
   ];
   for (const [label, v, sub, key] of BIG) big.append(h(`div.card.pg-bignum.k-${key}`, null, h('small', { text: label }), h('b', null, key === 'hours' ? counter(v, `life-${key}`, fmtHours) : counter(v, `life-${key}`)), h('span', { text: sub })));
@@ -340,7 +340,7 @@ function career(body, st) {
   if (y) yr.append(h('div.pg-mini', null,
     h('div', null, h('b', { text: fmtHours(y.seconds) }), h('small', { text: 'hours' })),
     h('div', null, h('b', { text: n(y.songs) }), h('small', { text: 'songs' })),
-    h('div', null, h('b', { text: n(y.chords) }), h('small', { text: 'chords' })),
+    h('div', null, h('b', { text: n(y.chords) }), h('small', { text: 'chords hit' })),
     h('div', null, h('b', { text: n(y.days) }), h('small', { text: 'days' }))));
   const months = h('div.pg-months');
   const top = Math.max(60, ...(l.months || []).map((m) => m.minutes));

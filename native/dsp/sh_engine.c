@@ -169,7 +169,8 @@ static int build_into(sh_engine *e, slot_t *s, const sh_spec *sp, const float *i
         ok = ir && irlen > 0 ? cab_build_ir(b, ir, irlen, a) : cab_build(b, g, a, sr, sp->bass);
         if (ok) s->cab = bi;
       } else {
-        ok = fx_build(b, g, a, sr, stereo);
+        /* the wacky pedals tune themselves for bass */
+        ok = wacky_kind(g->key) ? wacky_build(b, g, a, sr, sp->bass) : fx_build(b, g, a, sr, stereo);
       }
       if (!ok) {
         s->nb--;

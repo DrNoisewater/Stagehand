@@ -1,3 +1,134 @@
+# 4.19.0 — Singing checked against the singer, note by note; the real pitch line (2026-11-15, not released; nothing tried on the user’s PC)
+
+The user: "I want singing to be as accurate as it can possibly be. Karaoke is the main way to sing; Sing & play is
+the option for two people." Five asks for singing, plus "look into a higher-quality stem split" (research first).
+4.18.2 was released first (Release run 46, checked: v4.18.2 with Stagehand-Setup-4.18.2.exe).
+Work notes (decisions, dead ends, the split research table): `docs/notes/4.19-singing-and-split.md`.
+
+**Part 1, built:**
+- **The singer's line** (`src/renderer/js/vocal-melody.js`, new; run by `workers/vocal-pitch-worker.js`):
+  `trackVoice` follows the vocals stem through every sung stretch (a reading every 10 ms), `readSyllable` gives each
+  syllable `{ p, c, q }`: its main note, its line as `[time, note]` points when it really moves (null when it holds
+  one note, vibrato evened out), and how much of it was clearly heard. A whole song reads in about 3 s.
+- **Lead only, blank rather than a guess**: the loudest voice is followed and may not hop to a quieter one; echo
+  tails and quiet leaks are skipped; two voices as loud as each other, whispers and gaps come out blank.
+- **Every chart note checked** (`sing.js` `checkNotes`, used by `singlane.js` `prepare()` on any split song): heard
+  clearly → the recording wins (note and line). Not heard → the chart's note is kept only in a line that agrees with
+  the singer elsewhere; in a made-up line it is left blank (any singing counts). Chart notes are moved to the
+  singer's octave so bars don't leap. Until the reading is in (first time only; then cached for the last 20 songs,
+  `stagehand.singLines`) the chart's notes show, and the label says "Checking the notes against the singer…".
+- **Notes to sing** (Sing menu, kept): Pick for me: the chart, checked against the singer / The chart's notes only /
+  The singer's notes only.
+- **Scoring follows the line** (`SingJudge.on(i, voice, t)`, `noteAt`): on a word with a line you must be where the
+  singer is (now, or within 80 ms either way). Plain words score as before.
+- **Drawing** (`singlane.js` `drawBars`): a word with a line is a ribbon along it, same thickness as a bar; the gold
+  pointer and your voice dot follow it. The lane's reach is still worked out once (it never moves).
+- **Auto-tune** gets a run of notes as separate notes (`tuneNotes`), so Hard tune walks a run.
+- **The mark**: the lane's label reads "✓ Notes checked against the singer: 94%" (hover: how many were replaced,
+  kept from the chart, left open); Karaoke's cards show a small green tick and the same number once a split song has
+  been sung (`singCheck`, `checkWords`; kept in `stagehand.singCheck`).
+- **Tests**: `test/melody.test.mjs` (7, in `npm test`): a clean singer, slides/bends/runs, backing voices + echo,
+  equal duet/whisper/gap left blank, a chart real in some lines and made up in others, scoring along a slide, and a
+  3-minute real-style song. Browser: `SING=check … shoot.js` (new: half the chart made up, a singer who slides, a
+  second voice). `SING=1/stem/words/karaoke` and `TUNE=robot` still pass.
+- **Not known**: how it does on real Demucs stems (only made-up voices here). Rough singers (screams, heavy rasp,
+  rap) will mostly come out blank or timing only, which is the intent.
+
+**Part 2, researched, not built (waiting for the user's pick):** see the table in the notes file. Short version:
+a two-pass split (Kim Mel-RoFormer vocals, then today's model on the rest) makes vocals clearly cleaner but guitar
+only a little; one newer model that does all six (BS-RoFormer SW) is far better on guitar, piano, bass and drums
+too, but nobody knows who made it or under what licence; both need a 0.7–0.9 GB download and take minutes instead
+of ~10 s per song on the 1080 Ti (estimates, never measured), and are not usable without a graphics card.
+
+**Ask the user:** on the song from 4.18.2 (bars stuck between E flat and F sharp) and a few others (a duet, one with
+big backing vocals, one with long runs), do the bars follow the singer, and is the mark believable? Do ribbons read
+well or are they too busy? Is scoring along slides too strict on Medium? Which split option to build.
+
+## Knobs (same release, asked 2026-11-15)
+
+The user: "On turning any knobs… it is not intuitive for left and right turning of the knob. I have always found this to be a problem for years… you end up having your mouse all over the screen, trying to go up or down and left or right. There has to be a much smarter way. While still being interactive."
+
+- **One drag for every knob** (`src/renderer/js/knobdrag.js`, used by `rotaryKnob` in `rigui.js`, so also the knobs on the gear photos, and by the Drop knob in `dropui.js`): up **or** right is more, down **or** left is less. The way the hand sets off (first 5 pixels) is the only one that counts until the button is let go, so a wobble the other way does nothing (before: up/down only; on the Drop, up and left cancelled each other).
+- **The pointer stays put.** Once the drag starts the pointer is hidden and held where it is, and comes back on the knob when the button is let go: it can't wander off or hit the edge of the screen. Escape, or switching to another window, ends the drag. Not done under the test robot (it moves the pointer by position), and if the PC refuses to hold the pointer the drag works as an ordinary one.
+- **A guide pops up over the knob** while it is dragged: the name and value in big type, a bar from least to most, and "◀ ▼ less · more ▲ ▶".
+- Unchanged: scroll wheel, arrow keys, Shift for fine, double-click to reset, a click steps a switch. Faders on the photos still slide up and down (that's what a fader does). Tooltips say the new way.
+- Tests: `test/gear-controls.test.mjs` (in `npm test`) drags every direction with a wobbly hand. The held pointer could **not** be checked here: the test browser reports nonsense movement when the pointer is held, so two guards are in (the first move after taking hold is left out, and a leap of more than 150 pixels in one go is ignored). **Ask the user first thing**: does a knob feel right, does the pointer come back where it was, any jumps?
+
+## A cleaner singer, song by song (same release, decided 2026-11-15)
+
+What the user decided after the comparison (in `docs/notes/4.19-singing-and-split.md`): three minutes per song is not acceptable before playing ("I love this program because I can open the app and be playing a song in maybe 10-20 seconds"), and nobody should convert a library of two thousand songs. Their words: "I am in favor of keeping the current split format… Upon clicking on some form of singing or karaoke, it can then prompt the user if they want to upgrade the stems. With the option to make that the default action."
+
+- **Nothing changes for an ordinary split**: same model, same speed, same files.
+- **The question**: when Sing along or Karaoke opens on a song that is split, a note asks once (per song, per run of the app) "Make the singer cleaner for this song?" with **Yes**, **Always** and **Not now** (`src/renderer/js/singer-upgrade.js`, called from `prepare()` in `singlane.js`). It is a note, not a box in the way: the song plays on. Settings › Stems › **Cleaner singer** has Ask me each time / Always, without asking / Never (`stems.singer`).
+- **The work**: a new split kind, `singer_6s` (`MODELS` and `BETTER` in `src/main/services/stems.js`): a model made just for voices takes the singer out, then today's 6-stem model splits what is left. Same six files, same format, in its own folder beside the first split (which stays). `StemService.upgrade(songId)` puts it at the very end of the line: every ordinary split goes first, and a song opened to play stops it (it goes back to the end). The song stays "ready" on its old stems meanwhile (`status()` adds `better` and `upgrade`); when it is done the new stems are the ones used (`ready()` prefers them), from the next time the song is opened. The Sing badge shows "Making the singer cleaner 42%". "Split stems again" on such a song makes the cleaner kind again. The cleaner split's time is kept out of the time-left guess.
+- The singing notes are read again by themselves from the new vocals (the cache goes by the stem's address).
+- Tests: `test/stems-queue.test.js` (the job waits its turn, the song stays ready, the new stems are used after), `SING=check` (the question shows once, Yes starts it).
+
+## Lifetime numbers checked (same release, asked 2026-11-15)
+
+The user asked: "Is the app counting lifetime stats? Are they accurate. Have I really hit 27K chords since 10/24. 115k notes?"
+
+- **Yes, they are counted** (since 4.5: Progress › Career stats, `services/lifetime.js`, added up from every session in stats.json plus its archive).
+- **What the audit found.** Nothing counts a note twice in the big totals: a loop or a seek back takes the earlier result away (`Judge.rewind`), an exact double log is dropped, and only time with the guitar on and a song playing is logged. Three things were off:
+  1. **The big "Chords played" number was chords that came by, not chords hit** (the hit count was the small print). So "27K" was chords that passed; the number hit is smaller. Now the card reads **Chords hit**, "of N that came by", and the notes card says a chord counts once. This year's card counts chords hit too.
+  2. **Chords were slightly under-counted**: a session with only one or two chords logged none (the score card's "three or more" rule leaked into the log). `compact()` now keeps every kind.
+  3. **Totals and kinds were counted two different ways** (the judge's running count against a place in the song), so after a checkpoint (opening Progress, opening or closing the highway) half a second of notes could land in two sessions' chord counts, and after a seek back the two could disagree. Now a session remembers what was already judged when it began (`session.seen`) and `breakdown(..., { skip })` counts every note judged since, each once; notes, hits, sections and kinds all come from that one count.
+  4. **Sung words and piano keys were added into the guitar totals** (Sing along logs part `vocals`, Piano logs `keys`). Their time still counts; their notes no longer go into Notes hit, average accuracy, best accuracy or personal bests (`lifetime.js`). This one does lower the number shown if the user has sung or played Piano.
+- Old sessions are not rewritten: the numbers already saved stay as they were logged (the errors were small and mostly on the low side).
+- **Cannot be checked here:** whether each "hit" on the user's PC was a real hit (that is note detection, tested on made-up playing only). A sanity check for the user: notes that came by ÷ hours playing should be a believable pace (a busy bass line is about 100 to 200 a minute).
+- Tests: `node --no-warnings test/scorecard.test.mjs` (new, in `npm test`).
+- **Ask next:** does Chords hit look believable now, and is Career stats easy enough to find, or should a few lifetime numbers sit on Progress's first page?
+
+## The cleaner singer's engine side (same release, built 2026-11-15)
+
+- `engine/stagehand_stems.py`: model `singer_6s` = the voice model first (BS-RoFormer, vendored in `engine/roformer/`, MIT, needs only torch and einops), then htdemucs_6s on what is left; vocals = the voice model's vocals plus Demucs' vocal leftover. Same six files.
+- **The model file**: `model_bs_roformer_ep_317_sdr_12.9755.ckpt`, 639,331,213 bytes, SHA-256 `5b84f37e8d444c8cb30c79d77f613a41c05868ff9c9ac6c7049c00aefae115aa`, fetched on first use from the GitHub release it is published on into the same folder Demucs keeps its models (torch hub `checkpoints`). The download resumes, is checked, and can be cancelled; statuses: "Downloading the singer model (639 MB), one time", "…: N%", "Checking the singer model".
+- 8-second pieces, overlap 2 (the model's own setting is 4: slower, a touch cleaner), 2 at a time on a graphics card with 8 GB or more; a graphics card failure part way finishes on the processor.
+- **Measured here (4 processor cores, no graphics card):** real speech over a made-up band: 98.9% of the voice lands in vocals. About **9 to 10 minutes of work per minute of song** without a graphics card, so the question says "it can take an hour a song" on such PCs. About 2.7 GB of memory.
+- **Not checked here:** Demucs with its real model in the two-pass split (its download host is blocked in the cloud session; stand-in models were used), anything on a graphics card (speed, memory on the 1080 Ti), Windows.
+- Tests: `python test/singer_stems_test.py` (in `npm test`; 36 checks with PyTorch, the 16 PyTorch ones are skipped without it, as on CI).
+- **Ask next:** how long one song takes on the 1080 Ti, and whether the singer really sounds cleaner and the notes to sing are more exact.
+
+## Quest companion: lower highway, guitar outline, hands, everything in the headset (same release, asked 2026-11-15)
+
+The user said: the highway was almost at eye level and should be way lower; without passthrough you should still see a guitar layout and your hands (dimmed while playing); pick any part, not just bass; every option inside the headset, because using the PC with a headset on is cumbersome; navigation and hand tracking matter.
+
+- **Highway lower** (`src/companion/place.js`, `vr.js`): strings 55 cm below the eyes, 60 cm out, the far end tilted 14° down (the old flat highway ran out to the horizon, which read as eye level). Height, distance, tilt and size are set in the headset and remembered; an old saved spot at or above the old default moves to the new one once (saved settings carry a version 2 mark).
+- **Guitar outline in full VR** (`guitar.js`): a calm neck with real fret spacing (guitar 22 frets, bass 20, by the part's string count), inlay dots, fret numbers, the hand position lit, the notes being played as small dots. Only when the room is hidden. "Line it up with my hand" counts down 3 s and reads the fretting hand.
+- **Hands** (`hands.js`, `handpose.js`): WebXR hand tracking, drawn over everything; Bright, Dim or Faint while a song plays, bright when paused or the menu is open. Controllers get a plain shape and a ray. Enter VR asks for a passthrough-capable session when there is one, so the room can be switched from the menu.
+- **Menu in the headset** (`menu.js`): Songs (Artist / Title / Recent, scroll, A–Z jump, part tags), Playing (Start over, −10 s, Play/Pause, +10 s, seek bar, every part of the song, speed, note timing), Placement (highway or guitar outline), View (room, outline, hand brightness, Leave VR with a second press). Pinch ray, fingertip poke or trigger. Opens with the wrist button (palm towards you, touch it or pinch), A/B/X/Y, or M; opens by itself in VR when nothing plays, closes when play starts.
+- **"Only bass" fixed end to end**: the PC sends the song's parts and switches when the headset asks. Link messages: `state` adds `partId` and `parts {song, list}`; library rows add `played`, `added`; headset → PC `part {id}` (only an id in the list), `speed {to}` (25–150%), `restart` (`services/companion.js`, `renderer/js/companion-link.js`).
+- Tests: `test/companion-vr.test.mjs`, `test/companion-parts.test.mjs` (in `npm test`); `companion-audit.js` checks parts, picking Rhythm, start over, ±10 s, speed, remembered settings; `companion-vr-shot.js` also writes vr-before/after/down/side and the four menu pages. The old audit check "forgotten on the PC: the headset asks for a code again" can time out on a busy machine (8 s limit; it takes 1–2 s alone).
+- **Never tried on a real Quest**: hands, pinches, the wrist button and controllers were driven by pretend poses only; frame rate, comfort, and whether the passthrough-capable session behaves as full VR in the Quest browser are unknown.
+- **Ask next:** is the height right (lower? steeper?); does the outline sit near the real neck, and do they play left-handed; dim, faint or bright hands; is the menu easy to reach at about 50 cm and the wrist button comfortable; does pinching with a pick open things by accident.
+
+## Wacky pedals: Quack, Croak, Caterwaul, Blorp (same release, asked 2026-11-15)
+
+The user sent four pedal pictures (a duck, a frog, a cat, an alien) and asked for them "with the actual effects… We want these to actually work. And sound like real pedal effects."
+
+- **Real effects in the sound engine** (`native/dsp/sh_wacky.h`, included only by `sh_fx.c`; ids `Pedal_Quack`, `Pedal_Croak`, `Pedal_Caterwaul`, `Pedal_Blorp`). Each works off the playing itself (no samples), sits before the amp, has the three knobs printed on its picture, and a level keeper that holds the effect near the dry loudness. Blend 0 is the dry sound exactly.
+  - **Quack**: each new note quacks (a mouth sweep closing down, a nasal honk). Beak 60 (how wide and nasal, how fast it closes), Wobble 25 (a warble on the held note), Blend 70.
+  - **Croak**: an octave down, a deep throat, a fast rattle of pulses. Throat 50, Hop 50 (rattle speed, about 12 to 45 a second), Blend 65.
+  - **Caterwaul**: a meow on each note (the vowel glides, the pitch bends up and back, a wailing vibrato). Meow 60, Hiss 25, Blend 70.
+  - **Blorp**: a ring modulator whose hidden tone swoops on each note, through a bubbling talking filter. Vowel 50, Orbit 40, Blend 65.
+- **In the app**: a "Wacky" group wherever pedals are picked (Gear page with words, Create a Tone, the rig chain, the tone editor), guitar and bass, saved in tones. The user's pictures are the art (`art/gear/full/Pedal_*.avif`, `thumb/Pedal_*.webp`, borders cropped), with working knobs on the photo (`gear-photos.js`, `tools/gear/audit.json`, `trims.json`). Data: `gear2014.json`, `gear-about.json`, `gear-live.json`.
+- **Engine rebuilt and committed**: `native/bin/stagehand-audio.exe`, `src/renderer/worklets/rig-dsp.wasm`.
+- Tests: `node test/wacky-pedals.cjs` (in `npm test`, about a minute: each pedal's own character, every knob heard, levels); `native/build/wacky_test` after `bash native/build.sh` (44.1/48/96 kHz, guitar and bass: level, peaks, no DC, silence, Blend 0); `SH_AUDIT=test/e2e/wacky-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>` (the shelf, photos, knobs, rig, a saved tone, bass).
+- Peaks run up to about 3.6 times the input's peak (the resonances), though the average level stays within 1 dB of dry: if the user hears clipping into a hot amp, lower the effect's level.
+- **Nobody has heard them** (made-up notes and measurements only), and the Windows engine was built but not run.
+- **Ask next:** do they sound like a duck, a frog, a cat and an alien; is the quack too fast or slow; is Blend 65–70 a good start; is the cat's hiss too much; how are they on bass.
+
+## Which split a song has, and how hard it is to sing (same release, asked 2026-11-15)
+
+The user: "There needs to be a clear way to see that. When you're looking at songs or tiles of songs in a smart way, karaoke menu should show you what version you have without obstructing the art. Karaoke mode needs to have a better grip on how easy medium or hard a song is, as well."
+
+- **Which split**: every song carries `betterStems` (main.js, from `StemService.better()`), kept fresh by `stems:update`.
+  - Library list: a small gold ✦ beside the five stem lights when the song has the cleaner singer (it breathes while one is being made); the tooltip says which split it is (`stemHtml` in `library.js`).
+  - Karaoke cards: the strip of tape that lay across the cover is gone. A line of its own under the difficulty says "With singer" (grey), "Singer out" (teal, the quick split), "Singer out · cleaning 42%", or "✦ Singer out · clean" (gold) (`stemTag` in `karaoke.js`, styles in `polish.css`).
+- **How hard to sing** (`src/main/core/vocaldiff.js`, rewritten): three words now, **Easy / Medium / Hard** (was five: Easy, Steady, Medium, Hard, Brutal). What was wrong before: pace was counted over the whole song, so a long solo made fast singing look slow; charts with made-up notes (one note all through) looked easy; breath wasn't counted. Now four things are measured: speed while singing (breaks left out) and in the fastest passages, how wide the tune goes, how far it jumps, and how long the lines run without a rest. One very hard side is enough to make a song hard. Made-up notes are left out and the tooltip says the mark goes by the words only. Once a split song has been sung, the mark is worked out again from **the notes the singer really sang** (`tab:vocalDiff`, kept with the song's check in `stagehand.singCheck`) and that one wins. The tooltip says why ("Hard to sing: fast words, a wide tune…") and what it was judged from. Sorting by easiest/hardest uses the finer score.
+- Tests: `test/vocaldiff.test.js` (11 cases), `test/e2e/sing-audit.js` (the mark is under the picture, the two splits are told apart, three words).
+- **Not checked against real songs**: the thresholds are set on made-up songs. Ask the user for a few songs whose mark feels wrong, and which way.
+
 # 4.18.2 — Singing follows the real tune (2026-11-14)
 
 The user (photo of karaoke on a song whose bars sat between E flat and F sharp the whole way): "Are the vocals always

@@ -369,6 +369,13 @@ const PANES = {
     for (const [k, v] of Object.entries(models)) model.append(h('option', { value: k, text: v.label, selected: s.stems.model === k ? true : null }));
     model.onchange = () => saveSettings({ stems: { model: model.value } });
     el.append(setting('Model', 'The 6-stem model is the only one that separates guitar and keys. Songs you already split keep their stems.', model));
+    {
+      // 4.19: a cleaner singer for the songs you sing (asked when Sing or Karaoke opens on a split song)
+      const pick = h('select.input', { 'aria-label': 'Cleaner singer' });
+      for (const [k, t] of [['ask', 'Ask me each time'], ['always', 'Always, without asking'], ['never', 'Never']]) pick.append(h('option', { value: k, text: t, selected: (s.stems.singer || 'ask') === k ? true : null }));
+      pick.onchange = () => saveSettings({ stems: { singer: pick.value } });
+      el.append(setting('Cleaner singer', 'When you open Sing along or Karaoke on a split song, Stagehand can split it once more with a model made just for voices: the notes to sing get more exact and Karaoke takes the singer out more cleanly. It works in the background (minutes with a graphics card, much longer without) and the song plays meanwhile. The first time it downloads the model (about 640 MB).', pick));
+    }
     for (const r of await (await import('./stemformat.js')).settingsRows(setting)) el.append(r);
 
     const quality = h('select.input', { 'aria-label': 'Quality' });

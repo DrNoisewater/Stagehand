@@ -91,12 +91,24 @@ if (q.get('sing')) {
   let tt = 2.5;
   tab.lyrics = words.map((w, i) => {
     const d = w.endsWith('+') ? 0.8 : 0.36;
-    const o = { t: Math.round(tt * 1000) / 1000, d, w, p: kind === '1' || kind === 'karaoke' ? tune[i % tune.length] : 254 };
+    const o = { t: Math.round(tt * 1000) / 1000, d, w, p: kind === '1' || kind === 'karaoke' ? tune[i % tune.length] : kind === 'check' ? 0 : 254 };
     tt += d + (w.endsWith('+') ? 0.9 : 0.06);
     return o;
   });
   window.__singTune = words.map((w, i) => (kind === 'words' ? 57 : tune[i % tune.length]));
-  if (kind === 'stem') {
+  if (kind === 'check') {
+    // 4.19, sing=check: the chart is real in lines 1 and 3 (an octave low) and made up in lines 2 and 4
+    // (one note); the singer on the record slides up into the last word of every line, and a quieter
+    // second voice sings a third above in lines 1 and 2
+    let line = 0;
+    tab.lyrics.forEach((w, i) => {
+      w.line = line;
+      w.p = line % 2 ? 61 : tune[i % tune.length] - 12;
+      if (w.w.endsWith('+')) line++;
+    });
+    window.__singBend = (i, t) => (tab.lyrics[i].w.endsWith('+') ? -3 * Math.max(0, 1 - (t - tab.lyrics[i].t) / 0.45) : 0);
+  }
+  if (kind === 'stem' || kind === 'check') {
     // the singer on the record: each syllable at its note, an octave up, with a little vibrato
     const sr = 48000;
     const n = Math.round(tab.length * sr);
@@ -109,10 +121,15 @@ if (q.get('sing')) {
       let ph = 0;
       const len = Math.round(w.d * sr);
       for (let k = 0; k < len; k++) {
-        const m = window.__singTune[i] + 12 + 0.2 * Math.sin((2 * Math.PI * 5.5 * k) / sr);
+        const m = window.__singTune[i] + 12 + 0.2 * Math.sin((2 * Math.PI * 5.5 * k) / sr) + (window.__singBend ? window.__singBend(i, w.t + k / sr) : 0);
         ph += (2 * Math.PI * 440 * 2 ** ((m - 69) / 12)) / sr;
         const env = Math.min(1, k / 600, (len - k) / 600);
-        dv.setInt16(44 + (Math.round(w.t * sr) + k) * 2, Math.round(9000 * env * (Math.sin(ph) + 0.5 * Math.sin(2 * ph) + 0.3 * Math.sin(3 * ph))), true);
+        let v = 9000 * env * (Math.sin(ph) + 0.5 * Math.sin(2 * ph) + 0.3 * Math.sin(3 * ph));
+        if (kind === 'check' && w.line < 2) {
+          const f2 = 2 * Math.PI * 440 * 2 ** ((window.__singTune[i] + 16 - 69) / 12) * (k / sr);
+          v += 3200 * env * (Math.sin(f2) + 0.4 * Math.sin(2 * f2));
+        }
+        dv.setInt16(44 + (Math.round(w.t * sr) + k) * 2, Math.round(v), true);
       }
     });
     window.__stems = { state: 'ready', stems: [{ name: 'vocals', url: URL.createObjectURL(new Blob([wav], { type: 'audio/wav' })) }] };

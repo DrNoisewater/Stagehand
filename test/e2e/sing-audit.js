@@ -85,11 +85,28 @@ module.exports = async ({ page, outDir, check }) => {
   await page.keyboard.press('Escape');
   await page.mouse.click(5, 5);
   await page.evaluate(async () => { const { autotune } = await import('./js/autotune.js'); autotune.setStyle('off'); autotune.setVoice('normal'); });
+  // 4.19: which split each song has is a line under the picture (nothing across the art), and
+  // how hard it is to sing is one of three words
+  const marks = await page.evaluate(async () => {
+    const { state, emit } = await import('./js/store.js');
+    const cards = [...document.querySelectorAll('#page-karaoke .kk-card')].slice(0, 3).map((c) => state.songs.get(c.dataset.id));
+    if (cards[0]) Object.assign(cards[0], { hasStems: true, betterStems: true });
+    if (cards[1]) Object.assign(cards[1], { hasStems: true, betterStems: false });
+    emit('stems', {});
+    await new Promise((r) => setTimeout(r, 1500));
+    const q = (sel) => [...document.querySelectorAll('#page-karaoke ' + sel)];
+    const art = document.querySelector('#page-karaoke .kk-cov').getBoundingClientRect();
+    const tag = document.querySelector('#page-karaoke .kk-stem').getBoundingClientRect();
+    return { onArt: q('.kk-cov .kk-stem').length, under: tag.top >= art.bottom, better: q('.kk-stem.better').map((x) => x.textContent), plain: q('.kk-stem.ready').length, none: q('.kk-stem.none').length, diffs: [...new Set(q('.kk-diff em').map((x) => x.textContent))], pips: q('.kk-diff:not(.wait):not(.none)').map((x) => x.querySelectorAll('i').length) };
+  });
+  check(marks.onArt === 0 && marks.under, `the split mark is under the picture, not on it (${JSON.stringify(marks)})`);
+  check(marks.better.length === 1 && /clean/i.test(marks.better[0]) && marks.plain >= 1, `the cleaner split and the quick split are told apart (${JSON.stringify(marks)})`);
+  check(marks.diffs.every((x) => ['Easy', 'Medium', 'Hard'].includes(x)) && marks.pips.every((n) => n === 3), `how hard to sing is Easy, Medium or Hard (${JSON.stringify(marks.diffs)})`);
   await page.screenshot({ path: path.join(outDir, 'karaoke-page.png') });
   await page.locator('#page-karaoke .kk-card').first().click();
   await page.waitForFunction(() => { const r = document.querySelector('.highway'); return r && !r.hidden; }, null, { timeout: 30000 });
   await page.waitForTimeout(2500);
-  const kk = await page.evaluate(() => { const r = document.querySelector('.highway'); return { k: r.classList.contains('hw-karaoke'), chip: r.querySelector('.hw-sing-chip').textContent, words: r.__hw.sing.state.base.syl.length }; });
+  const kk = await page.evaluate(() => { const r = document.querySelector('.highway'); return { k: r.classList.contains('hw-karaoke'), chip: r.querySelector('.hw-karaoke-chip[aria-pressed="true"]')?.textContent || '', words: r.__hw.sing.state.base.syl.length }; });
   check(kk.words ? kk.k && /Karaoke/.test(kk.chip) : !kk.k, `picking a song opens it as karaoke (${JSON.stringify(kk)})`);
   await page.screenshot({ path: path.join(outDir, 'karaoke-open.png') });
   await page.evaluate(() => window.__shHighway.leave());

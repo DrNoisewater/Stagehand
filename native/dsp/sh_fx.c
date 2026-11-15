@@ -688,9 +688,13 @@ static int crush_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr) {
   return 1;
 }
 
+/* ======================================================= wacky pedals == */
+#include "sh_wacky.h"
+
 /* ============================================================ dispatch == */
 int fx_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int stereo) {
   const char *k = g->key;
+  if (wacky_kind(k)) return wacky_build(b, g, a, sr, 0);
   if (sh_has(k, "Verb") || sh_has(k, "Chamber") || sh_has(k, "Plate") || sh_has(k, "Spring")) return rev_build(b, g, a, sr, stereo);
   /* 4.5.x: chorus first: "VintageChorus" contains "echo" and used to be built as a delay */
   if (sh_has(k, "Chorus")) return mod_build(b, g, a, sr, stereo);

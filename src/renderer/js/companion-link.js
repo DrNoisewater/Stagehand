@@ -7,6 +7,8 @@
 import { api } from './api.js';
 import * as stage from './stage.js';
 import * as actions from './actions.js';
+import { practice } from './practice.js';
+import { clampSpeed } from './speed.js';
 
 let clients = 0;
 let timer = 0;
@@ -23,6 +25,34 @@ function notice() {
   return null;
 }
 
+// 4.19: the song's parts (lead, rhythm, bass, bonus ones), so the headset can pick one
+let partsFor = null; // the song id the list below is for
+let partsList = null;
+let partsSent = null; // the song id whose list the headset last got
+let partsAsked = null;
+function partsOf(song) {
+  if (!song) return null;
+  if (partsFor === song.id) return partsList;
+  if (partsAsked !== song.id) {
+    partsAsked = song.id;
+    Promise.resolve(api.tab.list(song.id))
+      .then((list) => {
+        if (partsAsked !== song.id) return;
+        partsFor = song.id;
+        partsList = (list || []).map((p) => ({ id: p.id, name: p.name, type: p.type, bonus: !!p.bonus, tuning: p.tuningName || '' }));
+      })
+      .catch(() => (partsAsked = null));
+  }
+  return null;
+}
+/** The part showing on the PC: the highway's when it's open, else the one the tab view plays. */
+function partNow() {
+  const hw = HW();
+  const tab = hw && hw.open && hw.open() && hw.tab ? hw.tab() : null;
+  if (tab) return tab.id || null;
+  return (practice.tab && practice.tab.id) || null;
+}
+
 function snapshot() {
   const song = stage.current();
   const engine = stage.engine;
@@ -35,6 +65,7 @@ function snapshot() {
     phase: info.phase || null,
     part: stage.partLabel ? stage.partLabel() || null : null,
     notice: notice(),
+    partId: song ? partNow() : null,
     at: now(),
   };
 }
@@ -139,12 +170,20 @@ function tick() {
   if (clients <= 0) return;
   sendChart();
   const s = snapshot();
+  const list = partsOf(stage.current());
+  // the list goes with the next report after it changes, and again every few seconds
+  const partsDue = list && (partsSent !== partsFor || (sent && s.at - (sent.partsAt || 0) > 4000));
+  if (partsDue) {
+    s.parts = { song: partsFor, list };
+    s.partsAt = s.at;
+    partsSent = partsFor;
+  } else if (sent) s.partsAt = sent.partsAt;
   const jn = judgeNews();
   if (jn) s.judge = jn;
   const p = sent;
   // while paused, only when something changed (a seek, a new song) or once a second
   const moved = p && p.playing && s.playing ? Math.abs(s.pos - (p.pos + ((s.at - p.at) / 1000) * p.speed)) > 0.002 : true;
-  const changed = !p || s.playing || p.playing !== s.playing || (p.song && p.song.id) !== (s.song && s.song.id) || Math.abs(p.pos - s.pos) > 0.01 || p.phase !== s.phase || p.part !== s.part || p.notice !== s.notice || p.speed !== s.speed || s.at - p.at > 1000;
+  const changed = !p || s.playing || p.playing !== s.playing || (p.song && p.song.id) !== (s.song && s.song.id) || Math.abs(p.pos - s.pos) > 0.01 || p.phase !== s.phase || p.part !== s.part || p.partId !== s.partId || !!s.parts || p.notice !== s.notice || p.speed !== s.speed || s.at - p.at > 1000;
   if (changed || moved || (jn && ((jn.ev && jn.ev.length) || jn.reset || jn.off || !p || !p.judge || p.judge.streak !== jn.streak))) {
     sent = s;
     try {
@@ -155,7 +194,9 @@ function tick() {
 }
 
 function setClients(n) {
+  const before = clients;
   clients = Number(n) || 0;
+  if (clients > before) partsSent = null; // a headset that just joined gets the parts list
   if (clients > 0 && !timer) {
     sent = null;
     tick();
@@ -225,6 +266,22 @@ async function command(c) {
     return;
   }
   if (c.type === 'seek') return stage.seekTo(c.t);
+  if (c.type === 'speed' && engine && engine.setSpeed) return engine.setSpeed(clampSpeed(Number(c.to) || 1));
+  if (c.type === 'part') return switchPart(c.id);
+}
+
+/** The headset picked a part: the PC switches to it, as if its part button was clicked. */
+async function switchPart(id) {
+  const hw = HW();
+  if (hw && hw.open && hw.open()) {
+    // the highway's own part buttons (they also bring the guitar back from piano or karaoke)
+    const b = [...document.querySelectorAll('.hw-parts .hw-chip')].find((x) => x.dataset.id === id);
+    if (b) return b.click();
+  }
+  if (!practice.song || !(practice.parts || []).some((p) => p.id === id)) return;
+  await practice.loadPart(id);
+  const tv = stage.tabViewApi ? stage.tabViewApi() : null;
+  if (tv && tv.selectPart) tv.selectPart(id);
 }
 
 try {

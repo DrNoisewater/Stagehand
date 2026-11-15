@@ -309,7 +309,7 @@ export async function openStepByStep({ kind = null } = {}) {
     // 6 dial it in
     () => {
       const box = h('div');
-      box.append(rigRow(), p('Turn the knobs while you play (drag up and down, or use the arrow keys).'));
+      box.append(rigRow(), p('Turn the knobs while you play (drag up or right for more, down or left for less, or use the arrow keys).'));
       const knobs = h('div.tw-knobs');
       const fmt = (v) => (Math.round(v * 100) / 10).toFixed(1);
       for (const [key, name] of [['gain', 'Gain'], ['bass', 'Bass'], ['mid', 'Mid'], ['treble', 'Treble'], ['reverb', 'Reverb']]) {

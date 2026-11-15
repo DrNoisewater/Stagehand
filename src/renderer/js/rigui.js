@@ -10,6 +10,7 @@ import { engine } from './stage.js';
 import { TYPE_GELS, TYPE_NAMES, orderedGear, knobsOf, shortGearName } from './tonelib.js';
 import { renderTone, demoRiff } from './render.js';
 import { resolveCapture } from './captures.js';
+import { knobDrag, showKnobGuide } from './knobdrag.js';
 
 export function fmtKnob(k, v) {
   const span = k.max - k.min;
@@ -19,13 +20,14 @@ export function fmtKnob(k, v) {
 }
 
 /**
- * A rotary knob: drag up/down (Shift for fine), wheel, arrow keys,
- * double-click for the default.
+ * A rotary knob: drag up or right for more, down or left for less (Shift for fine), wheel,
+ * arrow keys, double-click for the default.
  */
 export function rotaryKnob({ name, min = 0, max = 1, value, def, gel = 'var(--tungsten)', fmt, step, onInput, onChange }) {
   const el = h('button.rknob', { type: 'button', role: 'slider', 'aria-label': name, 'aria-valuemin': String(min), 'aria-valuemax': String(max), style: { '--gel': gel } });
   const ring = h('span.ring', null, h('span.cap', null, h('span.ptr')));
   const label = h('span.kn-name', { text: name, title: name });
+  el.title = `${name}: drag up or right for more, down or left for less (Shift for fine), or scroll · double-click to reset`;
   const val = h('span.kn-val');
   el.append(ring, label, val);
   const st = step || (max - min >= 20 ? 1 : (max - min) / 100);
@@ -60,37 +62,30 @@ export function rotaryKnob({ name, min = 0, max = 1, value, def, gel = 'var(--tu
     if (!Number.isFinite(Number(nv))) return;
     v = Math.max(min, Math.min(max, Number(nv))); show();
   };
-  el.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0 || el.disabled) return;
-    el.focus({preventScroll:true});
-    el.setPointerCapture(e.pointerId);
-    let y = e.clientY;
+  // 4.19: drag any natural way (up or right is more, down or left is less; the first few pixels
+  // pick the direction), the pointer stays put, and a guide over the knob shows the value (knobdrag.js)
+  {
     // 4.11: the drag is added up before it is rounded to a step, so a switch or selector (a few
     // positions) follows the hand too: before, each small move rounded back to where it was
-    let raw = v, moved = 0;
+    let raw = v;
     const span = few ? Math.max(40, 30 * positions) : 160;
-    const move = (ev) => {
-      const dy = y - ev.clientY;
-      y = ev.clientY;
-      moved += Math.abs(dy);
-      raw = Math.max(min, Math.min(max, raw + (dy / (ev.shiftKey && !few ? 600 : span)) * (max - min)));
-      set(raw);
-    };
-    const up = () => {
-      el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
-      el.removeEventListener('pointercancel', up);
-      el.removeEventListener('lostpointercapture', up);
-      // a plain click on a switch flips it to its next position
-      if (few && moved < 3) return set(v + st > max + 1e-9 ? min : v + st, true);
-      set(v, true);
-    };
-    el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
-    el.addEventListener('pointercancel', up);
-    el.addEventListener('lostpointercapture', up);
-    e.preventDefault();
-  });
+    const guide = () => showKnobGuide(el, `${name}  ${val.textContent}`, (v - min) / (max - min || 1));
+    knobDrag(el, {
+      start: () => {
+        raw = v;
+      },
+      move: (px, ev) => {
+        raw = Math.max(min, Math.min(max, raw + (px / (ev.shiftKey && !few ? 600 : span)) * (max - min)));
+        set(raw);
+        guide();
+      },
+      end: (moved) => {
+        // a plain click on a switch flips it to its next position
+        if (few && moved < 3) return set(v + st > max + 1e-9 ? min : v + st, true);
+        set(v, true);
+      },
+    });
+  }
   el.addEventListener('wheel', (e) => {
     e.preventDefault();
     set(v - Math.sign(e.deltaY) * st * (e.shiftKey || few ? 1 : 3), true);
@@ -248,7 +243,7 @@ export function gearFaceplate(key, controls, { enlarged = false } = {}) {
     } else {
       overlay.style.setProperty('--knob-size',(pos[2] ? pos[2] * 2 : 5)+'%');
     }
-    overlay.title=`${name}: drag up or down (Shift for fine), double-click to reset`;
+    overlay.title=`${name}: drag up or right for more, down or left for less (Shift for fine), or scroll · double-click to reset`;
     overlay.disabled=original.disabled;
     const sync=e=>overlay.setValue(e.detail);
     original.addEventListener('knobinput',sync);
@@ -267,7 +262,7 @@ export function gearFaceplate(key, controls, { enlarged = false } = {}) {
     cleanup.push(sl.dispose);
     face.append(sl.patch, sl.el); slides++; count++;
   }
-  const helpText = !count ? 'Set this one with the knobs below' : slides === count ? 'Grab a slider and move it · Shift for fine · double-click to reset' : slides ? 'Grab a knob or a slider and drag · Shift for fine · double-click to reset' : 'Grab a knob and drag up or down · Shift for fine · double-click to reset';
+  const helpText = !count ? 'Set this one with the knobs below' : slides === count ? 'Grab a slider and move it · Shift for fine · double-click to reset' : slides ? 'Grab a knob or a slider and drag · Shift for fine · double-click to reset' : 'Grab a knob and drag: up or right for more, down or left for less · Shift for fine · double-click to reset';
   wrap.append(face,h('small.gear-face-help',{text:helpText}));
   if (!enlarged) {
     const zoom = h('button.btn.small.soft.gear-enlarge',{type:'button',text:'Get up close',title:'Open this gear big, with the same live knobs'});

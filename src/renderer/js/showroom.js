@@ -85,7 +85,7 @@ function testRig(it, knobs) {
   return { name: `${it.name} (test rig)`, kind, gear, autoCab, ir: null, capture: it.t === 'amp' ? 'off' : null };
 }
 
-const visible = (it) => S.who === 'all' || (S.who === 'bass') === !!it.bass;
+const visible = (it) => S.who === 'all' || it.any || (S.who === 'bass') === !!it.bass;
 
 function drawShelves() {
   shelvesEl.innerHTML = '';

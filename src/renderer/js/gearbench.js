@@ -43,6 +43,7 @@ export const GEAR_CATS = [
   { id: 'filter', label: 'Wah & filter', hint: 'Wahs, auto-wahs, envelope filters' },
   { id: 'dynamics', label: 'Comp, gate & EQ', hint: 'Compressors, limiters, gates, EQs' },
   { id: 'pitch', label: 'Pitch & octave', hint: 'Octavers, pitch shifters, harmonizers' },
+  { id: 'wacky', label: 'Wacky', hint: 'Animal and alien voices: a duck, a frog, a cat, an alien' },
   { id: 'rack', label: 'Rack units', hint: 'Studio effects after the cabinet' },
 ];
 
@@ -67,8 +68,8 @@ export function gearItems(db) {
     let cat;
     if (g.t === 'amp') cat = bass ? 'bassamps' : 'amps';
     else if (g.t === 'rack') cat = 'rack';
-    else cat = { Distortion: 'drive', Modulation: 'mod', Tremolo: 'mod', Delay: 'delay', Reverb: 'reverb', Filter: 'filter', Dynamics: 'dynamics', Pitch: 'pitch' }[g.c] || 'drive';
-    out.push({ key, t: g.t, slot: g.t === 'amp' ? 'amp' : g.t === 'rack' ? 'rack' : defaultSlot(g.c), cat, bass, name: g.n, sub: g.c });
+    else cat = { Distortion: 'drive', Modulation: 'mod', Tremolo: 'mod', Delay: 'delay', Reverb: 'reverb', Filter: 'filter', Dynamics: 'dynamics', Pitch: 'pitch', Wacky: 'wacky' }[g.c] || 'drive';
+    out.push({ key, t: g.t, slot: g.t === 'amp' ? 'amp' : g.t === 'rack' ? 'rack' : defaultSlot(g.c), cat, bass, any: !!g.a, name: g.n, sub: g.c });
   }
   for (const f of Object.values(fams)) {
     f.defaultKey = f.keys['57|Cone'] || Object.values(f.keys)[0];
@@ -104,6 +105,15 @@ export const photoCount = () => Object.keys(GEAR_PHOTOS).length;
 
 // ------------------------------------------------------------ knob help --
 const HELP = [
+  // the wacky pedals
+  [/^beak$/, 'How sharp the quack is: a soft, slow quack to a short, snappy one'],
+  [/^wobble$/, 'A warble on the quack: none, to fast and wide'],
+  [/^throat$/, 'A bigger, lower frog: more of the octave below and a darker croak'],
+  [/^hop$/, 'How fast the croak pulses: a slow chug to a fast buzz'],
+  [/^meow$/, 'How long and how far each meow bends and slides'],
+  [/^hiss$/, 'Breath and snarl on each meow'],
+  [/^vowel$/, 'The alien mouth: a dark "ooo" to a bright "eee"'],
+  [/^orbit$/, 'How fast the alien sound circles and bubbles: a slow drift to frantic'],
   [/^(gain|drive|distortion|preamp|smash|overdrive)/, 'How hard the sound is pushed: low is clean, high is crunchy and saturated'],
   [/^(vol|volume|loudness|level|master|output|limit$)/, 'How loud this piece is. Turning it up on an old amp also adds grit'],
   [/^bass( boost)?$|^low$|^30hz|^50hz|^63hz|^75hz|^90hz|^100hz/, 'The low end: thump and weight'],
@@ -175,7 +185,7 @@ export function gearPanel(g, { gel = '#c9a560', onKnob, disabled = false } = {})
       onChange: (v) => onKnob && onKnob(k.key, v, true),
     });
     knob.disabled = disabled;
-    const cell = h('div.gb-knob', { title: `${k.name}: ${knobHelp(k.name)}. Drag up or down, Shift for fine, double-click for the default.` }, knob);
+    const cell = h('div.gb-knob', { title: `${k.name}: ${knobHelp(k.name)}. Drag up or right for more, down or left for less (Shift for fine), double-click for the default.` }, knob);
     if (onPhoto.has(k.name.toLowerCase())) cell.classList.add('on-photo');
     strip.append(cell);
   }

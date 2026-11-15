@@ -9,20 +9,24 @@
  * tune goes, how far it jumps) and your best score.
  */
 import { state, on, hasPart, setSelection } from './store.js';
-import { h, icon, showMenu } from './ui.js';
+import { h, icon, showMenu, esc } from './ui.js';
+import { singerJob } from './singer-upgrade.js';
 import { api } from './api.js';
 import * as actions from './actions.js';
 import { coverEl } from './shell.js';
 import { mic } from './mic.js';
 import { SING_LEVELS } from './sing.js';
-import { singLevel, setSingLevel, tuneLabel, tuneMenu } from './singlane.js';
+import { singLevel, setSingLevel, tuneLabel, tuneMenu, singCheck, checkWords } from './singlane.js';
 import { autotune } from './autotune.js';
 
 const root = document.getElementById('page-karaoke');
 const MOST = 240; // cards drawn at once; search narrows it
 const PREF_KEY = 'stagehand.karaoke';
-const DIFF_KEY = 'stagehand.vocalDiff.v1';
-const DIFF_NAMES = ['Easy', 'Steady', 'Medium', 'Hard', 'Brutal'];
+const DIFF_KEY = 'stagehand.vocalDiff.v2'; // 4.19: three levels, counted a new way
+const DIFF_NAMES = ['Easy', 'Medium', 'Hard'];
+try {
+  localStorage.removeItem('stagehand.vocalDiff.v1');
+} catch {}
 let q = '';
 
 const load = (k, d) => {
@@ -42,7 +46,11 @@ const savePrefs = () => {
 // ---- how hard each song is to sing: worked out once per file, kept between runs ----
 const diffs = load(DIFF_KEY, {});
 const diffKey = (s) => `${s.id}|${s.mtimeMs || 0}`;
-const diffOf = (s) => diffs[diffKey(s)];
+// the mark from the notes the singer really sang (once the song was sung, split) beats the chart's
+const diffOf = (s) => {
+  const heard = s.hasStems ? (singCheck(s.id) || {}).diff : null;
+  return heard && heard.level ? { ...heard, heard: true } : diffs[diffKey(s)];
+};
 let saveTimer = 0;
 const saveDiffs = () => {
   clearTimeout(saveTimer);
@@ -68,7 +76,7 @@ function pump() {
     running++;
     api.tab
       .vocals(s.id)
-      .then((d) => (diffs[diffKey(s)] = d ? { level: d.level, rate: d.rate, range: d.range } : 0))
+      .then((d) => (diffs[diffKey(s)] = d ? { level: d.level, score: d.score, rate: d.rate, range: d.range, guess: d.guess, why: d.why } : 0))
       .catch(() => (diffs[diffKey(s)] = 0))
       .finally(() => {
         running--;
@@ -93,11 +101,13 @@ const seen = new IntersectionObserver(
 
 function diffHtml(s) {
   const d = diffOf(s);
-  if (d === undefined) return '<span class="kk-diff wait" title="Working out how hard it is to sing"><i></i><i></i><i></i><i></i><i></i></span>';
+  if (d === undefined) return '<span class="kk-diff wait" title="Working out how hard it is to sing"><i></i><i></i><i></i></span>';
   if (!d) return '<span class="kk-diff none" title="Its words have no timing to judge by">—</span>';
   const pips = DIFF_NAMES.map((_, i) => `<i${i < d.level ? ' class="on"' : ''}></i>`).join('');
-  const why = `How hard it is to sing: ${DIFF_NAMES[d.level - 1]}. About ${d.rate} syllables a minute${d.range ? `, the tune spans ${d.range} semitones` : ''}.`;
-  return `<span class="kk-diff" data-level="${d.level}" title="${why}">${pips}<em>${DIFF_NAMES[d.level - 1]}</em></span>`;
+  const because = d.why && d.why.length ? `: ${d.why.join(', ')}` : '';
+  const basis = d.heard ? 'Judged from the notes the singer really sang.' : d.guess ? 'Judged by the words only: this chart has no real notes. Split it and sing it once for a surer mark.' : 'Judged from the chart’s notes.';
+  const why = `${DIFF_NAMES[d.level - 1]} to sing${because}. About ${d.rate} syllables a minute while singing${d.range ? `, the tune spans ${d.range} semitones` : ''}. ${basis}`;
+  return `<span class="kk-diff${d.guess && !d.heard ? ' guess' : ''}" data-level="${d.level}" title="${esc(why)}">${pips}<em>${DIFF_NAMES[d.level - 1]}</em><u>to sing</u></span>`;
 }
 function paintDiff(s) {
   const el = root.querySelector(`.kk-card[data-id="${CSS.escape(s.id)}"] .kk-diff`);
@@ -117,12 +127,12 @@ function allSung() {
 function songs() {
   const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const by = (a, b, k) => String(a[k] || '').localeCompare(String(b[k] || ''));
-  const lvl = (s) => (diffOf(s) ? diffOf(s).level : 9);
+  const lvl = (s) => (diffOf(s) ? (diffOf(s).score ?? diffOf(s).level / 3) : 9);
   const sorts = {
     artist: (a, b) => by(a, b, 'artist') || by(a, b, 'title'),
     title: (a, b) => by(a, b, 'title') || by(a, b, 'artist'),
     easy: (a, b) => lvl(a) - lvl(b) || by(a, b, 'artist') || by(a, b, 'title'),
-    hard: (a, b) => (lvl(b) % 9) - (lvl(a) % 9) || by(a, b, 'artist') || by(a, b, 'title'),
+    hard: (a, b) => (lvl(b) === 9 ? -1 : lvl(b)) - (lvl(a) === 9 ? -1 : lvl(a)) || by(a, b, 'artist') || by(a, b, 'title'),
     best: (a, b) => (bestOf(b) ?? -1) - (bestOf(a) ?? -1) || by(a, b, 'artist'),
   };
   return allSung()
@@ -133,7 +143,11 @@ function songs() {
 
 function stemTag(s) {
   const p = actions.stemPhase(s);
-  if (p === 'ready') return h('span.kk-stem.ready', { title: 'Split: the singer is taken out, so it’s just you and the band', html: `${icon('check')}<span>Singer out</span>` });
+  // 4.19: which split the song has, in a line under the picture (it used to be a strip of tape across the art)
+  const job = singerJob(s.id);
+  if (p === 'ready' && s.betterStems) return h('span.kk-stem.better', { title: 'Split with the cleaner singer: the singer is taken out as cleanly as Stagehand can, and the notes to sing are at their most exact', html: `<b>✦</b><span>Singer out · clean</span>` });
+  if (p === 'ready' && job) return h('span.kk-stem.ready.cleaning', { title: 'The singer is taken out. A cleaner split is being made in the background.', html: `<i></i><span>Singer out · cleaning${job.state === 'running' && job.progress ? ` ${Math.round(job.progress * 100)}%` : '…'}</span>` });
+  if (p === 'ready') return h('span.kk-stem.ready', { title: 'Split the quick way: the singer is taken out, so it’s just you and the band. Open it to sing and Stagehand can make the singer cleaner.', html: `${icon('check')}<span>Singer out</span>` });
   if (p === 'working') return h('span.kk-stem.working', { title: 'Splitting now: the singer will be taken out', html: `<i></i><span>Splitting</span>` });
   return h('span.kk-stem.none', { title: 'Not split yet: you’ll sing over the original singer. Right-click › Split stems to take them out.', html: `<span>With singer</span>` });
 }
@@ -145,10 +159,13 @@ function card(s) {
   el.dataset.stems = actions.stemPhase(s);
   const listen = h('button.kk-listen', { type: 'button', title: 'Just play it (stay here)', 'aria-label': `Play ${s.title || 'this song'}`, html: icon('play') });
   listen.dataset.listen = '';
-  const cov = h('div.kk-cov', null, coverEl(s, 256), stemTag(s), h('span.kk-mic-big', { html: icon('mic'), 'aria-hidden': 'true' }), listen);
+  const cov = h('div.kk-cov', null, coverEl(s, 256), h('span.kk-mic-big', { html: icon('mic'), 'aria-hidden': 'true' }), listen);
   const meta = h('div.kk-meta', { html: diffHtml(s) });
   if (best !== null) meta.append(h('span.kk-best', { title: 'Your best singing score', html: `${icon('mic')}${Math.round(best * 100)}%` }));
-  el.append(cov, h('b.kk-title', { text: s.title || 'Untitled' }), h('span.kk-artist', { text: s.artist || '' }), meta);
+  // 4.19: how far this song's notes were checked against the singer (once it has been sung, split)
+  const cw = actions.stemPhase(s) === 'ready' ? checkWords(singCheck(s.id)) : null;
+  if (cw) meta.append(h('span.kk-check', { title: `Notes checked against the singer. ${cw.long}`, html: `${icon('check')}${cw.pct}%` }));
+  el.append(cov, h('b.kk-title', { text: s.title || 'Untitled' }), h('span.kk-artist', { text: s.artist || '' }), meta, stemTag(s));
   seen.observe(el);
   return el;
 }
@@ -321,9 +338,11 @@ on('stats', render);
 let lastStems = '';
 on('stems', () => {
   if (state.page !== 'karaoke') return;
-  const sig = allSung().map((s) => actions.stemPhase(s)[0]).join('');
+  const sig = allSung().map((s) => actions.stemPhase(s)[0] + (s.betterStems ? '+' : '')).join('');
   if (sig !== lastStems) (lastStems = sig), render();
 });
+window.addEventListener('sing-check', () => state.page === 'karaoke' && render());
+on('singer-upgrade', () => state.page === 'karaoke' && render());
 root.addEventListener('focusin', (e) => (focusSearch = e.target.classList && e.target.classList.contains('kk-search')));
 mic.addEventListener('change', () => state.page === 'karaoke' && !mic.on && render());
 render();

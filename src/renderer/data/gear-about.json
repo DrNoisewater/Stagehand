@@ -828,6 +828,22 @@
 "about": "A vintage-style flanger with a warm, rich sweep, from gentle shimmer to deep jet-plane whoosh. Rate sets the speed, Depth the size of the sweep, and Mix how much you hear. Lovely on clean chords and slow riffs.",
 "real": ""
 },
+"Pedal_Quack": {
+"about": "A wacky envelope pedal that turns each note into a duck's quack: a buzzy, nasal voice that snaps open as you pick and closes with a downward wa-ack. Beak sets how sharp, quick and nasal the quack is, Wobble adds a warble, and Blend mixes it with your own sound.",
+"real": ""
+},
+"Pedal_Croak": {
+"about": "A wacky pedal that makes your notes croak like a bullfrog: an octave down, a deep throat, and a fast rattle of pulses that starts quicker on each new note. Throat sets how big and low the throat is, Hop how fast the pulses come, and Blend mixes it with your own sound.",
+"real": ""
+},
+"Pedal_Caterwaul": {
+"about": "A wacky pedal that makes each note meow: the voice glides through m, ee, ah and ow while the pitch bends up and back, and long notes end in a wailing vibrato. Meow sets how long and wide the meow is, Hiss adds breath and a snarl, and Blend mixes it with your own sound.",
+"real": ""
+},
+"Pedal_Blorp": {
+"about": "A wacky pedal from another planet: a ring modulator whose hidden tone swoops down on every note and circles around, through a bubbling, talking filter. Vowel sets the mouth from a dark ooo to a bright eee, Orbit how fast it circles and bubbles, and Blend mixes it with your own sound.",
+"real": ""
+},
 "Rack_RotaVibe": {
 "about": "A rotating speaker effect, like the spinning speaker cabinets used with organs. It gives a swirling, throbbing sound that can be slow and dreamy or fast and wobbling. It suits psychedelic rock, blues and soul.",
 "real": ""

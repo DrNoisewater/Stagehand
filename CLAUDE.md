@@ -12,7 +12,7 @@ A session once started from a copy several versions old (3.9 while GitHub had 4.
 ## Layout
 
 - `src/main/`: Electron main process (CommonJS): `core/` (PSARC, SNG, saves, tones) and `services/` (library, stems, audio relay).
-- `src/renderer/`: the UI (ES modules, no bundler, no build step): `js/rig.js` (the rig), `js/detect.js` (note detection), `js/instrument.js` (guitar or bass), `js/sing.js` + `js/singlane.js` + `js/mic.js` (Sing along, an add-on: off until its chip is pressed), `js/autotune.js` + `worklets/autotune-worklet.js` (4.17 auto-tune and voice changer: the microphone moved onto the song's notes and played with the song; off until a style or voice is picked), `js/karaoke.js` (the Karaoke page), `js/piano-arrange.js` + `js/piano-sheet.js` + `js/keys.js` + `js/midi.js` (Piano, an add-on: a part written from the song, sheet music and falling notes, a USB keyboard).
+- `src/renderer/`: the UI (ES modules, no bundler, no build step): `js/rig.js` (the rig), `js/knobdrag.js` (4.19: the one drag every knob uses: up or right is more, the pointer held in place, a guide over the knob), `js/detect.js` (note detection), `js/instrument.js` (guitar or bass), `js/sing.js` + `js/singlane.js` + `js/mic.js` + `js/vocal-melody.js` (Sing along, an add-on: off until its chip is pressed; 4.19: the singer's pitch line read off the vocals stem and every chart note checked against it), `js/autotune.js` + `worklets/autotune-worklet.js` (4.17 auto-tune and voice changer: the microphone moved onto the song's notes and played with the song; off until a style or voice is picked), `js/karaoke.js` (the Karaoke page), `js/piano-arrange.js` + `js/piano-sheet.js` + `js/keys.js` + `js/midi.js` (Piano, an add-on: a part written from the song, sheet music and falling notes, a USB keyboard).
 - `src/companion/`: the Quest companion's page (4.16, plain JS, served by `src/main/services/companion.js` over HTTPS on the home network, only when switched on in Settings › Quest headset; `core/ws.js` and `core/selfcert.js` are its WebSocket and certificate).
 - `engine/stagehand_stems.py`: stem splitting (Demucs/PyTorch, installed on the user's PC at runtime).
 - `native/`: the sound engine in plain C. `dsp/` is the amp, cab, effects and NAM code, shared by the Windows helper (`host/io_wasapi.c` → `native/bin/stagehand-audio.exe`, **prebuilt and committed**) and the in-app WebAssembly engine (`src/renderer/worklets/rig-dsp.wasm`, **committed**).
@@ -60,6 +60,11 @@ ELECTRON=<electron> xvfb-run -a node test/e2e/finder-electron.js <outDir>
 ELECTRON=<electron> xvfb-run -a node test/e2e/tones-electron.js <outDir>
 # Sing along with a pretend microphone: the chart's notes (1), notes read off a made-up vocals stem (stem), timing only (words, karaoke (karaoke))
 SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
+# the chart checked against the singer: half the chart made up, a singer who slides, a second voice (4.19)
+SING=check PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
+node --no-warnings test/melody.test.mjs   # the singer's pitch line read off made-up voices (also in npm test, ~15 s)
+python3 test/singer_stems_test.py   # the cleaner singer's engine: download, resume, the two-pass split (also in npm test; the PyTorch checks skip without PyTorch)
+node --no-warnings test/scorecard.test.mjs   # the practice log's counting: each note once (also in npm test)
 # auto-tune: a pretend singer 40 cents flat hears their voice put on the note (robot, pop or natural)
 TUNE=robot SING=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:1.5
 # the tuned voice through the sound engine's own voice line (fake helper): whole, no gaps, the song beside it
@@ -85,6 +90,9 @@ SH_AUDIT=test/e2e/guide-audit.js node test/e2e/ui3-chromium.js native/build/stag
 SH_AUDIT=test/e2e/discover-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # the Gear page's spec sheet (real gear, words, every knob) on an EQ, a cabinet and an amp
 SH_AUDIT=test/e2e/gear-about-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# the wacky pedals in the full page: the shelf, photos with working knobs, the rig, a saved tone, bass
+SH_AUDIT=test/e2e/wacky-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+node test/wacky-pedals.cjs   # the wacky pedals' sound through the WebAssembly engine (also in npm test, ~1 min)
 # stem splitting: a song in line names the one split first; a split moving along rebuilds nothing
 SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # the Quest companion: the real server and page with a pretend Quest browser (pair, library, pick, play/seek both ways, clock); writes q-*.png

@@ -16,6 +16,8 @@ cc $CF -o build/drop_quality_test test/drop_quality_test.c $(echo $DSP | sed 's#
 cc $CF -march=x86-64-v2 -o build/nam_test test/nam_test.c $DSP -lm
 cc $CF -march=x86-64-v2 -o build/nam_engine_test test/nam_engine_test.c $DSP -lm
 cc $CF -o build/rs_test test/rs_test.c $(echo $DSP | sed 's#dsp/sh_nam.c##') -lm
+# 4.20: the wacky pedals on their own (run build/wacky_test)
+cc $CF -o build/wacky_test test/wacky_test.c $DSP -lm
 cc $CF -pthread -o build/stagehand-audio-fake host/host.c host/io_fake.c $DSP -lm
 # 4.6: every amp, pedal and rack and each knob, through the engine (node test/gear-coverage.js)
 cc -O2 -Wall -Wno-unused-function -o build/gear_cover_test test/gear_cover_test.c $DSP -lm

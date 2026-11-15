@@ -39,8 +39,9 @@ function kindsOf(tg) {
 /**
  * tab: { sections }, targets: Judge targets, judge: Judge (state Map id → {result}).
  * Only notes you've reached count (judged ones), so a stopped-early run is fair.
+ * `skip(id, state)` leaves a note out (the practice log uses it for notes an earlier session already counted).
  */
-export function breakdown(tab, targets, judge, { from = -Infinity, to = Infinity } = {}) {
+export function breakdown(tab, targets, judge, { from = -Infinity, to = Infinity, skip = null } = {}) {
   const secs = ((tab && tab.sections) || []).filter((s) => s.end > s.start);
   const bySec = secs.map((s) => ({ name: s.name, n: s.n, label: sectionLabel(s), start: s.start, end: s.end, hit: 0, notes: 0 }));
   const byKind = Object.fromEntries(KINDS.map(([k]) => [k, { hit: 0, notes: 0 }]));
@@ -51,7 +52,7 @@ export function breakdown(tab, targets, judge, { from = -Infinity, to = Infinity
   for (const tg of targets || []) {
     if (tg.t < from || tg.t > to || tg.linked) continue;
     const st = judge && judge.state.get(tg.id);
-    if (!st) continue;
+    if (!st || (skip && skip(tg.id, st))) continue;
     const ok = st.result === 'hit';
     notes++;
     if (ok) hit++;
@@ -69,19 +70,21 @@ export function breakdown(tab, targets, judge, { from = -Infinity, to = Infinity
   }
   const acc = (x) => (x.notes ? x.hit / x.notes : null);
   const sections = bySec.filter((s) => s.notes).map((s) => ({ ...s, acc: acc(s) }));
-  const kinds = KINDS.map(([k, label]) => ({ kind: k, label, ...byKind[k], acc: acc(byKind[k]) })).filter((k) => k.notes >= 3);
+  const allKinds = KINDS.map(([k, label]) => ({ kind: k, label, ...byKind[k], acc: acc(byKind[k]) }));
+  const kinds = allKinds.filter((k) => k.notes >= 3); // the score card only names kinds with a few notes
   // what went best and what to work on (sections with enough notes to mean something)
   const solid = sections.filter((s) => s.notes >= 4);
   const strongest = solid.length ? solid.reduce((a, b) => (b.acc > a.acc ? b : a)) : null;
   const weakest = solid.length > 1 ? solid.reduce((a, b) => (b.acc < a.acc ? b : a)) : null;
-  return { hit, notes, acc: notes ? hit / notes : null, bestStreak: best, sections, kinds, strongest, weakest: weakest && strongest && weakest !== strongest && weakest.acc < 0.95 ? weakest : null };
+  return { hit, notes, acc: notes ? hit / notes : null, bestStreak: best, sections, kinds, allKinds, strongest, weakest: weakest && strongest && weakest !== strongest && weakest.acc < 0.95 ? weakest : null };
 }
 
 /** Compact form for the practice log: [[label, hit, notes], …] and { kind: [hit, notes] }. */
 export function compact(b) {
   return {
     sections: b.sections.slice(0, 60).map((s) => [s.label, s.hit, s.notes]),
-    kinds: Object.fromEntries(b.kinds.map((k) => [k.kind, [k.hit, k.notes]])),
+    // every kind that came by, even one or two: the lifetime chord count is added up from these
+    kinds: Object.fromEntries((b.allKinds || b.kinds).filter((k) => k.notes > 0).map((k) => [k.kind, [k.hit, k.notes]])),
     bestStreak: b.bestStreak,
   };
 }

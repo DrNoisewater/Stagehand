@@ -16,6 +16,7 @@ const { AudioService } = require('./services/audio');
 const { ClipSessions } = require('./services/clip-sessions');
 const { AudioFinder } = require('./services/audiofind');
 const { StemService, MODELS } = require('./services/stems');
+const { vocalDifficulty } = require('./core/vocaldiff');
 const { ArtService } = require('./services/art');
 const { Companion } = require('./services/companion'); // 4.16: the Quest companion (off until switched on)
 const { Organizer } = require('./services/organize');
@@ -147,7 +148,7 @@ function handle(channel, fn) {
 }
 
 function withStems(s) {
-  return { ...s, hasStems: !!stems.ready(s), official: officialList.isOfficial(s) };
+  return { ...s, hasStems: !!stems.ready(s), betterStems: stems.better(s), official: officialList.isOfficial(s) };
 }
 
 function requireSong(id) {
@@ -928,6 +929,8 @@ function registerIpc() {
     const song = requireSong(songId);
     return withFileRead(song.path, () => tabs.vocals(song));
   });
+  // 4.19: how hard a set of words and notes is to sing (the real notes, once a song has been checked against its singer)
+  handle('tab:vocalDiff', (lyrics) => vocalDifficulty(Array.isArray(lyrics) ? lyrics.slice(0, 20000) : []));
   handle('tab:load', (songId, arrId) => {
     const song = requireSong(songId);
     return withFileRead(song.path, () => tabs.load(song, arrId ? String(arrId) : null));
@@ -945,6 +948,8 @@ function registerIpc() {
   // Stem storage formats (Stagehand 3): the page compresses, we store.
   handle('stems:store', (songId, model, name, ext, bytes) => stems.storeFile(library.get(songId), model, name, ext, bytes));
   handle('stems:finish', (songId, model, format) => stems.finishFormat(library.get(songId), model, format));
+  handle('stems:upgrade', (songId) => stems.upgrade(songId)); // 4.19: a cleaner singer for a song already split
+  handle('stems:upgradeCancel', (songId) => stems.cancelUpgrade(songId));
   handle('stems:formats', () => stems.formats(library.snapshot().songs));
 
   handle('engine:status', async (refresh) => {
@@ -1368,6 +1373,7 @@ app.whenReady().then(async () => {
   });
   stems.on('update', (p) => send('stems:update', p));
   stems.on('done', (p) => send('stems:done', p));
+  stems.on('upgrade', (p) => send('stems:upgrade', p));
 
   protocol.handle('stagehand', (req) =>
     serve(req).catch((err) => {
