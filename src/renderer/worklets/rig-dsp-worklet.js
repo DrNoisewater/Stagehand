@@ -45,6 +45,10 @@ class StagehandRigDsp extends AudioWorkletProcessor {
         mem[Math.min(bytes.length, 16383)] = 0;
         const ok = x.build(m.slot);
         this.port.postMessage({ type: 'built', slot: m.slot, ok: !!ok, id: m.id });
+      } else if (m.type === 'refresh') {
+        // 4.21: a stored tone put back to its just-built state (nothing left ringing or held)
+        const ok = x.refresh ? x.refresh(m.slot) : 0;
+        this.port.postMessage({ type: 'refreshed', slot: m.slot, ok: !!ok, id: m.id });
       } else if (m.type === 'select') x.select(m.slot);
       else if (m.type === 'param') x.param(m.id, m.v);
       else if (m.type === 'nam') {

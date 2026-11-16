@@ -104,7 +104,7 @@ export const LAB_BITS = { Pedal_Quack: 1, Pedal_Croak: 2, Pedal_Caterwaul: 3, Pe
  * bit each, and one live value: a lever or a control that changes while you play). The engine's
  * slots are 15 + n and 79 + n (SHP_LABW0, SHP_LABV0 in native/dsp/sh_engine.h). */
 export const LAB_KINDS = Object.fromEntries(
-  ['Annwn', 'Apoptosis', 'Bifrost', 'BluePrince', 'Claude', 'DejaVu', 'Duat', 'EventHorizon', 'Fenrir', 'Inanna', 'Janus', 'Kitsune', 'Kukulkan', 'Long', 'Maui', 'Mimic', 'Molt', 'Nataraja', 'Nothing', 'Olympus', 'Ouroboros', 'Parasite', 'Reliquary', 'Seance', 'Severed', 'Shango', 'Tezcatl', 'Veles', 'WhoAreYou', 'Wukong'].map((n, i) => [`Pedal_${n}`, 15 + i]));
+  ['Annwn', 'Apoptosis', 'Bifrost', 'BluePrince', 'Claude', 'DejaVu', 'Duat', 'EventHorizon', 'Fenrir', 'Inanna', 'Janus', 'Kitsune', 'Kukulkan', 'Long', 'Maui', 'Mimic', 'Molt', 'Nataraja', 'Nothing', 'Olympus', 'Ouroboros', 'Parasite', 'Reliquary', 'Seance', 'Severed', 'Shango', 'Tezcatl', 'Veles', 'WhoAreYou', 'Wukong', 'Anansi', 'Glitchcraft', 'Hermes', 'Icarus', 'Mothball', 'Phoenix', 'Raijin', 'Saturn', 'Selene', 'Sustaint'].map((n, i) => [`Pedal_${n}`, 15 + i]));
 export const LAB_WORD0 = 15;
 export const LAB_VAL0 = 79;
 

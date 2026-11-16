@@ -245,6 +245,14 @@ class NativeBackend {
     this._cmd({ cmd: 'select', slot });
   }
 
+  /** 4.21: a stored tone (not the one playing) put back to its just-built state. */
+  async refresh(slot) {
+    const p = this._wait((e) => e.ev === 'refreshed' && e.slot === slot, 20000);
+    this._cmd({ cmd: 'refresh', slot });
+    const ev = await p;
+    return !!ev.ok;
+  }
+
   param(id, v) {
     this._cmd({ cmd: 'param', id, v });
   }
@@ -354,7 +362,7 @@ class WebBackend {
           clearTimeout(t);
           resolve();
         } else if (m.type === 'meters') this.meters = m.m;
-        else if (m.type === 'built') {
+        else if (m.type === 'built' || m.type === 'refreshed') {
           const p = this.pending.get(m.id);
           if (p) this.pending.delete(m.id), p(m.ok);
         } else if (m.type === 'nam') {
@@ -402,6 +410,15 @@ class WebBackend {
 
   select(slot) {
     this.node.port.postMessage({ type: 'select', slot });
+  }
+
+  /** 4.21: a stored tone (not the one playing) put back to its just-built state. */
+  refresh(slot) {
+    const id = ++this.seq;
+    return new Promise((resolve) => {
+      this.pending.set(id, resolve);
+      this.node.port.postMessage({ type: 'refresh', slot, id });
+    });
   }
 
   param(id, v) {
@@ -506,6 +523,7 @@ export class Rig extends EventTarget {
     this.lastUse = new Array(SLOTS).fill(0);
     this.useSeq = 0;
     this._busy = Promise.resolve();
+    this._played = new Set(); // 4.21: slots that have been played since they were built or refreshed
     this._tb = null;
     this.calibrating = false;
     this.muted = !!saved.muted;
@@ -848,6 +866,7 @@ export class Rig extends EventTarget {
     if (ok) {
       this.on = true;
       this.slots.fill(null);
+      this._played.clear();
       this._irSlots.clear();
       this._namSlots.clear();
       this.active = -1;
@@ -1066,6 +1085,7 @@ export class Rig extends EventTarget {
       else this._irSlots.delete(best);
     }
     this.slots[best] = key;
+    this._played.delete(best); // just built: fresh
     this.lastUse[best] = ++this.useSeq;
     return best;
   }
@@ -1102,9 +1122,17 @@ export class Rig extends EventTarget {
         this.dispatchEvent(new Event('change'));
       }
       if (slot !== this.active) {
+        // 4.21: a tone played before starts fresh when you come back to it: no old echoes, reverb
+        // tail, loop or frozen note from last time (tones built ahead and never played need nothing)
+        if (this._played.has(slot) && slot !== this._prev && backend.refresh) {
+          const ok = await backend.refresh(slot).catch(() => false);
+          if (this.backend !== backend) return { ok: false, tone, error: 'The sound engine restarted. Try again.' };
+          if (ok) this._played.delete(slot);
+        }
         this._prev = this.active;
         backend.select(slot);
         this.active = slot;
+        this._played.add(slot);
         setTimeout(() => {
           if (this._prev !== this.active) this._prev = -1;
         }, 120);
@@ -1214,9 +1242,17 @@ export class Rig extends EventTarget {
   }
 
   /** 4.20: a new or changed tone: pedals no longer in it let go of everything; buttons that stay lit
-   * (Speak, Repeat, Dance) stay lit while the pedal stays, and a held footswitch is let go. Live
+   * (Speak, Repeat, Dance) stay lit while the pedal stays in the same tone, and a held footswitch is
+   * let go. Live
    * controls saved in the tone (Blue Prince's Room) follow it. */
   _labFollow(tone) {
+    // a different tone (picked from a list, a famous tone, the song's next tone) starts with every
+    // button out; the same tone being edited keeps its lit buttons
+    const who = tone && (tone.id || tone.name || '');
+    if (who !== this._labWho) {
+      this._labWho = who;
+      for (const n of Object.keys(this.labWords).map(Number)) this.labWord(n, 0);
+    }
     const have = new Map();
     for (const g of (tone && tone.gear) || []) if (g && !g.bypass && g.key in LAB_KINDS) have.set(LAB_KINDS[g.key], g.key);
     const latched = (key) => {

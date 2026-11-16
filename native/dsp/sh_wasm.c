@@ -51,6 +51,7 @@ __attribute__((export_name("set_nam"))) int set_nam(int slot, int len, int full_
   return sh_engine_set_nam(E, slot, len > 0 ? g_nam : 0, len, full_rig, gain_ref, trim_db);
 }
 __attribute__((export_name("nam_error"))) const char *nam_error(void) { return sh_engine_nam_error(); }
+__attribute__((export_name("refresh"))) int refresh(int slot) { return sh_engine_refresh(E, slot); }
 __attribute__((export_name("select"))) void select_(int slot) { sh_engine_select(E, slot); }
 __attribute__((export_name("selected"))) int selected(void) { return sh_engine_selected(E); }
 __attribute__((export_name("param"))) void param(int id, float v) { sh_engine_param(E, id, v); }

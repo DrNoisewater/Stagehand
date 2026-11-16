@@ -720,6 +720,13 @@ static void handle_json(const char *j) {
     atomic_store(&H.running, 0);
     send_json("{\"ev\":\"stopped\"}");
   } else if (!strcmp(cmd, "build")) cmd_build(j);
+  else if (!strcmp(cmd, "refresh")) { /* 4.21: a stored tone put back to its just-built state */
+    int slot = (int)jnum(j, "slot", -1);
+    int ok = slot >= 0 && slot < SLOTS && slot != H.active && H.eng ? sh_engine_refresh(H.eng, slot) : 0;
+    char b[80];
+    snprintf(b, sizeof b, "{\"ev\":\"refreshed\",\"slot\":%d,\"ok\":%s}", slot, ok ? "true" : "false");
+    send_json(b);
+  }
   else if (!strcmp(cmd, "select")) {
     H.active = (int)jnum(j, "slot", 0);
     if (atomic_load(&H.running)) q_push(Q_SELECT, H.active, 0);

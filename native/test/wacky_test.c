@@ -36,7 +36,7 @@ typedef struct {
   int bit;  /* the old fourteen: their bit in SHP_WK_HOLD */
   int word; /* 4.20's thirty: the bits held in their own slot (SHP_LABW0 + kind) */
 } pedal;
-#define NP 44
+#define NP 54
 static const pedal PEDALS[NP] = {{"Pedal_Quack", 1}, {"Pedal_Croak", 2}, {"Pedal_Caterwaul", 3}, {"Pedal_Blorp", 4}, {"Pedal_Gobble", 5}, {"Pedal_Slug", 6}, {"Pedal_Boing", 7},
                                  {"Pedal_Gremlin", 8}, {"Pedal_Invader", 9}, {"Pedal_Confetti", 10}, {"Pedal_Blender", 11}, {"Pedal_Fossil", 12}, {"Pedal_Charmer", 13}, {"Pedal_Haunt", 14},
                                  {"Pedal_Annwn", -1, 1}, {"Pedal_Apoptosis", -1, 1}, {"Pedal_Bifrost", -1, 1}, {"Pedal_BluePrince", -1, 1}, {"Pedal_Claude", -1, 1},
@@ -44,7 +44,9 @@ static const pedal PEDALS[NP] = {{"Pedal_Quack", 1}, {"Pedal_Croak", 2}, {"Pedal
                                  {"Pedal_Janus", -1, 1}, {"Pedal_Kitsune", -1, 1}, {"Pedal_Kukulkan", -1, 1}, {"Pedal_Long", -1, 1}, {"Pedal_Maui", -1, 1},
                                  {"Pedal_Mimic", -1, 1}, {"Pedal_Molt", -1, 1}, {"Pedal_Nataraja", -1, 1}, {"Pedal_Nothing", -1, 0}, {"Pedal_Olympus", -1, 3},
                                  {"Pedal_Ouroboros", -1, 1}, {"Pedal_Parasite", -1, 1}, {"Pedal_Reliquary", -1, 0}, {"Pedal_Seance", -1, 1}, {"Pedal_Severed", -1, 1},
-                                 {"Pedal_Shango", -1, 1}, {"Pedal_Tezcatl", -1, 1}, {"Pedal_Veles", -1, 1}, {"Pedal_WhoAreYou", -1, 0}, {"Pedal_Wukong", -1, 1}};
+                                 {"Pedal_Shango", -1, 1}, {"Pedal_Tezcatl", -1, 1}, {"Pedal_Veles", -1, 1}, {"Pedal_WhoAreYou", -1, 0}, {"Pedal_Wukong", -1, 1},
+                                 {"Pedal_Anansi", -1, 1}, {"Pedal_Glitchcraft", -1, 0}, {"Pedal_Hermes", -1, 1}, {"Pedal_Icarus", -1, 1}, {"Pedal_Mothball", -1, 1},
+                                 {"Pedal_Phoenix", -1, 1}, {"Pedal_Raijin", -1, 1}, {"Pedal_Saturn", -1, 1}, {"Pedal_Selene", -1, 0}, {"Pedal_Sustaint", -1, 1}};
 
 /* one pedal (its own defaults, Mix 100) over the whole input in blocks of `bs`; footswitch held from h0 to h1 (samples) */
 static double run(const pedal *p, int bass, int sr, const float *in, float *out, int len, int bs, int h0, int h1, float mixv) {

@@ -1071,5 +1071,45 @@
 "Pedal_Wukong": {
 "about": "The Monkey King. The Ruyi staff raises your pitch, from none to an octave. Each lit Clone is a copy of you a moment later in another voice: low ones on Earth, bright fifths and octaves in Heaven, up and down by turns in Havoc. Defiance adds an octave fuzz and Cloud an echo. Hold Uproar and every clone joins in at once.",
 "real": ""
+},
+"Pedal_Anansi": {
+"about": "The trickster spider spins what you play into an arpeggio: light Weave and your sound steps through your note, its fifth and its octaves in time with the song. Octaves: how far the web reaches. Pattern: up, down, up and down, or at random. The eight stones are the steps of each turn: an unlit one rests. Light Hold and the web keeps spinning on your last note after you stop.",
+"real": ""
+},
+"Pedal_Glitchcraft": {
+"about": "A witch's brew of old video games. Bits cuts your sound into fewer and fewer steps, from smooth at 16 to a raw buzz at 1. Rate throws away more and more of it, down to the whining crunch of an old console. Grit drives it in hot first. Crumble softens the edges a little; Shatter keeps them raw and now and then repeats a scrap, as if the game froze.",
+"real": ""
+},
+"Pedal_Hermes": {
+"about": "Your playing through an old radio. Turn the Dial: on one of the five stations it comes in clear; between them it drifts out of tune and whistles. AM is a small, warm speaker, FM wide and clean, Shortwave thin and fading in and out. Static sets the hiss and crackle (it only comes with your playing). Drift lets the tuning wander. Hold Scan and the needle sweeps the stations by itself.",
+"real": ""
+},
+"Pedal_Icarus": {
+"about": "Flying too near the sun. Phase is a soft, swirling phaser; Flange a jet-plane flanger. Manual sets where the sweep sits, Depth how far it swings, Rate how fast, and Feedback how hard it rings. Hold Dive and the wings melt: the sweep falls all the way down and rings hard, a jet diving; let go and it climbs back.",
+"real": ""
+},
+"Pedal_Mothball": {
+"about": "A tape that's been in the attic. Wow is a slow, seasick wobble in pitch, Flutter a fast one. Age wears the highs and lows away. Crackle adds the pops of an old record, and Dropout makes the sound sag away now and then like worn tape. The noises only come with your playing. Hold Stop and the tape winds down to a halt; let go and it spins back up.",
+"real": ""
+},
+"Pedal_Phoenix": {
+"about": "A reverb that rises out of the ashes: each new note's reverb swells up over Rise instead of trailing away, like a recording played backwards. Size sets how big and long it is, Bloom how long the swell stays before it falls, Tone from dark to bright. Hold Rebirth and the reverb climbs an octave each time round, rising into the sky.",
+"real": ""
+},
+"Pedal_Raijin": {
+"about": "The thunder god's drums, played by your picking. Every note you pick sets off a drum: kick and snare by turns (low notes always kick), with a clap on the hardest hits. Kick, Snare and Clap set how loud each is, Sense how gently you can pick and still be heard, Tone deep to tight. Hold Roll and the snare rolls in time while your note rings.",
+"real": ""
+},
+"Pedal_Saturn": {
+"about": "A ring modulator: every note splits into two new ones, for clangy bells, robots and broken radios. Orbit sets the tone it's mixed with: Low for a slow throb to a growl, High for clang. Wobble swings the orbit up and down, Tilt goes dark to bright. Hold Eclipse and the orbit locks onto your own note, so it rings in tune.",
+"real": ""
+},
+"Pedal_Selene": {
+"about": "The moon pulling the tide: your sound ducks on every beat of the song and swells back, the pumping of a dance record. Rate pulses on half, quarter or eighth notes. Depth sets how far it ducks, Shape from a soft breath to a sharp pump, and Swing makes every other pulse come a little late.",
+"real": ""
+},
+"Pedal_Sustaint": {
+"about": "A relic of endless sustain. Grace holds each note up as it dies, like a bow on the string. Once a note has rung for Vigil seconds it begins to Bloom, swelling into singing feedback with an octave and a fifth glowing above. Halo adds a shimmer of light. On Faith a note dies when you mute it; on Miracle your last note rings on until you play another. Hold Eternal and the note rings forever.",
+"real": ""
 }
 }

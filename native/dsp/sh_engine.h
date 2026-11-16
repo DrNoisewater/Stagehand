@@ -20,6 +20,9 @@ sh_engine *sh_engine_init(void *mem, size_t bytes, double sr);
  * Not real-time safe; the host builds off the audio thread and then calls
  * sh_engine_select. */
 int sh_engine_build(sh_engine *e, int slot, const char *spec);
+/* 4.21: a built tone (not the one playing) put back to its just-built state: nothing left ringing
+   or held in it. 0 if it isn't built or is playing. */
+int sh_engine_refresh(sh_engine *e, int slot);
 /* Gives a slot a custom cabinet impulse response (mono floats at the engine rate). */
 int sh_engine_set_ir(sh_engine *e, int slot, const float *ir, int len);
 /* Puts a real amp capture (.nam file text) in a slot's amp place; json NULL clears it.

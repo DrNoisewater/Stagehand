@@ -33,6 +33,7 @@ typedef struct {
   /* low-end correction measured at build (keeps every tone from booming) */
   bq_t cls[2];
   float cls_db;
+  float user[4]; /* 4.21: the amp knobs it was built with, so a refresh builds the same tone */
 } slot_t;
 
 struct sh_engine {
@@ -274,6 +275,7 @@ int sh_engine_build(sh_engine *e, int si, const char *text) {
   static sh_spec sp; /* large; builds are not concurrent */
   if (!sh_parse_spec(text, &sp)) return 0;
   sp.user_gain = e->p[SHP_GAIN], sp.user_bass = e->p[SHP_BASS], sp.user_mid = e->p[SHP_MID], sp.user_treble = e->p[SHP_TREBLE];
+  s->user[0] = sp.user_gain, s->user[1] = sp.user_bass, s->user[2] = sp.user_mid, s->user[3] = sp.user_treble;
   s->valid = 0;
   /* 1) build, measure loudness of the dry tone */
   s->cls_db = 0;
@@ -321,6 +323,24 @@ int sh_engine_build(sh_engine *e, int si, const char *text) {
   int tl = 0;
   while (text[tl] && tl < (int)sizeof(s->spec_text) - 1) s->spec_text[tl] = text[tl], tl++;
   s->spec_text[tl] = 0;
+  s->valid = 1;
+  return 1;
+}
+
+/* 4.21: a built tone back to how it was just after building: no echoes or reverb left over, no
+   loop, freeze or held note still in a pedal. Its loudness isn't measured again (same tone). */
+int sh_engine_refresh(sh_engine *e, int si) {
+  if (!e || si < 0 || si >= SH_SLOTS) return 0;
+  slot_t *s = &e->slot[si];
+  if (!s->valid || si == e->active || si == e->prev) return 0; /* never touch what is playing */
+  static sh_spec sp;
+  if (!sh_parse_spec(s->spec_text, &sp)) return 0;
+  sp.user_gain = s->user[0], sp.user_bass = s->user[1], sp.user_mid = s->user[2], sp.user_treble = s->user[3];
+  float gain = s->out_gain;
+  s->valid = 0;
+  if (!build_into(e, s, &sp, e->ir[si], e->irlen[si])) return 0;
+  bq_reset(&s->cls[0]), bq_reset(&s->cls[1]);
+  s->out_gain = gain;
   s->valid = 1;
   return 1;
 }
