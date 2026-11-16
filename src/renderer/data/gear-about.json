@@ -829,18 +829,22 @@
 "real": ""
 },
 "Pedal_Quack": {
+"try": "Set it to Band, turn Sens up and pick single notes, first hard, then softly: hard picks open into a big \"wow\", soft ones barely move it. Hold Honk while you play for the wide-open honk.",
 "about": "An envelope filter with a duck's attitude: pick harder and the filter sweeps further open, then closes as the note dies, for a funky wa-ack. Beak sets how sharp and nasal it is, Sens how far your picking moves it, and Low/Band/High which side of the filter you hear. Hold Honk and the mouth jumps wide open with extra bite.",
 "real": ""
 },
 "Pedal_Croak": {
+"try": "Turn Depth up and Hop down, then pick one note and let it ring: it pulses like a frog's throat. Short, choppy notes croak once each.",
 "about": "Your notes through a frog's throat: two vocal resonances that open with your picking and pulse. Short notes croak once, held notes keep pulsing. Throat goes from a small dark throat to a big bright one, Hop sets the pulses a second, Depth how much they pulse, and High moves the throat up.",
 "real": ""
 },
 "Pedal_Caterwaul": {
+"try": "Turn Meow up and pick single notes with a little space between them: each one slides up and back down like a meow. Turn Purr up for the flutter.",
 "about": "A meow on every note: the pitch slides up (or down) by Meow semitones and back within Tail, while a nasal mouth glides m-ee-ah-ow with it. Purr adds a fast flutter, and Hiss a breathy noise that only follows your playing.",
 "real": ""
 },
 "Pedal_Blorp": {
+"try": "On Talk, hold a note and drag your finger around the Mouth pad: every corner is a different vowel. Switch to Auto and it circles round that spot by itself.",
 "about": "An alien mouth you play on a touch pad: across moves one vocal resonance, up and down the other, so every corner is a different vowel. In Talk the mouth stays where you put it; in Auto it circles around that spot at Orbit speed. Wobble adds a small warble in pitch while you play.",
 "real": ""
 },
@@ -913,202 +917,252 @@
 "real": ""
 },
 "Pedal_Gobble": {
+"try": "On Auto with Sens up, pick single notes hard and let them ring: the mouth swings toward the vowel and wobbles. Flick between AH, OW and EE to hear the mouth change shape.",
 "about": "A talking filter that gobbles. In Auto each note moves the mouth toward the chosen vowel (AH, OW or EE), further the harder you pick, and wobbles it at Rate while the note sounds. In Hold the vowel stays put. Sens sets how much your picking moves it.",
 "real": ""
 },
 "Pedal_Slug": {
+"try": "Pick a note and let it ring: instead of the pick's click, the note fades in (turn Rise up to make it slower). Stop and it fades out over Tail. If notes don't swell at all, turn Sens up.",
 "about": "Slow volume swells: the pick's attack disappears and each note fades in over Rise, then fades out over Tail when you stop. Single swells every new note; Flow keeps one long swell through legato playing until there's a real gap. Sens sets how quietly you can play and still count.",
 "real": ""
 },
 "Pedal_Boing": {
+"try": "On its own you hear nothing different: that's on purpose. Pick a note and hold Jump (or pull Bend) while it rings, and it springs to the Interval. Try +12 with Rise short for a cartoon jump.",
 "about": "A spring-loaded pitch jump. Hold Jump and your notes spring up (or down) to the Interval over Rise, and drop back over Fall when you let go. Pull the Bend lever to move the pitch by hand; it springs back. At rest you hear your own sound, untouched.",
 "real": ""
 },
 "Pedal_Gremlin": {
+"try": "Play single notes, one at a time, with Sub turned up: a synth growl an octave below follows you. Strum a chord and it goes quiet on purpose (it can only follow one note).",
 "about": "A synth fuzz that plays the note you play: an octave below (Sub), the note itself (Root) and a fifth above (Fifth), as loud as you pick. Bite goes from a round buzz to a torn, bright one, and Glide sets how it slides between notes. Play one note at a time: chords leave just your own sound.",
 "real": ""
 },
 "Pedal_Invader": {
+"try": "Pick LASER and play single notes with a gap between them: each note zaps downward like an arcade game. Chords give it nothing to follow, so it stays quiet.",
 "about": "A space synth that follows your single notes. Bass is a square with a sub, Lead two saws a hair apart, Laser dives down on every note, and Step cycles the note, a fifth and the octave. Filter sets the brightness, Speed the sweep, zap or steps, and Sync locks Speed to the song's beat. Hold keeps the synth's note while you play over it.",
 "real": ""
 },
 "Pedal_Confetti": {
+"try": "Pick one short note and stop: the echoes climb (or tumble) in pitch each time they come round. Hold Burst to pile them up into a wash.",
 "about": "Echoes that change pitch every time they come round, so they climb or tumble. Pitch sets the step per echo, Echo the time between them, and Chaos more repeats with a little random drift. Hold Burst and the echoes pile up into a wash, then settle when you let go.",
 "real": ""
 },
 "Pedal_Blender": {
+"try": "Turn Mix up, pick Reverse and play a slow phrase: it comes back in short backwards slices. Hold Jam to keep chopping what it has while you play.",
 "about": "Your playing cut into slices. Chop stutters each slice, Reverse plays each one backwards, and Scatter throws slices from the last second or so back at you, slightly sharp or flat. Size sets the slice length. Hold Jam to keep chopping what it already has while you play over it.",
 "real": ""
 },
 "Pedal_Fossil": {
+"try": "Nothing happens until you use Capture. Strum a chord and press Capture while it rings: it hangs on as a steady drone under your playing (on Latch, press Capture again to let go). Turn Level up if the drone is too quiet.",
 "about": "Freezes a chord into a drone you can play over. Press Capture and the last moment of your playing becomes a steady sound that fades in over Fade. In Hold it lasts while you hold Capture; in Latch one press captures and the next lets go. Level sets how loud the drone sits under your playing.",
 "real": ""
 },
 "Pedal_Charmer": {
+"try": "Set Key to the key you're playing in and turn Drone up, then play notes in that key: the drone strings ring along with you. Turn Buzz up for the sitar buzz.",
 "about": "Sitar-like: a bright buzz like a string on a flat bridge, a short metallic ring, and drone strings tuned to Key that ring along when your notes hit them. Buzz sets the buzz and ring, Drone how loud the drone strings are, and Min/Maj the third. Shift moves the key for sharps and flats.",
 "real": ""
 },
 "Pedal_Haunt": {
+"try": "Turn Low and High up and hold a chord, then flick Slow/Fast: you'll hear the speaker speed up or slow down over about half a second.",
 "about": "An organ-like blend through a spinning speaker: Low adds an octave below, Mid your own note and High an octave above, like drawbars, with the pick's click softened. Spin sets how deep the swirl is, and Slow/Fast spins the speaker up or down like the real thing. It's an octave blend, not a true organ.",
 "real": ""
 },
 "Pedal_Annwn": {
+"try": "Play a few notes, then push the Veil pad up and to the right: a cloud of scattered grains drifts along behind you. Hold Cross to freeze the cloud while you play over it.",
 "about": "A cloud of grains from your last couple of seconds. Mist is airy, backwards pieces in a haze; Hound runs pieces past in pulses; Hollow takes long, dark pieces from anywhere. On the Veil, across is how far back the grains reach and up how far their pitch scatters. Return sets how long the cloud lingers. Hold Cross and the cloud hangs on while you play over it.",
 "real": ""
 },
 "Pedal_Apoptosis": {
+"try": "Nothing happens until you press Release. Strum a chord, press Release and stop playing: the chord hangs on as a drone and dies away band by band. On Bloom it swells up first.",
 "about": "Press Release and the last moment of your playing becomes a drone, split into four bands: Body (the lows), Bone (low mids), Dust (high mids) and Air (the highs). Each band's slider sets how long it lives within Lifespan. On Fall every band starts full and dies away in turn; on Bloom each one grows in, then fades. You keep playing over it as normal.",
 "real": ""
 },
 "Pedal_Bifrost": {
+"try": "Strum one chord and stop. With Rift toward the ice you'll hear a tail that climbs in pitch; toward the dark, a deep, low wash. Hold Cross to swing over to the other side.",
 "about": "Two skies: an icy shimmer above (a reverb whose tail climbs an octave each time round) and a dark ambience below. Rift moves between all dark and all ice. Realm sets how big and long both are, and Frost how much the ice sparkles. Midgard keeps the dark sky at your pitch; Helheim drops it an octave. Hold Cross to swing the rift over to the other side.",
 "real": ""
 },
 "Pedal_BluePrince": {
+"try": "Strum a chord and stop, then click Study, Hall and Cellar in turn: the room goes from small and close to huge to dark and boomy. With Steps low it gets there quickly.",
 "about": "A house of three rooms: a Study (small, close and bright), the Hall (big and long) and the Cellar (dark and boomy). Pick a room and the sound walks there while you play, through the rooms in between, taking Steps to arrive. Hold Draft to walk into the next room until you let go. Depth sets how much of the room you hear.",
 "real": ""
 },
 "Pedal_Claude": {
+"try": "Nothing happens until you teach it. Light Hear and play a phrase with loud and quiet parts, then light Repeat and hold a chord: the chord rises and falls in the shape of that phrase. Clear to start over.",
 "about": "Learns the rise and fall of a phrase (how loud it gets and when, not its notes) and plays your later phrases through that shape. Light Hear and play: the next phrase is learned, up to Context seconds. Light Shape and each new phrase you play takes that shape once; light Repeat and the shape goes round and round. Clear forgets it; Recall starts the shape again right now.",
 "real": ""
 },
 "Pedal_DejaVu": {
+"try": "Nothing happens until it catches something. Play a short riff, press Enter, then light Repeat: the riff loops on top of you. Turn Fracture up for glitches.",
 "about": "Enter catches the last 1, 2, 4 or 8 beats of your playing (the song's beat, or 120 a minute without one). Light Repeat and it plays round and round on top of you, cut into sixteenths, and Fracture glitches them: a piece played twice, backwards, at half speed or skipped. Real keeps the copy clean; Sim makes it a crunchy, lo-fi one.",
 "real": ""
 },
 "Pedal_Duat": {
+"try": "Turn Gate II and Gate IV up, strum a chord and stop: a deep hall and a very low, very long rumble. Hold Descend to hear only the gate Passage points to.",
 "about": "Four layers of the underworld, each on its own slider: Gate I a dark room, Gate II a deep hall, Gate III that hall an octave down, and Gate IV two octaves down in a long, still dark. The Balance scale weighs your own sound (the heart) against the underworld (the feather). Hold Descend and only the layer Passage points to is heard, alone.",
 "real": ""
 },
 "Pedal_EventHorizon": {
+"try": "Pick one short note and stop: each echo comes back stretched and lower in pitch. Push Gravity up for more echoes. Hold Collapse and they all fall in at once.",
 "about": "Echoes falling into a black hole: every time round, each echo is stretched out in time and drops in pitch by Redshift. On Gravity, across is how much each echo is stretched and up is how hard they're pulled back round (more echoes). Hold Collapse and everything falls in at once: more pull and twice the drop.",
 "real": ""
 },
 "Pedal_Fenrir": {
+"try": "Play single notes with Bind up: a biting fuzz with a low growl underneath. Hold Break while a note rings and the wolf howls upward.",
 "about": "A wolf on a chain: a biting fuzz with a growl an octave below. Restrain (the wheel) is a gate that keeps it quiet between notes. Bind sets how much of the wolf you hear against your own sound. Hold Break and the wolf howls: the pitch rises by Howl semitones while you hold it.",
 "real": ""
 },
 "Pedal_Inanna": {
+"try": "Hold a chord and turn Descent: the brightness drains away from the top down. Pull a single band slider down to hear just that part of your sound go. Hold Return to bring everything back.",
 "about": "Seven bands of your sound, from the lowest (I) to the highest (VII), each on its own slider, like a graphic EQ. Descent takes the bands away from the top down as you turn it. Echo picks echoes of the bright side (Star), the dark side (Earth) or both, and Echoes sets how loud they are. Hold Return and every band comes back at full.",
 "real": ""
 },
 "Pedal_Janus": {
+"try": "Turn Crossing all the way to the past and play a short phrase: it comes back backwards. All the way to the future and it's a plain echo. Light Threshold to swap the two.",
 "about": "Two faces. The past: your playing comes back backwards, in pieces Reverse long, aged darker and wobblier by Age, fading over Fade. The future: a plain echo, Delay apart, Repeats times. Crossing goes from all past to all future. Light Threshold and the two faces swap sides, smoothly.",
 "real": ""
 },
 "Pedal_Kitsune": {
+"try": "Light all nine tails and play short notes: a crowd of slightly out-of-tune copies follows right behind you. Fewer tails, fewer copies.",
 "about": "Nine tails, nine voices: each lit tail is a copy of you a little later (from 40 ms to a third of a second), gently out of tune with the others. Mask gives the voices a face, from a dark \"oo\" to a bright \"ee\", and Drift sets how far out of tune they wander. Press Trick and the lit tails turn round by one.",
 "real": ""
 },
 "Pedal_Kukulkan": {
+"try": "Nothing happens until you light Rise. Set the step sliders to different values (say 0, +5, +7, +12), light Rise and hold a note: it steps through them in time with the song (or a steady beat with no song).",
 "about": "A six-step climb. Light Rise and your playing is moved by each step's semitones in turn, stepping in quarter, eighth or sixteenth notes of the song's beat. Wind feeds each step into the next, so the steps pile up like a stair. Press Rise again to stop.",
 "real": ""
 },
 "Pedal_Long": {
+"try": "Hold a note and turn Thunder and Cloud up: an octave below and a big reverb. Hold Ascend to send the whole sound up an octave.",
 "about": "A dragon's breath. Breath (the ribbon) is a singing filter from dark to open. Wind adds a vibrato, Rain echoes, Thunder an octave below, and Cloud reverb. The Pearl puts a second voice with you: a close double, a fifth up or an octave up. Hold Ascend and the whole sound rises an octave.",
 "real": ""
 },
 "Pedal_Maui": {
+"try": "Nothing happens until you hold Haul or pull Drag. Pick Sun III, play, and hold Haul: your playing slows down and drops in pitch like a tape running down. Let go and it catches back up.",
 "about": "Slows the world down like a tape running out. Hold Haul and your playing slows to the speed of the lit Sun (I as it is, II three quarters, III half, IV a quarter, V an eighth), taking Horizon to get there, and drops in pitch with it. Let go and it speeds back up and catches up with you. Pull the Drag hook to do the same by hand, as far as you pull it. Tide adds an echo of the slowed sound.",
 "real": ""
 },
 "Pedal_Mimic": {
+"try": "Nothing happens until it learns something. Hold Listen and play a choppy phrase, let go, then light Speak and hold a chord: the chord takes on that phrase's rhythm.",
 "about": "Learns how a phrase moves, its rise and fall (Rhythm) and its colour (Tone), and puts that on whatever you play. Hold Listen while you play to teach it (up to 4 seconds), or press Catch to take the last 2 seconds at once. Light Speak and your playing takes on what it learned, round and round. Inherit sets how much; Clear forgets.",
 "real": ""
 },
 "Pedal_Molt": {
+"try": "Pick one short note and stop: copies peel off it, each thinner and a little more out of tune. Turn Decay up for more of them.",
 "about": "Your notes shed skins: copies come off every Shed, each one thinner than the last (Age) and a little further out of tune, up or down. Decay sets how many skins come off before they're gone.",
 "real": ""
 },
 "Pedal_Nataraja": {
+"try": "Nothing happens until you light Dance. Light a few of the step buttons, light Dance and hold a chord: your sound chops into that pattern in time.",
 "about": "A dance in eight steps around the wheel. Light Dance and on every lit step your sound swells in (Create), stays for part of the step (Hold) and falls away (Rest); unlit steps are silent. Change opens a filter with each step. The steps are eighth notes at Tempo. Reset goes back to step one. With Dance off, your sound passes as it is.",
 "real": ""
 },
 "Pedal_Nothing": {
+"try": "It's meant to do nothing at all. If you hear any change with it in, something is wrong.",
 "about": "No knobs, no switches, no effect. Your sound goes straight through, untouched. It's a pedal about nothing.",
 "real": ""
 },
 "Pedal_Olympus": {
+"try": "Push the Thunder lever up and play: an octave fuzz. Turn Storm up to make it throb. Strum a chord, then light Hold to freeze the reverb's tail.",
 "about": "The lightning-bolt lever, Thunder, sets an octave fuzz from a little hair to a storm. Sky goes from dark to bright, Storm sets how fast it throbs (off at the bottom), and Echo and Cloud add echo and reverb. Hold Strike and every pick hits harder into the fuzz. Light Hold and the reverb's tail freezes and hangs there until you press it again.",
 "real": ""
 },
 "Pedal_Ouroboros": {
+"try": "Pick one short note and stop: the echo comes back again and again, moving in pitch and getting darker (Devour) or thinner (Shed). Hold Swallow to keep it going.",
 "about": "An echo that eats its own tail: every time round the echo is filtered, burned by Acid and moved in pitch. Shed climbs and gets thinner; Devour sinks and gets darker. Memory is the time between echoes and Digest how long it goes round. Hold Swallow and it goes round almost for ever (it never runs away).",
 "real": ""
 },
 "Pedal_Parasite": {
+"try": "Hold one note and let it ring: a synth fades in under it, louder the longer you hold. Turn Hunger down to make it grow faster, or hold Feed. Chords starve it.",
 "about": "A synth creature that feeds on your held notes: the longer a note rings, the louder it grows, singing your note, a fifth above or an octave above. Hunger sets how long it takes to grow to full. Tame is smooth; Feral is torn and snarling. Host is how loud your own sound is, Creature how loud it can grow. Hold Feed and it grows four times as fast. One note at a time: a chord starves it.",
 "real": ""
 },
 "Pedal_Reliquary": {
+"try": "Turn the Incense up, strum a chord and stop: a long cathedral tail. Turn Choir up to hear voices singing above your notes.",
 "about": "A cathedral. Incense (the censer) sets how big and how long it is, from about one and a half to nine seconds. Choir brings in voices an octave and a fifth above your notes, singing an \"aah\" in the reverb. Dust sets how old and dark the stone sounds.",
 "real": ""
 },
 "Pedal_Seance": {
+"try": "Nothing happens until you light Listen. Light it, play a short phrase, then stop and wait a moment: your phrase answers back from far away. Press Summon to call an answer straight away.",
 "about": "Light Listen and it remembers what you play. Stop for a moment and your last phrase (Memory long) answers back from the other side: far away (Distance), sometimes backwards (Reverse: how often), fading over a few replies (Decay). Start playing again and it falls silent. Summon calls an answer right now.",
 "real": ""
 },
 "Pedal_Severed": {
+"try": "Hold a chord and press the footswitch (Swap): it swaps between tight, bright Work and warm, chorused Home. Turn Innie/Outie toward Outie to let the other one leak through.",
 "about": "Two sounds that never meet. Work is tight, even and bright, with a short slap. Home is warm and soft, a gentle chorus in a small room. The buttons pick the one you're in; the footswitch swaps to the other (Overtime lights up) and back, taking Memory to cross over. Innie/Outie sets how much of the other sound leaks through: none at Innie, half at Outie.",
 "real": ""
 },
 "Pedal_Shango": {
+"try": "Hold Call while you play a short phrase, let go, then press Answer: the phrase comes back after Delay, moved by Pitch.",
 "about": "Call and answer. Hold Call and play: your call is caught (up to Length), burned by Fire and shaped by Tone. Press Answer and it comes back: after Delay, moved by Pitch, repeating as Repeats says. Balance goes from your live playing to the answer.",
 "real": ""
 },
 "Pedal_Tezcatl": {
+"try": "Hold a note and drag around the Mirror pad, up and to one side: the sound turns bell-like and strange. Hold Vanish to hear only the mirror.",
 "about": "A smoking mirror. Across the mirror bends every part of your sound up or down by the same amount, for a bell-like, unearthly sound; up is how much mirror you hear. Smoke smears it into grains, Shadow darkens it, Ash burns it. The arrows set it moving: up and down sweep it, right wobbles it, left breathes it in and out; press the lit one to stop. Hold Vanish to hear only the mirror.",
 "real": ""
 },
 "Pedal_Veles": {
+"try": "Turn Root and Night up, set Motion to Turn and hold a chord: the low and high voices take turns. Light Underworld to keep them going as a drone.",
 "about": "Four voices pulled like drawbars: Root an octave below, Earth your own note, Dream a fifth above and Night an octave above. Still keeps them put; Drift lets each wander a little out of tune; Turn makes them take turns, low and high swapping places. Wander sets how fast they move. Light Underworld and what they're playing becomes a drone beneath you, until you press it again.",
 "real": ""
 },
 "Pedal_WhoAreYou": {
+"try": "Turn Wonder and Size up and hold your notes: the vowel wanders and the note sinks (Grow) or floats up (Shrink) the longer you hold it.",
 "about": "A dizzy caterpillar. Wonder is how far the mouth wanders through the vowels, and Smoke how fast and woozy it all moves. Size sets how far the pitch drifts on each note: on Grow your notes sink as you hold them, on Shrink they float up.",
 "real": ""
 },
 "Pedal_Wukong": {
+"try": "Light two or three Clones and play short notes: copies answer you in other voices. Push the Ruyi staff up to raise your pitch. Hold Uproar to bring them all in.",
 "about": "The Monkey King. The Ruyi staff raises your pitch, from none to an octave. Each lit Clone is a copy of you a moment later in another voice: low ones on Earth, bright fifths and octaves in Heaven, up and down by turns in Havoc. Defiance adds an octave fuzz and Cloud an echo. Hold Uproar and every clone joins in at once.",
 "real": ""
 },
 "Pedal_Anansi": {
+"try": "Nothing happens until you light Weave. Light it and hold one note: it steps through your note, its fifth and its octaves in time with the song (or a steady beat with no song).",
 "about": "The trickster spider spins what you play into an arpeggio: light Weave and your sound steps through your note, its fifth and its octaves in time with the song. Octaves: how far the web reaches. Pattern: up, down, up and down, or at random. The eight stones are the steps of each turn: an unlit one rests. Light Hold and the web keeps spinning on your last note after you stop.",
 "real": ""
 },
 "Pedal_Glitchcraft": {
+"try": "Turn Bits down to about 4 and Rate up, and play: your sound turns into crunchy old video-game bits.",
 "about": "A witch's brew of old video games. Bits cuts your sound into fewer and fewer steps, from smooth at 16 to a raw buzz at 1. Rate throws away more and more of it, down to the whining crunch of an old console. Grit drives it in hot first. Crumble softens the edges a little; Shatter keeps them raw and now and then repeats a scrap, as if the game froze.",
 "real": ""
 },
 "Pedal_Hermes": {
+"try": "Play and turn the Dial slowly: clear on a station, whistling and drifting between them. Hold Scan to let the needle sweep by itself.",
 "about": "Your playing through an old radio. Turn the Dial: on one of the five stations it comes in clear; between them it drifts out of tune and whistles. AM is a small, warm speaker, FM wide and clean, Shortwave thin and fading in and out. Static sets the hiss and crackle (it only comes with your playing). Drift lets the tuning wander. Hold Scan and the needle sweeps the stations by itself.",
 "real": ""
 },
 "Pedal_Icarus": {
+"try": "Turn Depth up, leave Rate slow and hold a chord: a slow, swirling sweep. Hold Dive for the jet-plane dive.",
 "about": "Flying too near the sun. Phase is a soft, swirling phaser; Flange a jet-plane flanger. Manual sets where the sweep sits, Depth how far it swings, Rate how fast, and Feedback how hard it rings. Hold Dive and the wings melt: the sweep falls all the way down and rings hard, a jet diving; let go and it climbs back.",
 "real": ""
 },
 "Pedal_Mothball": {
+"try": "Turn Wow up and hold a chord: the pitch drifts like a warped old tape. Hold Stop to wind the tape down to a halt.",
 "about": "A tape that's been in the attic. Wow is a slow, seasick wobble in pitch, Flutter a fast one. Age wears the highs and lows away. Crackle adds the pops of an old record, and Dropout makes the sound sag away now and then like worn tape. The noises only come with your playing. Hold Stop and the tape winds down to a halt; let go and it spins back up.",
 "real": ""
 },
 "Pedal_Phoenix": {
+"try": "Pick one note and stop: the reverb swells up after the note instead of fading away. Turn Mix up to hear it plainly.",
 "about": "A reverb that rises out of the ashes: each new note's reverb swells up over Rise instead of trailing away, like a recording played backwards. Size sets how big and long it is, Bloom how long the swell stays before it falls, Tone from dark to bright. Hold Rebirth and the reverb climbs an octave each time round, rising into the sky.",
 "real": ""
 },
 "Pedal_Raijin": {
+"try": "Turn Kick and Snare up and pick single notes: every pick sets off a drum. If nothing plays, turn Sense up.",
 "about": "The thunder god's drums, played by your picking. Every note you pick sets off a drum: kick and snare by turns (low notes always kick), with a clap on the hardest hits. Kick, Snare and Clap set how loud each is, Sense how gently you can pick and still be heard, Tone deep to tight. Hold Roll and the snare rolls in time while your note rings.",
 "real": ""
 },
 "Pedal_Saturn": {
+"try": "Play single notes with Mix up: clangy, bell-like tones. Hold Eclipse and it locks onto your note so it rings in tune.",
 "about": "A ring modulator: every note splits into two new ones, for clangy bells, robots and broken radios. Orbit sets the tone it's mixed with: Low for a slow throb to a growl, High for clang. Wobble swings the orbit up and down, Tilt goes dark to bright. Hold Eclipse and the orbit locks onto your own note, so it rings in tune.",
 "real": ""
 },
 "Pedal_Selene": {
+"try": "Turn Depth up and hold a chord: the volume pumps on every beat of the song (or a steady beat with no song).",
 "about": "The moon pulling the tide: your sound ducks on every beat of the song and swells back, the pumping of a dance record. Rate pulses on half, quarter or eighth notes. Depth sets how far it ducks, Shape from a soft breath to a sharp pump, and Swing makes every other pulse come a little late.",
 "real": ""
 },
 "Pedal_Sustaint": {
+"try": "Pick one note and hold it: instead of dying away it keeps singing, then blooms into feedback. Hold Eternal and it rings forever.",
 "about": "A relic of endless sustain. Grace holds each note up as it dies, like a bow on the string. Once a note has rung for Vigil seconds it begins to Bloom, swelling into singing feedback with an octave and a fifth glowing above. Halo adds a shimmer of light. On Faith a note dies when you mute it; on Miracle your last note rings on until you play another. Hold Eternal and the note rings forever.",
 "real": ""
 }

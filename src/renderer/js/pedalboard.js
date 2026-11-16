@@ -9,6 +9,7 @@ import { h, icon } from './ui.js';
 import { rig } from './rig.js';
 import { pedalArt, ampArt } from './gearart.js';
 import { PEDALS, pedalFor, newPedal, pedalKnob, movePedal } from './tonerecipes.js';
+import { aboutCard, linkSheet } from './gearabout.js';
 import { rotaryKnob, gearFaceplate, gearKnob, labStrip } from './rigui.js';
 import { knobsOf } from './tonelib.js';
 import { gearInfo } from './gearspec.js';
@@ -29,6 +30,9 @@ const fmtKnob = (min, max) => (v) => (max - min > 20 ? String(Math.round(v)) : (
  * board: the pedals in order ({key, where, knobs, off}). onChange(board, {redraw}) is called on
  * every change; with redraw false (a knob turning) the board isn't rebuilt, so the drag goes on.
  */
+// 4.22: which pedals have their "What does what?" open (kept while the board redraws)
+const OPEN_ABOUT = {};
+
 export function pedalBoard({ kind, board, ampKey, onChange }) {
   const el = h('div.pb');
   let adding = false;
@@ -49,12 +53,20 @@ export function pedalBoard({ kind, board, ampKey, onChange }) {
     right.onclick = () => set(movePedal(board, i, +1));
     del.onclick = () => set(board.filter((_, j) => j !== i));
     const knobs = h('div.pb-knobs');
+    let about = '';
     if (info.group === 'wacky') {
       // 4.20: The Lab's pedals: every control with its own units, switch names and footswitches
       for (const k of knobsOf({ key: p.key, knobs: p.knobs })) {
         knobs.append(gearKnob(k, { gel: 'var(--tungsten)', onInput: (v) => { p.knobs = { ...p.knobs, [k.name]: v }; set(board, false); } }));
       }
       knobs.append(...labStrip({ key: p.key }));
+      // 4.22: what it does and what every control does, folded away under the knobs
+      const sheet = aboutCard({ key: p.key, t: 'pedal', name: info.name }, p.key);
+      linkSheet(knobs, sheet);
+      const more = h('details.pb-about', null, h('summary', { text: 'What does what?' }), sheet);
+      more.open = !!OPEN_ABOUT[p.key];
+      more.addEventListener('toggle', () => (OPEN_ABOUT[p.key] = more.open));
+      about = more;
     } else
     for (const [name, label] of info.knobs) {
       const spec = pedalKnob(p.key, name);
@@ -84,6 +96,7 @@ export function pedalBoard({ kind, board, ampKey, onChange }) {
       h('div.pb-top', null, h('div.pb-art', { html: pedalArt(p.key) }), h('div.pb-name', null, h('b', { text: info.name }), h('span', { text: info.what }))),
       faceplate,
       knobs,
+      about,
       h('div.pb-tools', null, led, h('span.grow'), left, right, del)
     );
     return c;
