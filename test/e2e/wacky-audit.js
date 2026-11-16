@@ -1,4 +1,4 @@
-/** 4.20: The Lab's forty-four pedals on the real page, in their seven little sections. The Gear page's Lab shelf for guitar and bass;
+/** 4.20: The Lab's fifty-four pedals on the real page, in their eight little sections. The Gear page's Lab shelf for guitar and bass;
  * each pedal's own picture with every control on it working (knobs, selectors, sliders, faders,
  * switches with their printed words lit, Invader's buttons, Blorp's pad, footswitches held and let
  * go, Boing's lever springing back); its spec sheet; the rig (Create a tone) with the pedal's own
@@ -9,8 +9,8 @@
 const path = require('path');
 const G = require('../../src/renderer/data/gear2014.json');
 const LAB = Object.keys(G).filter((k) => G[k].c === 'The Lab');
-const KIND = Object.fromEntries(['Annwn', 'Apoptosis', 'Bifrost', 'BluePrince', 'Claude', 'DejaVu', 'Duat', 'EventHorizon', 'Fenrir', 'Inanna', 'Janus', 'Kitsune', 'Kukulkan', 'Long', 'Maui', 'Mimic', 'Molt', 'Nataraja', 'Nothing', 'Olympus', 'Ouroboros', 'Parasite', 'Reliquary', 'Seance', 'Severed', 'Shango', 'Tezcatl', 'Veles', 'WhoAreYou', 'Wukong'].map((n, i) => [`Pedal_${n}`, 15 + i]));
-const SECTIONS = ['Voices and mouths', 'Synths and monsters', 'Pitch and harmony', 'Echoes and loops', 'Freezes, slices and slowdowns', 'Rooms and skies', 'Rhythm and shape'];
+const KIND = Object.fromEntries(['Annwn', 'Apoptosis', 'Bifrost', 'BluePrince', 'Claude', 'DejaVu', 'Duat', 'EventHorizon', 'Fenrir', 'Inanna', 'Janus', 'Kitsune', 'Kukulkan', 'Long', 'Maui', 'Mimic', 'Molt', 'Nataraja', 'Nothing', 'Olympus', 'Ouroboros', 'Parasite', 'Reliquary', 'Seance', 'Severed', 'Shango', 'Tezcatl', 'Veles', 'WhoAreYou', 'Wukong', 'Anansi', 'Glitchcraft', 'Hermes', 'Icarus', 'Mothball', 'Phoenix', 'Raijin', 'Saturn', 'Selene', 'Sustaint'].map((n, i) => [`Pedal_${n}`, 15 + i]));
+const SECTIONS = ['Voices and mouths', 'Synths, monsters and rings', 'Pitch and harmony', 'Echoes and loops', 'Freezes, sustain and slowdowns', 'Rooms and skies', 'Old, broken and lo-fi', 'Rhythm, pulse and swirl'];
 const BITS = { Pedal_Quack: 1, Pedal_Croak: 2, Pedal_Caterwaul: 3, Pedal_Blorp: 4, Pedal_Gobble: 5, Pedal_Slug: 6, Pedal_Boing: 7, Pedal_Gremlin: 8, Pedal_Invader: 9, Pedal_Confetti: 10, Pedal_Blender: 11, Pedal_Fossil: 12, Pedal_Charmer: 13, Pedal_Haunt: 14 };
 
 module.exports = async ({ page, outDir, check }) => {
@@ -48,9 +48,9 @@ module.exports = async ({ page, outDir, check }) => {
   await shelf.click();
   await page.waitForTimeout(500);
   const names = await page.locator('#page-gear .sr-grid .sr-card .sr-card-name').allTextContents();
-  check(LAB.length === 44 && LAB.every((k) => names.includes(G[k].n)) && names.length === 44, `The Lab holds the forty-four pedals (${names.length})`);
+  check(LAB.length === 54 && LAB.every((k) => names.includes(G[k].n)) && names.length === 54, `The Lab holds the fifty-four pedals (${names.length})`);
   const heads = await page.locator('#page-gear .sr-grid .lab-sec').allTextContents();
-  check(heads.join('|') === SECTIONS.join('|'), `The Lab is in seven little sections (${heads.join(', ')})`);
+  check(heads.join('|') === SECTIONS.join('|'), `The Lab is in eight little sections (${heads.join(', ')})`);
   check(await page.locator('#page-gear .sr-grid').evaluate((g) => [...g.children].every((c, i, a) => !c.classList.contains('lab-sec') || (a[i + 1] && a[i + 1].classList.contains('sr-card')))), 'every section has its pedals under it');
   await shot('shelf');
   const R = '#page-gear .sr-show';
@@ -268,7 +268,7 @@ module.exports = async ({ page, outDir, check }) => {
     await page.locator('#page-gear .sr-shelf', { hasText: 'The Lab' }).first().click();
     await page.waitForTimeout(400);
     const bn = await page.locator('#page-gear .sr-grid .sr-card .sr-card-name').allTextContents();
-    check(LAB.every((k) => bn.includes(G[k].n)), `with Bass picked The Lab still has all forty-four (${bn.length})`);
+    check(LAB.every((k) => bn.includes(G[k].n)), `with Bass picked The Lab still has all fifty-four (${bn.length})`);
     const allB = page.locator('#page-gear .sr-who button', { hasText: 'All' }).first();
     if (await allB.count()) await allB.click();
   } else check(false, 'the Gear page has a Bass choice');
@@ -281,8 +281,8 @@ module.exports = async ({ page, outDir, check }) => {
     await page.locator('.rr-shelf', { hasText: 'The Lab' }).first().click();
     await page.waitForTimeout(400);
     const cards = await page.locator('.rr-grid .rr-card').evaluateAll((els) => els.map((e) => ({ n: (e.querySelector('.rr-card-name') || {}).textContent, other: e.classList.contains('other') })));
-    check(cards.length === 44 && cards.every((c) => !c.other), `the rig's Lab shelf: forty-four pedals, none greyed out for ${kind}`);
-    check((await page.locator('.rr-grid .lab-sec').allTextContents()).join('|') === SECTIONS.join('|'), `the rig's Lab shelf is in its seven sections (${kind})`);
+    check(cards.length === 54 && cards.every((c) => !c.other), `the rig's Lab shelf: fifty-four pedals, none greyed out for ${kind}`);
+    check((await page.locator('.rr-grid .lab-sec').allTextContents()).join('|') === SECTIONS.join('|'), `the rig's Lab shelf is in its eight sections (${kind})`);
     const pick = kind === 'guitar' ? 'Haunt' : 'Gremlin';
     await page.locator('.rr-grid .rr-card', { hasText: pick }).first().click();
     await page.waitForTimeout(900);
@@ -341,7 +341,7 @@ module.exports = async ({ page, outDir, check }) => {
     const groups = await page.locator('.modal .pb-pick h5').allTextContents();
     const choices = await page.locator('.modal .pb-pick .pb-choice').evaluateAll((els) => els.map((e) => e.getAttribute('data-key')));
     check(groups.some((g) => /The Lab/.test(g)) && LAB.every((k) => choices.includes(k)), `the Pedals step offers all of The Lab on bass (${groups.join(' | ')})`);
-    check((await page.locator('.modal .pb-pick h6.pb-sub').allTextContents()).join('|') === SECTIONS.join('|'), 'and in its seven sections');
+    check((await page.locator('.modal .pb-pick h6.pb-sub').allTextContents()).join('|') === SECTIONS.join('|'), 'and in its eight sections');
     await page.locator('.modal .pb-choice[data-key="Pedal_Boing"]').first().click();
     await page.waitForTimeout(500);
     const knobs = await page.locator('.modal .pb-pedal .rknob').evaluateAll((els) => els.map((e) => e.getAttribute('aria-valuetext')));

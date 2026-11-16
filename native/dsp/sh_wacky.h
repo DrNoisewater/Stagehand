@@ -30,6 +30,8 @@ enum {
   WK_ANNWN, WK_APOPTOSIS, WK_BIFROST, WK_BLUEPRINCE, WK_CLAUDE, WK_DEJAVU, WK_DUAT, WK_EVENTHORIZON, WK_FENRIR, WK_INANNA,
   WK_JANUS, WK_KITSUNE, WK_KUKULKAN, WK_LONG, WK_MAUI, WK_MIMIC, WK_MOLT, WK_NATARAJA, WK_NOTHING, WK_OLYMPUS,
   WK_OUROBOROS, WK_PARASITE, WK_RELIQUARY, WK_SEANCE, WK_SEVERED, WK_SHANGO, WK_TEZCATL, WK_VELES, WK_WHOAREYOU, WK_WUKONG,
+  /* 4.21: the ten that filled the gaps */
+  WK_ANANSI, WK_GLITCHCRAFT, WK_HERMES, WK_ICARUS, WK_MOTHBALL, WK_PHOENIX, WK_RAIJIN, WK_SATURN, WK_SELENE, WK_SUSTAINT,
   WK_COUNT
 };
 
@@ -38,7 +40,8 @@ static const char *const WK_KEYS[WK_COUNT] = {
     "Pedal_Gremlin", "Pedal_Invader", "Pedal_Confetti", "Pedal_Blender", "Pedal_Fossil", "Pedal_Charmer", "Pedal_Haunt",
     "Pedal_Annwn", "Pedal_Apoptosis", "Pedal_Bifrost", "Pedal_BluePrince", "Pedal_Claude", "Pedal_DejaVu", "Pedal_Duat", "Pedal_EventHorizon", "Pedal_Fenrir", "Pedal_Inanna",
     "Pedal_Janus", "Pedal_Kitsune", "Pedal_Kukulkan", "Pedal_Long", "Pedal_Maui", "Pedal_Mimic", "Pedal_Molt", "Pedal_Nataraja", "Pedal_Nothing", "Pedal_Olympus",
-    "Pedal_Ouroboros", "Pedal_Parasite", "Pedal_Reliquary", "Pedal_Seance", "Pedal_Severed", "Pedal_Shango", "Pedal_Tezcatl", "Pedal_Veles", "Pedal_WhoAreYou", "Pedal_Wukong"};
+    "Pedal_Ouroboros", "Pedal_Parasite", "Pedal_Reliquary", "Pedal_Seance", "Pedal_Severed", "Pedal_Shango", "Pedal_Tezcatl", "Pedal_Veles", "Pedal_WhoAreYou", "Pedal_Wukong",
+    "Pedal_Anansi", "Pedal_Glitchcraft", "Pedal_Hermes", "Pedal_Icarus", "Pedal_Mothball", "Pedal_Phoenix", "Pedal_Raijin", "Pedal_Saturn", "Pedal_Selene", "Pedal_Sustaint"};
 
 static const float WK_NOLIVE[SHP_COUNT];
 

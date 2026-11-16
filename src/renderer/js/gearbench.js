@@ -43,19 +43,20 @@ export const GEAR_CATS = [
   { id: 'filter', label: 'Wah & filter', hint: 'Wahs, auto-wahs, envelope filters' },
   { id: 'dynamics', label: 'Comp, gate & EQ', hint: 'Compressors, limiters, gates, EQs' },
   { id: 'pitch', label: 'Pitch & octave', hint: 'Octavers, pitch shifters, harmonizers' },
-  { id: 'wacky', label: 'The Lab', hint: 'Forty-four strange pedals: voices, monsters, pitch, echoes, freezes, strange rooms and rhythms' },
+  { id: 'wacky', label: 'The Lab', hint: 'Fifty-four strange pedals: voices, monsters, pitch, echoes, freezes, strange rooms, lo-fi and rhythms' },
   { id: 'rack', label: 'Rack units', hint: 'Studio effects after the cabinet' },
 ];
 
 /** 4.20: The Lab's own little shelves: similar pedals together (each pedal's `sec` in gear2014.json). */
 export const LAB_SECTIONS = [
   { id: 'voices', label: 'Voices and mouths' },
-  { id: 'synths', label: 'Synths and monsters' },
+  { id: 'synths', label: 'Synths, monsters and rings' },
   { id: 'pitch', label: 'Pitch and harmony' },
   { id: 'echoes', label: 'Echoes and loops' },
-  { id: 'freezes', label: 'Freezes, slices and slowdowns' },
+  { id: 'freezes', label: 'Freezes, sustain and slowdowns' },
   { id: 'rooms', label: 'Rooms and skies' },
-  { id: 'shape', label: 'Rhythm and shape' },
+  { id: 'lofi', label: 'Old, broken and lo-fi' },
+  { id: 'shape', label: 'Rhythm, pulse and swirl' },
 ];
 
 /** 4.20: The Lab's pedals in their shelves, in order: [[label, items], …] (items keep their order). */

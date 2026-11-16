@@ -436,6 +436,8 @@ static wk_c *wu_build(const sh_gear *g, sh_arena *a, double sr, int bass, const 
   return &s->c;
 }
 
+#include "sh_lab4.h"
+
 /* ------------------------------------------------------------ lab_build -- */
 static wk_c *lab_build(int kind, const sh_gear *g, sh_arena *a, double sr, int bass, const float *live) {
   switch (kind) {
@@ -468,6 +470,16 @@ static wk_c *lab_build(int kind, const sh_gear *g, sh_arena *a, double sr, int b
     case WK_VELES: return veles_build(g, a, sr, bass, live);
     case WK_WHOAREYOU: return way_build(g, a, sr, bass, live);
     case WK_WUKONG: return wu_build(g, a, sr, bass, live);
+    case WK_ANANSI: return anansi_build(g, a, sr, bass, live);
+    case WK_GLITCHCRAFT: return glitch_build(g, a, sr, bass, live);
+    case WK_HERMES: return hermes_build(g, a, sr, bass, live);
+    case WK_ICARUS: return icarus_build(g, a, sr, bass, live);
+    case WK_MOTHBALL: return moth_build(g, a, sr, bass, live);
+    case WK_PHOENIX: return phoenix_build(g, a, sr, bass, live);
+    case WK_RAIJIN: return raijin_build(g, a, sr, bass, live);
+    case WK_SATURN: return saturn_build(g, a, sr, bass, live);
+    case WK_SELENE: return selene_build(g, a, sr, bass, live);
+    case WK_SUSTAINT: return sustaint_build(g, a, sr, bass, live);
     default: return 0;
   }
 }

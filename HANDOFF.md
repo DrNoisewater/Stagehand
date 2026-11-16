@@ -1,3 +1,32 @@
+# 4.21.0 — The Lab: ten more pedals, and every tone starts fresh (2026-11-15; nothing tried on the user’s PC)
+
+The user asked what kinds of pedal were missing, had ChatGPT draw the ten I listed, and sent them (names changed: the
+endless sustain came back as RELIQUARY). Asked about the clash with the cathedral Reliquary: rename the old one; they
+sent a new CATHEDRAL picture. Then: "check that switching famous tones or swapping pedals actually clears the old …
+it needs to load it every time correctly … reactive and reliable to whatever you're switching to".
+
+**Built:**
+- Ten pedals (`native/dsp/sh_lab4.h`, pedal numbers 45–54): Anansi (arpeggiator), Glitchcraft (bit crusher), Hermes
+  (radio), Icarus (flanger/phaser), Mothball (worn tape and records), Phoenix (reverse swell reverb), Raijin (drums
+  from your picking), Saturn (ring modulator), Selene (pumping), and Reliquary, the endless sustain, kept under the id
+  `Pedal_Sustaint` because `Pedal_Reliquary` is the cathedral (now named Cathedral, new picture; saved tones keep
+  working). An eighth section, Old, broken and lo-fi; others renamed (docs/lab-pedals.md).
+- Mothball's sliders run over the cassette art, so they glow up their slots instead of moving a cap.
+- **Tones start fresh:** a built tone kept for later used to hold on to its echoes, reverb tail, loops and frozen notes,
+  and played them when you came back to it (measured: Deja Vu's old loop came back at -19 dB). Now a tone already
+  played is put back to its just-built state (`sh_engine_refresh`, the helper's `refresh`, the in-app engine's
+  `refresh`) before it's switched to; tones built ahead for a song and never played need nothing, so song tone
+  changes stay instant. A different tone also starts with every Lab button out (the same tone being edited keeps them).
+  Checked in `test/wacky-pedals.cjs` (Switching) and `test/e2e/switch-audit.js` (Create a tone, famous tones fast
+  and slow, a pedal swapped).
+- The user says tones sound "more bassy" since 4.20, their Thrash tone a little worse, as if a pedal "set something
+  forever", even after a restart. The 4.19 and 4.20 engines give identical sound for every famous tone (checked
+  sample by sample), so it's a saved setting, not the engine: suspects are Drop (the D key, or the tuning check's
+  "always"), the Room setting, or the tone's own Bass/EQ knobs. Their PC wasn't connected to look.
+
+**Ask the user:** whether Drop or Room were on; to open this chat in the desktop app so their saved settings can be
+read; how the ten sound; whether the sections still feel right.
+
 # 4.20.0 — The Lab: thirty more pedals, in seven little sections (2026-11-15; nothing tried on the user’s PC)
 
 The user: "These last pedals need added" (a pack of 37, `Stagehand-Everything-v2.zip`). Asked about seven whose

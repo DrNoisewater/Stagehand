@@ -1,4 +1,4 @@
-// 4.20: the forty-four pedals in The Lab through the shipped engine (rig-dsp.wasm), on made-up
+// 4.20/4.21: the fifty-four pedals in The Lab through the shipped engine (rig-dsp.wasm), on made-up
 // guitar and bass playing. Each pedal's own checks come from its brief (docs/lab-pedals.md);
 // every pedal also: guitar and bass at 44.1/48/96 kHz, silence stays silent, Mix 0 is the
 // input untouched, sane levels and peaks, footswitches pressed and let go.
@@ -25,13 +25,14 @@ const LAB = Object.keys(G).filter((k) => G[k].c === 'The Lab');
 const BIT = { Pedal_Quack: 1, Pedal_Croak: 2, Pedal_Caterwaul: 3, Pedal_Blorp: 4, Pedal_Gobble: 5, Pedal_Slug: 6, Pedal_Boing: 7, Pedal_Gremlin: 8, Pedal_Invader: 9, Pedal_Confetti: 10, Pedal_Blender: 11, Pedal_Fossil: 12, Pedal_Charmer: 13, Pedal_Haunt: 14 };
 const SHP = { hold: 11, lever: 12, latch: 13, tempo: 14 };
 // the thirty that followed: each has its own live slot (footswitch bits) and live value
-const KIND = Object.fromEntries(['Annwn', 'Apoptosis', 'Bifrost', 'BluePrince', 'Claude', 'DejaVu', 'Duat', 'EventHorizon', 'Fenrir', 'Inanna', 'Janus', 'Kitsune', 'Kukulkan', 'Long', 'Maui', 'Mimic', 'Molt', 'Nataraja', 'Nothing', 'Olympus', 'Ouroboros', 'Parasite', 'Reliquary', 'Seance', 'Severed', 'Shango', 'Tezcatl', 'Veles', 'WhoAreYou', 'Wukong'].map((n, i) => [`Pedal_${n}`, 15 + i]));
+const KIND = Object.fromEntries(['Annwn', 'Apoptosis', 'Bifrost', 'BluePrince', 'Claude', 'DejaVu', 'Duat', 'EventHorizon', 'Fenrir', 'Inanna', 'Janus', 'Kitsune', 'Kukulkan', 'Long', 'Maui', 'Mimic', 'Molt', 'Nataraja', 'Nothing', 'Olympus', 'Ouroboros', 'Parasite', 'Reliquary', 'Seance', 'Severed', 'Shango', 'Tezcatl', 'Veles', 'WhoAreYou', 'Wukong', 'Anansi', 'Glitchcraft', 'Hermes', 'Icarus', 'Mothball', 'Phoenix', 'Raijin', 'Saturn', 'Selene', 'Sustaint'].map((n, i) => [`Pedal_${n}`, 15 + i]));
 const WORD0 = 15, VAL0 = 79;
 const word = (key, bits) => x.param(WORD0 + KIND[key], bits);
 const lval = (key, v) => x.param(VAL0 + KIND[key], v);
 // how each of the thirty is played in the shared checks: which footswitches are down (bits) at t s
 const B = (...bits) => bits.reduce((m, b) => m | (1 << b), 0);
 const PLAY = {
+  Pedal_Anansi: () => B(0), // Weave lit
   Pedal_Apoptosis: (t) => (t > 1.0 && t < 1.05 ? B(0) : 0), // Release: one press
   Pedal_Claude: (t) => (t < 0.9 ? B(0) : B(1, 2)) | (t > 1.0 && t < 1.05 ? B(4) : 0), // learn the first phrase, then Recall it round and round
   Pedal_DejaVu: (t) => (t > 1.4 && t < 1.45 ? B(0) : 0) | (t > 1.45 && t < 3.2 ? B(1) : 0), // Enter, then Repeat
@@ -43,7 +44,7 @@ const PLAY = {
   Pedal_Kitsune: (t) => (t > 1.2 && t < 1.25 ? B(0) : 0), // Trick once
   Pedal_Olympus: (t) => (t > 1.2 && t < 2.4 ? B(0) : 0) | (t > 2.6 && t < 3.0 ? B(1) : 0),
 };
-const LONGTAIL = { Pedal_Reliquary: 8, Pedal_Seance: 10, Pedal_Duat: 8, Pedal_Ouroboros: 8, Pedal_Bifrost: 7, Pedal_Inanna: 6, Pedal_EventHorizon: 7, Pedal_Annwn: 7 };
+const LONGTAIL = { Pedal_Phoenix: 9, Pedal_Sustaint: 7, Pedal_Reliquary: 8, Pedal_Seance: 10, Pedal_Duat: 8, Pedal_Ouroboros: 8, Pedal_Bifrost: 7, Pedal_Inanna: 6, Pedal_EventHorizon: 7, Pedal_Annwn: 7 };
 
 // --- the engine
 const spec = (key, knobs = {}, kind = 'guitar') => {
@@ -250,7 +251,7 @@ const wav = (name, y, sr) => {
 const want = (k) => !only.length || only.some((o) => k.toLowerCase().includes(o.toLowerCase()));
 
 // ------------------------------------------------------------------ every pedal --
-ok(LAB.length === 44, `The Lab has 44 pedals (${LAB.length})`);
+ok(LAB.length === 54, `The Lab has 54 pedals (${LAB.length})`);
 for (const key of LAB) {
   if (!want(key) || process.env.OWN_ONLY) continue;
   const name = G[key].n;
@@ -297,8 +298,8 @@ for (const key of LAB) {
     if (o && o.live) continue;
     const opts = { sr, at: (t) => press(key, t > 0.6 && t < 3.0, t) };
     // the controls that only work in a mode: test them in it
-    const loose = { 'Pedal_Charmer Min/Maj': -40, 'Pedal_Apoptosis Air': -40 }; // checked on their own below (Air: the highs of a guitar are small)
-    const base = { Pedal_Slug: { Tail: { 'Single/Flow': 0 } }, Pedal_Blorp: { Orbit: { 'Talk/Auto': 1 } }, Pedal_Charmer: { 'Min/Maj': { Drone: 100 }, Shift: { Drone: 100 } }, Pedal_Gobble: { Rate: { 'Auto/Hold': 0 } }, Pedal_Invader: { Sync: { Speed: 3 } } }[key]?.[n] || {};
+    const loose = { 'Pedal_Charmer Min/Maj': -40, 'Pedal_Apoptosis Air': -40, 'Pedal_Sustaint Bloom': -40 }; // checked on their own below (Air: the highs of a guitar are small)
+    const base = { Pedal_Slug: { Tail: { 'Single/Flow': 0 } }, Pedal_Blorp: { Orbit: { 'Talk/Auto': 1 } }, Pedal_Charmer: { 'Min/Maj': { Drone: 100 }, Shift: { Drone: 100 } }, Pedal_Gobble: { Rate: { 'Auto/Hold': 0 } }, Pedal_Invader: { Sync: { Speed: 3 } }, Pedal_Sustaint: { Bloom: { Vigil: 0.2, Grace: 100 } } }[key]?.[n] || {};
     const a = render(key, { ...base, [n]: lo }, inp, opts), b = render(key, { ...base, [n]: hi }, inp, opts);
     let d = 0;
     for (let i = 0; i < a.length; i++) d += (a[i] - b[i]) ** 2;
@@ -818,6 +819,147 @@ if (want('Wukong')) {
   let d = 0;
   for (let i = 0; i < calm.length; i++) d += (calm[i] - up[i]) ** 2;
   ok(db(Math.sqrt(d / calm.length)) - db(rms(calm)) > -10, 'Wukong: Uproar brings every clone in');
+}
+
+// ------------------------------------------------ the ten that filled the gaps (4.21) --
+if (want('Anansi')) {
+  const inp = sine(110, 3, sr, 0.1);
+  const y = render('Pedal_Anansi', { Mix: 100, Octaves: 0, Pattern: 0, Rate: 0, Gate: 100 }, inp, { live: { [SHP.tempo]: 120, [WORD0 + KIND.Pedal_Anansi]: 1 } });
+  // quarter notes at 120: the root, the fifth, the octave, half a second each
+  const ts = [[0.6, 165], [1.1, 220], [1.6, 110]].map(([t, hz]) => tone(y, ...seg(t, t + 0.3), sr, hz));
+  ok(ts.every((v) => v > 0.2), `Anansi: Weave steps up through the fifth and the octave on the beat (${ts.map((v) => v.toFixed(2)).join(' / ')})`);
+  const steps = Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].map((i) => [`Step ${i}`, i === 2 ? 0 : 1]));
+  const r = render('Pedal_Anansi', { Mix: 100, Rate: 0, Gate: 100, ...steps }, inp, { live: { [SHP.tempo]: 120, [WORD0 + KIND.Pedal_Anansi]: 1 } });
+  ok(rms(r, ...seg(0.6, 0.9)) < 0.15 * rms(r, ...seg(1.1, 1.4)), 'Anansi: an unlit stone rests');
+  const off = render('Pedal_Anansi', { Mix: 100 }, inp), plain = render(null, {}, inp);
+  ok(Math.abs(db(rms(off)) - db(rms(plain))) < 0.5, 'Anansi: with Weave out your playing passes as it is');
+  const held = render('Pedal_Anansi', { Mix: 100 }, cat(saw(110, 1, sr, 0.1), quiet(2, sr)), at((t) => word('Pedal_Anansi', B(0) | (t > 0.6 ? B(1) : 0))));
+  ok(rms(held, ...seg(2, 2.8)) > 0.004, 'Anansi: Hold keeps the web spinning after you stop');
+}
+if (want('Glitchcraft')) {
+  const inp = sine(220, 1, sr, 0.3);
+  const fine = render('Pedal_Glitchcraft', { Bits: 16, Rate: 0, Grit: 0, Mix: 100 }, inp), crush = render('Pedal_Glitchcraft', { Bits: 3, Rate: 0, Grit: 0, Mix: 100 }, inp);
+  const plain = render(null, {}, inp);
+  const err = (y) => { let d = 0; for (let i = seg(0.3, 0.9)[0]; i < seg(0.3, 0.9)[1]; i++) d += (y[i] - plain[i]) ** 2; return Math.sqrt(d / (0.6 * sr)); };
+  ok(err(crush) > 5 * err(fine), `Glitchcraft: fewer Bits, rougher steps (${db(err(fine)).toFixed(0)} → ${db(err(crush)).toFixed(0)} dB of grit)`);
+  const lo = render('Pedal_Glitchcraft', { Bits: 16, Rate: 100, Grit: 0, Mix: 100 }, sine(3000, 1, sr, 0.2));
+  ok(tone(lo, ...seg(0.3, 0.9), sr, 3000) < 0.7, 'Glitchcraft: a low Rate mangles the highs into whine');
+}
+if (want('Hermes')) {
+  const inp = sine(440, 1, sr, 0.1);
+  const on = render('Pedal_Hermes', { Dial: 50, Static: 0, Drift: 0, Band: 1, Mix: 100 }, inp), off = render('Pedal_Hermes', { Dial: 60, Static: 0, Drift: 0, Band: 1, Mix: 100 }, inp);
+  ok(tone(on, ...seg(0.3, 0.9), sr, 440) > 0.6 && tone(off, ...seg(0.3, 0.9), sr, 440) < 0.3, 'Hermes: on a station it is clear; between stations it drifts out of tune');
+  const am = centroid(render('Pedal_Hermes', { Dial: 50, Static: 0, Drift: 0, Band: 0, Mix: 100 }, saw(110, 1, sr, 0.1)), ...seg(0.3, 0.9), sr);
+  const fm = centroid(render('Pedal_Hermes', { Dial: 50, Static: 0, Drift: 0, Band: 1, Mix: 100 }, saw(110, 1, sr, 0.1)), ...seg(0.3, 0.9), sr);
+  void am, fm;
+  const lowAm = rms(render('Pedal_Hermes', { Dial: 50, Static: 0, Drift: 0, Band: 0, Mix: 100 }, sine(110, 1, sr, 0.05)), ...seg(0.3, 0.9));
+  const lowFm = rms(render('Pedal_Hermes', { Dial: 50, Static: 0, Drift: 0, Band: 1, Mix: 100 }, sine(110, 1, sr, 0.05)), ...seg(0.3, 0.9));
+  ok(lowAm < 0.4 * lowFm, `Hermes: AM is a small speaker (no deep lows), FM wide (${db(lowAm).toFixed(0)} / ${db(lowFm).toFixed(0)} dB at 110 Hz)`);
+  const silent = render('Pedal_Hermes', { Static: 100, Dial: 60 }, quiet(1, sr));
+  ok(rms(silent) < 1e-5, 'Hermes: no playing, no static');
+}
+if (want('Icarus')) {
+  const noise = new Float32Array(2 * sr).map(() => (Math.random() * 2 - 1) * 0.05);
+  const y = render('Pedal_Icarus', { Rate: 0.05, Depth: 0, Manual: 80, Feedback: 50, Mix: 100 }, noise), d = render('Pedal_Icarus', { Rate: 0.05, Depth: 0, Manual: 80, Feedback: 50, Mix: 100 }, noise, at((t) => word('Pedal_Icarus', t > 0.5 ? B(0) : 0)));
+  ok(Math.abs(centroid(d, ...seg(1.5, 1.95), sr) - centroid(y, ...seg(1.5, 1.95), sr)) > 300, `Icarus: Dive pulls the sweep down (${centroid(y, ...seg(1.5, 1.95), sr).toFixed(0)} → ${centroid(d, ...seg(1.5, 1.95), sr).toFixed(0)} Hz)`);
+  const ph = render('Pedal_Icarus', { 'Phase/Flange': 0, Mix: 100 }, riff(GTR, sr));
+  ok(finite(ph) && peak(ph) < 2, 'Icarus: the phaser stays steady');
+}
+if (want('Mothball')) {
+  const w = render('Pedal_Mothball', { Wow: 100, Flutter: 0, Age: 0, Crackle: 0, Dropout: 0 }, sine(440, 3, sr, 0.1));
+  const fs = [0.5, 1.0, 1.5, 2.0, 2.5].map((t) => pitch(w, ...seg(t, t + 0.12), sr, 200, 900));
+  ok(Math.max(...fs) - Math.min(...fs) > 3, `Mothball: Wow wobbles the pitch (${fs.map((v) => v.toFixed(0)).join(' ')} Hz)`);
+  const st = render('Pedal_Mothball', { Wow: 0, Flutter: 0, Age: 0, Crackle: 0, Dropout: 0 }, sine(440, 4, sr, 0.1), at((t) => word('Mothball' && 'Pedal_Mothball', t > 0.5 && t < 1.5 ? B(0) : 0)));
+  const f1 = pitch(st, ...seg(0.75, 0.85), sr, 60, 900), f3 = pitch(st, ...seg(3.4, 3.7), sr, 200, 900);
+  ok(f1 < 400 && Math.abs(cents(f3, 440)) < 30, `Mothball: Stop winds the tape down (${f1.toFixed(0)} Hz), and it spins back up (${f3.toFixed(0)} Hz)`);
+  const quietIn = render('Pedal_Mothball', { Crackle: 100, Age: 100 }, quiet(1, sr));
+  ok(rms(quietIn) < 1e-5, 'Mothball: no playing, no crackle');
+}
+if (want('Phoenix')) {
+  const inp = cat(saw(220, 0.2, sr, 0.1), quiet(4, sr));
+  const y = render('Pedal_Phoenix', { Mix: 100, Rise: 1.5, Bloom: 50 }, inp);
+  ok(rms(y, ...seg(1.2, 1.6)) > 2 * rms(y, ...seg(0.2, 0.4)), `Phoenix: the reverb swells up after the note (${db(rms(y, ...seg(0.2, 0.4))).toFixed(0)} → ${db(rms(y, ...seg(1.2, 1.6))).toFixed(0)} dB)`);
+  const r = render('Pedal_Phoenix', { Mix: 100, Rise: 0.2, Tone: 100 }, saw(110, 2, sr, 0.1), at(() => word('Pedal_Phoenix', B(0)))), n = render('Pedal_Phoenix', { Mix: 100, Rise: 0.2, Tone: 100 }, saw(110, 2, sr, 0.1));
+  ok(centroid(r, ...seg(1.2, 1.9), sr) > 1.15 * centroid(n, ...seg(1.2, 1.9), sr), 'Phoenix: Rebirth climbs the reverb upward');
+}
+if (want('Raijin')) {
+  const inp = riff(GTR, sr);
+  const drums = render('Pedal_Raijin', { Mix: 100 }, inp), none = render('Pedal_Raijin', { Mix: 100 }, quiet(2, sr));
+  ok(rms(drums) > 0.01 && rms(none) < 1e-5, `Raijin: your picking plays the drums (${db(rms(drums)).toFixed(0)} dB); silence plays nothing`);
+  const k = render('Pedal_Raijin', { Mix: 100, Kick: 100, Snare: 0, Clap: 0 }, inp), sn = render('Pedal_Raijin', { Mix: 100, Kick: 0, Snare: 100, Clap: 0 }, inp);
+  ok(centroid(k, 0, k.length, sr) < 0.5 * centroid(sn, 0, sn.length, sr), 'Raijin: the kick is low, the snare bright');
+  const roll = render('Pedal_Raijin', { Mix: 100, Kick: 0, Clap: 0, Snare: 100 }, saw(110, 2, sr, 0.1), { live: { [SHP.tempo]: 120, [WORD0 + KIND.Pedal_Raijin]: 1 } });
+  let hits = 0;
+  // the hits land on the sixteenths: louder just after each than just before the next
+  for (let t = 0.5; t < 1.85; t += 0.125) hits += rms(roll, ...seg(t + 0.005, t + 0.03)) > 1.5 * rms(roll, ...seg(t + 0.095, t + 0.12)) ? 1 : 0;
+  ok(hits >= 8, `Raijin: Roll plays sixteenths while the note rings (${hits} of 11)`);
+}
+if (want('Saturn')) {
+  const y = render('Pedal_Saturn', { Orbit: 50, Wobble: 0, Tilt: 50, Mix: 100, 'Low/High': 1 }, sine(440, 1, sr, 0.1));
+  ok(tone(y, ...seg(0.3, 0.9), sr, 440) < 0.15, 'Saturn: the note itself is gone, split into two new ones');
+  const e = render('Pedal_Saturn', { Wobble: 0, Mix: 100 }, sine(220, 1.5, sr, 0.1), at(() => word('Pedal_Saturn', B(0))));
+  ok(tone(e, ...seg(0.8, 1.4), sr, 660) > 0.2, 'Saturn: Eclipse locks onto your note (it rings in tune: 220 → 660)');
+}
+if (want('Selene')) {
+  const inp = saw(110, 3, sr, 0.1);
+  const y = render('Pedal_Selene', { Depth: 100, Shape: 50, Rate: 1 }, inp, { live: { [SHP.tempo]: 120 } });
+  const a = rms(y, ...seg(1.0, 1.05)), b = rms(y, ...seg(1.4, 1.48));
+  ok(b > 2.5 * a, `Selene: ducks on the beat and swells back (${db(a).toFixed(0)} → ${db(b).toFixed(0)} dB)`);
+  const sw = render('Pedal_Selene', { Depth: 100, Shape: 50, Rate: 1, Swing: 100 }, inp, { live: { [SHP.tempo]: 120 } });
+  ok(rms(sw, ...seg(1.0, 1.05)) < rms(sw, ...seg(1.5, 1.55)) * 0.7 || rms(sw, ...seg(1.5, 1.55)) > 2 * rms(y, ...seg(1.5, 1.55)), 'Selene: Swing moves every other pulse');
+}
+if (want('Sustaint')) {
+  const pluck = cat(saw(220, 3, sr, 0.15).map((v, i) => v * Math.exp((-1 * i) / sr)), quiet(0.5, sr));
+  const plain = render(null, {}, pluck), held = render('Pedal_Sustaint', { Grace: 100, Bloom: 0, Halo: 0 }, pluck);
+  const dp = db(rms(plain, ...seg(2.5, 2.9))) - db(rms(plain, ...seg(0.2, 0.4))), dh = db(rms(held, ...seg(2.5, 2.9))) - db(rms(held, ...seg(0.2, 0.4)));
+  ok(dh > dp + 12, `Reliquary: Grace holds a dying note up (it falls ${(-dp).toFixed(0)} dB alone, ${(-dh).toFixed(0)} dB through it)`);
+  const et = render('Pedal_Sustaint', { Grace: 0, Bloom: 0, Halo: 0 }, cat(saw(220, 0.8, sr, 0.1), quiet(3, sr)), at((t) => word('Pedal_Sustaint', t > 0.5 ? B(0) : 0)));
+  ok(rms(et, ...seg(3, 3.7)) > 0.01, `Reliquary: Eternal keeps the note ringing after you stop (${db(rms(et, ...seg(3, 3.7))).toFixed(0)} dB)`);
+  const mir = render('Pedal_Sustaint', { Grace: 0, Bloom: 0, Halo: 0, 'Faith/Miracle': 1 }, cat(saw(220, 0.8, sr, 0.1), quiet(3, sr)));
+  const fai = render('Pedal_Sustaint', { Grace: 0, Bloom: 0, Halo: 0, 'Faith/Miracle': 0 }, cat(saw(220, 0.8, sr, 0.1), quiet(3, sr)));
+  ok(rms(mir, ...seg(2.5, 3.5)) > 0.005 && rms(fai, ...seg(2.5, 3.5)) < 1e-4, 'Reliquary: on Miracle the last note rings on; on Faith it stops');
+  const bl = render('Pedal_Sustaint', { Grace: 60, Bloom: 100, Halo: 0, Vigil: 0.5 }, saw(110, 3, sr, 0.1));
+  ok(centroid(bl, ...seg(2.3, 2.9), sr) > 1.2 * centroid(bl, ...seg(0.1, 0.4), sr), 'Reliquary: a long note blooms into bright feedback after the vigil');
+}
+
+// ------------------------------------- switching tones starts each one fresh (4.21) --
+if (want('Switching')) {
+  // play through a tone, switch to another, come back: nothing left over from last time
+  const run = (n, input) => {
+    const y = new Float32Array(input.length);
+    for (let o = 0; o < input.length; o += 128) {
+      const m = Math.min(128, input.length - o);
+      const inp = new Float32Array(x.memory.buffer, x.buf_in(), 128), out = new Float32Array(x.memory.buffer, x.buf_l(), 128);
+      inp.fill(0), inp.set(input.subarray(o, o + m)), x.process(m), y.set(out.subarray(0, m), o);
+    }
+    return y;
+  };
+  const put = (slot, key, knobs) => {
+    const t = Buffer.from(spec(key, knobs, 'guitar') + '\0');
+    new Uint8Array(x.memory.buffer, x.buf_spec(), t.length).set(t);
+    return x.build(slot);
+  };
+  for (const [key, knobs, how] of [['Pedal_Confetti', { Mix: 100 }, 'echoes'], ['Pedal_Reliquary', { Mix: 100, Incense: 100 }, 'the cathedral'], ['Pedal_DejaVu', { Mix: 100 }, 'a loop'], ['Pedal_Sustaint', {}, 'a held note']]) {
+    x.init(48000);
+    for (const id of Object.values(SHP)) x.param(id, 0);
+    SHP_ALL();
+    ok(put(0, key, knobs) && put(1, 'Pedal_Nothing', {}), `${G[key].n} and a plain tone build`);
+    x.select(0);
+    const busy = (k) => k === 'Pedal_DejaVu' ? (t) => word(k, (t > 1.35 && t < 1.45 ? B(0) : 0) | (t > 1.45 ? B(1) : 0)) : k === 'Pedal_Sustaint' ? (t) => word(k, t > 0.5 ? B(0) : 0) : () => {};
+    const inp = riff(GTR, 48000);
+    for (let o = 0, f = busy(key); o < inp.length; o += 4800) f(o / 48000), run(0, inp.subarray(o, o + 4800));
+    word(key, key === 'Pedal_DejaVu' ? B(1) : 0); // coming back with Repeat still lit: an old loop would play
+    x.select(1);
+    run(1, quiet(0.2, 48000)); // the switch's short crossfade
+    const stale = (() => { x.select(0); const y = run(0, quiet(0.5, 48000)); x.select(1); run(1, quiet(0.2, 48000)); return rms(y); })();
+    ok(x.refresh(0) === 1, `${G[key].n}: the tone left behind is put back to a fresh start`);
+    x.select(0);
+    const back = run(0, quiet(1, 48000));
+    ok(rms(back) < 1e-5 && stale > 1e-4, `${G[key].n}: coming back to it, nothing of ${how} from last time (${db(stale).toFixed(0)} dB before, ${db(rms(back)).toFixed(0)} dB after)`);
+    ok(x.refresh(0) === 0, `${G[key].n}: the tone playing is never touched`);
+    const again = run(0, inp);
+    ok(rms(again) > 0.01, `${G[key].n}: and it still plays`);
+  }
 }
 
 console.log(bad ? `\n${bad} failed` : '\nall passed');
