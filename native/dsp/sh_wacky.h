@@ -26,12 +26,19 @@
 enum {
   WK_QUACK = 1, WK_CROAK, WK_CATERWAUL, WK_BLORP, /* the 4.19 four keep their numbers */
   WK_GOBBLE, WK_SLUG, WK_BOING, WK_GREMLIN, WK_INVADER, WK_CONFETTI, WK_BLENDER, WK_FOSSIL, WK_CHARMER, WK_HAUNT,
+  /* 4.20: the thirty that followed (sh_lab*.h) */
+  WK_ANNWN, WK_APOPTOSIS, WK_BIFROST, WK_BLUEPRINCE, WK_CLAUDE, WK_DEJAVU, WK_DUAT, WK_EVENTHORIZON, WK_FENRIR, WK_INANNA,
+  WK_JANUS, WK_KITSUNE, WK_KUKULKAN, WK_LONG, WK_MAUI, WK_MIMIC, WK_MOLT, WK_NATARAJA, WK_NOTHING, WK_OLYMPUS,
+  WK_OUROBOROS, WK_PARASITE, WK_RELIQUARY, WK_SEANCE, WK_SEVERED, WK_SHANGO, WK_TEZCATL, WK_VELES, WK_WHOAREYOU, WK_WUKONG,
   WK_COUNT
 };
 
 static const char *const WK_KEYS[WK_COUNT] = {
     0, "Pedal_Quack", "Pedal_Croak", "Pedal_Caterwaul", "Pedal_Blorp", "Pedal_Gobble", "Pedal_Slug", "Pedal_Boing",
-    "Pedal_Gremlin", "Pedal_Invader", "Pedal_Confetti", "Pedal_Blender", "Pedal_Fossil", "Pedal_Charmer", "Pedal_Haunt"};
+    "Pedal_Gremlin", "Pedal_Invader", "Pedal_Confetti", "Pedal_Blender", "Pedal_Fossil", "Pedal_Charmer", "Pedal_Haunt",
+    "Pedal_Annwn", "Pedal_Apoptosis", "Pedal_Bifrost", "Pedal_BluePrince", "Pedal_Claude", "Pedal_DejaVu", "Pedal_Duat", "Pedal_EventHorizon", "Pedal_Fenrir", "Pedal_Inanna",
+    "Pedal_Janus", "Pedal_Kitsune", "Pedal_Kukulkan", "Pedal_Long", "Pedal_Maui", "Pedal_Mimic", "Pedal_Molt", "Pedal_Nataraja", "Pedal_Nothing", "Pedal_Olympus",
+    "Pedal_Ouroboros", "Pedal_Parasite", "Pedal_Reliquary", "Pedal_Seance", "Pedal_Severed", "Pedal_Shango", "Pedal_Tezcatl", "Pedal_Veles", "Pedal_WhoAreYou", "Pedal_Wukong"};
 
 static const float WK_NOLIVE[SHP_COUNT];
 
@@ -384,6 +391,9 @@ typedef float (*wk_run_fn)(wk_c *c, float x, float in0, float *dry);
 struct wk_c {
   int kind, bass, cnt, add; /* add: the effect sits on top of the dry sound (Fossil, Confetti) */
   int clean;                /* the effect is the playing itself, only louder or softer, moved or later: no low cut */
+  int word, rise, wprev;    /* 4.20: this pedal's live slot (SHP_LABW0 + kind): held bits, and bits pressed this block */
+  float lval;               /* 4.20: its live value (SHP_LABV0 + kind) */
+  int own;                  /* 4.20: the pedal shapes your own sound too, so Mix 0 doesn't switch it off */
   double sr;
   const float *live;
   float gd, gw, trim, fs;
@@ -1381,16 +1391,27 @@ static wk_c *haunt_build(const sh_gear *g, sh_arena *a, double sr, int bass, con
   return &s->c;
 }
 
+#include "sh_labcore.h"
+#include "sh_lab1.h"
+#include "sh_lab2.h"
+#include "sh_lab3.h"
+
 /* -------------------------------------------------------------- the block -- */
 static void wacky_proc(sh_block *b, float *L, float *R, int n) {
   wk_c *c = (wk_c *)b->st;
   if (b->meas) return; /* the tone's loudness is matched on the dry sound */
   float fx = c->kind == WK_CONFETTI ? (b->fxscale < 2 ? b->fxscale : 2) : 1; /* echoes follow the FX knob */
+  if (c->kind >= WK_ANNWN) {
+    c->word = (int)c->live[SHP_LABW0 + c->kind];
+    c->rise = c->word & ~c->wprev, c->wprev = c->word;
+    c->lval = c->live[SHP_LABV0 + c->kind];
+  }
   for (int i = 0; i < n; i++) {
     float x = R ? 0.5f * (L[i] + R[i]) : L[i];
     float x0 = b->in0 ? b->in0[i] : x;
     float dry = x;
     float y = c->run(c, x, x0, &dry);
+    c->rise = 0; /* a press counts once */
     /* no rumble or offset under the effect, nothing wild out of it */
     if (!c->clean) {
       float lc, bp, hp;
@@ -1399,16 +1420,25 @@ static void wacky_proc(sh_block *b, float *L, float *R, int n) {
     }
     y = wk_soft(y);
     if (!(sh_fabsf(y) < 4.f)) y = 0; /* never pass on a broken number */
-    float o = c->gw <= 0 ? x : c->add ? dry + y * c->gw * fx : dry * c->gd + y * c->gw; /* Mix 0: the input, untouched */
+    float o = c->gw <= 0 && !c->own ? x : c->add ? dry + y * c->gw * fx : dry * c->gd + y * c->gw; /* Mix 0: the input, untouched */
     o *= c->trim;
     L[i] = o;
     if (R) R[i] = o;
   }
 }
 
+/* the whole name (Pedal_Long is not Pedal_Longer), any case */
+static int wk_eq(const char *a, const char *b) {
+  for (; *a && *b; a++, b++) {
+    char x = *a >= 'A' && *a <= 'Z' ? *a + 32 : *a, y = *b >= 'A' && *b <= 'Z' ? *b + 32 : *b;
+    if (x != y) return 0;
+  }
+  return *a == *b;
+}
+
 int wacky_kind(const char *key) {
   for (int k = 1; k < WK_COUNT; k++)
-    if (sh_has(key, WK_KEYS[k])) return k;
+    if (wk_eq(key, WK_KEYS[k])) return k;
   return 0;
 }
 
@@ -1429,10 +1459,14 @@ int wacky_build(sh_block *b, const sh_gear *g, sh_arena *a, double sr, int bass,
     case WK_FOSSIL: c = fossil_build(g, a, sr, bass, live); break;
     case WK_CHARMER: c = charm_build(g, a, sr, bass, live); break;
     case WK_HAUNT: c = haunt_build(g, a, sr, bass, live); break;
-    default: return 0;
+    case WK_NOTHING: /* nothing at all: no processing, no delay, not even a low cut */
+      b->st = 0, b->process = nothing_proc, b->name = "nothing";
+      return 1;
+    default:
+      if (wacky_kind(g->key) >= WK_ANNWN) c = lab_build(wacky_kind(g->key), g, a, sr, bass, live);
+      break;
   }
   if (!c || a->failed) return 0;
-  static const char *const NAMES[WK_COUNT] = {0, "quack", "croak", "caterwaul", "blorp", "gobble", "slug", "boing", "gremlin", "invader", "confetti", "blender", "fossil", "charmer", "haunt"};
-  b->st = c, b->process = wacky_proc, b->name = NAMES[c->kind];
+  b->st = c, b->process = wacky_proc, b->name = WK_KEYS[c->kind] + 6;
   return 1;
 }

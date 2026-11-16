@@ -3,7 +3,7 @@ import { detectPitch, PitchSmoother } from './pitch.js';
 import { tuningPlan, myTuning, dropStatus } from './tuning.js';
 import { InstrumentSense, reading } from './instrument.js';
 import { instrumentShift } from './detect.js';
-import { loadGear, toSpec, ampGain, describe, labLatch } from './gearspec.js';
+import { loadGear, toSpec, ampGain, describe, labLatch, labVals, gearInfo, LAB_KINDS, LAB_WORD0, LAB_VAL0 } from './gearspec.js';
 import { resolveCapture, caps } from './captures.js';
 import { lateWarning } from './lateout.js';
 
@@ -500,6 +500,8 @@ export class Rig extends EventTarget {
     this.player = null; // AudioEngine (set by stage.js)
     this.slots = new Array(SLOTS).fill(null); // spec per slot
     this.lab = { labHold: 0, labLever: 0, labLatch: 0, tempo: 0 }; // 4.20: The Lab's live controls
+    this.labWords = {}; // 4.20: the thirty that followed: each pedal's footswitches and buttons (pedal number -> bits)
+    this.labLevers = {}; // and its live value (a lever, or a control that changes while you play)
     this.active = -1;
     this.lastUse = new Array(SLOTS).fill(0);
     this.useSeq = 0;
@@ -861,6 +863,8 @@ export class Rig extends EventTarget {
   stop() {
     const was = this.backend;
     this.lab.labHold = this.lab.labLever = 0; // nothing stays held when the guitar goes away
+    this.labWords = {};
+    this.labLevers = {};
     this.dispatchEvent(new Event('lab'));
     this._listen(false);
     this.on = false;
@@ -1087,6 +1091,7 @@ export class Rig extends EventTarget {
       // 4.20: a new or changed tone starts with every footswitch let go; its live switches (Haunt) follow it
       if (this.lab.labHold || this.lab.labLever) this.live('labHold', 0), this.live('labLever', 0);
       this.live('labLatch', labLatch(tone));
+      this._labFollow(tone);
       const slot = await this._slotFor(tone);
       if (this.backend !== backend) return { ok: false, tone, error: 'The sound engine restarted. Try again.' };
       if (slot < 0) return { ok: false, tone, error: `${tone.name || 'That tone'} couldn’t be built.` };
@@ -1188,6 +1193,57 @@ export class Rig extends EventTarget {
     if (name === 'labHold' || name === 'labLever') this.dispatchEvent(new Event('lab'));
   }
 
+  /** 4.20: one of the thirty that followed: its footswitches and buttons (bits), sent at once. */
+  labWord(n, bits) {
+    bits = Number(bits) | 0;
+    if ((this.labWords[n] | 0) === bits) return;
+    if (bits) this.labWords[n] = bits;
+    else delete this.labWords[n];
+    if (this.backend) this.backend.param(LAB_WORD0 + n, bits);
+    this.dispatchEvent(new Event('lab'));
+  }
+
+  /** 4.20: its live value (a lever, 0 to 1, or a control that changes while you play). */
+  labVal(n, v) {
+    v = Number(v) || 0;
+    if ((this.labLevers[n] || 0) === v) return;
+    if (v) this.labLevers[n] = v;
+    else delete this.labLevers[n];
+    if (this.backend) this.backend.param(LAB_VAL0 + n, v);
+    this.dispatchEvent(new Event('lab'));
+  }
+
+  /** 4.20: a new or changed tone: pedals no longer in it let go of everything; buttons that stay lit
+   * (Speak, Repeat, Dance) stay lit while the pedal stays, and a held footswitch is let go. Live
+   * controls saved in the tone (Blue Prince's Room) follow it. */
+  _labFollow(tone) {
+    const have = new Map();
+    for (const g of (tone && tone.gear) || []) if (g && !g.bypass && g.key in LAB_KINDS) have.set(LAB_KINDS[g.key], g.key);
+    const latched = (key) => {
+      let m = 0;
+      (gearInfo(key)?.m || []).forEach(([, type, bit]) => type === 'latch' && (m |= 1 << bit));
+      return m;
+    };
+    for (const n of Object.keys(this.labWords).map(Number)) this.labWord(n, have.has(n) ? this.labWords[n] & latched(have.get(n)) : 0);
+    const vals = labVals(tone);
+    for (const n of new Set([...Object.keys(this.labLevers), ...Object.keys(vals)].map(Number))) this.labVal(n, vals[n] ?? 0);
+  }
+
+  /** 4.20: lets go of every footswitch and lever of the thirty (focus lost, guitar gone). Lit
+   * buttons and saved live controls stay. */
+  labLetGo() {
+    for (const [n, bits] of Object.entries(this.labWords)) {
+      const key = Object.keys(LAB_KINDS).find((k) => LAB_KINDS[k] === Number(n));
+      let keep = 0;
+      (gearInfo(key)?.m || []).forEach(([, type, bit]) => type === 'latch' && (keep |= 1 << bit));
+      this.labWord(Number(n), bits & keep);
+    }
+    for (const n of Object.keys(this.labLevers).map(Number)) {
+      const key = Object.keys(LAB_KINDS).find((k) => LAB_KINDS[k] === n);
+      if ((gearInfo(key)?.m || []).some(([, type]) => type === 'lever')) this.labVal(n, 0);
+    }
+  }
+
   /** 4.20: the song's tempo from its beats (the median gap), for Invader's Sync; 0 = not known. */
   setTempoFromBeats(beats) {
     const t = (beats || []).map((b) => b.t).filter(Number.isFinite);
@@ -1198,6 +1254,10 @@ export class Rig extends EventTarget {
   _sendAllParams() {
     for (const k of ['input', 'volume', 'gain', 'bass', 'mid', 'treble', 'fx']) this._param(k);
     if (this.backend) for (const k of ['labLatch', 'tempo']) this.backend.param(P[k], this.lab[k]);
+    if (this.backend) {
+      for (const [n, b] of Object.entries(this.labWords)) this.backend.param(LAB_WORD0 + Number(n), b);
+      for (const [n, v] of Object.entries(this.labLevers)) this.backend.param(LAB_VAL0 + Number(n), v);
+    }
     this._sendDrop();
   }
 

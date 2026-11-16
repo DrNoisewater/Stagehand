@@ -20,7 +20,7 @@ import { loadGear, gearName } from './gearspec.js';
 import { byId } from './tonelib.js';
 import { buildTone, freshChoices } from './tonerecipes.js';
 import { playDemo, stopDemo, demoPlaying } from './rigui.js';
-import { gearItems, GEAR_CATS, gearPanel, micPanel, gearThumb, CAB_RE } from './gearbench.js';
+import { gearItems, GEAR_CATS, gearPanel, micPanel, gearThumb, CAB_RE, labSections } from './gearbench.js';
 import { loadAbout, aboutCard } from './gearabout.js';
 
 const root = document.getElementById('page-gear');
@@ -125,10 +125,15 @@ function drawGrid() {
   const list = S.items.filter((it) => visible(it) && (words.length ? words.every((w) => `${it.name} ${it.sub} ${it.key} ${GEAR_CATS.find((c) => c.id === it.cat).label}`.toLowerCase().includes(w)) : it.cat === S.cat));
   const sy = gridEl.scrollTop;
   gridEl.innerHTML = '';
-  for (const it of list) {
-    const card = h(`button.sr-card${it.key === S.pick ? '.on' : ''}`, { type: 'button', role: 'listitem', title: it.name, 'aria-pressed': String(it.key === S.pick) }, h('span.sr-card-art', null, gearThumb(it.key, it.slot)), h('span.sr-card-name', { text: it.name }), it.bass && S.who === 'all' ? h('span.sr-tag', { text: 'Bass' }) : '');
-    card.onclick = () => pick(it.key);
-    gridEl.append(card);
+  // 4.20: The Lab is shelved in little sections of similar pedals
+  const groups = !words.length && S.cat === 'wacky' ? labSections(list) : [['', list]];
+  for (const [title, items] of groups) {
+    if (title) gridEl.append(h('h4.lab-sec', { role: 'presentation', text: title }));
+    for (const it of items) {
+      const card = h(`button.sr-card${it.key === S.pick ? '.on' : ''}`, { type: 'button', role: 'listitem', title: it.name, 'aria-pressed': String(it.key === S.pick) }, h('span.sr-card-art', null, gearThumb(it.key, it.slot)), h('span.sr-card-name', { text: it.name }), it.bass && S.who === 'all' ? h('span.sr-tag', { text: 'Bass' }) : '');
+      card.onclick = () => pick(it.key);
+      gridEl.append(card);
+    }
   }
   if (!list.length) gridEl.append(h('p.sr-none', { text: 'Nothing matches.' }));
   gridEl.scrollTop = words.length ? 0 : sy;

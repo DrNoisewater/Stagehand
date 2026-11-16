@@ -8,7 +8,7 @@ import { h, esc, icon, toast, modal } from './ui.js';
 import { rig } from './rig.js';
 import { engine } from './stage.js';
 import { TYPE_GELS, TYPE_NAMES, orderedGear, knobsOf, momentsOf, shortGearName } from './tonelib.js';
-import { holdable, labHeld, labLever } from './lablive.js';
+import { holdable, labHeld, labLever, labLeverAt } from './lablive.js';
 import { renderTone, demoRiff } from './render.js';
 import { resolveCapture } from './captures.js';
 import { knobDrag, showKnobGuide } from './knobdrag.js';
@@ -143,6 +143,13 @@ export function stepFor(min, max) {
   return max - min <= 4 ? 1 : undefined;
 }
 
+// 4.20: where no clear piece of slot is left on the photo (the cap covers it), the patch is painted:
+// the panel's colour with the slot drawn through it. f = { fill, slot, sw: slot width % of the patch }
+const drawnSlot = (f, vertical) => {
+  const a = 50 - (f.sw || 30) / 2, b = 50 + (f.sw || 30) / 2;
+  return { background: `linear-gradient(${vertical ? 90 : 180}deg, ${f.fill} ${a - 4}%, ${f.slot} ${a}%, ${f.slot} ${b}%, ${f.fill} ${b + 4}%)` };
+};
+
 // a piece of the photo, w% x h% big and centred on (x%, y%), as an element's background
 const photoPiece = (src, x, y, w, h) => ({
   backgroundImage: `url("${src}")`,
@@ -153,8 +160,13 @@ const photoPiece = (src, x, y, w, h) => ({
 /** A slider on a gear photo, tied to the strip control `original` (same value, same undo). */
 function photoSlider(src, [x, top, bot, cy, w, hh, py], original, name) {
   const min = Number(original.getAttribute('aria-valuemin')), max = Number(original.getAttribute('aria-valuemax'));
+  const meta = original._meta || {};
+  const lg = meta.log && min > 0; // 4.20: log controls (times) move along their slot as they turn
+  const toT = (x2) => (lg ? Math.log(x2 / min) / Math.log(max / min) : (x2 - min) / (max - min || 1));
+  const fromT = (t) => (lg ? min * Math.pow(max / min, t) : min + t * (max - min));
   let v = Number(original.getAttribute('aria-valuenow'));
-  const patch = h('span.photo-patch', { 'aria-hidden': 'true', style: { left: `${x - w / 2}%`, top: `${cy - hh / 2}%`, width: `${w}%`, height: `${hh}%`, ...photoPiece(src, x, py, w, hh) } });
+  const drawn = py && typeof py === 'object';
+  const patch = h(`span.photo-patch${drawn ? '.drawn' : ''}`, { 'aria-hidden': 'true', style: { left: `${x - w / 2}%`, top: `${cy - hh / 2}%`, width: `${w}%`, height: `${hh}%`, ...(drawn ? drawnSlot(py, true) : photoPiece(src, x, py, w, hh)) } });
   const lane = bot - top + hh; // the cap's whole travel, top edge to bottom edge
   const el = h('button.gear-slider', { type: 'button', role: 'slider', 'aria-orientation': 'vertical', 'aria-label': name, 'aria-valuemin': String(min), 'aria-valuemax': String(max),
     title: `${name}: drag up or down (Shift for fine), double-click to reset`, style: { left: `${x - w / 2}%`, top: `${top - hh / 2}%`, width: `${w}%`, height: `${lane}%` } });
@@ -163,10 +175,10 @@ function photoSlider(src, [x, top, bot, cy, w, hh, py], original, name) {
   el.append(cap, tip);
   el.disabled = original.disabled;
   const show = () => {
-    const t = (v - min) / (max - min || 1);
+    const t = toT(v);
     cap.style.top = `${(1 - t) * (1 - hh / lane) * 100}%`;
-    const txt = (max - min >= 20 ? Math.round(v) : Math.round(v * 10) / 10);
-    tip.textContent = `${name} ${v > 0 && min < 0 ? '+' : ''}${txt}`;
+    const txt = meta.fmt ? meta.fmt(v) : (max - min >= 20 ? Math.round(v) : Math.round(v * 10) / 10);
+    tip.textContent = `${name} ${v > 0 && min < 0 && !meta.fmt ? '+' : ''}${txt}`;
     el.setAttribute('aria-valuenow', String(v));
     el.setAttribute('aria-valuetext', tip.textContent);
   };
@@ -186,12 +198,12 @@ function photoSlider(src, [x, top, bot, cy, w, hh, py], original, name) {
     // grab the cap where you touch it; a click on the slot brings the cap there
     const on = e.clientY >= capR.top && e.clientY <= capR.bottom;
     const grab = on ? e.clientY - (capR.top + capR.height / 2) : 0;
-    let fineY = e.clientY, fineV = v;
+    let fineY = e.clientY, fineT = toT(v);
     const at = (ev) => {
-      if (ev.shiftKey) { fineV = Math.max(min, Math.min(max, fineV - ((ev.clientY - fineY) / travel / 4) * (max - min))); fineY = ev.clientY; return fineV; }
+      if (ev.shiftKey) { fineT = Math.max(0, Math.min(1, fineT - (ev.clientY - fineY) / travel / 4)); fineY = ev.clientY; return fromT(fineT); }
       fineY = ev.clientY;
-      const t = 1 - (ev.clientY - grab - r.top - capR.height / 2) / travel;
-      return (fineV = min + Math.max(0, Math.min(1, t)) * (max - min));
+      fineT = Math.max(0, Math.min(1, 1 - (ev.clientY - grab - r.top - capR.height / 2) / travel));
+      return fromT(fineT);
     };
     if (!on) push(at(e), false);
     const move = (ev) => push(at(ev), false);
@@ -209,11 +221,12 @@ function photoSlider(src, [x, top, bot, cy, w, hh, py], original, name) {
     e.preventDefault();
   });
   const st = max - min >= 20 ? 1 : (max - min) / 100;
-  el.addEventListener('wheel', (e) => { e.preventDefault(); push(v - Math.sign(e.deltaY) * st * (e.shiftKey ? 1 : 3), true); }, { passive: false });
+  const step = (n) => (lg ? push(fromT(Math.max(0, Math.min(1, toT(v) + n * 0.01))), true) : push(v + n * st, true));
+  el.addEventListener('wheel', (e) => { e.preventDefault(); step(-Math.sign(e.deltaY) * (e.shiftKey ? 1 : 3)); }, { passive: false });
   el.addEventListener('keydown', (e) => {
     const k = e.key;
-    if (k === 'ArrowUp' || k === 'ArrowRight') push(v + st * (e.shiftKey ? 10 : 1), true);
-    else if (k === 'ArrowDown' || k === 'ArrowLeft') push(v - st * (e.shiftKey ? 10 : 1), true);
+    if (k === 'ArrowUp' || k === 'ArrowRight') step(e.shiftKey ? 10 : 1);
+    else if (k === 'ArrowDown' || k === 'ArrowLeft') step(e.shiftKey ? -10 : -1);
     else if (k === 'Home') push(min, true);
     else if (k === 'End') push(max, true);
     else return;
@@ -237,8 +250,9 @@ function photoHSlider(src, [y, left, right, cx, w, hh, px], original, name) {
   const toT = (x) => (lg ? Math.log(x / min) / Math.log(max / min) : (x - min) / (max - min || 1));
   const fromT = (t) => (lg ? min * Math.pow(max / min, t) : min + t * (max - min));
   let v = Number(original.getAttribute('aria-valuenow'));
-  const pw = w * 1.5, ph = hh * 1.6; // a little larger than the cap, with soft ends (rig.css)
-  const patch = h('span.photo-patch.horiz', { 'aria-hidden': 'true', style: { left: `${cx - pw / 2}%`, top: `${y - ph / 2}%`, width: `${pw}%`, height: `${ph}%`, ...photoPiece(src, px, y, pw, ph) } });
+  const drawn = px && typeof px === 'object';
+  const pw = drawn ? w * 1.08 : w * 1.5, ph = drawn ? hh * 1.1 : hh * 1.6; // a little larger than the cap, with soft ends (rig.css)
+  const patch = h(`span.photo-patch.horiz${drawn ? '.drawn' : ''}`, { 'aria-hidden': 'true', style: { left: `${cx - pw / 2}%`, top: `${y - ph / 2}%`, width: `${pw}%`, height: `${ph}%`, ...(drawn ? drawnSlot(px, false) : photoPiece(src, px, y, pw, ph)) } });
   const lane = right - left + w;
   const el = h('button.gear-slider.horiz', { type: 'button', role: 'slider', 'aria-orientation': 'horizontal', 'aria-label': name, 'aria-valuemin': String(min), 'aria-valuemax': String(max),
     title: `${name}: drag left or right (Shift for fine), double-click to reset`, style: { left: `${left - w / 2}%`, top: `${y - hh / 2}%`, width: `${lane}%`, height: `${hh}%` } });
@@ -314,23 +328,22 @@ function photoHSlider(src, [y, left, right, cx, w, hh, px], original, name) {
 export function labStrip(g) {
   const out = [];
   for (const m of momentsOf(g)) {
-    const b = h('button.btn.small.rhold', { type: 'button', 'data-moment': m.name.toLowerCase(), 'aria-pressed': 'false' });
+    const b = h('button.btn.small.rhold', { type: 'button', 'data-moment': m.name.toLowerCase(), 'data-type': m.type, 'data-bit': String(m.bit), 'aria-pressed': 'false' });
+    b.innerHTML = `<span class="rh-led"></span><span>${esc(m.name)}</span>`;
     if (m.type === 'lever') {
-      b.innerHTML = `<span class="rh-led"></span><span>${esc(m.name)}</span>`;
-      b.title = `${m.name}: hold to bend all the way (it springs back when you let go). On the picture, pull the lever down as far as you like.`;
+      b.title = `${m.name}: hold to pull it all the way (it springs back when you let go). On the picture, pull it as far as you like.`;
       let down = false;
-      const set = (on) => { if (down !== on) (down = on), labLever(on ? 1 : 0); };
+      const set = (on) => { if (down !== on) (down = on), labLever(on ? 1 : 0, g.key); };
       b.addEventListener('pointerdown', (e) => { if (e.button) return; e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (_) {} set(true); });
       for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture', 'blur']) b.addEventListener(ev, () => set(false));
       b.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) (e.preventDefault(), set(true)); });
       b.addEventListener('keyup', (e) => (e.key === ' ' || e.key === 'Enter') && set(false));
-      const paint = () => { const on = rig.lab.labLever > 0.001; if (!on) down = false; b.classList.toggle('held', on); b.setAttribute('aria-pressed', String(on)); };
+      const paint = () => { const on = labLeverAt(g.key) > 0.001; if (!on) down = false; b.classList.toggle('held', on); b.setAttribute('aria-pressed', String(on)); };
       rig.addEventListener('lab', paint);
       b._dispose = () => rig.removeEventListener('lab', paint);
     } else {
-      b.innerHTML = `<span class="rh-led"></span><span>${esc(m.name)}</span>`;
-      b.title = `${m.name}: ${labHelp(g.key, m.name)}`;
-      b._dispose = holdable(b, g.key);
+      b.title = `${m.name}: ${labHelp(g.key, m)}`;
+      b._dispose = holdable(b, g.key, m.bit, m.type);
     }
     out.push(b);
   }
@@ -345,7 +358,48 @@ const LAB_HOLD_HELP = {
   Pedal_Blender: 'hold it and it keeps chopping what it already has while you play over it',
   Pedal_Fossil: 'press it to freeze what you just played into a drone (Hold: while held; Latch: press again to let go)',
 };
-const labHelp = (key, name) => LAB_HOLD_HELP[key] || `hold to use ${name}`;
+// 4.20: the thirty that followed, footswitch by footswitch
+const LAB_MOMENT_HELP = {
+  'Pedal_Annwn|cross': 'hold it and the cloud hangs on: the recording stops changing',
+  'Pedal_Apoptosis|release': 'press it to turn the last moment of your playing into a drone that dies away band by band',
+  'Pedal_Bifrost|cross': 'hold it to swing the rift over to the other side',
+  'Pedal_BluePrince|draft': 'hold it to walk into the next room',
+  'Pedal_Claude|hear': 'light it and play: the next phrase is learned',
+  'Pedal_Claude|shape': 'light it and each new phrase takes the learned shape once',
+  'Pedal_Claude|repeat': 'light it and the learned shape goes round and round',
+  'Pedal_Claude|clear': 'press it to forget the learned shape',
+  'Pedal_Claude|recall': 'press it to start the shape again now',
+  'Pedal_DejaVu|enter': 'press it to catch the last few beats you played',
+  'Pedal_DejaVu|repeat': 'light it and the caught beats play round and round',
+  'Pedal_Duat|descend': 'hold it to hear only the layer Passage points to',
+  'Pedal_EventHorizon|collapse': 'hold it and everything falls in at once',
+  'Pedal_Fenrir|break': 'hold it and the wolf howls, rising in pitch',
+  'Pedal_Inanna|return': 'hold it and every band comes back at full',
+  'Pedal_Janus|threshold': 'light it and the past and the future swap sides',
+  'Pedal_Kitsune|trick': 'press it to turn the lit tails round by one',
+  'Pedal_Kukulkan|rise': 'light it to start the climb; press again to stop',
+  'Pedal_Long|ascend': 'hold it and the whole sound rises an octave',
+  'Pedal_Maui|haul': 'hold it and your playing slows down; let go and it catches up',
+  'Pedal_Mimic|listen': 'hold it while you play to teach it a phrase',
+  'Pedal_Mimic|speak': 'light it and your playing takes on what it learned',
+  'Pedal_Mimic|catch': 'press it to learn the last two seconds at once',
+  'Pedal_Mimic|clear': 'press it to forget what it learned',
+  'Pedal_Nataraja|dance': 'light it to start the dance; press again to stop',
+  'Pedal_Nataraja|reset': 'press it to go back to step one',
+  'Pedal_Olympus|strike': 'hold it and every pick hits harder into the fuzz',
+  'Pedal_Olympus|hold': 'light it and the reverb tail freezes; press again to let it go',
+  'Pedal_Ouroboros|swallow': 'hold it and the echo goes round almost for ever',
+  'Pedal_Parasite|feed': 'hold it and the creature grows four times as fast',
+  'Pedal_Seance|listen': 'light it and it remembers what you play, answering when you stop',
+  'Pedal_Seance|summon': 'press it for an answer now',
+  'Pedal_Severed|swap': 'light it to swap to the other sound; press again to go back',
+  'Pedal_Shango|call': 'hold it and play: your call is caught',
+  'Pedal_Shango|answer': 'press it and the call is answered',
+  'Pedal_Tezcatl|vanish': 'hold it and only the mirror is heard',
+  'Pedal_Veles|underworld': 'light it and the voices become a drone beneath you; press again to let go',
+  'Pedal_Wukong|uproar': 'hold it and every clone joins in at once',
+};
+const labHelp = (key, m) => LAB_MOMENT_HELP[`${key}|${m.name.toLowerCase()}`] || LAB_HOLD_HELP[key] || (m.type === 'latch' ? `click to turn ${m.name} on or off` : m.type === 'tap' ? `press to use ${m.name}` : `hold to use ${m.name}`);
 
 /** An enlarged gear face with real linked controls placed over its knobs.
  * Unmapped controls remain in the labeled control row; no fake physical knob.
@@ -386,7 +440,7 @@ export function gearFaceplate(key, controls, { enlarged = false, bypass = null }
       onChange:v=>original.setValue(v,{emit:true,final:true})});
     overlay.classList.add('gear-hotspot');
     overlay.style.left=pos[0]+'%'; overlay.style.top=pos[1]+'%';
-    if (item.turn && pos.length >= 4) {
+    if (item.turn && pos.length >= 4 && pos[4] !== 'still') {
       // Rock Opera: the knob face is cut from the photo itself and turned, so the real knob moves.
       const [x, y, r, a0] = pos;
       const d = 2 * r;                       // face size, % of the photo's width
@@ -403,7 +457,10 @@ export function gearFaceplate(key, controls, { enlarged = false, bypass = null }
       const ring = overlay.children && overlay.children[0];
       if (ring && ring.append) ring.append(cap);
     } else {
+      // 4.20: a control that isn't a round knob on the photo (a mushroom, a wheel, a censer): it
+      // works the same but nothing turns; a ring round it shows the setting
       overlay.style.setProperty('--knob-size',(pos[2] ? pos[2] * 2 : 5)+'%');
+      if (pos[4] === 'still') overlay.classList.add('turns', 'still');
     }
     const help = (original.dataset && original.dataset.help);
     overlay.title=`${name}${help ? `: ${help}.` : ':'} Drag up or right for more, down or left for less (Shift for fine), or scroll · double-click to reset`;
@@ -483,27 +540,128 @@ export function gearFaceplate(key, controls, { enlarged = false, bypass = null }
     if (!original) continue;
     const min = Number(original.getAttribute('aria-valuemin'));
     const meta = original._meta || {};
-    const bs = rects.map(([x, y, w, hh], i) => {
+    // 4.20: a position with no button (null) is where you get by pressing the lit one again
+    // (Tezcatl's arrows: press the moving one to stop)
+    const rest = item.unpick?.[n];
+    let cur = Number(original.getAttribute('aria-valuenow'));
+    const bs = rects.map((r, i) => {
+      if (!r) return null;
+      const [x, y, w, hh] = r;
       const word = meta.labels ? meta.labels[i] : String(min + i);
-      const b = h('button.gear-pushbtn', { type: 'button', 'aria-label': `${original.getAttribute('aria-label')}: ${word}`, title: `${word}: click to use this voice`, style: { left: `${x - w / 2}%`, top: `${y - hh / 2}%`, width: `${w}%`, height: `${hh}%` } });
-      b.onclick = () => !b.disabled && original.setValue(min + i, { emit: true, final: true });
+      const b = h('button.gear-pushbtn', { type: 'button', 'aria-label': `${original.getAttribute('aria-label')}: ${word}`, title: rest !== undefined ? `${word}: click to use it, click again to stop` : `${word}: click to use it`, style: { left: `${x - w / 2}%`, top: `${y - hh / 2}%`, width: `${w}%`, height: `${hh}%` } });
+      b.onclick = () => !b.disabled && original.setValue(rest !== undefined && Math.round(cur - min) === i ? rest : min + i, { emit: true, final: true });
       b.disabled = original.disabled;
       return b;
     });
-    const show = (v) => bs.forEach((b, i) => (b.classList.toggle('on', Math.round(v - min) === i), b.setAttribute('aria-pressed', String(Math.round(v - min) === i))));
+    const show = (v) => ((cur = v), bs.forEach((b, i) => b && (b.classList.toggle('on', Math.round(v - min) === i), b.setAttribute('aria-pressed', String(Math.round(v - min) === i)))));
     const sync = (e) => show(Number(e.detail));
     original.addEventListener('knobinput', sync);
     cleanup.push(() => original.removeEventListener('knobinput', sync));
     show(Number(original.getAttribute('aria-valuenow')));
-    face.append(...bs);
+    face.append(...bs.filter(Boolean));
+    count++;
+  }
+  // 4.20: buttons that each turn one thing on or off (Kitsune's tails, Nataraja's steps, Wukong's clones)
+  for (const [n, [x, y, w, hh]] of Object.entries(item.toggles || {})) {
+    const original = originals[n];
+    if (!original) continue;
+    const name = original.getAttribute('aria-label');
+    const min = Number(original.getAttribute('aria-valuemin'));
+    const b = h('button.gear-pushbtn.onoff', { type: 'button', 'aria-label': name, style: { left: `${x - w / 2}%`, top: `${y - hh / 2}%`, width: `${w}%`, height: `${hh}%` } });
+    b.setAttribute('data-ctl', n);
+    b.disabled = original.disabled;
+    let v = Number(original.getAttribute('aria-valuenow'));
+    const help = original.dataset && original.dataset.help;
+    const show = () => {
+      const on = v > min + 0.5;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+      b.title = `${name}: ${on ? 'on' : 'off'}${help ? `. ${help}` : ''}. Click to turn it ${on ? 'off' : 'on'}.`;
+    };
+    b.onclick = () => { if (b.disabled) return; v = v > min + 0.5 ? min : min + 1; show(); original.setValue(v, { emit: true, final: true }); };
+    const sync = (e) => { v = Number(e.detail); show(); };
+    original.addEventListener('knobinput', sync);
+    cleanup.push(() => original.removeEventListener('knobinput', sync));
+    show();
+    face.append(b);
+    count++;
+  }
+  // 4.20: a lever or a ribbon that sets a saved control (Olympus's Thunder, Wukong's staff, Long's
+  // Breath): drag along it; the part up to where it is set glows
+  for (const [n, spec] of [...Object.entries(item.fills || {}).map(([k, v]) => [k, v, true]), ...Object.entries(item.hfills || {}).map(([k, v]) => [k, v, false])].map(([k, v, vert]) => [k, [v, vert]])) {
+    const original = originals[n];
+    if (!original) continue;
+    const [[a, b0, b1, thick], vert] = spec;
+    const name = original.getAttribute('aria-label');
+    const min = Number(original.getAttribute('aria-valuemin')), max = Number(original.getAttribute('aria-valuemax'));
+    const meta = original._meta || {};
+    const style = vert ? { left: `${a - thick / 2}%`, top: `${b0}%`, width: `${thick}%`, height: `${b1 - b0}%` } : { top: `${a - thick / 2}%`, left: `${b0}%`, height: `${thick}%`, width: `${b1 - b0}%` };
+    const el = h(`button.gear-fill${vert ? '' : '.horiz'}`, { type: 'button', role: 'slider', 'aria-label': name, 'aria-valuemin': String(min), 'aria-valuemax': String(max), 'aria-orientation': vert ? 'vertical' : 'horizontal', style });
+    el.setAttribute('data-ctl', n);
+    el.disabled = original.disabled;
+    const glow = h('span.gf-glow', { 'aria-hidden': 'true' });
+    const tip = h('span.gsl-tip');
+    el.append(glow, tip);
+    let v = Number(original.getAttribute('aria-valuenow'));
+    const help = original.dataset && original.dataset.help;
+    el.title = `${name}${help ? `: ${help}.` : ':'} Drag ${vert ? 'up or down' : 'across'} (Shift for fine), double-click to reset`;
+    const show = () => {
+      const t = (v - min) / (max - min || 1);
+      glow.style[vert ? 'height' : 'width'] = `${t * 100}%`;
+      tip.textContent = `${name} ${meta.fmt ? meta.fmt(v) : Math.round(v)}`;
+      el.setAttribute('aria-valuenow', String(v));
+      el.setAttribute('aria-valuetext', tip.textContent);
+    };
+    const push = (nv, final) => { if (el.disabled) return; v = Math.max(min, Math.min(max, nv)); show(); original.setValue(v, { emit: true, final }); };
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || el.disabled) return;
+      el.focus({ preventScroll: true });
+      el.setPointerCapture(e.pointerId);
+      const r = el.getBoundingClientRect();
+      let fine = null;
+      const at = (ev) => {
+        const t = vert ? 1 - (ev.clientY - r.top) / r.height : (ev.clientX - r.left) / r.width;
+        if (ev.shiftKey && fine) { const d = vert ? fine.y - ev.clientY : ev.clientX - fine.x; fine = { x: ev.clientX, y: ev.clientY }; return v + (d / (vert ? r.height : r.width) / 4) * (max - min); }
+        fine = { x: ev.clientX, y: ev.clientY };
+        return min + Math.max(0, Math.min(1, t)) * (max - min);
+      };
+      push(at(e), false);
+      const move = (ev) => push(at(ev), false);
+      const up = () => {
+        for (const [ev, fn] of [['pointermove', move], ['pointerup', up], ['pointercancel', up], ['lostpointercapture', up]]) el.removeEventListener(ev, fn);
+        push(v, true);
+      };
+      for (const [ev, fn] of [['pointermove', move], ['pointerup', up], ['pointercancel', up], ['lostpointercapture', up]]) el.addEventListener(ev, fn);
+      e.preventDefault();
+    });
+    const st = (max - min) / 100;
+    el.addEventListener('wheel', (e) => { e.preventDefault(); push(v - Math.sign(e.deltaY) * st * (e.shiftKey ? 1 : 3), true); }, { passive: false });
+    el.addEventListener('keydown', (e) => {
+      const k = e.key;
+      if (k === 'ArrowUp' || k === 'ArrowRight') push(v + st * (e.shiftKey ? 10 : 1), true);
+      else if (k === 'ArrowDown' || k === 'ArrowLeft') push(v - st * (e.shiftKey ? 10 : 1), true);
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    el.addEventListener('dblclick', () => original.dispatchEvent(new MouseEvent('dblclick')));
+    const sync = (e) => { v = Number(e.detail); show(); };
+    original.addEventListener('knobinput', sync);
+    cleanup.push(() => original.removeEventListener('knobinput', sync));
+    show();
+    face.append(el);
     count++;
   }
   // a touch pad for two controls at once (Blorp's mouth): across is the first, up the second
   if (item.pad) {
-    const [x, y, w, hh, nx, ny] = item.pad;
+    const [x, y, w, hh, nx, ny, shape] = item.pad;
     const ox = originals[nx], oy = originals[ny];
     if (ox && oy) {
-      const pad = h('div.gear-pad', { tabindex: '0', role: 'group', 'aria-label': 'Mouth: drag across and up and down, or use the arrow keys · double-click for the middle', title: 'Drag the mouth: across for the first vowel sound, up and down for the second · arrow keys move it · double-click for the middle', style: { left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${hh}%` } });
+      // 4.20: a round pad (Annwn's Veil, Event Horizon's Gravity, Tezcatl's mirror) and its own words
+      const title = nx === 'mouth x' ? 'Drag the mouth: across for the first vowel sound, up and down for the second · arrow keys move it · double-click for the middle'
+        : `Drag across for ${ox.getAttribute('aria-label')}${ox.dataset?.help ? ` (${ox.dataset.help.toLowerCase()})` : ''}, up and down for ${oy.getAttribute('aria-label')}${oy.dataset?.help ? ` (${oy.dataset.help.toLowerCase()})` : ''} · arrow keys move it · double-click for the middle`;
+      const pname = nx === 'mouth x' ? 'Mouth' : ox.getAttribute('aria-label').replace(/\s*x$/i, '');
+      const pad = h(`div.gear-pad${shape === 'round' ? '.round' : ''}`, { tabindex: '0', role: 'group', 'aria-label': `${pname}: drag across and up and down, or use the arrow keys · double-click for the middle`, title, style: { left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${hh}%` } });
       const dot = h('span.gp-dot', { 'aria-hidden': 'true' }, h('i'));
       const tip = h('span.gsl-tip');
       pad.append(dot, tip);
@@ -513,7 +671,7 @@ export function gearFaceplate(key, controls, { enlarged = false, bypass = null }
         const tx = (vx - lo(ox)) / (hi(ox) - lo(ox)), ty = (vy - lo(oy)) / (hi(oy) - lo(oy));
         dot.style.left = `${tx * 100}%`;
         dot.style.top = `${(1 - ty) * 100}%`;
-        tip.textContent = `Mouth ${Math.round(tx * 100)} / ${Math.round(ty * 100)}`;
+        tip.textContent = `${pname} ${Math.round(tx * 100)} / ${Math.round(ty * 100)}`;
         pad.setAttribute('aria-valuetext', tip.textContent);
       };
       const put = (nx2, ny2, final) => {
@@ -599,9 +757,10 @@ export function gearFaceplate(key, controls, { enlarged = false, bypass = null }
     }
     const hold = holdOf(n);
     if (!hold) continue;
-    const b = h(`button.gear-stomp.momentary${rect ? '.rect' : ''}`, { type: 'button', style, 'aria-label': hold.textContent.trim(), title: hold.title });
-    const stop = holdable(b, key);
-    const lit = () => leds[n]?.classList.toggle('lit', labHeld(key));
+    const bit = Number(hold.getAttribute('data-bit')) || 0, type = hold.getAttribute('data-type') || 'hold';
+    const b = h(`button.gear-stomp.momentary${rect ? '.rect' : ''}${pos[5] === 'button' ? '.btnface' : ''}`, { type: 'button', style, 'aria-label': hold.textContent.trim(), title: hold.title });
+    const stop = holdable(b, key, bit, type);
+    const lit = () => leds[n]?.classList.toggle('lit', labHeld(key, bit));
     rig.addEventListener('lab', lit);
     cleanup.push(stop, () => rig.removeEventListener('lab', lit));
     lit();
@@ -610,12 +769,15 @@ export function gearFaceplate(key, controls, { enlarged = false, bypass = null }
   }
   // a spring-loaded lever (Boing's Bend): pull it down as far as you like; it springs back
   for (const [n, [x, top, bottom, w]] of Object.entries(item.lever || {})) {
-    if (!holdOf(n)) continue;
-    const lv = h('div.gear-lever', { tabindex: '0', role: 'slider', 'aria-label': 'Bend lever: pull down, it springs back', 'aria-valuemin': '0', 'aria-valuemax': '100', title: 'Bend: pull the lever down as far as you like; it springs back when you let go (or hold the Down arrow)', style: { left: `${x - w / 2}%`, top: `${top}%`, width: `${w}%`, height: `${bottom - top}%` } });
+    const hb = holdOf(n);
+    if (!hb) continue;
+    const lname = hb.textContent.trim();
+    const pull = (v) => labLever(v, key);
+    const lv = h('div.gear-lever', { tabindex: '0', role: 'slider', 'aria-label': `${lname} lever: pull down, it springs back`, 'aria-valuemin': '0', 'aria-valuemax': '100', title: `${lname}: pull the lever down as far as you like; it springs back when you let go (or hold the Down arrow)`, style: { left: `${x - w / 2}%`, top: `${top}%`, width: `${w}%`, height: `${bottom - top}%` } });
     const fill = h('span.gl-fill', { 'aria-hidden': 'true' });
     lv.append(fill);
     let pulling = false;
-    const paint = () => { const v = rig.lab.labLever; fill.style.height = `${v * 100}%`; lv.setAttribute('aria-valuenow', String(Math.round(v * 100))); lv.classList.toggle('held', v > 0.001); };
+    const paint = () => { const v = labLeverAt(key); fill.style.height = `${v * 100}%`; lv.setAttribute('aria-valuenow', String(Math.round(v * 100))); lv.classList.toggle('held', v > 0.001); };
     lv.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
@@ -623,22 +785,22 @@ export function gearFaceplate(key, controls, { enlarged = false, bypass = null }
       lv.setPointerCapture(e.pointerId);
       pulling = true;
       const r = lv.getBoundingClientRect();
-      const at = (ev) => labLever((ev.clientY - r.top) / r.height);
+      const at = (ev) => pull((ev.clientY - r.top) / r.height);
       at(e);
       const move = (ev) => pulling && at(ev);
       const up = () => {
         pulling = false;
         for (const [ev, fn] of [['pointermove', move], ['pointerup', up], ['pointercancel', up], ['lostpointercapture', up]]) lv.removeEventListener(ev, fn);
-        labLever(0);
+        pull(0);
       };
       lv.addEventListener('pointermove', move);
       lv.addEventListener('pointerup', up);
       lv.addEventListener('pointercancel', up);
       lv.addEventListener('lostpointercapture', up);
     });
-    lv.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' && !e.repeat) (e.preventDefault(), labLever(1)); });
-    lv.addEventListener('keyup', (e) => e.key === 'ArrowDown' && labLever(0));
-    lv.addEventListener('blur', () => labLever(0));
+    lv.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' && !e.repeat) (e.preventDefault(), pull(1)); });
+    lv.addEventListener('keyup', (e) => e.key === 'ArrowDown' && pull(0));
+    lv.addEventListener('blur', () => pull(0));
     rig.addEventListener('lab', paint);
     cleanup.push(() => rig.removeEventListener('lab', paint));
     paint();

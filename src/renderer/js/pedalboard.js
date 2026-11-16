@@ -11,6 +11,8 @@ import { pedalArt, ampArt } from './gearart.js';
 import { PEDALS, pedalFor, newPedal, pedalKnob, movePedal } from './tonerecipes.js';
 import { rotaryKnob, gearFaceplate, gearKnob, labStrip } from './rigui.js';
 import { knobsOf } from './tonelib.js';
+import { gearInfo } from './gearspec.js';
+import { LAB_SECTIONS } from './gearbench.js';
 
 const GROUPS = [
   ['drive', 'Drive, distortion and fuzz'],
@@ -18,7 +20,7 @@ const GROUPS = [
   ['filter', 'Wah, filters and EQ'],
   ['mod', 'Chorus, flanger, phaser, tremolo'],
   ['time', 'Echo and reverb'],
-  ['wacky', 'The Lab: animal voices, synths, pitch jumps, freezes and slicers'],
+  ['wacky', 'The Lab'],
 ];
 
 const fmtKnob = (min, max) => (v) => (max - min > 20 ? String(Math.round(v)) : (Math.round(v * 10) / 10).toFixed(1));
@@ -106,9 +108,13 @@ export function pedalBoard({ kind, board, ampKey, onChange }) {
     if (adding) {
       const pick = h('div.pb-pick');
       for (const [g, title] of GROUPS) {
-        const list = PEDALS[kind].filter((p) => p.group === g);
-        if (!list.length) continue;
+        const all = PEDALS[kind].filter((p) => p.group === g);
+        if (!all.length) continue;
         pick.append(h('h5', { text: title }));
+        // 4.20: The Lab in its little sections of similar pedals
+        const parts = g === 'wacky' ? LAB_SECTIONS.map((c) => [c.label, all.filter((p) => gearInfo(p.key)?.sec === c.id)]).filter(([, l]) => l.length) : [['', all]];
+        for (const [sub, list] of parts) {
+        if (sub) pick.append(h('h6.pb-sub', { text: sub }));
         const row = h('div.pb-pick-row');
         for (const p of list) {
           const b = h('button.pb-choice', { type: 'button', 'data-key': p.key }, h('div.pb-art', { html: pedalArt(p.key) }), h('b', { text: p.name }), h('span', { text: p.what }), h('small', { text: p.where === 'post' ? 'after the amp' : 'before the amp' }));
@@ -124,6 +130,7 @@ export function pedalBoard({ kind, board, ampKey, onChange }) {
           row.append(b);
         }
         pick.append(row);
+        }
       }
       el.append(pick);
     }

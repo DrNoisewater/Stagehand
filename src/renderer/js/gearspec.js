@@ -100,6 +100,31 @@ export function describe(tone) {
  * switch masks. Keep in step with the engine. */
 export const LAB_BITS = { Pedal_Quack: 1, Pedal_Croak: 2, Pedal_Caterwaul: 3, Pedal_Blorp: 4, Pedal_Gobble: 5, Pedal_Slug: 6, Pedal_Boing: 7, Pedal_Gremlin: 8, Pedal_Invader: 9, Pedal_Confetti: 10, Pedal_Blender: 11, Pedal_Fossil: 12, Pedal_Charmer: 13, Pedal_Haunt: 14 };
 
+/** 4.20: the thirty that followed have a live slot each (their own footswitches and buttons, one
+ * bit each, and one live value: a lever or a control that changes while you play). The engine's
+ * slots are 15 + n and 79 + n (SHP_LABW0, SHP_LABV0 in native/dsp/sh_engine.h). */
+export const LAB_KINDS = Object.fromEntries(
+  ['Annwn', 'Apoptosis', 'Bifrost', 'BluePrince', 'Claude', 'DejaVu', 'Duat', 'EventHorizon', 'Fenrir', 'Inanna', 'Janus', 'Kitsune', 'Kukulkan', 'Long', 'Maui', 'Mimic', 'Molt', 'Nataraja', 'Nothing', 'Olympus', 'Ouroboros', 'Parasite', 'Reliquary', 'Seance', 'Severed', 'Shango', 'Tezcatl', 'Veles', 'WhoAreYou', 'Wukong'].map((n, i) => [`Pedal_${n}`, 15 + i]));
+export const LAB_WORD0 = 15;
+export const LAB_VAL0 = 79;
+
+/** 4.20: the controls in a tone that change while you play without rebuilding it (Blue Prince's
+ * Room): { pedal number: value }. */
+export function labVals(tone) {
+  const out = {};
+  for (const g of (tone && tone.gear) || []) {
+    const info = g && !g.bypass && gearInfo(g.key);
+    if (!info || !info.k || !(g.key in LAB_KINDS)) continue;
+    for (const [name, key, , , def, opt] of info.k) {
+      if (!(opt && opt.live === 'val')) continue;
+      const given = g.knobs || {};
+      const v = given[key] ?? Object.entries(given).find(([k]) => k.toLowerCase() === name.toLowerCase())?.[1] ?? def;
+      out[LAB_KINDS[g.key]] = Number(v) || 0;
+    }
+  }
+  return out;
+}
+
 /** 4.20: the switches in a tone that change while you play (Haunt's Slow/Fast), as the engine's mask. */
 export function labLatch(tone) {
   let m = 0;

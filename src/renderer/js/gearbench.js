@@ -43,9 +43,28 @@ export const GEAR_CATS = [
   { id: 'filter', label: 'Wah & filter', hint: 'Wahs, auto-wahs, envelope filters' },
   { id: 'dynamics', label: 'Comp, gate & EQ', hint: 'Compressors, limiters, gates, EQs' },
   { id: 'pitch', label: 'Pitch & octave', hint: 'Octavers, pitch shifters, harmonizers' },
-  { id: 'wacky', label: 'The Lab', hint: 'Fourteen strange pedals: animal voices, synths, pitch jumps, freezes and slicers' },
+  { id: 'wacky', label: 'The Lab', hint: 'Forty-four strange pedals: voices, monsters, pitch, echoes, freezes, strange rooms and rhythms' },
   { id: 'rack', label: 'Rack units', hint: 'Studio effects after the cabinet' },
 ];
+
+/** 4.20: The Lab's own little shelves: similar pedals together (each pedal's `sec` in gear2014.json). */
+export const LAB_SECTIONS = [
+  { id: 'voices', label: 'Voices and mouths' },
+  { id: 'synths', label: 'Synths and monsters' },
+  { id: 'pitch', label: 'Pitch and harmony' },
+  { id: 'echoes', label: 'Echoes and loops' },
+  { id: 'freezes', label: 'Freezes, slices and slowdowns' },
+  { id: 'rooms', label: 'Rooms and skies' },
+  { id: 'shape', label: 'Rhythm and shape' },
+];
+
+/** 4.20: The Lab's pedals in their shelves, in order: [[label, items], …] (items keep their order). */
+export function labSections(list) {
+  const out = LAB_SECTIONS.map((c) => [c.label, list.filter((it) => it.lsec === c.id)]);
+  const rest = list.filter((it) => !LAB_SECTIONS.some((c) => c.id === it.lsec));
+  if (rest.length) out.push(['More', rest]);
+  return out.filter(([, items]) => items.length);
+}
 
 let ITEMS = null;
 let DB = null;
@@ -69,7 +88,9 @@ export function gearItems(db) {
     if (g.t === 'amp') cat = bass ? 'bassamps' : 'amps';
     else if (g.t === 'rack') cat = 'rack';
     else cat = { Distortion: 'drive', Modulation: 'mod', Tremolo: 'mod', Delay: 'delay', Reverb: 'reverb', Filter: 'filter', Dynamics: 'dynamics', Pitch: 'pitch', 'The Lab': 'wacky' }[g.c] || 'drive';
-    out.push({ key, t: g.t, slot: g.t === 'amp' ? 'amp' : g.t === 'rack' ? 'rack' : defaultSlot(g.c), cat, bass, any: !!g.a, name: g.n, sub: g.c });
+    // 4.20: The Lab's echoes and rooms go after the amp, like any echo or reverb
+    const slot = g.t === 'amp' ? 'amp' : g.t === 'rack' ? 'rack' : g.sec === 'echoes' || g.sec === 'rooms' ? 'post' : defaultSlot(g.c);
+    out.push({ key, t: g.t, slot, cat, bass, any: !!g.a, name: g.n, sub: g.c, ...(g.sec ? { lsec: g.sec } : {}) });
   }
   for (const f of Object.values(fams)) {
     f.defaultKey = f.keys['57|Cone'] || Object.values(f.keys)[0];

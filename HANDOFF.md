@@ -1,3 +1,37 @@
+# 4.20.0 — The Lab: thirty more pedals, in seven little sections (2026-11-15; nothing tried on the user’s PC)
+
+The user: "These last pedals need added" (a pack of 37, `Stagehand-Everything-v2.zip`). Asked about seven whose
+pictures carry other companies' logos and characters (Ghost Trap, Bedrock, Obelisk, Slifer, Ra, Exodia, Infinity):
+"Skip those seven for now". Asked about the shelf: "there's a lot of pedals now. And some of them are similar to
+others. So there should be a little sections in the lab".
+
+**Built** (details, the full table and the tests: `docs/lab-pedals.md`):
+- **Thirty pedals**: Annwn, Apoptosis, Bifrost, Blue Prince, Claude, Deja Vu, Duat, Event Horizon, Fenrir, Inanna,
+  Janus, Kitsune, Kukulkan, Long, Maui, Mimic, Molt, Nataraja, Nothing, Olympus, Ouroboros, Parasite, Reliquary,
+  Seance, Severed, Shango, Tezcatl, Veles, Who Are You, Wukong. Sound in `native/dsp/sh_labcore.h` (shared parts:
+  an 8-line reverb, grains, bands that add up exactly, a frequency shifter, a recorder) and `sh_lab1-3.h`.
+- **Their footswitches**: each has its own live slot in the engine (`SHP_LABW0`/`SHP_LABV0` + pedal number):
+  held, press and lit kinds, several per pedal, plus Maui's Drag lever and Blue Prince's Room (saved, but played
+  live). Lit ones stay lit through knob changes; held ones let go on focus loss.
+- **On the picture**: every printed control works, with new kinds: on/off buttons (Kitsune's tails, Nataraja's
+  steps, Wukong's clones), a saved lever or ribbon that glows (Olympus, Wukong, Long), round pads, mushrooms and a
+  wheel that don't turn (a ring of light shows them), buttons printed on the pedal that act as footswitches
+  (Claude, Mimic), Tezcatl's arrows (press the lit one to stop), and painted slots where the photo's slider covers
+  its own slot (Kukulkan, Severed).
+- **Seven sections** in The Lab (all 44): Voices and mouths; Synths and monsters; Pitch and harmony; Echoes and
+  loops; Freezes, slices and slowdowns; Rooms and skies; Rhythm and shape. On the Gear page, in Create a tone and in
+  step by step's Pedals. Echoes and rooms are put after the amp when added.
+- **Tests**: `test/wacky-pedals.cjs` covers all 44 (the shared checks, plus each new pedal's own: e.g. Maui slows to
+  half and catches up, Shango answers an octave up, Seance answers only after you stop, Nothing is exactly your
+  sound); `native/test/wacky_test.c` all 44 at three rates and two block sizes; `test/e2e/wacky-audit.js` all 44
+  on the real page.
+- Fixed on the way: Olympus's Mix 0 is now your own sound.
+
+**Ask the user:** play a few from each section. Do the record-and-play ones (Claude, Deja Vu, Mimic, Seance, Shango)
+feel natural to work: is it clear what to press when? Is Maui's slow-down fun or seasick? Are the sections right, or
+should some pedals move? Anything too loud or too quiet next to the others? The seven skipped pedals could come back
+with their logos and characters replaced by original art, if they want.
+
 # 4.19.0 — Singing checked against the singer, note by note; the real pitch line; The Lab's fourteen pedals (2026-11-15, released 2026-11-15; nothing tried on the user’s PC)
 
 The user: "I want singing to be as accurate as it can possibly be. Karaoke is the main way to sing; Sing & play is
