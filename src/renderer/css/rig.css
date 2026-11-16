@@ -260,6 +260,23 @@ html[data-decoration='reduced'] .rb-piece.sel .rb-foot::before { display:none; }
 .gear-about-knobs { margin:0; display:grid; grid-template-columns:max-content minmax(0,1fr); gap:6px 14px; font-size:13px; line-height:1.45; }
 .gear-about-knobs dt { font-weight:800; }
 .gear-about-knobs dd { margin:0; color:#3d3326; }
+/* 4.22: how to hear it working, each control's kind and positions, and the line of the control being used */
+.gear-about-try { margin:4px 0 6px; padding:9px 12px 10px; background:#fff3c9; border-left:4px solid #c98a1e; transform:rotate(-.3deg); box-shadow:1px 2px 0 #0002; }
+.gear-about-try b { display:block; font:700 10.5px var(--rr-mono,monospace); letter-spacing:.12em; text-transform:uppercase; color:#8a5a12; margin-bottom:3px; }
+.gear-about-try p { margin:0; font-size:13.5px; line-height:1.5; color:#2a2218; }
+.gear-about-knobs dt small { display:block; font:600 9.5px var(--rr-mono,monospace); letter-spacing:.06em; text-transform:uppercase; color:#8a7a5c; }
+.gear-about-pos { display:block; margin-top:2px; font:600 10.5px var(--rr-mono,monospace); letter-spacing:.04em; color:#7a6a4e; }
+.gear-about-knobs dt, .gear-about-knobs dd { padding:3px 6px; border-radius:3px; transition:background .25s; }
+.gear-about-knobs dt { margin-left:-6px; }
+.gear-about-knobs .lit { background:#ffd76a; }
+.pb-about { margin:6px 0 2px; }
+.pb-about > summary { cursor:pointer; font-size:12.5px; color:var(--ink-2,#cbb); }
+.pb-about > .gear-about { margin:12px 0 4px; padding:20px 12px 12px; }
+/* the board's pedals are narrow: name above its words */
+.pb-about .gear-about-knobs { grid-template-columns:minmax(0,1fr); gap:2px; }
+.pb-about .gear-about-knobs dt { margin:6px 0 0 -6px; }
+.pb-about .gear-about-text, .pb-about .gear-about-try p { font-size:12.5px; }
+.knobs3 + .gear-about { margin-top:16px; }
 .sr-title small { font-family:var(--rr-mono,monospace); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:#a88d57; }
 .sr-title h2 { margin:0; font-size:24px; color:#f1e6cf; }
 .sr-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }

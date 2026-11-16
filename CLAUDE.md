@@ -90,6 +90,8 @@ SH_AUDIT=test/e2e/guide-audit.js node test/e2e/ui3-chromium.js native/build/stag
 SH_AUDIT=test/e2e/discover-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # the Gear page's spec sheet (real gear, words, every knob) on an EQ, a cabinet and an amp
 SH_AUDIT=test/e2e/gear-about-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# the sheet under the controls (what every knob and footswitch does, Hear it working, lines light as you use them) (4.22)
+SH_AUDIT=test/e2e/sheet-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # The Lab's fifty-four pedals in the full page, in their eight sections: every picture control, footswitches, the rig, a saved tone, bass (docs/lab-pedals.md)
 SH_AUDIT=test/e2e/wacky-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # switching tones in Create a tone (famous tones fast and slow, a pedal swapped, back to an old tone): what plays is always the board, started fresh (4.21)

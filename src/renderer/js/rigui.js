@@ -398,8 +398,22 @@ const LAB_MOMENT_HELP = {
   'Pedal_Tezcatl|vanish': 'hold it and only the mirror is heard',
   'Pedal_Veles|underworld': 'light it and the voices become a drone beneath you; press again to let go',
   'Pedal_Wukong|uproar': 'hold it and every clone joins in at once',
+  // 4.22: the levers, and the ten from 4.21, said plainly (they only said "hold to use" before)
+  'Pedal_Boing|bend': 'pull it to bend your notes toward the Interval by hand, as far as you pull; let go and it springs back',
+  'Pedal_Maui|drag': 'pull it to slow your playing down by hand, as far as you pull; let go and it catches up',
+  'Pedal_Anansi|weave': 'light it to start the arpeggio; press again to stop (with it off you hear your own sound)',
+  'Pedal_Anansi|hold': 'light it and the web keeps spinning on your last note after you stop playing',
+  'Pedal_Hermes|scan': 'hold it and the needle sweeps across the stations by itself',
+  'Pedal_Icarus|dive': 'hold it and the sweep falls all the way down and rings hard; let go and it climbs back',
+  'Pedal_Mothball|stop': 'hold it and the tape winds down to a halt; let go and it spins back up',
+  'Pedal_Phoenix|rebirth': 'hold it and the reverb climbs an octave each time round',
+  'Pedal_Raijin|roll': 'hold it and the snare rolls in time while your note rings',
+  'Pedal_Saturn|eclipse': 'hold it and the ring locks onto your own note, so it rings in tune',
+  'Pedal_Sustaint|eternal': 'hold it and the note you are playing rings forever',
 };
-const labHelp = (key, m) => LAB_MOMENT_HELP[`${key}|${m.name.toLowerCase()}`] || LAB_HOLD_HELP[key] || (m.type === 'latch' ? `click to turn ${m.name} on or off` : m.type === 'tap' ? `press to use ${m.name}` : `hold to use ${m.name}`);
+export function labHelp(key, m) {
+  return LAB_MOMENT_HELP[`${key}|${m.name.toLowerCase()}`] || LAB_HOLD_HELP[key] || (m.type === 'latch' ? `click to turn ${m.name} on or off` : m.type === 'tap' ? `press to use ${m.name}` : `hold to use ${m.name}`);
+}
 
 /** An enlarged gear face with real linked controls placed over its knobs.
  * Unmapped controls remain in the labeled control row; no fake physical knob.

@@ -1,3 +1,30 @@
+# 4.22.0 — What every control does, under the controls (2026-11-15; nothing tried on the user’s PC)
+
+The user: "So many pedals now. I'm not even sure if they work! They need detailed descriptions under the knobs of what
+every item does. I'm over here just flipping switches, adjusting values with no idea what does what!"
+
+**Built:**
+- **The sheet under the controls** (`gearabout.js` `aboutCard`, the 4.12 spec sheet, now used in four places): the Gear
+  page (as before), **Create a tone** (under the picked piece's controls, `rigroom.js`), the **Tones page** editor
+  (`tonespage.js`) and step by step's **Pedals** (Lab pedals, folded under "What does what?", `pedalboard.js`). It says
+  what the piece does, then every control: knobs, switches (with their positions), on/off buttons, and now the
+  **footswitches and levers** too ("Footswitch: hold it", "Button: click on, click off"…), each in its own words.
+- **The line lights up** (`linkSheet`): turning a knob (on the strip or the picture) or pressing a footswitch lights its
+  line on the sheet for 2.5 s, so you can see what you just touched.
+- **Hear it working** (`try` in `gear-about.json`, all 54 Lab pedals): a quick way to hear each one. Eleven do nothing
+  until a footswitch is used (Fossil, Apoptosis, Claude, Deja Vu, Kukulkan, Maui, Mimic, Nataraja, Seance, Anansi, and
+  Boing at rest): their tip says so first. That is most likely why some seemed not to work.
+- **Fuller words** for 116 knobs whose help was a few words ("A dark room", "From dark to bright"): now what turning it
+  up or down does (`gear2014.json` `help`). Own words for the footswitches of the ten 4.21 pedals and the two levers
+  (they only said "hold to use" before; `LAB_MOMENT_HELP`, `rigui.js`).
+- The Lab's sound checks (`test/wacky-pedals.cjs`) all pass: every pedal makes its sound in the engine.
+- Tests: `test/gear-about.test.js` (every Lab pedal has a tip, every knob and footswitch its own words, the
+  wait-for-a-footswitch pedals say so); `test/e2e/sheet-audit.js` (the sheet on the Gear page, Create a tone and step by
+  step, every control listed, lines light when used).
+
+**Ask the user:** try the "Hear it working" tip on a few that seemed dead; are the words clear enough, too long, or
+should the sheet sit somewhere else (beside the picture instead of under it)?
+
 # 4.21.0 — The Lab: ten more pedals, and every tone starts fresh (2026-11-15; nothing tried on the user’s PC)
 
 The user asked what kinds of pedal were missing, had ChatGPT draw the ten I listed, and sent them (names changed: the

@@ -27,6 +27,7 @@ import { buildTone, freshChoices } from './tonerecipes.js';
 import { demoButton, stopDemo, demoPlaying } from './rigui.js';
 import { realAmpStrip } from './realamps.js';
 import { loadCaptures } from './captures.js';
+import { aboutCard, linkSheet } from './gearabout.js';
 import { gearItems, GEAR_CATS, gearPanel, micPanel, rigBoard, gearThumb, knobHelp, defaultSlot, CAB_RE, labSections } from './gearbench.js';
 import { FAMOUS, GENRES, famousTone, searchFamous } from './famous-tones.js';
 import { playBuild, playSave } from './rigbuild.js';
@@ -492,6 +493,12 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
         },
       });
       body.append(panel);
+      // 4.22: what it does and what every control does, right under the controls
+      const sheet = aboutCard({ key: g.key, t: g.slot, name: gearName(g.key) }, g.key);
+      const unlink = linkSheet(panel, sheet);
+      const d0 = panel.dispose;
+      panel.dispose = () => (unlink(), d0 && d0());
+      body.append(sheet);
     }
     inspect.append(body);
   }
