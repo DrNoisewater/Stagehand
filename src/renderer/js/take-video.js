@@ -1,3 +1,4 @@
+import { setJob } from './activity.js';
 import { did } from './rewards.js';
 import {api} from './api.js';
 import {toast} from './ui.js';
@@ -102,7 +103,9 @@ export function createClipRecorder({rig,engine,title=()=>'Jam Session',songId=()
             const id=session;session=null;clean();pcm=null;
             const seconds=(performance.now()-startedAt)/1000;
             toast({title:'Saving the video…',message:`${fmt(seconds)} long.`,kind:'info',timeout:3000});
-            const saved=await api.clips.finish(id,{seconds});
+            setJob(`rec:${id}`,{kind:'record',label:'Saving a recording',song:name,state:'finalizing',progress:null,phase:'Finishing the video'});
+            let saved;try{saved=await api.clips.finish(id,{seconds});}catch(e){setJob(`rec:${id}`,{kind:'record',label:'Saving a recording',song:name,state:'failed',progress:null,phase:e.message||'It couldn’t be saved'});throw e;}
+            setJob(`rec:${id}`,{kind:'record',label:'Recording saved',song:name,state:'done',progress:1,phase:'In My recordings'});
             const open=saved&&saved.take?[{label:'My clips',onClick:()=>import('./greenroom.js').then(r=>r.openGreenRoom({tab:'mine',focus:saved.take.id}))}]:[];
             // (the sound was checked before recording and watched all through: 4.1.2)
             if(saved&&saved.take)did('record-video');

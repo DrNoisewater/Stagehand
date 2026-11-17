@@ -15,6 +15,7 @@ import { h, icon, showMenu, toast } from './ui.js';
 import { mic } from './mic.js';
 import { offerSinger, singerJob } from './singer-upgrade.js';
 import { autotune, TUNE_STYLES, TUNE_NOTES, TUNE_LEVELS, TUNE_VOICES } from './autotune.js';
+import { setJob } from './activity.js';
 import { buildSing, SingJudge, SING_LEVELS, SLACK, SING_SCORING, pitchCoverage, pitchedShare, nearOctave, foldCents, flatChart, checkNotes, noteAt, tuneNotes } from './sing.js';
 
 const KEY = 'stagehand.sing';
@@ -350,12 +351,15 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
     if (pick === 'chart') return;
     S.reading = true;
     paintBadge();
+    const job = `vocal:${song.id}`;
+    setJob(job, { kind: 'vocal', label: 'Analyzing vocal melody', song: song.title, state: 'running', progress: null, phase: 'Reading the singer’s notes' });
     let found = null;
     try {
       found = await notesFromStem(song, S.base.syl, stage.engine);
     } catch (_) {
       found = null;
     }
+    setJob(job, { kind: 'vocal', label: 'Analyzing vocal melody', song: song.title, state: 'done', progress: 1, phase: found ? 'Vocal notes ready' : 'Timing only for this song' });
     if (token !== S.token || !S.on) return;
     S.reading = false;
     if (found) {

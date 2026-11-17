@@ -264,3 +264,6 @@ html[data-safe] #app { height:100%; }
 .play-as button { display:inline-flex; align-items:center; gap:5px; }
 .play-as button svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:1.9; }
 @container (max-width:1100px) { .play-as button span { display:none; } }
+.sh-activity.idle { padding:6px 8px; opacity:.8; }
+.sh-activity.idle .act-head { padding:0; }
+.sh-activity.idle:hover { opacity:1; }
