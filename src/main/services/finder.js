@@ -217,18 +217,27 @@ function createFinder(o) {
     } catch (_) {}
     const file = path.join(dir, name);
     item.setSavePath(file);
-    const d = { name, pct: 0, state: 'going' };
+    const d = { name, pct: 0, state: 'going', at: Date.now() };
     st.downloads.push(d);
     say(`Downloading ${name}…`);
+    // 4.24: each step also goes to the main window (Activity, the Wanted page), at most 4 times a second
+    let sentAt = 0;
+    const step = (state, extra = {}) => o.onEvent({ type: 'download', name, state, pct: d.pct, want, ...extra });
+    step('going');
     item.on('updated', () => {
       const total = item.getTotalBytes();
       d.pct = total ? Math.round((item.getReceivedBytes() / total) * 100) : 0;
       tell();
+      if (Date.now() - sentAt > 250) {
+        sentAt = Date.now();
+        step('going');
+      }
     });
     item.once('done', async (_ev, state) => {
       if (state !== 'completed') {
         d.state = 'failed';
         say(`${name} didn’t finish downloading. Try its download button again.`, 'warn');
+        step('failed', { why: 'It didn’t finish downloading' });
         return;
       }
       d.pct = 100;
@@ -236,10 +245,12 @@ function createFinder(o) {
         d.state = 'saved';
         say(`${name} is in your Downloads. Stagehand can’t open this kind of file: unpack it there, then drop the song on Stagehand.`, 'warn');
         o.onEvent({ type: 'saved', name, file });
+        step('failed', { why: 'Not a song file Stagehand can open (left in Downloads)' });
         return;
       }
       d.state = 'adding';
       say(`Adding ${name} to your library…`);
+      step('adding');
       try {
         const results = (await o.importFiles([file])) || [];
         const good = results.filter((r) => r.status === 'imported' || r.status === 'updated');
@@ -251,11 +262,13 @@ function createFinder(o) {
         else if (had) say(`You already have ${name}.`, 'good');
         else say(`${name} couldn’t be added${why ? `: ${why}` : '.'}`, 'warn');
         o.onEvent({ type: 'downloaded', name, file, want, added: good.length > 0 || had });
+        step(good.length ? 'added' : had ? 'had' : 'failed', { why, songs: songs.length });
         if (good.length || had) leaveFileHost();
       } catch (err) {
         d.state = 'failed';
         log(`Finder: import of ${name} failed: ${err.message}`);
         say(`${name} couldn’t be added: ${err.message}`, 'warn');
+        step('failed', { why: err.message });
       } finally {
         fsp.rm(dir, { recursive: true, force: true }).catch(() => {}); // (the song was copied in)
       }

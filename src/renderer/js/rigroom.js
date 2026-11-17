@@ -27,7 +27,7 @@ import { buildTone, freshChoices } from './tonerecipes.js';
 import { demoButton, stopDemo, demoPlaying } from './rigui.js';
 import { realAmpStrip } from './realamps.js';
 import { loadCaptures } from './captures.js';
-import { aboutCard, linkSheet } from './gearabout.js';
+import { aboutCard, linkSheet, sheetFold, fullSizeButton } from './gearabout.js';
 import { gearItems, GEAR_CATS, gearPanel, micPanel, rigBoard, gearThumb, knobHelp, defaultSlot, CAB_RE, labSections } from './gearbench.js';
 import { FAMOUS, GENRES, famousTone, searchFamous } from './famous-tones.js';
 import { playBuild, playSave } from './rigbuild.js';
@@ -470,7 +470,7 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
       b.onclick = () => auto && change(() => (R.t.autoCab = false));
       mode.append(a, b);
       if (R.t.ir) body.append(h('p.gb-reason', { text: `Your own cab file is in use (${String(R.t.ir).split(/[\\/]/).pop()}). Remove it in Tones to use this cabinet.` }));
-      const pic = h('div.rr-cabpic', null, gearThumb(g.key, 'cab', { full: true }));
+      const pic = fullSizeButton(h('div.rr-cabpic', null, gearThumb(g.key, 'cab', { full: true })));
       body.append(h('div.rr-cab', null, pic, h('div.rr-cabctl', null, mode, micPanel(g, fam, {
         disabled: auto || !!R.t.ir,
         reason: auto ? 'You’re hearing a recorded cabinet. Choose Mic it yourself to place the mic.' : '',
@@ -498,7 +498,8 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
       const unlink = linkSheet(panel, sheet);
       const d0 = panel.dispose;
       panel.dispose = () => (unlink(), d0 && d0());
-      body.append(sheet);
+      fullSizeButton(panel.querySelector(':scope > .gb-photo'));
+      body.append(sheetFold(sheet)); // 4.24: folds to one line; the pedal never shrinks for it
     }
     inspect.append(body);
   }

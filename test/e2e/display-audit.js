@@ -9,6 +9,12 @@ module.exports = async ({ page, outDir, check }) => {
   const pane = await page.locator('.settings section').textContent();
   check(/This screen/.test(pane) && /1920 × 1080/.test(pane) && /125%/.test(pane) && /144 Hz/.test(pane), `Display says what screen it's on (${pane.slice(0, 160)})`);
   check(/TV safe area/.test(pane) && /Roku/.test(pane) && /Picture size/.test(pane), 'it has the TV safe area and the Roku TV tip');
+  // 4.24: the flicker fix: picking one says to restart
+  await page.locator('.disp-seg button', { hasText: 'Fewer layers' }).click();
+  await page.waitForTimeout(500);
+  check((await page.locator('.disp-sec button', { hasText: 'Restart Stagehand now' }).count()) === 1, 'the flicker fix offers a restart');
+  await page.locator('.disp-seg button', { hasText: 'Off' }).first().click();
+  await page.waitForTimeout(400);
   await page.locator('.disp-seg button', { hasText: '125%' }).click();
   await page.waitForTimeout(500);
   check(/125%/.test(await page.locator('.disp-seg button[aria-pressed="true"]').first().textContent()), 'picking 125% is remembered');

@@ -22,7 +22,7 @@ import { h, icon, esc, toast, showMenu, confirmDialog } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { loadGear } from './gearspec.js';
 import { readingBar, tonelib, byId, useTone, saveTone, removeTone, assignSlot, SLOT_GELS, SLOT_COUNT, TYPE_GELS, TYPE_NAMES, knobsOf, orderedGear, shortGearName, gelOf, chainText, songToneLibrary, bySlot, activeSlot } from './tonelib.js';
-import { aboutCard, linkSheet } from './gearabout.js';
+import { aboutCard, linkSheet, sheetFold } from './gearabout.js';
 import { chainEl, gearLineup, gearFaceplate, rotaryKnob, fmtKnob, gearSummary, demoButton, stopDemo, gearKnob, labStrip } from './rigui.js';
 import { realAmpStrip, realBadge, getAllRealAmps, batch } from './realamps.js';
 import { caps, ampOf, packForCurated, resolveCapture } from './captures.js';
@@ -733,7 +733,7 @@ function renderAdvanced(d) {
     // 4.22: what it does and what every control does, under the knobs
     const sheet = aboutCard({ key: g.key, t: g.slot, name: shortGearName(g.key) }, g.key);
     linkSheet(card, sheet);
-    card.append(sheet);
+    card.append(sheetFold(sheet)); // 4.24: folds to one line
     row.append(card);
   }
   row.append(cabCard(d));

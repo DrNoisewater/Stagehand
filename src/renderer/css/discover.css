@@ -187,3 +187,42 @@ html[data-look='opera'] .dv-selbar { border-color:#3d3630; background:var(--rr-g
 #app #discover .state.attn { background:#ffb54718; color:#ffd08a; box-shadow:inset 0 0 0 1px #ffb54766; }
 #app #discover .state.now { background:#33c8e01c; color:#9be9f5; box-shadow:inset 0 0 0 1px #33c8e066; }
 #app #discover .state.miss.quiet { color:#a99e8c; }
+
+/* 4.24: the artist header takes less room (the albums are what you came for) */
+#app #discover .dv-artist { gap:16px; padding:14px 18px; }
+#app #discover .dv-artist .dv-title h1 { font-size:36px; }
+#app #discover .dv-artist .cover, #app #discover .dv-artist .dv-av { width:84px; height:84px; }
+/* 4.24 Wanted: the Now card, the steps, whose turn it is, the queue in order */
+#app #discover .want-now { display:grid; gap:10px; padding:14px 16px; margin-bottom:10px; border-left:3px solid var(--sc-gold,#e3c26a); }
+#app #discover .want-now[hidden] { display:none; }
+#app #discover .want-now-top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+#app #discover .want-now-what { display:grid; min-width:0; flex:1; }
+#app #discover .want-now-what small { font-family:var(--sc-mono,monospace); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+#app #discover .want-now-what b { font-size:20px; font-weight:900; font-stretch:75%; color:var(--sc-ink,#f5edda); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#app #discover .want-turn { padding:4px 10px; border-radius:999px; font-size:12px; font-weight:800; white-space:nowrap; }
+#app #discover .want-turn.you { background:#ffb54722; color:#ffd08a; box-shadow:inset 0 0 0 1px #ffb54777; }
+#app #discover .want-turn.sh { background:#33c8e01c; color:#9be9f5; box-shadow:inset 0 0 0 1px #33c8e066; }
+#app #discover .want-turn.idle { background:#ffffff0d; color:var(--ink-3); }
+#app #discover .want-steps { display:flex; flex-wrap:wrap; gap:6px; margin:0; padding:0; list-style:none; }
+#app #discover .want-steps li { display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 4px; border-radius:999px; background:#1c1916; border:1px solid #3d362e; color:var(--ink-3); font-size:12px; }
+#app #discover .want-steps li i { display:grid; place-items:center; width:20px; height:20px; border-radius:50%; background:#2b2620; font-style:normal; font-weight:800; font-size:11px; }
+#app #discover .want-steps li.done { color:#b6f0c8; border-color:#3f6b46; }
+#app #discover .want-steps li.done i { background:#45d07c33; color:#7fd18b; }
+#app #discover .want-steps li.on { color:#1a1408; background:var(--sc-gold,#e3c26a); border-color:#000; font-weight:800; }
+#app #discover .want-steps li.on i { background:#1a140822; }
+#app #discover .want-now-line { margin:0; color:var(--ink-2); font-size:13px; }
+#app #discover .want-now .acts { display:flex; flex-wrap:wrap; gap:6px; }
+#app #discover .want-tools { display:flex; align-items:center; gap:10px; margin:6px 0; }
+#app #discover .want-tools .want-view { margin-left:auto; }
+#app #discover .want-queue { padding:6px 10px; margin-bottom:10px; }
+#app #discover .want-row.q { display:grid; grid-template-columns:32px minmax(0,1fr) auto auto; align-items:center; gap:10px; }
+#app #discover .want-row.q .c-num { color:var(--ink-3); font-family:var(--sc-mono,monospace); font-size:12px; text-align:right; }
+#app #discover .want-row.q.now { background:#e3c26a14; box-shadow:inset 3px 0 var(--sc-gold,#e3c26a); }
+#app #discover .wstate { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; font-size:11.5px; white-space:nowrap; color:var(--ink-3); box-shadow:inset 0 0 0 1px #4a443c; }
+#app #discover .wstate svg { width:12px; height:12px; }
+#app #discover .wstate.ok { color:#b6f0c8; box-shadow:inset 0 0 0 1px #3f6b46; }
+#app #discover .wstate.now { color:#1a1408; background:var(--sc-gold,#e3c26a); box-shadow:none; font-weight:800; }
+#app #discover .wstate.skip { color:#ffd08a; }
+#app #discover .wstate.seen { color:var(--ink-2); }
+#app #discover .how-fold > summary { cursor:pointer; color:var(--ink-2); font-weight:700; font-size:13px; padding:2px 0 6px; }
+#app #discover .how-fold[open] > summary { margin-bottom:8px; }

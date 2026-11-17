@@ -74,7 +74,41 @@ moreBtn.onclick = (e) => {
   actions.libraryMenu(r.right, r.bottom + 4);
   e.stopPropagation();
 };
-tools.append(partFilter, layoutSeg, moreBtn);
+// 4.24: Songs is home for every way to play: what a double-click (or Enter) opens a song as
+const PLAY_AS = [
+  ['guitar', 'Guitar / bass', 'guitar'],
+  ['sing', 'Sing & play', 'mic'],
+  ['karaoke', 'Karaoke', 'music'],
+  ['piano', 'Piano', 'piano'],
+];
+let playAsPick = (() => {
+  try {
+    return localStorage.getItem('stagehand.playAs') || 'guitar';
+  } catch (_) {
+    return 'guitar';
+  }
+})();
+const playAsSeg = h('div.gseg.play-as', { role: 'group', 'aria-label': 'Double-click plays as' });
+function paintPlayAs() {
+  playAsSeg.innerHTML = '<span class="play-as-l" title="What double-clicking a song opens it as">Plays</span>';
+  for (const [id, label, ic] of PLAY_AS) {
+    const b = h('button', { type: 'button', title: `Double-clicking a song opens it as ${label}`, 'aria-pressed': String(playAsPick === id), html: `${icon(ic)}<span>${label}</span>` });
+    b.onclick = () => {
+      playAsPick = id;
+      try {
+        localStorage.setItem('stagehand.playAs', id);
+      } catch (_) {}
+      paintPlayAs();
+    };
+    playAsSeg.append(b);
+  }
+}
+paintPlayAs();
+function playAsPicked(id) {
+  if (playAsPick === 'guitar') return actions.playAlong(id);
+  return runMode(id, playAsPick);
+}
+tools.append(playAsSeg, partFilter, layoutSeg, moreBtn);
 head.append(titleEl, tools);
 
 const table = h('div.table');
@@ -637,7 +671,7 @@ scroller.addEventListener('dblclick', (e) => {
   clearTimeout(goTimer);
   const id = idAt(e.target);
   // double-click plays along: straight to the highway
-  if (id && !e.target.closest('[data-star], [data-sing], [data-play], [data-mode], [data-modes]')) actions.playAlong(id);
+  if (id && !e.target.closest('[data-star], [data-sing], [data-play], [data-mode], [data-modes]')) playAsPicked(id);
 });
 
 scroller.addEventListener('contextmenu', (e) => {
@@ -776,9 +810,18 @@ function restoreTop() {
   if (scroller.scrollTop !== top) scroller.scrollTop = top;
   renderWindow();
 }
+// 4.24: going to another page and back is a "view" too: the rows are only thrown away when the list
+// itself changed (another list, search or filter); otherwise they're kept (no blink, pictures stay)
+let drawnFor = '';
+const listKey = () => JSON.stringify([state.view, state.search, state.searchAll, [...state.parts], state.layout]);
 on('view', () => {
   scroller.scrollTop = savedTop.get(viewKey()) || 0;
-  rebuild();
+  const k = listKey();
+  if (k === drawnFor) render();
+  else {
+    drawnFor = k;
+    rebuild();
+  }
   // the page may only just be shown again: set it once more after layout
   requestAnimationFrame(() => shownNow() && restoreTop());
 });

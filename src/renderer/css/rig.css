@@ -398,3 +398,29 @@ html[data-decoration='reduced'] .rr-ititle h3::after { display:none; }
 /* 4.20: The Lab's little sections on the gear shelves */
 :is(.rr-grid,.sr-grid) .lab-sec { grid-column:1 / -1; margin:10px 0 0; padding:0 0 3px; font:700 11px/1.2 'Typewriter Stagehand',monospace; letter-spacing:.08em; text-transform:uppercase; color:#cbbf9f; border-bottom:1px solid #3a3229; }
 :is(.rr-grid,.sr-grid) .lab-sec:first-child { margin-top:0; }
+
+/* 4.24: the gear always stays big. Its sheet folds into one line under it (it used to stack under the photo
+   in a box that couldn't grow, and squashed the pedal out of sight); the panel scrolls instead of shrinking it */
+.gear-sheet { flex:none; margin:8px 0 2px; }
+.gear-sheet > summary { list-style:none; display:flex; align-items:baseline; gap:10px; padding:8px 12px; border:1px solid #4a4134; border-radius:3px; background:#211d18; color:#f1e6cf; font:800 12.5px var(--font,'Archivo'); letter-spacing:.02em; cursor:pointer; user-select:none; }
+.gear-sheet > summary::-webkit-details-marker { display:none; }
+.gear-sheet > summary::before { content:'▸'; color:#e3c26a; transition:transform .12s; }
+.gear-sheet[open] > summary::before { transform:rotate(90deg); }
+.gear-sheet > summary small { font-weight:500; color:#a99e8c; font-size:11.5px; }
+.gear-sheet > summary:hover { border-color:#8c7349; background:#2a241d; }
+.gear-sheet > .gear-about { margin-top:8px; }
+.rr-inspect { overflow:auto; }
+.rr-ibody > .gb-panel { flex:1 0 auto; min-height:max(300px, 100%); }
+.rr-ibody > .gear-sheet { flex:none; }
+.sr-body { grid-template-columns:minmax(300px,0.72fr) minmax(0,1.6fr); }
+.sr-show { overflow:auto; }
+.sr-show > .gb-panel { flex:1 0 auto; min-height:min(640px, max(380px, calc(100vh - 440px))); grid-template-columns:minmax(0,1fr) minmax(190px,26%); }
+.sr-show > .gb-panel > .sr-side > .gear-sheet { flex:none; }
+/* the photo's own Full size button, and the full-size view */
+.gb-photo, .rr-cabpic, .sr-cabpic { position:relative; }
+.gear-full-btn { position:absolute; right:8px; top:8px; z-index:3; display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border:1px solid #00000080; border-radius:3px; background:#171411d9; color:#f1e6cf; font:700 11.5px var(--font,'Archivo'); cursor:pointer; opacity:.75; transition:opacity .12s; }
+.gear-full-btn svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2; }
+.gear-full-btn:hover, .gear-full-btn:focus-visible { opacity:1; outline:none; border-color:#e3c26a; }
+.gear-full { position:fixed; inset:0; z-index:9500; display:grid; place-items:center; grid-template-rows:1fr auto; padding:24px; background:#050403f2; cursor:zoom-out; }
+.gear-full img { max-width:100%; max-height:calc(100vh - 80px); object-fit:contain; filter:drop-shadow(0 20px 40px #000); }
+.gear-full small { color:#a99e8c; font:600 12px var(--font,'Archivo'); padding-top:10px; }

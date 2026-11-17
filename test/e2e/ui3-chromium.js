@@ -239,7 +239,8 @@ class FakePortMain extends EventEmitter {
       let fs1 = false;
       const win = { isDestroyed: () => false, getBounds: () => b, setBounds: (x) => (b = x), isFullScreen: () => fs1, setFullScreen: (v) => (fs1 = v), isMaximized: () => false, maximize() {}, unmaximize() {}, setMinimumSize() {}, webContents: { setZoomFactor() {} } };
       const disp = new Display({ screen: { getAllDisplays: () => [d1], getPrimaryDisplay: () => d1, getDisplayMatching: () => d1 }, settings, getWin: () => win, send: (c, x) => global.__page && global.__page.evaluate(([c, x]) => window.__shEmit && window.__shEmit(c, x), [c, x]).catch(() => {}) });
-      return { 'app.display': () => disp.info(), 'app.setDisplay': (p) => disp.set(p || {}), 'app.resetDisplay': () => disp.reset(), 'app.displayWindow': (o) => disp.window(o || {}), 'app.restoreWindow': (x) => disp.restore(x) };
+      let fix = 'off';
+      return { 'app.flickerFix': (v) => ((fix = v), { fix, running: 'off' }), 'app.restartApp': () => null, 'app.display': () => ({ ...disp.info(), flickerFix: fix, flickerRunning: 'off' }), 'app.setDisplay': (p) => disp.set(p || {}), 'app.resetDisplay': () => disp.reset(), 'app.displayWindow': (o) => disp.window(o || {}), 'app.restoreWindow': (x) => disp.restore(x) };
     })(),
     'app.info': () => ({ version: require('../../package.json').version, platform: 'win32', packaged: false, dirs: {}, models: [] }),
     'app.log': () => [],
@@ -933,6 +934,10 @@ class FakePortMain extends EventEmitter {
     console.log(f ? `${f} failed` : 'all passed');
     process.exit(f ? 1 : 0);
   }
+  // 4.24: Stagehand opens on Songs; the tour starts at Jam
+  check(await page.evaluate(async () => (await import('./js/store.js')).state.page === 'songs'), 'Stagehand opens on Songs');
+  await page.evaluate(async () => (await import('./js/store.js')).setPage('play'));
+  await page.waitForTimeout(1200);
   await shot('1-play');
   const st = await page.locator('.guitar-card .gc-top').textContent().catch(() => '');
   check(/Guitar ready/.test(st || ''), `guitar starts by itself: “${(st || '').trim()}”`);
@@ -1076,6 +1081,9 @@ class FakePortMain extends EventEmitter {
     await shot('6e-highway');
     await page.evaluate(() => (document.querySelector('.highway').__hw.forceStreak = undefined));
   }
+  // 4.24: the top bar fits with the real app's tone names (nothing past the right edge)
+  const over = await page.evaluate(() => [...document.querySelectorAll('.highway .hw-top button')].filter((b) => b.offsetParent && b.getBoundingClientRect().right > innerWidth + 1).map((b) => b.textContent.trim() || b.title));
+  check(!over.length, `the highway's top bar fits (${over.join(', ') || 'all in'})`);
   await page.locator('.hw-set-btn').click();
   await page.waitForTimeout(600);
   check((await page.locator('.hw-level').count()) === 2, 'highway mix shows Your guitar and Whole song above the stems');
@@ -1602,22 +1610,12 @@ class FakePortMain extends EventEmitter {
   await page.keyboard.press('ArrowDown');
   check((await page.evaluate(() => getComputedStyle(document.querySelector('.scroller')).outlineStyle)) === 'none', 'the song list has no outline box when you use the keys');
 
-  // 4.1.6: Getting started: the tour of every section, Show me and back
+  // 4.1.6 (pages as of 4.17.1): Getting started opens with its first pages; guide-audit.js checks every page and Show me
   await page.locator('.nav-section[data-page="guide"]').click();
   await page.waitForTimeout(600);
   const pages = await page.locator('.gs-step span').allTextContents();
-  check(['Tune up', 'The highway', 'Stems: mute any part', 'Songs', 'Jam', 'Tones', 'Progress', 'Discover', 'Backstage'].every((t) => pages.includes(t)), `Getting started covers every section: ${pages.join(' / ')}`);
+  check(['Welcome', 'Your guitar', 'Get songs', 'Tune up'].every((t) => pages.includes(t)), `Getting started opens with its first pages: ${pages.join(' / ')}`);
   await shot('40-guide-welcome');
-  await page.locator('.gs-step:has-text("Stems")').click();
-  await page.waitForTimeout(250);
-  await shot('41-guide-stems');
-  await page.locator('.gs-show button').click();
-  await page.waitForTimeout(900);
-  check((await page.locator('.gs-ring:not([hidden])').count()) === 1 && /stems/i.test((await page.locator('.gs-tip').textContent()) || ''), 'Show me rings the Split stems button');
-  await shot('42-guide-showme');
-  await page.locator('.gs-tip button:has-text("Back to the guide")').click();
-  await page.waitForTimeout(500);
-  check(/Stems/.test((await page.locator('.gs-step.on span').textContent()) || ''), 'and Back to the guide returns to the same page');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
 

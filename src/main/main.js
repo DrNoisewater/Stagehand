@@ -758,12 +758,14 @@ function registerIpc() {
   });
   // Backstage (4.3): everyone sees the videos you show there, and can message you.
   // Only videos (never audio takes or songs); the page makes the direct connection (js/friendlink.js).
+  // 4.24: loops (sound recordings) can be shown too
+  const shareable = (t) => !!t && (t.kind === 'video' || t.kind === 'audio');
   const sharedVideo = async (id) => {
     const t = (await takes.list()).find((x) => x.id === String(id));
-    return t && t.kind === 'video' && room.isShared(t.id) ? t : null;
+    return shareable(t) && room.isShared(t.id) ? t : null;
   };
   handle('room:get', async () => {
-    await room.prune((await takes.list()).filter((t) => t.kind === 'video').map((t) => t.id));
+    await room.prune((await takes.list()).filter(shareable).map((t) => t.id));
     return room.state();
   });
   handle('room:setName', (name) => room.setName(name));
@@ -772,7 +774,7 @@ function registerIpc() {
   handle('room:hide', (addr, on) => room.hide(addr, on));
   handle('room:share', async (id, on) => {
     const t = (await takes.list()).find((x) => x.id === String(id));
-    if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can be shown backstage'), { code: 'NOT_VIDEO' });
+    if (on && !shareable(t)) throw Object.assign(new Error('Only videos and loops can be shown backstage'), { code: 'NOT_VIDEO' });
     return room.setShared(String(id), on);
   });
   handle('room:connect', (addr, sdp) => room.connect(addr, sdp, { onStage: (stage) => send('room:progress', { addr, stage }) }));
@@ -780,12 +782,12 @@ function registerIpc() {
   // what someone watching may see and fetch: the videos you show, with what's in them (the tone too)
   handle('room:hostList', async () => {
     const { clipSummary } = require('./services/greenroom');
-    const list = room.joined ? (await takes.list()).filter((t) => t.kind === 'video' && room.isShared(t.id)) : [];
+    const list = room.joined ? (await takes.list()).filter((t) => shareable(t) && room.isShared(t.id)) : [];
     return { name: room.data.name, recordings: list.map((t) => ({ ...clipSummary(t), name: t.name, seconds: t.seconds, tone: (t.about && t.about.tone) || null })) };
   });
   handle('room:hostRead', async (id, part, offset, length) => {
     const t = await sharedVideo(id);
-    if (!t || part !== 'video') throw Object.assign(new Error('That video isn’t shown backstage'), { code: 'NOT_SHARED' });
+    if (!t || (part !== 'video' && part !== 'audio')) throw Object.assign(new Error('That recording isn’t shown backstage'), { code: 'NOT_SHARED' });
     const fh = await fsp.open(takes.pathOf(t.id), 'r');
     try {
       const { size } = await fh.stat();
@@ -835,11 +837,20 @@ function registerIpc() {
   });
   handle('win:close', () => { if (win && !win.isDestroyed()) win.close(); });
   // 4.23: Settings › Display
-  handle('display:info', () => display && display.info());
+  handle('display:info', () => display && { ...display.info(), flickerFix: (settings.get().display || {}).flickerFix || 'off', flickerRunning: FLICKER_FIX });
   handle('display:set', (patch) => display && display.set(patch || {}));
   handle('display:reset', () => display && display.reset());
   handle('display:window', (o) => display && display.window(o || {}));
   handle('display:restore', (before) => display && display.restore(before));
+  handle('display:flicker', (v) => {
+    const fix = v === 'layers' || v === 'basic' ? v : 'off';
+    settings.set({ display: { flickerFix: fix } });
+    return { fix, running: FLICKER_FIX };
+  });
+  handle('display:restart', () => {
+    app.relaunch();
+    app.exit(0);
+  });
   handle('win:state', () => (win && !win.isDestroyed() ? { maximized: win.isMaximized(), fullscreen: win.isFullScreen() } : { maximized: false, fullscreen: false }));
 
   handle('library:get', () => {
@@ -1226,6 +1237,24 @@ app.on('second-instance', () => {
 // 4.18: on a laptop with two graphics cards, draw on the fast one (the highway and the moving backgrounds)
 app.commandLine.appendSwitch('force_high_performance_gpu');
 
+// 4.24: Settings › Display › Screen flicker fix, read before the window is made (it needs a restart).
+// 'layers': Windows draws the window as one picture instead of moving parts of it on and off the graphics
+// card's fast path (a known cause of flashes when a menu or panel covers a moving picture). The graphics
+// card still draws everything. 'basic': no graphics card for the window at all (a last test: slower).
+const FLICKER_FIX = (() => {
+  try {
+    const f = path.join(makeDirs().roaming, 'settings.json');
+    const v = ((JSON.parse(fs.readFileSync(f, 'utf8')) || {}).display || {}).flickerFix;
+    return v === 'layers' || v === 'basic' ? v : 'off';
+  } catch (_) {
+    return 'off';
+  }
+})();
+if (FLICKER_FIX === 'layers') {
+  app.commandLine.appendSwitch('disable-direct-composition');
+  app.commandLine.appendSwitch('disable-direct-composition-video-overlays');
+} else if (FLICKER_FIX === 'basic') app.disableHardwareAcceleration();
+
 app.whenReady().then(async () => {
   if (IS_WIN) app.setAppUserModelId('app.stagehand.desktop');
   Menu.setApplicationMenu(null);
@@ -1308,7 +1337,7 @@ app.whenReady().then(async () => {
     oldFile: path.join(D.roaming, 'friends.json'), // 4.1–4.2: only the name it had is offered
     level: () => levels.state().level,
     fetchImpl: (url, opts) => net.fetch(url, opts).catch((err) => (opts && opts.signal && opts.signal.aborted ? Promise.reject(err) : fetch(url, opts))),
-    listClips: async () => (await takes.list()).filter((t) => t.kind === 'video'),
+    listClips: async () => (await takes.list()).filter((t) => t.kind === 'video' || t.kind === 'audio'),
     safeStorage,
     log,
   });

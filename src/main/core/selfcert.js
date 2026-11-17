@@ -65,7 +65,9 @@ function makeCert({ names = [], days = 3650, cn = 'Stagehand' } = {}) {
   const now = new Date(Date.now() - 24 * 3600e3);
   const end = new Date(now.getTime() + days * 24 * 3600e3);
   const serial = crypto.randomBytes(16);
-  serial[0] &= 0x7f;
+  // positive, and never a zero first byte: a leading zero is "illegal padding" in a certificate (4.24: about one
+  // certificate in 256 came out broken, so the headset's browser couldn't connect)
+  serial[0] = (serial[0] & 0x7f) || 0x01;
   const general = [];
   for (const n of new Set(['localhost', '127.0.0.1', ...certNames(names)])) {
     const ip = ipBytes(n);

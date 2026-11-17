@@ -166,7 +166,7 @@ html[data-look='opera'] .gchip-pop .guitar-card { border-radius:3px; background:
 /* 4.23: each song's ways to play it, in the middle of its row (Lead, Rhythm, Bass, Sing & play, Karaoke).
    What the file hasn't got is crossed out, not hidden; on a narrower list they fold into one Modes button. */
 @container (min-width:1101px) {
-  .cols { grid-template-columns:52px minmax(150px,2.2fr) minmax(100px,1.4fr) minmax(90px,1.2fr) 46px 112px 168px 92px 48px 50px 84px; }
+  .cols { grid-template-columns:52px minmax(150px,2.2fr) minmax(100px,1.4fr) minmax(90px,1.2fr) 46px 112px 198px 92px 48px 50px 84px; }
 }
 .modes { min-width:0; }
 .pm-row { display:flex; align-items:center; gap:4px; }
@@ -175,6 +175,7 @@ html[data-look='opera'] .gchip-pop .guitar-card { border-radius:3px; background:
 .pm:hover, .pm:focus-visible, .pm-more:hover, .pm-more:focus-visible { background:#3a3127; border-color:var(--tungsten,#ffb547); transform:translateY(-1px); outline:none; }
 .pm-lead { color:#ffb79e; } .pm-rhythm { color:#ffd58f; } .pm-bass { color:#c9bfff; }
 .pm-sing, .pm-karaoke { color:var(--gel-vocals,#33c8e0); border-color:#2f5f66; }
+.pm-piano { color:#c9a6ff; border-color:#4f3f6b; }
 .pm.none { color:#8a8172; border-style:dashed; border-color:#4a4236; background:transparent; position:relative; opacity:.7; }
 .pm.none::after { content:''; position:absolute; left:4px; right:4px; top:50%; height:1.5px; background:#8a8172; transform:rotate(-24deg); }
 .pm-more { display:none; gap:4px; grid-auto-flow:column; padding:0 8px; }
@@ -257,3 +258,16 @@ html[data-safe] #app { height:100%; }
 .disp-range input { width:min(280px, 60%); }
 .disp-range output { min-width:42px; font-weight:700; }
 .disp-foot { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:8px; }
+/* 4.24: Songs' "Double-click plays" choice */
+.play-as { align-items:center; }
+.play-as .play-as-l { padding:0 6px 0 4px; font-size:11.5px; color:var(--ink-3); white-space:nowrap; }
+.play-as button { display:inline-flex; align-items:center; gap:5px; }
+.play-as button svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:1.9; }
+@container (max-width:1100px) { .play-as button span { display:none; } }
+.sh-activity.idle { padding:6px 8px; opacity:.8; }
+.sh-activity.idle .act-head { padding:0; }
+.sh-activity.idle:hover { opacity:1; }
+/* 4.24: the left menu's order, whichever loads first: the menu, then Activity, then the guitar card */
+.sidebar > .nav-scroll { order:1; }
+.sidebar > .sh-activity { order:2; }
+.sidebar > .guitar-card-host { order:3; }

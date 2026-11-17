@@ -18,10 +18,12 @@ const MODES = [
   ['bass', 'B', 'Bass', 'No bass part in this file'],
   ['sing', 'mic', 'Sing & play', 'No words in this file to sing'],
   ['karaoke', 'music', 'Karaoke', 'No words in this file to sing'],
+  ['piano', 'piano', 'Piano', 'No part in this file to make a piano part from'],
 ];
 function modeOk(m, k) {
   if (k === 'sing') return m.words && (m.lead || m.rhythm || m.bass);
   if (k === 'karaoke') return m.words;
+  if (k === 'piano') return m.lead || m.rhythm || m.bass || m.words; // a piano part is written from the song
   return m[k];
 }
 export function modesHtml(s) {
@@ -53,6 +55,7 @@ export function runMode(id, k) {
   setSelection([id], { anchor: id, focus: id });
   if (k === 'karaoke') return actions.playKaraoke(id);
   if (k === 'sing') return actions.playAs(id, 'sing');
+  if (k === 'piano') return actions.playAs(id, 'piano');
   return actions.playAs(id, 'guitar', k);
 }
 export function modesMenu(id, x, y) {
@@ -62,7 +65,7 @@ export function modesMenu(id, x, y) {
   (
     showMenu(x, y, [
       { heading: true, label: 'Play it as' },
-      ...MODES.map(([k, mark, label]) => ({ label: modeOk(m, k) && !m.noAudio ? label : `${label} (not in this file)`, icon: mark === 'mic' ? 'mic' : mark === 'music' ? 'music' : 'guitar', onClick: () => runMode(id, k) })),
+      ...MODES.map(([k, mark, label]) => ({ label: modeOk(m, k) && !m.noAudio ? label : `${label} (not in this file)`, icon: mark === 'mic' ? 'mic' : mark === 'music' ? 'music' : mark === 'piano' ? 'piano' : 'guitar', onClick: () => runMode(id, k) })),
       ...(missingParts(s).length ? ['-', { label: 'Find a better version', icon: 'search', onClick: () => import('./discover.js').then((d) => d.findBetter(s, missingParts(s))) }] : []),
     ])
   );

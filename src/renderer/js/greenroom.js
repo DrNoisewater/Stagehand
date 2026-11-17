@@ -5,23 +5,26 @@ import { decorativeImage } from './menu-art.js';
  *  - Everyone: who's in Stagehand now and the clips they show. Watch one (it comes
  *    straight from their PC), see the song, part and tone, try or keep the tone,
  *    open the song if you have it (or find it), and message them about it.
- *  - My clips: everything you've recorded (videos, looper takes, Record take).
- *    Videos get one switch: Show backstage.
+ *  - My recordings (4.24, was My clips): everything you've recorded (videos, jams, loops). Each gets
+ *    one switch: Show backstage (4.24: loops too; they travel in their own list, `loops`).
+ *  - Shared tones (4.24): the tones in the clips people here show: get, try, save a copy, put on a key.
  *  - Messages: your conversations (4.3 starts fresh: chats from before Backstage are gone).
  * State and the service: room.js and services/greenroom.js. Files stay "SH - <song>.mp4/.wav"
  * in Stagehand's recordings folder.
  */
 import { api } from './api.js';
 import { state, on, setPage } from './store.js';
-import { h, icon, confirmDialog, toast, fmtBytes, showMenu } from './ui.js';
+import { h, icon, confirmDialog, toast, fmtBytes, showMenu, morph } from './ui.js';
 import { G, loadRoom, isShown, toggleShown, askName, unreadFor, unreadAll, markRead } from './room.js';
 import { connectTo } from './friendlink.js';
 import { coverEl } from './shell.js';
 import { did, L, loadLevels } from './rewards.js';
+import { setJob } from './activity.js';
 
 const root = document.getElementById('page-greenroom');
 const V = {
-  tab: 'room', // 'room' | 'mine' | 'messages'
+  tab: 'room', // 'room' (Community) | 'mine' (My recordings) | 'tones' (Shared tones) | 'messages'
+  cat: 'all', // 4.24: 'all' | 'clip' | 'jam' | 'loop'
   inst: 'all', // 'all' | 'guitar' | 'bass'
   haveOnly: false, // only songs you have
   who: null, // one person's clips (their address)
@@ -101,6 +104,7 @@ async function render() {
   const top = root.scrollTop;
   if (V.tab === 'mine') await renderMine();
   else if (V.tab === 'messages') renderMessages();
+  else if (V.tab === 'tones') renderTones();
   else renderRoom();
   root.scrollTop = top;
 }
@@ -146,10 +150,12 @@ function drawHead() {
   const here = st ? st.people.length : 0;
   const unread = unreadAll();
   const tabs = h('div.gseg.gr-tabs', { role: 'tablist', 'aria-label': 'Backstage', style: { '--gel': 'var(--gel-bass)' } });
-  for (const [id, label, ic, n] of [['room', 'Everyone', 'people', here ? String(here) : ''], ['mine', 'My clips', 'record', ''], ['messages', 'Messages', 'edit', unread ? String(unread) : '']]) {
+  // 4.24: Community / My recordings / Shared tones (and Messages)
+  const toneN = st ? st.people.reduce((n, p) => n + p.clips.filter((c) => c.tone).length, 0) : 0;
+  for (const [id, label, ic, n] of [['room', 'Community', 'people', here ? String(here) : ''], ['mine', 'My recordings', 'record', ''], ['tones', 'Shared tones', 'tones', toneN ? String(toneN) : ''], ['messages', 'Messages', 'edit', unread ? String(unread) : '']]) {
     const b = h('button', { type: 'button', role: 'tab', 'aria-selected': String(V.tab === id), 'aria-pressed': String(V.tab === id), 'data-tab': id, html: `${icon(ic)}<span></span>` });
     b.querySelector('span').textContent = label;
-    if (n) b.append(h(`i.gr-count${id === 'messages' ? '.new' : ''}`, { text: n, title: id === 'messages' ? `${n} new` : `${n} here now` }));
+    if (n) b.append(h(`i.gr-count${id === 'messages' ? '.new' : ''}`, { text: n, title: id === 'messages' ? `${n} new` : id === 'tones' ? `${n} tones shared` : `${n} here now` }));
     b.onclick = () => {
       if (V.tab === id) return;
       V.tab = id;
@@ -200,12 +206,16 @@ function drawHead() {
   if (st) wasJoined = !!st.joined;
   const watching = st && st.joined && G.watching.length ? h('span.gr-live', { text: `${G.watching.join(' and ')} ${G.watching.length > 1 ? 'are' : 'is'} watching your clips` }) : null;
   const live = !st ? null : !st.inRoom ? h('span.gr-onair.off', { text: 'Reaching Backstage…' }) : h('span.gr-onair', { title: 'People with Stagehand open right now' }, h('i'), h('span', { text: here ? `${here} ${here === 1 ? 'other player' : 'other players'} here now` : 'Just you right now' }));
-  head.replaceChildren(
+  const fresh = h('div');
+  fresh.append(
     me,
     h('div.gr-headmain', null,
-      h('div.gr-title', null, h('div.gr-marquee', null, neonSign(), live), h('p.gr-sub', { text: 'Clips from everyone with Stagehand. Watch them while their owner is online, try their tones, and say hi.' }), watching),
+      h('div.gr-title', null, h('div.gr-marquee', null, neonSign(), live), h('p.gr-sub', { text: 'Clips, jams and loops from everyone with Stagehand. Watch or hear them while their owner is online, try and keep their tones, and say hi.' }), watching),
       tabs)
   );
+  // 4.24: only what changed is put on screen (the pass, the sign and their animations aren't restarted
+  // every time someone comes or goes)
+  morph(head, fresh);
 }
 
 // ------------------------------------------------------ the pass --
@@ -288,15 +298,24 @@ function openHidden() {
 }
 
 // ---------------------------------------------------------- the room --
+/** 4.24: the room is built fresh and only what changed is put on screen: people coming and going don't
+ * restart every card's picture and animation. */
 function renderRoom() {
+  const fresh = h('div');
+  buildRoom(fresh);
+  if (panel.dataset.view !== 'room') {
+    panel.dataset.view = 'room';
+    panel.replaceChildren(...fresh.childNodes);
+  } else morph(panel, fresh);
+}
+function buildRoom(panel) {
   const st = G.st;
-  panel.innerHTML = '';
   if (!st) return panel.append(h('p.np-fine', { text: 'Getting Backstage ready…' }));
   if (!st.inRoom) panel.append(h('div.gr-note.wait', null, h('i'), h('span', { text: 'Reaching Backstage… If this takes more than a minute, check your internet connection.' })));
   const people = st.people;
   if (V.who && !people.some((p) => p.addr === V.who)) V.who = null;
   if (!people.length) {
-    panel.append(h('div.gr-empty', null, decorativeImage('empty-greenroom'), h('b', { text: 'Nobody else is here right now' }), h('p', { text: 'People show up here while their Stagehand is open, with the clips they choose to show. Record a clip on the highway or in Jam, then show it from My clips.' })));
+    panel.append(h('div.gr-empty', null, decorativeImage('empty-greenroom'), h('b', { text: 'Nobody else is here right now' }), h('p', { text: 'People show up here while their Stagehand is open, with the clips, jams and loops they choose to show. To show yours: record a clip on the highway, a jam in Jam or a loop with the looper, then press Show backstage in My recordings.' })));
     return;
   }
   // who's here: a chip each (pick one to see just their clips)
@@ -327,7 +346,7 @@ function renderRoom() {
   }
   const have = h('button.gr-toggle', { type: 'button', 'aria-pressed': String(V.haveOnly), html: `${icon('music')}<span>Songs I have</span>` });
   have.onclick = () => ((V.haveOnly = !V.haveOnly), renderRoom());
-  panel.append(h('div.gr-filters', null, seg, have));
+  panel.append(h('div.gr-filters', null, catSeg(people.flatMap((p) => p.clips), renderRoom), seg, have));
 
   const all = [];
   for (const p of people) for (const c of p.clips) all.push({ p, c });
@@ -335,9 +354,10 @@ function renderRoom() {
     .filter(({ p }) => !V.who || p.addr === V.who)
     .filter(({ c }) => V.inst === 'all' || (V.inst === 'bass' ? c.inst === 'bass' || c.part === 'bass' : c.inst !== 'bass' && c.part !== 'bass'))
     .filter(({ c }) => !V.haveOnly || findSong(c))
+    .filter(({ c }) => V.cat === 'all' || (c.cat || 'clip') === V.cat)
     .sort((a, b) => b.c.at - a.c.at);
   if (!list.length) {
-    panel.append(h('p.np-fine.gr-none', { text: all.length ? 'No clips match. Try All, or turn off Songs I have.' : 'Nobody here is showing a clip yet.' }));
+    panel.append(h('p.np-fine.gr-none', { text: all.length ? 'Nothing matches. Try All, or turn off Songs I have.' : 'Nobody here is showing anything yet. Clips, jams and loops show up here while their owner’s Stagehand is open.' }));
     return;
   }
   const grid = h('div.gr-grid');
@@ -350,13 +370,14 @@ function card(p, c) {
   const cover = coverEl(song || { title: c.song || c.title, artist: c.artist || p.name }, 256, 'gr-cover');
   cover.append(h('span.gr-len', { text: fmtLen(c.sec) }), h('span.gr-playic', { html: icon('play') }));
   const on = V.watch && V.watch.addr === p.addr && V.watch.clip.id === c.id;
-  const el = h(`button.gr-card${on ? '.on' : ''}`, { type: 'button', 'data-clip': c.id, title: `Watch ${p.name}’s clip` },
+  const el = h(`button.gr-card${on ? '.on' : ''}`, { type: 'button', 'data-clip': c.id, title: c.type === 'audio' ? `Listen to ${p.name}’s loop` : `Watch ${p.name}’s clip` },
     cover,
     h('div.gr-card-text', null,
       h('b', { text: c.title }),
       h('span.gr-by', null, avatar(p.name, '.tiny', true), h('span', { text: p.name }), lvTag(p.level)),
       c.song ? h('span.gr-song', { text: c.artist ? `${c.song} · ${c.artist}` : c.song }) : null,
       h('div.gr-tags', null,
+        h(`span.gr-tag.cat-${c.cat || 'clip'}`, { text: c.cat === 'loop' ? 'Loop' : c.cat === 'jam' ? 'Jam' : 'Clip' }),
         partLine(c) ? h('span.gr-tag', { text: partLine(c) }) : null,
         c.tone ? h('span.gr-tag.tone', { html: `${icon('tones')}<span></span>` }) : null,
         song ? h('span.gr-tag.have', { text: 'You have it' }) : null)));
@@ -453,10 +474,11 @@ async function watch(p, c) {
             from: have,
             onChunk: (x) => (parts.push(x), (have += x.byteLength)),
             onProgress: (f) => {
-              if (!live()) return link.cancel();
+              if (!live()) return (setJob(`clip:${key}`, { kind: 'clip', label: 'Getting a clip', song: c.title, state: 'canceled', progress: null, phase: 'Stopped' }), link.cancel());
               w.p = f;
               w.retry = 0;
               drawProgress();
+              setJob(`clip:${key}`, { kind: 'clip', label: `From ${p.name}`, song: c.title, state: 'running', progress: f, phase: c.type === 'audio' ? 'Getting the loop' : 'Getting the clip', cancel: () => stopPlayer({ keep: false }) });
             },
           });
           size = got.size;
@@ -469,15 +491,17 @@ async function watch(p, c) {
           link = null;
         }
       }
-      w.url = URL.createObjectURL(new Blob(parts, { type: 'video/mp4' }));
+      w.url = URL.createObjectURL(new Blob(parts, { type: c.type === 'audio' ? 'audio/wav' : 'video/mp4' }));
       remember(key, w.url);
     }
     if (!live()) return;
     w.stage = 'ready';
     drawPlayer();
+    if (!fetched.has(key) || w.p) setJob(`clip:${key}`, { kind: 'clip', label: `From ${p.name}`, song: c.title, state: 'done', progress: 1, phase: 'Ready to watch' });
     did('backstage-watch');
   } catch (err) {
     if (!live()) return;
+    setJob(`clip:${key}`, { kind: 'clip', label: `From ${p.name}`, song: c.title, state: 'failed', progress: null, phase: err.message || 'It didn’t come', retry: () => watch(p, c) });
     if (err.code === 'OFFLINE' && have) err.message = `${p.name}’s Stagehand stopped answering. You got ${Math.round((have / Math.max(1, size)) * 100)}% of it; try again when they’re back.`;
     w.err = err;
     drawPlayer();
@@ -627,6 +651,104 @@ async function keepTone(tone, who) {
   }
 }
 
+// ------------------------------------------------------------ filters --
+/** 4.24: All / Clips / Jams / Loops, each with how many there are. */
+function catSeg(items, redraw) {
+  const n = (k) => items.filter((c) => (c.cat || 'clip') === k).length;
+  const seg = h('div.gseg.gr-cats', { role: 'group', 'aria-label': 'Kind', style: { '--gel': 'var(--gel-bass)' } });
+  for (const [id, label] of [['all', `All (${items.length})`], ['clip', `Clips (${n('clip')})`], ['jam', `Jams (${n('jam')})`], ['loop', `Loops (${n('loop')})`]]) {
+    const b = h('button', { type: 'button', text: label, 'aria-pressed': String(V.cat === id) });
+    b.onclick = () => ((V.cat = id), redraw());
+    seg.append(b);
+  }
+  return seg;
+}
+
+// ------------------------------------------------------------ shared tones --
+/**
+ * 4.24: every tone in a clip someone here is showing. Get it (it comes from their PC with the clip's
+ * details), then Try it, Save a copy, or put it on a key (2–9; the key's tone is asked about first).
+ * Slot 1 always follows the song. Nothing of yours is overwritten: a copy is saved.
+ */
+const toneGot = new Map(); // `${addr}:${clipId}` -> the tone (once fetched)
+function renderTones() {
+  const st = G.st;
+  panel.innerHTML = '';
+  panel.dataset.view = 'tones';
+  if (!st) return panel.append(h('p.np-fine', { text: 'Getting Backstage ready…' }));
+  const list = [];
+  for (const p of st.people) for (const c of p.clips) if (c.tone) list.push({ p, c });
+  if (!list.length) {
+    panel.append(h('div.gr-empty', null, decorativeImage('empty-greenroom'), h('b', { text: 'No tones shared right now' }), h('p', { text: 'Every clip someone shows carries the tone they played it with. When people here show clips, their tones are listed here to try and keep. Your own tones travel with the clips you show.' })));
+    return;
+  }
+  panel.append(h('div.gr-minehead', null, h('span.gr-share-ic', { html: icon('tones') }), h('span.grow', { text: 'Tones from the clips people here are showing. Get one to try it, keep a copy, or put it on a key.' })));
+  const grid = h('div.gr-tones');
+  for (const { p, c } of list.sort((a, b) => b.c.at - a.c.at)) grid.append(toneCard(p, c));
+  panel.append(grid);
+}
+function toneCard(p, c) {
+  const key = `${p.addr}:${c.id}`;
+  const tone = toneGot.get(key);
+  const box = h('div.gr-tone', { 'data-clip': c.id });
+  box.append(
+    h('span.gr-bic', { html: icon('tones') }),
+    h('div.gr-tone-text', null,
+      h('b', { text: (tone && tone.name) || c.tone }),
+      h('span.gr-by', null, avatar(p.name, '.tiny', true), h('span', { text: p.name })),
+      h('span.gr-song', { text: [c.song ? `${c.song}${c.artist ? ` · ${c.artist}` : ''}` : 'Jam', tone ? `${tone.kind === 'bass' ? 'Bass' : 'Guitar'} · ${(tone.gear || []).length} ${(tone.gear || []).length === 1 ? 'piece' : 'pieces'} of gear` : null].filter(Boolean).join(' · ') })));
+  const acts = h('div.gr-acts');
+  if (!tone) {
+    const get = btn('Get it', 'download', async () => {
+      get.disabled = true;
+      get.querySelector('span').textContent = `Asking ${p.name}’s PC…`;
+      try {
+        const link = await linkTo(p.addr, () => {});
+        const all = await link.list();
+        const full = (Array.isArray(all) ? all : []).find((x) => x && x.id === c.id);
+        const t = full && full.tone && Array.isArray(full.tone.gear) && full.tone.gear.length ? full.tone : null;
+        if (!t) throw new Error(`${p.name}’s clip has no tone details.`);
+        toneGot.set(key, t);
+        renderTones();
+      } catch (err) {
+        get.disabled = false;
+        get.querySelector('span').textContent = 'Get it';
+        toast({ title: 'Couldn’t get that tone', message: err.message, kind: 'err' });
+      }
+    }, '.small.soft');
+    acts.append(get);
+  } else {
+    acts.append(btn('Try it', 'play', () => tryTone(tone, p.name), '.small.soft'), btn('Save a copy', 'plus', () => keepTone(tone, p.name), '.small.ghost'), btn('Put on a key', 'tones', (e) => equipMenu(e, tone, p.name), '.small.ghost'));
+  }
+  box.append(acts);
+  return box;
+}
+async function equipMenu(e, tone, who) {
+  const r = e.currentTarget.getBoundingClientRect();
+  const { bySlot, saveTone, SLOT_COUNT } = await import('./tonelib.js');
+  const items = [{ heading: true, label: 'Put a copy on key…' }];
+  for (let n = 2; n <= (SLOT_COUNT || 9); n++) {
+    const cur = bySlot(n);
+    items.push({
+      label: cur ? `${n} · replaces ${cur.name}` : `${n} · empty`,
+      onClick: async () => {
+        if (cur && !(await confirmDialog({ title: `Put it on key ${n}?`, message: `Key ${n} has “${cur.name}”. That tone stays in your tones; only the key changes.`, confirm: `Use key ${n}` }))) return;
+        try {
+          const saved = await saveTone({ name: tone.name, kind: tone.kind === 'bass' ? 'bass' : 'guitar', gear: tone.gear, capture: tone.capture || null, cabId: tone.cabId || null, autoCab: tone.autoCab !== false, slot: n, from: { song: `${who} (Backstage)` } });
+          const { emit } = await import('./store.js');
+          emit('tones');
+          did('backstage-tone');
+          toast({ title: `“${saved.name}” is on key ${n}`, message: `From ${who}. Press ${n} while you play to switch to it.`, kind: 'ok' });
+        } catch (err) {
+          toast({ title: 'Couldn’t save that tone', message: err.message, kind: 'err' });
+        }
+      },
+    });
+  }
+  items.push('-', { label: 'Key 1 always follows the song', disabled: true });
+  showMenu(r.left, r.bottom + 4, items);
+}
+
 // ------------------------------------------------------------ my clips --
 async function renderMine() {
   if (!V.takes) {
@@ -641,17 +763,22 @@ async function renderMine() {
   const all = V.takes;
   const st = G.st;
   panel.innerHTML = '';
+  panel.dataset.view = 'mine';
   const folder = btn('Open the folder', 'folder', () => dir() && api.shell.openPath(dir()), '.small.ghost');
-  const showing = all.filter((t) => t.kind === 'video' && isShown(t.id)).length;
+  const showing = all.filter((t) => isShown(t.id)).length;
   const line = !st || !st.joined ? 'Show a video backstage and everyone can watch it while your Stagehand is open.' : showing ? `${showing} clip${showing === 1 ? '' : 's'} backstage. People can watch ${showing === 1 ? 'it' : 'them'} while your Stagehand is open.` : 'Nothing backstage yet. Press Show on a video to put it there.';
   panel.append(h('div.gr-minehead', null, h('span.gr-share-ic', { html: icon('people') }), h('span.grow', { text: line }), folder));
   if (!all.length) {
-    panel.append(h('div.gr-empty', null, decorativeImage('empty-greenroom'), h('b', { text: 'Nothing recorded yet' }), h('p', { text: 'Record a video on the highway (Tools › Record a video clip) or in Jam, or use the looper and Record take.' })));
+    panel.append(h('div.gr-empty', null, decorativeImage('empty-greenroom'), h('b', { text: 'Nothing recorded yet' }), h('p', { text: 'Record a clip on the highway (Tools › Record a video clip), a jam in Jam (Record video), or a loop with the looper. Then press Show backstage to let everyone watch or hear it while your Stagehand is open.' })));
     return;
   }
+  const catOf = (t) => (t.kind === 'video' ? ((t.about || {}).part === 'jam' ? 'jam' : 'clip') : 'loop');
+  panel.append(h('div.gr-filters', null, catSeg(all.map((t) => ({ cat: catOf(t) })), () => renderMine())));
   const list = h('div.gr-list');
   let focus = V.focus;
-  for (const t of all) list.append(mineRow(t, focus === t.id));
+  const shownTakes = all.filter((t) => V.cat === 'all' || catOf(t) === V.cat);
+  if (!shownTakes.length) list.append(h('p.np-fine.gr-none', { text: V.cat === 'loop' ? 'No loops yet. In Jam, record one with the looper.' : V.cat === 'jam' ? 'No jams yet. In Jam, press Record video.' : 'No clips yet. On the highway, Tools › Record a video clip.' }));
+  for (const t of shownTakes) list.append(mineRow(t, focus === t.id));
   if (focus && all.some((t) => t.id === focus)) {
     V.focus = null;
     setTimeout(() => list.querySelector('.gr-row.just')?.scrollIntoView({ block: 'nearest' }), 50);
@@ -663,13 +790,14 @@ function mineRow(t, just) {
   const video = t.kind === 'video';
   const a = t.about || {};
   const what = [a.song && a.song.title ? a.song.title : video ? 'Jam' : null, PART[a.part] && a.part !== 'jam' ? PART[a.part] : null, a.tone && a.tone.name ? a.tone.name : null].filter(Boolean).join(' · ');
-  const meta = [video ? 'Video' : 'Sound', fmtWhen(t.at), t.seconds ? fmtLen(t.seconds) : null, t.bytes ? fmtBytes(t.bytes) : null].filter(Boolean).join(' · ');
+  const meta = [video ? (a.part === 'jam' ? 'Jam (video)' : 'Video') : 'Loop (sound)', fmtWhen(t.at), t.seconds ? fmtLen(t.seconds) : null, t.bytes ? fmtBytes(t.bytes) : null].filter(Boolean).join(' · ');
   const on = V.watch && V.watch.mine && V.watch.clip.id === t.id;
   const pl = h('button.round-play.sm', { type: 'button', 'aria-label': `Play ${t.name}`, html: icon(on ? 'stop' : 'play') });
   const name = h('b', { text: t.name });
   const sh = isShown(t.id);
-  const show = video ? h(`button.gr-show${sh ? '.on' : ''}`, { type: 'button', 'aria-pressed': String(sh), title: sh ? 'Backstage: everyone can watch it (click to take it out)' : 'Show it backstage', html: `${icon(sh ? 'check' : 'people')}<span>${sh ? 'Backstage' : 'Show backstage'}</span>` }) : h('span.gr-noshow', { text: 'Sound only', title: 'Only videos can go backstage' });
-  if (video) show.onclick = async () => (await toggleShown(t)) && (sh || did('backstage-share'), renderMine());
+  // 4.24: loops (sound) can go backstage too
+  const show = h(`button.gr-show${sh ? '.on' : ''}`, { type: 'button', 'aria-pressed': String(sh), title: sh ? `Backstage: everyone can ${video ? 'watch' : 'hear'} it while your Stagehand is open (click to take it out)` : 'Show it backstage', html: `${icon(sh ? 'check' : 'people')}<span>${sh ? 'Backstage' : 'Show backstage'}</span>` });
+  show.onclick = async () => (await toggleShown(t)) && (sh || did('backstage-share'), renderMine());
   const rename = h('button.icon-btn', { type: 'button', title: 'Rename', 'aria-label': 'Rename', html: icon('edit') });
   const showBtn = h('button.icon-btn', { type: 'button', title: 'Show in folder', 'aria-label': 'Show in folder', html: icon('folder') });
   const del = h('button.icon-btn', { type: 'button', title: 'Delete', 'aria-label': 'Delete', html: icon('trash') });
@@ -733,6 +861,7 @@ let draft = null; // the message box, kept across redraws so typing isn't lost
 function renderMessages() {
   const st = G.st;
   panel.innerHTML = '';
+  panel.dataset.view = 'messages';
   if (!st) return panel.append(h('p.np-fine', { text: 'Getting your messages…' }));
   const cur = V.chat ? conversation(st, V.chat) : null;
   if (!cur) V.chat = null;

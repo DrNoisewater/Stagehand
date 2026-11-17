@@ -8,15 +8,15 @@ import { openJam } from './jam.js';
 import { api } from './api.js';
 import { state, on, setView, setPage, loadLibrary, emit, rsListIds, rsListLabel, rsListKeys, accBand, hasPart, missingParts } from './store.js';
 const storeFns = { accBand };
-import { h, icon, esc, showMenu, confirmDialog, toast } from './ui.js';
+import { h, icon, esc, showMenu, confirmDialog, toast, morph } from './ui.js';
 import { counts as discoverCounts } from './discover.js';
 import { updateLabel, openUpdate } from './updates.js';
 import { unreadAll } from './room.js';
 
 const side = document.getElementById('sidebar');
-const root = h('div.nav-scroll');
+const liveRoot = h('div.nav-scroll');
 export const guitarCardHost = h('div.guitar-card-host');
-side.append(root, guitarCardHost);
+side.append(liveRoot, guitarCardHost);
 // A section you're already in folds its sub-menu on a second click (and opens on the next).
 let folded = null;
 let stemsShown = -1; // the Stems ready count last shown
@@ -121,7 +121,7 @@ export async function newSetlist(songIds = []) {
 }
 
 function renameSetlist(id) {
-  const btn = [...root.querySelectorAll('.nav-item')].find((b) => b.dataset.setlist === id);
+  const btn = [...liveRoot.querySelectorAll('.nav-item')].find((b) => b.dataset.setlist === id);
   const sl = state.setlists.find((x) => x.id === id);
   if (!btn || !sl) return;
   const input = h('input.rename', { value: sl.name, 'aria-label': 'Setlist name' });
@@ -187,12 +187,18 @@ function tagline(page, songs) {
   return text;
 }
 
+/** 4.24: the menu is built fresh, then only what changed is put on screen (see morph in ui.js). */
 export function render() {
+  const fresh = h('div.nav-scroll');
+  build(fresh);
+  morph(liveRoot, fresh);
+}
+
+function build(root) {
   stemsShown = stemsReadyCount();
   const songs = [...state.songs.values()];
   const count = (f) => songs.filter(f).length;
   const recentCut = Date.now() - 1000 * 60 * 60 * 24 * 30;
-  root.innerHTML = '';
   const page = state.page === 'now' ? state.backPage || 'songs' : state.page;
   const top = h('div.nav-sections');
   // 4.1.4: a newer Stagehand is out: one button at the top of the menu updates it
@@ -202,7 +208,6 @@ export function render() {
     b.onclick = () => openUpdate();
     top.append(b);
   }
-  top.append(section({ page: 'play', label: 'Jam', iconName: 'guitar', gel: 'var(--gel-guitar)' }));
   top.append(
     section({
       page: 'songs',
@@ -219,6 +224,8 @@ export function render() {
   );
   const songsSub = h('div.nav-sub');
   top.append(songsSub);
+  // 4.24: Songs is home (every way to play a song starts there); Jam, just playing, comes next
+  top.append(section({ page: 'play', label: 'Jam', iconName: 'guitar', gel: 'var(--gel-guitar)' }));
   // 4.23: Karaoke is no longer a page of its own: it's a list under Songs (and a button on every song)
   top.append(section({ page: 'tones', label: 'Tones', iconName: 'tones', gel: 'var(--gel-bass)' }));
   top.append(section({ page: 'gear', label: 'Gear', iconName: 'amp', gel: 'var(--gel-lead, #ff6b3d)' }));

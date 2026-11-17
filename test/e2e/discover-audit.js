@@ -137,8 +137,22 @@ module.exports = async ({ page, outDir, check }) => {
   await page.evaluate(async () => (await import('./js/discover.js')).open('wanted'));
   await page.waitForTimeout(900);
   for (const b of ['Get songs', 'Find next', 'Copy list', 'Clear found', 'Watch Downloads', 'Find']) await has(b, 'Wanted');
-  check((await page.locator('#discover .want-row').count()) === 4, 'Wanted lists the songs by artist');
+  // 4.24: the Now card with its steps and whose turn it is, the queue in order, and by artist
+  check(await page.locator('#discover .want-now').isVisible(), 'Wanted has a Now card');
+  check((await page.locator('#discover .want-steps li').count()) === 5 && /Not started|Waiting on you|Stagehand is working/.test(await page.locator('#discover .want-turn').textContent()), 'the Now card has its five steps and says whose turn it is');
+  check((await page.locator('#discover .want-row').count()) === 4, 'Wanted lists the songs (in order)');
+  check((await page.locator('#discover .want-row.q .c-num').first().textContent()) === '1', 'the queue is numbered');
   await shot('wanted');
+  // a song coming in through the finder: the steps move on, and Activity shows it
+  await page.evaluate(() => window.__shEmit('finder:event', { type: 'download', name: 'song_p.psarc', state: 'going', pct: 40 }));
+  await page.waitForTimeout(300);
+  check(/Downloading/.test(await page.locator('#discover .want-steps li.on').textContent()), 'a download lights Downloading');
+  check(await page.evaluate(() => [...document.querySelectorAll('#sidebar .sh-activity .act-row')].some((r) => /song_p\.psarc/.test(r.textContent))), 'the download is in Activity');
+  await shot('wanted-downloading');
+  await page.locator('#discover .want-view button', { hasText: 'By artist' }).click();
+  await page.waitForTimeout(400);
+  check((await page.locator('#discover .want-group').count()) >= 1, 'By artist groups them');
+  await page.locator('#discover .want-view button', { hasText: 'In order' }).click();
 
   // Wanted with nothing in it
   await page.evaluate(async () => {

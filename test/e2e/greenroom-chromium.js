@@ -95,7 +95,7 @@ function site() {
     if (p === '/src/renderer/harness.html') return res.writeHead(200, { 'Content-Type': 'text/html' }).end(HARNESS);
     const f = path.join(ROOT, p);
     if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) return res.writeHead(404).end();
-    const type = f.endsWith('.js') ? 'text/javascript' : f.endsWith('.css') ? 'text/css' : f.endsWith('.html') ? 'text/html' : f.endsWith('.svg') ? 'image/svg+xml' : f.endsWith('.wasm') ? 'application/wasm' : f.endsWith('.json') ? 'application/json' : 'application/octet-stream';
+    const type = f.endsWith('.js') || f.endsWith('.mjs') ? 'text/javascript' : f.endsWith('.css') ? 'text/css' : f.endsWith('.html') ? 'text/html' : f.endsWith('.svg') ? 'image/svg+xml' : f.endsWith('.wasm') ? 'application/wasm' : f.endsWith('.json') ? 'application/json' : 'application/octet-stream';
     res.writeHead(200, { 'Content-Type': type });
     fs.createReadStream(f).pipe(res);
   });
@@ -125,7 +125,7 @@ async function stagehand(browser, name, relay, url) {
   const takes = []; // { id, kind, name, file, seconds, at, bytes, about, data }
   const saved = []; // tones kept
   const levels = await new Levels({ file: path.join(tmp, `${name}-levels.json`), sessions: () => HISTORY[name] || [], songs: () => (name === 'Alex' ? SONGS : {}) }).load();
-  const room = new GreenRoom({ file: path.join(tmp, `${name}.json`), fetchImpl: fetch, relays: [relay], room: 'E2E ROOM', listClips: async () => takes.filter((t) => t.kind === 'video'), level: () => levels.state().level });
+  const room = new GreenRoom({ file: path.join(tmp, `${name}.json`), fetchImpl: fetch, relays: [relay], room: 'E2E ROOM', listClips: async () => takes.filter((t) => t.kind === 'video' || t.kind === 'audio'), level: () => levels.state().level });
   await room.load();
   const page = await browser.newPage({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 1 });
   page.on('console', (m) => m.type() === 'error' && !/404|Failed to load/.test(m.text()) && console.log(`[${name}] CONSOLE ${m.text()}`));
@@ -146,19 +146,19 @@ async function stagehand(browser, name, relay, url) {
     'room.hide': (a, on) => room.hide(a, on),
     'room.share': (id, on) => {
       const t = takes.find((x) => x.id === id);
-      if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can go backstage'), { code: 'NOT_VIDEO' });
+      if (on && (!t || (t.kind !== 'video' && t.kind !== 'audio'))) throw Object.assign(new Error('Only videos and loops can go backstage'), { code: 'NOT_VIDEO' });
       return room.setShared(id, on);
     },
     'room.connect': (addr, sdp) => room.connect(addr, sdp, { onStage: (stage) => page.evaluate((p) => window.__emit('room:progress', p), { addr, stage }).catch(() => {}) }),
     'room.answer': (c, sdp) => room.answer(c, sdp),
     'room.hostList': () => {
-      const list = room.joined ? takes.filter((t) => t.kind === 'video' && room.isShared(t.id)) : [];
+      const list = room.joined ? takes.filter((t) => (t.kind === 'video' || t.kind === 'audio') && room.isShared(t.id)) : [];
       return { name: room.data.name, recordings: list.map((t) => ({ ...clipSummary(t), name: t.name, seconds: t.seconds, tone: (t.about && t.about.tone) || null })) };
     },
     'room.hostRead': async (id, part, offset, length) => {
       const t = takes.find((x) => x.id === id);
       if (t && t.slow) await new Promise((r) => setTimeout(r, t.slow));
-      if (!t || t.kind !== 'video' || !isShared(id)) throw Object.assign(new Error('That video isn’t shown'), { code: 'NOT_SHARED' });
+      if (!t || (t.kind !== 'video' && t.kind !== 'audio') || !isShared(id)) throw Object.assign(new Error('That video isn’t shown'), { code: 'NOT_SHARED' });
       return { size: t.data.length, b64: t.data.subarray(offset, offset + length).toString('base64') };
     },
     'tones.save': (t) => (saved.push(t), { ...t, id: `t${saved.length}` }),
@@ -192,6 +192,9 @@ async function stagehand(browser, name, relay, url) {
   room.on('offer', (o) => page.evaluate((o) => window.__emit('room:offer', o), o).catch(() => {}));
   room.on('change', (st) => page.evaluate((st) => window.__emit('room:change', st), st).catch(() => {}));
   room.on('message', (m) => page.evaluate((m) => window.__emit('room:message', m), m).catch(() => {}));
+  page.on('pageerror', (e) => console.log(`PAGEERR ${name}: ${e.message}`));
+  page.on('response', (r) => r.status() >= 400 && console.log(`HTTPERR ${r.status()} ${r.url()}`));
+  page.on('console', (m) => m.type() === 'error' && console.log(`CONSOLEERR ${m.text()}`));
   await page.goto(`${url}/src/renderer/harness.html`);
   await page.waitForFunction(() => window.ready, null, { timeout: 30000 });
   return { room, takes, saved, page, name, levels };
@@ -267,7 +270,8 @@ const shot = async (S, file) => {
     // Alex: My clips; only videos can be shown
     await A.page.evaluate(() => window.GR.openGreenRoom({ tab: 'mine' }));
     await A.page.waitForSelector('#page-greenroom .gr-row');
-    check((await A.page.locator('.gr-row.video .gr-show').count()) === 2 && (await A.page.locator('.gr-row:not(.video) .gr-show').count()) === 0, 'only videos have Show backstage');
+    check((await A.page.locator('.gr-row.video .gr-show').count()) === 2 && (await A.page.locator('.gr-row:not(.video) .gr-show').count()) === (await A.page.locator('.gr-row:not(.video)').count()), 'videos and loops (4.24) have Show backstage');
+    check((await A.page.locator('.gr-cats button').count()) === 4, 'My recordings has All, Clips, Jams and Loops');
     check(/Paranoid · Lead · Crunchy Plexi/.test(await A.page.locator('.gr-row[data-clip="k_aaaaaaaaaa"]').textContent()), 'a clip in My clips says its song, part and tone');
     await A.page.locator('.gr-row[data-clip="k_aaaaaaaaaa"] .gr-show').click();
     // the first time: pick a name
@@ -382,8 +386,28 @@ const shot = async (S, file) => {
     await shot(B, 'gr-4-room.png');
     // the filters
     await B.page.locator('.gr-filter button:has-text("Bass")').click();
-    check((await B.page.locator('.gr-card').count()) === 0 && /No clips match/.test(await B.page.locator('#page-greenroom').textContent()), 'Bass hides a guitar clip');
+    check((await B.page.locator('.gr-card').count()) === 0 && /Nothing matches/.test(await B.page.locator('#page-greenroom').textContent()), 'Bass hides a guitar clip');
     await B.page.locator('.gr-filter button:has-text("All")').click();
+    // 4.24: a loop (sound) shown backstage reaches Bo under Loops, in its own list (older Stagehands don't read it)
+    await A.room.setShared('k_cccccccccc', true);
+    await B.page.waitForFunction(() => document.querySelectorAll('.gr-card').length === 2, null, { timeout: 20000 }).catch(() => {});
+    await B.page.locator('.gr-cats button:has-text("Loops")').click();
+    await B.page.waitForTimeout(300);
+    const loopCards = await B.page.locator('.gr-card').allTextContents();
+    check(loopCards.length === 1 && /Loop at 90 BPM/.test(loopCards[0]) && /Loop/.test(loopCards[0]), `Bo sees Alex’s loop under Loops (${loopCards.join(' | ')})`);
+    await B.page.locator('.gr-cats button:has-text("All")').click();
+    // 4.24: Shared tones: Alex's tone, got from Alex's PC, then Try / Save a copy / Put on a key
+    await B.page.locator('.gr-tabs button[data-tab="tones"]').click();
+    await B.page.waitForSelector('.gr-tone', { timeout: 10000 });
+    check(/Crunchy Plexi/.test(await B.page.locator('.gr-tone').first().textContent()), 'Shared tones lists Alex’s tone');
+    await B.page.locator('.gr-tone button:has-text("Get it")').first().click();
+    await B.page.waitForSelector('.gr-tone button:has-text("Put on a key")', { timeout: 30000 }).catch(() => {});
+    const tacts = await B.page.locator('.gr-tone').first().textContent();
+    check(/Try it/.test(tacts) && /Save a copy/.test(tacts) && /Put on a key/.test(tacts), `once got: Try it, Save a copy, Put on a key (${tacts.slice(0, 120)})`);
+    await shot(B, 'gr-tones.png');
+    await B.page.locator('.gr-tabs button[data-tab="room"]').click();
+    await A.room.setShared('k_cccccccccc', false);
+    await B.page.waitForFunction(() => document.querySelectorAll('.gr-card').length === 1, null, { timeout: 20000 }).catch(() => {});
 
     // Bo watches it
     await B.page.locator('.gr-card').first().click();

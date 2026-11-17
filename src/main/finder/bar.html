@@ -38,6 +38,30 @@
   .msg.good { color: var(--good); }
   .msg.warn { color: var(--warn); }
   .grp { display: flex; gap: 6px; flex: none; }
+  /* 4.24: what the latest download is doing: downloading, then checked and imported, then in Songs */
+  .flow { display: flex; align-items: center; gap: 4px; flex: none; font-size: 11.5px; }
+  .flow[hidden] { display: none; }
+  .flow .st { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 4px; color: var(--ink-3); border: 1px solid #3a332a; background: #1d1915; white-space: nowrap; }
+  .flow .st i { font-style: normal; display: inline-block; }
+  .flow .st b { font-weight: 700; }
+  .flow .st em { font-style: normal; font-variant-numeric: tabular-nums; }
+  .flow .ar { color: #5b5040; }
+  .flow .st.on { color: #1a1408; background: var(--gold); border-color: #000; }
+  .flow .st.on i { animation: bob .7s ease-in-out infinite; }
+  .flow .st.done { color: var(--good); border-color: #3f6b46; }
+  .flow .st.bad { color: #ffb0a0; border-color: #8a3b2c; }
+  .flow .st.pop { animation: pop .55s cubic-bezier(.2,1.6,.4,1); }
+  .flow .st.pop i { animation: fly .9s ease-out; }
+  @keyframes bob { 50% { transform: translateY(2px); } }
+  @keyframes pop { 0% { transform: scale(.7); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+  @keyframes fly { 0% { transform: translateY(8px) rotate(-20deg); opacity: 0; } 60% { transform: translateY(-6px) rotate(10deg); opacity: 1; } 100% { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .flow .st.on i, .flow .st.pop, .flow .st.pop i { animation: none; } }
+  @media (max-width: 1250px) { .flow .st b { display: none; } }
+  body.flowing .msg { display: none; }
+  /* the song landed: the steps before it shrink to their icons and the result has the room */
+  body.landed .flow .st:not([data-s='added']) b, body.landed .flow .st em { display: none; }
+  body.landed .msg { min-width: 220px; }
+  body.flowing .flow { flex: 1 1 auto; }
   .none .want, .none [data-act=find], .none [data-act=skip] { display: none; }
   /* 4.23: on a narrow window the words step aside before the buttons do */
   @media (max-width: 1100px) { .msg { -webkit-line-clamp: 1; font-size: 12px; } .tape { display: none; } }
@@ -55,6 +79,13 @@
   <div class="grp">
     <button class="go" data-act="find" title="Type this song into the site’s search box">Find</button>
     <button data-act="skip" title="Leave this one for later and look for the next wanted song">Next song</button>
+  </div>
+  <div class="flow" id="flow" hidden aria-live="polite">
+    <span class="st" data-s="going"><i>⬇</i><b>Downloading</b><em id="pct"></em></span>
+    <span class="ar">›</span>
+    <span class="st" data-s="adding"><i>⟳</i><b>Checking &amp; importing</b></span>
+    <span class="ar">›</span>
+    <span class="st" data-s="added"><i>♪</i><b>In Songs</b></span>
   </div>
   <div class="msg" id="msg">Sign in to CustomsForge here once. Songs you download in this window go straight into your library.</div>
   <div class="grp zoom" role="group" aria-label="Page size">
@@ -77,6 +108,24 @@
       $('left').textContent = st.want.left > 1 ? `${st.want.left - 1} more wanted after this` : 'from your Wanted list';
       $('song').title = $('song').textContent;
     }
+    // the latest download's steps
+    const last = (st.downloads || []).slice(-1)[0];
+    const flow = $('flow');
+    flow.hidden = !last;
+    if (last) {
+      const order = ['going', 'adding', 'added'];
+      const at = last.state === 'failed' || last.state === 'saved' ? -1 : order.indexOf(last.state);
+      for (const el of flow.querySelectorAll('.st')) {
+        const i = order.indexOf(el.dataset.s);
+        const was = el.className;
+        el.className = `st${at === i && last.state !== 'added' ? ' on' : ''}${(at > i || (last.state === 'added' && i <= at)) ? ' done' : ''}${last.state === 'failed' && i === 0 ? ' bad' : ''}`;
+        if (last.state === 'added' && i === 2 && !/done/.test(was)) { el.classList.add('pop'); }
+      }
+      $('pct').textContent = last.state === 'going' && last.pct ? ` ${last.pct}%` : '';
+    }
+    // while a download is on its way the steps say it all: the message steps aside (back for the result)
+    document.body.classList.toggle('flowing', !!last && (last.state === 'going' || last.state === 'adding'));
+    document.body.classList.toggle('landed', !!last && (last.state === 'added' || last.state === 'failed' || last.state === 'saved'));
     const going = (st.downloads || []).filter((d) => d.state === 'going');
     const m = $('msg');
     m.textContent = going.length && !st.message.startsWith('Adding') ? `Downloading ${going.map((d) => `${d.name} ${d.pct}%`).join(', ')}` : st.message || HELLO;

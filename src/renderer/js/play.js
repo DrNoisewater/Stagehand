@@ -506,7 +506,11 @@ on('tones', () => {
 });
 on('page', () => {
   if (state.page === 'play') {
-    renderAll();
+    // 4.24: coming back to Jam redraws the rig only if it changed (it was rebuilt every visit)
+    render();
+    renderDrop();
+    renderDrums();
+    renderLooper();
     tuner.show();
   } else tuner.hide();
 });

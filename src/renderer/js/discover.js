@@ -11,6 +11,7 @@ import { decorativeImage } from './menu-art.js';
 import { did } from './rewards.js';
 import { api } from './api.js';
 import { state, on, emit, setView, rsListIds, rsListLabel, loadRocksmith, upsertSongs, loadLibrary, missingParts } from './store.js';
+import { setJob } from './activity.js';
 import { artImg, harvest } from './artkeep.js';
 import { h, icon, esc, toast, showMenu, fmtDuration, fmtDate, fmtDateTime, modal, debounce } from './ui.js';
 import * as actions from './actions.js';
@@ -34,6 +35,7 @@ const D = {
   sel: new Map(), // key -> {artist,title,album,year}
   missingOnly: localStorage.getItem('stagehand.missingOnly') === '1',
   // 4.23: which tracks an artist page shows: all | missing | wanted | owned | parts (in the library but missing a part)
+  wantView: localStorage.getItem('stagehand.wantView') || 'queue',
   show: localStorage.getItem('stagehand.dvShow') || (localStorage.getItem('stagehand.missingOnly') === '1' ? 'missing' : 'all'),
   cfOpened: false,
   run: null, // 4.0.4: Get songs: { current, done, skipped: Set, total }
@@ -1098,9 +1100,11 @@ function renderWanted(page) {
   }
   const subText = D.wanted.length ? `${plural(left.length, 'song')} to find${found.length ? ` · ${found.length} found` : ''}` : 'Songs you want to get, collected from Search and Collection gaps.';
   page.append(head('Wanted', subText, tools, { kicker: 'Discover' }));
-  const bar = runBar();
-  if (bar) page.append((bar.classList.add('card'), bar));
-  else page.append(howItWorks());
+  // 4.24: the Now card (what's happening, step by step, and whose turn it is), then the queue in order
+  nowEl = h('section.want-now.card');
+  page.append(nowEl);
+  drawNow({ force: true });
+  if (!D.run) page.append(howItWorks());
   if (!D.wanted.length) {
     page.append(
       emptyBox('Nothing wanted yet', 'Search for an artist, or open <b>Collection gaps</b>, tick the songs you don’t have and choose <b>Add to Wanted</b>.', [
@@ -1111,6 +1115,28 @@ function renderWanted(page) {
     return;
   }
   const seen = searchedMap();
+  // how the list is laid out: in the order they'll be looked for, or by artist
+  const view = h('div.gseg.want-view', { role: 'group', 'aria-label': 'Show the list' });
+  for (const [id, label] of [['queue', 'In order'], ['artist', 'By artist']]) {
+    const b = h('button', { type: 'button', text: label, 'aria-pressed': String((D.wantView || 'queue') === id) });
+    b.onclick = () => ((D.wantView = id), store('stagehand.wantView', id), render());
+    view.append(b);
+  }
+  page.append(h('div.want-tools', null, h('span.muted', { text: `${plural(left.length, 'song')} to find` }), view));
+  if ((D.wantView || 'queue') === 'queue') {
+    const q = runLeft();
+    const skipped = left.filter((w) => !q.includes(w));
+    const box = h('section.want-queue.card');
+    [...q, ...skipped].forEach((w, i) => box.append(queueRow(w, i + 1, seen)));
+    if (!left.length) box.append(h('p.muted', { text: 'Everything you wanted is in your library.' }));
+    page.append(box);
+    if (found.length) {
+      const fb = h('section.want-queue.found.card', null, h('div.want-head', null, h('h3', { text: 'Added to Songs' }), h('span.muted', { text: String(found.length) })));
+      for (const w of found) fb.append(queueRow(w, null, seen));
+      page.append(fb);
+    }
+    return;
+  }
   const groups = new Map();
   for (const w of [...left, ...found]) {
     if (!groups.has(w.artist)) groups.set(w.artist, []);
@@ -1165,6 +1191,88 @@ function renderWanted(page) {
   }
 }
 
+/** 4.24: a song in the queue: its place, what's happening with it, and what you can do. */
+function queueRow(w, n, seen) {
+  const now = D.run && D.run.current && D.run.current.id === w.id;
+  const skipped = D.run && D.run.skipped.has(w.id);
+  const when = seen[keyOf(w.artist, w.title)];
+  const status = w.status === 'found' ? ['ok', 'check', `In your library${w.foundAt ? ` since ${fmtDate(w.foundAt)}` : ''}`] : now ? ['now', 'search', 'Looking for it now'] : skipped ? ['skip', 'clock', 'Skipped for now'] : when ? ['seen', 'search', `Searched ${fmtDate(when)}`] : ['wait', 'star', 'Waiting'];
+  const row = h(`div.want-row.q${w.status === 'found' ? '.found' : ''}${now ? '.now' : ''}`);
+  row.append(
+    h('div.c-num', { text: n ? String(n) : '' }),
+    h('div.c-main', null, h('div.t', { text: w.title }), h('div.s', null, h('button.dv-link', { type: 'button', text: w.artist, onclick: () => openArtist({ name: w.artist }, 'wanted') }), [w.album, w.year].filter(Boolean).length ? h('span', { text: ` · ${[w.album, w.year].filter(Boolean).join(' · ')}` }) : '')),
+    h(`span.wstate.${status[0]}`, { html: `${icon(status[1])}<span>${esc(status[2])}</span>` })
+  );
+  const acts = h('div.acts');
+  if (w.status === 'found') {
+    if (w.songId && state.songs.has(w.songId)) acts.append(btn('Play', { cls: 'small ghost', iconName: 'play', onClick: () => actions.playSong(w.songId) }), iconBtn('library', 'Show in Songs', () => (setView({ kind: 'all' }), emit('reveal', w.songId))));
+  } else {
+    acts.append(btn('Find', { cls: 'small', iconName: hasFinder() ? 'search' : 'external', title: 'Look for it now', onClick: () => findOnCF(w, { open: !D.cfOpened }) }));
+    acts.append(iconBtn('x', 'Remove from Wanted', () => unwant([w.id])));
+  }
+  row.append(acts);
+  return row;
+}
+
+/**
+ * 4.24: the Now card. Says the song being looked for, how far the queue has got, the steps (Ready to
+ * search › Choose a version › Downloading › Checking › Importing › Added) with the one you're at lit,
+ * and whose turn it is: yours (pick and download) or Stagehand's (it's working). A download that came
+ * in but wasn't the song asked for doesn't tick it off: it says so and lets you choose.
+ */
+let nowEl = null;
+function drawNow({ force = false } = {}) {
+  if (!nowEl || (!force && !nowEl.isConnected)) return;
+  const left = D.wanted.filter((w) => w.status === 'wanted');
+  nowEl.innerHTML = '';
+  if (!left.length && !D.run) {
+    nowEl.hidden = true;
+    return;
+  }
+  nowEl.hidden = false;
+  const run = D.run;
+  const cur = run ? run.current : runLeft()[0];
+  if (!cur) {
+    nowEl.hidden = true;
+    return;
+  }
+  const f = D.fstage && Date.now() - D.fstage.at < 10 * 60 * 1000 ? D.fstage : null;
+  const forCur = f && (!f.want || f.want.id === cur.id || keyOf(f.want.artist || '', f.want.title || '') === keyOf(cur.artist, cur.title));
+  // where we are
+  let at = run ? 1 : 0; // 0 ready, 1 choose, 2 downloading, 3 checking/importing, 4 added
+  let turn = run ? 'you' : 'idle';
+  let line = run ? (hasFinder() ? 'In the song finder: pick the PC version and press its download button.' : 'In CustomsForge: paste into the search box, pick the PC version and download it.') : 'Press Get songs to look for them one after another, or Find on any song.';
+  if (forCur && f.state === 'going') ((at = 2), (turn = 'sh'), (line = `Downloading ${f.name}${f.pct ? ` · ${f.pct}%` : ''}`));
+  else if (forCur && f.state === 'adding') ((at = 3), (turn = 'sh'), (line = `Checking ${f.name} and adding it to Songs…`));
+  else if (forCur && (f.state === 'added' || f.state === 'had') && cur.status === 'wanted') ((at = 3), (turn = 'you'), (line = `${f.name} came in, but it doesn’t look like “${cur.title}”. Keep looking, or say it’s the one.`));
+  else if (forCur && f.state === 'failed') ((at = 2), (turn = 'you'), (line = `${f.name}: ${f.why || 'it didn’t work'}. Try another version, or Skip.`));
+  const steps = ['Ready to search', 'Choose a version', 'Downloading', 'Checking & importing', 'Added to Songs'];
+  const strip = h('ol.want-steps', { 'aria-label': 'Steps' });
+  steps.forEach((t, i) => strip.append(h(`li${i < at ? '.done' : i === at ? '.on' : ''}`, null, h('i', { text: i < at ? '✓' : String(i + 1) }), h('span', { text: t }))));
+  const pos = run ? `${run.done + 1} of ${run.done + left.filter((w) => !run.skipped.has(w.id)).length}` : `${left.length} to find`;
+  const who = h(`span.want-turn.${turn}`, { text: turn === 'you' ? 'Waiting on you' : turn === 'sh' ? 'Stagehand is working' : 'Not started' });
+  const acts = h('div.acts');
+  if (run) {
+    if (hasFinder()) acts.append(btn('Show the finder', { cls: 'small soft', iconName: 'search', onClick: () => runCopy(cur) }));
+    else acts.append(btn('Open CustomsForge', { cls: 'small soft', iconName: 'external', onClick: () => runCopy(cur, { open: true }) }));
+    if (forCur && (f.state === 'added' || f.state === 'had') && cur.status === 'wanted') acts.append(btn('That’s the one', { cls: 'small', iconName: 'check', title: 'Take it off Wanted: the download was this song', onClick: () => unwant([cur.id]) }));
+    if (forCur && f.state === 'failed') acts.append(btn('Try again', { cls: 'small', iconName: 'repeat', onClick: () => runCopy(cur) }));
+    acts.append(btn('Skip', { cls: 'small', title: 'Leave this one for later and look for the next', onClick: () => runNext({ skip: true }) }), btn('Stop', { cls: 'small ghost', onClick: () => stopRun() }));
+  } else {
+    acts.append(btn('Get songs', { cls: 'small primary', iconName: 'download', onClick: () => startRun() }), btn('Find', { cls: 'small soft', iconName: 'search', onClick: () => findOnCF(cur, { open: !D.cfOpened }) }));
+  }
+  const lastAdded = D.wanted.filter((w) => w.status === 'found' && w.songId && state.songs.has(w.songId)).sort((a, b) => (b.foundAt || 0) - (a.foundAt || 0))[0];
+  if (lastAdded) acts.append(btn('View imported', { cls: 'small ghost', iconName: 'library', title: `Show “${lastAdded.title}” in Songs`, onClick: () => (setView({ kind: 'all' }), emit('reveal', lastAdded.songId)) }));
+  nowEl.append(
+    h('div.want-now-top', null,
+      h('div.want-now-what', null, h('small', { text: run ? `Now · ${pos}` : `Next up · ${pos}` }), h('b', { text: `${cur.artist} – ${cur.title}` })),
+      who),
+    strip,
+    h('p.want-now-line', { text: line }),
+    acts
+  );
+}
+
 function howItWorks() {
   const st = D.imports;
   const watching = st && st.watch;
@@ -1177,7 +1285,10 @@ function howItWorks() {
     h('li', null, h('b', { text: 'Download' }), h('span', { text: hasFinder() ? 'Get the PC version (_p.psarc) in that window.' : 'Get the PC version (_p.psarc) in your browser.' })),
     h('li', null, h('b', { text: 'Play' }), h('span', { text: 'Stagehand moves it into Rocksmith and ticks it off here.' }))
   );
-  box.append(steps);
+  // 4.24: folded once there's a queue (the Now card shows the steps as they happen)
+  const fold = h('details.how-fold', null, h('summary', { text: 'How it works' }), steps);
+  fold.open = !D.wanted.length;
+  box.append(fold);
   const status = h('div.how-status');
   if (watching) {
     status.append(h('span.status-dot.on'), h('span', { html: `Watching <b>${esc(shortPath(st.watchDir))}</b> for downloads` }), btn('Import settings', { cls: 'small ghost', onClick: () => open('imports') }));
@@ -1573,6 +1684,14 @@ api.on('rocksmith:changed', () => loadRocksmith());
 // the song finder's own buttons: Next song, and Stop
 api.on('finder:event', (e) => {
   if (!e) return;
+  // 4.24: what the latest download is doing (Activity, and the Wanted page's Now card)
+  if (e.type === 'download') {
+    D.fstage = { ...e, at: Date.now() };
+    const done = e.state === 'added' || e.state === 'had';
+    setJob(`dl:${e.name}`, { kind: 'import', label: e.state === 'going' ? 'Downloading' : e.state === 'adding' ? 'Checking and importing' : done ? (e.state === 'had' ? 'Already in Songs' : 'Added to Songs') : 'Download', song: e.name, state: e.state === 'going' ? 'running' : e.state === 'adding' ? 'finalizing' : done ? 'done' : 'failed', progress: e.state === 'going' && e.pct ? e.pct / 100 : null, phase: e.state === 'failed' ? e.why || 'It didn’t work' : e.state === 'adding' ? 'Checking the file' : done ? 'In your library' : 'From the song finder' });
+    if (sub() === 'wanted') drawNow();
+    return;
+  }
   if (e.type === 'skip') {
     if (D.run) runNext({ skip: true }).catch(() => {});
     else findNext().catch(() => {});

@@ -14,7 +14,7 @@ import { h, icon, stemsLeft } from './ui.js';
 
 const KEEP_DONE_MS = 90 * 1000; // a finished job stays in the summary this long
 const jobs = new Map(); // id -> { id, kind, label, song, state, progress, phase, eta, at, endedAt, cancel, retry, first }
-const ICONS = { stems: 'split', singer: 'mic', vocal: 'mic', import: 'download', clip: 'download', update: 'download', record: 'record' };
+const ICONS = { stems: 'split', singer: 'mic', vocal: 'mic', import: 'download', clip: 'download', update: 'download', record: 'record', tones: 'tones' };
 
 /** A job started or moved on. state: queued | running | finalizing | done | failed | canceled. */
 export function setJob(id, patch) {
@@ -76,6 +76,22 @@ function fromImports(st) {
 on('stems-update', fromStems);
 on('singer-upgrade', fromSinger);
 if (api.on) {
+  // 4.24: setting up stem splitting (downloads and installs), the audio decoder, reading tones in songs
+  api.on('engine:progress', (p) => {
+    if (!p) return;
+    const done = p.done || p.state === 'done';
+    setJob('engine', { kind: 'update', label: 'Setting up stem splitting', song: '', state: p.error ? 'failed' : done ? 'done' : 'running', progress: Number.isFinite(p.value) && p.value > 0 ? p.value : null, phase: p.error || p.step || p.detail || (done ? 'Ready' : 'Working') });
+  });
+  api.on('tools:progress', (p) => {
+    if (!p) return;
+    const v = Number(p.value) || 0;
+    setJob('tools', { kind: 'update', label: 'Installing the audio decoder', song: '', state: v >= 1 ? 'done' : 'running', progress: v > 0 && v < 1 ? v : null, phase: v >= 1 ? 'Installed' : 'Downloading' });
+  });
+  api.on('tones:progress', (p) => {
+    if (!p || !p.total) return;
+    const done = p.done >= p.total;
+    setJob('tones', { kind: 'tones', label: 'Reading the tones in your songs', song: '', state: done ? 'done' : 'running', progress: done ? 1 : p.done / p.total, phase: done ? 'Every song’s tones read' : `${p.done} of ${p.total} songs` });
+  });
   api.on('import:update', fromImports);
   api.on('updates:progress', (p) => {
     if (!p) return;
@@ -93,7 +109,7 @@ setTimeout(() => {
 }, 1500);
 
 // ------------------------------------------------------------ drawing --
-const host = h('section.sh-activity', { 'aria-label': 'Activity', hidden: true });
+const host = h('section.sh-activity.idle', { 'aria-label': 'Activity' });
 const head = h('button.act-head', { type: 'button', 'aria-expanded': 'false', title: 'Everything Stagehand is doing in the background' });
 const rowsEl = h('div.act-rows');
 host.append(head, rowsEl);
@@ -166,9 +182,10 @@ const shownRows = new Map();
 function paint() {
   const list = sorted();
   const shown = list.filter((j) => live(j) || !j.faded).slice(0, 3);
-  host.hidden = !shown.length;
-  if (!shown.length) return;
-  const txt = summaryText(list.filter((j) => live(j) || !j.faded));
+  // 4.24: always there, one quiet line when nothing is going on (click for what happened lately)
+  host.hidden = false;
+  host.classList.toggle('idle', !shown.length);
+  const txt = shown.length ? summaryText(list.filter((j) => live(j) || !j.faded)) : list.length ? `All quiet · ${list.length} done lately` : 'All quiet';
   const html = `${icon('clock')}<span>Activity</span><em>${txt}</em>`;
   if (head.__html !== html) head.innerHTML = head.__html = html;
   const keep = new Set(shown.map((j) => j.id));
@@ -251,3 +268,4 @@ function act(label, ic, fn) {
 }
 
 window.__activity = { setJob, dropJob, allJobs, openDrawer }; // tests
+schedule(); // the quiet line from the start

@@ -90,6 +90,12 @@ SH_AUDIT=test/e2e/guide-audit.js node test/e2e/ui3-chromium.js native/build/stag
 SH_AUDIT=test/e2e/discover-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # 4.23: Settings › Display on a pretend screen and the TV safe area round the app and the highway
 SH_AUDIT=test/e2e/display-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# 4.24: what gets torn down and rebuilt (blinks) while sitting still, moving between pages, a split, a menu
+SH_AUDIT=test/e2e/flicker-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# 4.24: the Gear page and Create a tone keep the pedal big (pictures: gear-quack.png, rig-quack-inspect.png)
+SH_AUDIT=test/e2e/gear-look-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# Backstage with two pretend Stagehands: a clip, a loop (4.24), Shared tones, messages
+node test/e2e/greenroom-chromium.js <outDir>
 # the Gear page's spec sheet (real gear, words, every knob) on an EQ, a cabinet and an amp
 SH_AUDIT=test/e2e/gear-about-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # the sheet under the controls (what every knob and footswitch does, Hear it working, lines light as you use them) (4.22)

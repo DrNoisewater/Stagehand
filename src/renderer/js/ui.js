@@ -496,3 +496,48 @@ export function instrumentTag(rig){
  const how='set in Settings';
  return `<span class="inst-tag" title="${esc(label)} (${how})">${label}</span>`;
 }
+
+/**
+ * 4.24: bring `live` up to date with `fresh` (built the same way) without replacing what didn't change:
+ * the same element (same tag and the same page, list or label) keeps its node, its pictures and its
+ * place on screen, and only its changed attributes and words are set; anything else is swapped in.
+ * Rebuilding a whole menu on every page change made it blink (pictures reloaded, hover lost).
+ */
+export function morph(live, fresh) {
+  const idOf = (n) => (n.nodeType === 1 ? `${n.tagName}|${n.dataset.page || ''}|${n.dataset.kind || ''}|${n.dataset.setlist || ''}|${n.dataset.id || ''}|${n.getAttribute('title') || ''}|${n.tagName === 'IMG' ? n.getAttribute('src') : ''}` : `#${n.nodeType}`);
+  const a = [...live.childNodes];
+  const b = [...fresh.childNodes];
+  for (let i = 0; i < b.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (!x) {
+      live.append(y);
+      continue;
+    }
+    if (x.isEqualNode(y)) continue;
+    if (x.nodeType === 3 && y.nodeType === 3) {
+      x.nodeValue = y.nodeValue;
+      continue;
+    }
+    // a picture that changes keeps showing the old one until the new one is ready (no blank frame)
+    if (x.nodeType === 1 && y.nodeType === 1 && x.tagName === 'IMG' && y.tagName === 'IMG' && x.getAttribute('src') !== y.getAttribute('src')) {
+      const src = y.getAttribute('src');
+      for (const { name, value } of [...y.attributes]) if (name !== 'src' && x.getAttribute(name) !== value) x.setAttribute(name, value);
+      x.__want = src;
+      const pre = new Image();
+      pre.src = src;
+      (pre.decode ? pre.decode() : Promise.resolve()).catch(() => {}).then(() => {
+        if (x.__want === src) x.setAttribute('src', src);
+      });
+      continue;
+    }
+    if (x.nodeType !== 1 || y.nodeType !== 1 || idOf(x) !== idOf(y) || x.tagName === 'INPUT') {
+      live.replaceChild(y, x);
+      continue;
+    }
+    for (const { name } of [...x.attributes]) if (!y.hasAttribute(name)) x.removeAttribute(name);
+    for (const { name, value } of [...y.attributes]) if (x.getAttribute(name) !== value) x.setAttribute(name, value);
+    morph(x, y);
+  }
+  for (let i = b.length; i < a.length; i++) a[i].remove();
+}

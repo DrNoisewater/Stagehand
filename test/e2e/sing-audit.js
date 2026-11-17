@@ -68,7 +68,7 @@ module.exports = async ({ page, outDir, check }) => {
   await page.screenshot({ path: path.join(outDir, 'sing-settings-look.png') });
   await page.keyboard.press('Escape');
   // 4.23: Karaoke is a list under Songs (one library), and every song row has its play buttons
-  await page.locator('#sidebar .nav-section[data-page="songs"]').click();
+  await page.evaluate(async () => (await import('./js/store.js')).setView({ kind: 'all' }));
   await page.waitForTimeout(500);
   check((await page.locator('#sidebar .nav-section[data-page="karaoke"]').count()) === 0, 'Karaoke is no longer a page of its own on the left');
   await page.locator('#sidebar .nav-item[data-kind="karaoke"]').click();
@@ -86,7 +86,10 @@ module.exports = async ({ page, outDir, check }) => {
     const r = document.querySelector('#library .row');
     return r ? [...r.querySelectorAll('.pm')].map((b) => `${b.dataset.mode}${b.classList.contains('none') ? '-' : '+'}`) : [];
   });
-  check(btns.length === 5 && btns.includes('karaoke+'), `each row has Lead, Rhythm, Bass, Sing & play and Karaoke (${btns.join(' ')})`);
+  check(btns.length === 6 && btns.includes('karaoke+') && btns.includes('piano+'), `each row has Lead, Rhythm, Bass, Sing & play, Karaoke and Piano (${btns.join(' ')})`);
+  // 4.24: Songs is home: Stagehand opens on it, first in the menu, and "Double-click plays" picks how
+  check(await page.evaluate(() => document.querySelector('#sidebar .nav-section').dataset.page === 'songs'), 'Songs is first in the menu');
+  check((await page.locator('#library .play-as button').count()) === 4, 'Songs has Double-click plays: Guitar / bass, Sing & play, Karaoke, Piano');
   await page.screenshot({ path: path.join(outDir, 'karaoke-list.png') });
   await page.locator('#library .row .pm-karaoke:not(.none)').first().click();
   await page.waitForFunction(() => { const r = document.querySelector('.highway'); return r && !r.hidden; }, null, { timeout: 30000 });

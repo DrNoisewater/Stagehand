@@ -1,3 +1,63 @@
+# 4.24.0 — Songs is home, the gear stays big, Backstage and Wanted reworked, less blinking (2026-11-17; nothing tried on the user’s PC)
+
+The user (after 4.23.0): "Backstage area. Activity panel. Still flickering. Tidy all pages. Songs is main home for
+playing any song, piano or singing. Gear section. The pedals need to be full size large… The text describing what
+each part does needs to be able to be hidden or collapsible, but it should not interfere with the look of the pedal…
+Song finder seems to work pretty well. It'd be nice if there was a small animation showing that it downloaded a song
+and then imported it… The wanted section and discover needs the overhaul."
+
+**Built:**
+- **Blinking, measured** (`test/e2e/flicker-audit.js`: counts what's torn down and rebuilt, and pictures loaded):
+  sitting still and a split moving along rebuilt nothing; every page change rebuilt the whole left menu and its
+  sticker picture; the Gear page redrew itself (45 photos) every visit and its whole grid on every pick; Songs threw
+  away all its rows whenever any page changed. Fixed: `morph()` in `ui.js` (build fresh, keep what didn't change,
+  a changing picture keeps the old one until the new one is decoded) used by the menu (`sidebar.js`) and
+  Backstage's head and room; Gear keeps itself and only moves the lit card (`showroom.js`); Songs only rebuilds
+  when its list changed (`library.js` `listKey`); Jam redraws its rig only when it changed (`play.js`).
+- **Settings › Display › Screen flicker fix** (`main.js` `FLICKER_FIX`, read from settings.json before the window
+  is made; needs a restart, the page offers it): Fewer layers (`disable-direct-composition` and
+  `disable-direct-composition-video-overlays`: Windows draws the window as one picture; the card still draws) or
+  No graphics card (`disableHardwareAcceleration`, a last test). Not tried on Windows: ask the user to try Fewer
+  layers if it still flickers.
+- **The gear always big** (`gearabout.js` `sheetFold`, `fullSizeButton`): in Create a tone the sheet sat under the
+  pedal in a box that couldn't grow and squashed the pedal out of sight. The sheet now folds into one line ("What
+  every control does", open/closed remembered in `stagehand.sheetOpen`, folded to start); the pedal keeps a big size
+  and the panel scrolls (`rig.css` end). Full size shows the photo as big as the screen. Gear page: the picture is
+  ~30% bigger (`.sr-body` columns). Same fold on Tones.
+- **Songs is home**: opens on Songs (`store.js` page), Songs first in the menu, a Piano button on every song
+  (`playmodes.js`), "Plays" in Songs' header picks what a double-click opens a song as (Guitar / bass, Sing & play,
+  Karaoke, Piano; `stagehand.playAs`). Enter still just plays the song.
+- **Backstage** (`greenroom.js`): Community / My recordings / Shared tones / Messages. Clips, Jams and Loops
+  filters (counts). **Loops can be shown** (`services/greenroom.js`: `type`, `cat` on clips; loops go in their own
+  `loops` list in "here" so an older Stagehand never sees one; `main.js` `shareable`). **Shared tones**: every tone
+  in a clip shown here; Get it (from their PC), Try it, Save a copy, Put on a key 2–9 (asks before taking a key;
+  key 1 follows the song). The room is morphed, so people coming and going don't restart every card. Clip
+  downloads show in Activity. `test/e2e/greenroom-chromium.js` runs again (its server didn't serve .mjs) and checks
+  a loop reaching the other player and Shared tones.
+- **Activity** (`activity.js`): always a quiet line ("All quiet · N done lately"); more jobs: reading a singer's
+  notes (`singlane.js`), saving a recording (`take-video.js`), setting up stem splitting, the audio decoder, reading
+  song tones, Backstage clip downloads, finder downloads. Ordered last in the menu by CSS `order` (it can load
+  before the menu).
+- **Wanted** (`discover.js` `drawNow`, `queueRow`): a Now card (song, "N of M", the steps Ready to search › Choose a
+  version › Downloading › Checking & importing › Added to Songs with the current one lit, Waiting on you /
+  Stagehand is working, Show the finder, Skip, Stop, Try again, View imported). A download that came in but didn't
+  tick the song off says so: That's the one (takes it off Wanted) or keep looking. Queue in order (numbered, each
+  song's state: Waiting, Searched, Looking for it now, Skipped for now) or By artist; Added to Songs below; How it
+  works folds away.
+- **Song finder** (`services/finder.js`, `finder/bar.html`): each download's steps go to the main window
+  (`finder:event` `download`, at most 4 a second) and the bar shows Downloading 40% › Checking & importing › In
+  Songs, with a small pop when it lands.
+- Discover's artist header is more compact.
+- **Fixed on the way**: the Quest companion's certificate (`core/selfcert.js`) used a random serial whose first byte
+  could be 0, which a certificate doesn't allow ("illegal padding"): about 1 in 150 came out unreadable and the
+  headset's browser couldn't connect. A broken saved one is replaced by itself (it fails to load). Test in
+  `companion.test.mjs` (1500 made, all read). The page tour (`ui3-chromium.js`) runs through again: it starts on
+  Songs, then Jam; its Getting started check matches the 4.17.1 pages; the highway's top bar is checked to fit.
+
+**Ask the user:** does it still flicker (if so, try Settings › Display › Screen flicker fix › Fewer layers and say
+if it helps, and where it flickers); are the pedals big enough now; does Backstage make sense (try showing a loop);
+is the Wanted page clearer; is the finder's little animation right.
+
 # 4.23.0 — Karaoke's new stage, singing scores apart, one Songs library, Activity, Display for TVs (2026-11-17; nothing tried on the user’s PC)
 
 The user sent a full design brief for one release (singing first, then navigation, background work, Discover/finder,

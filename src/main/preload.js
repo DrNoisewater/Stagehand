@@ -55,6 +55,8 @@ contextBridge.exposeInMainWorld('stagehand', {
     resetDisplay: () => call('display:reset'),
     displayWindow: (o) => call('display:window', o),
     restoreWindow: (before) => call('display:restore', before),
+    flickerFix: (v) => call('display:flicker', v),
+    restartApp: () => call('display:restart'),
     crashNote: () => call('app:crashNote'),
   },
   library: {
