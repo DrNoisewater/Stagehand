@@ -1085,6 +1085,7 @@ function registerIpc() {
         downloadsDir: () => process.env.STAGEHAND_DOWNLOADS || app.getPath('downloads'),
         importFiles: (paths) => importer.importFiles(paths, { origin: 'finder' }),
         onEvent: (e) => send('finder:event', e),
+        prefs: { get: () => settings.get().finder || {}, set: (p) => settings.set({ finder: p }) },
         openExternal: (u) => !process.env.STAGEHAND_NO_EXTERNAL && shell.openExternal(u),
         clipboard,
         log,

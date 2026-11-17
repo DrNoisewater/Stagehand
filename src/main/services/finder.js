@@ -89,6 +89,11 @@ function createFinder(o) {
   const home = o.home || HOME;
   const extra = o.extraHosts || [];
   const BAR_H = 56;
+  // 4.23: the window opens on most of the screen and remembers its size per screen; the site can be
+  // zoomed out to fit its wide table without scrolling sideways (o.prefs: get/set, kept in settings)
+  const prefs = o.prefs || { get: () => ({}), set: () => {} };
+  const ZOOMS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25];
+  let zoom = Number(prefs.get().zoom) || 1;
   let win = null;
   let bar = null;
   let site = null;
@@ -107,6 +112,7 @@ function createFinder(o) {
       canBack: !!(site && site.webContents.navigationHistory.canGoBack()),
       canForward: !!(site && site.webContents.navigationHistory.canGoForward()),
       downloads: st.downloads.slice(-3),
+      zoom,
     });
   }
   function say(message, kind = '') {
@@ -302,20 +308,33 @@ function createFinder(o) {
     ses.removeAllListeners('will-download');
     ses.on('will-download', onDownload);
     const parent = o.parent();
+    const scr = electron.screen;
+    const pb = parent && !parent.isDestroyed() ? parent.getBounds() : null;
+    const disp = scr ? (pb ? scr.getDisplayMatching(pb) : scr.getPrimaryDisplay()) : null;
+    const area = disp ? disp.workArea : { x: 0, y: 0, width: 1180, height: 860 };
+    const dkey = disp ? `${disp.size.width}x${disp.size.height}@${Math.round((disp.scaleFactor || 1) * 100)}` : 'none';
+    const saved = (prefs.get().bounds || {})[dkey];
+    const fits = saved && saved.width <= area.width && saved.height <= area.height && saved.x >= area.x - 8 && saved.y >= area.y - 8 && saved.x + saved.width <= area.x + area.width + 8 && saved.y + saved.height <= area.y + area.height + 8;
+    const ww = fits ? saved.width : Math.round(Math.min(area.width, Math.max(1180, area.width * 0.9)));
+    const wh = fits ? saved.height : Math.round(Math.min(area.height, Math.max(760, area.height * 0.9)));
     win = new BaseWindow({
-      width: 1180,
-      height: 860,
-      minWidth: 760,
-      minHeight: 520,
+      width: ww,
+      height: wh,
+      x: fits ? saved.x : Math.round(area.x + (area.width - ww) / 2),
+      y: fits ? saved.y : Math.round(area.y + (area.height - wh) / 2),
+      minWidth: Math.min(760, area.width),
+      minHeight: Math.min(520, area.height),
       title: 'Find songs · Stagehand',
       backgroundColor: '#14110d',
       autoHideMenuBar: true,
       icon: o.icon && fs.existsSync(o.icon) ? o.icon : undefined,
     });
-    if (parent && !parent.isDestroyed()) {
-      const b = parent.getBounds();
-      win.setPosition(Math.round(b.x + Math.max(0, (b.width - 1180) / 2)), Math.round(b.y + Math.max(0, (b.height - 860) / 2)));
-    }
+    const keep = () => {
+      if (!win || win.isDestroyed() || win.isMaximized() || win.isMinimized() || win.isFullScreen()) return;
+      prefs.set({ bounds: { ...(prefs.get().bounds || {}), [dkey]: win.getBounds() } });
+    };
+    win.on('resized', keep);
+    win.on('moved', keep);
     bar = new WebContentsView({ webPreferences: { preload: path.join(__dirname, '..', 'finder', 'bar-preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false } });
     site = new WebContentsView({ webPreferences: { session: ses, contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: true } });
     win.contentView.addChildView(site);
@@ -334,8 +353,21 @@ function createFinder(o) {
       o.onEvent({ type: 'closed' });
     });
     loaded = false;
+    site.webContents.on('did-finish-load', () => site && site.webContents.setZoomFactor(zoom));
     site.webContents.loadURL(home).catch(() => {});
   }
+
+  /** The site's zoom: smaller fits more of its wide table; Fit picks the size that fits the window. */
+  function setZoom(z) {
+    zoom = Math.max(0.5, Math.min(1.5, Math.round(z * 100) / 100));
+    prefs.set({ zoom });
+    if (site) site.webContents.setZoomFactor(zoom);
+    tell();
+  }
+  const step = (d) => {
+    const i = ZOOMS.findIndex((z) => z >= zoom - 0.001);
+    setZoom(ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, (i < 0 ? ZOOMS.length - 1 : i) + d))]);
+  };
 
   const acts = {
     find: () => find(),
@@ -347,6 +379,11 @@ function createFinder(o) {
     skip: () => o.onEvent({ type: 'skip', want }),
     stop: () => o.onEvent({ type: 'stop', want }),
     close: () => win && win.close(),
+    zoomOut: () => step(-1),
+    zoomIn: () => step(1),
+    // the site's song table needs about 1400 px; fit it in the window (never above 100%)
+    zoomFit: () => win && setZoom(Math.max(0.67, Math.min(1, win.getContentBounds().width / 1400))),
+    maximize: () => win && (win.isMaximized() ? win.unmaximize() : win.maximize()),
   };
   ipcMain.on('finder-bar:act', (e, name) => {
     if (!bar || e.sender !== bar.webContents) return;
