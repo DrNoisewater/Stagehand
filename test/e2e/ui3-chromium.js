@@ -934,6 +934,10 @@ class FakePortMain extends EventEmitter {
     console.log(f ? `${f} failed` : 'all passed');
     process.exit(f ? 1 : 0);
   }
+  // 4.24: Stagehand opens on Songs; the tour starts at Jam
+  check(await page.evaluate(async () => (await import('./js/store.js')).state.page === 'songs'), 'Stagehand opens on Songs');
+  await page.evaluate(async () => (await import('./js/store.js')).setPage('play'));
+  await page.waitForTimeout(1200);
   await shot('1-play');
   const st = await page.locator('.guitar-card .gc-top').textContent().catch(() => '');
   check(/Guitar ready/.test(st || ''), `guitar starts by itself: “${(st || '').trim()}”`);
@@ -1077,6 +1081,9 @@ class FakePortMain extends EventEmitter {
     await shot('6e-highway');
     await page.evaluate(() => (document.querySelector('.highway').__hw.forceStreak = undefined));
   }
+  // 4.24: the top bar fits with the real app's tone names (nothing past the right edge)
+  const over = await page.evaluate(() => [...document.querySelectorAll('.highway .hw-top button')].filter((b) => b.offsetParent && b.getBoundingClientRect().right > innerWidth + 1).map((b) => b.textContent.trim() || b.title));
+  check(!over.length, `the highway's top bar fits (${over.join(', ') || 'all in'})`);
   await page.locator('.hw-set-btn').click();
   await page.waitForTimeout(600);
   check((await page.locator('.hw-level').count()) === 2, 'highway mix shows Your guitar and Whole song above the stems');

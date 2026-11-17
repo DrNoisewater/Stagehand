@@ -234,3 +234,11 @@ body:has(.highway:not([hidden])) .menu :is(button,.menu-item):hover { background
 @media (max-width:1180px) {
   .highway .hw-top .hw-rig-tone > span:not(.real) { display:none; }
 }
+/* 4.24: a long tone name ("Song tone · guitar", a capture's name) shrinks first, so Tools and Settings stay on screen */
+.highway .hw-top .hw-rig { min-width:0; flex-shrink:1; }
+.highway .hw-top .hw-rig .hw-rig-tone { min-width:0; flex-shrink:1; max-width:220px; }
+@media (max-width:1700px) {
+  .highway .hw-top .hw-tools-btn > span, .highway .hw-top .hw-set-btn > span { display:none; }
+  .highway .hw-top .hw-tools-btn, .highway .hw-top .hw-set-btn { padding-inline:9px; }
+  .highway .hw-top .hw-rig .hw-rig-tone { max-width:160px; }
+}
