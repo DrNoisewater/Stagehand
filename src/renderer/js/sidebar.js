@@ -208,7 +208,6 @@ function build(root) {
     b.onclick = () => openUpdate();
     top.append(b);
   }
-  top.append(section({ page: 'play', label: 'Jam', iconName: 'guitar', gel: 'var(--gel-guitar)' }));
   top.append(
     section({
       page: 'songs',
@@ -225,6 +224,8 @@ function build(root) {
   );
   const songsSub = h('div.nav-sub');
   top.append(songsSub);
+  // 4.24: Songs is home (every way to play a song starts there); Jam, just playing, comes next
+  top.append(section({ page: 'play', label: 'Jam', iconName: 'guitar', gel: 'var(--gel-guitar)' }));
   // 4.23: Karaoke is no longer a page of its own: it's a list under Songs (and a button on every song)
   top.append(section({ page: 'tones', label: 'Tones', iconName: 'tones', gel: 'var(--gel-bass)' }));
   top.append(section({ page: 'gear', label: 'Gear', iconName: 'amp', gel: 'var(--gel-lead, #ff6b3d)' }));

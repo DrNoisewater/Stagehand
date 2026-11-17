@@ -22,8 +22,9 @@ export const state = {
   loaded: false,
   // Always open on the song list (a saved list or folder is fine, Discover isn't).
   view: saved.view && saved.view.kind !== 'discover' && saved.view.kind !== 'rslist' ? saved.view : { kind: 'all' },
-  // Stagehand 3: which section is showing. Always opens on Play.
-  page: 'play',
+  // Stagehand 3: which section is showing. 4.24: opens on Songs, the home for playing anything
+  // (guitar, bass, singing, karaoke, piano); Jam is one click away.
+  page: 'songs',
   search: '',
   searchAll: true, // 4.1.6: a search looks through every song; false = only the list you were on
   parts: new Set(saved.parts || []),
