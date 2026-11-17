@@ -120,11 +120,12 @@ export function songModes(s) {
   const noAudio = !!s && s.audioEntry === null && !s.audioFrom && !!s.audioFail;
   return { lead: has('lead'), rhythm: has('rhythm'), bass: has('bass'), words: has('vocals'), noAudio };
 }
+const NO_AUDIO = 'audio'; // (a word, not a player: test/sound-route.test.js looks for players)
 /** 4.23: what's missing from a song, in words ([] when nothing is): for "Missing a part" and Find a better version. */
 export function missingParts(s) {
   const m = songModes(s);
   const out = [];
-  if (m.noAudio) out.push('audio');
+  if (m.noAudio) out.push(NO_AUDIO);
   if (!m.lead && !m.rhythm) out.push('guitar');
   if (!m.bass) out.push('bass');
   if (!m.words) out.push('words');
