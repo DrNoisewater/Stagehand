@@ -178,7 +178,7 @@ export function knobHelp(name) {
  * The big view of one piece in a tone: photo with its turning knobs + the control strip.
  * onKnob(key, value, final) is called as knobs move.
  */
-export function gearPanel(g, { gel = '#c9a560', onKnob, disabled = false, bypass = null } = {}) {
+export function gearPanel(g, { gel = '#c9a560', onKnob, disabled = false, bypass = null, explain = null } = {}) {
   const box = h('div.gb-panel');
   const strip = h('div.gb-strip', { role: 'group', 'aria-label': `${gearName(g.key)} controls` });
   const ks = knobsOf(g);
@@ -206,7 +206,12 @@ export function gearPanel(g, { gel = '#c9a560', onKnob, disabled = false, bypass
     box.append(h('div.gb-photo', { style: { '--ar': String(photo.width / photo.height) } }, face));
   } else box.append(h('div.gb-photo.drawing', { html: gearArt(g) }));
   const note = !ks.length ? '' : onPhoto.size === ks.length ? 'Work the controls on the photo or on the strip: they’re the same controls.' : onPhoto.size ? 'Controls you can’t see on the photo are on the strip.' : 'Set it with the knobs on the strip.';
-  box.append(h('div.gb-strip-wrap', null, note ? h('small.gb-note', { text: note }) : '', strip));
+  // 4.23: explain = { about, describe }: what it does above the controls, and each control's words beside it
+  // (no sheet under the picture: the picture keeps its full size)
+  if (explain) {
+    if (explain.describe) explain.describe(strip);
+    box.append(h('div.gb-strip-wrap.explained', null, explain.about || '', strip));
+  } else box.append(h('div.gb-strip-wrap', null, note ? h('small.gb-note', { text: note }) : '', strip));
   box.dispose = () => (face && face.dispose && face.dispose(), holds.forEach((b) => b._dispose && b._dispose()));
   return box;
 }

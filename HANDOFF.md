@@ -1,3 +1,22 @@
+# 4.22.1 — The words sit with the controls; the pedal keeps its full size (2026-11-17)
+
+The user, on 4.22's sheet: "too intrusive, seeing the pedal full size is a major feature, we want to see the pedal and
+change knobs and switches, the descriptive area should be naturally incorporated in to section. Pedal image fidelity
+is key." In Create a tone the sheet was added under the panel in the same column, which squeezed the picture to a
+sliver (the paper covered it); on the Gear page it sat crammed under the knob strip.
+- **No sheet where the picture is** (Gear page, Create a tone, Tones page): `gearPanel(g, { explain })` (gearbench.js)
+  puts, in the side column beside the full-size picture, `aboutBlurb(it)` (gearabout.js): "Modelled on …", what it does
+  in three lines, and two quiet links, **More** (the rest) and **Hear it working** (the tip, folded). Then
+  `describeControls(strip, key)` turns each control into a row: the knob (its own name hidden, its setting shown) and
+  beside it its name, kind (switch, footswitch…), what it does, a switch's positions. `linkSheet(panel, panel)` lights a
+  row while its control is turned or pressed (on the strip or the picture). Side column 34–36 % (was ~30 %).
+- The full sheet (`aboutCard`) stays for cabinets on the Gear page and step by step's folded "What does what?", restyled
+  quiet and dark (no paper, no tape) to match.
+- Checked: `sheet-audit.js` (updated: no sheet over the picture, picture ≥ 250–300 px tall, every control has its row,
+  rows light when used, Hear it working opens) all pass; npm test passes.
+
+**Ask the user:** are the knob words easy to read beside the knobs, and is the picture big enough now?
+
 # 4.22.0 — What every control does, under the controls (2026-11-15; nothing tried on the user’s PC)
 
 The user: "So many pedals now. I'm not even sure if they work! They need detailed descriptions under the knobs of what

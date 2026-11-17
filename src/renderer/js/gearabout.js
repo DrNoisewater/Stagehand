@@ -7,6 +7,12 @@
  * 4.22: the same sheet sits under the controls in Create a tone, the Tones page and step by step's
  * Pedals too, and lists the footswitches and levers as well as the knobs, with each switch's
  * positions. linkSheet() lights up the line of whatever control is being turned or pressed.
+ *
+ * 4.23: the user: "too intrusive, seeing the pedal full size is a major feature … the descriptive area
+ * should be naturally incorporated into the section". Where the picture and its controls are shown
+ * (the Gear page, Create a tone, the Tones page) there's no sheet any more: describeControls() writes
+ * each control's words right beside that control, and aboutBlurb() puts what the piece does in a few
+ * quiet lines above them (the rest a click away). The sheet stays for cabinets and step by step's fold.
  */
 import { h } from './ui.js';
 import { gearInfo, gearName } from './gearspec.js';
@@ -129,4 +135,76 @@ export function linkSheet(root, card) {
     root.removeEventListener('pointerdown', onDown, true);
     root.removeEventListener('focusin', onDown, true);
   };
+}
+
+/** 4.23: what the piece does, in a few quiet lines at the top of its controls: the gist (three lines,
+ * "More" opens the rest), what it's modelled on, and how to hear it working. */
+export function aboutBlurb(it) {
+  const box = h('div.gc-about');
+  const fill = () => {
+    box.textContent = '';
+    const a = aboutOf(it.key) || {};
+    if (a.real) box.append(h('p.gc-real', null, h('small', { text: a.guess ? 'Probably based on ' : 'Modelled on ' }), h('b', { text: a.real })));
+    if (a.about) box.append(h('p.gc-text', { text: a.about }));
+    // the rest stays a click away: the whole text, and how to hear it working
+    const links = h('div.gc-links');
+    const more = h('button.gc-more', { type: 'button', text: 'More', 'aria-expanded': 'false' });
+    more.onclick = () => more.setAttribute('aria-expanded', String(box.classList.toggle('open')));
+    if (a.about) links.append(more);
+    if (a.try) {
+      const tip = h('p.gc-try', { hidden: true }, a.try);
+      const hear = h('button.gc-more', { type: 'button', text: 'Hear it working', 'aria-expanded': 'false' });
+      hear.onclick = () => {
+        tip.hidden = !tip.hidden;
+        hear.setAttribute('aria-expanded', String(!tip.hidden));
+      };
+      links.append(hear);
+      box.append(links, tip);
+    } else if (a.about) box.append(links);
+    if (a.about) requestAnimationFrame(() => {
+      const t = box.querySelector('.gc-text');
+      more.hidden = !!t && t.scrollHeight <= t.clientHeight + 2 && !box.classList.contains('open');
+    });
+    box.hidden = !box.childNodes.length;
+  };
+  if (ABOUT) fill();
+  else loadAbout().then(fill);
+  return box;
+}
+
+/** 4.23: each control's words beside that control. box holds the controls (knob cells, knobs,
+ * footswitches); each becomes a row: the control, then what it does (and a switch's positions).
+ * Lines light while their control is used (linkSheet on the same box). */
+export function describeControls(box, key) {
+  if (!box) return box;
+  const lines = new Map(controlLines(key).map((l) => [l.name.toLowerCase(), l]));
+  const words = (name) => {
+    const l = lines.get(String(name || '').toLowerCase());
+    if (!l) return null;
+    const p = h('p.gc-say', { 'data-ctl': l.name.toLowerCase() }, h('b', { text: l.name }), l.kind && l.kind !== 'On/off' ? h('small.gc-kind', { text: l.kind }) : '', h('span', { text: l.text }));
+    if (l.positions) p.append(h('small.gc-pos', { text: l.positions }));
+    return p;
+  };
+  const rowFor = (ctl, name, holder = ctl) => {
+    const say = words(name);
+    if (!say) return;
+    const row = h(`div.gc-row${ctl.matches('.rhold') ? '.gc-foot' : ''}`);
+    holder.replaceWith(row);
+    row.append(holder, say);
+  };
+  for (const el of [...box.children]) {
+    if (el.matches('.gb-holds')) {
+      for (const b of [...el.children]) if (b.matches('.rhold')) rowFor(b, b.dataset.moment);
+      el.classList.add('gc-feet');
+      continue;
+    }
+    if (el.matches('.rhold')) rowFor(el, el.dataset.moment);
+    else if (el.matches('.rknob')) rowFor(el, el.getAttribute('aria-label'));
+    else {
+      const k = el.querySelector('.rknob[aria-label]');
+      if (k) rowFor(k, k.getAttribute('aria-label'), el);
+    }
+  }
+  box.classList.add('described');
+  return box;
 }

@@ -22,7 +22,7 @@ import { h, icon, esc, toast, showMenu, confirmDialog } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { loadGear } from './gearspec.js';
 import { readingBar, tonelib, byId, useTone, saveTone, removeTone, assignSlot, SLOT_GELS, SLOT_COUNT, TYPE_GELS, TYPE_NAMES, knobsOf, orderedGear, shortGearName, gelOf, chainText, songToneLibrary, bySlot, activeSlot } from './tonelib.js';
-import { aboutCard, linkSheet } from './gearabout.js';
+import { aboutBlurb, describeControls, linkSheet } from './gearabout.js';
 import { chainEl, gearLineup, gearFaceplate, rotaryKnob, fmtKnob, gearSummary, demoButton, stopDemo, gearKnob, labStrip } from './rigui.js';
 import { realAmpStrip, realBadge, getAllRealAmps, batch } from './realamps.js';
 import { caps, ampOf, packForCurated, resolveCapture } from './captures.js';
@@ -729,11 +729,9 @@ function renderAdvanced(d) {
     if (!knobs.childNodes.length) knobs.append(h('span', { text: 'No knobs on this one.', style: { color: 'var(--ink-3)' } }));
     const faceplate = gearFaceplate(g.key, knobs, { bypass: { on: () => !g.bypass, toggle: () => byp.onclick() } });
     if (faceplate) card.append(faceplate);
-    card.append(knobs);
-    // 4.22: what it does and what every control does, under the knobs
-    const sheet = aboutCard({ key: g.key, t: g.slot, name: shortGearName(g.key) }, g.key);
-    linkSheet(card, sheet);
-    card.append(sheet);
+    // 4.23: what it does in a few lines, then each control with its own words beside it (no sheet)
+    card.append(aboutBlurb({ key: g.key }), describeControls(knobs, g.key));
+    linkSheet(card, card);
     row.append(card);
   }
   row.append(cabCard(d));
