@@ -656,7 +656,7 @@ export function createSing({ root, stage, onKaraoke, onLeave, onAsk }) {
    */
   function lay() {
     if (lane.dataset.k) {
-      const vh = window.innerHeight || 800;
+      const vh = (document.documentElement.dataset.safe && document.body.clientHeight) || window.innerHeight || 800;
       const H = Math.round(Math.max(300, Math.min(720, vh * 0.45)));
       const font = Math.round(Math.max(26, Math.min(52, H * 0.085)));
       const nextFont = Math.round(font * 0.66);

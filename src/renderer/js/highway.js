@@ -1655,8 +1655,9 @@ export function createHighway(stage) {
   let dpr = 1;
   function resize() {
     dpr = Math.min(2, window.devicePixelRatio || 1);
-    W = window.innerWidth;
-    HH = window.innerHeight;
+    // 4.23: the highway's own box (smaller than the window when the TV safe area is on)
+    W = (document.documentElement.dataset.safe && root.clientWidth) || window.innerWidth;
+    HH = (document.documentElement.dataset.safe && root.clientHeight) || window.innerHeight;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(HH * dpr);
     canvas.style.width = `${W}px`;

@@ -169,6 +169,7 @@ export async function settings(tab = 'library') {
   const tabs = [
     ['library', 'Library'],
     ['appearance', 'Appearance'],
+    ['display', 'Display'], // 4.23: TVs, scale, safe area
     ['guitar', 'Guitar & audio'],
     ['amps', 'Real amps'],
     ['playback', 'Playback'],
@@ -199,6 +200,7 @@ export async function settings(tab = 'library') {
 
 const PANES = {
   async appearance(el) { (await import('./identity.js')).appearancePane(el); },
+  async display(el) { await (await import('./displaysettings.js')).pane(el); },
   async guitar(el) {
     await (await import('./guitarsettings.js')).pane(el, setting);
   },
