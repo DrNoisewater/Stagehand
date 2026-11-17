@@ -21,7 +21,7 @@ import { byId } from './tonelib.js';
 import { buildTone, freshChoices } from './tonerecipes.js';
 import { playDemo, stopDemo, demoPlaying } from './rigui.js';
 import { gearItems, GEAR_CATS, gearPanel, micPanel, gearThumb, CAB_RE, labSections } from './gearbench.js';
-import { loadAbout, aboutCard } from './gearabout.js';
+import { loadAbout, aboutCard, sheetFold, fullSizeButton } from './gearabout.js';
 
 const root = document.getElementById('page-gear');
 const read = (k, d) => {
@@ -120,8 +120,20 @@ function drawWho() {
   }
 }
 
+let gridKey = '';
 function drawGrid() {
   const words = S.q.split(/\s+/).filter(Boolean);
+  // 4.24: the same shelf again (a different piece picked): only the lit card changes, the pictures stay
+  const key = `${S.items.length}|${S.cat}|${S.who}|${S.q}`;
+  if (key === gridKey && gridEl.childElementCount) {
+    for (const c of gridEl.querySelectorAll('.sr-card')) {
+      const on = c.dataset.key === S.pick;
+      c.classList.toggle('on', on);
+      c.setAttribute('aria-pressed', String(on));
+    }
+    return;
+  }
+  gridKey = key;
   const list = S.items.filter((it) => visible(it) && (words.length ? words.every((w) => `${it.name} ${it.sub} ${it.key} ${GEAR_CATS.find((c) => c.id === it.cat).label}`.toLowerCase().includes(w)) : it.cat === S.cat));
   const sy = gridEl.scrollTop;
   gridEl.innerHTML = '';
@@ -131,6 +143,7 @@ function drawGrid() {
     if (title) gridEl.append(h('h4.lab-sec', { role: 'presentation', text: title }));
     for (const it of items) {
       const card = h(`button.sr-card${it.key === S.pick ? '.on' : ''}`, { type: 'button', role: 'listitem', title: it.name, 'aria-pressed': String(it.key === S.pick) }, h('span.sr-card-art', null, gearThumb(it.key, it.slot)), h('span.sr-card-name', { text: it.name }), it.bass && S.who === 'all' ? h('span.sr-tag', { text: 'Bass' }) : '');
+      card.dataset.key = it.key;
       card.onclick = () => pick(it.key);
       gridEl.append(card);
     }
@@ -176,7 +189,8 @@ function drawShow() {
         if (p.key) drawShow();
         changed();
       },
-    }), aboutCard(it, g.key))));
+    }), sheetFold(aboutCard(it, g.key)))));
+    fullSizeButton(showEl.querySelector('.sr-cabpic'));
   } else {
     const g = { slot: it.slot, key: it.key, knobs };
     panel = gearPanel(g, {
@@ -190,9 +204,10 @@ function drawShow() {
     if (wrap) {
       const side = h('div.sr-side');
       wrap.before(side);
-      side.append(wrap, aboutCard(it, it.key));
+      side.append(wrap, sheetFold(aboutCard(it, it.key)));
     }
-    else panel.append(aboutCard(it, it.key));
+    else panel.append(sheetFold(aboutCard(it, it.key)));
+    fullSizeButton(panel.querySelector(':scope > .gb-photo'));
     showEl.append(panel);
   }
   // hear it, compare it, play through it
@@ -287,7 +302,10 @@ function leaveLive() {
   } catch (_) {}
 }
 
+let drawnOnce = false;
 async function render() {
+  // 4.24: coming back to the page shows it as you left it (it used to be rebuilt: 45 pictures loaded again)
+  if (drawnOnce && S.items.length) return;
   build();
   const [db] = await Promise.all([loadGear(), loadAbout()]);
   S.items = gearItems(db);
@@ -298,6 +316,7 @@ async function render() {
   drawShelves();
   drawGrid();
   drawShow();
+  drawnOnce = true;
 }
 
 on('page', () => {

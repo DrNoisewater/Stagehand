@@ -96,6 +96,49 @@ export function aboutCard(it, keyNow) {
   return card;
 }
 
+/**
+ * 4.24: the sheet folds into one line ("What every control does") so the gear always stays big. Open
+ * or folded is remembered for every piece (folded to start with). The sheet inside is the same card,
+ * so turning a knob still lights its line.
+ */
+const FOLD_KEY = 'stagehand.sheetOpen';
+export function sheetFold(card, { label = 'What every control does' } = {}) {
+  let open = false;
+  try {
+    open = localStorage.getItem(FOLD_KEY) === '1';
+  } catch (_) {}
+  const d = h('details.gear-sheet', null, h('summary', null, h('span', { text: label }), h('small', { text: 'what it is, how to hear it, every knob' })), card);
+  d.open = open;
+  d.addEventListener('toggle', () => {
+    try {
+      localStorage.setItem(FOLD_KEY, d.open ? '1' : '0');
+    } catch (_) {}
+  });
+  return d;
+}
+
+/**
+ * 4.24: the gear's photo as big as the screen allows, to see every detail (click or Esc to close).
+ * Adds a small "Full size" button to a photo holder (an element with an <img> of the gear in it).
+ */
+export function fullSizeButton(holder) {
+  if (!holder) return holder;
+  const img = holder.querySelector('img');
+  if (!img) return holder;
+  const b = h('button.gear-full-btn', { type: 'button', title: 'See it full size', 'aria-label': 'See it full size', html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>Full size</span>' });
+  b.onclick = (e) => {
+    e.stopPropagation();
+    const view = h('div.gear-full', { role: 'dialog', 'aria-label': img.alt || 'Gear, full size' }, h('img', { src: img.getAttribute('src'), alt: img.alt || '' }), h('small', { text: 'Click anywhere or press Esc to close' }));
+    const close = () => (view.remove(), document.removeEventListener('keydown', key, true));
+    const key = (ev) => ev.key === 'Escape' && (ev.stopPropagation(), close());
+    view.onclick = close;
+    document.addEventListener('keydown', key, true);
+    document.body.append(view);
+  };
+  holder.append(b);
+  return holder;
+}
+
 /** 4.22: light up a control's line on the sheet while it's being turned or pressed. root holds the
  * controls (the strip, the photo, the footswitches). Returns a function that stops it. */
 export function linkSheet(root, card) {

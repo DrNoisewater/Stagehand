@@ -33,6 +33,11 @@ module.exports = async ({ page, outDir, check }) => {
   // ---------------------------------------------------------- the Gear page
   await page.locator('#sidebar .nav-section[data-page="gear"]').first().click();
   await page.waitForSelector('#page-gear .sr-card', { timeout: 15000 });
+  // 4.24: the sheet starts folded into one line; open, it stays open for every piece
+  check(await page.evaluate(() => { const d = document.querySelector('#page-gear .gear-sheet'); return !!d && !d.open; }), 'the sheet starts folded under the gear');
+  await page.locator('#page-gear .gear-sheet > summary').first().click();
+  await page.waitForTimeout(200);
+  check(await page.evaluate(() => localStorage.getItem('stagehand.sheetOpen') === '1'), 'opening it is remembered');
   await page.locator('#page-gear .sr-shelf', { hasText: 'The Lab' }).first().click();
   await page.waitForTimeout(400);
   await page.locator('#page-gear .sr-grid .sr-card', { hasText: 'Fossil' }).first().click();
