@@ -10,7 +10,7 @@ import { decorativeImage } from './menu-art.js';
  */
 import { did } from './rewards.js';
 import { api } from './api.js';
-import { state, on, emit, setView, rsListIds, rsListLabel, loadRocksmith, upsertSongs, loadLibrary } from './store.js';
+import { state, on, emit, setView, rsListIds, rsListLabel, loadRocksmith, upsertSongs, loadLibrary, missingParts } from './store.js';
 import { artImg, harvest } from './artkeep.js';
 import { h, icon, esc, toast, showMenu, fmtDuration, fmtDate, fmtDateTime, modal, debounce } from './ui.js';
 import * as actions from './actions.js';
@@ -33,6 +33,8 @@ const D = {
   imports: null,
   sel: new Map(), // key -> {artist,title,album,year}
   missingOnly: localStorage.getItem('stagehand.missingOnly') === '1',
+  // 4.23: which tracks an artist page shows: all | missing | wanted | owned | parts (in the library but missing a part)
+  show: localStorage.getItem('stagehand.dvShow') || (localStorage.getItem('stagehand.missingOnly') === '1' ? 'missing' : 'all'),
   cfOpened: false,
   run: null, // 4.0.4: Get songs: { current, done, skipped: Set, total }
 };
@@ -520,10 +522,14 @@ function statusChip(t, { quietMissing = false } = {}) {
   if (t.have) {
     // 4.5: what you've done with it, at a glance
     const song = t.songId ? state.songs.get(t.songId) : null;
+    // 4.23: in the library but missing a part (bass only, no words…): said, with a way to a better version
+    const gaps = song ? missingParts(song).filter((x) => x !== 'words') : [];
+    if (gaps.length) return h('span.state.attn', { title: `In your library, but it has no ${gaps.join(' or ')}`, html: `${icon('info')}<span>In library · no ${esc(gaps.join(', '))}</span>` });
     return h('span.state.have', { html: `${icon('check')}<span>In your library</span>${song ? badgesHtml(song) : ''}` });
   }
+  if (D.run && D.run.current && keyOf(D.run.current.artist, D.run.current.title) === keyOf(t.artist || (D.page && D.page.artist && D.page.artist.name) || '', t.title)) return h('span.state.now', { html: `${icon('search')}<span>Looking for it now</span>` });
   if (t.wanted) return h('span.state.want', { html: `${icon('star', 'fill')}<span>Wanted</span>` });
-  return quietMissing ? null : h('span.state.miss', { text: 'Not in your library' });
+  return quietMissing ? h('span.state.miss.quiet', { html: `${icon('x')}<span>Missing</span>` }) : h('span.state.miss', { html: `${icon('x')}<span>Not in your library</span>` });
 }
 
 function rowActions(t, item) {
@@ -542,6 +548,9 @@ function rowActions(t, item) {
         emit('reveal', t.songId);
       })
     );
+    const song = state.songs.get(t.songId);
+    const gaps = song ? missingParts(song).filter((x) => x !== 'words') : [];
+    if (gaps.length) box.append(iconBtn('search', `Find a better version (this one has no ${gaps.join(' or ')})`, () => findBetter(song, gaps)));
   } else {
     const w = wantedFor(item.artist, item.title);
     const wb = btn(w ? 'Wanted' : 'Want it', { cls: w ? 'small soft want-on' : 'small', iconName: w ? 'check' : 'plus', title: w ? 'On your Wanted list: click to take it off' : 'Add it to your Wanted list, to get it later' });
@@ -777,18 +786,32 @@ function renderArtist(page) {
   const pct = p.total ? Math.round((p.have / p.total) * 100) : 0;
   const tools = h('div.dv-tools');
   const seg = h('div.seg', { role: 'group', 'aria-label': 'Show' });
+  // 4.23: quick filters, each with its count (the same counts as the bars and the selection)
+  const all = p.albums.flatMap((al) => al.tracks);
+  const partsOf = (t) => {
+    const song = t.have && t.songId ? state.songs.get(t.songId) : null;
+    return song ? missingParts(song).filter((x) => x !== 'words').length > 0 : false;
+  };
+  const n = { all: all.length, missing: all.filter((t) => !t.have).length, wanted: all.filter((t) => !t.have && t.wanted).length, owned: all.filter((t) => t.have).length, parts: all.filter(partsOf).length };
   for (const [val, label] of [
-    [false, 'All songs'],
-    [true, `Missing only (${p.missing})`],
+    ['all', `All (${n.all})`],
+    ['missing', `Missing (${n.missing})`],
+    ['wanted', `Wanted (${n.wanted})`],
+    ['owned', `In library (${n.owned})`],
+    ['parts', `Missing a part (${n.parts})`],
   ]) {
-    const b = h('button', { type: 'button', 'aria-pressed': String(D.missingOnly === val), text: label });
+    if (val === 'parts' && !n.parts && D.show !== 'parts') continue;
+    const b = h('button', { type: 'button', 'aria-pressed': String(D.show === val), text: label });
     b.onclick = () => {
-      D.missingOnly = val;
-      store('stagehand.missingOnly', val ? '1' : '0');
+      D.show = val;
+      D.missingOnly = val === 'missing';
+      store('stagehand.dvShow', val);
+      store('stagehand.missingOnly', val === 'missing' ? '1' : '0');
       render();
     };
     seg.append(b);
   }
+  const shows = (t) => D.show === 'missing' ? !t.have : D.show === 'wanted' ? !t.have && t.wanted : D.show === 'owned' ? t.have : D.show === 'parts' ? partsOf(t) : true;
   const missingItems = [];
   for (const al of p.albums) for (const t of al.tracks) if (!t.have) missingItems.push({ artist: a.name, title: t.title, album: al.title, year: al.year, wanted: t.wanted });
   tools.append(
@@ -829,7 +852,7 @@ function renderArtist(page) {
     page.append(emptyBox('No studio albums listed', 'MusicBrainz doesn’t list any studio albums or EPs for this artist yet.'));
   }
   for (const al of p.albums) {
-    const tracks = D.missingOnly ? al.tracks.filter((t) => !t.have) : al.tracks;
+    const tracks = al.tracks.filter(shows);
     if (!tracks.length) continue;
     const have = al.tracks.filter((t) => t.have).length;
     const miss = al.tracks.filter((t) => !t.have && !t.wanted).map((t) => ({ artist: a.name, title: t.title, album: al.title, year: al.year }));
@@ -862,7 +885,7 @@ function renderArtist(page) {
     const list = h('div.tracks');
     list.style.setProperty('--rows', String(Math.ceil(tracks.length / 2)));
     al.tracks.forEach((t, i) => {
-      if (D.missingOnly && t.have) return;
+      if (!shows(t)) return;
       list.append(songRow(t, { artist: a.name, title: t.title, album: '', year: null }, { showArtist: false, num: i + 1, quietMissing: true }));
     });
     card.append(list);

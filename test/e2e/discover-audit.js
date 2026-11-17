@@ -105,16 +105,25 @@ module.exports = async ({ page, outDir, check }) => {
   await page.locator('#discover .artist-card').first().click();
   await page.waitForTimeout(1200);
   check((await page.locator('#discover section.album').count()) === 2, 'the artist page shows its albums');
-  for (const b of ['Search', 'All songs', 'Missing only (6)', 'Select all missing']) await has(b, 'the artist page');
+  for (const b of ['Search', 'All (9)', 'Missing (6)', 'In library (3)', 'Select all missing']) await has(b, 'the artist page');
   check((await page.locator('#discover .album .dv-row').count()) === 9, 'every song of the albums is listed');
   await shot('artist');
   await page.evaluate(() => document.querySelector('#discover .dv-scroll').scrollTo(0, 99999));
   await page.waitForTimeout(200);
   await shot('artist-end');
-  await btn('Missing only (6)').click();
+  await btn('Missing (6)').click();
   await page.waitForTimeout(400);
-  check((await page.locator('#discover .album .dv-row').count()) === 6, 'Missing only hides the songs you have');
-  await btn('All songs').click();
+  check((await page.locator('#discover .album .dv-row').count()) === 6, 'Missing hides the songs you have');
+  // 4.23: a song you have that's missing a part (no bass, no lead…) offers a better version
+  await btn('All (9)').click();
+  await page.waitForTimeout(300);
+  const better = await page.locator('#discover .album [title^="Find a better version"]').count();
+  const partsN = await page.evaluate(() => { const b = [...document.querySelectorAll('#discover .seg button')].find((x) => /Missing a part/.test(x.textContent)); return b ? Number((/\((\d+)\)/.exec(b.textContent) || [])[1]) : 0; });
+  check(better === partsN, `songs missing a part offer Find a better version (${better} of ${partsN})`);
+  await btn('In library (3)').click();
+  await page.waitForTimeout(400);
+  check((await page.locator('#discover .album .dv-row').count()) === 3, 'In library shows only the songs you have');
+  await btn('All (9)').click();
 
   // Collection gaps
   await page.evaluate(async () => (await import('./js/discover.js')).open('gaps'));
