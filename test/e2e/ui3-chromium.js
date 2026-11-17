@@ -1610,22 +1610,12 @@ class FakePortMain extends EventEmitter {
   await page.keyboard.press('ArrowDown');
   check((await page.evaluate(() => getComputedStyle(document.querySelector('.scroller')).outlineStyle)) === 'none', 'the song list has no outline box when you use the keys');
 
-  // 4.1.6: Getting started: the tour of every section, Show me and back
+  // 4.1.6 (pages as of 4.17.1): Getting started opens with its first pages; guide-audit.js checks every page and Show me
   await page.locator('.nav-section[data-page="guide"]').click();
   await page.waitForTimeout(600);
   const pages = await page.locator('.gs-step span').allTextContents();
-  check(['Tune up', 'The highway', 'Stems: mute any part', 'Songs', 'Jam', 'Tones', 'Progress', 'Discover', 'Backstage'].every((t) => pages.includes(t)), `Getting started covers every section: ${pages.join(' / ')}`);
+  check(['Welcome', 'Your guitar', 'Get songs', 'Tune up'].every((t) => pages.includes(t)), `Getting started opens with its first pages: ${pages.join(' / ')}`);
   await shot('40-guide-welcome');
-  await page.locator('.gs-step:has-text("Stems")').click();
-  await page.waitForTimeout(250);
-  await shot('41-guide-stems');
-  await page.locator('.gs-show button').click();
-  await page.waitForTimeout(900);
-  check((await page.locator('.gs-ring:not([hidden])').count()) === 1 && /stems/i.test((await page.locator('.gs-tip').textContent()) || ''), 'Show me rings the Split stems button');
-  await shot('42-guide-showme');
-  await page.locator('.gs-tip button:has-text("Back to the guide")').click();
-  await page.waitForTimeout(500);
-  check(/Stems/.test((await page.locator('.gs-step.on span').textContent()) || ''), 'and Back to the guide returns to the same page');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
 

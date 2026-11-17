@@ -57,6 +57,11 @@
   @keyframes fly { 0% { transform: translateY(8px) rotate(-20deg); opacity: 0; } 60% { transform: translateY(-6px) rotate(10deg); opacity: 1; } 100% { transform: none; } }
   @media (prefers-reduced-motion: reduce) { .flow .st.on i, .flow .st.pop, .flow .st.pop i { animation: none; } }
   @media (max-width: 1250px) { .flow .st b { display: none; } }
+  body.flowing .msg { display: none; }
+  /* the song landed: the steps before it shrink to their icons and the result has the room */
+  body.landed .flow .st:not([data-s='added']) b, body.landed .flow .st em { display: none; }
+  body.landed .msg { min-width: 220px; }
+  body.flowing .flow { flex: 1 1 auto; }
   .none .want, .none [data-act=find], .none [data-act=skip] { display: none; }
   /* 4.23: on a narrow window the words step aside before the buttons do */
   @media (max-width: 1100px) { .msg { -webkit-line-clamp: 1; font-size: 12px; } .tape { display: none; } }
@@ -118,6 +123,9 @@
       }
       $('pct').textContent = last.state === 'going' && last.pct ? ` ${last.pct}%` : '';
     }
+    // while a download is on its way the steps say it all: the message steps aside (back for the result)
+    document.body.classList.toggle('flowing', !!last && (last.state === 'going' || last.state === 'adding'));
+    document.body.classList.toggle('landed', !!last && (last.state === 'added' || last.state === 'failed' || last.state === 'saved'));
     const going = (st.downloads || []).filter((d) => d.state === 'going');
     const m = $('msg');
     m.textContent = going.length && !st.message.startsWith('Adding') ? `Downloading ${going.map((d) => `${d.name} ${d.pct}%`).join(', ')}` : st.message || HELLO;
