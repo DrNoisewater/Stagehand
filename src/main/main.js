@@ -835,11 +835,20 @@ function registerIpc() {
   });
   handle('win:close', () => { if (win && !win.isDestroyed()) win.close(); });
   // 4.23: Settings › Display
-  handle('display:info', () => display && display.info());
+  handle('display:info', () => display && { ...display.info(), flickerFix: (settings.get().display || {}).flickerFix || 'off', flickerRunning: FLICKER_FIX });
   handle('display:set', (patch) => display && display.set(patch || {}));
   handle('display:reset', () => display && display.reset());
   handle('display:window', (o) => display && display.window(o || {}));
   handle('display:restore', (before) => display && display.restore(before));
+  handle('display:flicker', (v) => {
+    const fix = v === 'layers' || v === 'basic' ? v : 'off';
+    settings.set({ display: { flickerFix: fix } });
+    return { fix, running: FLICKER_FIX };
+  });
+  handle('display:restart', () => {
+    app.relaunch();
+    app.exit(0);
+  });
   handle('win:state', () => (win && !win.isDestroyed() ? { maximized: win.isMaximized(), fullscreen: win.isFullScreen() } : { maximized: false, fullscreen: false }));
 
   handle('library:get', () => {
@@ -1225,6 +1234,24 @@ app.on('second-instance', () => {
 
 // 4.18: on a laptop with two graphics cards, draw on the fast one (the highway and the moving backgrounds)
 app.commandLine.appendSwitch('force_high_performance_gpu');
+
+// 4.24: Settings › Display › Screen flicker fix, read before the window is made (it needs a restart).
+// 'layers': Windows draws the window as one picture instead of moving parts of it on and off the graphics
+// card's fast path (a known cause of flashes when a menu or panel covers a moving picture). The graphics
+// card still draws everything. 'basic': no graphics card for the window at all (a last test: slower).
+const FLICKER_FIX = (() => {
+  try {
+    const f = path.join(makeDirs().roaming, 'settings.json');
+    const v = ((JSON.parse(fs.readFileSync(f, 'utf8')) || {}).display || {}).flickerFix;
+    return v === 'layers' || v === 'basic' ? v : 'off';
+  } catch (_) {
+    return 'off';
+  }
+})();
+if (FLICKER_FIX === 'layers') {
+  app.commandLine.appendSwitch('disable-direct-composition');
+  app.commandLine.appendSwitch('disable-direct-composition-video-overlays');
+} else if (FLICKER_FIX === 'basic') app.disableHardwareAcceleration();
 
 app.whenReady().then(async () => {
   if (IS_WIN) app.setAppUserModelId('app.stagehand.desktop');

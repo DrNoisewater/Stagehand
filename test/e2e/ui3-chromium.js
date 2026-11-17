@@ -239,7 +239,8 @@ class FakePortMain extends EventEmitter {
       let fs1 = false;
       const win = { isDestroyed: () => false, getBounds: () => b, setBounds: (x) => (b = x), isFullScreen: () => fs1, setFullScreen: (v) => (fs1 = v), isMaximized: () => false, maximize() {}, unmaximize() {}, setMinimumSize() {}, webContents: { setZoomFactor() {} } };
       const disp = new Display({ screen: { getAllDisplays: () => [d1], getPrimaryDisplay: () => d1, getDisplayMatching: () => d1 }, settings, getWin: () => win, send: (c, x) => global.__page && global.__page.evaluate(([c, x]) => window.__shEmit && window.__shEmit(c, x), [c, x]).catch(() => {}) });
-      return { 'app.display': () => disp.info(), 'app.setDisplay': (p) => disp.set(p || {}), 'app.resetDisplay': () => disp.reset(), 'app.displayWindow': (o) => disp.window(o || {}), 'app.restoreWindow': (x) => disp.restore(x) };
+      let fix = 'off';
+      return { 'app.flickerFix': (v) => ((fix = v), { fix, running: 'off' }), 'app.restartApp': () => null, 'app.display': () => ({ ...disp.info(), flickerFix: fix, flickerRunning: 'off' }), 'app.setDisplay': (p) => disp.set(p || {}), 'app.resetDisplay': () => disp.reset(), 'app.displayWindow': (o) => disp.window(o || {}), 'app.restoreWindow': (x) => disp.restore(x) };
     })(),
     'app.info': () => ({ version: require('../../package.json').version, platform: 'win32', packaged: false, dirs: {}, models: [] }),
     'app.log': () => [],

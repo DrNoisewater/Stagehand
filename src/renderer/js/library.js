@@ -776,9 +776,18 @@ function restoreTop() {
   if (scroller.scrollTop !== top) scroller.scrollTop = top;
   renderWindow();
 }
+// 4.24: going to another page and back is a "view" too: the rows are only thrown away when the list
+// itself changed (another list, search or filter); otherwise they're kept (no blink, pictures stay)
+let drawnFor = '';
+const listKey = () => JSON.stringify([state.view, state.search, state.searchAll, [...state.parts], state.layout]);
 on('view', () => {
   scroller.scrollTop = savedTop.get(viewKey()) || 0;
-  rebuild();
+  const k = listKey();
+  if (k === drawnFor) render();
+  else {
+    drawnFor = k;
+    rebuild();
+  }
   // the page may only just be shown again: set it once more after layout
   requestAnimationFrame(() => shownNow() && restoreTop());
 });

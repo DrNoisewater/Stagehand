@@ -157,6 +157,30 @@ export async function pane(el) {
       }
       w.append(sizes);
     }
+    // 4.24: the flicker fix (needs a restart)
+    if (api.app.flickerFix) {
+      const fx = sec('Screen flicker fix', 'If the screen flashes or flickers (above all when a menu opens over the highway or a moving background), try Fewer layers first. It takes effect when Stagehand restarts.');
+      const fseg = h('div.disp-seg', { role: 'group', 'aria-label': 'Screen flicker fix' });
+      const cur = d.flickerFix || 'off';
+      for (const [v, label, tip] of [
+        ['off', 'Off', 'How Stagehand has always drawn'],
+        ['layers', 'Fewer layers', 'Windows draws Stagehand as one picture; the graphics card still does the work'],
+        ['basic', 'No graphics card', 'A last test: everything drawn without the graphics card (slower; moving backgrounds may stutter)'],
+      ]) {
+        const b = h('button', { type: 'button', text: label, title: tip, 'aria-pressed': String(cur === v) });
+        b.onclick = async () => {
+          await api.app.flickerFix(v).catch(() => null);
+          draw();
+        };
+        fseg.append(b);
+      }
+      fx.append(fseg);
+      if ((d.flickerFix || 'off') !== (d.flickerRunning || 'off')) {
+        const rs = h('button.btn.primary', { type: 'button', text: 'Restart Stagehand now' });
+        rs.onclick = () => api.app.restartApp().catch(() => {});
+        fx.append(h('div.disp-range', null, h('span.disp-sub', { text: 'Restart to use it.' }), rs));
+      }
+    }
     const reset = h('button.btn', { type: 'button', html: `${icon('repeat')}<span>Reset this screen</span>` });
     reset.onclick = async () => {
       await api.app.resetDisplay();
