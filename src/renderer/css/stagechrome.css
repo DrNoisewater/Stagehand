@@ -224,3 +224,13 @@ body:has(.highway:not([hidden])) .menu :is(button,.menu-item):hover { background
 #app .tab-sections button:hover { background:#3a332b; color:var(--sc-ink); }
 #app .tab-sections button.on { background:#3d3528; color:var(--sc-gold-hi); box-shadow:inset 0 -2px 0 var(--sc-gold); }
 #app .tab-sections-head { background:var(--sc-gold); }
+
+/* 4.23: the highway's top bar on a narrower window (1280, a TV at a big scale): Tools and Settings keep their
+   icons (names on hover) so nothing runs off the right edge; the play modes keep their names longest */
+@media (max-width:1365px) {
+  .highway .hw-top .hw-tools-btn > span, .highway .hw-top .hw-set-btn > span { display:none; }
+  .highway .hw-top .hw-tools-btn, .highway .hw-top .hw-set-btn { padding-inline:9px; }
+}
+@media (max-width:1180px) {
+  .highway .hw-top .hw-rig-tone > span:not(.real) { display:none; }
+}
