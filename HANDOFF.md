@@ -48,6 +48,11 @@ and then imported it… The wanted section and discover needs the overhaul."
   (`finder:event` `download`, at most 4 a second) and the bar shows Downloading 40% › Checking & importing › In
   Songs, with a small pop when it lands.
 - Discover's artist header is more compact.
+- **Fixed on the way**: the Quest companion's certificate (`core/selfcert.js`) used a random serial whose first byte
+  could be 0, which a certificate doesn't allow ("illegal padding"): about 1 in 150 came out unreadable and the
+  headset's browser couldn't connect. A broken saved one is replaced by itself (it fails to load). Test in
+  `companion.test.mjs` (1500 made, all read). The page tour (`ui3-chromium.js`) runs through again: it starts on
+  Songs, then Jam; its Getting started check matches the 4.17.1 pages; the highway's top bar is checked to fit.
 
 **Ask the user:** does it still flicker (if so, try Settings › Display › Screen flicker fix › Fewer layers and say
 if it helps, and where it flickers); are the pedals big enough now; does Backstage make sense (try showing a loop);

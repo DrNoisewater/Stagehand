@@ -394,3 +394,11 @@ test('Windows Firewall, read in plain terms', () => {
   assert.equal(readFirewall(j({ nets: { alias: 'Wi-Fi', name: 'MyHome', cat: 'Private' }, profiles, rules: { name: 'x', action: 'Allow', profile: 'Any' } }), 'Wi-Fi').state, 'allowed', 'one item comes back as an object, not a list');
   assert.equal(readFirewall('', 'Wi-Fi').state, 'unknown');
 });
+
+test('4.24: every certificate made can be read (a random serial never starts with a zero byte)', () => {
+  const { makeCert } = createRequire(import.meta.url)('../src/main/core/selfcert.js');
+  for (let i = 0; i < 1500; i++) {
+    const c = makeCert({ names: ['127.0.0.1'] });
+    assert.doesNotThrow(() => new crypto.X509Certificate(c.cert), `certificate ${i}`);
+  }
+});
