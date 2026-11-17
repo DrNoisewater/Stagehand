@@ -21,7 +21,7 @@ import { byId } from './tonelib.js';
 import { buildTone, freshChoices } from './tonerecipes.js';
 import { playDemo, stopDemo, demoPlaying } from './rigui.js';
 import { gearItems, GEAR_CATS, gearPanel, micPanel, gearThumb, CAB_RE, labSections } from './gearbench.js';
-import { loadAbout, aboutCard } from './gearabout.js';
+import { loadAbout, aboutCard, aboutBlurb, describeControls, linkSheet } from './gearabout.js';
 
 const root = document.getElementById('page-gear');
 const read = (k, d) => {
@@ -185,14 +185,10 @@ function drawShow() {
         knobs[key] = v;
         changed();
       },
+      // 4.23: the words sit with the controls, beside the full-size picture (no sheet under it)
+      explain: { about: aboutBlurb(it), describe: (strip) => describeControls(strip, it.key) },
     });
-    const wrap = panel.querySelector(':scope > .gb-strip-wrap');
-    if (wrap) {
-      const side = h('div.sr-side');
-      wrap.before(side);
-      side.append(wrap, aboutCard(it, it.key));
-    }
-    else panel.append(aboutCard(it, it.key));
+    linkSheet(panel, panel);
     showEl.append(panel);
   }
   // hear it, compare it, play through it

@@ -1,4 +1,6 @@
-/** 4.22: what every control does, written under the controls: the Gear page, Create a tone, the
+/** 4.23: the words sit with the controls, beside the full-size picture (no sheet over it): a few lines of
+ * what the piece does (More, Hear it working), then each control with its own words; the picture stays big.
+ * 4.22: what every control does, written under the controls: the Gear page, Create a tone, the
  * Tones page and step by step's Pedals. Each sheet says what the piece does, how to hear it working
  * (The Lab), and lists every knob, switch, footswitch and lever with its own words; turning a knob
  * or pressing a footswitch lights its line. Writes sheet-*.png.
@@ -14,8 +16,9 @@ module.exports = async ({ page, outDir, check }) => {
     await page.waitForTimeout(400);
     await (el || page).screenshot({ path: path.join(outDir, `sheet-${name}.png`) });
   };
-  const rows = (root) => page.locator(`${root} .gear-about .gear-about-knobs dt`).evaluateAll((els) => els.map((e) => e.dataset.ctl));
-  const lit = (root) => page.locator(`${root} .gear-about .lit`).evaluateAll((els) => [...new Set(els.map((e) => e.dataset.ctl))]);
+  const rows = (root) => page.locator(`${root} .gc-say, ${root} .gear-about .gear-about-knobs dt`).evaluateAll((els) => els.map((e) => e.dataset.ctl));
+  const lit = (root) => page.locator(`${root} .gc-say.lit, ${root} .gear-about .lit`).evaluateAll((els) => [...new Set(els.map((e) => e.dataset.ctl))]);
+  const photoBig = (root) => page.locator(`${root} .gb-photo .gear-face`).first().evaluate((e) => Math.round(e.getBoundingClientRect().height)).catch(() => 0);
   const want = (key) => [...(G[key].k || []).map((k) => k[0].toLowerCase()), ...(G[key].m || []).map((m) => m[0].toLowerCase())];
   const drag = async (loc) => {
     await loc.scrollIntoViewIfNeeded();
@@ -38,11 +41,15 @@ module.exports = async ({ page, outDir, check }) => {
   await page.locator('#page-gear .sr-grid .sr-card', { hasText: 'Fossil' }).first().click();
   await page.waitForTimeout(700);
   const GP = '#page-gear .sr-show';
-  const tryText = await page.locator(`${GP} .gear-about-try p`).textContent().catch(() => '');
+  check((await page.locator(`${GP} .gear-about`).count()) === 0, 'the Gear page: no sheet laid over the pedal');
+  check((await photoBig(GP)) > 300, `the Gear page: Fossil's picture is full size (${await photoBig(GP)} px tall)`);
+  await page.locator(`${GP} .gc-about .gc-more`, { hasText: 'Hear it working' }).click();
+  const tryText = await page.locator(`${GP} .gc-try`).textContent().catch(() => '');
   check(/^Nothing happens until you use Capture/.test(tryText || ''), `the Gear page: Fossil says how to hear it working ("${(tryText || '').slice(0, 50)}…")`);
   check(JSON.stringify(await rows(GP)) === JSON.stringify(want('Pedal_Fossil')), `the Gear page: Fossil's sheet lists every knob and its Capture footswitch (${(await rows(GP)).join(', ')})`);
-  check((await page.locator(`${GP} .gear-about-knobs dt[data-ctl="hold/latch"] small`).textContent()) === 'Switch' && /HOLD · LATCH/.test(await page.locator(`${GP} .gear-about-knobs dd[data-ctl="hold/latch"]`).textContent()), 'and says Hold/Latch is a switch, with its positions');
-  await shot('gear-fossil', page.locator(`${GP} .gear-about`).first());
+  const hl = page.locator(`${GP} .gc-say[data-ctl="hold/latch"]`);
+  check((await hl.locator('.gc-kind').textContent()) === 'Switch' && /HOLD · LATCH/i.test(await hl.locator('.gc-pos').textContent()), 'and says Hold/Latch is a switch, with its positions, beside it');
+  await shot('gear-fossil');
 
   // ---------------------------------------------------------- Create a tone
   await page.evaluate(async () => (await import('./js/rigroom.js')).openRig({ kind: 'guitar' }));
@@ -53,9 +60,10 @@ module.exports = async ({ page, outDir, check }) => {
     await page.locator('.rr-grid .rr-card', { hasText: name }).first().click();
     await page.waitForTimeout(1000);
     const R = '.rr-inspect';
-    check((await page.locator(`${R} .gear-about`).count()) === 1, `Create a tone: ${name} has its sheet under the controls`);
+    check((await page.locator(`${R} .gear-about`).count()) === 0 && (await page.locator(`${R} .gc-about`).count()) === 1, `Create a tone: ${name} says what it does beside its controls (no sheet over the picture)`);
+    check((await photoBig(R)) > 250, `Create a tone: ${name}'s picture keeps its size (${await photoBig(R)} px tall)`);
     check(JSON.stringify(await rows(R)) === JSON.stringify(want(key)), `Create a tone: ${name}'s sheet lists all its controls (${(await rows(R)).join(', ')})`);
-    const help = await page.locator(`${R} .gear-about-knobs dd`).allTextContents();
+    const help = await page.locator(`${R} .gc-say > span`).allTextContents();
     check(help.every((t) => t.length > 12 && !/^Turn it and listen|^Hold to use|^Press to use|^Click to turn/.test(t)), `Create a tone: every line of ${name}'s sheet says what it does`);
     // turning a knob lights its line; pressing a footswitch lights its line
     const first = (G[key].k || [])[0][0];
@@ -76,7 +84,6 @@ module.exports = async ({ page, outDir, check }) => {
       await page.mouse.up();
       check(l.includes(m[0].toLowerCase()), `Create a tone: pressing ${m[0]} lights its line (${l.join(', ')})`);
     }
-    await page.locator(`${R} .gear-about`).first().scrollIntoViewIfNeeded();
     await shot(`rig-${key.slice(6).toLowerCase()}`, page.locator('.modal.rig-room').first());
   }
   await page.locator('.rr-close').click();

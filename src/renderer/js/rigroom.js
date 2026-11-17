@@ -27,7 +27,7 @@ import { buildTone, freshChoices } from './tonerecipes.js';
 import { demoButton, stopDemo, demoPlaying } from './rigui.js';
 import { realAmpStrip } from './realamps.js';
 import { loadCaptures } from './captures.js';
-import { aboutCard, linkSheet } from './gearabout.js';
+import { aboutBlurb, describeControls, linkSheet } from './gearabout.js';
 import { gearItems, GEAR_CATS, gearPanel, micPanel, rigBoard, gearThumb, knobHelp, defaultSlot, CAB_RE, labSections } from './gearbench.js';
 import { FAMOUS, GENRES, famousTone, searchFamous } from './famous-tones.js';
 import { playBuild, playSave } from './rigbuild.js';
@@ -485,6 +485,8 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
       panel = gearPanel(g, {
         gel: g.slot === 'amp' ? '#ff6b3d' : g.slot === 'rack' ? '#33c8e0' : '#ff4d8d',
         bypass: { on: () => !g.bypass, toggle: () => change(() => (g.bypass = !g.bypass)) },
+        // 4.23: what it does above its controls, each control's words beside it; the picture keeps its size
+        explain: { about: aboutBlurb({ key: g.key }), describe: (strip) => describeControls(strip, g.key) },
         onKnob: (key, v) => {
           change(() => {
             g.knobs = { ...(g.knobs || {}), [key]: v };
@@ -493,12 +495,10 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
         },
       });
       body.append(panel);
-      // 4.22: what it does and what every control does, right under the controls
-      const sheet = aboutCard({ key: g.key, t: g.slot, name: gearName(g.key) }, g.key);
-      const unlink = linkSheet(panel, sheet);
+      // a control's words light up while it's turned or pressed (on the strip or the picture)
+      const unlink = linkSheet(panel, panel);
       const d0 = panel.dispose;
       panel.dispose = () => (unlink(), d0 && d0());
-      body.append(sheet);
     }
     inspect.append(body);
   }

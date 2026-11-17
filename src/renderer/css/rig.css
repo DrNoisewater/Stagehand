@@ -398,3 +398,60 @@ html[data-decoration='reduced'] .rr-ititle h3::after { display:none; }
 /* 4.20: The Lab's little sections on the gear shelves */
 :is(.rr-grid,.sr-grid) .lab-sec { grid-column:1 / -1; margin:10px 0 0; padding:0 0 3px; font:700 11px/1.2 'Typewriter Stagehand',monospace; letter-spacing:.08em; text-transform:uppercase; color:#cbbf9f; border-bottom:1px solid #3a3229; }
 :is(.rr-grid,.sr-grid) .lab-sec:first-child { margin-top:0; }
+
+/* 4.23: the words live with the controls, beside the full-size picture (no paper sheet over it).
+   The side column: what the piece does in a few quiet lines, then each control with its words. */
+.rr-ibody > .gb-panel:has(> .gb-strip-wrap.explained) { grid-template-columns:minmax(0,1fr) minmax(280px,36%); }
+.sr-show > .gb-panel:has(> .gb-strip-wrap.explained) { grid-template-columns:minmax(0,1fr) minmax(290px,34%); }
+.gb-strip-wrap.explained { padding:10px 12px 12px; display:flex; flex-direction:column; gap:8px; }
+.gc-about { font-size:12.5px; line-height:1.45; color:var(--rr-bone-2,#cfc4ad); padding-bottom:8px; border-bottom:1px solid #2f2922; }
+.gc-about[hidden] { display:none; }
+.gc-real { margin:0 0 4px; font-size:12px; color:var(--rr-bone-3,#a99e8c); }
+.gc-real b { color:var(--rr-bone,#efe6d3); font-weight:800; }
+.gc-text { margin:0; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.gc-about.open .gc-text { display:block; -webkit-line-clamp:unset; }
+.gc-more { all:unset; cursor:pointer; margin-top:2px; font:700 10.5px var(--rr-mono,monospace); letter-spacing:.08em; text-transform:uppercase; color:#c9a560; }
+.gc-more:hover { color:#ffd76a; }
+.gc-more[hidden] { display:none; }
+.gc-try { margin:6px 0 0; padding-left:9px; border-left:2px solid #c98a1e; color:var(--rr-bone-2,#cfc4ad); }
+.gc-try b { color:#e8b45a; font-weight:800; }
+.gb-strip.described, .knobs3.described { display:flex; flex-direction:column; flex-wrap:nowrap; gap:0; }
+.gc-row { display:grid; grid-template-columns:70px minmax(0,1fr); gap:10px; align-items:center; padding:7px 2px; border-top:1px dashed #2f2922; }
+.described > .gc-row:first-child { border-top:0; }
+.gc-row > .gb-knob, .gc-row > .rknob { width:70px; }
+.gc-row.gc-foot { grid-template-columns:auto minmax(0,1fr); }
+.gc-feet { display:flex; flex-direction:column; gap:0; }
+.gc-say { margin:0; font-size:12px; line-height:1.4; color:var(--rr-bone-3,#a99e8c); border-radius:3px; padding:2px 5px; margin-left:-5px; transition:background .25s, color .25s; }
+.gc-say b { display:block; color:var(--rr-bone,#efe6d3); font-size:12.5px; font-weight:800; }
+.gc-kind { font:600 9.5px var(--rr-mono,monospace); letter-spacing:.06em; text-transform:uppercase; color:#8a7a5c; margin-right:6px; }
+.gc-pos { display:block; margin-top:2px; font:600 10px var(--rr-mono,monospace); letter-spacing:.04em; color:#8a7a5c; }
+.gc-say.lit { background:#3a2f17; color:#ffe6a6; }
+.gc-say.lit b { color:#ffd76a; }
+/* the Tones page: the same rows under the picture */
+.knobs3.described .gc-row { grid-template-columns:64px minmax(0,1fr); }
+.knobs3.described .gc-row > .rknob { width:64px; }
+.gc-links { display:flex; gap:14px; margin-top:4px; }
+.gc-try[hidden] { display:none; }
+.gc-try { margin-top:6px; }
+/* the control's own name is in its words; under the knob just its setting */
+.gc-row .kn-name { display:none; }
+.gc-row { grid-template-columns:56px minmax(0,1fr); padding:6px 2px; }
+.gc-row > .gb-knob, .gc-row > .rknob { width:56px; }
+/* 4.23: where the full sheet is still used (cabinets on the Gear page, step by step's "What does what?"),
+   it's quiet: part of the dark panel, not a paper card laid over things */
+.gear-about { background:#12100e; color:var(--rr-bone-2,#cfc4ad); border:1px solid #2f2922; box-shadow:none; transform:none; padding:12px 14px 12px; margin:6px 0 2px; }
+.gear-about::before, .gear-about::after { display:none; }
+.gear-about-tape { position:static; display:block; transform:none; padding:0; margin:0 0 6px; background:none; box-shadow:none; color:#c9a560; font:700 10px var(--rr-mono,monospace); letter-spacing:.12em; text-transform:uppercase; }
+.gear-about-real small { color:var(--rr-bone-3,#a99e8c); }
+.gear-about-real b { color:var(--rr-bone,#efe6d3); font-size:15px; }
+.gear-about-text { font-size:12.5px; line-height:1.45; }
+.gear-about h3 { color:#8a7a5c; border-top:1px solid #2f2922; }
+.gear-about-knobs { font-size:12px; }
+.gear-about-knobs dt { color:var(--rr-bone,#efe6d3); }
+.gear-about-knobs dd { color:var(--rr-bone-3,#a99e8c); }
+.gear-about-knobs dt small, .gear-about-pos { color:#8a7a5c; }
+.gear-about-knobs .lit { background:#3a2f17; color:#ffe6a6; }
+.gear-about-try { background:none; border-left:2px solid #c98a1e; transform:none; box-shadow:none; padding:2px 0 2px 9px; }
+.gear-about-try b { color:#e8b45a; }
+.gear-about-try p { color:var(--rr-bone-2,#cfc4ad); font-size:12.5px; }
+.pb-about > .gear-about { padding:10px 12px 10px; }
