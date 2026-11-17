@@ -35,6 +35,25 @@ module.exports = async ({ page, outDir, check, stemHold }) => {
   const note2 = await page.locator('[data-stem-note]').textContent();
   check(/65%/.test(note2), `and follows that split: “${note2}”`);
   await page.screenshot({ path: path.join(outDir, 'stems-in-line.png') });
+  // 4.23: Activity at the bottom of the menu: the split and the one waiting, the numbers changed in place
+  await page.waitForTimeout(400);
+  const act1 = await page.evaluate(() => {
+    const a = document.querySelector('#sidebar .sh-activity');
+    const row = a && a.querySelector('.act-row[data-state="running"]');
+    if (row) row.__mark = 1;
+    return { shown: !!a && !a.hidden, head: a ? a.querySelector('.act-head').textContent : '', rows: a ? a.querySelectorAll('.act-row').length : 0, text: row ? row.textContent : '' };
+  });
+  check(act1.shown && /1 working/.test(act1.head) && /1 waiting/.test(act1.head) && act1.rows === 2 && /65%/.test(act1.text), `Activity shows the split and the one waiting (${JSON.stringify(act1)})`);
+  await send({ songId: a.id, state: 'running', progress: 0.7 });
+  await page.waitForTimeout(500);
+  const act2 = await page.evaluate(() => { const row = document.querySelector('#sidebar .sh-activity .act-row[data-state="running"]'); return { same: !!(row && row.__mark), text: row ? row.textContent : '' }; });
+  check(act2.same && /70%/.test(act2.text), `Activity moves along in place (${JSON.stringify(act2)})`);
+  await page.locator('#sidebar .act-head').click();
+  await page.waitForTimeout(300);
+  const drawer = await page.evaluate(() => { const d = document.querySelector('.act-drawer'); return d ? { text: d.textContent, cancel: d.querySelectorAll('[aria-label="Cancel"]').length, next: d.querySelectorAll('[aria-label="Do this one next"]').length } : null; });
+  check(!!drawer && /Working/.test(drawer.text) && /Waiting/.test(drawer.text) && drawer.cancel === 2 && drawer.next === 1, `its list has Cancel and Do this one next (${JSON.stringify(drawer)})`);
+  await page.screenshot({ path: path.join(outDir, 'activity.png') });
+  await page.keyboard.press('Escape');
   // another song joins the line (as picking songs does): nothing gets rebuilt
   const c = await page.evaluate(async (skip) => {
     const { state } = await import('./js/store.js');

@@ -229,6 +229,18 @@ class FakePortMain extends EventEmitter {
     'captures.setKey': (k) => captures.setClientId(k),
     'captures.disconnect': () => captures.disconnect(),
     'shell.openExternal': () => true,
+    // 4.23: Settings › Display on a pretend 1920×1080 screen at 125% (the real service, a pretend window)
+    ...(() => {
+      const { Display } = require('../../src/main/services/display');
+      const d1 = { id: 1, size: { width: 1536, height: 864 }, scaleFactor: 1.25, displayFrequency: 144, bounds: { x: 0, y: 0, width: 1536, height: 864 }, workArea: { x: 0, y: 0, width: 1536, height: 824 } };
+      let data = { display: { screens: {} } };
+      const settings = { get: () => data, set: (p) => (data = { ...data, display: { screens: { ...data.display.screens, ...((p.display || {}).screens || {}) } } }) };
+      let b = { x: 0, y: 0, width: 1500, height: 820 };
+      let fs1 = false;
+      const win = { isDestroyed: () => false, getBounds: () => b, setBounds: (x) => (b = x), isFullScreen: () => fs1, setFullScreen: (v) => (fs1 = v), isMaximized: () => false, maximize() {}, unmaximize() {}, setMinimumSize() {}, webContents: { setZoomFactor() {} } };
+      const disp = new Display({ screen: { getAllDisplays: () => [d1], getPrimaryDisplay: () => d1, getDisplayMatching: () => d1 }, settings, getWin: () => win, send: (c, x) => global.__page && global.__page.evaluate(([c, x]) => window.__shEmit && window.__shEmit(c, x), [c, x]).catch(() => {}) });
+      return { 'app.display': () => disp.info(), 'app.setDisplay': (p) => disp.set(p || {}), 'app.resetDisplay': () => disp.reset(), 'app.displayWindow': (o) => disp.window(o || {}), 'app.restoreWindow': (x) => disp.restore(x) };
+    })(),
     'app.info': () => ({ version: require('../../package.json').version, platform: 'win32', packaged: false, dirs: {}, models: [] }),
     'app.log': () => [],
     'companion.status': () => companion.status(),
@@ -378,6 +390,7 @@ class FakePortMain extends EventEmitter {
   page.on('console', (m) => (logs.push(`${m.type()}: ${m.text()}`), /error|warn/.test(m.type()) && !/404|Failed to load/.test(m.text()) && console.log('CONSOLE', m.type(), m.text())));
   page.on('pageerror', (e) => (logs.push(`pageerror: ${e.message}`), console.log('PAGEERROR', e.message, (e.stack || '').split('\n').slice(0, 3).join(' | '))));
   const ports = new Map();
+  global.__page = page;
   await page.exposeBinding('__api', async (_s, name, args) => {
     const fn = API[name];
     try {

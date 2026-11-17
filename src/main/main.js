@@ -1,5 +1,6 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, Menu, clipboard, MessageChannelMain, safeStorage, desktopCapturer } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, Menu, clipboard, MessageChannelMain, safeStorage, desktopCapturer, screen } = require('electron');
+const { Display } = require('./services/display');
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
@@ -365,6 +366,7 @@ async function serve(req) {
 }
 
 // ---------------------------------------------------------------- window --
+let display = null;
 function createWindow() {
   const st = settings.get().window;
   const opts = {
@@ -388,8 +390,12 @@ function createWindow() {
       backgroundThrottling: false,
     },
   };
-  if (st.bounds) Object.assign(opts, st.bounds);
+  // 4.23: a place on a screen that's still there, and a smallest size that fits it (a TV at 150% is
+  // smaller than the old fixed 1060×680, which ran off its edges)
+  display = new Display({ screen, settings, getWin: () => win, send });
+  Object.assign(opts, display.windowOptions(st.bounds));
   win = new BrowserWindow(opts);
+  win.webContents.on('did-finish-load', () => display.apply());
   win.once('ready-to-show', () => {
     if (!win || win.isDestroyed()) return;
     if (st.maximized) win.maximize();
@@ -418,6 +424,9 @@ function createWindow() {
   });
   win.on('resize', saveBounds);
   win.on('move', saveBounds);
+  win.on('moved', () => display.moved());
+  screen.on('display-removed', () => display.apply());
+  screen.on('display-metrics-changed', () => display.apply());
   win.on('closed', () => (win = null));
 
   // 4.0.7: if the page dies (out of memory, a crash), bring it back by itself and say
@@ -825,6 +834,12 @@ function registerIpc() {
     return win.isMaximized();
   });
   handle('win:close', () => { if (win && !win.isDestroyed()) win.close(); });
+  // 4.23: Settings › Display
+  handle('display:info', () => display && display.info());
+  handle('display:set', (patch) => display && display.set(patch || {}));
+  handle('display:reset', () => display && display.reset());
+  handle('display:window', (o) => display && display.window(o || {}));
+  handle('display:restore', (before) => display && display.restore(before));
   handle('win:state', () => (win && !win.isDestroyed() ? { maximized: win.isMaximized(), fullscreen: win.isFullScreen() } : { maximized: false, fullscreen: false }));
 
   handle('library:get', () => {
@@ -1070,6 +1085,7 @@ function registerIpc() {
         downloadsDir: () => process.env.STAGEHAND_DOWNLOADS || app.getPath('downloads'),
         importFiles: (paths) => importer.importFiles(paths, { origin: 'finder' }),
         onEvent: (e) => send('finder:event', e),
+        prefs: { get: () => settings.get().finder || {}, set: (p) => settings.set({ finder: p }) },
         openExternal: (u) => !process.env.STAGEHAND_NO_EXTERNAL && shell.openExternal(u),
         clipboard,
         log,

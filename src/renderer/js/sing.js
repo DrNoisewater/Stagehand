@@ -8,10 +8,15 @@
  */
 
 export const SING_LEVELS = {
-  easy: { name: 'Easy', cents: 250, bar: 0.4 },
-  medium: { name: 'Medium', cents: 120, bar: 0.55 },
-  hard: { name: 'Hard', cents: 60, bar: 0.7 },
+  // 4.23: each level changes what you see as well as how strict it is: the band drawn around the note
+  // (cents either side), how early or late a word may start (slack), and whether slides and runs are
+  // drawn and judged along their line (Easy asks for the main note only). The song's notes never change.
+  easy: { name: 'Easy', cents: 250, bar: 0.4, slack: 0.22, lines: false, tell: 'A wide band around each note, words may start a little early or late, slides and runs count as their main note, arrows show which way to go.' },
+  medium: { name: 'Medium', cents: 120, bar: 0.55, slack: 0.15, lines: true, tell: 'A narrower band, normal timing, slides and runs followed along their line.' },
+  hard: { name: 'Hard', cents: 60, bar: 0.7, slack: 0.1, lines: true, tell: 'A narrow band, tight timing, every slide and run as the singer sang it, and fewer hints.' },
 };
+/** 4.23: the way singing is counted (saved with each result, so older bests aren't compared as if the same). */
+export const SING_SCORING = 2;
 /** How early or late a syllable may be sung and still count (seconds). */
 export const SLACK = 0.15;
 /** A line is a good one when this share of its syllables counted. */
@@ -71,6 +76,20 @@ export function buildSing(lyrics) {
 /** The share of syllables that carry a note. */
 export function pitchedShare(syl) {
   return syl.length ? syl.filter((s) => s.p !== null).length / syl.length : 0;
+}
+
+/**
+ * 4.23: of the song's singing time, the share with a note to sing (the rest is timing only).
+ * null for a song with no words. Weighted by how long each word lasts, as the score is.
+ */
+export function pitchCoverage(syl) {
+  let all = 0;
+  let pitched = 0;
+  for (const s of syl || []) {
+    all += s.d;
+    if (s.p !== null) pitched += s.d;
+  }
+  return all > 0 ? pitched / all : null;
 }
 
 /**
@@ -338,12 +357,14 @@ export class SingJudge {
     this.syl = syl;
     this.lines = lines;
     this.level = SING_LEVELS[level] ? level : 'medium';
+    this.slack = SING_LEVELS[this.level].slack;
     this.reset(0);
   }
 
   /** Start over from time t: everything from there on is unsung again. */
   reset(t = 0) {
     this.good = new Float32Array(this.syl.length); // seconds on the note
+    this.voiced = new Float32Array(this.syl.length); // 4.23: seconds any voice was heard (taking part, apart from the note)
     this.held = new Uint8Array(this.syl.length); // on the note at the last look (holding it gets a little more room)
     this.spans = this.syl.map(() => []); // [from, to] stretches on the note, for drawing
     this.result = new Array(this.syl.length).fill(null); // 'hit' | 'miss'
@@ -362,7 +383,7 @@ export class SingJudge {
   rewind(t) {
     let first = this.syl.length;
     for (let i = 0; i < this.syl.length; i++) {
-      if (this.syl[i].t + this.syl[i].d + SLACK > t) {
+      if (this.syl[i].t + this.syl[i].d + this.slack > t) {
         first = i;
         break;
       }
@@ -377,6 +398,7 @@ export class SingJudge {
       }
       this.result[i] = null;
       this.good[i] = 0;
+      this.voiced[i] = 0;
       this.held[i] = 0;
       this.spans[i] = [];
     }
@@ -405,7 +427,8 @@ export class SingJudge {
     // the hard part; a wobble shouldn't drop you off it)
     const room = SING_LEVELS[this.level].cents * (this.held[i] ? HOLD_ROOM : 1);
     if (voice.midi === null || voice.midi === undefined) return false;
-    if (!s.c) return Math.abs(foldCents(voice.midi, s.p)) <= room;
+    // Easy asks for the main note only; Medium and Hard follow a slide or run along its line
+    if (!s.c || !SING_LEVELS[this.level].lines) return Math.abs(foldCents(voice.midi, s.p)) <= room;
     // 4.19: a word with a line of its own (a slide, a bend, a run of notes) is scored along the
     // line: you're on it when you're where the singer is now, or was or will be within 80 ms
     for (const k of LEAN) if (Math.abs(foldCents(voice.midi, noteAt(s, t + k))) <= room) return true;
@@ -423,8 +446,9 @@ export class SingJudge {
     if (!dt) return;
     for (let i = this.next; i < this.syl.length; i++) {
       const s = this.syl[i];
-      if (s.t - SLACK > t) break;
-      if (t > s.t + s.d + SLACK) continue;
+      if (s.t - this.slack > t) break;
+      if (t > s.t + s.d + this.slack) continue;
+      if (voice && voice.voiced) this.voiced[i] = Math.min(s.d, this.voiced[i] + dt);
       const on = this.on(i, voice, t);
       this.held[i] = on ? 1 : 0;
       if (!on) continue;
@@ -442,7 +466,7 @@ export class SingJudge {
     while (this.next < this.syl.length) {
       const i = this.next;
       const s = this.syl[i];
-      if (t <= s.t + s.d + SLACK) break;
+      if (t <= s.t + s.d + this.slack) break;
       const hit = this.good[i] / s.d >= L.bar;
       this.result[i] = hit ? 'hit' : 'miss';
       this.judged++;
@@ -468,6 +492,44 @@ export class SingJudge {
 
   /** How it went, for the score card and the stats. */
   summary() {
-    return { hit: this.hits, notes: this.judged, acc: this.accuracy, lines: this.doneLines, goodLines: this.goodLines, bestStreak: this.bestStreak, level: this.level };
+    return { hit: this.hits, notes: this.judged, acc: this.accuracy, lines: this.doneLines, goodLines: this.goodLines, bestStreak: this.bestStreak, level: this.level, ...this.metrics() };
+  }
+
+  /**
+   * 4.23: four separate numbers, each with its own count (only settled words count):
+   * - pitch: of the time with a note to sing (words with a reliable note), the share you were on it.
+   *   null when no word had a note ("Pitch not scored").
+   * - taking part: of all the words, the share where a voice was heard for at least 30% of the word.
+   * - lines: of the lines finished, the share that were good ones.
+   * - coverage: of all the singing time, the share that had a note to judge (the rest is timing only).
+   * Silence is never a hit, and words with no note never count towards pitch.
+   */
+  metrics() {
+    let pitchDur = 0;
+    let pitchGood = 0;
+    let openDur = 0;
+    let part = 0;
+    let n = 0;
+    let pitched = 0;
+    for (let i = 0; i < this.syl.length; i++) {
+      if (!this.result[i]) continue;
+      const s = this.syl[i];
+      n++;
+      if (this.voiced[i] >= s.d * 0.3) part++;
+      if (s.p === null) openDur += s.d;
+      else {
+        pitched++;
+        pitchDur += s.d;
+        pitchGood += Math.min(s.d, this.good[i]);
+      }
+    }
+    return {
+      pitch: pitchDur > 0 ? pitchGood / pitchDur : null,
+      pitched,
+      takingPart: n ? part / n : null,
+      phrases: this.doneLines ? this.goodLines / this.doneLines : null,
+      coverage: pitchDur + openDur > 0 ? pitchDur / (pitchDur + openDur) : null,
+      scoring: SING_SCORING,
+    };
   }
 }

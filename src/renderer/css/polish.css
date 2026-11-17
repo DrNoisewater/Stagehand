@@ -162,3 +162,98 @@ html[data-look='roadshow'] .gchip { border-radius:1px; border-color:#77644e; bac
 html[data-look='roadshow'] .gchip-tuner { border-left-color:#77644e; }
 html[data-look='roadshow'] .gchip-pop .guitar-card { background:#211d17; border:1px solid #77644e; border-radius:1px; }
 html[data-look='opera'] .gchip-pop .guitar-card { border-radius:3px; background:#151311; border:1px solid #2f2a25; }
+
+/* 4.23: each song's ways to play it, in the middle of its row (Lead, Rhythm, Bass, Sing & play, Karaoke).
+   What the file hasn't got is crossed out, not hidden; on a narrower list they fold into one Modes button. */
+@container (min-width:1101px) {
+  .cols { grid-template-columns:52px minmax(150px,2.2fr) minmax(100px,1.4fr) minmax(90px,1.2fr) 46px 112px 168px 92px 48px 50px 84px; }
+}
+.modes { min-width:0; }
+.pm-row { display:flex; align-items:center; gap:4px; }
+.pm, .pm-more { flex:none; height:26px; min-width:26px; display:inline-grid; place-items:center; padding:0 5px; border:1px solid #5b5040; border-radius:3px; background:#211d18; color:var(--ink,#f5edda); font:800 11.5px/1 var(--font); cursor:pointer; transition:background .12s, border-color .12s, transform .12s; }
+.pm svg, .pm-more svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+.pm:hover, .pm:focus-visible, .pm-more:hover, .pm-more:focus-visible { background:#3a3127; border-color:var(--tungsten,#ffb547); transform:translateY(-1px); outline:none; }
+.pm-lead { color:#ffb79e; } .pm-rhythm { color:#ffd58f; } .pm-bass { color:#c9bfff; }
+.pm-sing, .pm-karaoke { color:var(--gel-vocals,#33c8e0); border-color:#2f5f66; }
+.pm.none { color:#8a8172; border-style:dashed; border-color:#4a4236; background:transparent; position:relative; opacity:.7; }
+.pm.none::after { content:''; position:absolute; left:4px; right:4px; top:50%; height:1.5px; background:#8a8172; transform:rotate(-24deg); }
+.pm-more { display:none; gap:4px; grid-auto-flow:column; padding:0 8px; }
+.pm-more span { font-size:11px; }
+@container (max-width:1100px) {
+  .cols { grid-template-columns:42px minmax(120px,2fr) minmax(80px,1.3fr) 98px 108px 80px 42px 40px; }
+  .pm-row .pm:not(.pm-karaoke) { display:none; }
+  .pm-row .pm-more { display:inline-grid; }
+}
+@container (max-width:780px) {
+  .cols { grid-template-columns:36px minmax(110px,2fr) minmax(70px,1fr) 92px 108px 76px 42px; }
+}
+@container (max-width:680px) {
+  .cols { grid-template-columns:36px minmax(100px,2fr) minmax(60px,1fr) 90px 104px 74px; }
+}
+@container (max-width:580px) {
+  .cols { grid-template-columns:32px minmax(100px,2fr) minmax(65px,1fr) 70px 55px; }
+  .pm-row .pm-karaoke { display:none; }
+}
+.tile .badges .pb { cursor:pointer; font:inherit; font-size:10.5px; font-weight:750; }
+.tile .badges .pb:hover, .tile .badges .pb:focus-visible { filter:brightness(1.35); outline:none; }
+.insp-modes { margin-top:8px; }
+.insp-modes .pm-row .pm { display:inline-grid; }
+.insp-modes .pm-row .pm-more { display:none; }
+.insp-modes .pm { height:30px; min-width:34px; }
+
+/* 4.23: Activity, at the bottom of the menu: quiet when idle, a few rows while things work, the full list on a click */
+.sh-activity { flex:none; min-width:0; margin:8px 0 0; padding:8px 8px 6px; border:1px solid #4a4134; border-radius:3px; background:#17140fcc; }
+.sh-activity[hidden] { display:none; }
+.act-head { width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:2px 6px; padding:0 0 6px; border:0; background:none; color:var(--ink,#f5edda); font:800 11px/1.2 var(--font); letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+.act-head svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2; }
+.act-head em { margin-left:auto; white-space:nowrap; font-style:normal; font-weight:600; letter-spacing:0; text-transform:none; color:var(--ink-3,#a99e8c); }
+.act-head:hover em, .act-head:focus-visible em { color:var(--tungsten,#ffb547); }
+.sh-activity .act-row, .act-drawer .act-row { display:grid; grid-template-columns:18px minmax(0,1fr) auto; grid-template-rows:auto auto; column-gap:6px; padding:4px 0; border-top:1px dashed #3a3229; }
+.act-ic { grid-row:1 / span 2; color:var(--tungsten,#ffb547); }
+.act-ic svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.9; }
+.act-row[data-state='failed'] .act-ic { color:#ff7a5c; }
+.act-row[data-state='done'] .act-ic { color:#9bdb5a; }
+.act-txt { min-width:0; display:grid; }
+.act-txt b, .act-txt small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.act-txt b { font-size:12px; color:var(--ink,#f5edda); }
+.act-txt small { font-size:11px; color:var(--ink-3,#b5aa96); }
+.act-bar { grid-column:2 / span 2; height:3px; margin-top:4px; border-radius:2px; background:#ffffff14; overflow:hidden; }
+.act-bar[hidden] { display:none; }
+.act-bar i { display:block; height:100%; width:0; background:var(--tungsten,#ffb547); transition:width .25s linear; }
+.act-bar.busy i { width:30%; animation:act-busy 1.4s ease-in-out infinite; }
+@keyframes act-busy { 0% { transform:translateX(-100%); } 100% { transform:translateX(340%); } }
+html[data-calm='true'] .act-bar.busy i { animation:none; width:100%; opacity:.4; }
+.act-acts { grid-column:3; grid-row:1; display:flex; gap:2px; }
+.act-acts .icon-btn { width:24px; height:24px; }
+.act-drawer { position:fixed; z-index:60; width:min(380px, calc(100vw - 32px)); max-height:min(70vh, 560px); overflow:auto; padding:12px; border:1px solid #5b5040; border-radius:4px; background:#1b1814; box-shadow:0 18px 50px #000b; }
+.act-drawer header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.act-drawer header span { color:var(--ink-3); font-size:12px; }
+.act-drawer header .btn { margin-left:auto; }
+.act-group { margin:10px 0 2px; font:800 10.5px var(--font); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); }
+.act-empty { color:var(--ink-3); font-size:12.5px; }
+
+/* 4.23: TV safe area: the whole app fenced in by a black border (fixed things, the highway and dialogs
+   included: the transform makes the body their frame) */
+html[data-safe] { background:#000; }
+html[data-safe] body { height:auto !important; width:auto !important; min-height:0 !important; margin:0; position:fixed; top:var(--safe-y); bottom:var(--safe-y); left:var(--safe-x); right:var(--safe-x); overflow:hidden; transform:translateZ(0); }
+html[data-safe] #app { height:100%; }
+.safe-pattern { position:fixed; inset:0; z-index:99999; pointer-events:none; border:3px solid #ffb547; box-shadow:inset 0 0 0 9999px #00000040; display:grid; place-items:center; }
+.safe-pattern b { padding:10px 16px; background:#1b1814; border:1px solid #ffb547; color:#f5edda; font:700 15px var(--font); max-width:60%; text-align:center; }
+.safe-pattern .c { position:absolute; width:46px; height:46px; border:0 solid #33c8e0; }
+.safe-pattern .tl { left:8px; top:8px; border-left-width:6px; border-top-width:6px; }
+.safe-pattern .tr { right:8px; top:8px; border-right-width:6px; border-top-width:6px; }
+.safe-pattern .bl { left:8px; bottom:8px; border-left-width:6px; border-bottom-width:6px; }
+.safe-pattern .br { right:8px; bottom:8px; border-right-width:6px; border-bottom-width:6px; }
+.disp-sec { margin:4px 0 16px; }
+.disp-sec h3 { margin:6px 0 4px; font-size:14px; color:var(--ink); }
+.disp-sub { margin:2px 0 8px; font-size:12.5px; color:var(--ink-3); line-height:1.45; }
+.disp-facts { display:grid; grid-template-columns:max-content 1fr; gap:4px 14px; margin:6px 0; font-size:13px; }
+.disp-facts dt { color:var(--ink-3); }
+.disp-facts dd { margin:0; color:var(--ink); }
+.disp-seg { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
+.disp-seg button { padding:6px 12px; border:1px solid #5b5040; border-radius:3px; background:#211d18; color:var(--ink); font:650 12.5px var(--font); cursor:pointer; }
+.disp-seg button[aria-pressed='true'] { background:var(--tungsten,#ffb547); color:#1a1408; border-color:var(--tungsten,#ffb547); }
+.disp-range { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.disp-range input { width:min(280px, 60%); }
+.disp-range output { min-width:42px; font-weight:700; }
+.disp-foot { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:8px; }

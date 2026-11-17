@@ -205,7 +205,8 @@ function buildPanel(items, level) {
   const paint = () => {
     for (const { it, b, hint, label } of rows) {
       const l = val(it.label);
-      if (label.textContent !== l) label.textContent = l;
+      const sub = it.sub ? val(it.sub) : '';
+      if (label.textContent !== l + sub) label.innerHTML = `${esc(l)}${sub ? `<small class="menu-sub">${esc(sub)}</small>` : ''}`;
       if (it.submenu) continue;
       const v = val(it.hint) || '';
       if (hint.textContent !== v) hint.textContent = v;
@@ -241,7 +242,7 @@ function buildPanel(items, level) {
     }
     const b = h('button', { role: 'menuitem', type: 'button', class: it.danger ? 'danger' : '', disabled: it.disabled });
     if (it.title) b.title = it.title;
-    b.innerHTML = `${it.icon ? icon(it.icon) : '<span class="menu-gap"></span>'}<span>${esc(val(it.label))}</span>${it.submenu ? `<span class="hint">${icon('chevronRight')}</span>` : '<span class="hint"></span>'}`;
+    b.innerHTML = `${it.icon ? icon(it.icon) : '<span class="menu-gap"></span>'}<span>${esc(val(it.label))}${it.sub ? `<small class="menu-sub">${esc(val(it.sub))}</small>` : ''}</span>${it.submenu ? `<span class="hint">${icon('chevronRight')}</span>` : '<span class="hint"></span>'}`;
     const hint = b.querySelector('.hint');
     if (it.submenu) {
       b.setAttribute('aria-haspopup', 'menu');

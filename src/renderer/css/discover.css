@@ -181,3 +181,9 @@ html[data-look='opera'] .dv-selbar { border-color:#3d3630; background:var(--rr-g
 .drop-overlay .box { border-radius:3px; border-color:#f1ce6888; background:linear-gradient(180deg,#26221d,#1a1714); box-shadow:4px 5px 0 #000; }
 .drop-overlay .ic { color:#f1ce68; }
 .drop-overlay b { font-size:22px; font-weight:900; font-stretch:66%; letter-spacing:.01em; text-transform:uppercase; color:#f5edda; }
+/* 4.23: every track's state in words, colour and an icon: in library, missing a part, wanted, being looked for, missing */
+#app #discover .state { display:inline-flex; align-items:center; gap:5px; }
+#app #discover .state svg { width:13px; height:13px; flex:none; }
+#app #discover .state.attn { background:#ffb54718; color:#ffd08a; box-shadow:inset 0 0 0 1px #ffb54766; }
+#app #discover .state.now { background:#33c8e01c; color:#9be9f5; box-shadow:inset 0 0 0 1px #33c8e066; }
+#app #discover .state.miss.quiet { color:#a99e8c; }

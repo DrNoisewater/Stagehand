@@ -1,3 +1,4 @@
+import { modesStrip } from './playmodes.js';
 /** Right pane: song details, metadata editor (single and batch). */
 import { artImg, harvest } from './artkeep.js';
 import { api } from './api.js';
@@ -136,6 +137,7 @@ function renderOne(s) {
   const listen = h('button.btn.soft', { type: 'button', text: 'Just listen', title: 'Play it here; the bottom bar has the controls' });
   listen.onclick = () => actions.playSong(s.id, { autoplay: true });
   root.append(h('div.insp-play', null, along, listen));
+  root.append(modesStrip(s)); // 4.23: the same ways to play it as on its row
 
   const fav = !!(s.user && s.user.fav);
   const row = h('div.insp-actions');

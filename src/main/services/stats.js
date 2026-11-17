@@ -125,6 +125,21 @@ class Stats {
     if (Number.isFinite(Number(s.bestStreak))) e.bestStreak = Number(s.bestStreak);
     // 4.4: for levels: played start to finish, and the tuning's name
     if (s.full === true) e.full = true;
+    // 4.23: a singing run keeps how it was counted (mode, level, where the notes came from) and its four numbers
+    if (e.part === 'vocals' && s.vocal && typeof s.vocal === 'object') {
+      const v = s.vocal;
+      const num = (x) => (x === null || x === undefined || !Number.isFinite(Number(x)) ? null : Math.max(0, Math.min(1, Number(x))));
+      e.vocal = {
+        scoring: Number(v.scoring) || 0,
+        mode: v.mode === 'karaoke' ? 'karaoke' : 'singplay',
+        level: ['easy', 'medium', 'hard'].includes(v.level) ? v.level : 'medium',
+        source: ['charted', 'stem', 'rhythm'].includes(v.source) ? v.source : 'charted',
+        pitch: num(v.pitch),
+        takingPart: num(v.takingPart),
+        phrases: num(v.phrases),
+        coverage: num(v.coverage),
+      };
+    }
     if (typeof s.tuning === 'string' && s.tuning) e.tuning = s.tuning.slice(0, 40);
     // 4.5: the same session twice in a row (a double checkpoint) is not counted again
     const prev = this.data.sessions[this.data.sessions.length - 1];
@@ -144,10 +159,17 @@ class Stats {
     for (const s of this.data.sessions) {
       if (!s.songId || s.accuracy === null || s.notes < 20 || (s.speed || 1) < 0.999) continue;
       const o = (out[s.songId] = out[s.songId] || {});
-      const k = s.part || 'lead';
+      let k = s.part || 'lead';
+      // 4.23: singing counted the new way has its own best per level; older runs stay apart (vocalsOld)
+      if (k === 'vocals') {
+        if (s.vocal && s.vocal.scoring >= 2) {
+          const lk = `vocals_${s.vocal.level}`;
+          if (o[lk] === undefined || s.accuracy > o[lk]) o[lk] = s.accuracy;
+        } else k = 'vocalsOld';
+      }
       if (o[k] === undefined || s.accuracy > o[k]) o[k] = s.accuracy;
       // 4.12: a singing score has its own best (vocals), and so does piano (keys, 4.15); the song's best stays about the guitar
-      if (k !== 'vocals' && k !== 'keys' && (o.best === undefined || s.accuracy > o.best)) o.best = s.accuracy;
+      if (k !== 'vocals' && k !== 'vocalsOld' && k !== 'keys' && (o.best === undefined || s.accuracy > o.best)) o.best = s.accuracy;
     }
     return out;
   }

@@ -8,7 +8,7 @@ async function call(channel, ...args) {
   return { __sh: true, ...(r || { ok: false, error: 'Something went wrong' }) };
 }
 
-const EVENTS = new Set(['nav:back', 'win:state', 'audio:search', 
+const EVENTS = new Set(['nav:back', 'win:state', 'display:changed', 'audio:search', 
   'library:reset',
   'library:songs',
   'scan:progress',
@@ -50,6 +50,11 @@ contextBridge.exposeInMainWorld('stagehand', {
     close: () => call('win:close'),
     winState: () => call('win:state'),
     activity: (text) => call('app:activity', text),
+    display: () => call('display:info'),
+    setDisplay: (patch) => call('display:set', patch),
+    resetDisplay: () => call('display:reset'),
+    displayWindow: (o) => call('display:window', o),
+    restoreWindow: (before) => call('display:restore', before),
     crashNote: () => call('app:crashNote'),
   },
   library: {

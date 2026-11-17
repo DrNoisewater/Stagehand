@@ -1,3 +1,73 @@
+# 4.23.0 — Karaoke's new stage, singing scores apart, one Songs library, Activity, Display for TVs (2026-11-17; nothing tried on the user’s PC)
+
+The user sent a full design brief for one release (singing first, then navigation, background work, Discover/finder,
+Backstage, recording, scorecards, TV display, look) and eight screenshots, and asked to finish, merge and release.
+
+**Built:**
+- **Karaoke's lane** (`singlane.js` `lay()`, `viewRange`, `drawPhrase`): sized from the window (~45% of its height,
+  300–720 px). A semitone ladder (faint) with a stronger line and a name at every C (C4 = MIDI 60), note names when
+  there's room. One semitone is the same height all song (span 12–19 semitones from the tune); a tune wider than the
+  span glides the view ahead of time, only when a note would be near the edge. Notes beyond the view get an arrow.
+  The level's band (± its cents) is drawn round the note to sing and the next ones. The line being sung stays still,
+  each syllable fills as it's sung, a long line is broken between words; the next line underneath (karaoke) or above
+  (Sing & play). How far ahead: 2/3/4 s (Sing menu). The voice dot is your real pitch (moved to the nearest octave,
+  never pulled onto the bar); gaps stay gaps; Easy/Medium show an arrow which way to go. Sing & play's lane is taller
+  (150 px, or 220 with Lane size › Taller).
+- **Levels** (`sing.js` `SING_LEVELS`): each has cents, timing slack (Easy 0.22 s, Medium 0.15, Hard 0.10), and
+  whether slides/runs are followed (`lines`: Easy judges the main note). The menu says what each changes.
+  Octaves still count on every level (kept: men singing women's songs).
+- **Singing numbers apart** (`SingJudge.metrics()`): pitch (time on the note ÷ time with a note, null = "Not
+  scored"), words sung (a voice for ≥30% of the word), good lines, coverage (time with a note ÷ all singing time).
+  Saved with each run as `vocal: { scoring: 2, mode, level, source, pitch, takingPart, phrases, coverage }`
+  (`stats.js`); bests per level (`vocals_easy` …), old runs kept apart as `vocalsOld`.
+- **The "Checked 71%" label** was the share of chart notes confirmed on the singer's recording, not a score. The lane
+  now says "Vocal notes ready · 79% with a note to sing · some phrases are timing only", "Analyzing vocal melody…",
+  and "No sound from the microphone" after 8 s of total silence while playing (hover: the recording check).
+- **Score card** (`highway.js` `ringEl`, `singFacts`): the number is sized to fit the ring, long titles wrap to two
+  lines; the singing card shows pitch, words sung, lines, had a note, best on this level; "Stopped early" for a run
+  that didn't finish. Play-along is always scored with its card: "Score my playing" and "Score card at the end"
+  are gone (scoring turned back on once, `scored423`); "Practice without a score" is the plain choice.
+- **Hit ring** ~15% smaller, softer, 0.30 s; none with calm motion or Windows' reduce-animations.
+- **Karaoke under Songs**: the Karaoke page (`karaoke.js`) is gone; `setPage('karaoke')` lands on Songs › Karaoke
+  (`store.js`). Also Songs › Missing a part (`missingParts`: audio, guitar, bass, words).
+- **Play buttons on every song** (`playmodes.js`, used by `library.js` rows and `inspector.js`): Lead, Rhythm, Bass,
+  Sing & play, Karaoke; missing ones crossed out, clicking says why and offers **Find a better version**
+  (`discover.js` `findBetter`: the finder on artist + title; nothing replaced). Narrower lists: Karaoke + Modes.
+  `actions.playAs(id, mode, part)` opens on that part.
+- **Activity** (`activity.js`, bottom of the menu, class `sh-activity`; `.activity` is the top-right pill): stem
+  splits, the cleaner singer, imports, update download; Finalizing instead of a stuck 99%; the list has Cancel, Do
+  this one next, Try again, Clear finished. Drawn at most 5×/s, rows changed in place. `window.__activity.setJob`
+  for other jobs (clip downloads and singer reading aren't wired in yet).
+- **Settings › Display** (`services/display.js`, `displaysettings.js`): the screen (size, Windows scale, Hz),
+  Stagehand's size (Auto = 100%, or smaller on a screen narrower than 1060×680; 80–150%), a TV safe area (0–10%
+  black border round the whole app, the highway too; a corner picture to check it), Windowed/Maximized/Full screen
+  and window sizes (back by themselves after 15 s unless kept), Reset this screen, the Roku "Picture size › Direct"
+  tip. Per screen. The window's smallest size now fits the screen (the old 1060×680 ran off a 1280×720 TV at 150%),
+  and a window saved on a screen that's gone comes back on one that exists.
+- **Highway top bar** fits at 1280 wide (Tools and Settings as icons under 1366, `stagechrome.css`).
+- **Song finder** (`services/finder.js`): opens at 90% of the screen, remembers its size per screen, −/Fit/+ zoom
+  of the site (Fit = the window ÷ 1400 px, never above 100%), remembered.
+- **Discover**: All / Missing / Wanted / In library / Missing a part, with counts; songs you have that are missing a
+  part get a Find a better version button.
+- **Tests**: `test/sing.test.mjs` (+3: metrics apart, Easy ≥ Medium ≥ Hard on the same singing, Easy's main note),
+  `test/display.test.js` (new, in npm test), `test/e2e/display-audit.js` (new), `sing-audit.js` (Karaoke under
+  Songs), `stems-audit.js` (Activity), `discover-audit.js` (filters). `test/hwlook/stubs` brought up to date (the
+  SING/TOPBAR shots had stopped running: missing `momentsOf`, `setTempoFromBeats`). `test/e2e/tones-electron.js`
+  fails before and after this release (a dialog covers Tones at start); not looked into.
+
+**Not done (on purpose or for lack of what's needed):**
+- Real voices: difficulty bands are still the 4.19 numbers; nothing calibrated against a real microphone. The user is
+  sending Call Me (Blondie) and Somebody That I Used To Know (Gotye) with their vocal stems: check the reference
+  line and the big jumps on those.
+- Flicker: no Windows PC here; nothing measured. Activity is throttled and updates in place.
+- Backstage: no typed media manifest, loops still not shared, no transfer changes, nothing tested across networks.
+- Recording: Jam already has Record video (`jam.js`, saved to My clips); no new jam recorder, trim or instrument-only export.
+- Colour refresh: the text colours already meet contrast; no reskin done.
+- Karaoke's difficulty marks (Easy/Medium/Hard per song) and split marks went with the old page.
+
+**Ask the user:** how Karaoke looks on their screen and TV; whether Easy/Medium/Hard feel right; whether the TV
+border and Auto size fix their friend's TV; whether they miss the Karaoke page's difficulty marks.
+
 # 4.22.0 — What every control does, under the controls (2026-11-15; nothing tried on the user’s PC)
 
 The user: "So many pedals now. I'm not even sure if they work! They need detailed descriptions under the knobs of what

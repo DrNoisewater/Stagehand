@@ -1545,7 +1545,7 @@ function makeHighway() {
       requestStems: () => S.song && actions.requestStems([S.song.id]).then(() => api.stems.prioritize(S.song.id).catch(() => {})),
       borrowPlayer: () => borrowPlayer(),
       giveBack: (snap) => giveBack(snap),
-      goBack: () => setPage(state.backPage === 'karaoke' ? 'karaoke' : 'songs'), // from karaoke, back to the Karaoke page
+      goBack: () => setPage('songs'), // 4.23: back to Songs (the list, search and place you came from)
       showView: (v) => setStageView(v),
       onHighwayClosed: () => {
         if (tabView && tabView.visible) tabView.stemsChanged();

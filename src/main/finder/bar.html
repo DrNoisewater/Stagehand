@@ -39,6 +39,9 @@
   .msg.warn { color: var(--warn); }
   .grp { display: flex; gap: 6px; flex: none; }
   .none .want, .none [data-act=find], .none [data-act=skip] { display: none; }
+  /* 4.23: on a narrow window the words step aside before the buttons do */
+  @media (max-width: 1100px) { .msg { -webkit-line-clamp: 1; font-size: 12px; } .tape { display: none; } }
+  @media (max-width: 900px) { .msg { display: none; } [data-act=browser] { display: none; } }
 </style>
 </head>
 <body class="none">
@@ -54,6 +57,11 @@
     <button data-act="skip" title="Leave this one for later and look for the next wanted song">Next song</button>
   </div>
   <div class="msg" id="msg">Sign in to CustomsForge here once. Songs you download in this window go straight into your library.</div>
+  <div class="grp zoom" role="group" aria-label="Page size">
+    <button class="nav" data-act="zoomOut" title="Smaller: more of the site's table fits" aria-label="Smaller">−</button>
+    <button data-act="zoomFit" title="Fit the site's table in this window (no scrolling sideways)" id="zoom">Fit</button>
+    <button class="nav" data-act="zoomIn" title="Bigger" aria-label="Bigger">+</button>
+  </div>
   <div class="grp">
     <button data-act="browser" title="Open this page in your own browser">My browser</button>
     <button data-act="close" title="Close the song finder">Done</button>
@@ -67,11 +75,13 @@
     if (st.want) {
       $('song').textContent = `${st.want.artist}${st.want.artist && st.want.title ? ' – ' : ''}${st.want.title}`;
       $('left').textContent = st.want.left > 1 ? `${st.want.left - 1} more wanted after this` : 'from your Wanted list';
+      $('song').title = $('song').textContent;
     }
     const going = (st.downloads || []).filter((d) => d.state === 'going');
     const m = $('msg');
     m.textContent = going.length && !st.message.startsWith('Adding') ? `Downloading ${going.map((d) => `${d.name} ${d.pct}%`).join(', ')}` : st.message || HELLO;
     m.className = `msg ${going.length ? '' : st.kind || ''}`;
+    $('zoom').textContent = st.zoom && Math.abs(st.zoom - 1) > 0.001 ? `Fit · ${Math.round(st.zoom * 100)}%` : 'Fit';
     document.querySelector('[data-act=back]').disabled = !st.canBack;
     document.querySelector('[data-act=forward]').disabled = !st.canForward;
   });

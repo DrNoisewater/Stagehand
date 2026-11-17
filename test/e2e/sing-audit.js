@@ -67,50 +67,35 @@ module.exports = async ({ page, outDir, check }) => {
   await look.scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(outDir, 'sing-settings-look.png') });
   await page.keyboard.press('Escape');
-  // the Karaoke page on the left: songs with words, and picking one opens it with the words only
-  await page.locator('#sidebar .nav-section[data-page="karaoke"]').click();
-  await page.waitForTimeout(600);
-  const cards = await page.locator('#page-karaoke .kk-card').count();
-  check(cards > 0, `Karaoke is on the left and lists the songs with words (${cards})`);
-  await page.locator('#page-karaoke .kk-search').fill('zzzz no such song');
-  check((await page.locator('#page-karaoke .kk-card').count()) === 0 && /No song matches/.test(await page.locator('#page-karaoke').textContent()), 'searching narrows the list');
-  await page.locator('#page-karaoke .kk-search').fill('');
-  const wand = page.locator('#page-karaoke .kk-tunebtn');
-  check((await wand.getAttribute('aria-pressed')) === 'true', 'the Karaoke page shows auto-tune is on');
-  await wand.click();
-  await page.waitForTimeout(300);
-  const menu = await page.locator('.menu').last().textContent().catch(() => '');
-  check(/Hard tune/.test(menu) && /Voice: villain/.test(menu) && /Tune to/.test(menu), `its menu has the styles, the notes and the voice (${menu.slice(0, 90)})`);
-  await page.screenshot({ path: path.join(outDir, 'karaoke-tune-menu.png') });
-  await page.keyboard.press('Escape');
-  await page.mouse.click(5, 5);
-  await page.evaluate(async () => { const { autotune } = await import('./js/autotune.js'); autotune.setStyle('off'); autotune.setVoice('normal'); });
-  // 4.19: which split each song has is a line under the picture (nothing across the art), and
-  // how hard it is to sing is one of three words
-  const marks = await page.evaluate(async () => {
-    const { state, emit } = await import('./js/store.js');
-    const cards = [...document.querySelectorAll('#page-karaoke .kk-card')].slice(0, 3).map((c) => state.songs.get(c.dataset.id));
-    if (cards[0]) Object.assign(cards[0], { hasStems: true, betterStems: true });
-    if (cards[1]) Object.assign(cards[1], { hasStems: true, betterStems: false });
-    emit('stems', {});
-    await new Promise((r) => setTimeout(r, 1500));
-    const q = (sel) => [...document.querySelectorAll('#page-karaoke ' + sel)];
-    const art = document.querySelector('#page-karaoke .kk-cov').getBoundingClientRect();
-    const tag = document.querySelector('#page-karaoke .kk-stem').getBoundingClientRect();
-    return { onArt: q('.kk-cov .kk-stem').length, under: tag.top >= art.bottom, better: q('.kk-stem.better').map((x) => x.textContent), plain: q('.kk-stem.ready').length, none: q('.kk-stem.none').length, diffs: [...new Set(q('.kk-diff em').map((x) => x.textContent))], pips: q('.kk-diff:not(.wait):not(.none)').map((x) => x.querySelectorAll('i').length) };
+  // 4.23: Karaoke is a list under Songs (one library), and every song row has its play buttons
+  await page.locator('#sidebar .nav-section[data-page="songs"]').click();
+  await page.waitForTimeout(500);
+  check((await page.locator('#sidebar .nav-section[data-page="karaoke"]').count()) === 0, 'Karaoke is no longer a page of its own on the left');
+  await page.locator('#sidebar .nav-item[data-kind="karaoke"]').click();
+  await page.waitForTimeout(800);
+  const listed = await page.evaluate(async () => {
+    const { state, visibleSongs, hasPart } = await import('./js/store.js');
+    const v = visibleSongs();
+    return { kind: state.view.kind, n: v.length, allWords: v.every((s) => hasPart(s, 'vocals')), rows: document.querySelectorAll('#library .row').length };
   });
-  check(marks.onArt === 0 && marks.under, `the split mark is under the picture, not on it (${JSON.stringify(marks)})`);
-  check(marks.better.length === 1 && /clean/i.test(marks.better[0]) && marks.plain >= 1, `the cleaner split and the quick split are told apart (${JSON.stringify(marks)})`);
-  check(marks.diffs.every((x) => ['Easy', 'Medium', 'Hard'].includes(x)) && marks.pips.every((n) => n === 3), `how hard to sing is Easy, Medium or Hard (${JSON.stringify(marks.diffs)})`);
-  await page.screenshot({ path: path.join(outDir, 'karaoke-page.png') });
-  await page.locator('#page-karaoke .kk-card').first().click();
+  check(listed.kind === 'karaoke' && listed.n > 0 && listed.allWords, `Songs › Karaoke lists the songs with words (${JSON.stringify(listed)})`);
+  await page.evaluate(async () => (await import('./js/store.js')).setPage('karaoke'));
+  await page.waitForTimeout(300);
+  check(await page.evaluate(async () => { const { state } = await import('./js/store.js'); return state.page === 'songs' && state.view.kind === 'karaoke'; }), 'an old link to the Karaoke page lands on Songs › Karaoke');
+  const btns = await page.evaluate(() => {
+    const r = document.querySelector('#library .row');
+    return r ? [...r.querySelectorAll('.pm')].map((b) => `${b.dataset.mode}${b.classList.contains('none') ? '-' : '+'}`) : [];
+  });
+  check(btns.length === 5 && btns.includes('karaoke+'), `each row has Lead, Rhythm, Bass, Sing & play and Karaoke (${btns.join(' ')})`);
+  await page.screenshot({ path: path.join(outDir, 'karaoke-list.png') });
+  await page.locator('#library .row .pm-karaoke:not(.none)').first().click();
   await page.waitForFunction(() => { const r = document.querySelector('.highway'); return r && !r.hidden; }, null, { timeout: 30000 });
   await page.waitForTimeout(2500);
   const kk = await page.evaluate(() => { const r = document.querySelector('.highway'); return { k: r.classList.contains('hw-karaoke'), chip: r.querySelector('.hw-karaoke-chip[aria-pressed="true"]')?.textContent || '', words: r.__hw.sing.state.base.syl.length }; });
-  check(kk.words ? kk.k && /Karaoke/.test(kk.chip) : !kk.k, `picking a song opens it as karaoke (${JSON.stringify(kk)})`);
+  check(kk.words ? kk.k && /Karaoke/.test(kk.chip) : !kk.k, `its Karaoke button opens it as karaoke (${JSON.stringify(kk)})`);
   await page.screenshot({ path: path.join(outDir, 'karaoke-open.png') });
   await page.evaluate(() => window.__shHighway.leave());
   await page.waitForTimeout(800);
-  check(await page.evaluate(() => document.getElementById('app').classList.contains('page-karaoke')), 'leaving goes back to the Karaoke page');
+  check(await page.evaluate(async () => { const { state } = await import('./js/store.js'); return state.page === 'songs' && state.view.kind === 'karaoke'; }), 'leaving goes back to Songs › Karaoke');
   check(!errs.length, `no errors on the page (${errs.join('; ')})`);
 };
