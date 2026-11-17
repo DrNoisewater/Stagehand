@@ -93,7 +93,7 @@ setTimeout(() => {
 }, 1500);
 
 // ------------------------------------------------------------ drawing --
-const host = h('section.activity', { 'aria-label': 'Activity', hidden: true });
+const host = h('section.sh-activity', { 'aria-label': 'Activity', hidden: true });
 const head = h('button.act-head', { type: 'button', 'aria-expanded': 'false', title: 'Everything Stagehand is doing in the background' });
 const rowsEl = h('div.act-rows');
 host.append(head, rowsEl);
@@ -151,7 +151,7 @@ function rowFor(j, el) {
   if (b.textContent !== (j.song || j.label)) b.textContent = j.song || j.label;
   el.title = title;
   const pct = j.progress !== null && j.progress !== undefined && j.state === 'running' ? `${Math.round(j.progress * 100)}%` : '';
-  const sub = [j.song ? j.label : '', j.state === 'done' ? j.phase || 'Done' : j.state === 'failed' ? j.phase || 'Failed' : j.state === 'canceled' ? 'Stopped' : j.phase, pct, j.eta].filter(Boolean).join(' · ');
+  const sub = [pct, j.state === 'done' ? j.phase || 'Done' : j.state === 'failed' ? j.phase || 'Failed' : j.state === 'canceled' ? 'Stopped' : j.phase, j.eta, j.song ? j.label : ''].filter(Boolean).join(' · ');
   const sm = el.querySelector('small');
   if (sm.textContent !== sub) sm.textContent = sub;
   const bar = el.querySelector('.act-bar');
