@@ -298,7 +298,7 @@ export function createHighway(stage) {
       { heading: true, label: 'Go to' },
       { label: 'Songs', icon: 'library', onClick: go('songs') },
       { label: 'Jam', icon: 'guitar', onClick: go('play') },
-      { label: 'Karaoke', icon: 'mic', onClick: go('karaoke') },
+      { label: 'Karaoke songs', icon: 'mic', onClick: go('karaoke') },
       { label: 'Tones', icon: 'tones', onClick: go('tones') },
       { label: 'Gear', icon: 'amp', onClick: go('gear') },
       { label: 'Progress', icon: 'chart', onClick: go('progress') },
@@ -1342,7 +1342,11 @@ export function createHighway(stage) {
     if (state.modeNext) {
       const m = state.modeNext;
       state.modeNext = null;
-      if (m.id === song.id) playAs(m.mode);
+      if (m.id === song.id) {
+        const p = m.part ? (H.parts || []).find((x) => !x.bonus && (x.type === m.part || (m.part === 'lead' && x.type === 'combo'))) : null;
+        if (p && m.mode === 'sing') playAs('guitar', p.id).then(() => playAs('sing'));
+        else playAs(m.mode, p ? p.id : null);
+      }
     }
     wasAside = aside();
     paintModes();

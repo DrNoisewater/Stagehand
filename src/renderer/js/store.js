@@ -111,6 +111,26 @@ export function hasPart(s, part) {
   return (s.arrangements || []).some((a) => a.type === part || (part === 'lead' && a.type === 'combo') || (part === 'vocals' && a.type === 'jvocals'));
 }
 
+/**
+ * 4.23: what a song can be played as, from its file: each part it really has, words to sing, and
+ * whether its audio was found. A vocals stem alone is not words: Karaoke needs the lyric chart.
+ */
+export function songModes(s) {
+  const has = (p) => hasPart(s, p);
+  const noAudio = !!s && s.audioEntry === null && !s.audioFrom && !!s.audioFail;
+  return { lead: has('lead'), rhythm: has('rhythm'), bass: has('bass'), words: has('vocals'), noAudio };
+}
+/** 4.23: what's missing from a song, in words ([] when nothing is): for "Missing a part" and Find a better version. */
+export function missingParts(s) {
+  const m = songModes(s);
+  const out = [];
+  if (m.noAudio) out.push('audio');
+  if (!m.lead && !m.rhythm) out.push('guitar');
+  if (!m.bass) out.push('bass');
+  if (!m.words) out.push('words');
+  return out;
+}
+
 export function viewTitle(v = state.view) {
   switch (v.kind) {
     case 'all':
@@ -123,6 +143,10 @@ export function viewTitle(v = state.view) {
       return 'Recently played';
     case 'stems':
       return 'Stems ready';
+    case 'karaoke':
+      return 'Karaoke';
+    case 'incomplete':
+      return 'Missing a part';
     case 'setlist': {
       const sl = state.setlists.find((x) => x.id === v.id);
       return sl ? sl.name : 'Setlist';
@@ -163,6 +187,8 @@ function viewBase(v) {
     list = list.filter((s) => (s.addedAt || 0) >= cutoff);
   } else if (v.kind === 'played') list = list.filter((s) => s.user && s.user.lastPlayed);
   else if (v.kind === 'stems') list = list.filter((s) => (state.stems.get(s.id) || {}).state === 'ready' || s.hasStems);
+  else if (v.kind === 'karaoke') list = list.filter((s) => hasPart(s, 'vocals'));
+  else if (v.kind === 'incomplete') list = list.filter((s) => missingParts(s).length > 0);
   else if (v.kind === 'setlist') {
     const sl = state.setlists.find((x) => x.id === v.id);
     list = sl ? sl.songIds.map((id) => state.songs.get(id)).filter(Boolean) : [];
@@ -419,6 +445,8 @@ export function setView(view, { keepSearch = false } = {}) {
 
 /** play | songs | discover | tones | progress | now (the song you're practising). */
 export function setPage(page, { quiet = false, keepSearch = false } = {}) {
+  // 4.23: Karaoke is a list in Songs now (one library, one search); the old page's links land there
+  if (page === 'karaoke') return setView({ kind: 'karaoke' }, { keepSearch });
   if (page !== 'now' && state.page !== 'now') state.lastPage = state.page;
   if (page === 'now' && state.page !== 'now') state.backPage = state.page;
   const changed = state.page !== page;

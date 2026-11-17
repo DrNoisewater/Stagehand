@@ -481,7 +481,7 @@ const PAGES = [
   {
     group: 'More to try',
     title: 'Sing and Karaoke',
-    show: { title: 'Karaoke', at: '.nav-section[data-page="karaoke"]', go: () => setPage('karaoke'), tip: 'Every song with words. Click one to sing it. The wand at the top is auto-tune and the voice changer.' },
+    show: { title: 'Karaoke', at: '.nav-item[data-kind="karaoke"]', go: () => setPage('karaoke'), tip: 'Songs › Karaoke lists every song with words; the mic on any song starts it. The wand at the top is auto-tune and the voice changer.' },
     draw: () =>
       h(
         'div',

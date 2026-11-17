@@ -64,11 +64,12 @@ export async function playKaraoke(id) {
  * 4.18: open a song straight into one way of playing it, from anywhere in Stagehand:
  * 'guitar', 'sing' (beside your part), 'karaoke' or 'piano'. The highway picks this up when it opens.
  */
-export async function playAs(id, mode) {
+export async function playAs(id, mode, part = null) {
   if (mode === 'karaoke') return playKaraoke(id);
   const song = state.songs.get(id);
   if (!song || !stageApi) return;
-  state.modeNext = { id, mode };
+  // 4.23: a part can be named too ('lead', 'rhythm', 'bass'): the song's buttons open straight on it
+  state.modeNext = { id, mode, part };
   await playAlong(id);
 }
 

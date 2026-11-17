@@ -3,6 +3,7 @@ import { badgesHtml } from './songbadges.js';
 import { decorativeImage } from './menu-art.js';
 /** Centre pane: the song table (virtualised) and the cover grid. */
 import { api } from './api.js';
+import { modesHtml, runMode, modesMenu } from './playmodes.js';
 import { isOfficial, state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, setView, accBand, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel, lastSearch, clearSearch, viewHas } from './store.js';
 import { singerJob } from './singer-upgrade.js';
 import { h, icon, esc, fmtDuration, debounce } from './ui.js';
@@ -19,7 +20,7 @@ const COLS = [
   { key: 'album', label: 'Album' },
   { key: 'year', label: 'Year' },
   { key: 'tuning', label: 'Tuning' },
-  { key: 'parts', label: 'Parts' },
+  { key: 'parts', label: 'Play' },
   { key: 'best', label: 'Your best' },
   { key: 'length', label: 'Length' },
   { key: null, label: '', title: 'Stems' },
@@ -139,13 +140,6 @@ function thumbHtml(s, size) {
   return src ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async" draggable="false">` : icon('music');
 }
 
-function partsHtml(s) {
-  return PARTS.map(([key, letter, label]) => {
-    const n = (s.arrangements || []).filter((a) => a.type === key || (key === 'lead' && a.type === 'combo') || (key === 'vocals' && a.type === 'jvocals')).length;
-    return `<span class="part${n ? ' on' : ''}${n > 1 ? ' plus' : ''}" ${n ? `data-part="${key}" ` : ''}title="${n ? `${label}${n > 1 ? ` (${n})` : ''}: click to show only songs with ${label.toLowerCase()}` : `No ${label.toLowerCase()}`}">${letter}</span>`;
-  }).join('');
-}
-
 function stemHtml(s) {
   const st = state.stems.get(s.id);
   const status = st ? st.state : s.hasStems ? 'ready' : 'none';
@@ -224,12 +218,12 @@ function buildRow(s) {
   el.dataset.id = s.id;
   el.innerHTML = `
     <div><div class="thumb">${thumbHtml(s, 64)}</div></div>
-    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${rowBadges(s)}${micHtml(s)}</div>
+    <div class="t" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${rowBadges(s)}</div>
     <div>${s.artist ? `<span class="go" data-go="artist" title="All songs by ${esc(s.artist)}">${esc(s.artist)}</span>` : ''}</div>
     <div>${s.album ? `<span class="go" data-go="album" title="Everything from ${esc(s.album)}">${esc(s.album)}</span>` : ''}</div>
     <div class="num">${s.year ? `<span class="go" data-go="year" title="Songs from ${s.year}">${s.year}</span>` : ''}</div>
     <div>${s.tuning ? `<span class="go" data-go="tuning" title="All songs in ${esc(s.tuning)}">${esc(tuningText(s))}</span>` : ''}</div>
-    <div class="parts">${partsHtml(s)}</div>
+    <div class="modes">${modesHtml(s)}</div>
     <div class="go-best" data-go="acc" title="Songs at this level">${bestHtml(s)}</div>
     <div class="num">${fmtDuration(s.length)}</div>
     <div>${stemHtml(s)}</div>
@@ -250,7 +244,7 @@ function buildTile(s) {
   const ring = pct === null ? '' : `<span class="ring${pct >= 85 ? ' top' : ''}" style="--deg:${Math.round(pct * 3.6)}deg" title="Your best: ${pct}%"><span>${pct}</span></span>`;
   const badges = PARTS.filter(([key]) => key !== 'vocals')
     .filter(([key]) => (s.arrangements || []).some((a) => a.type === key || (key === 'lead' && a.type === 'combo')))
-    .map(([key, letter, label]) => `<span class="pb pb-${key}" title="${label}">${letter}</span>`)
+    .map(([key, letter, label]) => `<button type="button" class="pb pb-${key}" data-mode="${key}" title="Play ${label}" aria-label="Play ${esc(s.title)}: ${label}">${letter}</button>`)
     .join('');
   el.innerHTML = `<div class="halo"></div><div class="cover gelled"><span class="ini">${esc(initialsOf(s))}</span>${s.art ? `<img src="${esc(api.artUrl(s, 256))}" alt="" loading="lazy" decoding="async" draggable="false">` : ''}<span class="badges">${badges}</span>${ring}${micHtml(s, 'tile')}<button type="button" class="play" title="Play" data-play>${icon('play')}</button></div>
     <div class="tt" title="${esc(s.title)}"><span class="tt-text">${esc(s.title)}</span>${bestBadge(s)}${noAudioBadge(s)}</div>${badgesHtml(s) ? `<div class="tbadges">${badgesHtml(s)}</div>` : ''}<div class="ta">${esc(s.artist)}${s.tuning ? ` · ${esc(s.tuning)}` : ''}</div>`;
@@ -613,6 +607,19 @@ scroller.addEventListener('click', (e) => {
     selectClick(id, e);
     return;
   }
+  const pm = e.target.closest('[data-mode]');
+  if (pm) {
+    e.stopPropagation();
+    runMode(id, pm.dataset.mode);
+    return;
+  }
+  const more = e.target.closest('[data-modes]');
+  if (more) {
+    e.stopPropagation();
+    const r = more.getBoundingClientRect();
+    modesMenu(id, r.left, r.bottom + 4);
+    return;
+  }
   if (e.target.closest('[data-sing]')) {
     setSelection([id], { anchor: id, focus: id });
     actions.playKaraoke(id);
@@ -630,7 +637,7 @@ scroller.addEventListener('dblclick', (e) => {
   clearTimeout(goTimer);
   const id = idAt(e.target);
   // double-click plays along: straight to the highway
-  if (id && !e.target.closest('[data-star], [data-sing], [data-play]')) actions.playAlong(id);
+  if (id && !e.target.closest('[data-star], [data-sing], [data-play], [data-mode], [data-modes]')) actions.playAlong(id);
 });
 
 scroller.addEventListener('contextmenu', (e) => {

@@ -357,6 +357,23 @@ export async function findOnCF(item, { open: openSite = true } = {}) {
   });
 }
 
+/**
+ * 4.23: Find a better version of a song you have (bass only, no words, no audio…): the finder opens
+ * on its artist and title. Nothing is replaced: what you download is added beside the copy you
+ * have, and you choose which to keep (the duplicates check in Songs shows both).
+ */
+export async function findBetter(song, missing = []) {
+  if (!song) return;
+  const item = { id: `better:${song.id}`, artist: song.artist || '', title: song.title || '' };
+  toast({
+    title: `Looking for a better ${song.title || 'version'}`,
+    message: `${missing.length ? `Wanted: ${missing.join(', ')}. ` : ''}Your copy stays as it is; a new download is added beside it.`,
+    kind: 'info',
+    timeout: 7000,
+  });
+  await findOnCF(item);
+}
+
 function searchedMap() {
   try {
     return JSON.parse(localStorage.getItem('stagehand.cfSearched') || '{}');

@@ -6,7 +6,7 @@ import { decorativeImage } from './menu-art.js';
  */
 import { openJam } from './jam.js';
 import { api } from './api.js';
-import { state, on, setView, setPage, loadLibrary, emit, rsListIds, rsListLabel, rsListKeys, accBand } from './store.js';
+import { state, on, setView, setPage, loadLibrary, emit, rsListIds, rsListLabel, rsListKeys, accBand, hasPart, missingParts } from './store.js';
 const storeFns = { accBand };
 import { h, icon, esc, showMenu, confirmDialog, toast } from './ui.js';
 import { counts as discoverCounts } from './discover.js';
@@ -42,6 +42,7 @@ function item({ kind, id, label, iconName, count, cls = '', onContext, drop, cur
   const cur = current !== undefined ? current : isCurrent(kind, id);
   const b = h(`button.nav-item${cls ? '.' + cls : ''}`, { type: 'button', 'aria-current': cur ? 'true' : 'false', title: label });
   b.innerHTML = `${iconName ? icon(iconName) : ''}<span class="name">${esc(label)}</span>${badge || ''}${count !== undefined ? `<span class="count">${count}</span>` : ''}`;
+  b.dataset.kind = kind;
   b.addEventListener('click', () => setView(id === undefined ? { kind } : { kind, id }));
   if (onContext) b.addEventListener('contextmenu', (e) => {
     e.preventDefault();
@@ -218,8 +219,7 @@ export function render() {
   );
   const songsSub = h('div.nav-sub');
   top.append(songsSub);
-  // 4.12: Karaoke, a place of its own: your songs with words, sung with the stage to yourself
-  top.append(section({ page: 'karaoke', label: 'Karaoke', iconName: 'mic', gel: 'var(--gel-vocals)' }));
+  // 4.23: Karaoke is no longer a page of its own: it's a list under Songs (and a button on every song)
   top.append(section({ page: 'tones', label: 'Tones', iconName: 'tones', gel: 'var(--gel-bass)' }));
   top.append(section({ page: 'gear', label: 'Gear', iconName: 'amp', gel: 'var(--gel-lead, #ff6b3d)' }));
   top.append(section({ page: 'progress', label: 'Progress', iconName: 'chart', gel: 'var(--gel-piano)' }));
@@ -272,7 +272,9 @@ export function render() {
     item({ kind: 'favorites', label: 'Favorites', count: count((s) => s.user && s.user.fav), cls: 'sub', current: cur('favorites') }),
     item({ kind: 'recent', label: 'Recently added', count: count((s) => (s.addedAt || 0) >= recentCut), cls: 'sub', current: cur('recent') }),
     item({ kind: 'played', label: 'Recently played', count: count((s) => s.user && s.user.lastPlayed), cls: 'sub', current: cur('played') }),
-    item({ kind: 'stems', label: 'Stems ready', count: count((s) => s.hasStems || (state.stems.get(s.id) || {}).state === 'ready'), cls: 'sub', current: cur('stems') })
+    item({ kind: 'stems', label: 'Stems ready', count: count((s) => s.hasStems || (state.stems.get(s.id) || {}).state === 'ready'), cls: 'sub', current: cur('stems') }),
+    item({ kind: 'karaoke', label: 'Karaoke', iconName: 'mic', count: count((s) => hasPart(s, 'vocals')), cls: 'sub', current: cur('karaoke') }),
+    item({ kind: 'incomplete', label: 'Missing a part', count: count((s) => missingParts(s).length > 0), cls: 'sub', current: cur('incomplete') })
   );
   const rootSaved = root;
   const appendTo = (el) => sub.append(el);

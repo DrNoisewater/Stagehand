@@ -162,3 +162,61 @@ html[data-look='roadshow'] .gchip { border-radius:1px; border-color:#77644e; bac
 html[data-look='roadshow'] .gchip-tuner { border-left-color:#77644e; }
 html[data-look='roadshow'] .gchip-pop .guitar-card { background:#211d17; border:1px solid #77644e; border-radius:1px; }
 html[data-look='opera'] .gchip-pop .guitar-card { border-radius:3px; background:#151311; border:1px solid #2f2a25; }
+
+/* 4.23: each song's ways to play it, in the middle of its row (Lead, Rhythm, Bass, Sing & play, Karaoke).
+   What the file hasn't got is crossed out, not hidden; on a narrower list they fold into one Modes button. */
+@container (min-width:1101px) {
+  .cols { grid-template-columns:52px minmax(150px,2.2fr) minmax(100px,1.4fr) minmax(90px,1.2fr) 46px 112px 168px 92px 48px 50px 84px; }
+}
+.modes { min-width:0; }
+.pm-row { display:flex; align-items:center; gap:4px; }
+.pm, .pm-more { flex:none; height:26px; min-width:26px; display:inline-grid; place-items:center; padding:0 5px; border:1px solid #5b5040; border-radius:3px; background:#211d18; color:var(--ink,#f5edda); font:800 11.5px/1 var(--font); cursor:pointer; transition:background .12s, border-color .12s, transform .12s; }
+.pm svg, .pm-more svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+.pm:hover, .pm:focus-visible, .pm-more:hover, .pm-more:focus-visible { background:#3a3127; border-color:var(--tungsten,#ffb547); transform:translateY(-1px); outline:none; }
+.pm-lead { color:#ffb79e; } .pm-rhythm { color:#ffd58f; } .pm-bass { color:#c9bfff; }
+.pm-sing, .pm-karaoke { color:var(--gel-vocals,#33c8e0); border-color:#2f5f66; }
+.pm.none { color:#8a8172; border-style:dashed; border-color:#4a4236; background:transparent; position:relative; opacity:.7; }
+.pm.none::after { content:''; position:absolute; left:4px; right:4px; top:50%; height:1.5px; background:#8a8172; transform:rotate(-24deg); }
+.pm-more { display:none; gap:4px; grid-auto-flow:column; padding:0 8px; }
+.pm-more span { font-size:11px; }
+@container (max-width:1100px) {
+  .pm-row .pm { display:none; }
+  .pm-row .pm-more { display:inline-grid; }
+}
+.tile .badges .pb { cursor:pointer; font:inherit; font-size:10.5px; font-weight:750; }
+.tile .badges .pb:hover, .tile .badges .pb:focus-visible { filter:brightness(1.35); outline:none; }
+.insp-modes { margin-top:8px; }
+.insp-modes .pm-row .pm { display:inline-grid; }
+.insp-modes .pm-row .pm-more { display:none; }
+.insp-modes .pm { height:30px; min-width:34px; }
+
+/* 4.23: Activity, at the bottom of the menu: quiet when idle, a few rows while things work, the full list on a click */
+.activity { margin:auto 10px 10px; padding:8px 8px 6px; border:1px solid #4a4134; border-radius:3px; background:#17140fcc; }
+.activity[hidden] { display:none; }
+.act-head { width:100%; display:flex; align-items:center; gap:6px; padding:0 0 6px; border:0; background:none; color:var(--ink,#f5edda); font:800 11px/1.2 var(--font); letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+.act-head svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2; }
+.act-head em { margin-left:auto; font-style:normal; font-weight:600; letter-spacing:0; text-transform:none; color:var(--ink-3,#a99e8c); }
+.act-head:hover em, .act-head:focus-visible em { color:var(--tungsten,#ffb547); }
+.act-row { display:grid; grid-template-columns:18px minmax(0,1fr) auto; grid-template-rows:auto auto; column-gap:6px; padding:4px 0; border-top:1px dashed #3a3229; }
+.act-ic { grid-row:1 / span 2; color:var(--tungsten,#ffb547); }
+.act-ic svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.9; }
+.act-row[data-state='failed'] .act-ic { color:#ff7a5c; }
+.act-row[data-state='done'] .act-ic { color:#9bdb5a; }
+.act-txt { min-width:0; display:grid; }
+.act-txt b, .act-txt small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.act-txt b { font-size:12px; color:var(--ink,#f5edda); }
+.act-txt small { font-size:11px; color:var(--ink-3,#b5aa96); }
+.act-bar { grid-column:2 / span 2; height:3px; margin-top:4px; border-radius:2px; background:#ffffff14; overflow:hidden; }
+.act-bar[hidden] { display:none; }
+.act-bar i { display:block; height:100%; width:0; background:var(--tungsten,#ffb547); transition:width .25s linear; }
+.act-bar.busy i { width:30%; animation:act-busy 1.4s ease-in-out infinite; }
+@keyframes act-busy { 0% { transform:translateX(-100%); } 100% { transform:translateX(340%); } }
+html[data-calm='true'] .act-bar.busy i { animation:none; width:100%; opacity:.4; }
+.act-acts { grid-column:3; grid-row:1; display:flex; gap:2px; }
+.act-acts .icon-btn { width:24px; height:24px; }
+.act-drawer { position:fixed; z-index:60; width:min(380px, calc(100vw - 32px)); max-height:min(70vh, 560px); overflow:auto; padding:12px; border:1px solid #5b5040; border-radius:4px; background:#1b1814; box-shadow:0 18px 50px #000b; }
+.act-drawer header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.act-drawer header span { color:var(--ink-3); font-size:12px; }
+.act-drawer header .btn { margin-left:auto; }
+.act-group { margin:10px 0 2px; font:800 10.5px var(--font); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); }
+.act-empty { color:var(--ink-3); font-size:12.5px; }

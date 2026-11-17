@@ -22,7 +22,6 @@ import './showroom.js';
 import './progress.js';
 import './room.js';
 import './greenroom.js';
-import './karaoke.js';
 import './stemformat.js';
 import { rig } from './rig.js';
 import { nudgeSpeed } from './speedpop.js';
@@ -45,6 +44,7 @@ function tickStems() {
 }
 import { setPage, setView, goBack } from './store.js';
 import './jam.js';
+import './activity.js'; // 4.23: what's going on in the background, at the bottom of the menu
 import './song-auto.js';
 import './companion-link.js'; // 4.16: the Quest companion (does nothing until a headset connects)
 
