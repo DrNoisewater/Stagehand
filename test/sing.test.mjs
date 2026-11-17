@@ -1,6 +1,6 @@
 /* Sing along: the scoring rules and reading notes off a recording. `node test/sing.test.mjs` */
 import assert from 'node:assert';
-import { buildSing, SingJudge, VoiceTracker, foldCents, nearOctave, withPitches, pitchedShare, hasPitch, flatChart } from '../src/renderer/js/sing.js';
+import { buildSing, SingJudge, VoiceTracker, foldCents, nearOctave, withPitches, pitchedShare, pitchCoverage, hasPitch, flatChart, SING_LEVELS } from '../src/renderer/js/sing.js';
 import { pitchesFromAudio } from '../src/renderer/js/vocal-pitch.js';
 
 let passed = 0;
@@ -229,6 +229,71 @@ test('4.18.2: a made-up chart tune (one note, or a few close together) is spotte
   // the scale the other tests use, and too few notes to tell
   assert.ok(!flatChart(syl));
   assert.ok(!flatChart(mk([60, 60, 60])));
+});
+
+test('4.23: pitch, words sung, lines and coverage are counted apart', () => {
+  // a perfect singer: every number full, coverage is the share of time with a note (7 of 8 equal words)
+  const p = run('medium', (i, s) => ({ midi: s.p ?? 50 })).summary();
+  assert.ok(Math.abs(p.pitch - 1) < 0.08, `pitch ${p.pitch}`);
+  assert.strictEqual(p.takingPart, 1);
+  assert.strictEqual(p.phrases, 1);
+  assert.ok(Math.abs(p.coverage - 7 / 8) < 1e-9);
+  assert.strictEqual(pitchCoverage(syl), 7 / 8);
+  // talking with no note: taking part, but no pitch (and the pitch number is not "perfect")
+  const t = run('easy', () => ({ midi: 0 }), { talk: true }).summary();
+  assert.strictEqual(t.takingPart, 1);
+  assert.ok(t.pitch < 0.05, `pitch ${t.pitch}`);
+  // silence: nothing anywhere
+  const q = run('easy', () => null).summary();
+  assert.strictEqual(q.takingPart, 0);
+  assert.strictEqual(q.pitch, 0);
+  // a song with no notes at all: pitch isn't scored (null), only timing
+  const flat = buildSing(NOTES.map((_, i) => ({ t: 2 + i * 0.6, d: 0.5, w: 'la', p: 254 })));
+  const jf = new SingJudge(flat.syl, flat.lines, 'medium');
+  for (let x = 0; x < 9; x += 0.02) {
+    jf.push(x, { voiced: true, midi: null });
+    jf.tick(x);
+  }
+  const f = jf.summary();
+  assert.strictEqual(f.pitch, null);
+  assert.strictEqual(f.coverage, 0);
+  assert.strictEqual(f.takingPart, 1);
+});
+
+test('4.23: for the same singing, Easy is at least as forgiving as Medium, and Medium as Hard', () => {
+  const singers = [
+    (i, s) => ({ midi: (s.p ?? 50) + 0.8 }),
+    (i, s) => ({ midi: (s.p ?? 50) - 1.6 }),
+    (i, s) => ({ midi: (s.p ?? 50) + (i % 2 ? 0.4 : -0.9) }),
+  ];
+  for (const v of singers) {
+    for (const late of [0, 0.12, 0.2]) {
+      const e = run('easy', v, { late }).summary();
+      const m = run('medium', v, { late }).summary();
+      const hd = run('hard', v, { late }).summary();
+      assert.ok(e.acc >= m.acc && m.acc >= hd.acc, `acc ${e.acc} ${m.acc} ${hd.acc}`);
+      assert.ok(e.pitch >= m.pitch - 1e-9 && m.pitch >= hd.pitch - 1e-9, `pitch ${e.pitch} ${m.pitch} ${hd.pitch}`);
+    }
+  }
+  // the levels look different too: a wider band and more timing room on Easy
+  assert.ok(SING_LEVELS.easy.cents > SING_LEVELS.medium.cents && SING_LEVELS.medium.cents > SING_LEVELS.hard.cents);
+  assert.ok(SING_LEVELS.easy.slack > SING_LEVELS.medium.slack && SING_LEVELS.medium.slack > SING_LEVELS.hard.slack);
+});
+
+test('4.23: Easy asks for the main note of a slide; Medium follows its line', () => {
+  // one word that slides from 60 up to 64; the singer holds 60 all through
+  const sl = buildSing([{ t: 1, d: 1, w: 'ooh', p: 60 }]);
+  sl.syl[0].c = [[1, 60], [1.3, 61], [1.6, 63], [2, 64]];
+  const go = (lv) => {
+    const j = new SingJudge(sl.syl, sl.lines, lv);
+    for (let x = 0; x < 3; x += 0.02) {
+      j.push(x, x >= 1 && x < 2 ? { voiced: true, midi: 60 } : { voiced: false, midi: null });
+      j.tick(x);
+    }
+    return j.summary().pitch;
+  };
+  assert.ok(go('easy') > 0.9, `easy ${go('easy')}`);
+  assert.ok(go('medium') < go('easy'), `medium ${go('medium')}`);
 });
 
 console.log(`sing: ${passed} passed`);

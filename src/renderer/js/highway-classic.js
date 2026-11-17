@@ -173,7 +173,7 @@ export function createClassicHighway(stage) {
         { heading: true, label: 'Note timing (if notes look early or late against the music)' },
         ...[-100, -75, -50, -25, -10, 0, 10, 25, 50, 75, 100].map((ms) => ({ label: ms === 0 ? 'In sync (default)' : ms < 0 ? `Notes ${-ms} ms earlier` : `Notes ${ms} ms later`, hint: c((prefs.offsetMs || 0) === ms), onClick: () => setPref('offsetMs', ms) })),
         '-',
-        { label: 'Score my playing', hint: c(prefs.detect), onClick: () => setPref('detect', !prefs.detect) },
+        { label: 'Practice without a score', hint: c(!prefs.detect), onClick: () => setPref('detect', !prefs.detect) },
         '-',
         { heading: true, label: 'Venue' },
         // 4.4: some venues open up with levels (the one you're in always stays yours)

@@ -10,3 +10,4 @@ export const chainText = () => ''; export const freeSlot = () => 0; export const
 export const knobsOf = () => ({}); export const loadTones = async () => []; export const nowPlayingTone = () => null; export const orderedGear = () => [];
 export const readingBar = () => ''; export const removeTone = () => {}; export const saveSongTone = () => {}; export const saveTone = () => {};
 export const shortGearName = (x) => String(x || ''); export const songToneLibrary = async () => []; export const useSlot = () => {};
+export const momentsOf = () => [];

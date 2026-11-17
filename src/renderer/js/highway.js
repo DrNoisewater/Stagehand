@@ -56,6 +56,14 @@ function load() {
       delete saved.flow;
       delete saved.offsetMs;
     }
+    // 4.23: play-along is scored and ends with its score card by default. The old "Score my playing" and
+    // "Score card at the end" switches are gone; scoring comes back on once (practising without a
+    // score is now its own, plainly named choice)
+    if (!saved.scored423) {
+      saved.detect = true;
+      delete saved.scoreCard;
+      saved.scored423 = 1;
+    }
     // 4.2: always 4 seconds ahead (the user: "it should always look 4 seconds ahead")
     return { ...base, ...saved, flow: 1, ahead: 4, v: 36 };
   } catch (_) {
@@ -423,11 +431,10 @@ export function createHighway(stage) {
       h('div.hw-master-sec', { text: 'Highway' }),
       venuePicker(),
       h('div.hw-opt-toggles', null,
-        toggle('Score my playing', prefs.detect, () => setPref('detect', !prefs.detect)),
+        toggle('Practice without a score', !prefs.detect, () => setPref('detect', !prefs.detect)),
         toggle('Lyrics', prefs.lyrics !== false, () => setPref('lyrics', prefs.lyrics === false)),
         toggle('Chord names', prefs.chordNames !== false, () => setPref('chordNames', prefs.chordNames === false)),
         toggle('Fire on a streak', prefs.fx, () => setPref('fx', !prefs.fx)),
-        toggle('Score card at the end', prefs.scoreCard !== false, () => setPref('scoreCard', prefs.scoreCard === false)),
         toggle('Hit burst', prefs.hitBurst !== false, () => setPref('hitBurst', prefs.hitBurst === false)),
         toggle('String sway', prefs.stringSway !== false, () => setPref('stringSway', prefs.stringSway === false)),
         toggle('Reflections', prefs.reflections !== false, () => setPref('reflections', prefs.reflections === false)),
@@ -523,13 +530,37 @@ export function createHighway(stage) {
   // 4.12: how the singing went, when Sing was on: a line on the card, or a card of its own
   // when the guitar wasn't being scored
   const SING_LEVEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+  /**
+   * 4.23: the singing numbers, each on its own: pitch (only where there was a note to sing), words
+   * sung (a voice heard), good lines, and how much of the song had a note at all. "Pitch not scored"
+   * when nothing had a reliable note, so taking part alone never shows as perfect pitch.
+   */
+  const pctOf = (x) => (x === null || x === undefined ? '–' : `${Math.round(x * 100)}%`);
   function singFacts(v) {
-    const facts = h('div.hw-card-facts');
-    const fact = (val, l) => facts.append(h('div', null, h('b', { text: val }), h('span', { text: l })));
-    fact(`${v.hit}/${v.notes}`, 'syllables sung');
-    fact(`${v.goodLines}/${v.lines}`, 'good lines');
-    fact(v.prev === undefined || v.prev === null ? '–' : `${Math.round(v.prev * 100)}%`, 'best before');
+    const facts = h('div.hw-card-facts.sing-facts');
+    const fact = (val, l, title) => facts.append(h('div', { title: title || '' }, h('b', { text: val }), h('span', { text: l })));
+    fact(v.pitch === null || v.pitch === undefined ? 'Not scored' : pctOf(v.pitch), 'pitch', 'Of the time with a note to sing, how much you were on it');
+    fact(pctOf(v.takingPart), 'words sung', 'Words where your voice was heard, note or not');
+    fact(`${v.goodLines}/${v.lines}`, 'good lines', 'Lines where most words counted');
+    fact(pctOf(v.coverage), 'had a note', 'How much of the song had a reliable note to sing; the rest was scored on timing only');
+    fact(v.prev === undefined || v.prev === null ? '–' : pctOf(v.prev), `best (${(SING_LEVEL[v.level] || 'Medium').toLowerCase()})`, 'Your best on this level, counted the same way');
     return facts;
+  }
+  /** The big number in a ring: sized to fit (0%, 99% and 100% all sit inside the circle). */
+  function ringEl(cls, frac, label, title) {
+    const txt = `${Math.round(frac * 100)}`;
+    const b = h('b', null, txt, h('small', { text: '%' }));
+    b.style.fontSize = `${txt.length >= 3 ? 23 : 28}px`;
+    return h(`div.${['hw-card-ring', cls, bandCls(frac)].filter(Boolean).join('.')}`, { style: { '--deg': `${Math.round(frac * 360)}deg` }, title: title || '' }, b, h('span', { text: label }));
+  }
+  function titleEl() {
+    const t = H.song ? H.song.title : 'Song';
+    return h('h3', { text: t, title: t });
+  }
+  /** The singer's own line on an instrument's card (Sing & play): their numbers, apart from the guitar's. */
+  function singLine(vs) {
+    const pitch = vs.pitch === null || vs.pitch === undefined ? 'pitch not scored' : `pitch ${pctOf(vs.pitch)}`;
+    return h('div.hw-card-sing', null, h('span.sing-pct', { html: `${icon('mic')}<b>${pctOf(vs.pitch ?? vs.takingPart)}</b>` }), h('span', { text: `Singing · ${SING_LEVEL[vs.level] || 'Medium'} · ${pitch} · ${pctOf(vs.takingPart)} words sung · ${vs.goodLines}/${vs.lines} good lines${vs.coverage !== null && vs.coverage !== undefined && vs.coverage < 0.999 ? ` · ${pctOf(vs.coverage)} had a note` : ''}` }));
   }
   function againButton() {
     const again = h('button.hw-chip.hw-card-again', { type: 'button', html: `${icon('play')}<span>Play again</span>` });
@@ -545,8 +576,12 @@ export function createHighway(stage) {
     const x = h('button.hw-card-x', { type: 'button', title: 'Close', 'aria-label': 'Close', html: icon('x') });
     x.onclick = hideCard;
     const best = v.notes >= 20 && (v.prev === undefined || v.prev === null || v.acc > v.prev + 0.005);
-    const ring = h(`div.hw-card-ring.sing.${bandCls(v.acc)}`, { style: { '--deg': `${Math.round(v.acc * 360)}deg` } }, h('b', { text: `${Math.round(v.acc * 100)}%` }), h('span', { text: 'sung' }));
-    card.append(h('div.hw-card-head', null, ring, h('div.hw-card-titles', null, h('div.hw-card-eyebrow', { text: best ? (v.prev === undefined || v.prev === null ? 'First time singing it' : 'New best!') : 'Song complete' }), h('h3', { text: H.song ? H.song.title : 'Song' }), h('p', { html: `${icon('mic')} Singing · ${SING_LEVEL[v.level] || 'Medium'}${v.mode === 'rhythm' ? ' · timing only' : v.mode === 'stem' ? ' · notes from the recording' : ''}` })), x), singFacts(v), againButton());
+    // the ring shows pitch when enough of the song had notes; otherwise the words sung, said as timing
+    const byPitch = v.pitch !== null && v.pitch !== undefined && (v.coverage || 0) >= 0.25;
+    const ring = ringEl('sing', byPitch ? v.pitch : v.takingPart || 0, byPitch ? 'pitch' : 'timing', byPitch ? 'Pitch accuracy' : 'Words sung on time (this song has few notes to sing)');
+    const eyebrow = v.full === false ? 'Stopped early' : best ? (v.prev === undefined || v.prev === null ? 'First time singing it' : 'New best!') : 'Song complete';
+    const how = `${v.karaoke ? 'Karaoke' : 'Sing & play'} · ${SING_LEVEL[v.level] || 'Medium'}${v.mode === 'rhythm' ? ' · timing only' : v.mode === 'stem' ? ' · notes from the recording' : ' · notes from the chart'}`;
+    card.append(h('div.hw-card-head', null, ring, h('div.hw-card-titles', null, h('div.hw-card-eyebrow', { text: eyebrow }), titleEl(), h('p', { html: `${icon('mic')} ${esc(how)}` })), x), singFacts(v), againButton());
     card.hidden = false;
   }
   // 4.15: how the piano went: a card of its own (the guitar isn't scored while piano is on)
@@ -557,21 +592,21 @@ export function createHighway(stage) {
     x.onclick = hideCard;
     const hasPrev = v.prev !== undefined && v.prev !== null;
     const best = v.notes >= 20 && (!hasPrev || v.acc > v.prev + 0.005);
-    const ring = h(`div.hw-card-ring.keys.${bandCls(v.acc)}`, { style: { '--deg': `${Math.round(v.acc * 360)}deg` } }, h('b', { text: `${Math.round(v.acc * 100)}%` }), h('span', { text: 'played' }));
+    const ring = ringEl('keys', v.acc, 'played');
     const hands = v.hands === 'R' ? ' · right hand' : v.hands === 'L' ? ' · left hand' : '';
-    card.append(h('div.hw-card-head', null, ring, h('div.hw-card-titles', null, h('div.hw-card-eyebrow', { text: best ? (hasPrev ? 'New best!' : 'First time on piano') : 'Song complete' }), h('h3', { text: H.song ? H.song.title : 'Song' }), h('p', { html: `${icon('piano')} Piano · ${KEYS_LEVEL[v.level] || 'Medium'}${hands}` })), x));
+    card.append(h('div.hw-card-head', null, ring, h('div.hw-card-titles', null, h('div.hw-card-eyebrow', { text: best ? (hasPrev ? 'New best!' : 'First time on piano') : 'Song complete' }), titleEl(), h('p', { html: `${icon('piano')} Piano · ${KEYS_LEVEL[v.level] || 'Medium'}${hands}` })), x));
     const facts = h('div.hw-card-facts');
     const fact = (val, l) => facts.append(h('div', null, h('b', { text: val }), h('span', { text: l })));
     fact(`${v.hit}/${v.notes}`, 'notes played');
     fact(String(v.bestStreak), 'longest streak');
     fact(hasPrev ? `${Math.round(v.prev * 100)}%` : '–', 'best before');
     card.append(facts);
-    if (vs) card.append(h('div.hw-card-sing', null, h('span.sing-pct', { html: `${icon('mic')}<b>${Math.round(vs.acc * 100)}%</b>` }), h('span', { text: `Singing · ${SING_LEVEL[vs.level] || 'Medium'} · ${vs.hit}/${vs.notes} syllables` })));
+    if (vs) card.append(singLine(vs));
     card.append(againButton());
     card.hidden = false;
   }
   function showCard() {
-    if (prefs.scoreCard === false || !H.tab) return;
+    if (!H.tab) return;
     const vs = sing.result();
     const ks = keys.result();
     const b = H.judge && prefs.detect && rig.on && !aside() ? breakdown(H.tab, H.targets, H.judge) : null;
@@ -587,8 +622,8 @@ export function createHighway(stage) {
     card.innerHTML = '';
     const x = h('button.hw-card-x', { type: 'button', title: 'Close', 'aria-label': 'Close', html: icon('x') });
     x.onclick = hideCard;
-    const ring = h(`div.hw-card-ring.${bandCls(b.acc)}`, { style: { '--deg': `${Math.round(b.acc * 360)}deg` } }, h('b', { text: `${pct}%` }), h('span', { text: 'accuracy' }));
-    const head = h('div.hw-card-head', null, ring, h('div.hw-card-titles', null, h('div.hw-card-eyebrow', { text: isBest ? (prev === null ? 'First score' : 'New best!') : 'Song complete' }), h('h3', { text: H.song ? H.song.title : 'Song' }), h('p', { text: cheer(b, prev) })), x);
+    const ring = ringEl('', b.acc, 'accuracy');
+    const head = h('div.hw-card-head', null, ring, h('div.hw-card-titles', null, h('div.hw-card-eyebrow', { text: isBest ? (prev === null ? 'First score' : 'New best!') : 'Song complete' }), titleEl(), h('p', { text: cheer(b, prev) })), x);
     card.append(head);
     const facts = h('div.hw-card-facts');
     const fact = (v, l) => facts.append(h('div', null, h('b', { text: v }), h('span', { text: l })));
@@ -596,7 +631,7 @@ export function createHighway(stage) {
     fact(String(b.bestStreak), 'longest streak');
     fact(prev === null ? '–' : `${Math.round(prev * 100)}%`, 'best before');
     card.append(facts);
-    if (vs) card.append(h('div.hw-card-sing', null, h('span.sing-pct', { html: `${icon('mic')}<b>${Math.round(vs.acc * 100)}%</b>` }), h('span', { text: `Singing · ${SING_LEVEL[vs.level] || 'Medium'} · ${vs.hit}/${vs.notes} syllables${vs.prev !== undefined && vs.prev !== null ? ` · best before ${Math.round(vs.prev * 100)}%` : ''}` })));
+    if (vs) card.append(singLine(vs));
     if (b.sections.length) {
       const bars = h('div.hw-card-bars');
       for (const s of b.sections) {
@@ -1293,7 +1328,7 @@ export function createHighway(stage) {
     H.clock = stage.engine.position;
     H.last = performance.now();
     H.prevBest = H.song && state.best ? { ...(state.best[H.song.id] || {}) } : null;
-    sing.setBest(H.prevBest ? H.prevBest.vocals : undefined);
+    sing.setBest(H.prevBest);
     sing.setOpen(true);
     keys.setBest(H.prevBest ? H.prevBest.keys : undefined);
     keys.setOpen(true);
@@ -3031,13 +3066,15 @@ export function createHighway(stage) {
     // third of a second on the glow layer only: nothing about the notes, the neck, the timing or
     // the scoring changes. Sound & settings › Hit burst turns it off.
     // 4.17: a round shock wave (was four bars making a rectangle), soft on both sides, growing and fading.
-    if (prefs.hitBurst !== false) {
+    // 4.23: about 15% smaller, a little softer and shorter, so the next notes stay easy to read; with
+    // calm motion (Settings, or Windows' reduce animations) the ring doesn't grow at all
+    if (prefs.hitBurst !== false && !calmMotion()) {
       for (const h of H.hits) {
         const age = (now - h.at) / 1000;
-        if (age > 0.36) continue;
+        if (age > 0.3) continue;
         const tg = H.targets[h.id];
         if (!tg) continue;
-        const p = age / 0.36;
+        const p = age / 0.3;
         const e = 1 - (1 - p) * (1 - p) * (1 - p); // fast out, slowing down
         const k = (1 - p) * (1 - p);
         const dead = deadOn(h);
@@ -3046,10 +3083,10 @@ export function createHighway(stage) {
           const x = nt.f === 0 ? noteX(nt, an) : laneC(nt.f);
           const y = strH(nt.s);
           const lw = laneW(Math.max(1, nt.f || an.fret));
-          const rx = lw * (0.35 + (dead ? 1.25 : 0.95) * e);
+          const rx = lw * (0.35 + (dead ? 1.05 : 0.8) * e);
           const ry = rx * 0.62;
           const th = 0.07 + 0.1 * (1 - p);
-          glow.ring(x, y, -0.075, rx, ry, th, dead ? '#ffffff' : STRING[nt.s], (dead ? 0.95 : 0.85) * k, dead ? 2.2 : 1.7);
+          glow.ring(x, y, -0.075, rx, ry, th, dead ? '#ffffff' : STRING[nt.s], (dead ? 0.82 : 0.72) * k, dead ? 2.2 : 1.7);
           // a second, fainter ring just behind it, in the string's colour
           if (dead) glow.ring(x, y, -0.074, rx * 0.72, ry * 0.72, th * 0.8, STRING[nt.s], 0.6 * k, 1.6);
         }
@@ -3058,6 +3095,9 @@ export function createHighway(stage) {
     buildSparks(now);
   }
 
+  // 4.23: less movement: the app's calm setting or Windows' "show animations" switched off
+  const reduceQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const calmMotion = () => document.documentElement.dataset.calm === 'true' || !!(reduceQuery && reduceQuery.matches);
   const deadOn = (h) => h.offset !== null && h.offset !== undefined && Math.abs(h.offset) <= 30;
   // a small, fixed random sequence per hit (the same every frame, so sparks never flicker)
   function seeded(seed) {

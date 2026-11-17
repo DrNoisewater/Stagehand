@@ -2399,3 +2399,18 @@ body:has(.highway:not([hidden])) .menu .label { color: #a99e8c; text-transform: 
 /* 4.19: a gold mark beside the stem lights: this song has the split with the cleaner singer */
 .stem-gels b { margin-left: 3px; font-size: 10px; line-height: 6px; color: #f1ce68; text-shadow: 0 0 5px #f1ce68aa; }
 .stem-gels.cleaning b { animation: shBreathe 1.4s ease-in-out infinite; opacity: 0.7; }
+
+/* 4.23: the score card's ring and title never collide: the number is sized to fit inside the circle, the % smaller beside it;
+   a long title wraps to two lines (the full title on hover) instead of being cut short */
+.hw-card-ring { width: 100px; height: 100px; }
+.hw-card-ring b { display: inline-flex; align-items: baseline; justify-content: center; gap: 1px; max-width: 70px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hw-card-ring b small { font-size: 0.55em; font-weight: 800; }
+.hw-card-ring span { display: block; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-card { width: min(440px, calc(100vw - 56px)); }
+.hw-card-titles h3 { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; line-height: 1.12; }
+.hw-card-facts.sing-facts { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
+.hw-card-facts b { overflow-wrap: anywhere; }
+.hw-card-x { flex: none; }
+/* 4.23: a problem with the microphone stands out from the ordinary notes on the lane */
+.sw-badge.sw-warn { background: #ffb547; color: #1a1408; }
+.menu .menu-sub { display: block; max-width: 300px; margin-top: 2px; font-size: 11px; font-weight: 500; line-height: 1.3; white-space: normal; color: var(--ink-3); }
