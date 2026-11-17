@@ -267,3 +267,7 @@ html[data-safe] #app { height:100%; }
 .sh-activity.idle { padding:6px 8px; opacity:.8; }
 .sh-activity.idle .act-head { padding:0; }
 .sh-activity.idle:hover { opacity:1; }
+/* 4.24: the left menu's order, whichever loads first: the menu, then Activity, then the guitar card */
+.sidebar > .nav-scroll { order:1; }
+.sidebar > .sh-activity { order:2; }
+.sidebar > .guitar-card-host { order:3; }
