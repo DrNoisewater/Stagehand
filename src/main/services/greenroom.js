@@ -61,6 +61,8 @@ function clipSummary(t) {
     sec: t.seconds,
     size: t.bytes,
     at: t.at,
+    type: t.kind === 'audio' ? 'audio' : 'video',
+    cat: t.kind === 'audio' ? 'loop' : a.part === 'jam' ? 'jam' : 'clip',
   });
 }
 
@@ -81,6 +83,10 @@ function cleanClip(c) {
     sec: num(c.sec, 0, 36000) || 0,
     size: num(c.size, 0, 8 * 1024 ** 3) || 0,
     at: num(c.at, 0, 1e14) || 0,
+    // 4.24: what it is: a video clip, a jam (video), or a loop (sound only). Older Stagehands never send
+    // these (their clips are videos) and never read them: loops travel in their own list (`loops`)
+    type: c.type === 'audio' ? 'audio' : 'video',
+    cat: c.cat === 'loop' || c.cat === 'jam' ? c.cat : c.type === 'audio' ? 'loop' : 'clip',
   };
 }
 
@@ -332,7 +338,7 @@ class GreenRoom extends EventEmitter {
       const name = str(m.name, MAX_NAME);
       if (!name) return;
       if (was && was.seen > t) return; // an older "here" read back after a newer one
-      const clips = (Array.isArray(m.clips) ? m.clips.slice(0, MAX_CLIPS) : []).map(cleanClip).filter(Boolean);
+      const clips = [...(Array.isArray(m.clips) ? m.clips.slice(0, MAX_CLIPS) : []), ...(Array.isArray(m.loops) ? m.loops.slice(0, MAX_CLIPS).map((x) => ({ ...x, type: 'audio', cat: 'loop' })) : [])].map(cleanClip).filter(Boolean);
       const level = Math.max(0, Math.min(999, Math.floor(Number(m.lvl) || 0)));
       this.people.set(m.addr, { addr: m.addr, name, clips, seen: t, level });
       if (this.people.size > 500) this.people.delete(this.people.keys().next().value);
@@ -379,17 +385,20 @@ class GreenRoom extends EventEmitter {
     if (!ready.length) return; // said when the meeting point opens
     const mine = new Set(this.data.shared);
     const takes = (await this.listClips()).filter((t) => mine.has(t.id)).sort((a, b) => b.at - a.at);
-    let clips = takes.map(clipSummary).filter(Boolean).slice(0, MAX_CLIPS);
+    let clips = takes.filter((t) => t.kind !== 'audio').map(clipSummary).filter(Boolean).slice(0, MAX_CLIPS);
+    // 4.24: loops (sound) in a list of their own, so an older Stagehand doesn't try to play one as a video
+    let loops = takes.filter((t) => t.kind === 'audio').map(clipSummary).filter(Boolean).slice(0, MAX_CLIPS);
     // keep it under the meeting point's size limit: fewer clips if need be (newest kept)
     for (;;) {
       let lvl = 0;
       try {
         lvl = Math.floor(Number(this.level()) || 0);
       } catch (_) {}
-      const obj = { t: 'here', addr: this.data.addr, name: this.data.name, clips, ...(lvl > 0 ? { lvl } : {}) };
+      const obj = { t: 'here', addr: this.data.addr, name: this.data.name, clips, ...(loops.length ? { loops } : {}), ...(lvl > 0 ? { lvl } : {}) };
       const size = seal(this.lobby.key, this.lobby.topic, { ...obj, v: PROTOCOL, ts: 0, n: 'x'.repeat(12) }).length;
-      if (size <= MAX_MSG || !clips.length) return this._publish(ready, this.lobby.topic, this.lobby.key, obj);
-      clips = clips.slice(0, -1);
+      if (size <= MAX_MSG || (!clips.length && !loops.length)) return this._publish(ready, this.lobby.topic, this.lobby.key, obj);
+      if (loops.length && loops.length >= clips.length) loops = loops.slice(0, -1);
+      else clips = clips.slice(0, -1);
     }
   }
 

@@ -1946,7 +1946,7 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .gr-personbar, .gr-minehead { background: #100c1d; border-color: #2a2340; }
 
 /* clips: posters under a light */
-.gr-tabs button[aria-pressed='true'], .gr-filter button[aria-pressed='true'] { background: color-mix(in srgb, var(--gr) 24%, transparent); box-shadow: inset 0 0 0 1px var(--gr), 0 0 16px -6px var(--gr); }
+.gr-tabs button[aria-pressed='true'], .gr-filter button[aria-pressed='true'], .gr-cats button[aria-pressed='true'] { background: color-mix(in srgb, var(--gr) 24%, transparent); box-shadow: inset 0 0 0 1px var(--gr), 0 0 16px -6px var(--gr); }
 .gr-count.new { background: var(--gr2); color: #fff; }
 .gr-grid { gap: 18px; }
 .gr-card { border-color: #2a2340; background: linear-gradient(180deg, #15102a, #0d0a18); box-shadow: 0 14px 30px -18px #000; }
@@ -2414,3 +2414,16 @@ body:has(.highway:not([hidden])) .menu .label { color: #a99e8c; text-transform: 
 /* 4.23: a problem with the microphone stands out from the ordinary notes on the lane */
 .sw-badge.sw-warn { background: #ffb547; color: #1a1408; }
 .menu .menu-sub { display: block; max-width: 300px; margin-top: 2px; font-size: 11px; font-weight: 500; line-height: 1.3; white-space: normal; color: var(--ink-3); }
+
+/* 4.24 Backstage: kinds on the cards, the Shared tones list */
+.gr-tag.cat-loop { background:#33c8e022; color:#9be9f5; }
+.gr-tag.cat-jam { background:#ff6b3d22; color:#ffb79e; }
+.gr-tag.cat-clip { background:#ffffff10; }
+.gr-cats { flex-wrap:wrap; }
+.gr-tones { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:10px; }
+.gr-tone { display:grid; grid-template-columns:34px minmax(0,1fr); grid-template-rows:auto auto; gap:6px 10px; padding:12px; border-radius:6px; background:#1b1424cc; border:1px solid #4a3a63; }
+.gr-tone .gr-bic { grid-row:1 / span 2; }
+.gr-tone-text { min-width:0; display:grid; gap:2px; }
+.gr-tone-text b { font-size:15px; color:#f3e9ff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gr-tone-text .gr-song { color:var(--ink-3); font-size:12px; }
+.gr-tone .gr-acts { grid-column:2; display:flex; flex-wrap:wrap; gap:6px; }

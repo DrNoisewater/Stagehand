@@ -758,12 +758,14 @@ function registerIpc() {
   });
   // Backstage (4.3): everyone sees the videos you show there, and can message you.
   // Only videos (never audio takes or songs); the page makes the direct connection (js/friendlink.js).
+  // 4.24: loops (sound recordings) can be shown too
+  const shareable = (t) => !!t && (t.kind === 'video' || t.kind === 'audio');
   const sharedVideo = async (id) => {
     const t = (await takes.list()).find((x) => x.id === String(id));
-    return t && t.kind === 'video' && room.isShared(t.id) ? t : null;
+    return shareable(t) && room.isShared(t.id) ? t : null;
   };
   handle('room:get', async () => {
-    await room.prune((await takes.list()).filter((t) => t.kind === 'video').map((t) => t.id));
+    await room.prune((await takes.list()).filter(shareable).map((t) => t.id));
     return room.state();
   });
   handle('room:setName', (name) => room.setName(name));
@@ -772,7 +774,7 @@ function registerIpc() {
   handle('room:hide', (addr, on) => room.hide(addr, on));
   handle('room:share', async (id, on) => {
     const t = (await takes.list()).find((x) => x.id === String(id));
-    if (on && (!t || t.kind !== 'video')) throw Object.assign(new Error('Only videos can be shown backstage'), { code: 'NOT_VIDEO' });
+    if (on && !shareable(t)) throw Object.assign(new Error('Only videos and loops can be shown backstage'), { code: 'NOT_VIDEO' });
     return room.setShared(String(id), on);
   });
   handle('room:connect', (addr, sdp) => room.connect(addr, sdp, { onStage: (stage) => send('room:progress', { addr, stage }) }));
@@ -780,12 +782,12 @@ function registerIpc() {
   // what someone watching may see and fetch: the videos you show, with what's in them (the tone too)
   handle('room:hostList', async () => {
     const { clipSummary } = require('./services/greenroom');
-    const list = room.joined ? (await takes.list()).filter((t) => t.kind === 'video' && room.isShared(t.id)) : [];
+    const list = room.joined ? (await takes.list()).filter((t) => shareable(t) && room.isShared(t.id)) : [];
     return { name: room.data.name, recordings: list.map((t) => ({ ...clipSummary(t), name: t.name, seconds: t.seconds, tone: (t.about && t.about.tone) || null })) };
   });
   handle('room:hostRead', async (id, part, offset, length) => {
     const t = await sharedVideo(id);
-    if (!t || part !== 'video') throw Object.assign(new Error('That video isn’t shown backstage'), { code: 'NOT_SHARED' });
+    if (!t || (part !== 'video' && part !== 'audio')) throw Object.assign(new Error('That recording isn’t shown backstage'), { code: 'NOT_SHARED' });
     const fh = await fsp.open(takes.pathOf(t.id), 'r');
     try {
       const { size } = await fh.stat();
@@ -1335,7 +1337,7 @@ app.whenReady().then(async () => {
     oldFile: path.join(D.roaming, 'friends.json'), // 4.1–4.2: only the name it had is offered
     level: () => levels.state().level,
     fetchImpl: (url, opts) => net.fetch(url, opts).catch((err) => (opts && opts.signal && opts.signal.aborted ? Promise.reject(err) : fetch(url, opts))),
-    listClips: async () => (await takes.list()).filter((t) => t.kind === 'video'),
+    listClips: async () => (await takes.list()).filter((t) => t.kind === 'video' || t.kind === 'audio'),
     safeStorage,
     log,
   });
