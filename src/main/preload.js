@@ -253,6 +253,14 @@ contextBridge.exposeInMainWorld('stagehand', {
     customsforge: (opts) => call('discover:customsforge', opts),
     finder: (item) => call('finder:open', item),
     closeFinder: () => call('finder:close'),
+    // 4.25: the run is over (the finder celebrates, then closes); the Updated CDLC list; statuses; official DLC
+    finderDone: (summary) => call('finder:done', summary),
+    finderUpdates: () => call('finder:updates'),
+    setStatus: (ids, status) => call('discover:setStatus', { ids, status }),
+    official: () => call('discover:official'),
+    requestOfficial: (req) => call('discover:requestOfficial', req),
+    updates: () => call('discover:updates'),
+    clearUpdates: (keys) => call('discover:clearUpdates', keys),
   },
   imports: {
     status: () => call('import:status'),

@@ -1,3 +1,56 @@
+# 4.25.0 — The Roadie, a quieter song finder, Not available, Official DLC requests, Updates, Discover and Tones restyled (2026-11-18; nothing tried on the user's PC)
+
+The user (after 4.24.0) sent the Roadie animation pack (docs/roadie/, follow its CLAUDE-INTEGRATION.md) and asked: a way
+to mark songs Not available (its own list, try later); pop-up ads after a download opened Firefox (Opera, Steam):
+block them; Official DLC can't be wanted, list the ones you don't have with "Contact Noisewater Labs" and a Request
+button that emails the owner (once per 12 h; "the user should never receive a notice to open another app or email
+client": ntfy.sh, then FormSubmit, then queued); the finder should see "No matching CDLC" by itself; the first search
+often found no search box; select many/all on Wanted; show CustomsForge's Updated CDLC and get them; close the finder
+when done; hide the site's ads; Discover and Tones to match the newer pages. Then: "merge and release, we can finish
+other later". Working notes: docs/work-4.25.md.
+
+**Built:**
+- **The Roadie** (`src/main/finder/roadie.js`, clips and stills in `src/main/finder/roadie/`): the finder bar is 68
+  tall with a 240×57 slot after Next song (210×50 under 1400 wide, hidden under 960), replacing 4.24's three step
+  chips; the words beside it still say the exact state (Downloading 42% only when the size is known). Driven by real
+  events with a job id per download (`d1`…) and search (`sN`): searched/results "some" → search-loop; "match" →
+  found → found-hold; download → download-enter → download-loop; importing → import-enter → import-loop; added/had →
+  success → success-hold (never before the import answers); failed/none/official → still keyframe-15 + message. Two
+  videos take turns (no blank frame), reduced motion shows stills, pauses when hidden, stills if a clip won't play.
+  Measured ~60 fps at 1x under xvfb (software; not a Windows number).
+- **Pop-ups and ads** (`finder.js`, `finder/adblock.js`): nothing is ever opened in the player's browser by itself; a
+  pop-up to another site is dropped; a link the player clicked to another site offers "Open in my browser". ~65 ad
+  and tracker hosts blocked in the finder's session (Google sign-in/Drive untouched); CSS hides ad boxes.
+- **Search box late**: Find polls 300 ms up to 20 s and on in-page navigation; never types twice.
+- **Reads the page on screen** (old rule was "never read the site"): `finder/results.js` reads the results once they
+  settle → `results` none/official/match/some; one simpler second search before "none". Updated CDLC tab → `updates`.
+  `finder:updates` clicks the tab; `finder:done` celebrates and closes (~3.5 s), main window comes forward.
+- **Wanted** (`discover.js`, service `services/discover.js`): To find / Not available tabs; "none" → Not available
+  and the run moves on; "official" → Official DLC; tick boxes, shift-click ranges, Select all (filtered), per-artist;
+  end-of-run summary card. Wanted items that are official move out on load; addWanted refuses official songs.
+- **Official DLC** page: official songs you don't have (official-songs.json minus the library), by artist, search,
+  Request dialog (contact required and remembered, note). `services/officialrequest.js`: ntfy.sh with an Email header
+  → FormSubmit (`formsubmit.co/ajax/<address>`) → queued and retried (30 s after start, every 20 min). 12 h limit
+  in the main process. No mail app ever.
+- **Updates** page: CustomsForge's Updated CDLC rows matched to library songs (a version you already have isn't
+  shown), Check for updates, Get updates (runs them through the finder, drops each as its new version imports).
+- **Discover restyled** (`discover.css`) to the Songs/Gear look; the blank page when arriving from another page fixed.
+- **Tones restyled** (`tonespage.js`, `roadshow.css`, `rockopera.css`): TONES head + count, flat keys and rows,
+  Gear-style detail (kicker, big name you can still rename, Demo riff), keys 2–9 as a flat strip, the tone's gear
+  pictures in Roadshow too. `test/e2e/tones-look-audit.js`.
+- **Tests**: `test/discover.test.js` (request order, queue, 12 h), `test/finder.test.js` (ad hosts, results),
+  `test/e2e/finder-electron.js` (pretend site: late box, results, official, updates, pop-ups, ads, the Roadie never
+  celebrating early, finder:done), `discover-audit.js` 107 checks.
+
+**Not verified:** real CustomsForge markup (results, Official rows, Updated CDLC tab); whether ntfy.sh and FormSubmit
+deliver the email (FormSubmit sends the owner a one-time activation email on first use); Roadie playback/CPU on
+Windows at 125/150 %; whether a file host not on the list now gets "Open in my browser" instead of downloading.
+`tones-electron.js` still clicks old tab names (stale before 4.25).
+
+**Ask the user:** send one test request and click FormSubmit's activation email; try a search with no results, an
+Official song and the Updated CDLC tab; does the Roadie look right and smooth; any ads or pop-ups left; the new
+Discover and Tones looks.
+
 # 4.24.0 — Songs is home, the gear stays big, Backstage and Wanted reworked, less blinking (2026-11-17; nothing tried on the user’s PC)
 
 The user (after 4.23.0): "Backstage area. Activity panel. Still flickering. Tidy all pages. Songs is main home for

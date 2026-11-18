@@ -34,6 +34,7 @@ class OfficialList {
       this.byTitle.get(k).push(norm(a));
     }
     this.count = pairs.length;
+    this.pairs = pairs; // 4.25: the Official DLC page lists them
   }
 
   /** True when the song's artist and title are on the official list. */

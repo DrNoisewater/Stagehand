@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "logicalSize": {
+    "width": 240,
+    "height": 57
+  },
+  "sourceSize": {
+    "width": 618,
+    "height": 147
+  },
+  "videoSize": {
+    "width": 618,
+    "height": 148
+  },
+  "clips": {
+    "search-loop": {
+      "file": "clips/search-loop.mp4",
+      "seconds": 4.65,
+      "frames": 279,
+      "fps": 60,
+      "poster": "art/keyframe-00.png"
+    },
+    "found": {
+      "file": "clips/found.mp4",
+      "seconds": 1.55,
+      "frames": 93,
+      "fps": 60,
+      "poster": "art/keyframe-04.png"
+    },
+    "found-hold": {
+      "file": "clips/found-hold.mp4",
+      "seconds": 3.0,
+      "frames": 180,
+      "fps": 60,
+      "poster": "art/keyframe-05.png"
+    },
+    "download-enter": {
+      "file": "clips/download-enter.mp4",
+      "seconds": 2.05,
+      "frames": 123,
+      "fps": 60,
+      "poster": "art/keyframe-06.png"
+    },
+    "download-loop": {
+      "file": "clips/download-loop.mp4",
+      "seconds": 3.0,
+      "frames": 180,
+      "fps": 60,
+      "poster": "art/keyframe-08.png"
+    },
+    "import-enter": {
+      "file": "clips/import-enter.mp4",
+      "seconds": 1.7,
+      "frames": 102,
+      "fps": 60,
+      "poster": "art/keyframe-09.png"
+    },
+    "import-loop": {
+      "file": "clips/import-loop.mp4",
+      "seconds": 3.0,
+      "frames": 180,
+      "fps": 60,
+      "poster": "art/keyframe-10.png"
+    },
+    "success": {
+      "file": "clips/success.mp4",
+      "seconds": 3.1,
+      "frames": 186,
+      "fps": 60,
+      "poster": "art/keyframe-11.png"
+    },
+    "success-hold": {
+      "file": "clips/success-hold.mp4",
+      "seconds": 3.0,
+      "frames": 180,
+      "fps": 60,
+      "poster": "art/keyframe-14.png"
+    },
+    "reset": {
+      "file": "clips/reset.mp4",
+      "seconds": 0.65,
+      "frames": 39,
+      "fps": 60,
+      "poster": "art/keyframe-15.png"
+    },
+    "idle": {
+      "file": "clips/idle.mp4",
+      "seconds": 3.0,
+      "frames": 180,
+      "fps": 60,
+      "poster": "art/keyframe-15.png"
+    }
+  }
+}

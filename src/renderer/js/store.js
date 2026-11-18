@@ -168,7 +168,7 @@ export function viewTitle(v = state.view) {
     case 'rslist':
       return v.id === 'favorites' ? 'Rocksmith favorites' : rsListLabel(v.id);
     case 'discover':
-      return { search: 'Search', gaps: 'Collection gaps', wanted: 'Wanted', imports: 'Imports', artist: (v.artist && v.artist.name) || 'Artist' }[v.id] || 'Discover';
+      return { search: 'Search', gaps: 'Collection gaps', wanted: 'Wanted', imports: 'Imports', official: 'Official DLC', updates: 'Updates', artist: (v.artist && v.artist.name) || 'Artist' }[v.id] || 'Discover';
     default:
       return 'Songs';
   }

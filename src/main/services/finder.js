@@ -5,15 +5,22 @@
  *
  * You sign in, pick the song and press download yourself; Stagehand only:
  *  - types the song you asked for into the site's search box when you press
- *    Find (once per press, the same as typing it; it never reads results or
- *    clicks anything on the site);
+ *    Find (once per press, the same as typing it; 4.25: it waits for the box when
+ *    the site draws it late);
+ *  - 4.25: reads the results page you are looking at, once it settles, to say whether
+ *    the song is there, not there, or official DLC (one simpler second search when the
+ *    first finds nothing); and the Updated CDLC list when it is on screen. It never
+ *    crawls the site and never downloads by itself;
  *  - takes what you download (.psarc or .zip) straight into your library;
- *  - keeps the window to CustomsForge and the file sites songs are shared on
- *    (other links open in your own browser).
+ *  - keeps the window to CustomsForge and the file sites songs are shared on.
+ *    4.25: pop-ups to other sites are dropped (never sent to your browser); a link you
+ *    click to another site is offered as "Open in my browser"; ads are stopped.
  */
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
+const { isAdHost, AD_CSS } = require('../finder/adblock');
+const { readPage, clickText, verdict, simplerSearch } = require('../finder/results');
 
 const HOME = 'https://ignition4.customsforge.com/';
 /** Sites a song can be on or downloaded from (and the sign-ins they use). */
@@ -36,6 +43,8 @@ const HOSTS = [
   'discordapp.com',
   'discordapp.net',
   'patreon.com',
+  'pixeldrain.com', // 4.25: file hosts songs are shared on (their links used to open in the browser)
+  'gofile.io',
 ];
 const SONG_FILE = /\.(psarc|zip)$/i;
 
@@ -53,6 +62,13 @@ function allowed(url, extra = []) {
   if (u.protocol !== 'https:') return false;
   return HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
 }
+const hostOf = (url) => {
+  try {
+    return new URL(url).hostname;
+  } catch (_) {
+    return '';
+  }
+};
 
 /**
  * Run in the page: puts the text in its search box (the first one you can see), as
@@ -77,6 +93,11 @@ const fillBox = (text) => `((text) => {
   return false;
 })(${JSON.stringify(text)})`;
 
+const nap = (ms) => new Promise((r) => setTimeout(r, ms));
+const BOX_WAIT = 20000; // the site can draw its search box late: look for it this long
+const SETTLE_MAX = 15000; // results: read them once they stop changing, at most this long after Enter
+const CLOSE_AFTER = 3500; // the run is over: the window closes this long after (the Roadie's celebration)
+
 /**
  * @param {{ parent: () => any, icon?: string, stagingDir: string, downloadsDir: () => string,
  *   importFiles: (paths: string[]) => Promise<any>, onEvent: (e: object) => void, log?: (s: string) => void,
@@ -88,7 +109,7 @@ function createFinder(o) {
   const log = o.log || (() => {});
   const home = o.home || HOME;
   const extra = o.extraHosts || [];
-  const BAR_H = 56;
+  const BAR_H = 68; // 4.25: taller, for the Roadie
   // 4.23: the window opens on most of the screen and remembers its size per screen; the site can be
   // zoomed out to fit its wide table without scrolling sideways (o.prefs: get/set, kept in settings)
   const prefs = o.prefs || { get: () => ({}), set: () => {} };
@@ -97,9 +118,24 @@ function createFinder(o) {
   let win = null;
   let bar = null;
   let site = null;
-  let want = null; // { id, artist, title }
+  let want = null; // { id, artist, title, mode }
   let loaded = false; // the site has shown a page (so its search box can be looked for)
-  const st = { message: '', kind: '', downloads: [] };
+  let needFind = false; // the last Find found no search box: try again when the next page shows
+  let searchSeq = 0; // each search (and each wait for the box) has its own number; a newer one stops older ones
+  let jobSeq = 0; // each download has its own job id
+  let closeTimer = null;
+  let ownKeysUntil = 0; // (the Enter Stagehand presses after typing a search isn't the player's)
+  const st = {
+    message: '',
+    kind: '',
+    downloads: [],
+    focus: null, // the job id of the download the bar follows (the latest one)
+    view: { state: 'idle', job: '', seq: 0 }, // what the Roadie shows: the real state, its job, a counter
+    offer: null, // { url, host }: a link the player clicked to another site
+    done: null, // { title, text }: the Wanted run is over
+    added: 0, // songs added since the window opened
+  };
+  const stats = { ads: {}, blocked: [], offered: [] }; // (tests and the log)
 
   const text = () => (want ? `${want.artist || ''} ${want.title || ''}`.trim() : '');
 
@@ -112,12 +148,22 @@ function createFinder(o) {
       canBack: !!(site && site.webContents.navigationHistory.canGoBack()),
       canForward: !!(site && site.webContents.navigationHistory.canGoForward()),
       downloads: st.downloads.slice(-3),
+      focus: st.focus,
+      view: st.view,
+      offer: st.offer ? { host: st.offer.host } : null,
+      done: st.done,
       zoom,
     });
   }
   function say(message, kind = '') {
     st.message = message;
     st.kind = kind;
+    tell();
+  }
+  /** The Roadie's real state (idle, searching, found, downloading, importing, imported, failed) and whose it is. */
+  function setView(state, job) {
+    if (st.view.state === state && st.view.job === job) return;
+    st.view = { state, job: String(job || ''), seq: st.view.seq + 1 };
     tell();
   }
 
@@ -128,25 +174,169 @@ function createFinder(o) {
     site.setBounds({ x: 0, y: BAR_H, width, height: Math.max(0, height - BAR_H) });
   }
 
-  /** Types the wanted song into the site's search box and presses Enter (one search, as you would). */
-  async function find() {
-    const t = text();
-    if (!t || !site) return false;
-    o.clipboard.writeText(t); // (also ready for Ctrl+V)
-    let found = false;
+  /** Runs a page reader; gives up (null) rather than hang on a page that is still loading. */
+  // (only typing and clicking a tab act as the player; reading never does, so the page gets no pop-up rights from it)
+  async function inPage(js, ms = 4000, asPlayer = false) {
+    if (!site || site.webContents.isDestroyed()) return null;
     try {
-      found = loaded && (await site.webContents.executeJavaScript(fillBox(t), true));
+      return await Promise.race([site.webContents.executeJavaScript(js, asPlayer), nap(ms).then(() => null)]);
     } catch (_) {
-      found = false;
+      return null;
     }
+  }
+
+  // a wait for the search box wakes up early when the site changes its page (it draws late)
+  let wake = null;
+  const poke = () => {
+    if (wake) wake();
+  };
+  const napOrPoke = (ms) => new Promise((r) => {
+    const t = setTimeout(done, ms);
+    function done() {
+      clearTimeout(t);
+      if (wake === done) wake = null;
+      r();
+    }
+    wake = done;
+  });
+
+  /**
+   * Types the wanted song into the site's search box and presses Enter (one search, as you would).
+   * 4.25: waits for the box (up to 20 s), then reads the results once they settle.
+   */
+  async function find({ query, second = false } = {}) {
+    const t = query || text();
+    if (!t || !site) return false;
+    const my = ++searchSeq;
+    const job = `s${my}`;
+    if (!second) o.clipboard.writeText(t); // (also ready for Ctrl+V)
+    setView('searching', job);
+    if (!second) say(`Looking for “${t}”…`);
+    const start = Date.now();
+    let found = false;
+    let told = false;
+    while (my === searchSeq && site && Date.now() - start < BOX_WAIT) {
+      if (loaded) found = !!(await inPage(fillBox(t), 4000, true));
+      if (my !== searchSeq) return false;
+      if (found) break;
+      if (!told && Date.now() - start > 1500) {
+        told = true;
+        say(`Waiting for the site’s search box…`);
+      }
+      await napOrPoke(300);
+    }
+    if (my !== searchSeq || !site) return false;
     if (!found) {
+      needFind = true;
       say(`No search box on this page. Sign in or go to the song list, then press Find. (“${t}” is copied too.)`, 'warn');
+      if (st.view.job === job) setView('idle', job);
       return false;
     }
+    needFind = false;
+    const before = await inPage(readPage('results'), 2000);
+    if (my !== searchSeq || !site) return false;
     site.webContents.focus();
+    ownKeysUntil = Date.now() + 150;
     for (const type of ['keyDown', 'char', 'keyUp']) site.webContents.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Return' });
-    say(`Searched for “${t}”. Pick the song and press its download button.`);
+    say(second ? `Nothing for that. Searched for “${t}” instead…` : `Searched for “${t}”. Pick the song and press its download button.`);
+    o.onEvent({ type: 'searched', want, text: t });
+    watchResults(my, t, before && before.sig, second).catch((err) => log(`Finder: reading results: ${err.message}`));
     return true;
+  }
+
+  /** Reads the results the player is looking at, once they settle; one simpler search when there are none. */
+  async function watchResults(my, t, before, second) {
+    const start = Date.now();
+    const job = `s${my}`;
+    let last = null;
+    let lastSig = null;
+    let since = start;
+    while (my === searchSeq && site && Date.now() - start < SETTLE_MAX) {
+      await nap(300);
+      const r = await inPage(readPage('results'), 2000);
+      if (my !== searchSeq) return;
+      if (!r) continue;
+      last = r;
+      if (r.sig !== lastSig) {
+        lastSig = r.sig;
+        since = Date.now();
+        continue;
+      }
+      const still = Date.now() - since;
+      const changed = r.sig !== before;
+      // settled: new results that stayed put for a second, the empty message, or nothing moving for 3 s
+      if ((changed && still >= 1000) || (r.empty && still >= 600) || (still >= 3000 && Date.now() - start >= 3000)) break;
+    }
+    if (my !== searchSeq || !site || !last) return;
+    const rows = last.empty && !last.rows.length ? [] : last.rows;
+    if (!second) {
+      const nothing = verdict(want, rows) === 'none';
+      const simpler = nothing && simplerSearch(want, t);
+      if (simpler) {
+        say(`Nothing for “${t}”. Trying “${simpler}”…`);
+        await nap(400); // (at a person's pace)
+        if (my === searchSeq) await find({ query: simpler, second: true });
+        return;
+      }
+    }
+    const v = verdict(want, rows, second);
+    o.onEvent({ type: 'results', want, verdict: v, rows: rows.slice(0, 40).map((r) => ({ artist: r.artist, title: r.title, official: !!r.official })) });
+    log(`Finder: “${t}”: ${v} (${rows.length} rows)`);
+    // the Roadie follows the search only while nothing newer (a download) has taken over
+    const mine = st.view.job === job;
+    const name = want ? want.title || want.artist : t;
+    if (v === 'none') {
+      say(`Not on CustomsForge: nothing for “${name}”.`, 'warn');
+      if (mine) setView('failed', job);
+    } else if (v === 'official') {
+      say(`“${name}” is official DLC (sold in the Rocksmith store): it can’t be downloaded here.`, 'warn');
+      if (mine) setView('failed', job);
+    } else if (v === 'match') {
+      say(`Found “${name}”. Press its download button.`, 'good');
+      if (mine) setView('found', job);
+    } else if (mine) {
+      say(`Searched for “${t}”. Pick the song and press its download button.`);
+    }
+  }
+
+  // 4.25: the Updated CDLC list, read whenever it is the page on screen (rows sent when they change)
+  let updatesSig = null;
+  let updatesTimer = null;
+  async function checkUpdates() {
+    if (!site || !loaded || site.webContents.isLoading()) return;
+    const r = await inPage(readPage('updates'), 2000);
+    if (!r || !r.on) return;
+    const sig = r.sig;
+    if (sig === updatesSig) return;
+    // the list can still be drawing: read it again in a moment, send it when it holds still
+    await nap(700);
+    const again = await inPage(readPage('updates'), 2000);
+    if (!again || !again.on || again.sig !== sig || sig === updatesSig) return;
+    updatesSig = sig;
+    const rows = again.rows.slice(0, 500).map((x) => ({ artist: x.artist, title: x.title, version: x.version || '', updated: x.updated || '' }));
+    log(`Finder: Updated CDLC shows ${rows.length} songs`);
+    o.onEvent({ type: 'updates', rows });
+    say(rows.length ? `${rows.length === 1 ? '1 song has' : `${rows.length} songs have`} a newer version. They’re listed in Stagehand too.` : 'No updates for your songs right now.', 'good');
+  }
+
+  /** Opens the Updated CDLC tab (clicks it by its words once the page is ready). */
+  async function showUpdates() {
+    const my = ++searchSeq; // (a search waiting for its box stops: this is what the player asked for now)
+    setView('idle', `u${my}`);
+    say('Opening Updated CDLC…');
+    const start = Date.now();
+    let triedLibrary = false;
+    while (my === searchSeq && site && Date.now() - start < BOX_WAIT) {
+      if (loaded && (await inPage(clickText('Updated CDLC'), 4000, true))) {
+        setTimeout(() => checkUpdates().catch(() => {}), 1200);
+        return true;
+      }
+      // the tab may sit inside My Library
+      if (loaded && !triedLibrary && Date.now() - start > 2500 && (await inPage(clickText('My Library'), 4000, true))) triedLibrary = true;
+      await napOrPoke(300);
+    }
+    if (my === searchSeq && site) say('Sign in to CustomsForge, then open My Library › Updated CDLC.', 'warn');
+    return false;
   }
 
   // 4.18: a file host's own page (Drive's "No preview available" and the like) is a dead end once the
@@ -157,6 +347,15 @@ function createFinder(o) {
       const u = new URL(url);
       if (extra.includes(u.host) && /^\/(host|warn)\b/.test(u.pathname)) return true; // (tests: a pretend file host)
       return FILE_HOST.test(u.hostname);
+    } catch (_) {
+      return false;
+    }
+  };
+  /** The song site's own pages (where ads are hidden). */
+  const onSongSite = (url) => {
+    try {
+      const u = new URL(url);
+      return extra.includes(u.host) || /(^|\.)customsforge\.com$/i.test(u.hostname);
     } catch (_) {
       return false;
     }
@@ -182,9 +381,19 @@ function createFinder(o) {
     return false;
   }
 
+  /** 4.25: a pop-up or a move to another site that nobody asked for: stopped, and noted. */
+  function blocked(url, why) {
+    const host = hostOf(url) || String(url).slice(0, 60);
+    stats.blocked.push({ host, why, at: Date.now() });
+    if (stats.blocked.length > 50) stats.blocked.shift();
+    log(`Finder: stopped ${why} to ${host}`);
+    o.onEvent({ type: 'blocked', host });
+  }
+
   // 4.18: a file host often starts its download in a new, empty window (Drive's Download button does).
-  // That window is let open, out of sight, so the download is taken; it shows only if a real page
+  // That window is let open, out of sight, so the download is taken; it shows only if a song site's page
   // loads in it (Drive's "can't scan this file" page, with its own button), and closes once the file is in.
+  // 4.25: one that ends up anywhere else (an ad) is closed unseen.
   const pops = new Set();
   function popup(child) {
     pops.add(child);
@@ -193,7 +402,12 @@ function createFinder(o) {
     child.webContents.on('did-finish-load', () => {
       if (child.isDestroyed() || child.__took) return;
       const u = child.webContents.getURL();
-      if (u && !u.startsWith('about:')) child.show();
+      if (!u || u.startsWith('about:')) return;
+      if (allowed(u, extra)) child.show();
+      else {
+        blocked(u, 'a pop-up');
+        child.close();
+      }
     });
     child.on('closed', () => pops.delete(child));
     // an empty window nothing came of
@@ -217,16 +431,45 @@ function createFinder(o) {
     } catch (_) {}
     const file = path.join(dir, name);
     item.setSavePath(file);
-    const d = { name, pct: 0, state: 'going', at: Date.now() };
+    // 4.25: each download has a job id (in the events too); the bar and the Roadie follow the latest one
+    const job = `d${++jobSeq}`;
+    const d = { job, name, pct: 0, known: false, state: 'going', at: Date.now() };
     st.downloads.push(d);
-    say(`Downloading ${name}…`);
+    if (st.downloads.length > 20) st.downloads.shift();
+    st.focus = job;
+    st.done = null;
+    st.message = `Downloading ${name}…`;
+    st.kind = '';
+    setView('downloading', job);
+    tell();
+    const mine = () => st.focus === job;
     // 4.24: each step also goes to the main window (Activity, the Wanted page), at most 4 times a second
     let sentAt = 0;
-    const step = (state, extra = {}) => o.onEvent({ type: 'download', name, state, pct: d.pct, want, ...extra });
+    const step = (state, more = {}) => o.onEvent({ type: 'download', job, name, state, pct: d.pct, want, ...more });
     step('going');
-    item.on('updated', () => {
+    let resumed = false;
+    item.on('updated', (_ev, state) => {
+      // 4.25: a download cut off on the way is "interrupted" (and may never finish): one try to carry
+      // on where it stopped, then it counts as failed (the bar says so; the download button works again)
+      if (state === 'interrupted') {
+        if (d.state !== 'going') return;
+        if (!resumed && item.canResume()) {
+          resumed = true;
+          setTimeout(() => {
+            try {
+              item.resume();
+            } catch (_) {}
+          }, 1000);
+          return;
+        }
+        try {
+          item.cancel(); // ('done' follows, as cancelled)
+        } catch (_) {}
+        return;
+      }
       const total = item.getTotalBytes();
-      d.pct = total ? Math.round((item.getReceivedBytes() / total) * 100) : 0;
+      d.known = total > 0;
+      d.pct = total ? Math.min(100, Math.round((item.getReceivedBytes() / total) * 100)) : 0;
       tell();
       if (Date.now() - sentAt > 250) {
         sentAt = Date.now();
@@ -236,20 +479,29 @@ function createFinder(o) {
     item.once('done', async (_ev, state) => {
       if (state !== 'completed') {
         d.state = 'failed';
-        say(`${name} didn’t finish downloading. Try its download button again.`, 'warn');
+        if (mine()) {
+          say(`${name} didn’t finish downloading. Try its download button again.`, 'warn');
+          setView('failed', job);
+        } else tell();
         step('failed', { why: 'It didn’t finish downloading' });
         return;
       }
       d.pct = 100;
       if (!song) {
         d.state = 'saved';
-        say(`${name} is in your Downloads. Stagehand can’t open this kind of file: unpack it there, then drop the song on Stagehand.`, 'warn');
-        o.onEvent({ type: 'saved', name, file });
+        if (mine()) {
+          say(`${name} is in your Downloads. Stagehand can’t open this kind of file: unpack it there, then drop the song on Stagehand.`, 'warn');
+          setView('failed', job);
+        } else tell();
+        o.onEvent({ type: 'saved', job, name, file });
         step('failed', { why: 'Not a song file Stagehand can open (left in Downloads)' });
         return;
       }
       d.state = 'adding';
-      say(`Adding ${name} to your library…`);
+      if (mine()) {
+        say(`Importing ${name}: checking it and adding it to your library…`);
+        setView('importing', job);
+      } else tell();
       step('adding');
       try {
         const results = (await o.importFiles([file])) || [];
@@ -258,16 +510,24 @@ function createFinder(o) {
         const had = results.some((r) => r.status === 'duplicate');
         const why = (results.find((r) => r.reason) || {}).reason;
         d.state = good.length || had ? 'added' : 'failed';
-        if (good.length) say(`${songs.length > 1 ? `${songs.length} songs` : name} ${songs.length > 1 ? 'are' : 'is'} in your library.`, 'good');
-        else if (had) say(`You already have ${name}.`, 'good');
-        else say(`${name} couldn’t be added${why ? `: ${why}` : '.'}`, 'warn');
-        o.onEvent({ type: 'downloaded', name, file, want, added: good.length > 0 || had });
+        if (good.length || had) st.added++;
+        if (mine()) {
+          if (good.length) say(`${songs.length > 1 ? `${songs.length} songs` : name} ${songs.length > 1 ? 'are' : 'is'} in your library.`, 'good');
+          else if (had) say(`You already have ${name}.`, 'good');
+          else say(`${name} couldn’t be added${why ? `: ${why}` : '.'}`, 'warn');
+          // only now, with the library's answer in, may the Roadie celebrate
+          setView(good.length || had ? 'imported' : 'failed', job);
+        } else tell();
+        o.onEvent({ type: 'downloaded', job, name, file, want, added: good.length > 0 || had });
         step(good.length ? 'added' : had ? 'had' : 'failed', { why, songs: songs.length });
         if (good.length || had) leaveFileHost();
       } catch (err) {
         d.state = 'failed';
         log(`Finder: import of ${name} failed: ${err.message}`);
-        say(`${name} couldn’t be added: ${err.message}`, 'warn');
+        if (mine()) {
+          say(`${name} couldn’t be added: ${err.message}`, 'warn');
+          setView('failed', job);
+        } else tell();
         step('failed', { why: err.message });
       } finally {
         fsp.rm(dir, { recursive: true, force: true }).catch(() => {}); // (the song was copied in)
@@ -276,11 +536,29 @@ function createFinder(o) {
   }
 
   function guard(wc, isPop) {
-    // links to other sites open in your browser; this window stays on song sites
-    wc.on('will-navigate', (e, url) => {
+    // 4.25: when did the player last click or press a key here? A move to another site right after
+    // is theirs (offered as "Open in my browser"); any other is the page's own doing (stopped)
+    let inputAt = 0;
+    wc.on('input-event', (_e, ie) => {
+      if (Date.now() < ownKeysUntil) return;
+      if (ie && /^(mouseDown|mouseUp|keyDown|rawKeyDown|char|gestureTap|touchStart|touchEnd)$/.test(ie.type)) inputAt = Date.now();
+    });
+    const theirs = () => Date.now() - inputAt < 1500;
+    const away = (e, url, what) => {
       if (allowed(url, extra)) return;
       e.preventDefault();
-      if (/^https?:/.test(url)) o.openExternal(url);
+      if (!isPop && theirs() && /^https?:/.test(url)) {
+        st.offer = { url, host: hostOf(url) };
+        stats.offered.push(st.offer.host);
+        say(`That link goes to ${st.offer.host}, outside the song sites. It opens in your own browser if you want it.`);
+      } else blocked(url, what);
+    };
+    // this window stays on song sites; never to the player's browser by itself
+    wc.on('will-navigate', (e, legacyUrl) => away(e, (e && e.url) || legacyUrl, 'a page move'));
+    wc.on('will-redirect', (e, legacyUrl) => {
+      const url = (e && e.url) || legacyUrl;
+      if (e && e.isMainFrame === false) return;
+      away(e, url, 'a redirect');
     });
     wc.setWindowOpenHandler(({ url }) => {
       if (!url || url.startsWith('about:')) {
@@ -298,19 +576,38 @@ function createFinder(o) {
           },
         };
       }
-      if (allowed(url, extra)) setImmediate(() => wc.loadURL(url).catch(() => {}));
-      else if (/^https?:/.test(url)) o.openExternal(url);
+      if (allowed(url, extra)) setImmediate(() => !wc.isDestroyed() && wc.loadURL(url).catch(() => {}));
+      else blocked(url, 'a pop-up'); // 4.25: dropped quietly (these were the ads opening in the browser)
       return { action: 'deny' };
     });
     wc.on('did-create-window', (child) => popup(child));
     if (isPop) return;
-    wc.on('did-navigate', tell);
-    wc.on('did-navigate-in-page', tell);
+    wc.on('did-navigate', () => {
+      st.offer = null; // (an offer is for the page it was made on)
+      tell();
+      poke();
+    });
+    wc.on('did-navigate-in-page', (_e, _url, isMain) => {
+      if (isMain !== false) st.offer = null;
+      tell();
+      poke();
+      setTimeout(() => checkUpdates().catch(() => {}), 800);
+    });
+    wc.on('dom-ready', () => {
+      // 4.25: hide the boxes ads sit in on the song site's pages
+      if (onSongSite(wc.getURL())) wc.insertCSS(AD_CSS).catch(() => {});
+    });
     wc.on('did-finish-load', () => {
       const first = !loaded;
       loaded = true;
       tell();
-      if (first && want) setTimeout(() => find().catch(() => {}), 600);
+      poke();
+      // the first page, or the next one after a Find found no box (signed in now): look for the song
+      if ((first || needFind) && want) {
+        needFind = false;
+        setTimeout(() => find().catch(() => {}), 600);
+      }
+      setTimeout(() => checkUpdates().catch(() => {}), 1000);
     });
   }
 
@@ -320,6 +617,15 @@ function createFinder(o) {
     ses.setUserAgent(ses.getUserAgent().replace(/ (Electron|stagehand)\/\S+/gi, ''));
     ses.removeAllListeners('will-download');
     ses.on('will-download', onDownload);
+    // 4.25: ads and trackers never load in the finder (the song site, sign-ins and file sites are never on the list)
+    ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] }, (d, cb) => {
+      const host = hostOf(d.url);
+      if (host && isAdHost(host)) {
+        stats.ads[host] = (stats.ads[host] || 0) + 1;
+        return cb({ cancel: true });
+      }
+      cb({});
+    });
     const parent = o.parent();
     const scr = electron.screen;
     const pb = parent && !parent.isDestroyed() ? parent.getBounds() : null;
@@ -355,19 +661,39 @@ function createFinder(o) {
     bar.webContents.loadFile(path.join(__dirname, '..', 'finder', 'bar.html')).catch(() => {});
     bar.webContents.on('did-finish-load', tell);
     bar.webContents.on('will-navigate', (e) => e.preventDefault());
+    bar.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     guard(site.webContents);
     layout();
     win.on('resize', layout);
     win.on('closed', () => {
       win = bar = site = null;
       loaded = false;
+      needFind = false;
+      searchSeq++; // (any search still waiting stops)
+      clearTimeout(closeTimer);
+      clearInterval(updatesTimer);
       for (const w of pops) if (!w.isDestroyed()) w.close();
       st.downloads = [];
+      st.focus = null;
+      st.offer = null;
+      st.done = null;
+      st.added = 0;
+      st.view = { state: 'idle', job: '', seq: st.view.seq + 1 };
+      updatesSig = null;
       o.onEvent({ type: 'closed' });
+      // 4.25: back to Stagehand's own window
+      const p = o.parent();
+      if (p && !p.isDestroyed()) {
+        if (p.isMinimized()) p.restore();
+        p.show();
+        p.focus();
+      }
     });
     loaded = false;
     site.webContents.on('did-finish-load', () => site && site.webContents.setZoomFactor(zoom));
     site.webContents.loadURL(home).catch(() => {});
+    // the Updated CDLC tab can be opened without the address changing: look now and then (a light check)
+    updatesTimer = setInterval(() => checkUpdates().catch(() => {}), 2500);
   }
 
   /** The site's zoom: smaller fits more of its wide table; Fit picks the size that fits the window. */
@@ -377,7 +703,7 @@ function createFinder(o) {
     if (site) site.webContents.setZoomFactor(zoom);
     tell();
   }
-  const step = (d) => {
+  const zoomStep = (d) => {
     const i = ZOOMS.findIndex((z) => z >= zoom - 0.001);
     setZoom(ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, (i < 0 ? ZOOMS.length - 1 : i) + d))]);
   };
@@ -389,11 +715,18 @@ function createFinder(o) {
     reload: () => site && site.webContents.reload(),
     home: () => site && site.webContents.loadURL(home).catch(() => {}),
     browser: () => site && o.openExternal(site.webContents.getURL() || home),
+    // 4.25: the link the player clicked to another site, opened in their browser when they press for it
+    openOffer: () => {
+      if (!st.offer) return;
+      o.openExternal(st.offer.url);
+      st.offer = null;
+      say('Opened in your browser.');
+    },
     skip: () => o.onEvent({ type: 'skip', want }),
     stop: () => o.onEvent({ type: 'stop', want }),
     close: () => win && win.close(),
-    zoomOut: () => step(-1),
-    zoomIn: () => step(1),
+    zoomOut: () => zoomStep(-1),
+    zoomIn: () => zoomStep(1),
     // the site's song table needs about 1400 px; fit it in the window (never above 100%)
     zoomFit: () => win && setZoom(Math.max(0.67, Math.min(1, win.getContentBounds().width / 1400))),
     maximize: () => win && (win.isMaximized() ? win.unmaximize() : win.maximize()),
@@ -406,8 +739,11 @@ function createFinder(o) {
   return {
     /** Opens the window (or brings it up) looking for this song; searches for it once the site shows. */
     async open(item) {
-      want = item && (item.artist || item.title) ? { id: item.id || null, artist: String(item.artist || '').slice(0, 200), title: String(item.title || '').slice(0, 200), left: Number(item.left) || 0 } : null;
+      want = item && (item.artist || item.title) ? { id: item.id || null, artist: String(item.artist || '').slice(0, 200), title: String(item.title || '').slice(0, 200), left: Number(item.left) || 0, mode: item.mode === 'update' ? 'update' : 'want' } : null;
       st.message = '';
+      st.done = null;
+      clearTimeout(closeTimer); // (a new song: the window stays)
+      if (!want) setView('idle', `o${searchSeq}`);
       if (!win || win.isDestroyed()) build();
       else {
         if (win.isMinimized()) win.restore();
@@ -419,14 +755,47 @@ function createFinder(o) {
       tell();
       return { open: true, want };
     },
+    /** 4.25: the Wanted run is over: the bar says so, the Roadie celebrates, the window closes a moment later. */
+    done(summary) {
+      if (!win || win.isDestroyed()) return { open: false };
+      const s = summary || {};
+      st.done = { title: String(s.title || 'All done').slice(0, 120), text: String(s.text || '').slice(0, 300) };
+      searchSeq++; // (nothing more to look for)
+      want = null;
+      // a celebration only when songs really went in this time (it never shows before an import)
+      if (st.view.state !== 'imported') setView(st.added ? 'imported' : 'idle', st.added ? `done${st.view.seq}` : 'done');
+      say(st.done.text || st.done.title, 'good');
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(() => win && !win.isDestroyed() && win.close(), CLOSE_AFTER);
+      return { open: true, closesIn: CLOSE_AFTER };
+    },
+    /** 4.25: opens the finder on the site's Updated CDLC tab. */
+    async updates() {
+      clearTimeout(closeTimer);
+      st.done = null;
+      if (!win || win.isDestroyed()) {
+        want = null;
+        build();
+      } else {
+        if (win.isMinimized()) win.restore();
+        win.show();
+        win.focus();
+      }
+      tell();
+      showUpdates().catch(() => {});
+      return { open: true };
+    },
     close() {
       if (win && !win.isDestroyed()) win.close();
     },
     get isOpen() {
       return !!(win && !win.isDestroyed());
     },
-    /** For tests: the site's page. */
+    /** For tests: the site's page, and what was stopped. */
     siteContents: () => site && site.webContents,
+    barContents: () => bar && bar.webContents,
+    window: () => win,
+    stats: () => JSON.parse(JSON.stringify(stats)),
   };
 }
 

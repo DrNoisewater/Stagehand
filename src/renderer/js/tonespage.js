@@ -286,17 +286,21 @@ function renderList() {
   listCol.innerHTML = '';
   const create = h('button.btn.primary.tw-create', { type: 'button', html: `${icon('plus')}<span>Create tone</span>`, title: 'Make a new tone step by step, hearing each choice as you play' });
   create.onclick = () => import('./tonewizard.js').then((w) => w.openToneWizard());
-  listCol.append(h('div.tones-titlebar', null, h('h1.page-title', { text: 'Tones' }), create));
+  const mine = mineItems();
+  const onKeys = mine.filter((it) => it.slot).length;
+  const count = mine.length ? `${mine.length} ${mine.length === 1 ? 'tone' : 'tones'} of your own · ${onKeys} on keys` : 'No tones of your own yet';
+  // 4.25: a page head like Songs and Gear (a big title in capitals, a small count line)
+  listCol.append(h('div.tones-titlebar.tones-head', null, h('div.tones-title', null, h('h1.page-title', { text: 'Tones' }), h('div.sub', { text: count })), create));
 
   // your keys
   listCol.append(h('div.tk-head', null, h('h2.tk-h', { text: 'Your keys' }), h('span.tk-note', { text: 'Press a number while you play to switch' })), keyCards(), gateControl({ compact: true }));
 
   // your tones
-  const mine = mineItems();
   const sec = h('div.tones-sec.mine');
   sec.append(h('h2.tk-h', { text: `Your tones${mine.length ? ` · ${mine.length}` : ''}` }));
   const shown = T.allMine ? mine : mine.slice(0, 8);
   if (!mine.length) sec.append(h('div.tones-hint', { text: 'None saved yet. Pick one below or press Create tone.' }));
+  else sec.append(colHead());
   const box1 = h('div.tones-items.mine-items');
   for (const it of shown) box1.append(row(it));
   sec.append(box1);
@@ -340,6 +344,11 @@ function renderList() {
   listCol.scrollTop = scroll;
 }
 
+/** Column labels over a tone list, like the song list's. */
+function colHead() {
+  return h('div.tones-cols', { 'aria-hidden': 'true' }, h('span', { text: 'Key' }), h('span.grow', { text: 'Tone' }), h('span', { text: 'Hear' }));
+}
+
 function row(it) {
   const on = T.sel === it.key;
   const r = h(`div.tone-item${on ? '.on.lit' : ''}`, { style: { '--gel': it.gel }, draggable: 'true', title: it.title || '' });
@@ -347,8 +356,8 @@ function row(it) {
     e.dataTransfer.setData('text/x-stagehand-tone', it.key);
     e.dataTransfer.effectAllowed = 'copy';
   };
-  r.append(h('span.gelbar'));
-  if (it.slot) r.append(h('span.tslot', { text: String(it.slot), title: `On key ${it.slot}` }));
+  // the key it's on (its colour as a small accent), or a small dot in that column
+  r.append(it.slot ? h('span.tslot', { text: String(it.slot), title: `On key ${it.slot}` }) : h('span.tslot.none', { 'aria-hidden': 'true' }));
   const main = h('button.ti-main', { type: 'button' }, h('b', { text: it.name }), h('span', { text: it.sub || '' }));
   main.onclick = () => select(it);
   r.append(main);
@@ -379,6 +388,7 @@ function renderItems(box) {
     const list = presetItems();
     T.items = [...mine, ...list];
     if (!list.length) box.append(h('div.tones-hint', { text: 'Nothing matches.' }));
+    else box.append(colHead());
     for (const it of list) box.append(row(it));
     return;
   }
@@ -413,6 +423,7 @@ function renderItems(box) {
   const r = songGroups();
   const filtered = T.filter.trim() || T.kind !== 'all' || T.char !== 'all';
   box.append(h('div.tones-count', { text: r.distinct ? (filtered ? `${r.count.toLocaleString()} of ${r.distinct.toLocaleString()} different tones` : `${r.distinct.toLocaleString()} different tones in your songs${r.total > r.distinct ? ` (${(r.total - r.distinct).toLocaleString()} repeats left out)` : ''}`) : 'No tones found in your songs.' }));
+  if (r.count) box.append(colHead());
   const rows = [];
   for (const g of r.groups) {
     box.append(h('div.tones-group', null, h('span', { text: g.title }), g.sub ? h('small', { text: g.sub }) : ''));
@@ -623,7 +634,8 @@ function renderEditor() {
   }
   const gel = gelOf(d);
   editCol.style.setProperty('--gel', gel);
-  const name = h('input.input.te-name', { value: d.name, 'aria-label': 'Tone name', maxlength: '80' });
+  // 4.25: the name is the big title, like a piece's name on the Gear page; click it to rename
+  const name = h('input.input.te-name', { value: d.name, 'aria-label': 'Tone name', maxlength: '80', spellcheck: 'false', title: 'Click to rename' });
   name.oninput = () => {
     d.name = name.value;
     changed({ live: false });
@@ -647,8 +659,19 @@ function renderEditor() {
     showMenu(r.right, r.bottom + 4, items, { align: 'right' });
   };
   const desc = describeTone(d);
+  const edit = h('button.btn.soft.te-edit', { type: 'button', html: `${icon('edit')}<span>Edit tone</span>` });
+  edit.onclick = () => setAdvanced(true);
+  const use = h('button.btn.soft.te-use', { type: 'button', html: `${icon('guitar')}<span>Play with it now</span>` });
+  use.onclick = () => (dirty() ? pushLive() : hear(d));
+  const demo = demoButton(d, 'tones:editor', { label: 'Demo riff', cls: 'big' });
+  demo.classList.add('te-demo');
+  // the small line over the name: guitar or bass, a real amp, where it is
+  const real = realBadge(d);
+  const where = d.mine ? (d.slot ? `Key ${d.slot}` : 'Your tone') : d.from && d.from.song ? 'From a song' : d.from && d.from.preset ? 'Preset' : '';
+  const kicker = h('small.te-kicker', null, d.kind === 'bass' ? 'Bass' : 'Guitar', real ? [' · ', h('span.te-real', { text: 'Real', title: real.title })] : '', where ? ` · ${where}` : '');
   editCol.append(
-    h('div.te-head', null, h('label.te-field.grow', null, h('span', { text: 'Name' }), name), demoButton(d, 'tones:editor', { label: 'Demo riff', cls: 'big' }), keyBtn, revertBtn, saveBtn, more),
+    h('div.te-head', null, h('div.te-title', null, kicker, h('label.te-namebox', null, name, h('span.te-pen', { html: icon('edit'), 'aria-hidden': 'true' }))), demo, use),
+    h('div.te-bar', null, edit, keyBtn, h('span.grow'), revertBtn, saveBtn, more),
     h('div.te-from', null, h('span.te-dirty', { hidden: !on, text: 'Changed, not saved: you hear your changes. Save keeps them; Revert or leaving the page goes back. · ' }), h('span', { text: `${desc.text}. ` }), d.mine ? `Your tone${d.from && d.from.song ? `, first saved from ${d.from.song}` : ''}.` : d.from && d.from.song ? `From ${d.from.song}. Saving makes your own copy, so the song keeps its tone.` : d.from && d.from.preset ? 'A Stagehand preset. Saving makes your own copy.' : '')
   );
   root.classList.toggle('simple', !T.advanced);
@@ -852,12 +875,7 @@ async function openEditRig(pickKey = null) {
  * pedal and knob details are one click away under Edit tone.
  */
 function renderSimple(d) {
-  const kind = d.kind === 'bass' ? 'Bass' : 'Guitar';
   const chain = chainText(d);
-  const edit = h('button.btn.soft', { type: 'button', html: `${icon('edit')}<span>Edit tone</span>` });
-  edit.onclick = () => setAdvanced(true);
-  const use = h('button.btn.soft', { type: 'button', html: `${icon('guitar')}<span>Play with it now</span>` });
-  use.onclick = () => (dirty() ? pushLive() : hear(d));
   const keys = h('div.ts-keys', { role: 'group', 'aria-label': 'Put it on a key' });
   for (let n = 2; n <= SLOT_COUNT; n++) {
     const t = bySlot(n);
@@ -870,12 +888,12 @@ function renderSimple(d) {
   const box = h(
     'div.ts-simple',
     null,
-    h('div.ts-what', null, h('span.inst-tag', { text: kind }), realBadge(d) || '', h('span.ts-chain', { text: chain || 'No gear yet' })),
-    (d.gear && d.gear.length) ? gearLineup(d, { onPick: (_i, g) => { T.block = d.gear.indexOf(g); setAdvanced(true); } }) : '',
-    h('div.ts-actions', null, use, edit),
+    h('div.ts-what', null, h('span.ts-label', { text: 'Chain' }), h('span.ts-chain', { text: chain || 'No gear yet' })),
     h('h3.ts-h', { text: 'Put it on a key' }),
     h('p.ts-note', { text: 'Press its number while you play (on the highway or in Jam) to switch. Key 1 always follows the song’s own tones. If a key already holds a tone, you’re asked first, and you can undo it.' }),
-    keys
+    keys,
+    // the gear itself, under the keys (click a piece to edit it)
+    (d.gear && d.gear.length) ? gearLineup(d, { onPick: (_i, g) => { T.block = d.gear.indexOf(g); setAdvanced(true); } }) : ''
   );
   editCol.append(box);
 }

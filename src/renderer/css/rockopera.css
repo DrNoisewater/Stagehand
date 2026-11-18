@@ -235,7 +235,7 @@ html[data-look='opera'] #app :is(.page,.library,.discover) {
   background:radial-gradient(60% 40% at 20% 0%,#ffd9a00c,transparent 70%),var(--rr-stains),var(--rr-grain),linear-gradient(180deg,#121110,#0c0b0a);
 }
 /* cards: worn tolex, faded piping, scuffed corner protectors */
-html[data-look='opera'] #app :is(.card,.tones-sec,.dis-card,.gr-card,.goal-card) {
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card) {
   border-radius:3px; border:1px solid #2c2722; background-color:var(--rr-card);
   background-image:
     radial-gradient(circle at 0 0,#8c877e 0 2.5px,#3a3734 3px 8px,transparent 8.5px),
@@ -357,13 +357,13 @@ html[data-look='opera'] .gear-face-help { color:var(--rr-bone-3); font-family:va
 html[data-look='opera'] .gear-faceplate .gear-enlarge { margin-top:2px; }
 
 /* ------------------------------------------------------------- Tones */
-html[data-look='opera'] #app .tones-list { background:var(--rr-grain),linear-gradient(180deg,#141210,#0e0d0c); border-right:1px solid #000; box-shadow:inset -1px 0 0 #ffffff08; }
-html[data-look='opera'] #app .tones-edit { background:var(--rr-stains),var(--rr-grain),linear-gradient(180deg,#121110,#0c0b0a); }
-html[data-look='opera'] #app :is(.tk-card,.tone-item) { border-radius:3px; border:1px solid #2c2722; background:linear-gradient(180deg,#1d1a17,#151311); box-shadow:0 2px 0 #000,inset 0 1px 0 #ffffff08; }
-html[data-look='opera'] #app :is(.tk-card,.tone-item):hover { border-color:#4a4239; }
-html[data-look='opera'] #app :is(.tk-card.on,.tone-item.on) { border-color:var(--rr-cream); box-shadow:0 0 0 1px #000,inset 3px 0 0 var(--rr-pilot); }
+/* 4.25: the flat Tones look (Songs and Gear) is in roadshow.css for both looks; here only the head and the picked row */
+html[data-look='opera'] #app .tones-head { background:var(--rr-grain),linear-gradient(180deg,#171513,#121110); border-bottom:1px solid #000; box-shadow:0 1px 0 #ffffff08; }
+html[data-look='opera'] #app .tones-head h1 { font-size:30px; }
+html[data-look='opera'] #app .tones-cols { background:#151311; color:var(--rr-bone-3); border-bottom-color:#2d2823; font-family:var(--rr-mono); }
+html[data-look='opera'] #app .tone-item.on { background:linear-gradient(90deg,#d23a2c1c,#d23a2c06 40%,transparent); box-shadow:inset 3px 0 var(--rr-pilot); }
 
-/* the tone's gear set up in the rehearsal room */
+/* the tone's gear set up in the rehearsal room (4.25: the pieces in both looks; Roadshow's panel is in roadshow.css) */
 .gear-lineup { display:none; }
 html[data-look='opera'] #app .gear-lineup {
   display:flex; align-items:flex-end; justify-content:center; gap:22px; flex-wrap:wrap;
@@ -378,21 +378,21 @@ html[data-look='opera'] #app .gear-lineup {
   box-shadow:inset 0 0 0 1px #24201c,inset 0 -30px 30px -20px #000,0 8px 20px #0009;
 }
 html[data-look='opera'] #app .gear-lineup::after { content:''; position:absolute; left:0; right:0; top:72%; height:2px; background:#0008; }
-html[data-look='opera'] #app :is(.lineup-floor,.lineup-rack) { display:flex; align-items:flex-end; gap:10px; position:relative; z-index:1; padding-bottom:16px; }
-html[data-look='opera'] #app .lineup-stack { display:flex; flex-direction:column; align-items:center; position:relative; z-index:1; padding-bottom:10px; }
-html[data-look='opera'] #app .lineup-piece { display:flex; flex-direction:column; align-items:center; gap:4px; padding:0; border:0; background:none; color:var(--rr-bone); cursor:pointer; transition:transform .15s; }
-html[data-look='opera'] #app .lineup-piece .lp-art { display:block; filter:drop-shadow(0 10px 8px #000); }
-html[data-look='opera'] #app .lineup-piece .lp-art .gear-art { width:100%; height:100%; }
-html[data-look='opera'] #app .lineup-piece.amp .lp-art { width:220px; height:132px; }
-html[data-look='opera'] #app .lineup-piece.cab .lp-art { width:220px; height:190px; }
-html[data-look='opera'] #app .lineup-stack .lineup-piece.amp { margin-bottom:-22px; position:relative; z-index:2; }
-html[data-look='opera'] #app .lineup-stack .lineup-piece.amp .lp-name { display:none; }
-html[data-look='opera'] #app .lineup-piece.pedal .lp-art { width:72px; height:104px; }
-html[data-look='opera'] #app .lineup-piece.rack .lp-art { width:130px; height:70px; }
-html[data-look='opera'] #app .lineup-piece .lp-name { font-family:var(--rr-mono); font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1px 6px; color:#231d17; background:#d9cba5; clip-path:polygon(0.0% 0.0%,7.1% 0.0%,14.3% 0.0%,21.4% 0.0%,28.6% 0.0%,35.7% 0.0%,42.9% 0.0%,50.0% 0.0%,57.1% 0.0%,64.3% 0.0%,71.4% 0.0%,78.6% 0.0%,85.7% 0.0%,92.9% 0.0%,100.0% 0.0%,99.6% 16.7%,99.6% 33.3%,99.9% 50.0%,99.0% 66.7%,98.8% 83.3%,100.0% 100.0%,92.9% 100.0%,85.7% 100.0%,78.6% 100.0%,71.4% 100.0%,64.3% 100.0%,57.1% 100.0%,50.0% 100.0%,42.9% 100.0%,35.7% 100.0%,28.6% 100.0%,21.4% 100.0%,14.3% 100.0%,7.1% 100.0%,0.0% 100.0%,0.6% 83.3%,0.6% 66.7%,0.1% 50.0%,0.1% 33.3%,0.4% 16.7%); max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-html[data-look='opera'] #app .lineup-piece:hover { transform:translateY(-3px) rotate(-.5deg); }
-html[data-look='opera'] #app .lineup-piece:focus-visible { outline:2px solid var(--rr-cream); outline-offset:4px; }
-html[data-look='opera'] #app .lineup-piece.bypass { opacity:.45; }
+#app :is(.lineup-floor,.lineup-rack) { display:flex; align-items:flex-end; gap:10px; position:relative; z-index:1; padding-bottom:16px; }
+#app .lineup-stack { display:flex; flex-direction:column; align-items:center; position:relative; z-index:1; padding-bottom:10px; }
+#app .lineup-piece { display:flex; flex-direction:column; align-items:center; gap:4px; padding:0; border:0; background:none; color:var(--rr-bone); cursor:pointer; transition:transform .15s; }
+#app .lineup-piece .lp-art { display:block; filter:drop-shadow(0 10px 8px #000); }
+#app .lineup-piece .lp-art .gear-art { width:100%; height:100%; }
+#app .lineup-piece.amp .lp-art { width:220px; height:132px; }
+#app .lineup-piece.cab .lp-art { width:220px; height:190px; }
+#app .lineup-stack .lineup-piece.amp { margin-bottom:-22px; position:relative; z-index:2; }
+#app .lineup-stack .lineup-piece.amp .lp-name { display:none; }
+#app .lineup-piece.pedal .lp-art { width:72px; height:104px; }
+#app .lineup-piece.rack .lp-art { width:130px; height:70px; }
+#app .lineup-piece .lp-name { font-family:var(--rr-mono); font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1px 6px; color:#231d17; background:#d9cba5; clip-path:polygon(0.0% 0.0%,7.1% 0.0%,14.3% 0.0%,21.4% 0.0%,28.6% 0.0%,35.7% 0.0%,42.9% 0.0%,50.0% 0.0%,57.1% 0.0%,64.3% 0.0%,71.4% 0.0%,78.6% 0.0%,85.7% 0.0%,92.9% 0.0%,100.0% 0.0%,99.6% 16.7%,99.6% 33.3%,99.9% 50.0%,99.0% 66.7%,98.8% 83.3%,100.0% 100.0%,92.9% 100.0%,85.7% 100.0%,78.6% 100.0%,71.4% 100.0%,64.3% 100.0%,57.1% 100.0%,50.0% 100.0%,42.9% 100.0%,35.7% 100.0%,28.6% 100.0%,21.4% 100.0%,14.3% 100.0%,7.1% 100.0%,0.0% 100.0%,0.6% 83.3%,0.6% 66.7%,0.1% 50.0%,0.1% 33.3%,0.4% 16.7%); max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#app .lineup-piece:hover { transform:translateY(-3px) rotate(-.5deg); }
+#app .lineup-piece:focus-visible { outline:2px solid var(--rr-cream); outline-offset:4px; }
+#app .lineup-piece.bypass { opacity:.45; }
 
 /* ------------------------------------------------------------ Progress */
 /* a tortoiseshell pick for your level */

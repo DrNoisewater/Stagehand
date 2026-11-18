@@ -13,10 +13,42 @@ module.exports = async ({ page, outDir, check }) => {
   const shot = (n) => page.screenshot({ path: path.join(outDir, `discover-${n}.png`) });
   const btn = (name, within = '#discover') => page.locator(within).getByRole('button', { name, exact: true });
   const has = async (name, what, within) => check((await btn(name, within).count()) > 0, `${what}: “${name}”`);
+  // 4.25: pictures in both looks (the Rehearsal Room and Roadshow) at two window sizes
+  const setLook = async (name) => {
+    await page.evaluate(async (name) => {
+      const m = await import('./js/menu-art.js');
+      m.appearancePrefs.look = name;
+      m.director.write(m.storage('localStorage'), m.APPEARANCE_KEY, m.appearancePrefs);
+      document.documentElement.dataset.look = name;
+    }, name);
+  };
+  const looks = async (n) => {
+    if (process.env.DV_LOOKS === '0') return;
+    const was = await page.evaluate(() => document.documentElement.dataset.look || 'opera');
+    for (const lk of ['opera', 'roadshow']) {
+      await setLook(lk);
+      for (const [w, hgt] of [[1500, 900], [1280, 720]]) {
+        await page.setViewportSize({ width: w, height: hgt });
+        await page.waitForTimeout(300);
+        await page.screenshot({ path: path.join(outDir, `look-${lk}-${w}-${n}.png`) });
+      }
+    }
+    await setLook(was);
+    await page.setViewportSize({ width: 1500, height: 900 });
+    await page.waitForTimeout(200);
+  };
+  const go = async (id) => {
+    await page.evaluate(async (id) => (await import('./js/discover.js')).open(id), id);
+    await page.waitForTimeout(700);
+  };
+  const n = (sel) => page.locator(sel).count();
+  const barText = async () => ((await page.locator('.dv-selbar:not([hidden])').count()) ? await page.locator('.dv-selbar .count').textContent() : '');
 
   // made-up MusicBrainz answers, a short Wanted list and a gaps check that has run
   await page.evaluate(async () => {
     localStorage.setItem('stagehand.cfExplained', '1');
+    localStorage.setItem('stagehand.finderExplained', '1');
+    localStorage.removeItem('stagehand.wantTab');
     const { api } = await import('./js/api.js');
     const { state } = await import('./js/store.js');
     const songs = [...state.songs.values()];
@@ -29,6 +61,31 @@ module.exports = async ({ page, outDir, check }) => {
       { id: 'w3', artist: 'Another Band', title: 'Rooftops', status: 'wanted', addedAt: Date.now() },
       { id: 'w4', artist: 'Another Band', title: 'Found One', status: 'found', foundAt: Date.now() - 7200000, songId: mine.id },
     ];
+    // 4.25: statuses, official DLC, a request, updates and the end of a run, all made up here
+    const copy = () => wanted.map((w) => ({ ...w }));
+    window.__dv = { wanted, requests: [], done: [], updChecked: 0 };
+    api.discover.setStatus = async (ids, status) => {
+      for (const w of wanted) if (ids.includes(w.id)) Object.assign(w, { status }, status === 'unavailable' ? { tries: (w.tries || 0) + 1, unavailableAt: Date.now() } : {});
+      return copy();
+    };
+    api.discover.removeWanted = async (ids) => {
+      for (let i = wanted.length - 1; i >= 0; i--) if (ids.includes(wanted[i].id)) wanted.splice(i, 1);
+      return copy();
+    };
+    const off = (artist, title, wantedId = null) => ({ artist, title, key: `${artist.toLowerCase()}|${title.toLowerCase()}`, wantedId, onList: true });
+    window.__dv.official = { songs: [off(mine.artist, 'Long Way Down', 'w2'), off('Another Band', 'Paid Anthem'), off('Another Band', 'Store Bought'), off('Big Label Band', 'Radio Hit'), off('Big Label Band', 'Second Hit'), off('Big Label Band', 'Deep Cut')], nextAt: 0, contact: '', queued: 0 };
+    api.discover.official = async () => JSON.parse(JSON.stringify(window.__dv.official));
+    api.discover.requestOfficial = async (req) => {
+      window.__dv.requests.push(req);
+      window.__dv.official.nextAt = Date.now() + 12 * 3600e3;
+      return { ok: true, via: 'ntfy', nextAt: window.__dv.official.nextAt, count: req.songs.length };
+    };
+    const upd = (key, artist, title, version, ours) => ({ key, artist, title, version, ours, updated: '2026-11-10', songId: mine.id });
+    window.__dv.updates = { rows: [upd('u1', mine.artist, mine.title, '3', '2'), upd('u2', 'Another Band', 'Rooftops', '1.5', '1')], checkedAt: Date.now() - 3600e3 };
+    api.discover.updates = async () => JSON.parse(JSON.stringify(window.__dv.updates));
+    api.discover.clearUpdates = async (keys) => ((window.__dv.updates.rows = window.__dv.updates.rows.filter((r) => !keys.includes(r.key))), JSON.parse(JSON.stringify(window.__dv.updates)));
+    api.discover.finderDone = async (s) => window.__dv.done.push(s);
+    api.discover.finderUpdates = async () => window.__dv.updChecked++;
     api.discover.recent = async () => ['Foo Fighters', 'Muse', 'Rush - Tom Sawyer'];
     api.discover.wanted = async () => wanted;
     api.discover.search = async (q) => ({
@@ -72,6 +129,15 @@ module.exports = async ({ page, outDir, check }) => {
     state.discover.gaps = gaps;
   });
 
+  // 4.25: the highway's Go to › Discover only changes the page: Discover must still draw itself
+  await page.evaluate(async () => {
+    const st = await import('./js/store.js');
+    st.setView({ kind: 'all' });
+    st.setPage('discover');
+  });
+  await page.waitForTimeout(900);
+  check(await page.locator('#discover .dv-head h1').isVisible(), 'Discover opened from another page is not blank');
+
   // Search, nothing typed: recent searches and your artists
   await page.evaluate(async () => {
     (await import('./js/store.js')).setPage('discover');
@@ -82,6 +148,7 @@ module.exports = async ({ page, outDir, check }) => {
   check((await page.locator('#discover .chip').count()) === 3, 'recent searches show as chips');
   check((await page.locator('#discover .artist-card').count()) > 0, 'your artists show as cards');
   await shot('search');
+  await looks('search');
 
   // Search results: artists and songs, ticking songs brings up the bar
   await page.evaluate(async () => {
@@ -108,6 +175,7 @@ module.exports = async ({ page, outDir, check }) => {
   for (const b of ['Search', 'All (9)', 'Missing (6)', 'In library (3)', 'Select all missing']) await has(b, 'the artist page');
   check((await page.locator('#discover .album .dv-row').count()) === 9, 'every song of the albums is listed');
   await shot('artist');
+  await looks('artist');
   await page.evaluate(() => document.querySelector('#discover .dv-scroll').scrollTo(0, 99999));
   await page.waitForTimeout(200);
   await shot('artist-end');
@@ -132,6 +200,7 @@ module.exports = async ({ page, outDir, check }) => {
   for (const b of ['Check 1 artist', 'All', 'With gaps', 'Complete', 'Not checked', 'Choose…', 'Check']) await has(b, 'Collection gaps');
   check((await page.locator('#discover .stats .stat').count()) === 3, 'Collection gaps shows its three numbers');
   await shot('gaps');
+  await looks('gaps');
 
   // Wanted
   await page.evaluate(async () => (await import('./js/discover.js')).open('wanted'));
@@ -140,7 +209,7 @@ module.exports = async ({ page, outDir, check }) => {
   // 4.24: the Now card with its steps and whose turn it is, the queue in order, and by artist
   check(await page.locator('#discover .want-now').isVisible(), 'Wanted has a Now card');
   check((await page.locator('#discover .want-steps li').count()) === 5 && /Not started|Waiting on you|Stagehand is working/.test(await page.locator('#discover .want-turn').textContent()), 'the Now card has its five steps and says whose turn it is');
-  check((await page.locator('#discover .want-row').count()) === 4, 'Wanted lists the songs (in order)');
+  check((await page.locator('#discover .want-row:not(.head)').count()) === 4, 'Wanted lists the songs (in order)');
   check((await page.locator('#discover .want-row.q .c-num').first().textContent()) === '1', 'the queue is numbered');
   await shot('wanted');
   // a song coming in through the finder: the steps move on, and Activity shows it
@@ -152,7 +221,159 @@ module.exports = async ({ page, outDir, check }) => {
   await page.locator('#discover .want-view button', { hasText: 'By artist' }).click();
   await page.waitForTimeout(400);
   check((await page.locator('#discover .want-group').count()) >= 1, 'By artist groups them');
+  // 4.25: a tick box for each artist ticks all their songs
+  const grpBox = page.locator('#discover .want-group input.pick-group').first();
+  check((await n('#discover .want-group input.pick-group')) >= 1, 'By artist has a tick box for each artist');
+  await grpBox.click();
+  await page.waitForTimeout(200);
+  check(/^1 song selected/.test(await barText()), `the artist's box ticks their songs (${await barText()})`);
+  await looks('wanted-by-artist');
+  await btn('Clear', '.dv-selbar').click();
   await page.locator('#discover .want-view button', { hasText: 'In order' }).click();
+  await page.waitForTimeout(300);
+  await looks('wanted');
+
+  // 4.25: ticking many: Select all, shift-click a run, and the bar's buttons
+  const sa = page.locator('#discover .pick-all');
+  check(/Select all \(3\)/.test(await sa.textContent()), `Select all counts what's showing (${(await sa.textContent()).trim()})`);
+  await sa.click();
+  await page.waitForTimeout(200);
+  check(/3 songs selected/.test(await barText()), 'Select all ticks every song');
+  for (const b of ['Remove', 'Mark not available', 'Copy as a list', 'Clear']) await has(b, 'the bar for ticked songs', '.dv-selbar');
+  check(/Select none/.test(await sa.textContent()), 'Select all turns into Select none');
+  await sa.click();
+  await page.waitForTimeout(200);
+  check(!(await barText()), 'Select none clears them');
+  const boxes = page.locator('#discover .want-queue input.pick');
+  await boxes.nth(0).click();
+  await boxes.nth(2).click({ modifiers: ['Shift'] });
+  await page.waitForTimeout(200);
+  check(/3 songs selected/.test(await barText()), `shift-click ticks the run between (${await barText()})`);
+  await btn('Clear', '.dv-selbar').click();
+  // the filter: Select all only takes what's showing
+  await page.locator('#discover .dv-filter').fill('Rooftops');
+  await page.waitForTimeout(600);
+  check((await n('#discover .want-queue:not(.found) .want-row:not(.head)')) === 1, 'the filter narrows the list');
+  await page.locator('#discover .pick-all').click();
+  await page.waitForTimeout(200);
+  check(/1 song selected/.test(await barText()), 'Select all respects the filter');
+  await looks('wanted-picked');
+  await btn('Mark not available', '.dv-selbar').click();
+  await page.waitForTimeout(500);
+  await page.locator('#discover .dv-filter').fill('');
+  await page.waitForTimeout(600);
+  check((await n('#discover .want-queue:not(.found) .want-row:not(.head)')) === 2, 'Mark not available takes it off the list to find');
+  check(/1/.test(await page.locator('#discover .dv-tabs button', { hasText: 'Not available' }).textContent()), 'Not available counts it');
+
+  // 4.25: the Not available list: Try again, Remove, Try all again; runs skip these
+  await page.locator('#discover .dv-tabs button', { hasText: 'Not available' }).click();
+  await page.waitForTimeout(500);
+  check((await n('#discover .want-row.u:not(.head)')) === 1, 'Not available lists the song');
+  for (const b of ['Try again', 'Try all again', 'Select all (1)']) await has(b, 'Not available');
+  check(/tried once/.test(await page.locator('#discover .want-row.u:not(.head)').first().textContent()), 'Not available says how many tries');
+  await page.locator('#discover .want-row.u:not(.head)').first().click({ position: { x: 300, y: 12 } });
+  await page.waitForTimeout(200);
+  for (const b of ['Move back to Wanted', 'Remove']) await has(b, 'the bar on Not available', '.dv-selbar');
+  await looks('unavailable');
+  await btn('Clear', '.dv-selbar').click();
+  await btn('Try again').click();
+  await page.waitForTimeout(500);
+  check((await n('#discover .want-row.u:not(.head)')) === 0, 'Try again puts it back on the list to find');
+  await page.locator('#discover .dv-tabs button', { hasText: 'To find' }).click();
+  await page.waitForTimeout(500);
+  check((await n('#discover .want-queue:not(.found) .want-row:not(.head)')) === 3, 'the list to find has it back');
+
+  // 4.25: a run: no match → Not available, only official → Official DLC, and a card at the end
+  await btn('Get songs').first().click();
+  await page.waitForTimeout(700);
+  const cur = async () => page.evaluate(() => (window.__dv.wanted.find((w) => w.status === 'wanted' && document.querySelector('#discover .want-row.q.now .t')?.textContent === w.title) || {}).id || '');
+  let c1 = await cur();
+  check(!!c1, `the run is on a song (${c1})`);
+  await page.evaluate((id) => window.__shEmit('finder:event', { type: 'results', verdict: 'none', want: { id } }), c1);
+  await page.waitForTimeout(800);
+  check(await page.evaluate((id) => window.__dv.wanted.find((w) => w.id === id).status === 'unavailable', c1), 'no match marks it Not available');
+  const c2 = await cur();
+  check(c2 && c2 !== c1, 'and the run moves on to the next song');
+  await page.evaluate((id) => window.__shEmit('finder:event', { type: 'results', verdict: 'some', want: { id } }), c2);
+  await page.waitForTimeout(400);
+  check((await cur()) === c2, 'some results change nothing');
+  await page.evaluate((id) => window.__shEmit('finder:event', { type: 'results', verdict: 'official', want: { id } }), c2);
+  await page.waitForTimeout(800);
+  check(await page.evaluate((id) => window.__dv.wanted.find((w) => w.id === id).status === 'official', c2), 'only official results mark it Official DLC');
+  const c3 = await cur();
+  await page.evaluate((id) => window.__shEmit('finder:event', { type: 'results', verdict: 'none', want: { id } }), c3);
+  await page.waitForTimeout(900);
+  check(await page.locator('#discover .dv-summary').isVisible(), 'the end of a run leaves a card on Wanted');
+  const sumText = (await page.locator('#discover .dv-summary').textContent()) || '';
+  check(/2\s*Not available/.test(sumText) && /1\s*Official DLC/.test(sumText) && /0\s*Still to find/.test(sumText), `the card counts what happened (${sumText.replace(/\s+/g, ' ').trim()})`);
+  const done = await page.evaluate(() => window.__dv.done);
+  check(done.length === 1 && done[0].title && /not available/.test(done[0].text), `the finder is told the run is over (${JSON.stringify(done[0] || null)})`);
+  check((await n('#discover .dv-tabs .dv-tab-link')) === 1, 'Wanted links to Official DLC for the official one');
+  await looks('run-finished');
+
+  // 4.25: Official DLC: never wanted, asked for instead
+  await go('official');
+  check(/Contact Noisewater Labs for these songs/.test(await page.locator('#discover .off-contact h2').textContent()), 'Official DLC says who to contact');
+  check((await n('#discover .off-contact .off-request')) === 1, 'Official DLC has a Request button');
+  check((await n('#discover .off-group')) === 3, `official songs are grouped by artist, your list first (${await n('#discover .off-group')})`);
+  check(!(await page.locator('#discover').getByRole('button', { name: 'Want it' }).count()), 'no Want it on Official DLC');
+  await page.locator('#discover .dv-filter').fill('hit');
+  await page.waitForTimeout(500);
+  check((await n('#discover .want-row.o')) === 2, 'Official DLC can be searched');
+  await page.locator('#discover .pick-all').click();
+  await page.waitForTimeout(200);
+  check(/2 songs selected/.test(await barText()), 'Select all on Official DLC takes what matches');
+  await page.locator('#discover .dv-filter').fill('');
+  await page.waitForTimeout(500);
+  await has('Request', 'the bar on Official DLC', '.dv-selbar');
+  await looks('official');
+  await page.locator('#discover .off-contact .off-request').click();
+  await page.waitForTimeout(500);
+  check(await page.locator('.modal .req-dialog').isVisible(), 'Request opens the request');
+  const dlg = (await page.locator('.modal').textContent()) || '';
+  check(/How can Noisewater Labs reach you\?/.test(dlg) && /Radio Hit/.test(dlg) && /Second Hit/.test(dlg), 'the request lists the songs and asks how to reach you');
+  check(!/mail app|email client|e-mail client|mailto/i.test(dlg), 'the request never mentions a mail app');
+  await looks('request');
+  await page.locator('.modal').getByRole('button', { name: 'Send', exact: true }).click();
+  await page.waitForTimeout(300);
+  check(/reach you/.test(await page.locator('.modal .req-msg').textContent()) && !(await page.evaluate(() => window.__dv.requests.length)), 'Send needs a way to reach you');
+  await page.locator('.modal .req-field input').fill('player@example.com');
+  await page.locator('.modal .req-field textarea').fill('Thanks!');
+  await page.locator('.modal').getByRole('button', { name: 'Send', exact: true }).click();
+  await page.waitForTimeout(600);
+  const reqs = await page.evaluate(() => window.__dv.requests);
+  check(reqs.length === 1 && reqs[0].contact === 'player@example.com' && reqs[0].songs.length === 2 && reqs[0].note === 'Thanks!', `the request goes to the main process (${JSON.stringify(reqs[0] || null).slice(0, 160)})`);
+  check(!(await n('.modal .req-dialog')), 'the request closes when sent');
+  check(/next request/.test(await page.locator('#discover .off-contact p').textContent()), 'Official DLC says when the next request can go');
+  check(await page.evaluate(() => localStorage.getItem('stagehand.requestContact') === 'player@example.com'), 'how to reach you is remembered');
+  // a song added from Search that's official is turned away
+  // (the main process refuses it; the page says so with a way to Official DLC)
+
+  // 4.25: Updates: songs you have with a newer version
+  await go('updates');
+  check((await n('#discover .want-row.up:not(.head)')) === 2, 'Updates lists the songs with newer versions');
+  for (const b of ['Check for updates', 'Get updates']) await has(b, 'Updates');
+  check(/Updated CDLC list/.test(await page.locator('#discover .dv-note').textContent()), 'Updates says where the list comes from');
+  check(/2/.test(await page.locator('#sidebar [data-view="updates"], #sidebar .nav-item', { hasText: 'Updates' }).first().textContent()), 'the menu shows how many updates');
+  await looks('updates');
+  await btn('Check for updates').click();
+  await page.waitForTimeout(300);
+  check((await page.evaluate(() => window.__dv.updChecked)) === 1, 'Check for updates opens the updated list in the song finder');
+  await btn('Get updates').click();
+  await page.waitForTimeout(700);
+  check((await n('#discover .want-row.up.now')) === 1, 'Get updates looks for the first one');
+  await page.evaluate(() => window.__shEmit('finder:event', { type: 'download', name: 'new_p.psarc', state: 'added', want: { id: 'upd:u1' } }));
+  await page.waitForTimeout(800);
+  check((await n('#discover .want-row.up:not(.head)')) === 1, 'a song drops off Updates when its new version is added');
+  await page.evaluate(() => window.__shEmit('finder:event', { type: 'download', name: 'new2_p.psarc', state: 'had', want: { id: 'upd:u2' } }));
+  await page.waitForTimeout(900);
+  check(await page.locator('#discover .dv-summary').isVisible() && /2 songs updated/.test(await page.locator('#discover .dv-summary').textContent()), 'Get updates ends with its own card');
+  await looks('updates-done');
+  await page.evaluate(async () => {
+    const { api } = await import('./js/api.js');
+    api.discover.wanted = async () => window.__dv.wanted;
+  });
+  await go('wanted');
 
   // Wanted with nothing in it
   await page.evaluate(async () => {
@@ -171,6 +392,7 @@ module.exports = async ({ page, outDir, check }) => {
   await page.waitForTimeout(900);
   for (const b of ['Import files…', 'Look for songs', 'Change…']) await has(b, 'Imports');
   await shot('imports');
+  await looks('imports');
 
   // a newer page next to it, to compare
   await page.locator('#sidebar .nav-section[data-page="karaoke"]').click().catch(() => {});
