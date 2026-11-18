@@ -56,5 +56,5 @@ Discover service (preload `api.discover`), new:
 - container restarted once mid-work (2026-11-18): partial work committed as WIP, helpers restarted to continue.
 - [ ] Finder + bar + Roadie (helper "Finder fixer")
 - [ ] Wanted / Official / Updates + Discover redesign (helper "Wanted fixer")
-- [ ] Tones page look (helper "Tones restyler")
+- [x] Tones page look (helper "Tones restyler"; ui3 134/134, famous/switch/sheet/gear audits pass; tones-electron.js not run, its tab names were already stale)
 - [ ] integrate, npm test, e2e, HANDOFF, version 4.25.0
