@@ -889,10 +889,11 @@ function renderSimple(d) {
     'div.ts-simple',
     null,
     h('div.ts-what', null, h('span.ts-label', { text: 'Chain' }), h('span.ts-chain', { text: chain || 'No gear yet' })),
-    (d.gear && d.gear.length) ? gearLineup(d, { onPick: (_i, g) => { T.block = d.gear.indexOf(g); setAdvanced(true); } }) : '',
     h('h3.ts-h', { text: 'Put it on a key' }),
     h('p.ts-note', { text: 'Press its number while you play (on the highway or in Jam) to switch. Key 1 always follows the song’s own tones. If a key already holds a tone, you’re asked first, and you can undo it.' }),
-    keys
+    keys,
+    // the gear itself, under the keys (click a piece to edit it)
+    (d.gear && d.gear.length) ? gearLineup(d, { onPick: (_i, g) => { T.block = d.gear.indexOf(g); setAdvanced(true); } }) : ''
   );
   editCol.append(box);
 }
