@@ -54,7 +54,7 @@ Discover service (preload `api.discover`), new:
 
 ## Status
 - container restarted once mid-work (2026-11-18): partial work committed as WIP, helpers restarted to continue.
-- [ ] Finder + bar + Roadie (helper "Finder fixer")
-- [ ] Wanted / Official / Updates + Discover redesign (helper "Wanted fixer")
+- [x] Finder + bar + Roadie (finder-electron 63 checks 1x and 2x, ~60 fps xvfb)
+- [x] Wanted / Official / Updates / Discover look (discover.test 17/17, discover-audit 107/107)
 - [x] Tones page look (helper "Tones restyler"; ui3 134/134, famous/switch/sheet/gear audits pass; tones-electron.js not run, its tab names were already stale)
-- [ ] integrate, npm test, e2e, HANDOFF, version 4.25.0
+- [x] released as 4.25.0 (user: "merge and release, we can finish other later"). Left for later: see HANDOFF 4.25 "Not verified".
