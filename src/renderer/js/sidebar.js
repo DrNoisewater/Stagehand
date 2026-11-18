@@ -403,6 +403,9 @@ function discoverGroup() {
     item({ kind: 'discover', id: 'search', label: 'Search', iconName: 'search', current: at('search') }),
     item({ kind: 'discover', id: 'gaps', label: 'Collection gaps', iconName: 'pie', current: at('gaps'), badge: c.gapsRunning ? '<span class="spin mini" title="Checking artists"></span>' : '' }),
     item({ kind: 'discover', id: 'wanted', label: 'Wanted', iconName: 'star', count: c.wanted || undefined, current: at('wanted') }),
+    // 4.25: official (paid) songs to ask for, and newer versions of songs you have
+    item({ kind: 'discover', id: 'official', label: 'Official DLC', iconName: 'music', current: at('official') }),
+    item({ kind: 'discover', id: 'updates', label: 'Updates', iconName: 'refresh', count: c.updates || undefined, current: at('updates'), badge: c.updating ? '<span class="spin mini" title="Getting updates"></span>' : '' }),
     item({
       kind: 'discover',
       id: 'imports',

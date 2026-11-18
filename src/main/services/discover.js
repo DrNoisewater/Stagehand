@@ -401,7 +401,7 @@ class Discover extends EventEmitter {
       seen.add(key);
       out.push({ artist, title, key, wantedId: null, onList: true });
     }
-    return { songs: out, lastRequestAt: this.data.lastRequestAt || 0, nextAt: this._nextRequestAt(), contact: this.data.requestContact || '', email: officialRequest.REQUEST_EMAIL };
+    return { songs: out, lastRequestAt: this.data.lastRequestAt || 0, nextAt: this._nextRequestAt(), contact: this.data.requestContact || '', queued: (this.data.pendingRequests || []).length };
   }
 
   _nextRequestAt() {
@@ -410,9 +410,9 @@ class Discover extends EventEmitter {
   }
 
   /**
-   * Ask Noisewater Labs for official songs: one request every 12 hours. Returns
-   * { ok, via: 'email' | 'mailto' | 'wait', nextAt, mailto?, text? }. A request that
-   * couldn't go out (via 'mailto': the page opens the player's mail app) doesn't count.
+   * Ask Noisewater Labs for official songs: one request every 12 hours (counted from when it was
+   * made, sent or queued). Returns { ok, via: 'ntfy' | 'formsubmit' | 'queued' | 'wait', nextAt }.
+   * When neither way works (offline), the request is kept and sent later by retryRequests().
    */
   async requestOfficial(req = {}, { name = '', version = '' } = {}) {
     const songs = officialRequest.songsOf(req.songs);
@@ -423,15 +423,44 @@ class Discover extends EventEmitter {
     this.saveSoon();
     const nextAt = this._nextRequestAt();
     if (nextAt && this.now() < nextAt) return { ok: false, via: 'wait', nextAt };
-    const r = await officialRequest.sendRequest({ songs, contact, note: req.note, name, version }, this.post ? { post: this.post } : {});
+    const ask = { songs, contact, note: String(req.note || '').slice(0, 2000), name: String(name || ''), version: String(version || ''), at: this.now() };
+    this.data.lastRequestAt = ask.at;
+    this.saveSoon();
+    const r = await officialRequest.sendRequest(ask, this.post ? { post: this.post } : {});
     if (r.ok) {
-      this.data.lastRequestAt = this.now();
-      this.saveSoon();
-      this.log(`Discover: asked for ${songs.length} official songs`);
-      return { ok: true, via: 'email', nextAt: this._nextRequestAt(), count: songs.length };
+      this.log(`Discover: asked for ${songs.length} official songs (${r.via})`);
+      await this.save().catch(() => {});
+      return { ok: true, via: r.via, nextAt: this._nextRequestAt(), count: songs.length };
     }
-    this.log(`Discover: song request couldn't go out (${r.why}); offered the mail app`);
-    return { ok: false, via: 'mailto', mailto: r.mailto, text: r.text, why: r.why, nextAt: this._nextRequestAt(), count: songs.length };
+    this.data.pendingRequests = [...(this.data.pendingRequests || []), { ...ask, tries: 1, lastTry: ask.at }].slice(-10);
+    await this.save().catch(() => {});
+    this.log(`Discover: song request kept to send later (${r.why})`);
+    return { ok: true, via: 'queued', queued: true, nextAt: this._nextRequestAt(), count: songs.length };
+  }
+
+  /** Requests kept while offline: tried again on start and every so often (main.js). */
+  async retryRequests() {
+    const list = this.data.pendingRequests || [];
+    if (!list.length || this._retrying) return { sent: 0, left: list.length };
+    this._retrying = true;
+    let sent = 0;
+    try {
+      for (const ask of list.slice()) {
+        const r = await officialRequest.sendRequest(ask, this.post ? { post: this.post } : {});
+        if (r.ok) {
+          sent++;
+          this.data.pendingRequests = (this.data.pendingRequests || []).filter((x) => x !== ask);
+          this.log(`Discover: a kept song request went out (${r.via})`);
+        } else {
+          ask.tries = (ask.tries || 0) + 1;
+          ask.lastTry = this.now();
+        }
+      }
+      this.saveSoon();
+    } finally {
+      this._retrying = false;
+    }
+    return { sent, left: (this.data.pendingRequests || []).length };
   }
 
   // ----------------------------------------------------------- updates --

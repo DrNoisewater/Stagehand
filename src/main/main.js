@@ -1096,7 +1096,8 @@ function registerIpc() {
   handle('discover:copy', (text) => clipboard.writeText(String(text || '').slice(0, 20000)));
   // 4.12: the song finder (finder.js): CustomsForge in a Stagehand window that types the wanted
   // song into its search box when you press Find, and takes what you download into your library
-  handle('finder:open', (item) => {
+  // 4.25: it also reads the results you're looking at and the Updated CDLC list, drops pop-ups and ads
+  const theFinder = () => {
     if (!songFinder) {
       const { createFinder } = require('./services/finder');
       const testSite = process.env.STAGEHAND_FINDER_URL || null; // (tests: a pretend site)
@@ -1106,18 +1107,35 @@ function registerIpc() {
         stagingDir: D.staging,
         downloadsDir: () => process.env.STAGEHAND_DOWNLOADS || app.getPath('downloads'),
         importFiles: (paths) => importer.importFiles(paths, { origin: 'finder' }),
-        onEvent: (e) => send('finder:event', e),
+        onEvent: (e) => {
+          if (e && e.type === 'updates') {
+            try {
+              if (discover && discover.setUpdates) discover.setUpdates(e.rows);
+            } catch (err) {
+              log(`Finder: keeping updates: ${err.message}`);
+            }
+          }
+          send('finder:event', e);
+        },
         prefs: { get: () => settings.get().finder || {}, set: (p) => settings.set({ finder: p }) },
-        openExternal: (u) => !process.env.STAGEHAND_NO_EXTERNAL && shell.openExternal(u),
+        // only ever for a press of "Open in my browser" or "My browser" (tests: noted, not opened)
+        openExternal: (u) => {
+          if (process.env.STAGEHAND_NO_EXTERNAL) (global.__stagehandOpenedExternal = global.__stagehandOpenedExternal || []).push(u);
+          else shell.openExternal(u);
+        },
         clipboard,
         log,
         home: testSite || undefined,
         extraHosts: testSite ? [new URL(testSite).host] : [],
       });
+      if (testSite) global.__stagehandFinder = songFinder; // (tests: what was stopped)
     }
-    return songFinder.open(item || null);
-  });
+    return songFinder;
+  };
+  handle('finder:open', (item) => theFinder().open(item || null));
   handle('finder:close', () => songFinder && songFinder.close());
+  handle('finder:done', (summary = {}) => (songFinder ? songFinder.done({ title: String((summary && summary.title) || ''), text: String((summary && summary.text) || '') }) : { open: false }));
+  handle('finder:updates', () => theFinder().updates());
   handle('discover:customsforge', (opts = {}) => {
     // In your own browser: Stagehand copies the search and opens the site. (4.12: the song
     // finder, above, is the usual way; it never reads the site or downloads by itself either.)
@@ -1392,6 +1410,14 @@ app.whenReady().then(async () => {
   covers = new Covers({ dir: D.covers, fetchImpl: politeFetch, userAgent, log });
   discover = new Discover({ file: path.join(D.roaming, 'discover.json'), mb, library, log, official: officialList });
   await discover.load();
+  // 4.25: a song request kept while offline goes out by itself: soon after start, then every 20 minutes
+  {
+    const retry = () => discover.retryRequests().catch((e) => log(`Song request retry: ${e.message}`));
+    const t1 = setTimeout(retry, 30000);
+    const t2 = setInterval(retry, 20 * 60 * 1000);
+    if (t1.unref) t1.unref();
+    if (t2.unref) t2.unref();
+  }
   importer = new Importer({
     file: path.join(D.roaming, 'imports.json'),
     settings,

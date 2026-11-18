@@ -226,3 +226,180 @@ html[data-look='opera'] .dv-selbar { border-color:#3d3630; background:var(--rr-g
 #app #discover .wstate.seen { color:var(--ink-2); }
 #app #discover .how-fold > summary { cursor:pointer; color:var(--ink-2); font-weight:700; font-size:13px; padding:2px 0 6px; }
 #app #discover .how-fold[open] > summary { margin-bottom:8px; }
+
+/* =====================================================================
+   4.25: flat, like Songs and Gear. A band across the top with the big condensed title and its
+   small kicker, lists as flat rows with thin rules under a typewriter column head, plain flat
+   panels where something needs a frame, segmented pills, one bright button. No boxes in boxes.
+   ===================================================================== */
+#app #discover {
+  --dv-band:#242c27; --dv-band-line:#5c8073; --dv-band-ink:#d9f0dc;
+  --dv-th:#29271f; --dv-th-ink:#dfcfa9; --dv-th-line:#796647;
+  --dv-rule:#ffffff10; --dv-panel:#1f1c18; --dv-panel-line:#3f382e;
+  --dv-hover:#302f25; --dv-pick:#30413a; --dv-pick-line:#91d8b8;
+}
+html[data-look='opera'] #app #discover {
+  --dv-band:var(--rr-grain),linear-gradient(180deg,#171513,#121110); --dv-band-line:#000; --dv-band-ink:var(--sc-ink);
+  --dv-th:#151311; --dv-th-ink:var(--rr-bone-3); --dv-th-line:#2d2823;
+  --dv-rule:#ffffff0b; --dv-panel:#151311; --dv-panel-line:#2c2722;
+  --dv-hover:#ffffff08; --dv-pick:#e6dbc214; --dv-pick-line:#e6dbc2;
+}
+#app #discover .dv-page { max-width:none; padding:0 26px 110px; }
+
+/* the band: like ALL SONGS on Songs and GEAR on Gear */
+#app #discover .dv-head {
+  position:relative; margin:0 -26px 18px; padding:18px 26px 14px; align-items:flex-end; flex-wrap:wrap; row-gap:10px;
+  background:var(--dv-band); border-bottom:2px solid var(--dv-band-line);
+}
+html[data-look='opera'] #app #discover .dv-head { border-bottom-width:1px; box-shadow:0 1px 0 #ffffff08; }
+#app #discover .dv-title .kicker { color:var(--sc-gold); }
+#app #discover .dv-title h1 { font-size:34px; color:var(--dv-band-ink); }
+#app #discover .dv-tools { flex-wrap:wrap; justify-content:flex-end; }
+#app #discover .back { margin:14px 0 10px; }
+
+/* panels: flat, a thin line, no screws, no shadow */
+#app #discover .card {
+  border-radius:2px; border:1px solid var(--dv-panel-line); background:var(--dv-panel); background-image:none; box-shadow:none;
+}
+html[data-look='opera'] #app #discover .card { background:var(--rr-grain),var(--dv-panel); box-shadow:none; }
+/* lists are not panels: just rules */
+#app #discover :is(.dv-table,.album,.imp-list).card { padding:0; border:0; border-top:1px solid var(--dv-th-line); background:none; }
+#app #discover .album.card { margin-top:26px; padding-top:14px; border-top:1px solid var(--dv-panel-line); }
+#app #discover .album .tracks { border-top:1px solid var(--dv-th-line); }
+#app #discover :is(.dv-row,.gap-row,.want-row,.imp-row) { border-bottom:1px solid var(--dv-rule); }
+#app #discover :is(.dv-row,.gap-row,.want-row,.imp-row):last-child { border-bottom:1px solid var(--dv-rule); }
+#app #discover :is(.dv-row,.gap-row,.want-row,.imp-row):hover { background:var(--dv-hover); }
+#app #discover :is(.dv-row,.gap-row,.want-row).head {
+  min-height:32px; background:var(--dv-th); color:var(--dv-th-ink); border-bottom:1px solid var(--dv-th-line);
+  font-family:var(--sc-mono); font-size:10px; font-weight:700; font-stretch:100%; letter-spacing:.06em; text-transform:uppercase; cursor:default;
+}
+#app #discover :is(.dv-row,.gap-row,.want-row).head:hover { background:var(--dv-th); }
+#app #discover .want-row.picked, #app #discover .dv-row.sel { background:var(--dv-pick); box-shadow:inset 3px 0 var(--dv-pick-line); }
+#app #discover .want-row .acts { gap:4px; }
+
+/* the artist: the Gear page's big title */
+#app #discover .dv-artist.card { border:0; border-bottom:2px solid var(--dv-band-line); border-radius:0; background:var(--dv-band); margin:0 -26px 6px; padding:16px 26px; }
+#app #discover .dv-artist .dv-title h1 { font-size:42px; color:var(--dv-band-ink); }
+
+/* search: the start, and sections */
+#app #discover .dv-hero.card { margin-top:4px; }
+#app #discover .dv-section > h3 { display:flex; align-items:baseline; gap:10px; padding-bottom:8px; border-bottom:1px solid var(--dv-panel-line); }
+#app #discover .stat.card { padding:14px 18px; }
+
+/* segmented pills (All / Missing, In order / By artist) */
+#app #discover :is(.seg,.gseg) { display:inline-flex; padding:2px; gap:2px; }
+#app #discover :is(.seg,.gseg) button { white-space:nowrap; }
+
+/* ---------------------------------------------------- 4.25: Wanted's two lists */
+#app #discover .dv-tabs { display:flex; align-items:flex-end; gap:22px; margin:0 0 16px; border-bottom:1px solid var(--dv-panel-line); }
+#app #discover .dv-tabs button {
+  display:inline-flex; align-items:baseline; gap:7px; padding:6px 0 9px; margin-bottom:-1px; border:0; border-bottom:2px solid transparent; background:none;
+  color:var(--ink-3); font:inherit; font-size:15px; font-weight:900; font-stretch:72%; letter-spacing:.03em; text-transform:uppercase; cursor:pointer;
+}
+#app #discover .dv-tabs button:hover { color:var(--ink); }
+#app #discover .dv-tabs button[aria-selected='true'] { color:var(--sc-ink); border-bottom-color:var(--sc-gold); }
+#app #discover .dv-tabs small { font-family:var(--sc-mono); font-size:11px; font-weight:700; font-stretch:100%; letter-spacing:0; color:var(--sc-gold); }
+#app #discover .dv-tabs .dv-tab-link { margin-left:auto; font-size:12px; font-family:var(--sc-mono); font-weight:700; font-stretch:100%; letter-spacing:.06em; color:var(--ink-3); }
+#app #discover .dv-tabs .dv-tab-link:hover { color:var(--sc-gold-hi); }
+
+/* the list's own bar: Select all, the filter, how many, the view */
+#app #discover .dv-listbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:18px 0 0; padding:0 0 10px; }
+#app #discover .dv-listbar .muted { font-family:var(--sc-mono); font-size:11px; letter-spacing:.04em; color:var(--ink-3); white-space:nowrap; }
+#app #discover .dv-listbar .want-view, #app #discover .dv-listbar > .btn:last-child:not(.pick-all) { margin-left:auto; }
+#app #discover .dv-filter { flex:1 1 220px; max-width:360px; height:32px; }
+#app #discover .pick-all { height:32px; white-space:nowrap; }
+#app #discover .dv-list { padding:0; margin:0 0 22px; border-top:1px solid var(--dv-th-line); }
+#app #discover .dv-list > .want-head { padding:14px 10px 8px; border-bottom:1px solid var(--dv-th-line); }
+#app #discover .dv-list > .want-head h3 { font-size:18px; font-weight:900; font-stretch:68%; letter-spacing:.02em; text-transform:uppercase; color:var(--sc-ink); }
+#app #discover .want-group.dv-list { margin-top:0; padding:0; background:none; border:0; border-top:0; }
+#app #discover .want-group.dv-list > .want-head { gap:12px; }
+#app #discover .dv-none { margin:0; padding:16px 10px; font-size:13px; }
+#app #discover .dv-note { margin:0 0 6px; max-width:80ch; color:var(--ink-3); font-size:13px; }
+
+/* the columns: tick, place, song, state, buttons; the head row lines up with them */
+#app #discover .want-row { padding:4px 10px; min-height:48px; }
+#app #discover .want-row .c-sel { display:grid; place-items:center; width:22px; }
+#app #discover .want-row .c-sel svg { width:16px; height:16px; color:var(--ok); }
+#app #discover .want-row.q { grid-template-columns:22px 26px minmax(0,1fr) 210px 172px; column-gap:12px; }
+#app #discover .want-row.u { grid-template-columns:22px minmax(0,1fr) 160px 172px; column-gap:12px; }
+#app #discover .want-row.o { grid-template-columns:22px minmax(0,1fr) 140px 172px; column-gap:12px; }
+#app #discover .want-row.up { grid-template-columns:22px minmax(0,1fr) 260px 140px; column-gap:12px; }
+#app #discover .want-row.head { min-height:30px; padding-top:0; padding-bottom:0; }
+#app #discover .want-row.q .c-num { text-align:right; }
+#app #discover .want-row :is(.wstate,.state) { justify-self:start; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+#app #discover .want-row.q.now { background:#e3c26a14; box-shadow:inset 3px 0 var(--sc-gold); }
+#app #discover .want-row.up .c-ic { color:var(--sc-gold); }
+#app #discover .want-row .s .dv-link { color:var(--ink-2); font-size:inherit; }
+#app #discover .want-row .s .dv-link:hover { color:var(--sc-gold-hi); }
+#app #discover .wstate.gone { color:#d8c6a6; box-shadow:inset 0 0 0 1px #6a5c48; }
+#app #discover .state.official { background:#c79bff14; color:#dcc4ff; box-shadow:inset 0 0 0 1px #b38cf266; }
+#app #discover .state.unavail { background:none; color:#d8c6a6; box-shadow:inset 0 0 0 1px #6a5c48; }
+#app #discover input.check:indeterminate { background:var(--sc-gold-soft); border-color:var(--sc-gold); }
+#app #discover input.check:indeterminate::after { content:''; width:8px; height:2px; background:var(--sc-gold-hi); }
+
+/* the Now card and How it works: flat panels side by side with the list */
+#app #discover .want-now { padding:14px 16px; margin-bottom:12px; border:1px solid var(--dv-panel-line); border-left:3px solid var(--sc-gold); border-radius:2px; background:var(--dv-panel); }
+#app #discover .how.card { margin-bottom:6px; padding:12px 16px 10px; }
+
+/* the run is over: what came of it */
+#app #discover .dv-summary {
+  display:flex; align-items:center; gap:22px; flex-wrap:wrap; margin:0 0 16px; padding:12px 12px 12px 18px;
+  border:1px solid var(--dv-panel-line); border-left:3px solid var(--ok); border-radius:2px; background:var(--dv-panel);
+}
+#app #discover .sum-title { display:grid; min-width:160px; }
+#app #discover .sum-title small { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+#app #discover .sum-title b { font-size:22px; font-weight:900; font-stretch:68%; text-transform:uppercase; letter-spacing:.01em; color:var(--sc-ink); }
+#app #discover .sum-stats { display:flex; gap:0; }
+#app #discover .sum-stat { display:grid; padding:0 18px; border-left:1px solid var(--dv-panel-line); text-align:left; }
+#app #discover .sum-stat b { font-size:28px; line-height:1; font-weight:900; font-stretch:64%; color:var(--sc-ink); }
+#app #discover .sum-stat.ok b { color:var(--ok); }
+#app #discover .sum-stat span { margin-top:4px; font-family:var(--sc-mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); white-space:nowrap; }
+#app #discover .dv-summary .acts { display:flex; gap:6px; margin-left:auto; }
+#app #discover .dv-summary > .icon-btn { margin-left:auto; }
+#app #discover .dv-summary .acts + .icon-btn { margin-left:0; }
+
+/* ---------------------------------------------------------- 4.25: Official DLC */
+#app #discover .off-contact {
+  display:flex; align-items:center; gap:18px; margin:0 0 4px; padding:14px 16px 14px 18px;
+  border:1px solid var(--dv-panel-line); border-left:3px solid var(--sc-gold); border-radius:2px; background:var(--dv-panel);
+}
+#app #discover .off-contact > div { flex:1; min-width:0; }
+#app #discover .off-contact h2 { margin:0 0 3px; font-size:22px; font-weight:900; font-stretch:66%; letter-spacing:.01em; text-transform:uppercase; color:var(--sc-ink); }
+#app #discover .off-contact p { margin:0; color:var(--ink-3); font-size:13px; }
+#app #discover .off-contact .off-request { height:38px; padding:0 18px; }
+#app #discover .off-group { margin-bottom:0; border-top:0; }
+#app #discover .off-group.mine > .want-head h3 { color:var(--sc-gold-hi); }
+
+/* the request: in a dialog of its own */
+.req-dialog { display:grid; gap:12px; min-width:min(460px,80vw); }
+.req-dialog > p { margin:0; color:var(--ink-2); font-size:13px; }
+.req-songs { margin:0; padding:8px 12px; list-style:none; max-height:180px; overflow:auto; border:1px solid #3f382e; border-radius:2px; background:#0000002e; }
+.req-songs li { padding:3px 0; font-size:13px; color:var(--ink-3); border-bottom:1px solid #ffffff0b; }
+.req-songs li:last-child { border-bottom:0; }
+.req-songs li b { color:var(--ink); font-weight:750; }
+.req-songs li.more { font-style:italic; }
+.req-field { display:grid; gap:5px; }
+.req-field > span { font-family:var(--sc-mono,monospace); font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-2); }
+.req-field .input { width:100%; box-sizing:border-box; }
+.req-field textarea.input { resize:vertical; min-height:64px; padding:8px 10px; font:inherit; font-size:13px; }
+.req-msg { margin:0; min-height:1.3em; color:#ffd08a; font-size:12.5px; }
+
+/* the pick bar keeps its buttons on one line when it can */
+.dv-selbar .acts { flex-wrap:wrap; }
+
+/* narrower windows: the state column gives way first */
+@container (max-width: 980px) {
+  #app #discover .want-row.q { grid-template-columns:22px 22px minmax(0,1fr) 150px 150px; }
+  #app #discover .want-row.up { grid-template-columns:22px minmax(0,1fr) 180px 120px; }
+  #app #discover .sum-stat { padding:0 12px; }
+}
+
+/* 4.25: the band a little shorter so the list shows at 1280×720; How it works folds to one line */
+#app #discover .dv-head { padding:14px 26px 12px; margin-bottom:16px; }
+#app #discover .dv-head .dv-title h1 { font-size:31px; }
+#app #discover .how.card { display:flex; flex-wrap:wrap; align-items:center; column-gap:18px; row-gap:6px; padding:6px 10px 6px 14px; }
+#app #discover .how.card .how-fold { flex:1 1 auto; min-width:0; }
+#app #discover .how.card .how-fold > summary { padding:4px 0; }
+#app #discover .how.card .how-fold[open] { flex-basis:100%; padding-bottom:6px; }
+#app #discover .how.card .how-status { flex:0 1 auto; display:flex; align-items:center; gap:8px; margin:0; padding:0; border:0; font-size:12.5px; }
+#app #discover .how.card .how-fold[open] + .how-status { flex-basis:100%; padding-top:8px; border-top:1px dashed var(--dv-panel-line); }

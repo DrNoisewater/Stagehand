@@ -262,21 +262,24 @@ test('official DLC: never wanted, moved on load, listed when not in the library'
   assert.ok(s.songs[0].official);
 });
 
-test('asking for official songs: the words, one request per 12 hours, the mail app when it fails', async () => {
+test('asking for official songs: the words, ntfy then FormSubmit, kept when offline, one per 12 hours', async () => {
   let now = Date.UTC(2026, 10, 18, 12);
   const posts = [];
-  let answer = 200;
+  // how each service answers: a status, 'down' (no connection), or for FormSubmit a reply
+  const ans = { ntfy: 200, form: { status: 200, body: '{"success":"true"}' } };
   const post = async (req) => {
     posts.push(req);
-    if (answer === 'down') throw new Error('getaddrinfo ENOTFOUND ntfy.sh');
-    return { status: answer };
+    const a = req.host === 'ntfy.sh' ? ans.ntfy : ans.form;
+    if (a === 'down') throw new Error(`getaddrinfo ENOTFOUND ${req.host}`);
+    return typeof a === 'number' ? { status: a, body: '' } : a;
   };
   const { discover } = await world({ official: new OfficialList(OFFICIAL), now: () => now, post });
   const songs = [{ artist: 'Deep Purple', title: 'Smoke on the Water' }, { artist: 'Boston', title: 'More than a Feeling' }, { artist: 'Boston', title: 'More than a Feeling' }];
   assert.strictEqual((await discover.requestOfficial({ songs, contact: '' })).ok, false, 'a way to reach you is needed');
   assert.strictEqual(posts.length, 0);
-  const r = await discover.requestOfficial({ songs, contact: 'me@example.com', note: 'Please!\\nThanks' }, { name: 'Riffs', version: '4.25.0' });
-  assert.deepStrictEqual([r.ok, r.via, r.count], [true, 'email', 2]);
+  // 1) ntfy takes it
+  const r = await discover.requestOfficial({ songs, contact: 'me@example.com', note: 'Please!\nThanks' }, { name: 'Riffs', version: '4.25.0' });
+  assert.deepStrictEqual([r.ok, r.via, r.count, posts.length], [true, 'ntfy', 2, 1]);
   const p = posts[0];
   assert.strictEqual(p.host, 'ntfy.sh');
   assert.match(p.path, /^\/[a-z0-9]{24}$/);
@@ -284,27 +287,49 @@ test('asking for official songs: the words, one request per 12 hours, the mail a
   assert.match(officialRequest.REQUEST_EMAIL, /^[^@\s]+@[^@\s]+\.[a-z]+$/);
   assert.strictEqual(p.headers.Title, 'Stagehand song request');
   for (const bit of ['Reach them at: me@example.com', 'Backstage name: Riffs', 'Songs (2):', '- Deep Purple – Smoke on the Water', '- Boston – More than a Feeling', 'Note:', 'Please!', 'Stagehand 4.25.0']) assert.ok(p.body.includes(bit), bit);
+  assert.ok(!/mail app|mailto/i.test(JSON.stringify(r)), 'never a mail app');
   assert.strictEqual(r.nextAt, now + 12 * 3600 * 1000);
   assert.strictEqual(discover.official().contact, 'me@example.com', 'the contact is remembered');
   // a second one too soon: refused here, nothing sent
   now += 11 * 3600 * 1000;
   const soon = await discover.requestOfficial({ songs, contact: 'me@example.com' });
   assert.deepStrictEqual([soon.ok, soon.via, posts.length], [false, 'wait', 1]);
-  // 12 hours on: the service refuses (or the network is down) → the mail app, filled in; doesn't count
+  // 2) 12 hours on, ntfy refuses: FormSubmit takes it (JSON, the player's e-mail, success)
   now += 3600 * 1000 + 1;
-  answer = 429;
-  const busy = await discover.requestOfficial({ songs, contact: 'me@example.com' });
-  assert.deepStrictEqual([busy.ok, busy.via], [false, 'mailto']);
-  assert.ok(busy.mailto.startsWith(`mailto:${officialRequest.REQUEST_EMAIL}?subject=Stagehand%20song%20request&body=`));
-  assert.ok(decodeURIComponent(busy.mailto).includes('Smoke on the Water'));
-  answer = 'down';
-  const down = await discover.requestOfficial({ songs, contact: 'me@example.com' });
-  assert.deepStrictEqual([down.ok, down.via], [false, 'mailto']);
-  assert.ok(down.text.includes('Songs (2):'));
-  answer = 200;
-  assert.strictEqual((await discover.requestOfficial({ songs, contact: 'me@example.com' })).ok, true, 'a failed one did not use up the 12 hours');
-  // a long request still makes a short enough mailto link
-  assert.ok(officialRequest.mailtoFor(officialRequest.requestBody({ songs: Array.from({ length: 300 }, (_, i) => ({ artist: 'Band', title: `Song number ${i}` })), contact: 'x' })).length < 6000);
+  ans.ntfy = 429;
+  const viaForm = await discover.requestOfficial({ songs, contact: 'me@example.com', note: 'hi' }, { name: 'Riffs' });
+  assert.deepStrictEqual([viaForm.ok, viaForm.via, posts.length], [true, 'formsubmit', 3]);
+  const f = posts[2];
+  assert.strictEqual(f.host, 'formsubmit.co');
+  assert.strictEqual(f.path, `/ajax/${officialRequest.REQUEST_EMAIL}`);
+  assert.strictEqual(f.headers['Content-Type'], 'application/json');
+  assert.strictEqual(f.headers.Accept, 'application/json');
+  const j = JSON.parse(f.body);
+  assert.deepStrictEqual([j.name, j.email, j._subject, j._template, j._captcha], ['Riffs', 'me@example.com', 'Stagehand song request', 'table', 'false']);
+  assert.ok(j.message.includes('Smoke on the Water'));
+  // a Discord name is not passed as an e-mail
+  now += 12 * 3600 * 1000 + 1;
+  await discover.requestOfficial({ songs, contact: 'riffs_42 on Discord' });
+  assert.ok(!('email' in JSON.parse(posts[posts.length - 1].body)));
+  // FormSubmit saying no (success false) counts as failing
+  now += 12 * 3600 * 1000 + 1;
+  ans.form = { status: 200, body: '{"success":"false","message":"needs activation"}' };
+  const kept = await discover.requestOfficial({ songs, contact: 'me@example.com' });
+  // 3) both fail: kept, sent later by itself; the 12 hours count from now
+  assert.deepStrictEqual([kept.ok, kept.via, kept.nextAt], [true, 'queued', now + 12 * 3600 * 1000]);
+  assert.strictEqual(discover.data.pendingRequests.length, 1);
+  assert.strictEqual(discover.official().queued, 1);
+  assert.strictEqual((await discover.requestOfficial({ songs, contact: 'me@example.com' })).via, 'wait', 'a kept request uses up the 12 hours');
+  ans.ntfy = 'down';
+  ans.form = 'down';
+  assert.deepStrictEqual(await discover.retryRequests(), { sent: 0, left: 1 }, 'still offline: still kept');
+  assert.strictEqual(discover.data.pendingRequests[0].tries, 2);
+  ans.form = { status: 200, body: '{"success":true}' };
+  const n = posts.length;
+  assert.deepStrictEqual(await discover.retryRequests(), { sent: 1, left: 0 }, 'back online: it goes out');
+  assert.strictEqual(posts[n].host, 'ntfy.sh', 'ntfy first, again');
+  assert.strictEqual(posts[n + 1].host, 'formsubmit.co');
+  assert.strictEqual(discover.official().queued, 0);
 });
 
 test('updates: CustomsForge rows matched to library songs, newer versions only, cleared once got', async () => {
