@@ -8,6 +8,8 @@ const discog = require('../src/main/core/discog');
 const rocksmith = require('../src/main/core/rocksmith');
 const { MusicBrainz } = require('../src/main/services/musicbrainz');
 const { Discover } = require('../src/main/services/discover');
+const { OfficialList } = require('../src/main/services/officiallist');
+const officialRequest = require('../src/main/services/officialrequest');
 const { Importer, cleanName } = require('../src/main/services/importer');
 const { Library } = require('../src/main/services/library');
 const { Settings } = require('../src/main/services/settings');
@@ -113,7 +115,7 @@ test('one request per second, identified, cached, retried when busy', async () =
 });
 
 // ----------------------------------------------------------- Discover svc --
-async function world() {
+async function world(opts = {}) {
   process.env.STAGEHAND_MB_FIXTURES = MB_FIX;
   const root = tmp('disc');
   const lib = path.join(root, 'dlc');
@@ -132,7 +134,7 @@ async function world() {
   library.data.folders.push({ path: lib, addedAt: Date.now() });
   await library.scan();
   const mb = new MusicBrainz({ cacheDir: path.join(root, 'mb'), fetchImpl: null, userAgent: 'test' });
-  const discover = new Discover({ file: path.join(root, 'discover.json'), mb, library });
+  const discover = new Discover({ file: path.join(root, 'discover.json'), mb, library, ...opts });
   return { root, lib, library, mb, discover };
 }
 
@@ -209,6 +211,129 @@ test('wanted list: dedupes, notices songs already owned, ticks off imports', asy
   discover.unmarkFound(hits.map((h) => h.id));
   assert.strictEqual(discover.wanted().find((x) => x.title === 'Night Ferry').status, 'wanted');
   assert.strictEqual(discover.clearFound().length, 1);
+});
+
+// ------------------------------------------------- 4.25: not available, official, updates --
+const OFFICIAL = [['Deep Purple', 'Smoke on the Water'], ['The Lantern Hours', 'Harbour Lights'], ['Boston', 'More than a Feeling'], ['The Lantern Hours', 'Kingfisher']];
+
+test('not available: own status with when and how many tries; back to Wanted keeps the count', async () => {
+  let now = 1000;
+  const { discover } = await world({ official: new OfficialList(OFFICIAL), now: () => now });
+  discover.addWanted([{ artist: 'The Lantern Hours', title: 'Night Ferry' }, { artist: 'Mara Quell', title: 'Low Sun' }]);
+  const nf = discover.wanted().find((w) => w.title === 'Night Ferry');
+  let w = discover.setStatus([nf.id], 'unavailable');
+  let x = w.find((i) => i.id === nf.id);
+  assert.deepStrictEqual([x.status, x.tries, x.unavailableAt], ['unavailable', 1, 1000]);
+  now = 5000;
+  w = discover.setStatus([nf.id], 'wanted');
+  assert.strictEqual(w.find((i) => i.id === nf.id).status, 'wanted');
+  w = discover.setStatus([nf.id], 'unavailable');
+  x = w.find((i) => i.id === nf.id);
+  assert.deepStrictEqual([x.tries, x.unavailableAt], [2, 5000]);
+  // a song that turns up after all is found, whatever list it was on
+  assert.strictEqual(discover.markFound({ id: 's9', artist: 'The Lantern Hours', title: 'Night Ferry' }).length, 1);
+  assert.throws(() => discover.setStatus([nf.id], 'gone'));
+  // clearing found songs leaves the Not available ones
+  const low = discover.wanted().find((i) => i.title === 'Low Sun');
+  discover.setStatus([low.id], 'unavailable');
+  assert.deepStrictEqual(discover.clearFound().map((i) => i.status), ['unavailable']);
+});
+
+test('official DLC: never wanted, moved on load, listed when not in the library', async () => {
+  const { discover, root } = await world({ official: new OfficialList(OFFICIAL) });
+  const r = discover.addWanted([{ artist: 'Deep Purple', title: 'Smoke On The Water' }, { artist: 'The Lantern Hours', title: 'Night Ferry' }]);
+  assert.strictEqual(r.added, 1);
+  assert.strictEqual(r.official, 1);
+  assert.ok(!discover.wanted().some((w) => w.artist === 'Deep Purple'));
+  // an older Wanted list with an official song in it: moved to Official DLC when loaded
+  discover.data.wanted.push({ id: 'old1', artist: 'Boston', title: 'More Than a Feeling', status: 'wanted', addedAt: 1 });
+  await discover.save();
+  const again = new Discover({ file: path.join(root, 'discover.json'), mb: discover.mb, library: discover.library, official: new OfficialList(OFFICIAL) });
+  await again.load();
+  assert.strictEqual(again.data.wanted.find((w) => w.id === 'old1').status, 'official');
+  assert.strictEqual(again.setStatus(['old1'], 'wanted').find((w) => w.id === 'old1').status, 'official', 'an official song cannot go back to Wanted');
+  const o = again.official();
+  const names = o.songs.map((s) => s.title);
+  assert.ok(!names.includes('Harbour Lights'), 'one you have is not listed');
+  assert.deepStrictEqual(names.sort(), ['Kingfisher', 'More Than a Feeling', 'Smoke on the Water']);
+  assert.strictEqual(o.songs.find((s) => s.title === 'More Than a Feeling').wantedId, 'old1', 'the one from your list once, not twice');
+  // search marks official songs
+  const s = await again.search('The Lantern Hours - Kingfisher');
+  assert.ok(s.songs[0].official);
+});
+
+test('asking for official songs: the words, one request per 12 hours, the mail app when it fails', async () => {
+  let now = Date.UTC(2026, 10, 18, 12);
+  const posts = [];
+  let answer = 200;
+  const post = async (req) => {
+    posts.push(req);
+    if (answer === 'down') throw new Error('getaddrinfo ENOTFOUND ntfy.sh');
+    return { status: answer };
+  };
+  const { discover } = await world({ official: new OfficialList(OFFICIAL), now: () => now, post });
+  const songs = [{ artist: 'Deep Purple', title: 'Smoke on the Water' }, { artist: 'Boston', title: 'More than a Feeling' }, { artist: 'Boston', title: 'More than a Feeling' }];
+  assert.strictEqual((await discover.requestOfficial({ songs, contact: '' })).ok, false, 'a way to reach you is needed');
+  assert.strictEqual(posts.length, 0);
+  const r = await discover.requestOfficial({ songs, contact: 'me@example.com', note: 'Please!\\nThanks' }, { name: 'Riffs', version: '4.25.0' });
+  assert.deepStrictEqual([r.ok, r.via, r.count], [true, 'email', 2]);
+  const p = posts[0];
+  assert.strictEqual(p.host, 'ntfy.sh');
+  assert.match(p.path, /^\/[a-z0-9]{24}$/);
+  assert.strictEqual(p.headers.Email, officialRequest.REQUEST_EMAIL);
+  assert.match(officialRequest.REQUEST_EMAIL, /^[^@\s]+@[^@\s]+\.[a-z]+$/);
+  assert.strictEqual(p.headers.Title, 'Stagehand song request');
+  for (const bit of ['Reach them at: me@example.com', 'Backstage name: Riffs', 'Songs (2):', '- Deep Purple – Smoke on the Water', '- Boston – More than a Feeling', 'Note:', 'Please!', 'Stagehand 4.25.0']) assert.ok(p.body.includes(bit), bit);
+  assert.strictEqual(r.nextAt, now + 12 * 3600 * 1000);
+  assert.strictEqual(discover.official().contact, 'me@example.com', 'the contact is remembered');
+  // a second one too soon: refused here, nothing sent
+  now += 11 * 3600 * 1000;
+  const soon = await discover.requestOfficial({ songs, contact: 'me@example.com' });
+  assert.deepStrictEqual([soon.ok, soon.via, posts.length], [false, 'wait', 1]);
+  // 12 hours on: the service refuses (or the network is down) → the mail app, filled in; doesn't count
+  now += 3600 * 1000 + 1;
+  answer = 429;
+  const busy = await discover.requestOfficial({ songs, contact: 'me@example.com' });
+  assert.deepStrictEqual([busy.ok, busy.via], [false, 'mailto']);
+  assert.ok(busy.mailto.startsWith(`mailto:${officialRequest.REQUEST_EMAIL}?subject=Stagehand%20song%20request&body=`));
+  assert.ok(decodeURIComponent(busy.mailto).includes('Smoke on the Water'));
+  answer = 'down';
+  const down = await discover.requestOfficial({ songs, contact: 'me@example.com' });
+  assert.deepStrictEqual([down.ok, down.via], [false, 'mailto']);
+  assert.ok(down.text.includes('Songs (2):'));
+  answer = 200;
+  assert.strictEqual((await discover.requestOfficial({ songs, contact: 'me@example.com' })).ok, true, 'a failed one did not use up the 12 hours');
+  // a long request still makes a short enough mailto link
+  assert.ok(officialRequest.mailtoFor(officialRequest.requestBody({ songs: Array.from({ length: 300 }, (_, i) => ({ artist: 'Band', title: `Song number ${i}` })), contact: 'x' })).length < 6000);
+});
+
+test('updates: CustomsForge rows matched to library songs, newer versions only, cleared once got', async () => {
+  const { discover, library } = await world();
+  const harbour = Object.values(library.data.songs).find((s) => s.title === 'Harbour Lights');
+  harbour.packageVersion = '2';
+  const r = discover.setUpdates([
+    { artist: 'The Lantern Hours', title: 'Harbour Lights', version: '3', updated: '2026-11-01' },
+    { artist: 'Mara Quell', title: 'Ironwood', version: '6', updated: '2026-11-02' },
+    { artist: 'Mara Quell', title: 'Ironwood (Remastered)', version: '5.4' },
+    { artist: 'The Lantern Hours', title: 'Static Bloom', version: '1', updated: '2026-11-02' },
+    { artist: 'Nobody', title: 'Not Mine', version: '9' },
+  ]);
+  const keys = r.updates.rows.map((u) => u.title).sort();
+  assert.ok(keys.includes('Harbour Lights') && keys.includes('Ironwood'), keys.join(','));
+  assert.ok(!keys.includes('Not Mine'), 'songs not in the library are left out');
+  assert.strictEqual(r.updates.rows.filter((u) => u.artist === 'Mara Quell').length, 1, 'the same version as yours is not an update');
+  const h = r.updates.rows.find((u) => u.title === 'Harbour Lights');
+  assert.deepStrictEqual([h.songId, h.ours, h.version], [harbour.id, '2', '3']);
+  // the same version again: no change; an older or same version than yours: not listed
+  harbour.packageVersion = '3';
+  assert.ok(!discover.updates().rows.some((u) => u.title === 'Harbour Lights'));
+  harbour.packageVersion = '2';
+  const after = discover.clearUpdates([h.key]);
+  assert.ok(!after.rows.some((u) => u.title === 'Harbour Lights'));
+  discover.setUpdates([{ artist: 'The Lantern Hours', title: 'Harbour Lights', version: '3' }]);
+  assert.ok(!discover.updates().rows.some((u) => u.title === 'Harbour Lights'), 'a version you got is not offered again');
+  discover.setUpdates([{ artist: 'The Lantern Hours', title: 'Harbour Lights', version: '4' }]);
+  assert.ok(discover.updates().rows.some((u) => u.title === 'Harbour Lights'), 'a newer one is');
 });
 
 // ---------------------------------------------------------------- importer --

@@ -1082,6 +1082,17 @@ function registerIpc() {
   handle('discover:addWanted', (items) => discover.addWanted(Array.isArray(items) ? items.slice(0, 2000) : []));
   handle('discover:removeWanted', (ids) => discover.removeWanted(Array.isArray(ids) ? ids.map(String) : []));
   handle('discover:clearFound', () => discover.clearFound());
+  // 4.25: Not available / Official DLC / back to Wanted; official DLC and asking for it; CustomsForge's updates
+  handle('discover:setStatus', (o = {}) => discover.setStatus(Array.isArray(o.ids) ? o.ids.map(String).slice(0, 5000) : [], String(o.status || '')));
+  handle('discover:official', () => discover.official());
+  handle('discover:requestOfficial', (req = {}) =>
+    discover.requestOfficial(
+      { songs: Array.isArray(req.songs) ? req.songs.slice(0, 1000) : [], contact: String(req.contact || ''), note: String(req.note || '') },
+      { name: (room && room.data && room.data.name) || '', version: app.getVersion() }
+    )
+  );
+  handle('discover:updates', () => discover.updates());
+  handle('discover:clearUpdates', (keys) => discover.clearUpdates(Array.isArray(keys) ? keys.map(String) : []));
   handle('discover:copy', (text) => clipboard.writeText(String(text || '').slice(0, 20000)));
   // 4.12: the song finder (finder.js): CustomsForge in a Stagehand window that types the wanted
   // song into its search box when you press Find, and takes what you download into your library
@@ -1379,7 +1390,7 @@ app.whenReady().then(async () => {
   };
   mb = new MusicBrainz({ cacheDir: D.musicbrainz, fetchImpl: politeFetch, userAgent, log });
   covers = new Covers({ dir: D.covers, fetchImpl: politeFetch, userAgent, log });
-  discover = new Discover({ file: path.join(D.roaming, 'discover.json'), mb, library, log });
+  discover = new Discover({ file: path.join(D.roaming, 'discover.json'), mb, library, log, official: officialList });
   await discover.load();
   importer = new Importer({
     file: path.join(D.roaming, 'imports.json'),

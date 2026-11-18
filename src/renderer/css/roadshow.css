@@ -42,7 +42,7 @@
 #app .roadshow-sticker span { max-width:90px; font-size:11px; font-weight:900; line-height:1.2; letter-spacing:.04em; transform:rotate(-3deg); }
 #app .guitar-card { border-radius:2px; background:#26241f; border:1px solid #70644f; box-shadow:inset 0 0 0 2px #15130f; }
 #app .page { background:linear-gradient(#191714ee,#191714f5),url('../art/roadshow/flight-case.avif') center/950px; }
-#app :is(.card,.slot,.tk-card,.tones-sec,.dis-card,.gr-card,.goal-card) { border-radius:2px; border-color:#554a3b; background-color:#26221d; box-shadow:3px 4px 0 #08070666,inset 0 0 0 1px #ffffff06; }
+#app :is(.card,.slot,.dis-card,.gr-card,.goal-card) { border-radius:2px; border-color:#554a3b; background-color:#26221d; box-shadow:3px 4px 0 #08070666,inset 0 0 0 1px #ffffff06; }
 #app .card { background-image:radial-gradient(circle at 6px 6px,#a4916f 0 1px,#14120f 1px 2px,transparent 3px),radial-gradient(circle at calc(100% - 6px) 6px,#a4916f 0 1px,#14120f 1px 2px,transparent 3px); }
 #app :is(.card-head h2,.card > h2,.tones-sec h3,.progress-head h1,.play-head h1,.gr-head h1,.discover h1) { text-transform:uppercase; font-weight:900; font-stretch:70%; letter-spacing:.02em; color:#f1dfbb; }
 #app :is(.card-head h2,.card > h2) { font-size:15px; }
@@ -68,9 +68,7 @@
 #app .tile.sel .cover { border-color:#8bd2bb; box-shadow:4px 5px #08070588,0 0 0 2px #8bd2bb; }
 #app .inspector { background:#201e18; border-left:2px solid #655843; }
 #app .insp-cover { border-radius:1px; border:4px solid #cebea0; box-shadow:4px 5px #0007; }
-#app .tones-list { background:#201a24; border-right:2px solid #675572; }
-#app .tones-edit { background:linear-gradient(#201c21ed,#201c21f5),url('../art/roadshow/flight-case.avif') center/750px; }
-#app .tk-card.on,#app .slot.on { border-color:var(--poster); box-shadow:inset 0 -3px var(--poster),3px 3px #0008; }
+#app .slot.on { border-color:var(--poster); box-shadow:inset 0 -3px var(--poster),3px 3px #0008; }
 #app .knob-well { background:#151413; border:2px solid #544b3f; border-radius:2px; box-shadow:inset 0 3px 8px #0008; }
 #app .rknob .ring { filter:drop-shadow(2px 3px 2px #0008); }
 #app .bk { border-radius:2px; border-color:#74654c; background:#302a20; }
@@ -140,7 +138,7 @@ body:not(:has(.highway:not([hidden]))) :is(.menu,.context-menu,.toast) { backgro
 #app .gear-picture.photo-failed > .gear-art,body:not(:has(.highway:not([hidden]))) #overlays .gear-picture.photo-failed > .gear-art,.jam .gear-picture.photo-failed > .gear-art { display:block; }
 .gear-picture.photo-failed > .gear-photo { display:none !important; }
 html[data-decoration='reduced'] #app :is(.identity-art,.roadshow-sticker) { display:none; }
-html[data-decoration='reduced'] #app :is(.identity-banner,.sidebar,.titlebar,.page,.nowbar,.tones-edit) { background-image:none; }
+html[data-decoration='reduced'] #app :is(.identity-banner,.sidebar,.titlebar,.page,.nowbar) { background-image:none; }
 html[data-decoration='reduced'] #app .identity-banner::before { display:none; }
 html[data-decoration='reduced'] #app .identity-kicker { color:var(--poster); }
 html[data-decoration='reduced'] #overlays :is(.roadshow-settings-art,.roadshow-caption) { display:none !important; }
@@ -186,3 +184,100 @@ body:has(.highway:not([hidden])) .roadshow-caption { display:none !important; }
 .roadshow-guide-art { display:none; }
 body:not(:has(.highway:not([hidden]))) #overlays .roadshow-guide-art { display:block; width:120px; height:105px; object-fit:contain; margin:12px auto; pointer-events:none; }
 html[data-decoration='reduced'] #overlays .roadshow-guide-art { display:none !important; }
+
+/* 4.25 Tones in the style of Songs and Gear (both looks; the opera head and picked row are in rockopera.css):
+   a page head with a count line, flat lists split by thin rules, the picked key in cream, the picked
+   tone's name big over its detail, Gear's buttons, and keys to put it on as one flat strip. */
+#app #page-tones { --tn-ink:#e6dfcf; --tn-ink-2:#bdb19b; --tn-dim:#8f8676; --tn-kick:#a88d57; --tn-rule:#2f2922; --tn-rule-2:#463d31; --tn-hover:#221d18; --tn-cream:#e3d8bf; --tn-cream-ink:#1b1611; }
+#app .tones-list { background:#13110ecc; border-right:1px solid var(--tn-rule-2); padding:0 18px 22px; gap:10px; }
+#app .tones-edit { background:none; padding:22px 26px; gap:14px; }
+/* the head, like Songs' ALL SONGS */
+#app .tones-head { margin:0 -18px 2px; padding:16px 18px 12px; align-items:flex-end; background:#29241d; border-bottom:2px solid #796647; }
+#app .tones-title { min-width:0; }
+#app .tones-head h1 { margin:0; font-size:27px; line-height:1.1; font-weight:900; font-stretch:66%; letter-spacing:.01em; text-transform:uppercase; color:#f1e6cf; }
+#app .tones-head .sub { margin-top:3px; color:var(--tn-dim); font-size:12px; font-variant-numeric:tabular-nums; }
+#app .tones-head .tw-create { flex:none; }
+/* small spaced capitals over each part, like Gear's AMPS */
+#app :is(.tk-h,.ts-h) { margin:0; font:700 10.5px/1.2 var(--rr-mono,monospace); letter-spacing:.12em; text-transform:uppercase; color:var(--tn-kick); }
+#app .tk-head { margin-top:6px; }
+#app .tk-note { color:var(--tn-dim); font-size:11px; }
+/* your keys: a flat 3×3 list, the picked one in cream (Gear's shelves) */
+#app .tk-keys { gap:1px; background:var(--tn-rule); border:1px solid var(--tn-rule); }
+#app .tk-card { min-height:44px; padding:6px 8px; border:0; border-radius:0; background:#1a1713; box-shadow:none; color:var(--tn-ink); transition:background-color .12s; }
+#app .tk-card:hover { background:var(--tn-hover); }
+#app .tk-card .tk-n { width:20px; height:20px; border-radius:2px; font-size:11.5px; background:none; color:var(--gel); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gel) 55%,transparent); }
+#app .tk-card .tk-name { font-size:12.5px; font-weight:650; }
+#app .tk-card .tk-sub { color:var(--tn-dim); font-size:10.5px; }
+#app .tk-card.k1 .tk-sub { color:var(--tn-dim); }
+#app .tk-card.vacant { background:#15130f; border:0; }
+#app .tk-card.vacant .tk-name { color:#6d6557; }
+#app .tk-card.vacant .tk-n { color:#6d6557; box-shadow:inset 0 0 0 1px #3a3229; }
+#app .tk-card.playing .tk-n { background:var(--gel); color:#14110d; box-shadow:none; }
+#app .tk-card.on { background:var(--tn-cream); color:var(--tn-cream-ink); outline:0; box-shadow:none; }
+#app .tk-card.on :is(.tk-sub) { color:#4a3f30; }
+#app .tk-card.on .tk-n { box-shadow:inset 0 0 0 1px #1b161155; color:color-mix(in srgb,var(--gel) 55%,#1b1611); }
+#app .tk-card.on.playing .tk-n { background:var(--gel); color:#14110d; box-shadow:none; }
+#app .tk-card.drop { background:var(--tn-hover); box-shadow:inset 0 0 0 1px var(--tn-cream); }
+/* the sections: no boxes, a thin rule above */
+#app .tones-sec { margin-top:8px; padding:12px 0 0; gap:6px; border:0; border-top:1px solid var(--tn-rule-2); border-radius:0; background:none; box-shadow:none; }
+/* column labels and flat rows, like the song list */
+#app .tones-cols { display:flex; align-items:center; gap:10px; height:26px; padding:0 8px; color:#dfcfa9; background:#29271f; border-bottom:2px solid #796647; font-size:11px; font-weight:600; font-stretch:88%; }
+#app .tones-cols span:first-child { width:22px; flex:none; }
+#app .tones-cols .grow { flex:1; }
+#app .tones-items { gap:0; }
+#app .tone-item { min-height:48px; padding:6px 8px; gap:10px; border:0; border-bottom:1px solid var(--tn-rule); border-radius:0; background:none; box-shadow:none; }
+#app .tone-item:hover { background:#24201a; border-color:var(--tn-rule); }
+#app .tone-item.on { background:#302a20; box-shadow:inset 3px 0 var(--poster,#e3d8bf); border-color:var(--tn-rule); }
+#app .tone-item .gelbar { display:none; }
+#app .tone-item .tslot { width:22px; height:22px; border-radius:2px; font-size:11.5px; background:none; color:var(--gel); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gel) 55%,transparent); }
+#app .tone-item.on .tslot { background:var(--gel); color:#14110d; box-shadow:none; }
+#app .tone-item .tslot.none { box-shadow:none; position:relative; }
+#app .tone-item .tslot.none::after { content:''; position:absolute; left:8px; top:8px; width:6px; height:6px; border-radius:1px; background:var(--gel); opacity:.75; }
+#app .tone-item .ti-main b { font-size:14px; font-weight:750; color:#f1e6cf; }
+#app .tone-item .ti-main span { color:var(--tn-dim); font-size:11.5px; }
+#app .tone-item .demo-btn { width:30px; height:30px; padding:0; border-radius:2px; border-color:#4a4135; background:#1d1915; }
+#app .tone-item .demo-btn:hover { border-color:#8c7349; }
+#app .tones-group { margin:12px 0 0; padding:0 8px 4px; border-bottom:1px solid var(--tn-rule-2); font:700 10.5px/1.2 var(--rr-mono,monospace); letter-spacing:.1em; color:var(--tn-ink-2); }
+#app .tones-group small { font-family:var(--font,inherit); letter-spacing:0; color:var(--tn-dim); }
+#app .tones-count, #app .tones-hint { color:var(--tn-dim); }
+#app .tones-tabs { width:100%; }
+#app .ra-libstrip { border-radius:2px; background:#1d1915; border:1px solid var(--tn-rule-2); }
+/* the picked tone: a kicker and a big name (Gear's piece title), its buttons, then the chain */
+#app .te-head { align-items:flex-end; gap:10px; flex-wrap:wrap; }
+#app .te-title { flex:1; min-width:240px; display:flex; flex-direction:column; gap:2px; }
+#app .te-kicker { font:700 10.5px/1.2 var(--rr-mono,monospace); letter-spacing:.12em; text-transform:uppercase; color:var(--tn-kick); }
+#app .te-kicker .te-real { color:#f1ce68; }
+#app .te-namebox { display:flex; align-items:center; gap:8px; min-width:0; cursor:text; }
+#app .te-name { field-sizing:content; min-width:3ch; max-width:100%; height:auto; padding:0 2px; margin-left:-2px; border:0; border-bottom:1px dashed transparent; border-radius:0; background:none; box-shadow:none; color:#f1e6cf; font-size:34px; line-height:1.1; font-weight:900; font-stretch:68%; letter-spacing:.005em; }
+#app .te-name:hover { border-bottom-color:#6d6557; }
+#app .te-name:focus { outline:0; border-bottom:1px solid var(--tn-cream); background:#ffffff08; }
+#app .te-pen { flex:none; display:inline-flex; color:#6d6557; }
+#app .te-pen svg { width:15px; height:15px; }
+#app .te-namebox:hover .te-pen, #app .te-name:focus + .te-pen { color:var(--tn-cream); }
+#app .te-head .btn, #app .te-head .demo-btn.big { height:36px; border-radius:2px; padding:0 14px; }
+#app .te-demo { gap:7px; font-weight:750; color:#241c0d; background:#f1ce68; border:1px solid #ffe4a0; box-shadow:2px 3px #080704; }
+#app .te-demo:hover { background:#ffe38d; }
+#app .te-demo[aria-pressed='true'] { background:#ffe38d; border-color:#fff2c8; }
+#app .te-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-bottom:12px; border-bottom:1px solid var(--tn-rule-2); }
+#app .te-bar .grow { flex:1; }
+#app .te-bar .btn { height:32px; }
+#app .te-bar .icon-btn { border-radius:2px; }
+#app .te-from { color:var(--tn-ink-2); font-size:12.5px; }
+#app .ts-simple { margin-top:0; gap:12px; max-width:none; }
+#app .ts-what { display:flex; align-items:baseline; gap:12px; padding:9px 12px; background:#1a1713; border:1px solid var(--tn-rule); font-size:13.5px; color:var(--tn-ink); }
+#app .ts-label { flex:none; font:700 10.5px/1.2 var(--rr-mono,monospace); letter-spacing:.12em; text-transform:uppercase; color:var(--tn-kick); }
+#app .ts-chain { color:var(--tn-ink); }
+#app .ts-h { margin-top:8px; }
+#app .ts-note { color:var(--tn-dim); font-size:12.5px; }
+/* keys 2–9 as one flat strip of buttons, the tone's own key in cream */
+#app .ts-keys { display:grid; grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:1px; background:var(--tn-rule); border:1px solid var(--tn-rule); }
+#app .ts-key { min-height:42px; padding:6px 10px; gap:9px; border:0; border-radius:0; background:#1a1713; color:var(--tn-ink); box-shadow:none; }
+#app .ts-key:not(.here):hover { background:#2a241c; }
+#app .ts-key b { width:22px; height:22px; border-radius:2px; font-size:12px; background:none; color:var(--gel); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gel) 55%,transparent); }
+#app .ts-key span { font-size:12.5px; font-weight:600; }
+#app .ts-key.vacant { opacity:1; border-style:none; background:#15130f; }
+#app .ts-key.vacant span { color:#6d6557; font-weight:500; }
+#app .ts-key.vacant b { color:#6d6557; box-shadow:inset 0 0 0 1px #3a3229; }
+#app .ts-key.here { background:var(--tn-cream); color:var(--tn-cream-ink); box-shadow:none; }
+#app .ts-key.here b { background:var(--gel); color:#14110d; box-shadow:none; }
+#app .tones-empty h2 { text-transform:uppercase; font-weight:900; font-stretch:68%; color:#f1e6cf; }

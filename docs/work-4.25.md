@@ -25,8 +25,11 @@ The user's asks (2026-11-18), and who builds what. Keep this up to date; it surv
   A link the player clicks to another site: the bar offers "Open in my browser" instead of opening it.
 - Ads: blocked by host in the finder's own session (`webRequest`), plus CSS hiding ad slots.
 - Request email: no server of our own. Sent through ntfy.sh (already used by Backstage) with its e-mail header to a
-  random topic; if ntfy refuses, the player's mail app opens with it filled in (mailto), and Copy is offered.
-  ntfy's e-mail rules couldn't be checked from the cloud (no network to ntfy): ask the user to try one request.
+  random topic; if ntfy refuses or fails, it is sent through FormSubmit (POST https://formsubmit.co/ajax/<address>,
+  JSON). The user (2026-11-18): the player must NEVER be told to open a mail app or email client: no mailto at all.
+  If both fail, the request is kept and retried by itself later (and the player is told it will go when online).
+  FormSubmit sends a one-time activation email to the owner on the first use; ntfy's rules couldn't be checked from
+  the cloud. Ask the user to send one test request and confirm FormSubmit's activation email.
 - Roadie assets: `src/main/finder/roadie/` (clips/*.mp4 H.264 60 fps, art/keyframe-*.png posters, manifest.json).
   Reference: `docs/roadie/`.
 
@@ -50,6 +53,7 @@ Discover service (preload `api.discover`), new:
 - `updates()` → `discover:updates` (stored list, matched to library songs), `clearUpdates(keys)`.
 
 ## Status
+- container restarted once mid-work (2026-11-18): partial work committed as WIP, helpers restarted to continue.
 - [ ] Finder + bar + Roadie (helper "Finder fixer")
 - [ ] Wanted / Official / Updates + Discover redesign (helper "Wanted fixer")
 - [ ] Tones page look (helper "Tones restyler")
