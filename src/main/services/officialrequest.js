@@ -1,6 +1,7 @@
 'use strict';
 /**
- * 4.25: asking Noisewater Labs for official Rocksmith DLC songs.
+ * 4.25: asking Noisewater Labs for official Rocksmith DLC songs. 4.26: one request asks for
+ * all of them (the player doesn't pick songs; Noisewater Labs sends every file).
  *
  * Official (paid) songs can't be downloaded, so the Official DLC page lets the player ask
  * for them. There is no Stagehand server: the request goes out as an e-mail through ntfy.sh
@@ -50,16 +51,22 @@ function songsOf(list) {
   return out;
 }
 
-/** The request in plain words. */
-function requestBody({ songs, contact, note, name, version }) {
-  const lines = ['A Stagehand player is asking for these official Rocksmith songs.', ''];
+/**
+ * The request in plain words. 4.26: the player no longer picks songs: `all` asks for every
+ * official song they don't have, and the e-mail stays short (how many, not the list).
+ */
+function requestBody({ songs, all = false, count = 0, contact, note, name, version }) {
+  const n = Number(count) || (songs ? songs.length : 0);
+  const lines = [all ? `A Stagehand player is asking for all the official Rocksmith DLC they don't have${n ? ` (${n} songs)` : ''}.` : 'A Stagehand player is asking for these official Rocksmith songs.', ''];
   lines.push(`Reach them at: ${clean(contact, 200)}`);
   if (clean(name, 80)) lines.push(`Backstage name: ${clean(name, 80)}`);
-  lines.push('');
-  lines.push(`Songs (${songs.length}):`);
-  for (const s of songs) lines.push(`- ${s.artist ? `${s.artist} – ` : ''}${s.title}`);
-  const n = String(note == null ? '' : note).trim().slice(0, 2000);
-  if (n) lines.push('', 'Note:', n);
+  if (!all) {
+    lines.push('');
+    lines.push(`Songs (${songs.length}):`);
+    for (const s of songs) lines.push(`- ${s.artist ? `${s.artist} – ` : ''}${s.title}`);
+  }
+  const words = String(note == null ? '' : note).trim().slice(0, 2000);
+  if (words) lines.push('', 'Note:', words);
   lines.push('', `Sent from Stagehand${version ? ` ${clean(version, 40)}` : ''}.`);
   return lines.join('\n');
 }
@@ -120,8 +127,8 @@ async function viaForm(text, { contact, name }, { post }) {
  * Send one request: ntfy.sh first, then FormSubmit. { ok:true, via:'ntfy'|'formsubmit', text },
  * or { ok:false, text, why } when neither took it (the caller keeps it and tries again later).
  */
-async function sendRequest({ songs, contact, note, name, version }, { post = httpsPost, topic = randomTopic() } = {}) {
-  const text = requestBody({ songs, contact, note, name, version });
+async function sendRequest({ songs, all, count, contact, note, name, version }, { post = httpsPost, topic = randomTopic() } = {}) {
+  const text = requestBody({ songs, all, count, contact, note, name, version });
   const why = [];
   try {
     if (await viaNtfy(text, { post, topic })) return { ok: true, via: 'ntfy', text };

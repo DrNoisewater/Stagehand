@@ -1,3 +1,65 @@
+# 4.26.0 — The finder stops false Not available chains, one-step Get, Official DLC as one request, the Reliquary, Lab footswitches toggle, previews, capo, tuning search (2026-11-22; nothing tried on the user's PC)
+
+The user (after 4.25.0): the finder "scans the page, sees a song is unavailable then starts entering searches,
+skipping, over and over"; mark songs Not available by itself and by hand in the finder; Collection gaps must work with
+Wanted (search a gap, start collecting) and adding to Wanted → Open Wanted → Get songs is confusing: simplify; Lab
+footswitches you must hold can't be held while playing: toggles; the "What every control does" fold sat just under the
+window; Official DLC: no per-song requests, show them all, ONE request (Noisewater Labs sends every file), artists vs
+songs hard to tell; hide the mouse on the highway; a preview when clicking a song; can't change tones with Settings
+open; capo ("Requires capo, Capo on 2nd fret"); tuning words in the search bar; the Reliquary animation pack for the
+MusicBrainz reading spot (docs/reliquary/CLAUDE-INTEGRATION.md); a Discover facelift. Later: arrows should move the
+song only on the highway, waveform and tab view; on pedals they should navigate. Working notes: docs/work-4.26.md.
+
+**Built:**
+- **False Not available chain fixed** (`services/finder.js`, `finder/results.js`): the old reader took the previous
+  song's "No matching CDLC" page as the new answer (empty + steady 600 ms counted as settled). Now `markPage()` tags the
+  rows and the empty message before Enter, and `settler()` only accepts fresh rows/message (or a changed page), still for
+  1 s, the box holding our words, the address not naming an older search; otherwise verdict `unsure` (nothing marked).
+  Results carry the search id; the page ignores stale ones, ones for another song, a second answer. Brake: the third
+  automatic miss in a row (no player input in the finder) asks Keep going / Stop. Bar: Not available button, Undo 10 s
+  (a song put back is never auto-marked again while the window is open). Events: `searched {search}`, `results {search,
+  verdict incl. unsure, pause}`, `mark {status unavailable|wanted}`, `next`. Proved on the old code with the new e2e.
+- **One-step Get** (`discover.js`, `services/discover.js` `gapSongs`): Get it / Get these N / Get all missing (search,
+  artist, album, Collection gaps) put songs on Wanted and start the finder on just those; a strip "Getting songs · X in,
+  Y to go" with Show the finder / See the list / Skip / Stop; >40 asks first; the star still saves without searching.
+  Collection gaps has a search over missing songs; each check saves the artist's missing list. Wanted rows have Not
+  available, and Move back to Wanted.
+- **Official DLC**: every official song you don't have under artist headings, no tick boxes, one "Request all official
+  DLC" (`requestOfficial({all})`: count only, no list; contact remembered, 12 h, ntfy → FormSubmit → queued).
+- **The Reliquary** (`src/renderer/vendor/reliquary/` unchanged from the pack, `js/discover-reading.js` loads it on
+  first use; reference in `docs/reliquary/`): full width in 1983×793 on an artist page while MusicBrainz reads (artist,
+  album being read, songs of the album just read, done/total; `musicbrainz.js` progress now carries those), a small one
+  in the Collection gaps band; late events from an older artist ignored; destroyed when results show. A spinning record
+  stands in if the scripts can't load.
+- **Discover facelift**: artists condensed uppercase with stickers, songs sentence case, icon section heads, every page.
+- **Lab footswitches** (`lablive.js`, `rigui.js`, `rig.js`, `gearabout.js`): every "hold" switch (Quack Honk, Confetti,
+  Blender, Invader, Maui, Olympus…) and the Bend/Drag levers click on/off and stay lit; "Footswitches: click / hold" on
+  the strip brings back holding (remembered). Stays on across focus loss and edits to the same tone.
+- **The fold always in view** (`rig.css`, `rigroom.js`, `showroom.js`): "What every control does" heads the column
+  beside the pedal; Create a tone's panel fills the free height. `test/e2e/fold-audit.js` (1366/1920/2560).
+- **Previews** (`js/preview.js`, `services/audio.js` `preparePreview`, `audio:preview`): a plain click in Songs plays
+  the song's preview clip (or a 30 s slice of already-decoded audio), fades, a Stop bar; stops on another click, leaving
+  Songs, playing; never over a playing song; Settings › Playback "Hear a song when you click it"; 40 cached.
+- **Capo** (`songbadges.js` `capoOf`): "Capo on 2nd fret" on tiles and details ("Capo 2" in rows, which drop it rather
+  than cut it); the highway (`highway.js` only, not classic) shows "Requires capo · Capo on 2nd fret · Lead" until play.
+- **Tuning search** (`searchmatch.js` `tuningFromWords`, `searchbox.js`): "e flat", "half step down", "drop c#",
+  "dadgad"… → a card "Tuning: E♭ Standard · N songs" opening Songs filtered; typed words bolded, arrows wrap, PgUp/PgDn.
+- **Pointer hides** on the highway and tab view after 3 s still (`js/cursorhide.js`), never over menus/dialogs or while
+  a button is held. **Tones with Settings open**: the global key handler returned for any open dialog; keys 1–9 now
+  switch tones with the Settings dialog open (not while typing in a box).
+- **Arrow keys** (`main.js`, `showroom.js`): ←/→ move the song only on Now playing (waveform, tab view) and the highway
+  (its own handler); on the Gear page the arrows walk the pedal grid. `test/e2e/arrows-audit.js`.
+- **Tests**: finder-electron 94 checks (two not-found songs in a row with a slow site, the brake, the button, Undo,
+  unsure), discover-audit 149, songs-audit, pointer-tones-audit, fold-audit, arrows-audit, wacky-audit toggles.
+
+**Not verified:** all on the real CustomsForge site (if it reuses its empty message untouched the finder says it
+couldn't tell, and the player uses Not available); real MusicBrainz with the Reliquary and its smoothness on Windows;
+the preview from a real .psarc; the "all" request email delivery; pointer hiding in real full screen; number keys right
+after Settings opens (it may put the cursor in a text box first); the capo card on the classic highway (not there).
+
+**Ask the user:** run Get all on an artist and watch for false Not available; does the Reliquary look right; click-on /
+click-off footswitches with a guitar; previews; send the Official request once.
+
 # 4.25.0 — The Roadie, a quieter song finder, Not available, Official DLC requests, Updates, Discover and Tones restyled (2026-11-18; nothing tried on the user's PC)
 
 The user (after 4.24.0) sent the Roadie animation pack (docs/roadie/, follow its CLAUDE-INTEGRATION.md) and asked: a way

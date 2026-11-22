@@ -1284,6 +1284,13 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .sp-label b { color: var(--tungsten-hi); font-weight: 650; }
 .sp-item[data-kind='all'] .sp-label, .sp-item[data-kind='online'] .sp-label { color: var(--ink-2); font-size: 13px; }
 .sp-sub { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); font-size: 12px; }
+/* 4.26: the tuning card on top of the search list, and the key hints under it */
+.sp-item.sp-card { height: 46px; margin: 2px 0 4px; background: var(--tungsten-soft); box-shadow: inset 0 0 0 1px rgba(255, 181, 71, 0.3); }
+.sp-item.sp-card .sp-label { font-size: 15px; font-weight: 650; }
+.sp-item.sp-card .sp-sub { color: var(--tungsten-hi); font-weight: 600; }
+.sp-item.sp-card.dim { background: transparent; box-shadow: inset 0 0 0 1px var(--rule-soft); }
+.sp-item.sp-card.dim .sp-sub { color: var(--ink-3); font-weight: 400; }
+.sp-keys { display: flex; gap: 14px; padding: 7px 10px 3px; color: var(--ink-3); font-size: 11px; }
 
 .lib-q { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; font-size: 12.5px; color: var(--ink-3); }
 .lib-q[hidden] { display: none; }

@@ -332,6 +332,56 @@ test('asking for official songs: the words, ntfy then FormSubmit, kept when offl
   assert.strictEqual(discover.official().queued, 0);
 });
 
+// ------------------------------------------------- 4.26: get gaps in one step, one official request --
+test('collection gaps: the missing songs, searchable, without owned or official ones', async () => {
+  const { discover } = await world({ official: new OfficialList(OFFICIAL) });
+  const events = [];
+  discover.on('gaps', (g) => events.push(g));
+  const prog = [];
+  discover.on('progress', (p) => prog.push(p));
+  discover.checkGaps();
+  await until(() => events.length && !events[events.length - 1].running, 20000);
+  // the reading display hears the artist, the album and the songs of the album just read
+  const lp = prog.filter((p) => p.kind === 'gaps' && p.artist === 'The Lantern Hours');
+  assert.ok(lp.some((p) => p.title === 'Signal Fires' && p.albumId && p.last && p.last.title === 'First Light' && p.last.tracks.includes('Static Bloom')), 'album by album, with the last one read');
+  const all = await discover.gapSongs();
+  const lantern = all.find((g) => g.artist === 'The Lantern Hours');
+  assert.ok(lantern, 'the gap artist is listed');
+  const titles = lantern.songs.map((s) => s.title);
+  assert.ok(!titles.includes('Static Bloom') && !titles.includes('Harbour Lights'), 'owned songs left out');
+  assert.ok(!titles.includes('Kingfisher'), 'official songs left out');
+  assert.ok(titles.includes('Night Ferry'));
+  assert.strictEqual(lantern.songs.length, 37 - 3 - 1);
+  const hit = await discover.gapSongs({ query: 'night ferry' });
+  assert.ok(hit.length && hit.every((g) => g.songs.every((s) => /night|ferry/i.test(`${s.title} ${s.album}`))));
+  // a gap checked before 4.26 (no saved list) is read again when asked for by name
+  delete discover.data.gaps[lantern.key].miss;
+  assert.ok(!(await discover.gapSongs()).some((g) => g.key === lantern.key), 'not read again for a search');
+  const again = await discover.gapSongs({ keys: [lantern.key] });
+  assert.strictEqual(again[0].songs.length, lantern.songs.length);
+  // songs on Wanted are marked, found ones dropped
+  discover.addWanted([{ artist: 'The Lantern Hours', title: 'Night Ferry' }]);
+  assert.ok((await discover.gapSongs({ keys: [lantern.key] }))[0].songs.find((s) => s.title === 'Night Ferry').wanted);
+});
+
+test('asking for all the official songs: one short request, no list, the count', async () => {
+  let now = Date.UTC(2026, 10, 22, 12);
+  const posts = [];
+  const post = async (req) => (posts.push(req), { status: 200, body: '' });
+  const { discover } = await world({ official: new OfficialList(OFFICIAL), now: () => now, post });
+  const r = await discover.requestOfficial({ all: true, contact: 'me@example.com' }, { name: 'Riffs', version: '4.26.0' });
+  const missingOfficial = discover.official().songs.length;
+  assert.deepStrictEqual([r.ok, r.via, r.count], [true, 'ntfy', missingOfficial]);
+  const body = posts[0].body;
+  assert.ok(body.includes(`all the official Rocksmith DLC they don't have (${missingOfficial} songs)`), body);
+  assert.ok(!/Songs \(/.test(body) && !body.includes('Smoke on the Water'), 'no song list');
+  assert.ok(body.includes('Reach them at: me@example.com'));
+  assert.ok(body.split('\n').length < 12, 'short');
+  assert.ok(!/mail app|mailto/i.test(body + JSON.stringify(r)));
+  now += 3600 * 1000;
+  assert.strictEqual((await discover.requestOfficial({ all: true, contact: 'me@example.com' })).via, 'wait', 'one every 12 hours');
+});
+
 test('updates: CustomsForge rows matched to library songs, newer versions only, cleared once got', async () => {
   const { discover, library } = await world();
   const harbour = Object.values(library.data.songs).find((s) => s.title === 'Harbour Lights');

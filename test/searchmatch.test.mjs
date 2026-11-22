@@ -31,10 +31,36 @@ ok(g[0].kind === 'artist' && g[0].items[0].label === 'Metallica', `typing an art
 ok(m.completion('meta', g) === 'llica', 'Tab would finish "meta" → "metallica"');
 ok(m.completion('meta ', g) === '', 'nothing to finish after a space');
 const e = m.suggest('eb', songs);
-ok(e.some((x) => x.kind === 'tuning' && x.items[0].label === 'E♭ Standard'), 'tunings are suggested');
+ok(e.some((x) => x.kind === 'tuningcard' && x.items[0].id === 'E♭ Standard'), 'tunings are suggested');
+const e2 = m.suggest('standard', songs);
+ok(e2.some((x) => x.kind === 'tuning'), 'a half-typed tuning is still a plain tuning suggestion');
 const sl = m.suggest('road', songs, [{ id: 's1', name: 'Road trip', songIds: [1, 2] }]);
 ok(sl.some((x) => x.kind === 'setlist' && x.items[0].id === 's1'), 'setlists are suggested');
 ok(m.normText('C♯ Standard') === m.normText('c# standard'), 'C♯ and C# are the same');
 ok(m.suggest('', songs).length === 0, 'an empty box suggests nothing (recent searches come from the page)');
+// 4.26: tuning words
+const tw = (q) => { const r = m.tuningFromWords(q); return r && r.name; };
+const cases = {
+  'e flat': 'Eb Standard', 'E♭': 'Eb Standard', 'Eb': 'Eb Standard', 'eb standard': 'Eb Standard', 'E flat standard': 'Eb Standard', 'e♭ tuning': 'Eb Standard',
+  'half step down': 'Eb Standard', 'Half-step down': 'Eb Standard', 'halfstep down': 'Eb Standard', 'd sharp standard': 'Eb Standard',
+  'd standard': 'D Standard', 'D std': 'D Standard', 'whole step down': 'D Standard', 'full step down': 'D Standard',
+  'e standard': 'E Standard', 'standard': 'E Standard', 'standard tuning': 'E Standard',
+  'c standard': 'C Standard', 'c# standard': 'C# Standard', 'c sharp standard': 'C# Standard', 'Db standard': 'C# Standard', 'b standard': 'B Standard', 'bb standard': 'Bb Standard', 'b flat standard': 'Bb Standard',
+  'drop d': 'Drop D', 'dropped d': 'Drop D', 'Drop D tuning': 'Drop D', 'drop c': 'Drop C', 'drop c#': 'Drop C#', 'drop c sharp': 'Drop C#', 'drop db': 'Drop C#', 'drop b': 'Drop B', 'drop a': 'Drop A', 'double drop d': 'Double Drop D',
+  'open g': 'Open G', 'open d': 'Open D', 'open e': 'Open E', 'open c6': 'Open C6',
+  'dadgad': 'DADGAD', 'DADGAD tuning': 'DADGAD', 'd a d g a d': 'DADGAD',
+};
+for (const [q, want] of Object.entries(cases)) ok(tw(q) === want, `"${q}" is ${want} (got ${tw(q)})`);
+for (const q of ['', 'black', 'drop', 'open', 'back in black', 'e', 'a', 'drop x', 'open h', 'step', 'the eb band', 'standard time']) ok(tw(q) === null, `"${q}" is not a tuning`);
+ok(m.tuningFromWords('e flat').label === 'E♭ Standard' && m.tuningFromWords('drop c#').label === 'Drop C♯' && m.tuningFromWords('c# standard').label === 'C♯ Standard', 'cards read E♭, C♯');
+ok(m.tuningFromWords('eb').strict === false && m.tuningFromWords('eb standard').strict === true, 'a bare "eb" is loose, "eb standard" is strict');
+const tsongs = [...songs, { id: 7, title: 'Hysteria', artist: 'Muse', tuning: 'Eb Standard' }, { id: 8, title: 'Holiday', artist: 'Green Day', tuning: 'Drop D' }];
+const card = m.suggest('e flat', tsongs);
+ok(card[0].kind === 'tuningcard' && card[0].items[0].n === 3 && card[0].items[0].label === 'Tuning: E♭ Standard' && card[0].items[0].sub === '3 songs', `the tuning card comes first with the count (${JSON.stringify(card[0])})`);
+ok(!card.some((x) => x.kind === 'tuning' && x.items.some((i) => m.normText(i.id) === 'eb standard')), 'the same tuning is not listed twice');
+ok(m.suggest('drop d', tsongs)[0].items[0].n === 1, 'drop d counts 1 song');
+ok(m.suggest('drop c', tsongs)[0].items[0].n === 0, 'a tuning with no songs says 0');
+ok(m.suggest('metallica', tsongs).every((x) => x.kind !== 'tuningcard'), 'no card for ordinary words');
+ok(m.inTuning(songs[4], 'Eb Standard') && !m.inTuning(songs[0], 'Eb Standard'), 'songs are found by tuning, E♭ or Eb');
 if (bad) process.exit(1);
 console.log('all ok');

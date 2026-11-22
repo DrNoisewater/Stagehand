@@ -86,6 +86,33 @@ class AudioService {
     return this._info(key);
   }
 
+  /**
+   * 4.26: a short clip to hear when you click a song in the list. Rocksmith songs carry a preview
+   * clip of their own: decode that (small, quick) and keep it. A song without one plays a slice of
+   * its full audio, but only when that is already decoded, so a click never waits on a long decode.
+   * Returns { url, duration, start, length } or null when there is nothing to play.
+   */
+  async preparePreview(song) {
+    if (!song) return null;
+    if (song.previewEntry) {
+      const wem = await this._read({ path: song.path, entry: song.previewEntry });
+      const key = `pv${crypto.createHash('sha1').update(wem).digest('hex').slice(0, 22)}`;
+      if (!fs.existsSync(this.wavPath(key))) {
+        if (!this.pending.has(key)) this.pending.set(key, this._decode(wem, key).finally(() => this.pending.delete(key)));
+        await this.pending.get(key);
+        this.evictSoon();
+      }
+      const i = await this._info(key);
+      return { url: i.url, duration: i.duration, start: 0, length: i.duration };
+    }
+    if (song.audioKey && fs.existsSync(this.wavPath(song.audioKey))) {
+      const i = await this._info(song.audioKey);
+      const length = Math.min(30, i.duration);
+      return { url: i.url, duration: i.duration, start: Math.max(0, Math.min(i.duration * 0.3, i.duration - length)), length };
+    }
+    return null;
+  }
+
   async _read(src) {
     const p = await Psarc.open(src.path);
     try {

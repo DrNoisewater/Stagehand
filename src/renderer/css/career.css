@@ -255,6 +255,7 @@ html[data-look='opera'] #app .pg-ev.ev-level .pg-evic { background:#a88d5733; co
 
 /* ---------------------------------------------------------- song badges */
 .sbadge { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:20px; font-size:10.5px; font-weight:800; letter-spacing:.02em; vertical-align:2px; white-space:nowrap; border:1px solid currentColor; }
+.sb-capo { color:#ffb547; background:#ffb54716; }
 .sb-never { color:#9aa4b2; }
 .sb-pb { color:#ffd36b; background:#ffd36b14; }
 .sb-nearly { color:#9bdb5a; background:#9bdb5a12; }

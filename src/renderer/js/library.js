@@ -5,6 +5,7 @@ import { decorativeImage } from './menu-art.js';
 import { api } from './api.js';
 import { modesHtml, runMode, modesMenu } from './playmodes.js';
 import { isOfficial, state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, setView, accBand, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel, lastSearch, clearSearch, viewHas } from './store.js';
+import { previewSong } from './preview.js';
 import { singerJob } from './singer-upgrade.js';
 import { h, icon, esc, fmtDuration, debounce } from './ui.js';
 import * as actions from './actions.js';
@@ -222,7 +223,7 @@ function tuningText(s) {
 /** 3.7: your best accuracy (full speed), as a small badge to the upper right of the title. */
 /** A row's badges in one strip: a badge that doesn't fit wholly drops out of sight, never half cut (4.15.1). */
 function rowBadges(s) {
-  const b = `${bestBadge(s)}${noAudioBadge(s)}${badgesHtml(s)}`;
+  const b = `${bestBadge(s)}${noAudioBadge(s)}${badgesHtml(s, { short: true })}`;
   return b ? `<span class="tbs">${b}</span>` : '';
 }
 
@@ -665,6 +666,8 @@ scroller.addEventListener('click', (e) => {
     return;
   }
   selectClick(id, e);
+  // 4.26: a plain click on a song plays a short preview (not while picking several)
+  if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.button === 0) previewSong(id);
 });
 
 scroller.addEventListener('dblclick', (e) => {

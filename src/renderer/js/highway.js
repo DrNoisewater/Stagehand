@@ -27,6 +27,7 @@ import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { tuningGuide, checkTuning } from './tuning-check.js';
 import { dropSection, dropInUse } from './dropui.js';
+import { capoLabel } from './songbadges.js';
 import { createTuner } from './tuner.js';
 import { breakdown, cheer } from './scorecard.js';
 import { cameo } from './cameo.js';
@@ -187,12 +188,14 @@ export function createHighway(stage) {
   const msg = h('div.hw-msg', { hidden: true });
   // what the song is doing when it isn't playing yet: loading, waiting for stems, or failed (with a way out)
   const statusBox = h('div.hw-status', { hidden: true, role: 'status' });
+  // 4.26: a song that needs a capo says so before it starts: "Requires capo · Capo on 2nd fret"
+  const capoBox = h('div.hw-capo', { hidden: true, role: 'status' });
   const fpsBox = h('div.hw-fps', { hidden: true });
   // lyrics, two lines under the title, the words lighting up as they're sung (as in Rocksmith)
   const lyricsBox = h('div.hw-lyrics', { hidden: true, 'aria-live': 'off' });
   // the repeat bar hangs under the section strip
   const repBar = createRepeatBar(rep, stage.engine, { cls: 'hw-rep-bar' });
-  root.append(glCanvas, canvas, top, sections, repBar, bottom, msg, statusBox, dock, fpsBox, lyricsBox);
+  root.append(glCanvas, canvas, top, sections, repBar, bottom, msg, statusBox, capoBox, dock, fpsBox, lyricsBox);
   document.body.append(root);
   // 4.12: sing along, an add-on. Off until its chip is pressed; its lane sits where the lyrics are.
   // Karaoke (the same chip): the neck and notes step aside and the guitar isn't scored while it shows.
@@ -1769,6 +1772,8 @@ export function createHighway(stage) {
         H.quietAt = now;
         root.classList.toggle('hw-quiet', eng.playing && now - lastInteraction > 2500 && !mixOpen && !document.querySelector('.menu[role="menu"]') && !root.querySelector(':focus-visible'));
       }
+      // the capo notice stays until the song is under way
+      capoBox.hidden = !(capoBox.firstChild && H.tab && H.tab.capo > 0 && !H.training && !aside() && !eng.playing && H.clock < 1.5 && statusBox.hidden);
       updateHud(H.clock);
       updateMixLevels();
       sing.hold(!!H.training || keys.active); // the timing check's own song isn't for singing; piano has its own lane
@@ -3326,6 +3331,7 @@ export function createHighway(stage) {
     if (H.open) renderDropPop();
     const t = H.tab;
     titleBox.innerHTML = H.song ? `<b>${esc(H.song.title)}</b><span>${esc(H.song.artist)}${t ? ` · ${esc(t.tuningName || '')}${t.capo ? `, capo ${t.capo}` : ''}` : ''}</span>` : '';
+    capoBox.innerHTML = t && t.capo > 0 ? `<b>Requires capo</b><span>${esc(capoLabel(t.capo))}${t.name ? ` · ${esc(t.name)}` : ''}</span>` : '';
     parts.innerHTML = '';
     for (const p of H.parts) {
       const b = h('button.hw-chip', { type: 'button', 'aria-pressed': String(!!(t && t.id === p.id) && !aside()), text: p.name, title: `Play the ${String(p.name).toLowerCase()} part on your ${p.type === 'bass' ? 'bass' : 'guitar'}` });

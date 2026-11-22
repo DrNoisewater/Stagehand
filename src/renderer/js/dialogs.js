@@ -260,6 +260,12 @@ const PANES = {
     el.append(
       setting('Start playing when a song opens', 'When this is off, double-clicking a song loads it paused so you can set up the mix first. The play buttons on covers always play.', toggleCtl(s.playback.autoplay, (v) => saveSettings({ playback: { autoplay: v } }), 'Autoplay'))
     );
+    el.append(
+      setting('Hear a song when you click it', 'In Songs, clicking a song plays a short clip of it. It stops when you play a song, click another, or leave Songs. It never plays while a song is playing.', toggleCtl(s.playback.preview !== false, (v) => {
+        saveSettings({ playback: { preview: v } });
+        if (!v) import('./preview.js').then((p) => p.stopPreview());
+      }, 'Hear a song when you click it'))
+    );
     const end = h('select.input', { 'aria-label': 'When a song ends' });
     for (const [v, l] of [
       ['stop', 'Stop'],

@@ -20,7 +20,7 @@ const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
 const { isAdHost, AD_CSS } = require('../finder/adblock');
-const { readPage, clickText, verdict, simplerSearch } = require('../finder/results');
+const { readPage, markPage, settler, clickText, verdict, simplerSearch } = require('../finder/results');
 
 const HOME = 'https://ignition4.customsforge.com/';
 /** Sites a song can be on or downloaded from (and the sign-ins they use). */
@@ -97,6 +97,8 @@ const nap = (ms) => new Promise((r) => setTimeout(r, ms));
 const BOX_WAIT = 20000; // the site can draw its search box late: look for it this long
 const SETTLE_MAX = 15000; // results: read them once they stop changing, at most this long after Enter
 const CLOSE_AFTER = 3500; // the run is over: the window closes this long after (the Roadie's celebration)
+const UNDO_FOR = 10000; // 4.26: how long the bar offers Undo after a song was marked Not available
+const BRAKE = 3; // 4.26: this many songs in a row marked Not available with nobody touching anything: stop and ask
 
 /**
  * @param {{ parent: () => any, icon?: string, stagingDir: string, downloadsDir: () => string,
@@ -125,6 +127,11 @@ function createFinder(o) {
   let jobSeq = 0; // each download has its own job id
   let closeTimer = null;
   let ownKeysUntil = 0; // (the Enter Stagehand presses after typing a search isn't the player's)
+  let autoRow = 0; // 4.26: songs marked Not available by themselves in a row, with no player input between
+  let undoTimer = null;
+  const typed = []; // 4.26: the last searches typed here (an earlier one's late answer isn't this one's)
+  const kept = new Set(); // 4.26: songs the player put back on Wanted (Undo): never marked by themselves again here
+  const keyOfWant = (w) => (w ? `${w.id || ''}|${w.artist || ''}|${w.title || ''}`.toLowerCase() : '');
   const st = {
     message: '',
     kind: '',
@@ -134,6 +141,8 @@ function createFinder(o) {
     offer: null, // { url, host }: a link the player clicked to another site
     done: null, // { title, text }: the Wanted run is over
     added: 0, // songs added since the window opened
+    undo: null, // 4.26: { want }: a song just marked Not available (the bar offers Undo for a moment)
+    ask: null, // 4.26: { text }: the run paused after songs in a row weren't found (Keep going / Stop)
   };
   const stats = { ads: {}, blocked: [], offered: [] }; // (tests and the log)
 
@@ -152,6 +161,8 @@ function createFinder(o) {
       view: st.view,
       offer: st.offer ? { host: st.offer.host } : null,
       done: st.done,
+      undo: st.undo ? { title: st.undo.want.title || st.undo.want.artist } : null,
+      ask: st.ask,
       zoom,
     });
   }
@@ -200,15 +211,34 @@ function createFinder(o) {
     wake = done;
   });
 
+  /** 4.26: the player did something (a click or key on the site, a bar button, a download): the brake lets go. */
+  function playerDid() {
+    autoRow = 0;
+  }
+  /** 4.26: the bar offers Undo for a song just marked Not available, for a few seconds. */
+  function offerUndo(w) {
+    clearTimeout(undoTimer);
+    st.undo = { want: w };
+    undoTimer = setTimeout(() => {
+      st.undo = null;
+      tell();
+    }, UNDO_FOR);
+  }
+  const nameOf = (w, t = '') => (w ? w.title || w.artist : t);
+
   /**
    * Types the wanted song into the site's search box and presses Enter (one search, as you would).
    * 4.25: waits for the box (up to 20 s), then reads the results once they settle.
+   * 4.26: each song's search has an id (`search`, in its events; the simpler second search keeps the
+   * first one's), and the wanted song it was for travels with it, so a late answer can't be taken
+   * for another song's.
    */
-  async function find({ query, second = false } = {}) {
+  async function find({ query, second = false, chain = '', w = want } = {}) {
     const t = query || text();
     if (!t || !site) return false;
     const my = ++searchSeq;
     const job = `s${my}`;
+    const search = second && chain ? chain : job;
     if (!second) o.clipboard.writeText(t); // (also ready for Ctrl+V)
     setView('searching', job);
     if (!second) say(`Looking for “${t}”…`);
@@ -233,60 +263,76 @@ function createFinder(o) {
       return false;
     }
     needFind = false;
-    const before = await inPage(readPage('results'), 2000);
+    // 4.26: tag what's on screen now (rows, "No matching CDLC") and read it, in one go, so the old
+    // page can never pass for this search's answer
+    let before = null;
+    for (let i = 0; i < 3 && !before && my === searchSeq; i++) before = await inPage(`(${markPage()}, ${readPage('results')})`, 2000);
     if (my !== searchSeq || !site) return false;
+    const others = typed.slice();
+    typed.push(t);
+    if (typed.length > 10) typed.shift();
     site.webContents.focus();
     ownKeysUntil = Date.now() + 150;
     for (const type of ['keyDown', 'char', 'keyUp']) site.webContents.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Return' });
     say(second ? `Nothing for that. Searched for “${t}” instead…` : `Searched for “${t}”. Pick the song and press its download button.`);
-    o.onEvent({ type: 'searched', want, text: t });
-    watchResults(my, t, before && before.sig, second).catch((err) => log(`Finder: reading results: ${err.message}`));
+    o.onEvent({ type: 'searched', want: w, text: t, search, second });
+    watchResults({ my, t, before, second, w, search, others }).catch((err) => log(`Finder: reading results: ${err.message}`));
     return true;
   }
 
-  /** Reads the results the player is looking at, once they settle; one simpler search when there are none. */
-  async function watchResults(my, t, before, second) {
+  /**
+   * Reads the results the player is looking at, once they settle; one simpler search when there are none.
+   * 4.26: only results that are surely this search's count (results.js settler); when nothing like that
+   * shows in time the verdict is "unsure" (never "none"): nothing is marked, the bar says it couldn't tell.
+   */
+  async function watchResults({ my, t, before, second, w, search, others }) {
     const start = Date.now();
     const job = `s${my}`;
-    let last = null;
-    let lastSig = null;
-    let since = start;
+    const judge = settler({ before: before ? before.sig : null, text: t, marked: !!before, others });
     while (my === searchSeq && site && Date.now() - start < SETTLE_MAX) {
       await nap(300);
       const r = await inPage(readPage('results'), 2000);
       if (my !== searchSeq) return;
-      if (!r) continue;
-      last = r;
-      if (r.sig !== lastSig) {
-        lastSig = r.sig;
-        since = Date.now();
-        continue;
-      }
-      const still = Date.now() - since;
-      const changed = r.sig !== before;
-      // settled: new results that stayed put for a second, the empty message, or nothing moving for 3 s
-      if ((changed && still >= 1000) || (r.empty && still >= 600) || (still >= 3000 && Date.now() - start >= 3000)) break;
+      if (judge.see(r, Date.now())) break;
     }
-    if (my !== searchSeq || !site || !last) return;
-    const rows = last.empty && !last.rows.length ? [] : last.rows;
+    if (my !== searchSeq || !site) return;
+    const got = judge.rows();
+    const mine = st.view.job === job; // the Roadie follows the search only while nothing newer (a download) has taken over
+    const name = nameOf(w, t);
+    if (!got) {
+      autoRow = 0;
+      o.onEvent({ type: 'results', want: w, search, verdict: 'unsure', rows: [] });
+      log(`Finder: “${t}”: unsure (${judge.evidence ? 'nothing settled' : 'the old page stayed'})`);
+      say(`Couldn’t tell whether “${name}” is on CustomsForge. Look at the page: download it, or press Not available.`, 'warn');
+      if (mine) setView('idle', job);
+      return;
+    }
+    const rows = got;
     if (!second) {
-      const nothing = verdict(want, rows) === 'none';
-      const simpler = nothing && simplerSearch(want, t);
+      const nothing = verdict(w, rows) === 'none';
+      const simpler = nothing && simplerSearch(w, t);
       if (simpler) {
         say(`Nothing for “${t}”. Trying “${simpler}”…`);
         await nap(400); // (at a person's pace)
-        if (my === searchSeq) await find({ query: simpler, second: true });
+        if (my === searchSeq) await find({ query: simpler, second: true, chain: search, w });
         return;
       }
     }
-    const v = verdict(want, rows, second);
-    o.onEvent({ type: 'results', want, verdict: v, rows: rows.slice(0, 40).map((r) => ({ artist: r.artist, title: r.title, official: !!r.official })) });
-    log(`Finder: “${t}”: ${v} (${rows.length} rows)`);
-    // the Roadie follows the search only while nothing newer (a download) has taken over
-    const mine = st.view.job === job;
-    const name = want ? want.title || want.artist : t;
+    const v = verdict(w, rows, second);
+    const ev = { type: 'results', want: w, search, verdict: v, rows: rows.slice(0, 40).map((r) => ({ artist: r.artist, title: r.title, official: !!r.official })) };
+    // 4.26: the brake: songs marked Not available by themselves, in a row, with nobody touching anything
+    const marks = v === 'none' && !!w && w.mode !== 'update' && !kept.has(keyOfWant(w));
+    autoRow = marks ? autoRow + 1 : 0;
+    if (marks && autoRow >= BRAKE) {
+      ev.pause = true;
+      autoRow = 0;
+      st.ask = { text: 'Three songs in a row weren’t found. Keep going?' };
+    }
+    o.onEvent(ev);
+    log(`Finder: “${t}”: ${v} (${rows.length} rows)${ev.pause ? ', paused to ask' : ''}`);
     if (v === 'none') {
-      say(`Not on CustomsForge: nothing for “${name}”.`, 'warn');
+      if (marks) offerUndo(w);
+      say(`Not on CustomsForge: nothing for “${name}”.${marks ? ' Moved to Not available.' : ''}`, 'warn');
       if (mine) setView('failed', job);
     } else if (v === 'official') {
       say(`“${name}” is official DLC (sold in the Rocksmith store): it can’t be downloaded here.`, 'warn');
@@ -433,6 +479,7 @@ function createFinder(o) {
     item.setSavePath(file);
     // 4.25: each download has a job id (in the events too); the bar and the Roadie follow the latest one
     const job = `d${++jobSeq}`;
+    playerDid();
     const d = { job, name, pct: 0, known: false, state: 'going', at: Date.now() };
     st.downloads.push(d);
     if (st.downloads.length > 20) st.downloads.shift();
@@ -541,7 +588,10 @@ function createFinder(o) {
     let inputAt = 0;
     wc.on('input-event', (_e, ie) => {
       if (Date.now() < ownKeysUntil) return;
-      if (ie && /^(mouseDown|mouseUp|keyDown|rawKeyDown|char|gestureTap|touchStart|touchEnd)$/.test(ie.type)) inputAt = Date.now();
+      if (ie && /^(mouseDown|mouseUp|keyDown|rawKeyDown|char|gestureTap|touchStart|touchEnd)$/.test(ie.type)) {
+        inputAt = Date.now();
+        playerDid();
+      }
     });
     const theirs = () => Date.now() - inputAt < 1500;
     const away = (e, url, what) => {
@@ -678,6 +728,11 @@ function createFinder(o) {
       st.offer = null;
       st.done = null;
       st.added = 0;
+      st.undo = null;
+      st.ask = null;
+      clearTimeout(undoTimer);
+      autoRow = 0;
+      kept.clear();
       st.view = { state: 'idle', job: '', seq: st.view.seq + 1 };
       updatesSig = null;
       o.onEvent({ type: 'closed' });
@@ -722,8 +777,42 @@ function createFinder(o) {
       st.offer = null;
       say('Opened in your browser.');
     },
-    skip: () => o.onEvent({ type: 'skip', want }),
-    stop: () => o.onEvent({ type: 'stop', want }),
+    skip: () => {
+      st.ask = null;
+      o.onEvent({ type: 'skip', want });
+    },
+    stop: () => {
+      st.ask = null;
+      tell();
+      o.onEvent({ type: 'stop', want });
+    },
+    // 4.26: the player says the song isn't on the site: it goes to Not available and the run moves on
+    markNone: () => {
+      if (!want || want.mode === 'update') return;
+      const w = want;
+      searchSeq++; // (its search, if one is still reading the page, stops)
+      st.ask = null;
+      offerUndo(w);
+      setView('idle', `m${searchSeq}`);
+      say(`“${nameOf(w)}” is on Not available now.${w.left > 1 ? ' On to the next song.' : ''}`);
+      o.onEvent({ type: 'mark', want: w, status: 'unavailable', by: 'player' });
+    },
+    // 4.26: Undo: the song just marked Not available goes back on Wanted
+    undo: () => {
+      if (!st.undo) return;
+      const w = st.undo.want;
+      st.undo = null;
+      clearTimeout(undoTimer);
+      kept.add(keyOfWant(w));
+      say(`“${nameOf(w)}” is back on Wanted.`);
+      o.onEvent({ type: 'mark', want: w, status: 'wanted', by: 'player' });
+    },
+    // 4.26: after the brake: on to the next song
+    keep: () => {
+      st.ask = null;
+      say('Going on to the next song…');
+      o.onEvent({ type: 'next', want });
+    },
     close: () => win && win.close(),
     zoomOut: () => zoomStep(-1),
     zoomIn: () => zoomStep(1),
@@ -733,7 +822,9 @@ function createFinder(o) {
   };
   ipcMain.on('finder-bar:act', (e, name) => {
     if (!bar || e.sender !== bar.webContents) return;
-    if (Object.prototype.hasOwnProperty.call(acts, name)) Promise.resolve(acts[name]()).catch(() => {});
+    if (!Object.prototype.hasOwnProperty.call(acts, name)) return;
+    playerDid();
+    Promise.resolve(acts[name]()).catch(() => {});
   });
 
   return {
@@ -742,6 +833,7 @@ function createFinder(o) {
       want = item && (item.artist || item.title) ? { id: item.id || null, artist: String(item.artist || '').slice(0, 200), title: String(item.title || '').slice(0, 200), left: Number(item.left) || 0, mode: item.mode === 'update' ? 'update' : 'want' } : null;
       st.message = '';
       st.done = null;
+      st.ask = null;
       clearTimeout(closeTimer); // (a new song: the window stays)
       if (!want) setView('idle', `o${searchSeq}`);
       if (!win || win.isDestroyed()) build();
@@ -762,6 +854,7 @@ function createFinder(o) {
       st.done = { title: String(s.title || 'All done').slice(0, 120), text: String(s.text || '').slice(0, 300) };
       searchSeq++; // (nothing more to look for)
       want = null;
+      st.ask = null;
       // a celebration only when songs really went in this time (it never shows before an import)
       if (st.view.state !== 'imported') setView(st.added ? 'imported' : 'idle', st.added ? `done${st.view.seq}` : 'done');
       say(st.done.text || st.done.title, 'good');

@@ -133,7 +133,7 @@ html[data-decoration='reduced'] .rb-piece.sel .rb-foot::before { display:none; }
 .rr-ibody { flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; }
 .rr-ibody > .ra-strip { flex:none; }
 /* in the rig the photo and the knobs sit side by side, both fully in view */
-.rr-ibody > .gb-panel { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(190px,32%); gap:12px; flex-direction:row; }
+.rr-ibody > .gb-panel { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(215px,32%); gap:12px; flex-direction:row; }
 .rr-ibody > .gb-panel > .gb-photo { container-type:size; min-height:0; height:100%; align-items:center; padding:0; }
 .rr-ibody > .gb-panel > .gb-photo .gear-faceplate, .rr-ibody > .gb-panel > .gb-photo .gear-faceplate.portrait { width:min(100%,calc(100cqh * var(--ar,1))); max-width:none; margin:auto; }
 .rr-ibody > .gb-panel > .gb-strip-wrap { overflow:auto; min-height:0; align-self:stretch; }
@@ -402,7 +402,7 @@ html[data-decoration='reduced'] .rr-ititle h3::after { display:none; }
 /* 4.24: the gear always stays big. Its sheet folds into one line under it (it used to stack under the photo
    in a box that couldn't grow, and squashed the pedal out of sight); the panel scrolls instead of shrinking it */
 .gear-sheet { flex:none; margin:8px 0 2px; }
-.gear-sheet > summary { list-style:none; display:flex; align-items:baseline; gap:10px; padding:8px 12px; border:1px solid #4a4134; border-radius:3px; background:#211d18; color:#f1e6cf; font:800 12.5px var(--font,'Archivo'); letter-spacing:.02em; cursor:pointer; user-select:none; }
+.gear-sheet > summary { list-style:none; display:flex; align-items:baseline; gap:10px; padding:8px 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border:1px solid #4a4134; border-radius:3px; background:#211d18; color:#f1e6cf; font:800 12.5px var(--font,'Archivo'); letter-spacing:.02em; cursor:pointer; user-select:none; }
 .gear-sheet > summary::-webkit-details-marker { display:none; }
 .gear-sheet > summary::before { content:'▸'; color:#e3c26a; transition:transform .12s; }
 .gear-sheet[open] > summary::before { transform:rotate(90deg); }
@@ -410,12 +410,20 @@ html[data-decoration='reduced'] .rr-ititle h3::after { display:none; }
 .gear-sheet > summary:hover { border-color:#8c7349; background:#2a241d; }
 .gear-sheet > .gear-about { margin-top:8px; }
 .rr-inspect { overflow:auto; }
-.rr-ibody > .gb-panel { flex:1 0 auto; min-height:max(300px, 100%); }
+/* 4.26: the pedal fills what is left and the fold's header sits right under it, in view; a very short window scrolls instead */
+.rr-ibody > .gb-panel { flex:1 1 260px; min-height:260px; }
 .rr-ibody > .gear-sheet { flex:none; }
 .sr-body { grid-template-columns:minmax(300px,0.72fr) minmax(0,1.6fr); }
 .sr-show { overflow:auto; }
-.sr-show > .gb-panel { flex:1 0 auto; min-height:min(640px, max(380px, calc(100vh - 440px))); grid-template-columns:minmax(0,1fr) minmax(190px,26%); }
-.sr-show > .gb-panel > .sr-side > .gear-sheet { flex:none; }
+.sr-show > .gb-panel { flex:1 1 300px; min-height:300px; grid-template-columns:minmax(0,1fr) minmax(215px,26%); }
+/* 4.26: the fold's header is the top of the column beside the pedal (Gear page and Create a tone), so it is always in
+   view and costs the pedal no height; the controls scroll under it, and opened, the column scrolls */
+:is(.sr-show, .rr-ibody) > .gb-panel > .sr-side { min-height:0; overflow:auto; display:flex; flex-direction:column; gap:10px; padding-right:2px; }
+:is(.sr-show, .rr-ibody) > .gb-panel > .sr-side > .gear-sheet { flex:none; margin:0; }
+:is(.sr-show, .rr-ibody) > .gb-panel > .sr-side > .gb-strip-wrap { flex:none; }
+:is(.sr-show, .rr-ibody) > .gb-panel > .sr-side:has(> .gear-sheet:not([open])) { overflow:hidden; }
+:is(.sr-show, .rr-ibody) > .gb-panel > .sr-side:has(> .gear-sheet:not([open])) > .gb-strip-wrap { flex:0 1 auto; min-height:110px; overflow:auto; }
+.sr-cab > .sr-side > .gear-sheet { order:-1; margin:0; }
 /* the photo's own Full size button, and the full-size view */
 .gb-photo, .rr-cabpic, .sr-cabpic { position:relative; }
 .gear-full-btn { position:absolute; right:8px; top:8px; z-index:3; display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border:1px solid #00000080; border-radius:3px; background:#171411d9; color:#f1e6cf; font:700 11.5px var(--font,'Archivo'); cursor:pointer; opacity:.75; transition:opacity .12s; }
@@ -424,3 +432,15 @@ html[data-decoration='reduced'] .rr-ititle h3::after { display:none; }
 .gear-full { position:fixed; inset:0; z-index:9500; display:grid; place-items:center; grid-template-rows:1fr auto; padding:24px; background:#050403f2; cursor:zoom-out; }
 .gear-full img { max-width:100%; max-height:calc(100vh - 80px); object-fit:contain; filter:drop-shadow(0 20px 40px #000); }
 .gear-full small { color:#a99e8c; font:600 12px var(--font,'Archivo'); padding-top:10px; }
+
+.rmode { margin-left:auto; opacity:.85; }
+.rmode[aria-pressed='true'] { background:#3a2414; }
+/* 4.26: the fold reads as a tab you can see: gold edge, a round mark, the hint kept for wide places */
+.gear-sheet > summary { border-color:#7d6a42; border-left:4px solid #e3c26a; background:linear-gradient(180deg,#2c261d,#211d18); align-items:center; }
+.gear-sheet > summary::before { content:'▸'; display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; background:#e3c26a; color:#1b1611; font-size:11px; flex:none; }
+.gear-sheet > summary > span { overflow:hidden; text-overflow:ellipsis; }
+:is(.sr-side, .rr-ibody) .gear-sheet > summary small { display:none; }
+/* 4.26: the Tones page's own editor (not reached today): the folded header stays at the bottom edge while you scroll */
+.te-block > .gear-sheet:not([open]) { position:sticky; bottom:8px; z-index:2; }
+.sr-side .gear-about-knobs { grid-template-columns:minmax(0,1fr); gap:2px; }
+.sr-side .gear-about-knobs dt { margin:6px 0 0 -6px; }

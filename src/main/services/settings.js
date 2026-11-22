@@ -3,7 +3,7 @@ const path = require('path');
 const { readJson, writeJsonAtomic } = require('../core/files');
 
 const DEFAULTS = {
-  playback: { autoplay: true, endAction: 'stop' },
+  playback: { autoplay: true, endAction: 'stop', preview: true }, // 4.26: preview: a short clip when you click a song
   stems: { singer: 'ask', model: 'htdemucs_6s', shifts: 1, auto: true, device: 'auto', preferStems: true, waitFirst: true, cpuLoad: 'full', format: 'flac', cleared310: false },
   engine: { python: null, variant: null, device: null, installedAt: null },
   tools: { vgmstream: null },

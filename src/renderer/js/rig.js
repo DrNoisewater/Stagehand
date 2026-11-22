@@ -3,7 +3,7 @@ import { detectPitch, PitchSmoother } from './pitch.js';
 import { tuningPlan, myTuning, dropStatus } from './tuning.js';
 import { InstrumentSense, reading } from './instrument.js';
 import { instrumentShift } from './detect.js';
-import { loadGear, toSpec, ampGain, describe, labLatch, labVals, gearInfo, LAB_KINDS, LAB_WORD0, LAB_VAL0 } from './gearspec.js';
+import { loadGear, toSpec, ampGain, describe, labLatch, labVals, gearInfo, LAB_BITS, LAB_KINDS, LAB_WORD0, LAB_VAL0 } from './gearspec.js';
 import { resolveCapture, caps } from './captures.js';
 import { lateWarning } from './lateout.js';
 
@@ -1109,7 +1109,13 @@ export class Rig extends EventTarget {
       if (!this.on || !this.backend) return { ok: false, tone, error: 'Your guitar isn’t connected.' };
       const backend = this.backend;
       // 4.20: a new or changed tone starts with every footswitch let go; its live switches (Haunt) follow it
-      if (this.lab.labHold || this.lab.labLever) this.live('labHold', 0), this.live('labLever', 0);
+      // (4.26: a footswitch clicked on stays on while the same tone is edited; a different tone starts clear)
+      if (this.lab.labLever) this.live('labLever', 0);
+      if (this.lab.labHold) {
+        let present = 0;
+        if ((tone.id || tone.name || '') === this._labWho) for (const g of tone.gear || []) if (g && !g.bypass && LAB_BITS[g.key]) present |= 1 << LAB_BITS[g.key];
+        this.live('labHold', this.lab.labHold & present);
+      }
       this.live('labLatch', labLatch(tone));
       this._labFollow(tone);
       const slot = await this._slotFor(tone);
@@ -1257,7 +1263,7 @@ export class Rig extends EventTarget {
     for (const g of (tone && tone.gear) || []) if (g && !g.bypass && g.key in LAB_KINDS) have.set(LAB_KINDS[g.key], g.key);
     const latched = (key) => {
       let m = 0;
-      (gearInfo(key)?.m || []).forEach(([, type, bit]) => type === 'latch' && (m |= 1 << bit));
+      (gearInfo(key)?.m || []).forEach(([, type, bit]) => (type === 'latch' || type === 'hold') && (m |= 1 << bit));
       return m;
     };
     for (const n of Object.keys(this.labWords).map(Number)) this.labWord(n, have.has(n) ? this.labWords[n] & latched(have.get(n)) : 0);
@@ -1271,7 +1277,7 @@ export class Rig extends EventTarget {
     for (const [n, bits] of Object.entries(this.labWords)) {
       const key = Object.keys(LAB_KINDS).find((k) => LAB_KINDS[k] === Number(n));
       let keep = 0;
-      (gearInfo(key)?.m || []).forEach(([, type, bit]) => type === 'latch' && (keep |= 1 << bit));
+      (gearInfo(key)?.m || []).forEach(([, type, bit]) => (type === 'latch' || type === 'hold') && (keep |= 1 << bit));
       this.labWord(Number(n), bits & keep);
     }
     for (const n of Object.keys(this.labLevers).map(Number)) {

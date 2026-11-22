@@ -67,6 +67,7 @@ html[data-look='opera'] #app .row .t { font-weight:760; color:#efe6d3; }
 /* the badges wrap onto a hidden second line instead of being cut in half (4.15.1) */
 #app .row .t > .tbs { flex:0 1 auto; display:flex; flex-wrap:wrap; align-items:center; align-content:flex-start; height:22px; }
 #app .row .t > .tbs > * { flex:none; }
+#app .row .t > .tbs::before { content:""; flex:none; width:0; height:22px; } /* 4.26: lets even the first badge drop out of sight (wrap) instead of showing half cut */
 
 /* ---- Karaoke page (4.14) ---- */
 #page-karaoke { gap:16px; padding:22px 28px 40px; }

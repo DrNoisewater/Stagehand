@@ -4,6 +4,7 @@ import './devmenu.js'; // 4.5: Ctrl+Shift+F12, only in developer mode
 import { api } from './api.js';
 import { state, emit, on, loadLibrary, upsertSongs, bump, loadRocksmith } from './store.js';
 import './sidebar.js';
+import './cursorhide.js'; // 4.26: the pointer hides on the highway when it holds still
 import * as library from './library.js';
 import * as inspector from './inspector.js';
 import * as stage from './stage.js';
@@ -136,6 +137,17 @@ document.addEventListener('keydown', (e) => {
   const m = topModal();
   if (m) {
     if (e.key === 'Escape' && m.dismissable) m.close();
+    // 4.26: keys 1-9 still switch tones with Settings open (you tune the app while you play);
+    // not while you type a number or words into a box
+    else if (m.el.classList.contains('settings-modal') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      const dm = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+      const a = document.activeElement;
+      const typed = a && (a.tagName === 'TEXTAREA' || a.isContentEditable || (a.tagName === 'INPUT' && !/^(checkbox|radio|range|button|submit|reset|color|file)$/.test(a.type)));
+      if (dm && !typed) {
+        useSlot(Number(dm[1]));
+        e.preventDefault();
+      }
+    }
     return;
   }
   const ctrl = e.ctrlKey || e.metaKey;
@@ -159,6 +171,9 @@ document.addEventListener('keydown', (e) => {
   // 1–9: tone slots. Shift+1–6: mute a stem.
   const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
   if (e.code === 'Space') stage.toggle();
+  // 4.26: the arrows move the song only where the song is shown (the waveform and the tab view on
+  // Now playing; the highway has its own); elsewhere they are free for the page (the Gear page's pedals)
+  else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && state.page !== 'now') return;
   else if (e.key === 'ArrowLeft') stage.seekBy(e.shiftKey ? -15 : -5);
   else if (e.key === 'ArrowRight') stage.seekBy(e.shiftKey ? 15 : 5);
   else if (e.key === 'm' || e.key === 'M') stage.toggleMode();

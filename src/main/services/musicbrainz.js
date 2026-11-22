@@ -111,8 +111,10 @@ class MusicBrainz {
   }
 
   /**
-   * Studio albums and EPs with tracklists. `progress(done, total, title)`
-   * is called as each album is read.
+   * Studio albums and EPs with tracklists. `progress(done, total, title, info)`
+   * is called as each album is read. 4.26: `info` says what's being read
+   * ({ albumId, year, type }) and the album just read with its song titles
+   * (`last: { title, year, tracks }`), for Discover's live reading display.
    */
   async discography(artistId, progress = () => {}, { fresh = false } = {}) {
     let groups = [];
@@ -125,7 +127,8 @@ class MusicBrainz {
     const out = [];
     for (let i = 0; i < albums.length; i++) {
       const a = albums[i];
-      progress(i, albums.length, a.title);
+      const prev = out[i - 1];
+      progress(i, albums.length, a.title, { albumId: a.id, year: a.year || null, type: a.type || '', last: prev ? { title: prev.title, year: prev.year || null, tracks: prev.tracks.map((t) => t.title).slice(0, 40) } : null });
       try {
         const rel = await this.get(`${BASE}/release?release-group=${a.id}&status=official&inc=recordings&limit=100&fmt=json`, { fresh });
         out.push({ ...a, tracks: discog.tracksFrom(rel) });
@@ -134,7 +137,8 @@ class MusicBrainz {
         out.push({ ...a, tracks: [], error: err.message });
       }
     }
-    progress(albums.length, albums.length, '');
+    const lastOne = out[out.length - 1];
+    progress(albums.length, albums.length, '', { last: lastOne ? { title: lastOne.title, year: lastOne.year || null, tracks: lastOne.tracks.map((t) => t.title).slice(0, 40) } : null });
     return out;
   }
 }

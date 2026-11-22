@@ -275,6 +275,7 @@ class FakePortMain extends EventEmitter {
       if (audioFail.has(id)) throw new Error('Could not decode the song audio: test failure');
       return { key: 'song', url: '/song.wav', sampleRate: 48000, channels: 2, frames: 48000 * SECS, duration: SECS, bits: 16 };
     },
+    'audio.preview': async () => ({ url: '/song.wav', duration: SECS, start: 0, length: Number(process.env.SH_PREVIEW_SECS) || 8 }),
     'tab.list': (id) => tabs.list(song(id)),
     'tab.vocals': (id) => tabs.vocals(song(id)),
     'tab.load': async (id, arr) => {
