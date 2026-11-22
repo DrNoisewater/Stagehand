@@ -1085,9 +1085,11 @@ function registerIpc() {
   // 4.25: Not available / Official DLC / back to Wanted; official DLC and asking for it; CustomsForge's updates
   handle('discover:setStatus', (o = {}) => discover.setStatus(Array.isArray(o.ids) ? o.ids.map(String).slice(0, 5000) : [], String(o.status || '')));
   handle('discover:official', () => discover.official());
+  // 4.26: Collection gaps' missing songs (search them, get them in one go)
+  handle('discover:gapSongs', (o = {}) => discover.gapSongs({ keys: Array.isArray(o.keys) ? o.keys.map(String).slice(0, 2000) : null, query: String(o.query || '').slice(0, 200) }));
   handle('discover:requestOfficial', (req = {}) =>
     discover.requestOfficial(
-      { songs: Array.isArray(req.songs) ? req.songs.slice(0, 1000) : [], contact: String(req.contact || ''), note: String(req.note || '') },
+      { all: !!req.all, songs: Array.isArray(req.songs) ? req.songs.slice(0, 1000) : [], contact: String(req.contact || ''), note: String(req.note || '') },
       { name: (room && room.data && room.data.name) || '', version: app.getVersion() }
     )
   );

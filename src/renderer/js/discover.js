@@ -15,6 +15,7 @@ import { setJob } from './activity.js';
 import { artImg, harvest } from './artkeep.js';
 import { h, icon, esc, toast, showMenu, fmtDuration, fmtDate, fmtDateTime, modal, debounce } from './ui.js';
 import * as actions from './actions.js';
+import { readingView, libraryHas, sameArtist } from './discover-reading.js';
 
 const root = document.getElementById('discover');
 const D = {
@@ -47,6 +48,9 @@ const D = {
   offFilter: '',
   updates: { rows: [], checkedAt: 0 },
   lastId: null,
+  // 4.26: Collection gaps' search (artists and their missing songs) and what it found
+  gapsQuery: '',
+  gapHits: null,
 };
 state.discover = D;
 
@@ -230,10 +234,6 @@ function renderSelBar() {
         btn('Move back to Wanted', { cls: 'primary', iconName: 'repeat', onClick: () => setStatus([...pick.ids], 'wanted') }),
         btn('Remove', { cls: 'soft', iconName: 'x', onClick: () => unwant([...pick.ids]) })
       );
-    } else if (scope === 'official') {
-      const mine = ((D.official && D.official.songs) || []).filter((s) => pick.ids.has(s.key) && s.wantedId).map((s) => s.wantedId);
-      selBar.append(btn('Request', { cls: 'primary', iconName: 'music', title: 'Ask Noisewater Labs for these songs', onClick: () => requestDialog(pickedOfficial()) }));
-      if (mine.length) selBar.append(btn('Remove from my list', { cls: 'soft', iconName: 'x', onClick: () => unwant(mine).then(loadOfficial) }));
     }
     selBar.append(btn('Clear', { cls: 'soft', onClick: () => pickClear() }));
     return;
@@ -241,9 +241,11 @@ function renderSelBar() {
   selBar.hidden = !D.sel.size || !isDiscover();
   if (selBar.hidden) return;
   const items = [...D.sel.values()];
+  // 4.26: one step: Get these puts them on Wanted and the song finder starts on them
   selBar.append(
     h('span.count', { text: `${plural(items.length, 'song')} selected` }),
-    btn('Add to Wanted', { iconName: 'star', cls: 'primary', onClick: () => want(items) }),
+    btn(`Get ${items.length === 1 ? 'it' : `these ${items.length}`}`, { iconName: 'download', cls: 'primary', title: 'The song finder looks for them one after another; what you download goes into your library', onClick: () => collect(items) }),
+    btn('Save for later', { iconName: 'star', cls: 'soft', title: 'Put them on Wanted without looking for them yet', onClick: () => want(items) }),
     btn('Copy as a list', { iconName: 'copy', cls: 'soft', onClick: () => copyList(items) }),
     btn('Clear', { cls: 'soft', onClick: () => clearSel() })
   );
@@ -264,7 +266,6 @@ const pick = { scope: '', ids: new Set(), order: [], anchor: null };
 function pickScope() {
   const id = sub();
   if (id === 'wanted') return D.wantTab === 'unavailable' ? 'unavailable' : 'find';
-  if (id === 'official') return 'official';
   return '';
 }
 
@@ -383,7 +384,7 @@ async function want(items) {
   const off = r.official ? `${plural(r.official, 'song')} ${r.official === 1 ? 'is' : 'are'} official DLC (paid Rocksmith songs), so not added. Ask for ${r.official === 1 ? 'it' : 'them'} on Official DLC.` : '';
   toast({
     title: r.added ? `Added ${plural(r.added, 'song')} to Wanted` : r.official ? 'Official DLC can’t be wanted' : 'Already in your Wanted list',
-    message: [r.added ? 'Find them on CustomsForge from the Wanted page. Downloads are imported automatically.' : '', off].filter(Boolean).join(' '),
+    message: [r.added ? 'Saved for later. Press Get songs on Wanted when you’re ready.' : '', off].filter(Boolean).join(' '),
     actions: [r.added ? { label: 'Open Wanted', onClick: () => open('wanted') } : null, r.official ? { label: 'Official DLC', onClick: () => open('official') } : null].filter(Boolean),
   });
   render();
@@ -395,6 +396,63 @@ async function unwant(ids) {
   emit('discover-wanted');
   if (D.run && D.run.current && ids.includes(D.run.current.id)) await runNext();
   render();
+}
+
+/**
+ * 4.26: Get: the one step. The songs go on Wanted and the song finder starts looking for them
+ * straight away, one after another (no detour through Wanted). Already getting songs: these join
+ * the run. Official DLC can't be downloaded, so it's left out and said. A lot at once asks first.
+ */
+export async function collect(items, { ask = true } = {}) {
+  items = (items || []).filter((i) => i && i.artist && i.title);
+  if (!items.length) return;
+  if (ask && items.length > 40 && !(await confirmMany(items.length))) return;
+  const r = await api.discover.addWanted(items.map(({ artist, title, album, year }) => ({ artist, title, album, year }))).catch((err) => (toast({ title: 'Couldn’t add them', message: err.message, kind: 'err' }), null));
+  if (!r) return;
+  D.wanted = r.wanted || D.wanted;
+  clearSel();
+  emit('discover-wanted');
+  const keys = new Set(items.map((i) => keyOf(i.artist, i.title)));
+  const ids = D.wanted.filter((w) => w.status === 'wanted' && keys.has(keyOf(w.artist, w.title))).map((w) => w.id);
+  const offNote = r.official ? `${plural(r.official, 'song')} ${r.official === 1 ? 'is' : 'are'} official DLC, so not added.` : '';
+  if (!ids.length) {
+    toast({ title: r.official ? 'Official DLC can’t be downloaded' : 'Nothing to get', message: r.official ? `${offNote} Ask Noisewater Labs for all of it on Official DLC.` : 'They’re already in your library.', kind: 'info', actions: r.official ? [{ label: 'Official DLC', onClick: () => open('official') }] : [] });
+    render();
+    return;
+  }
+  if (D.run && D.run.kind === 'update') {
+    toast({ title: `Saved ${plural(ids.length, 'song')} on Wanted`, message: 'The song finder is getting updates now. Press Get songs on Wanted when it’s done.', kind: 'info', actions: [{ label: 'Wanted', onClick: () => open('wanted') }] });
+    render();
+    return;
+  }
+  if (D.run) {
+    const fresh = ids.filter((id) => !(D.run.only ? D.run.only.has(id) : false));
+    if (D.run.only) for (const id of ids) D.run.only.add(id);
+    for (const id of ids) D.run.skipped.delete(id);
+    D.run.total += fresh.length;
+    emit('discover-run');
+    toast({ title: `${plural(ids.length, 'song')} added to the run`, message: `The song finder gets ${ids.length === 1 ? 'it' : 'them'} after the songs before. ${offNote}`.trim(), kind: 'info' });
+    render();
+    return;
+  }
+  await startRun({ only: ids, note: offNote });
+  render();
+}
+
+function confirmMany(n) {
+  return new Promise((resolve) => {
+    let go = false;
+    const ok = btn(`Get ${n} songs`, { cls: 'primary', iconName: 'download' });
+    const cancel = btn('Cancel', { cls: 'ghost' });
+    const m = modal({
+      title: `Get ${n} songs?`,
+      body: h('div.cf-explain', null, h('p', { text: 'The song finder looks for them one after another, and you pick each download. It can take a while. You can stop any time, and the rest wait on Wanted.' })),
+      footer: [cancel, ok],
+      onClose: () => resolve(go),
+    });
+    ok.onclick = () => ((go = true), m.close());
+    cancel.onclick = () => m.close();
+  });
 }
 
 function wantedFor(artist, title) {
@@ -564,12 +622,13 @@ function updateItems() {
   return ((D.updates && D.updates.rows) || []).map((u) => ({ id: `upd:${u.key}`, key: u.key, artist: u.artist, title: u.title, mode: 'update', songId: u.songId }));
 }
 
-function runLeft() {
+function runLeft(only = D.run ? D.run.only : null) {
   const skipped = D.run ? D.run.skipped : new Set();
   if (D.run && D.run.kind === 'update') return updateItems().filter((u) => !skipped.has(u.id));
   const seen = searchedMap();
+  // 4.26: a run started with Get on some songs looks only for those (and ones added to it)
   return D.wanted
-    .filter((w) => w.status === 'wanted' && !skipped.has(w.id))
+    .filter((w) => w.status === 'wanted' && !skipped.has(w.id) && (!only || only.has(w.id)))
     .sort((a, b) => (seen[keyOf(a.artist, a.title)] || 0) - (seen[keyOf(b.artist, b.title)] || 0) || (a.addedAt || 0) - (b.addedAt || 0));
 }
 
@@ -592,8 +651,9 @@ async function runCopy(item, { open: openSite = false } = {}) {
   markSearched(item);
 }
 
-export async function startRun() {
-  const left = runLeft();
+export async function startRun({ only = null, note = '' } = {}) {
+  const onlySet = only ? new Set(only) : null;
+  const left = runLeft(onlySet);
   if (!left.length) return;
   if (!(await explainCustomsForge())) return;
   if (!D.imports || !D.imports.watch) {
@@ -603,12 +663,14 @@ export async function startRun() {
     } catch (_) {}
   }
   D.summary = null;
-  D.run = { kind: 'wanted', current: left[0], done: 0, unavailable: 0, official: 0, skipped: new Set(), total: left.length };
+  D.run = { kind: 'wanted', current: left[0], done: 0, unavailable: 0, official: 0, skipped: new Set(), total: left.length, only: onlySet };
   await runCopy(left[0], { open: true });
   emit('discover-run');
-  if (sub() === 'wanted') render();
-  if (hasFinder()) toast({ title: 'Getting your songs', message: `The song finder is looking for “${left[0].artist} ${left[0].title}”. Download the PC version there; the next song comes up when it arrives.`, kind: 'info', timeout: 10000 });
-  else toast({ title: 'Getting your songs', message: `“${left[0].artist} ${left[0].title}” is copied. In CustomsForge, click the search box, press Ctrl+V and download the PC version. Stagehand copies the next song when it arrives.`, kind: 'info', timeout: 10000 });
+  redrawRun();
+  const title = `Getting ${plural(left.length, 'song')}`;
+  const see = sub() === 'wanted' ? [] : [{ label: 'See the list', onClick: () => open('wanted') }];
+  if (hasFinder()) toast({ title, message: `The song finder is looking for “${left[0].artist} ${left[0].title}”. Download the PC version there; the next song comes up when it arrives. ${note}`.trim(), kind: 'info', timeout: 10000, actions: see });
+  else toast({ title, message: `“${left[0].artist} ${left[0].title}” is copied. In CustomsForge, click the search box, press Ctrl+V and download the PC version. Stagehand copies the next song when it arrives. ${note}`.trim(), kind: 'info', timeout: 10000, actions: see });
 }
 
 /** 4.25: Get updates: the songs with newer versions, one after another, through the finder. */
@@ -643,7 +705,12 @@ export function stopRun() {
   if (!D.run) return;
   D.run = null;
   emit('discover-run');
-  if (sub() === 'wanted') render();
+  redrawRun();
+}
+
+/** 4.26: the pages that show the run (Wanted, and the strip on Search, an artist, Collection gaps) follow it. */
+function redrawRun() {
+  if (shown() && ['wanted', 'updates', 'search', 'artist', 'gaps'].includes(sub())) render();
 }
 
 async function runNext({ skip = false } = {}) {
@@ -655,13 +722,13 @@ async function runNext({ skip = false } = {}) {
     D.run = null;
     finishRun(run);
     emit('discover-run');
-    if (sub() === 'wanted' || sub() === 'updates') render();
+    redrawRun();
     return;
   }
   run.current = next;
   await runCopy(next);
   emit('discover-run');
-  if (sub() === 'wanted') render();
+  redrawRun();
 }
 
 /** After an import: when the song we're on came in, move on to the next. */
@@ -691,14 +758,20 @@ function runBar() {
     h(
       'div.get-run-text',
       null,
-      h('b', { text: c ? `Now: ${c.artist} – ${c.title}` : 'Getting songs' }),
-      h('span', { text: `${hasFinder() ? 'In the song finder, download the PC version.' : 'Copied: click CustomsForge’s search box, press Ctrl+V, download the PC version.'} ${run.done} in so far, ${plural(left, 'song')} to go.` })
+      h('small', { text: run.kind === 'update' ? 'Getting updates' : `Getting songs · ${run.done} in, ${left} to go` }),
+      h('b', { text: c ? `${c.artist} – ${c.title}` : 'Getting songs' }),
+      h('span', { text: hasFinder() ? 'In the song finder, download the PC version. The next song comes up when it arrives.' : 'Copied: click CustomsForge’s search box, press Ctrl+V, download the PC version.' })
     ),
-    ...(hasFinder()
-      ? [btn('Show the finder', { cls: 'small ghost', iconName: 'search', onClick: () => c && runCopy(c) })]
-      : [btn('Copy again', { cls: 'small ghost', iconName: 'copy', onClick: () => c && runCopy(c) }), btn('Open CustomsForge', { cls: 'small ghost', iconName: 'external', onClick: () => c && runCopy(c, { open: true }) })]),
-    btn('Skip', { cls: 'small', title: 'Can’t find this one: go to the next', onClick: () => runNext({ skip: true }) }),
-    btn('Stop', { cls: 'small ghost', onClick: () => stopRun() })
+    h(
+      'div.acts',
+      null,
+      ...(hasFinder()
+        ? [btn('Show the finder', { cls: 'small ghost', iconName: 'search', onClick: () => c && runCopy(c) })]
+        : [btn('Copy again', { cls: 'small ghost', iconName: 'copy', onClick: () => c && runCopy(c) }), btn('Open CustomsForge', { cls: 'small ghost', iconName: 'external', onClick: () => c && runCopy(c, { open: true }) })]),
+      run.kind === 'update' || sub() === 'wanted' ? null : btn('See the list', { cls: 'small ghost', iconName: 'list', onClick: () => open('wanted') }),
+      btn('Skip', { cls: 'small', title: 'Can’t find this one: go to the next', onClick: () => runNext({ skip: true }) }),
+      btn('Stop', { cls: 'small ghost', onClick: () => stopRun() })
+    )
   );
   return bar;
 }
@@ -714,7 +787,7 @@ function statusChip(t, { quietMissing = false } = {}) {
     return h('span.state.have', { html: `${icon('check')}<span>In your library</span>${song ? badgesHtml(song) : ''}` });
   }
   if (D.run && D.run.current && keyOf(D.run.current.artist, D.run.current.title) === keyOf(t.artist || (D.page && D.page.artist && D.page.artist.name) || '', t.title)) return h('span.state.now', { html: `${icon('search')}<span>Looking for it now</span>` });
-  if (t.wanted) return h('span.state.want', { html: `${icon('star', 'fill')}<span>Wanted</span>` });
+  if (t.wanted || (t.artist && wantedFor(t.artist, t.title))) return h('span.state.want', { html: `${icon('star', 'fill')}<span>Wanted</span>` });
   // 4.25: paid Rocksmith songs can't be downloaded; songs CustomsForge had nothing for
   if (t.official) return h('span.state.official', { title: 'A paid Rocksmith song: it can’t be downloaded, so it can’t be wanted', html: `${icon('music')}<span>Official DLC</span>` });
   if (t.unavailable) return h('span.state.unavail', { title: 'CustomsForge had nothing for it last time', html: `${icon('clock')}<span>Not available</span>` });
@@ -741,22 +814,26 @@ function rowActions(t, item) {
     const gaps = song ? missingParts(song).filter((x) => x !== 'words') : [];
     if (gaps.length) box.append(iconBtn('search', `Find a better version (this one has no ${gaps.join(' or ')})`, () => findBetter(song, gaps)));
   } else if (t.official) {
-    // 4.25: official DLC: ask Noisewater Labs for it instead
-    const rq = btn('Request', { cls: 'small soft', iconName: 'music', title: 'A paid Rocksmith song: ask Noisewater Labs for it' });
+    // 4.25: official DLC can't be downloaded. 4.26: no request per song: Official DLC asks for all of it
+    const rq = btn('Official DLC', { cls: 'small ghost', iconName: 'music', title: 'A paid Rocksmith song: Official DLC asks Noisewater Labs for all of them in one request' });
     rq.addEventListener('click', (e) => {
       e.stopPropagation();
-      requestDialog([{ artist: item.artist, title: item.title }]);
+      open('official');
     });
     box.append(rq);
   } else {
+    // 4.26: Get it: on Wanted and the song finder looks for it now; the star keeps it for later
     const w = wantedFor(item.artist, item.title);
-    const wb = btn(w ? 'Wanted' : 'Want it', { cls: w ? 'small soft want-on' : 'small', iconName: w ? 'check' : 'plus', title: w ? 'On your Wanted list: click to take it off' : 'Add it to your Wanted list, to get it later' });
-    wb.addEventListener('click', (e) => {
+    const now = !!(D.run && D.run.current && keyOf(D.run.current.artist, D.run.current.title) === keyOf(item.artist, item.title));
+    const get = btn(now ? 'Finding' : 'Get it', { cls: 'small get-it', iconName: now ? 'search' : 'download', title: now ? 'The song finder is looking for it now' : 'Look for it now in the song finder; what you download goes into your library', disabled: now });
+    get.addEventListener('click', (e) => {
       e.stopPropagation();
-      w ? unwant([w.id]) : want([item]);
+      collect([item]);
     });
-    box.append(wb);
-    box.append(iconBtn('external', 'Find on CustomsForge', () => findOnCF(item)));
+    box.append(get);
+    const star = iconBtn('star', w ? 'On Wanted: take it off' : 'Save for later (put it on Wanted)', () => (w ? unwant([w.id]) : want([item])), w ? 'on' : '');
+    if (w) star.innerHTML = icon('star', 'fill');
+    box.append(star);
   }
   return box;
 }
@@ -809,7 +886,7 @@ function renderSearch(page) {
   page.append(
     head(
       q ? `Results for “${q}”` : 'Search',
-      q ? 'From MusicBrainz, the open music encyclopedia. Tick songs you don’t have to collect them in Wanted.' : 'Find any artist or song on MusicBrainz and see what you already have.',
+      q ? 'From MusicBrainz, the open music encyclopedia. Press Get on a song you don’t have and the song finder looks for it.' : 'Find any artist or song on MusicBrainz, see what you already have, and get what you don’t.',
       [],
       { kicker: 'Discover' }
     )
@@ -822,6 +899,8 @@ function renderSearch(page) {
       h('p', { html: 'Try <b>an artist’s name</b>, <b>a song title</b>, or <b>Artist - Song</b>. Stagehand shows what you already have and what you’re missing.' })
     );
     page.append(hero);
+    const strip = runBar();
+    if (strip) page.append(strip);
     if (D.recent.length) {
       const chips = h('div.chips');
       for (const r of D.recent) {
@@ -857,6 +936,8 @@ function renderSearch(page) {
     return;
   }
   const r = D.results;
+  const strip = runBar();
+  if (strip) page.append(strip);
   if (!r.artists.length && !r.songs.length) {
     page.append(emptyBox('Nothing found', `MusicBrainz has no artists or songs matching <b>${esc(q)}</b>. Check the spelling, or try fewer words.`));
     return;
@@ -864,22 +945,21 @@ function renderSearch(page) {
   if (r.artists.length) {
     const grid = h('div.artist-cards');
     for (const a of r.artists) grid.append(artistCard(a));
-    page.append(h('section.dv-section', null, h('h3', null, h('span', { text: 'Artists' })), grid));
+    page.append(h('section.dv-section.sec-artists', null, h('h3', null, h('span.sec-ic', { html: icon('person') }), h('span', { text: 'Artists' }), h('span.hint', { text: `${r.artists.length} · open one to see their albums` })), grid));
   }
   if (r.songs.length) {
+    // 4.26: Get all missing: on Wanted and the song finder starts on them (no ticking, no detour)
     const missing = r.songs.filter((s) => !s.have && !s.official);
-    const selAll = btn(`Select ${missing.length} missing`, {
-      cls: 'small soft',
+    const getAll = btn(missing.length ? `Get all ${missing.length} missing` : 'You have them all', {
+      cls: 'small primary get-all',
+      iconName: 'download',
       disabled: !missing.length,
-      onClick: () => {
-        for (const s of missing) D.sel.set(keyOf(s.artist, s.title), { artist: s.artist, title: s.title, album: s.album, year: s.year });
-        renderSelBar();
-      },
+      onClick: () => collect(missing.map((s) => ({ artist: s.artist, title: s.title, album: s.album, year: s.year }))),
     });
     const table = h('div.dv-table.songs.card');
     table.append(h('div.dv-row.head', null, h('div'), h('div', { text: 'Song' }), h('div', { text: 'Artist' }), h('div', { text: 'Time' }), h('div', { text: 'Status' }), h('div')));
     for (const s of r.songs) table.append(songRow(s, s));
-    page.append(h('section.dv-section', null, h('h3', null, h('span', { text: 'Songs' }), selAll), table));
+    page.append(h('section.dv-section.sec-songs', null, h('h3', null, h('span.sec-ic', { html: icon('music') }), h('span', { text: 'Songs' }), h('span.hint', { text: `${r.songs.length} · ${missing.length} not in your library` }), getAll), table));
   }
 }
 
@@ -915,6 +995,30 @@ function artistCard(a) {
 }
 
 // ---------------------------------------------------------------- artist --
+/** 4.26: one reading display per artist page being loaded; it keeps its counts across redraws. */
+let reading = null;
+function artistReading(name) {
+  if (!reading || reading.key !== D.pageKey) {
+    if (reading) reading.finish('cancelled');
+    reading = { key: D.pageKey, ...readingView({ artist: name, has: libraryHas(state.songs.values(), name) }) };
+    const pr = D.progress && D.progress.kind === 'artist' && forThisArtist(D.progress) ? D.progress : null;
+    if (pr) reading.update(pr);
+  }
+  return reading;
+}
+
+/** Whether a reading event is about the artist page being loaded now (not a late one from before). */
+function forThisArtist(p) {
+  const v = state.view.artist || {};
+  return (v.id && p.id === v.id) || sameArtist(p.artist, v.name);
+}
+
+/** The reading display is done with: the animation stops and lets go. */
+function endReading(how) {
+  if (reading) reading.finish(how);
+  reading = null;
+}
+
 async function loadArtist({ fresh = false } = {}) {
   const v = state.view.artist || {};
   const key = `${v.id || ''}|${v.name || ''}`;
@@ -923,10 +1027,12 @@ async function loadArtist({ fresh = false } = {}) {
   D.page = null;
   D.loadingArtist = true;
   D.progress = null;
+  endReading('cancelled');
   render();
   try {
     const page = await api.discover.artist({ id: v.id, name: v.name, fresh });
     if (D.pageKey !== key) return;
+    endReading('complete');
     D.page = page;
     if (!page.needsChoice) {
       // Remember the exact artist, so reopening skips the search.
@@ -935,6 +1041,7 @@ async function loadArtist({ fresh = false } = {}) {
     }
   } catch (err) {
     if (D.pageKey !== key) return;
+    endReading('error');
     D.page = { error: err.message };
   }
   D.loadingArtist = false;
@@ -951,13 +1058,8 @@ function renderArtist(page) {
   page.append(back);
   const p = D.page;
   if (D.loadingArtist || !p) {
-    page.append(h('div.dv-artist.card', null, avatar(v.name || '?', 'lg'), h('div.dv-title', null, h('div.kicker', { text: 'Artist' }), h('h1', { text: v.name || 'Artist' }))));
-    const pr = D.progress && D.progress.kind === 'artist' ? D.progress : null;
-    const line = h('div.dv-progress', null, h('div.spin'), h('span.label', { text: pr && pr.total ? `Reading albums from MusicBrainz… ${pr.done} of ${pr.total}${pr.title ? ` · ${pr.title}` : ''}` : 'Finding this artist on MusicBrainz…' }));
-    const meter = h('div.progress', null, h('i'));
-    if (pr && pr.total) meter.firstChild.style.width = `${Math.round((pr.done / pr.total) * 100)}%`;
-    else meter.classList.add('indeterminate');
-    page.append(h('div.dv-loading.col', null, line, meter, h('p.fine', { text: 'MusicBrainz asks apps to make one request a second, so a big discography takes a little while the first time. After that it’s instant.' })));
+    // 4.26: the live reading display fills the page while MusicBrainz is read (discover-reading.js)
+    page.append(artistReading(v.name || '').el);
     return;
   }
   if (p.error) {
@@ -1012,16 +1114,16 @@ function renderArtist(page) {
   const shows = (t) => D.show === 'missing' ? !t.have : D.show === 'wanted' ? !t.have && t.wanted : D.show === 'owned' ? t.have : D.show === 'parts' ? partsOf(t) : true;
   const missingItems = [];
   for (const al of p.albums) for (const t of al.tracks) if (!t.have && !t.official) missingItems.push({ artist: a.name, title: t.title, album: al.title, year: al.year, wanted: t.wanted });
+  // 4.26: one button gets every missing song (Wanted and the song finder, in album order)
+  const getAll = btn(missingItems.length ? `Get all missing (${missingItems.length})` : 'You have them all', {
+    cls: 'primary get-all',
+    iconName: 'download',
+    disabled: !missingItems.length,
+    title: 'The song finder looks for each one; what you download goes into your library',
+    onClick: () => collect(missingItems.map(({ wanted, ...it }) => it)),
+  });
   tools.append(
-    seg,
-    btn('Select all missing', {
-      cls: 'soft',
-      disabled: !missingItems.length,
-      onClick: () => {
-        for (const it of missingItems) if (!it.wanted) D.sel.set(keyOf(it.artist, it.title), it);
-        renderSelBar();
-      },
-    }),
+    getAll,
     iconBtn('refresh', 'Read again from MusicBrainz', () => loadArtist({ fresh: true })),
     iconBtn('globe', 'Open on MusicBrainz', () => api.shell.openExternal(`https://musicbrainz.org/artist/${a.id}`))
   );
@@ -1046,6 +1148,9 @@ function renderArtist(page) {
       tools
     )
   );
+  page.append(h('div.dv-bar.artist-bar', null, seg));
+  const strip = runBar();
+  if (strip) page.append(strip);
   if (!p.albums.length) {
     page.append(emptyBox('No studio albums listed', 'MusicBrainz doesn’t list any studio albums or EPs for this artist yet.'));
   }
@@ -1053,15 +1158,10 @@ function renderArtist(page) {
     const tracks = al.tracks.filter(shows);
     if (!tracks.length) continue;
     const have = al.tracks.filter((t) => t.have).length;
-    const miss = al.tracks.filter((t) => !t.have && !t.wanted && !t.official).map((t) => ({ artist: a.name, title: t.title, album: al.title, year: al.year }));
-    const selMiss = btn(miss.length ? `Select missing (${miss.length})` : 'Nothing to select', {
-      cls: 'small soft',
-      disabled: !miss.length,
-      onClick: () => {
-        for (const it of miss) D.sel.set(keyOf(it.artist, it.title), it);
-        renderSelBar();
-      },
-    });
+    const miss = al.tracks.filter((t) => !t.have && !t.official).map((t) => ({ artist: a.name, title: t.title, album: al.title, year: al.year }));
+    const selMiss = miss.length
+      ? btn(`Get ${miss.length === 1 ? 'the missing one' : `${miss.length} missing`}`, { cls: 'small soft get-album', iconName: 'download', title: `Look for the songs from ${al.title} you don’t have`, onClick: () => collect(miss) })
+      : h('span.state.have', { html: `${icon('check')}<span>Complete</span>` });
     const card = h(
       'section.album.card',
       null,
@@ -1132,7 +1232,27 @@ function renderGaps(page) {
       })
     );
   }
-  page.append(head('Collection gaps', 'How much of each artist you have, compared with their studio albums and EPs on MusicBrainz.', tools, { kicker: 'Discover' }));
+  // 4.26: search the gaps (artists and the songs they're missing) and get them in one go
+  const q = D.gapsQuery.trim().toLowerCase();
+  const hits = q.length >= 2 && D.gapHits && D.gapHits.query === q ? D.gapHits.rows : null;
+  const hitArtists = new Set((hits || []).map((r) => r.key));
+  const inQuery = (a) => !q || a.name.toLowerCase().includes(q) || hitArtists.has(a.key);
+  const withGaps = artists.filter((a) => a.status === 'ok' && a.missing > 0 && inQuery(a));
+  const gapN = withGaps.reduce((n, a) => n + a.missing, 0);
+  if (!running && withGaps.length) {
+    tools.unshift(
+      btn(q ? `Get ${gapN} missing` : `Get all missing (${gapN})`, {
+        cls: 'primary get-all',
+        iconName: 'download',
+        title: q ? 'Every song missing from the artists showing: the song finder looks for each one' : 'Every song missing from your artists’ albums: the song finder looks for each one',
+        onClick: () => getGaps(withGaps.map((a) => a.key)),
+      })
+    );
+    if (tools[1] && tools[1].classList.contains('primary')) tools[1].classList.remove('primary');
+  }
+  page.append(head('Collection gaps', 'How much of each artist you have, compared with their studio albums and EPs on MusicBrainz. Find the songs you’re missing and get them.', tools, { kicker: 'Discover' }));
+  const strip = runBar();
+  if (strip) page.append(strip);
   if (!g) {
     page.append(h('div.dv-loading', null, h('div.spin'), h('span', { text: 'Loading…' })));
     return;
@@ -1141,18 +1261,23 @@ function renderGaps(page) {
     page.append(emptyBox('No artists yet', 'Add a folder of songs first. Collection gaps compares the artists in your library with MusicBrainz.'));
     return;
   }
+  if (!running && gapsRd) {
+    gapsRd.finish('complete');
+    gapsRd = null;
+  }
   if (running) {
+    // 4.26: the live reading display, one band: the artist being checked and the album being read
     const left = running.total - running.done;
-    const pr = D.progress && D.progress.kind === 'gaps' ? D.progress : null;
+    const rd = gapsReading(running.current || '');
+    rd.update(D.progress && D.progress.kind === 'gaps' && D.progress.artist === running.current ? D.progress : { artist: running.current || '' });
     const meter = h('div.progress', null, h('i'));
     meter.firstChild.style.width = `${running.total ? Math.round((running.done / running.total) * 100) : 0}%`;
     page.append(
       h(
-        'div.dv-banner.card.run',
+        'div.dv-banner.card.run.gaps-run',
         null,
-        h('div.spin'),
-        h('div.grow', null, h('b', { text: `Checking ${running.current || '…'}` }), h('span', { text: ` · ${running.done} of ${running.total} artists${pr && pr.total ? ` · album ${Math.min(pr.done + 1, pr.total)} of ${pr.total}` : ''}` }), meter),
-        h('span.muted', { text: left > 1 ? `About ${Math.max(1, Math.round((left * 12) / 60))} min left` : 'Almost done' })
+        rd.el,
+        h('div.gaps-run-side', null, h('b', { text: `${running.done} of ${plural(running.total, 'artist')}` }), meter, h('span.muted', { text: left > 1 ? `About ${Math.max(1, Math.round((left * 12) / 60))} min left` : 'Almost done' }))
       )
     );
   } else if (unchecked.length && !checked.length) {
@@ -1206,9 +1331,21 @@ function renderGaps(page) {
     store('stagehand.gapsSort', sort.value);
     render();
   };
-  page.append(h('div.dv-bar', null, filters, h('label.sortby', null, h('span', { text: 'Sort' }), sort)));
+  const find = h('input.input.dv-filter.gaps-find', { type: 'search', placeholder: 'Find an artist or a missing song', 'aria-label': 'Find an artist or a missing song', value: D.gapsQuery });
+  find.addEventListener(
+    'input',
+    debounce(() => {
+      D.gapsQuery = find.value;
+      loadGapHits();
+      render();
+      const f = root.querySelector('.gaps-find');
+      if (f) (f.focus(), f.setSelectionRange(f.value.length, f.value.length));
+    }, 250)
+  );
+  page.append(h('div.dv-bar', null, find, filters, h('label.sortby', null, h('span', { text: 'Sort' }), sort)));
+  if (hits && hits.length) page.append(gapHitsSection(hits, q));
 
-  let rows = artists.slice();
+  let rows = artists.filter(inQuery);
   if (D.gapsFilter === 'gaps') rows = rows.filter((a) => a.status === 'ok' && a.missing > 0);
   else if (D.gapsFilter === 'complete') rows = rows.filter((a) => a.status === 'ok' && a.missing === 0 && a.total);
   else if (D.gapsFilter === 'unchecked') rows = rows.filter((a) => a.status !== 'ok');
@@ -1222,8 +1359,59 @@ function renderGaps(page) {
   const table = h('div.dv-table.gaps.card');
   table.append(h('div.gap-row.head', null, h('div'), h('div', { text: 'Artist' }), h('div', { text: 'You have' }), h('div', { text: 'Complete' }), h('div', { text: 'Missing' }), h('div')));
   for (const a of rows) table.append(gapRow(a, running));
-  if (!rows.length) table.append(h('div.dv-none', { text: 'No artists match this filter.' }));
+  if (!rows.length) table.append(h('div.dv-none', { text: q ? `No artists or missing songs match “${D.gapsQuery.trim()}”.` : 'No artists match this filter.' }));
   page.append(table);
+}
+
+/** 4.26: the reading display for a gaps check (one band), kept across redraws while it runs. */
+let gapsRd = null;
+function gapsReading(name) {
+  if (!gapsRd) gapsRd = readingView({ artist: name, compact: true });
+  return gapsRd;
+}
+
+async function loadGapHits() {
+  const q = D.gapsQuery.trim().toLowerCase();
+  if (q.length < 2 || !api.discover.gapSongs) return;
+  const rows = await api.discover.gapSongs({ query: q }).catch(() => null);
+  if (D.gapsQuery.trim().toLowerCase() !== q) return; // (typed on since)
+  D.gapHits = { query: q, rows: rows || [] };
+  if (sub() === 'gaps') {
+    const f = document.activeElement && document.activeElement.classList.contains('gaps-find');
+    render();
+    const box = f && root.querySelector('.gaps-find');
+    if (box) (box.focus(), box.setSelectionRange(box.value.length, box.value.length));
+  }
+}
+
+/** Get the songs missing from some artists (the list saved by the last check). */
+async function getGaps(keys) {
+  if (!keys.length) return;
+  if (!api.discover.gapSongs) return;
+  const rows = await api.discover.gapSongs({ keys }).catch((err) => (toast({ title: 'Couldn’t read the gaps', message: err.message, kind: 'err' }), null));
+  const songs = (rows || []).flatMap((r) => r.songs);
+  if (!songs.length) {
+    toast({ title: 'Nothing to get', message: 'Check the artists again: their missing songs weren’t saved yet, or you have them now.', kind: 'info' });
+    return;
+  }
+  await collect(songs.map(({ artist, title, album, year }) => ({ artist, title, album, year })));
+}
+
+/** Songs missing from your artists that match the search: each with Get it, and Get all. */
+function gapHitsSection(hits, q) {
+  const songs = hits.flatMap((r) => r.songs);
+  const sec = h('section.dv-section.gap-hits');
+  const getAll = btn(`Get ${songs.length === 1 ? 'it' : `all ${songs.length}`}`, { cls: 'small primary get-all', iconName: 'download', onClick: () => collect(songs.map(({ artist, title, album, year }) => ({ artist, title, album, year }))) });
+  sec.append(h('h3', null, h('span.sec-ic', { html: icon('music') }), h('span', { text: 'Missing songs' }), h('span.hint', { text: `${songs.length} matching “${D.gapsQuery.trim()}” from ${plural(hits.length, 'artist')}` }), getAll));
+  const table = h('div.dv-table.songs.gap-songs.card');
+  for (const s of songs.slice(0, 60)) {
+    const t = { title: s.title, have: false, wanted: s.wanted, unavailable: s.unavailable };
+    table.append(songRow(t, { artist: s.artist, title: s.title, album: s.album, year: s.year }));
+  }
+  if (songs.length > 60) table.append(h('div.dv-none', { text: `and ${songs.length - 60} more. Get all takes them too, or type more words.` }));
+  sec.append(table);
+  void q;
+  return sec;
 }
 
 function stat(n, label) {
@@ -1248,6 +1436,19 @@ function gapRow(a, running) {
     row.append(h('div.c-have', { html: `<b>${a.owned}</b><span> in library</span>` }), h('div.c-bar'), h('div.c-miss', { text: '' }));
   }
   const acts = h('div.acts');
+  if (a.status === 'ok' && a.missing > 0) {
+    acts.append(
+      btn(`Get ${a.missing}`, {
+        cls: 'small soft get-gap',
+        iconName: 'download',
+        title: `Get the ${plural(a.missing, 'song')} missing from ${a.name}’s albums`,
+        onClick: (e) => {
+          e.stopPropagation();
+          getGaps([a.key]);
+        },
+      })
+    );
+  }
   if (a.status !== 'ok' && a.status !== 'not-found' && !running) {
     acts.append(
       btn(a.status === 'ambiguous' ? 'Choose…' : 'Check', {
@@ -1280,8 +1481,7 @@ function renderWanted(page) {
   const gone = D.wanted.filter((w) => w.status === 'unavailable');
   const official = D.wanted.filter((w) => w.status === 'official');
   const tools = [
-    D.run ? null : btn('Get songs', { cls: 'primary', iconName: 'download', disabled: !left.length, onClick: () => startRun(), title: hasFinder() ? 'One after another: the song finder searches CustomsForge for each song and imports what you download' : 'One after another: Stagehand copies each song for CustomsForge’s search and imports what you download' }),
-    btn('Find next', { cls: 'soft', iconName: hasFinder() ? 'search' : 'external', disabled: !left.length, onClick: () => findNext(), title: hasFinder() ? 'Searches CustomsForge for the next song in the song finder' : 'Copies the next song and opens CustomsForge in your browser' }),
+    D.run ? null : btn(left.length ? `Get songs (${left.length})` : 'Get songs', { cls: 'primary get-songs', iconName: 'download', disabled: !left.length, onClick: () => startRun(), title: hasFinder() ? 'One after another: the song finder searches CustomsForge for each song and imports what you download' : 'One after another: Stagehand copies each song for CustomsForge’s search and imports what you download' }),
     btn('Copy list', { cls: 'soft', iconName: 'copy', disabled: !left.length, onClick: () => copyList(left) }),
   ].filter(Boolean);
   if (found.length) {
@@ -1297,13 +1497,13 @@ function renderWanted(page) {
     );
   }
   const bits = [`${plural(left.length, 'song')} to find`, found.length ? `${found.length} found` : '', gone.length ? `${gone.length} not available` : '', official.length ? `${official.length} official DLC` : ''].filter(Boolean);
-  const subText = D.wanted.length ? bits.join(' · ') : 'Songs you want to get, collected from Search and Collection gaps.';
+  const subText = D.wanted.length ? bits.join(' · ') : 'The songs you’re getting, and the ones saved for later.';
   page.append(head('Wanted', subText, tools, { kicker: 'Discover' }));
   const summary = summaryCard('wanted');
   if (summary) page.append(summary);
   if (!D.wanted.length) {
     page.append(
-      emptyBox('Nothing wanted yet', 'Search for an artist, or open <b>Collection gaps</b>, tick the songs you don’t have and choose <b>Add to Wanted</b>.', [
+      emptyBox('Nothing wanted yet', 'Search for an artist or a song, or open <b>Collection gaps</b>, and press <b>Get</b> on what you don’t have. The song finder looks for it straight away, and the list shows here.', [
         btn('Search', { iconName: 'search', onClick: () => open('search') }),
         btn('Collection gaps', { iconName: 'pie', onClick: () => open('gaps') }),
       ])
@@ -1380,7 +1580,7 @@ function renderWanted(page) {
     const name = h('button.dv-link', { type: 'button', text: artist, title: `Open ${artist}` });
     name.onclick = () => openArtist({ name: artist }, 'wanted');
     const ids = items.filter((w) => w.status === 'wanted').map((w) => w.id);
-    const grp = h('section.want-group.dv-list', null, h('div.want-head', null, ids.length ? pickGroup(ids, artist) : h('span.c-sel'), h('h3', null, name), h('span.muted', { text: n ? `${n} to find` : 'All found' })));
+    const grp = h('section.want-group.dv-list', null, h('div.want-head', null, ids.length ? pickGroup(ids, artist) : h('span.c-sel'), avatar(artist, 'sm'), h('h3', null, name), h('span.muted', { text: n ? `${n} to find` : 'All found' })));
     for (const w of items) {
       const row = h(`div.want-row${w.status === 'found' ? '.found' : ''}`);
       const when = seen[keyOf(w.artist, w.title)];
@@ -1491,102 +1691,115 @@ function offTime(t) {
 }
 
 /**
- * 4.25: Official DLC: the paid Rocksmith songs you don't have (and ones the finder only found as
- * official). They can't be downloaded, so they're asked for: tick them and press Request.
+ * 4.25: Official DLC: the paid Rocksmith songs you don't have. 4.26: nothing to pick: the page
+ * shows them all, by artist, and ONE request asks Noisewater Labs for every one of them (they send
+ * all the files). One request every 12 hours; never a mail app.
  */
 function renderOfficial(page) {
   const o = D.official;
-  const reqBtn = btn('Request', { cls: 'primary', iconName: 'music', title: 'Ask Noisewater Labs for the songs you ticked', onClick: () => requestDialog(pickedOfficial()) });
-  reqBtn.classList.add('off-request');
-  page.append(head('Official DLC', 'Paid Rocksmith songs you don’t have. They can’t be downloaded, so they can’t go on Wanted.', [], { kicker: 'Discover' }));
-  const wait = o && o.nextAt && o.nextAt > Date.now() ? `You can send your next request ${offTime(o.nextAt)}.` : o && o.queued ? 'Your request is waiting to go out: it’s sent when you’re online.' : 'Tick the songs you’d like and press Request. One request every 12 hours.';
-  page.append(h('section.off-contact', null, h('div', null, h('h2', { text: 'Contact Noisewater Labs for these songs' }), h('p', { text: wait })), reqBtn));
+  const total = o ? o.songs.length : 0;
+  const nArtists = o ? new Set(o.songs.map((s) => s.artist.toLowerCase())).size : 0;
+  page.append(head('Official DLC', o ? (total ? `${plural(total, 'official song')} you don’t have, by ${plural(nArtists, 'artist')}.` : 'You have every official song.') : 'Paid Rocksmith songs you don’t have.', [], { kicker: 'Discover' }));
+  // the one request, up top
+  const waiting = !!(o && o.nextAt && o.nextAt > Date.now());
+  const reqBtn = btn(waiting ? 'Requested' : 'Request all official DLC', { cls: 'primary off-request', iconName: waiting ? 'check' : 'music', disabled: !o || !total || waiting, title: 'One request: Noisewater Labs sends you every official song you don’t have', onClick: () => requestDialog() });
+  const status = !o
+    ? 'Loading…'
+    : waiting
+      ? `Your request is in. You can send another ${offTime(o.nextAt)}.`
+      : o.queued
+        ? 'Your request is waiting to go out: it’s sent by itself when you’re online.'
+        : 'No need to pick songs. One request and Noisewater Labs sends you every official song you don’t have yet.';
+  page.append(
+    h(
+      'section.off-contact',
+      null,
+      h('div.off-badge', { html: icon('music') }),
+      h('div.off-words', null, h('small', { text: 'Noisewater Labs' }), h('h2', { text: total ? `Get all ${total} official songs` : 'Get the official songs' }), h('p', { text: status })),
+      reqBtn
+    )
+  );
   if (!o) {
     page.append(h('div.dv-loading', null, h('div.spin'), h('span', { text: 'Loading…' })));
+    return;
+  }
+  if (!total) {
+    page.append(emptyBox('Nothing to ask for', 'You have every official Rocksmith song. Nice.'));
     return;
   }
   const filter = h('input.input.dv-filter', { type: 'search', placeholder: 'Find an artist or song', 'aria-label': 'Find an artist or song', value: D.offFilter });
   const listEl = h('div.off-list');
   const count = h('span.muted');
   const draw = () => {
-    pick.order = [];
     const q = D.offFilter.trim().toLowerCase();
     const songs = o.songs.filter((s) => !q || `${s.artist} ${s.title}`.toLowerCase().includes(q));
-    count.textContent = q ? `${songs.length} of ${o.songs.length} songs` : `${o.songs.length} songs you don’t have`;
+    count.textContent = q ? `${songs.length} of ${total} songs` : `${plural(total, 'song')} · ${plural(nArtists, 'artist')}`;
     const groups = new Map();
     for (const s of songs) {
-      if (!groups.has(s.artist)) groups.set(s.artist, []);
-      groups.get(s.artist).push(s);
+      const k = s.artist.toLowerCase();
+      if (!groups.has(k)) groups.set(k, { name: s.artist, songs: [] });
+      groups.get(k).songs.push(s);
     }
     const coll = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
-    const names = [...groups.keys()].sort((a, b) => coll.compare(a.replace(/^the\s+/i, ''), b.replace(/^the\s+/i, '')));
+    const names = [...groups.values()].sort((a, b) => coll.compare(a.name.replace(/^the\s+/i, ''), b.name.replace(/^the\s+/i, '')));
     const frag = document.createDocumentFragment();
-    const mine = songs.filter((s) => s.wantedId);
-    if (mine.length) frag.append(offGroup('From your Wanted list', mine, true));
-    for (const n of names) frag.append(offGroup(n, groups.get(n).filter((s) => !s.wantedId), false));
-    if (!songs.length) frag.append(h('p.muted.dv-none', { text: o.songs.length ? 'No official songs match.' : 'You have every official song. Nothing to ask for.' }));
+    for (const g of names) frag.append(offGroup(g.name, g.songs));
+    if (!songs.length) frag.append(h('p.muted.dv-none', { text: 'No official songs match.' }));
     listEl.replaceChildren(frag);
-    syncPicks();
   };
   filter.addEventListener('input', debounce(() => ((D.offFilter = filter.value), draw()), 150));
-  page.append(h('div.want-tools.dv-listbar', null, selectAllButton(), filter, count), listEl);
+  page.append(h('div.want-tools.dv-listbar', null, filter, count), listEl);
   draw();
 }
 
-function offGroup(name, songs, mineGroup) {
-  if (!songs.length) return document.createDocumentFragment();
-  const ids = songs.map((s) => s.key);
-  const g = h(`section.off-group.dv-list${mineGroup ? '.mine' : ''}`, null, h('div.want-head', null, pickGroup(ids, name), h('h3', { text: name }), h('span.muted', { text: String(songs.length) })));
-  for (const s of songs) {
-    const row = h('div.want-row.o');
-    pickRow(row, s.key);
-    row.append(
-      h('div.c-sel', null, pickBox(s.key, s.title)),
-      h('div.c-main', null, h('div.t', { text: s.title }), mineGroup ? h('div.s', { text: s.artist }) : null),
-      h('span.state.official', { html: `${icon('music')}<span>Official DLC</span>` }),
-      h('div.acts', null, btn('Request', { cls: 'small ghost', title: 'Ask Noisewater Labs for this song', onClick: () => requestDialog([{ artist: s.artist, title: s.title }]) }), s.wantedId ? iconBtn('x', 'Take it off your list', () => unwant([s.wantedId]).then(loadOfficial)) : null)
-    );
-    g.append(row);
+/** An artist (a heading with its sticker and count) and its official songs under it, as a list. */
+function offGroup(name, songs) {
+  const g = h('section.off-group');
+  const coll = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+  g.append(h('header.off-artist', null, avatar(name, 'sm'), h('h3', { text: name }), h('span.off-n', { text: plural(songs.length, 'song') })));
+  const list = h('ol.off-songs');
+  for (const s of songs.slice().sort((a, b) => coll.compare(a.title, b.title))) {
+    const li = h('li.off-song', null, h('span.off-ic', { html: icon('music') }), h('span.t', { text: s.title }));
+    // (songs the song finder only found as official: they can come off your list)
+    if (s.wantedId) li.append(h('span.off-found', { text: 'Found by the song finder' }), iconBtn('x', 'Take it off your list', () => unwant([s.wantedId]).then(loadOfficial)));
+    list.append(li);
   }
+  g.append(list);
   return g;
 }
 
-function pickedOfficial() {
-  const songs = (D.official && D.official.songs) || [];
-  return songs.filter((s) => pick.ids.has(s.key)).map((s) => ({ artist: s.artist, title: s.title }));
-}
-
-/** 4.25: ask for official songs: the songs, how to reach you (remembered), a note, Send. */
-export function requestDialog(songs) {
-  songs = (songs || []).filter((s) => s && s.title);
-  if (!songs.length) {
-    toast({ title: 'Tick some songs first', message: 'Tick the official songs you’d like, then press Request.', kind: 'info' });
+/**
+ * 4.26: the request: all of the official songs you don't have. How to reach you (remembered) and
+ * a note; Send goes out from Stagehand itself (ntfy, then FormSubmit, then kept and retried).
+ */
+export function requestDialog() {
+  const o = D.official || {};
+  const total = (o.songs || []).length;
+  if (!total) {
+    toast({ title: 'Nothing to ask for', message: 'You have every official song.', kind: 'info' });
     return;
   }
-  const o = D.official || {};
   let remembered = o.contact || '';
   try {
     remembered = remembered || localStorage.getItem('stagehand.requestContact') || '';
   } catch (_) {}
-  const list = h('ul.req-songs');
-  for (const s of songs.slice(0, 8)) list.append(h('li', null, h('b', { text: s.title }), h('span', { text: ` · ${s.artist}` })));
-  if (songs.length > 8) list.append(h('li.more', { text: `and ${songs.length - 8} more` }));
   const contact = h('input.input', { type: 'text', value: remembered, placeholder: 'Your email or Discord name', 'aria-label': 'How can Noisewater Labs reach you?', maxlength: '200', autofocus: true });
   const note = h('textarea.input', { rows: '3', maxlength: '2000', placeholder: 'Anything else? (optional)', 'aria-label': 'A note (optional)' });
   const msg = h('p.req-msg', { role: 'status' });
   const nextAt = o.nextAt && o.nextAt > Date.now() ? o.nextAt : 0;
   if (nextAt) msg.textContent = `One request every 12 hours. You can send the next one ${offTime(nextAt)}.`;
-  const send = btn('Send', { cls: 'primary', iconName: 'check', disabled: !!nextAt });
+  const send = btn('Send request', { cls: 'primary', iconName: 'check', disabled: !!nextAt });
   const cancel = btn('Cancel', { cls: 'ghost' });
   const m = modal({
-    title: songs.length === 1 ? `Ask for ${songs[0].title}` : `Ask for ${songs.length} songs`,
+    title: 'Request all official DLC',
     body: h(
       'div.req-dialog',
       null,
-      h('p', { text: 'Official Rocksmith songs are paid DLC and can’t be downloaded. Noisewater Labs can look into them for you.' }),
-      list,
+      h('div.req-all', null, h('b', { text: String(total) }), h('span', { text: `official ${total === 1 ? 'song' : 'songs'} you don’t have` })),
+      h('p', { text: 'Official Rocksmith songs are paid DLC and can’t be downloaded here. Noisewater Labs sends you all of them: you don’t need to pick any.' }),
       h('label.req-field', null, h('span', { text: 'How can Noisewater Labs reach you?' }), contact),
       h('label.req-field', null, h('span', { text: 'A note' }), note),
+      h('p.req-fine', { text: 'One request every 12 hours. Stagehand sends it for you.' }),
       msg
     ),
     footer: [cancel, send],
@@ -1604,11 +1817,10 @@ export function requestDialog(songs) {
     try {
       localStorage.setItem('stagehand.requestContact', c);
     } catch (_) {}
-    const r = await api.discover.requestOfficial({ songs, contact: c, note: note.value }).catch((err) => ({ ok: false, via: 'none', error: err.message }));
+    const r = await api.discover.requestOfficial({ all: true, contact: c, note: note.value }).catch((err) => ({ ok: false, via: 'none', error: err.message }));
     if (D.official) Object.assign(D.official, { contact: c, nextAt: (r && r.nextAt) || D.official.nextAt, queued: r && r.via === 'queued' ? (D.official.queued || 0) + 1 : D.official.queued });
     if (r && r.ok) {
       m.close();
-      pickClear();
       toast(
         r.via === 'queued'
           ? { title: 'Request saved', message: 'You seem to be offline. It goes out by itself when you’re back online.', kind: 'info', timeout: 8000 }
@@ -1705,7 +1917,8 @@ function queueRow(w, n, seen) {
   } else {
     pickRow(row, w.id);
     acts.append(btn('Find', { cls: 'small', iconName: hasFinder() ? 'search' : 'external', title: 'Look for it now', onClick: () => findOnCF(w, { open: !D.cfOpened }) }));
-    acts.append(iconBtn('clock', 'Not available: nothing on CustomsForge', () => setStatus([w.id], 'unavailable')));
+    // 4.26: said in words: CustomsForge has nothing for it (it moves to Not available, to try another time)
+    acts.append(btn('Not available', { cls: 'small ghost mark-na', iconName: 'clock', title: 'CustomsForge has nothing for it: keep it on Not available and try again another time', onClick: () => setStatus([w.id], 'unavailable') }));
     acts.append(iconBtn('x', 'Remove from Wanted', () => unwant([w.id])));
   }
   row.append(acts);
@@ -1747,7 +1960,7 @@ function drawNow({ force = false } = {}) {
   const steps = ['Ready to search', 'Choose a version', 'Downloading', 'Checking & importing', 'Added to Songs'];
   const strip = h('ol.want-steps', { 'aria-label': 'Steps' });
   steps.forEach((t, i) => strip.append(h(`li${i < at ? '.done' : i === at ? '.on' : ''}`, null, h('i', { text: i < at ? '✓' : String(i + 1) }), h('span', { text: t }))));
-  const pos = run ? `${run.done + 1} of ${run.done + left.filter((w) => !run.skipped.has(w.id)).length}` : `${left.length} to find`;
+  const pos = run ? `${run.done + 1} of ${run.done + runLeft().length}` : `${left.length} to find`;
   const who = h(`span.want-turn.${turn}`, { text: turn === 'you' ? 'Waiting on you' : turn === 'sh' ? 'Stagehand is working' : 'Not started' });
   const acts = h('div.acts');
   if (run) {
@@ -1780,7 +1993,7 @@ function howItWorks() {
   const steps = h(
     'ol.how-steps.cols4',
     null,
-    h('li', null, h('b', { text: 'Want it' }), h('span', { text: 'In Search or Collection gaps, press Want it on songs you don’t have. They collect here.' })),
+    h('li', null, h('b', { text: 'Get' }), h('span', { text: 'In Search, an artist or Collection gaps, press Get on songs you don’t have. The star saves one for later.' })),
     h('li', null, h('b', { text: 'Find' }), h('span', { text: hasFinder() ? 'Stagehand opens CustomsForge in its own window and searches for the song.' : 'Stagehand copies the song and opens CustomsForge. Paste it into the search box.' })),
     h('li', null, h('b', { text: 'Download' }), h('span', { text: hasFinder() ? 'Get the PC version (_p.psarc) in that window.' : 'Get the PC version (_p.psarc) in your browser.' })),
     h('li', null, h('b', { text: 'Play' }), h('span', { text: 'Stagehand moves it into Rocksmith and ticks it off here.' }))
@@ -2160,16 +2373,11 @@ on('rocksmith', () => isDiscover() && sub() === 'imports' && render());
 
 // ------------------------------------------------------------ live updates --
 api.on('discover:progress', (p) => {
+  if (!p) return;
   D.progress = p;
-  const label = root.querySelector('.dv-progress .label');
-  if (p.kind === 'artist' && label && D.loadingArtist) {
-    label.textContent = p.total ? `Reading albums from MusicBrainz… ${p.done} of ${p.total}${p.title ? ` · ${p.title}` : ''}` : 'Reading albums from MusicBrainz…';
-    const bar = root.querySelector('.dv-loading .progress');
-    if (bar && p.total) {
-      bar.classList.remove('indeterminate');
-      bar.firstChild.style.width = `${Math.round((p.done / p.total) * 100)}%`;
-    }
-  }
+  // 4.26: the reading display changes in place (the artist, the album, the songs just read)
+  if (p.kind === 'artist' && D.loadingArtist && reading && forThisArtist(p)) reading.update(p);
+  if (p.kind === 'gaps' && gapsRd && D.gaps && D.gaps.running && p.artist === D.gaps.running.current) gapsRd.update(p);
 });
 api.on(
   'discover:gaps',
