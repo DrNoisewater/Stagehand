@@ -2213,11 +2213,26 @@ api.on('finder:event', (e) => {
     if (done && wid.startsWith('upd:')) gotUpdate(wid).catch(() => {});
     return;
   }
+  // 4.26: which search is the latest for which song (a late answer to an older one is ignored)
+  if (e.type === 'searched') {
+    finderSearch = { id: String((e.want && e.want.id) || ''), search: String(e.search || '') };
+    return;
+  }
   // 4.25: the finder read the results: no match → Not available, only official → Official DLC
   if (e.type === 'results') {
     onResults(e).catch(() => {});
     return;
   }
+  // 4.26: the player marked the song in the finder's bar (Not available, or Undo); after the brake, Keep going
+  if (e.type === 'mark') {
+    onMark(e).catch(() => {});
+    return;
+  }
+  if (e.type === 'next') {
+    if (D.run) runNext().catch(() => {});
+    return;
+  }
+  if (e.type === 'closed') finderKept.clear();
   // 4.25: the finder showed CustomsForge's Updated CDLC list (main keeps the rows for songs you have)
   if (e.type === 'updates') {
     setTimeout(() => refreshUpdates(), 500);
@@ -2229,13 +2244,26 @@ api.on('finder:event', (e) => {
   } else if (e.type === 'stop') stopRun();
 });
 
+// 4.26: the finder's latest search (its song and id), and the searches that already marked a song
+let finderSearch = { id: '', search: '' };
+const finderMarked = new Set();
+const finderKept = new Set(); // songs put back with Undo: not marked by themselves again while the finder is open
+
 async function onResults(e) {
   const want = e.want || {};
   const wid = String(want.id || '');
   if (!wid || wid.startsWith('upd:') || wid.startsWith('better:')) return;
-  if (e.verdict !== 'none' && e.verdict !== 'official') return; // a match: the player picks and downloads
+  // a match: the player picks and downloads; 'unsure': nothing is marked, the run waits for the player
+  if (e.verdict !== 'none' && e.verdict !== 'official') return;
+  // 4.26: only the answer to the latest search, for the song the run is on, and only once per search
+  const search = String(e.search || '');
+  if (search && finderSearch.search && (finderSearch.search !== search || finderSearch.id !== wid)) return;
+  if (search && finderMarked.has(search)) return;
+  if (D.run && (!D.run.current || D.run.current.id !== wid)) return;
+  if (finderKept.has(wid)) return; // (the player undid a mark for this one)
   const w = D.wanted.find((x) => x.id === wid) || D.wanted.find((x) => x.status === 'wanted' && keyOf(x.artist, x.title) === keyOf(want.artist || '', want.title || ''));
   if (!w || w.status !== 'wanted') return;
+  if (search) finderMarked.add(search);
   const status = e.verdict === 'none' ? 'unavailable' : 'official';
   const current = D.run && D.run.current && D.run.current.id === w.id;
   D.wanted = (await api.discover.setStatus([w.id], status).catch(() => null)) || D.wanted;
@@ -2243,13 +2271,44 @@ async function onResults(e) {
   emit('discover-wanted');
   toast({
     title: status === 'unavailable' ? `Not on CustomsForge: ${w.title}` : `Official DLC: ${w.title}`,
-    message: status === 'unavailable' ? `Moved to Not available. You can try it again later.${current ? ' On to the next song.' : ''}` : `A paid Rocksmith song, so it moved to Official DLC.${current ? ' On to the next song.' : ''}`,
+    message: status === 'unavailable' ? `Moved to Not available. You can try it again later.${current && !e.pause ? ' On to the next song.' : ''}` : `A paid Rocksmith song, so it moved to Official DLC.${current ? ' On to the next song.' : ''}`,
     kind: 'info',
     timeout: 5000,
   });
   if (current) {
     D.run[status] = (D.run[status] || 0) + 1;
-    await runNext();
+    // 4.26: the brake: after three in a row the finder asks first (Keep going / Stop)
+    if (!e.pause) await runNext();
+  }
+  if (sub() === 'wanted') render();
+}
+
+/** 4.26: the player marked a song in the finder: Not available (the run moves on), or Undo (back on Wanted). */
+async function onMark(e) {
+  const want = e.want || {};
+  const wid = String(want.id || '');
+  if (wid.startsWith('upd:') || wid.startsWith('better:')) return;
+  const w = D.wanted.find((x) => x.id === wid) || D.wanted.find((x) => keyOf(x.artist, x.title) === keyOf(want.artist || '', want.title || ''));
+  if (!w) return;
+  if (e.status === 'unavailable') {
+    if (w.status !== 'wanted') return;
+    await setStatus([w.id], 'unavailable'); // (moves the run on when it is the run's song)
+    return;
+  }
+  if (e.status !== 'wanted' || w.status !== 'unavailable') return;
+  finderKept.add(w.id); // (the finder won't mark it again by itself)
+  await setStatus([w.id], 'wanted');
+  const run = D.run;
+  if (run && run.kind === 'wanted') {
+    run.unavailable = Math.max(0, (run.unavailable || 0) - 1);
+    // back to that song
+    run.skipped.delete(w.id);
+    const item = D.wanted.find((x) => x.id === w.id);
+    if (item) {
+      run.current = item;
+      await runCopy(item);
+      emit('discover-run');
+    }
   }
   if (sub() === 'wanted') render();
 }
