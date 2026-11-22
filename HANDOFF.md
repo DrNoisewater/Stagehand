@@ -1,4 +1,4 @@
-# Unreleased (after 4.26.0) — The Unmixer: the user's animation is the stem splitting card (2026-11-22; nothing tried on the user's PC)
+# 4.26.1 — The Unmixer: the user's animation is the stem splitting card (2026-11-22; nothing tried on the user's PC)
 
 **Asked:** "We are going to update the stem splitting card that's shown on the highway. Not the activity bar. We also want to remove the little graphic that's at the top left of the progress screen while splitting." They sent the Unmixer pack (a compact card: a skull at a bench whose hand presses a brass button, a beam through a prism onto a scope; a corrected version replaced the first one the same day, the bar and percentage, the song, and its own Play now button).
 
@@ -13,7 +13,7 @@
 
 **Test:** `SH_AUDIT=test/e2e/unmixer-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>` (the card on a page and on the highway, no sticker, it follows the split, Play now, it goes when the stems are in and the song starts, waiting in line). Pictures: `unmixer-page.png`, `unmixer-highway.png`, `unmixer-queued.png`.
 
-**Ask the user:** does the card sit where they want it (over the highway it is in the middle; on other pages it is low and centred, as before), and is it big enough on their screen? It isn't in a release yet: bump the version and add a README line when it goes out.
+**Ask the user:** does the card sit where they want it (over the highway it is in the middle; on other pages it is low and centred, as before), and is it big enough on their screen? Released as 4.26.1.
 
 # 4.26.0 — The finder stops false Not available chains, one-step Get, Official DLC as one request, the Reliquary, Lab footswitches toggle, previews, capo, tuning search (2026-11-22; nothing tried on the user's PC)
 
