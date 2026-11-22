@@ -56,12 +56,23 @@
   .offer button { height: 26px; font-size: 12px; padding: 0 10px; }
   .offer small { font-family: 'Typewriter Stagehand', monospace; font-size: 10.5px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   body.offering .msg { -webkit-line-clamp: 1; }
-  .none .want, .none .tape, .none [data-act=find], .none [data-act=skip] { display: none; }
+  .none .want, .none .tape, .none [data-act=find], .none [data-act=skip], .none [data-act=markNone], .updating [data-act=markNone] { display: none; }
+  /* 4.26: Undo after a song was marked Not available; the question after three in a row */
+  .ask { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .ask[hidden], #undoBtn[hidden] { display: none; }
+  .ask b { font-size: 12.5px; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .ask button { height: 26px; font-size: 12px; padding: 0 10px; }
+  .ask button.go { height: 26px; }
+  #undoBtn { flex: 0 1 auto; min-width: 64px; max-width: min(260px, 100%); overflow: hidden; text-overflow: ellipsis; }
+  body.asking .msg { -webkit-line-clamp: 1; }
+  /* the question needs room: the picture, the page size and the message step aside while it's asked */
+  body.question .roadie, body.question .zoom, body.question .msg, body.question [data-act=browser] { display: none; }
+  body.question .ask b { font-size: 14px; }
   /* narrower windows: the Roadie gets smaller, then the words step aside, then the Roadie, before any button */
   @media (max-width: 1400px) { .roadie { width: 210px; height: 50px; } .tape { display: none; } }
   @media (max-width: 1100px) { .msg { -webkit-line-clamp: 1; font-size: 12px; } }
   @media (max-width: 960px) { .roadie { display: none; } }
-  @media (max-width: 860px) { .say { display: none; } [data-act=browser] { display: none; } }
+  @media (max-width: 860px) { .say { display: none; } [data-act=browser] { display: none; } body.question .say { display: flex; } body.question .want { display: none; } }
 </style>
 <script src="roadie.js"></script>
 </head>
@@ -76,10 +87,17 @@
   <div class="grp">
     <button class="go" data-act="find" title="Type this song into the site’s search box">Find</button>
     <button data-act="skip" title="Leave this one for later and look for the next wanted song">Next song</button>
+    <button data-act="markNone" title="This song isn’t on CustomsForge: put it on your Not available list and look for the next one">Not available</button>
   </div>
   <div class="roadie" id="roadie" role="img" aria-label="Ready"></div>
   <div class="say">
     <div class="msg" id="msg" aria-live="polite">Sign in to CustomsForge here once. Songs you download in this window go straight into your library.</div>
+    <div class="ask" id="ask" hidden>
+      <b id="askText"></b>
+      <button class="go" data-act="keep" id="keepBtn" hidden>Keep going</button>
+      <button data-act="stop" id="stopBtn" hidden>Stop</button>
+      <button data-act="undo" id="undoBtn" hidden>Undo</button>
+    </div>
     <div class="offer" id="offer" hidden>
       <button data-act="openOffer" id="offerBtn" title="Open that link in your own browser">Open in my browser</button>
       <small id="offerHost"></small>
@@ -144,6 +162,20 @@
     m.title = m.textContent;
     const pct = cur && cur.state === 'going' && cur.known ? ` ${cur.pct}%` : '';
     $('roadie').setAttribute('aria-label', `${NAMES[(st.view && st.view.state) || 'idle'] || 'Ready'}${pct}`);
+    // 4.26: the run paused to ask (Keep going / Stop), and Undo for a song just marked Not available
+    document.body.classList.toggle('updating', !!(st.want && st.want.mode === 'update'));
+    const asking = !!st.ask;
+    $('ask').hidden = !asking && !st.undo;
+    document.body.classList.toggle('asking', !$('ask').hidden);
+    document.body.classList.toggle('question', asking);
+    $('askText').textContent = asking ? st.ask.text : '';
+    $('askText').hidden = !asking;
+    $('keepBtn').hidden = !asking;
+    $('stopBtn').hidden = !asking;
+    // (while it asks, Undo waits: the question comes first)
+    $('undoBtn').hidden = !st.undo || asking;
+    $('undoBtn').textContent = st.undo ? `Undo “${st.undo.title}”` : 'Undo';
+    $('undoBtn').title = st.undo ? `Put “${st.undo.title}” back on Wanted` : '';
     // a link the player clicked to another site: one button to open it in their browser
     $('offer').hidden = !st.offer;
     document.body.classList.toggle('offering', !!st.offer);

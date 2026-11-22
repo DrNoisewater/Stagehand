@@ -14,6 +14,10 @@
  *  - the Roadie follows the real state (never In Songs before the import says so), a new download
  *    cuts a celebration short, a failed download shows the still; its frame rate is measured;
  *  - Updated CDLC: opened by its words, its rows read; the run's end closes the window.
+ * 4.26 (a run marked song after song Not available: the old "No matching CDLC" was read as the next
+ * song's answer): a Wanted run through the real page on a site that answers some searches slowly and
+ * keeps the old page meanwhile: a song that IS there is never marked; Undo; three in a row stop and
+ * ask (Keep going); the bar's Not available button; a site that never shows anything new: "unsure".
  *
  *   ELECTRON=<electron 44> xvfb-run -a -s "-screen 0 4000x2400x24" node test/e2e/finder-electron.js <outDir>
  *   (SCALE=2: the same at 200% display scale, for the pictures)
@@ -38,8 +42,11 @@ const SONGS = [
   { artist: 'Queen', title: 'Bohemian Rhapsody', album: 'A Night at the Opera', tuning: 'E Standard', creator: 'Ubisoft', official: true },
   { artist: 'Other Artist', title: 'Nothing Here', album: 'Elsewhere', tuning: 'E Standard', creator: 'Someone', dl: '/song_p.psarc' },
   { artist: 'Integration Xylophone Tribute Band', title: 'Melody', album: 'Covers', tuning: 'E Standard', creator: 'Someone', dl: '/song_p.psarc' },
+  { artist: 'Slowpoke', title: 'Late Bloomer', album: 'Patience', tuning: 'E Standard', creator: 'Someone', dl: '/song_p.psarc' },
 ];
 const searches = [];
+const answered = []; // 4.26: when the site answered each search ({ q, at })
+const SLOW = /slowpoke|bloomer|foxtrot|lost cause/i; // these searches take the site 2.5 s (the old page stays meanwhile)
 const words = (s) => String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 const APP = `<!doctype html><title>Pretend Ignition</title>
 <style>body{background:#222;color:#eee;font:15px sans-serif;margin:0} nav a{color:#fc6;margin-right:14px} table{border-collapse:collapse;width:100%} td,th{border-bottom:1px solid #444;padding:6px;text-align:left}
@@ -64,6 +71,12 @@ function show(list) { document.getElementById('rows').innerHTML = list.length ? 
 async function search(q) {
   const r = await fetch('/api/search?q=' + encodeURIComponent(q)).then((x) => x.json());
   history.pushState({}, '', '/?q=' + encodeURIComponent(q));
+  // 4.26: a quiet site: no "Loading…", and an empty answer leaves the same "No matching CDLC" untouched
+  if (window.__quiet) {
+    const rows = document.getElementById('rows');
+    if (!r.length && rows.rows.length === 1 && /No matching CDLC/.test(rows.textContent)) return;
+    return show(r);
+  }
   // the table fills in two goes, the way a slow site does
   document.getElementById('rows').innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
   setTimeout(() => show(r), 500);
@@ -131,8 +144,13 @@ const site = http.createServer((req, res) => {
     if (q) searches.push(q);
     const ws = words(q);
     const list = q ? SONGS.filter((s) => { const all = words(`${s.artist} ${s.title} ${s.album} ${s.creator}`); return ws.every((w) => all.includes(w)); }) : SONGS.slice(0, 5);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify(list));
+    const answer = () => {
+      answered.push({ q, at: Date.now() });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(list));
+    };
+    if (SLOW.test(q)) return void setTimeout(answer, 2500);
+    return answer();
   }
   if (u.pathname === '/' || u.pathname === '/index.html') {
     res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -284,6 +302,93 @@ const site = http.createServer((req, res) => {
   await shoot('none');
   v = await verdictFor({ id: 'w5', artist: 'Integration', title: 'The Test - Remastered 2011' });
   check(v && v.verdict === 'match' && searches.includes('The Test'), `a title with extras is found by the second search (${v && v.verdict}; ${JSON.stringify(searches.slice(-2))})`);
+
+  // ---- 4b. 4.26: a Wanted run on a site that answers some searches slowly and keeps the old page meanwhile
+  // (the bug: each search read the last one's "No matching CDLC" and marked song after song Not available)
+  const RUN = [
+    ['Ghost Alpha', 'Nowhere Song'], // not there
+    ['Slowpoke', 'Late Bloomer'], // there, but the site takes 2.5 s (the old "No matching CDLC" stays meanwhile)
+    ['Ghost Charlie', 'Empty Road'], // not there: three in a row stop the run and ask
+    ['Ghost Delta', 'Quiet Room'],
+    ['Ghost Echo', 'Last Light'],
+    ['Ghost Foxtrot', 'Lost Cause'], // not there, slow: marked by the bar's button before the site answers, then Undo
+    ['Integration', 'Long Way Home'], // there
+  ];
+  for (const [artist, title] of RUN) {
+    await page.evaluate((it) => window.stagehand.discover.addWanted([it]), { artist, title });
+    await wait(30);
+  }
+  const wantedNow = () => page.evaluate(async () => { const r = await window.stagehand.discover.wanted(); return Array.isArray(r) ? r : (r && r.value) || []; });
+  const statusOf = async (title) => ((await wantedNow()).find((w) => w.title === title) || {}).status;
+  const idOf = async (title) => ((await wantedNow()).find((w) => w.title === title) || {}).id;
+  const barAct = (act) => barJs(`(() => { const b = document.querySelector('[data-act=${act}]'); if (!b || b.hidden || !b.offsetParent) return false; b.click(); return true; })()`);
+  const resultsFor = async (title) => (await events('results')).filter((e) => e.want && e.want.title === title);
+  const searchedFor = async (title) => (await events('searched')).filter((e) => e.want && e.want.title === title);
+  const nAll = (await events('results')).length;
+  await page.evaluate(async () => { const d = await import('./js/discover.js'); await d.init(); await d.startRun(); });
+  // A: not there: marked by itself, the run moves on; the bar offers Undo
+  const rA = await waitFor(async () => (await resultsFor('Nowhere Song'))[0], 30000);
+  check(rA && rA.verdict === 'none' && /^s\d+$/.test(rA.search), `a song that isn't there: “none”, with its search id (${rA && rA.verdict}, ${rA && rA.search})`);
+  check(await waitFor(async () => (await statusOf('Nowhere Song')) === 'unavailable', 5000), 'and it moves to Not available');
+  const undoShown = await waitFor(() => barJs("!document.getElementById('undoBtn').hidden && document.getElementById('undoBtn').textContent"), 3000, 100);
+  check(/Nowhere Song/.test(undoShown || ''), `the bar offers Undo (“${undoShown}”)`);
+  const undoFits = await barJs("(() => { const r = [...document.querySelectorAll('button')].filter((b) => b.offsetParent).map((b) => b.getBoundingClientRect()); const over = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5; return r.every((a, i) => r.every((b, j) => i === j || !over(a, b))); })()");
+  check(undoFits, 'the Undo button sits clear of the others');
+  await shoot('undo');
+  // B: there, but slow, right after the "No matching CDLC" page: found, never marked; read only after the site answered
+  const rB = await waitFor(async () => (await resultsFor('Late Bloomer'))[0], 30000);
+  const ansB = answered.filter((a) => a.q === 'Slowpoke Late Bloomer').slice(-1)[0];
+  check(rB && rB.verdict === 'match', `THE BUG: a song that is there, searched right after a “No matching CDLC” page on a slow site, is found (${rB && rB.verdict}; searches ${JSON.stringify(searches.slice(-3))})`);
+  check(rB && ansB && rB.at > ansB.at + 400, `its answer was read only after the site gave it (read ${rB && ansB ? rB.at - ansB.at : '?'} ms after)`);
+  await wait(1000);
+  check((await statusOf('Late Bloomer')) === 'wanted', `it is still wanted, not Not available (${await statusOf('Late Bloomer')})`);
+  check((await resultsFor('Late Bloomer')).length === 1 && !(await searchedFor('Empty Road')).length, 'one answer, and the run waits on it for the player');
+  // C, D, E: not there, nobody touching anything: the third stops the run and asks
+  check(await barAct('skip'), 'Next song pressed');
+  const rE = await waitFor(async () => (await resultsFor('Last Light'))[0], 60000);
+  check(rE && rE.verdict === 'none' && rE.pause === true, `three in a row: the third says “pause” (${JSON.stringify(rE && { v: rE.verdict, pause: rE.pause })})`);
+  const marked = [];
+  for (const t of ['Empty Road', 'Quiet Room', 'Last Light']) marked.push(await waitFor(async () => (await statusOf(t)) === 'unavailable', 5000));
+  check(marked.every(Boolean), `each was marked Not available (${marked})`);
+  const ask = await barJs("!document.getElementById('ask').hidden && !document.getElementById('keepBtn').hidden && document.getElementById('askText').textContent");
+  check(/Three songs in a row weren’t found\. Keep going\?/.test(ask || ''), `the bar asks (“${ask}”)`);
+  const askFits = await barJs("(() => { const t = document.getElementById('askText'); const r = [...document.querySelectorAll('button')].filter((b) => b.offsetParent).map((b) => b.getBoundingClientRect()); const over = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5; return { whole: t.scrollWidth <= t.clientWidth + 1, inside: r.every((x) => x.right <= innerWidth + 0.5 && x.left >= 0), apart: r.every((a, i) => r.every((b, j) => i === j || !over(a, b))) }; })()");
+  check(askFits && askFits.whole && askFits.inside && askFits.apart, `the question is whole and no button sits on another (${JSON.stringify(askFits)})`);
+  await shoot('ask');
+  await wait(4000);
+  check(!(await searchedFor('Lost Cause')).length, 'and the run waits: the next song isn’t searched');
+  // Keep going: the next song (slow); the bar's Not available button marks it before the site answers
+  check(await barAct('keep'), 'Keep going pressed');
+  check(await waitFor(async () => (await searchedFor('Lost Cause')).length > 0, 25000, 100), 'Keep going searches the next song');
+  check(await waitFor(() => barJs("document.getElementById('ask').hidden || document.getElementById('keepBtn').hidden"), 3000, 100), 'the question goes away');
+  check(await barAct('markNone'), 'the bar’s Not available pressed');
+  const mk = await waitFor(async () => (await events('mark')).find((e) => e.want && e.want.title === 'Lost Cause'), 3000, 100);
+  check(mk && mk.status === 'unavailable' && mk.want.id === (await idOf('Lost Cause')), `it sends “mark” for that song (${JSON.stringify(mk && { status: mk.status, id: mk.want.id })})`);
+  check(await waitFor(async () => (await statusOf('Lost Cause')) === 'unavailable', 5000), 'it moves to Not available');
+  check(await waitFor(async () => (await searchedFor('Long Way Home')).length > 0, 25000, 100), 'and the run goes on to the next song');
+  check(!(await resultsFor('Lost Cause')).length, 'the marked song’s search never answered late');
+  // Undo (the run is on another song now): back on Wanted, the run goes back to it, and it isn't marked again
+  check(await barAct('undo'), 'Undo pressed');
+  check(await waitFor(async () => (await statusOf('Lost Cause')) === 'wanted', 5000), 'Undo puts it back on Wanted');
+  const reF = await waitFor(async () => (await resultsFor('Lost Cause'))[0], 30000);
+  check(reF && reF.verdict === 'none', `the run went back to it and searched again (${reF && reF.verdict})`);
+  await wait(1500);
+  check((await statusOf('Lost Cause')) === 'wanted', 'a song put back with Undo isn’t marked again by itself');
+  check(await barJs("document.getElementById('undoBtn').hidden"), 'and no Undo is offered for it');
+  const runRes = (await events('results')).slice(nAll);
+  check(runRes.length === new Set(runRes.map((e) => e.search)).size, `never two answers for one search (${runRes.length} answers)`);
+  await barJs("window.finderBar.act('stop'); 1");
+  await wait(500);
+  // a site that never shows anything new after Enter: "unsure", nothing marked
+  await siteJs('window.__quiet = 1; 1');
+  const nQ = (await events('results')).length;
+  await open({ id: 'q1', artist: 'Ghost Hotel', title: 'Nothing At All' });
+  const rq = await waitFor(async () => { const r = await events('results'); return r.length > nQ ? r[r.length - 1] : null; }, 45000);
+  check(rq && rq.verdict === 'unsure', `the same “No matching CDLC” left untouched: “unsure”, never “none” (${rq && rq.verdict})`);
+  check(/Couldn’t tell/.test(await msg()), `the bar says it couldn’t tell (“${await msg()}”)`);
+  check(await barJs("document.getElementById('undoBtn').hidden"), 'and offers no Undo (nothing was marked)');
+  await shoot('unsure');
+  await siteJs('window.__quiet = 0; 1');
 
   // ---- 5. the Roadie follows real downloads
   v = await verdictFor({ id: 'w6', artist: 'Integration', title: 'Different Song' });

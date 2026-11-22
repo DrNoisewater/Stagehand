@@ -28,6 +28,23 @@ const readPage = (mode) => `((mode) => {
   };
   const bodyText = document.body ? document.body.innerText || '' : '';
   const out = { empty: /no matching cdlc/i.test(bodyText), rows: [], on: true, url: location.href };
+  // 4.26: is what's on screen new since Enter? (markPage tags the rows and the empty message before
+  // each search; rows or a message the site drew afterwards have no tag)
+  const SEEN = 'data-sh-seen';
+  out.emptyFresh = false;
+  if (out.empty && document.body) {
+    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      const el = n.parentElement;
+      if (el && /no matching cdlc/i.test(n.nodeValue) && vis(el) && !el.hasAttribute(SEEN)) { out.emptyFresh = true; break; }
+    }
+  }
+  // what the site's search box holds now (the first one you can see; null: no box)
+  out.box = null;
+  for (const el of document.querySelectorAll('input[type=search], input[placeholder*="search" i], input[aria-label*="search" i], input[name*="search" i], input[id*="search" i], input[name=q]')) {
+    if (vis(el)) { out.box = String(el.value || '').slice(0, 300); break; }
+  }
+  let freshRows = 0;
   if (mode === 'updates') {
     // the Updated CDLC tab must be the one showing
     const tabs = [...document.querySelectorAll('a, button, [role=tab], li, span, div')].filter((el) => /^updated cdlc$/i.test(txt(el)) && vis(el));
@@ -71,12 +88,95 @@ const readPage = (mode) => `((mode) => {
       if (iv >= 0 && cells[iv]) r.version = txt(cells[iv]).slice(0, 40);
       if (iu >= 0 && cells[iu]) r.updated = txt(cells[iu]).slice(0, 60);
       out.rows.push(r);
+      if (row && !row.hasAttribute(SEEN)) freshRows++;
     }
     if (out.rows.length) break;
   }
+  out.fresh = (out.rows.length ? freshRows > 0 : false) || out.emptyFresh;
   out.sig = JSON.stringify([out.empty, out.rows.map((r) => r.artist + '|' + r.title + '|' + (r.version || ''))]);
   return out;
 })(${JSON.stringify(mode)})`;
+
+/**
+ * 4.26: run in the page just before a search's Enter: tags every row and the "No matching CDLC"
+ * message on screen, so a reading afterwards can tell the new results from the old page.
+ * Returns true once tagged.
+ */
+const markPage = () => `(() => {
+  for (const el of document.querySelectorAll('tr, [role=row]')) el.setAttribute('data-sh-seen', '1');
+  if (document.body) {
+    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) if (n.parentElement && /no matching cdlc/i.test(n.nodeValue)) n.parentElement.setAttribute('data-sh-seen', '1');
+  }
+  return true;
+})()`;
+
+const STEADY = 1000; // results count once they have held still this long
+
+/**
+ * 4.26: decides when a search's own results are on screen. Fed every reading after Enter.
+ * A reading only counts once there is evidence the site answered THIS search: rows or a "No
+ * matching CDLC" drawn since Enter (untagged), or the page changed since Enter. The old page,
+ * however still it sits, never counts (that read a slow site's previous "No matching CDLC" as
+ * this song's answer, and marked song after song Not available). A box holding other words is
+ * someone else's search; an address naming an earlier search (others: what was typed before) and
+ * not this one is that search's late answer.
+ *   see(reading, now) → true once settled; rows() → the rows, or null when it couldn't tell.
+ */
+function settler({ before = null, text = '', marked = true, others = [] } = {}) {
+  let lastSig = null;
+  let since = 0;
+  let evidence = false;
+  let last = null;
+  let done = false;
+  // the page's address naming an earlier search (and not this one): that search's late answer
+  const words = (x) => ` ${String(x || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
+  const mine = words(text);
+  const earlier = others.map(words).filter((o) => o.trim() && o !== mine);
+  const addressOf = (url) => {
+    try {
+      const u = new URL(url);
+      return words(decodeURIComponent(`${u.pathname} ${u.search} ${u.hash}`.replace(/\+/g, ' ')));
+    } catch (_) {
+      return '';
+    }
+  };
+  const ours = (r) => {
+    if (r.box != null && String(r.box).trim() && text && norm(r.box) !== norm(text)) return false;
+    const at = r.url ? addressOf(r.url) : '';
+    return !(at && !at.includes(mine) && earlier.some((o) => at.includes(o)));
+  };
+  return {
+    see(r, now = Date.now()) {
+      if (!r || !Array.isArray(r.rows)) return false;
+      if (!ours(r)) {
+        last = null;
+        lastSig = null;
+        return false;
+      }
+      if ((marked && r.fresh) || (before != null && r.sig !== before)) evidence = true;
+      last = r;
+      // (held still counts from when the new page showed: the same words drawn afresh start the clock again)
+      const key = `${r.sig}|${marked && r.fresh ? 'new' : 'old'}`;
+      if (key !== lastSig) {
+        lastSig = key;
+        since = now;
+        return false;
+      }
+      done = evidence && (r.rows.length > 0 || !!r.empty) && now - since >= STEADY;
+      return done;
+    },
+    /** The rows to judge (empty for "No matching CDLC"), or null: nothing showed that is surely this search's. */
+    rows() {
+      if (!evidence || !last) return null;
+      if (last.rows.length) return last.rows;
+      return last.empty && done ? [] : null; // ("none" only from a message that held still)
+    },
+    get evidence() {
+      return evidence;
+    },
+  };
+}
 
 /**
  * Run in the page: clicks the visible thing whose words are exactly these ("Updated CDLC"),
@@ -155,4 +255,4 @@ function verdict(want, rows, second = false) {
   return 'some';
 }
 
-module.exports = { readPage, clickText, verdict, simplerSearch, plainTitle, near };
+module.exports = { readPage, markPage, settler, STEADY, clickText, verdict, simplerSearch, plainTitle, near };
