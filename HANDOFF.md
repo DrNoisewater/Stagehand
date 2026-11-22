@@ -1,3 +1,19 @@
+# 4.27.1 — One click previews (and the preview is heard again), a double-click splits (2026-11-22; nothing tried on the user's PC)
+
+**Asked:** "When you click on a song on the list, it immediately starts separating the stems for the preview. We can just show a preview of the actual song without splitting stems. Double clicking on an item starts the stem splitting process."
+
+**Changed:**
+- The preview never split anything: the split came from 4.4's split-ahead (`main.js`, on `selection`: with Split songs automatically on, any song picked for 0.6 s was queued with `stems.ahead`). That is removed, so picking a song (a click, or the arrow keys) only plays its preview (`preview.js`, the whole song's own clip). A double-click opens the song, and opening it splits it as before.
+- Settings › Split songs automatically now reads "When you open a song without stems, start separating it straight away. Clicking a song once only plays a preview."
+- `stems.ahead` in `stems.js` is left (unused by the app now; `stems-queue.test.js` still covers it).
+- Test: `test/e2e/click-audit.js` (automatic splitting on, songs without stems): one click and the arrow keys ask for no split and the preview plays; a double-click starts the split. It fails on 4.27.0 (one click asked for a split) and passes now.
+
+**Then asked:** "At least currently, just clicking on random songs does not play the preview."
+- Cause: since 4.26 every preview was silent in the real app. The clips are named `pv<hex>.wav` (`audio.js` `preparePreview`), but the app's file server (`main.js` `serve()`, host `audio`) only let through names of plain hex and answered 404. The Chromium checks (`songs-audit.js`) use the mock preload and never touch `serve()`, so they passed. Fixed: the server now accepts the `pv` names.
+- Test: `test/e2e/preview-electron.js` runs the real app in Electron with two real song files (`test/fixtures/*.psarc`) and a stand-in decoder (Linux has no vgmstream): a click plays the song's own preview clip, its sound reaches the player's output, the Preview bar shows, another song replaces it. It fails on 4.27.0 (404, no sound) and passes now.
+
+**Ask the user:** whether a click now plays the preview, and whether a song they open now waits longer for its stems than before (picking it no longer gave it a head start).
+
 # 4.27.0 — Smaller updates: the pictures are downloaded once, not packed into every Setup (2026-11-22; nothing tried on the user's PC)
 
 **Asked:** "Now the project is around fifty megabytes … is there anything further we can do to reduce the overall size?" Then: "The art is downloaded the first time, or if you don't have it. And then every update after that, just changes the code or adds anything new."

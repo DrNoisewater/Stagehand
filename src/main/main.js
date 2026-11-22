@@ -311,7 +311,8 @@ async function serve(req) {
     if (!(file + path.sep).startsWith(RENDERER + path.sep)) return notFound();
     if (!parts.length) file = path.join(RENDERER, 'index.html');
   } else if (u.host === 'audio') {
-    if (parts.length !== 1 || !/^[a-f0-9]{8,40}\.wav$/.test(parts[0])) return notFound();
+    // 4.27.1: preview clips are named pv<hex> (4.26); this used to turn them all away, so previews were silent
+    if (parts.length !== 1 || !/^(pv)?[a-f0-9]{8,40}\.wav$/.test(parts[0])) return notFound();
     file = path.join(D.audio, parts[0]);
   } else if (u.host === 'stems') {
     if (parts.length !== 3 || !/^[a-f0-9]{8,40}$/.test(parts[0]) || !MODELS[parts[1]] || !/^[a-z]+\.(wav|flac|opus)$/.test(parts[2])) return notFound();

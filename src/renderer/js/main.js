@@ -268,22 +268,8 @@ async function boot() {
     emit('stems-update', u);
     tickStems();
   });
-  // 4.4: songs you pick are split ahead (Split songs automatically), so they're often
-  // ready by the time you press play. Waits a moment so scrolling doesn't queue them all.
-  on(
-    'selection',
-    debounce(() => {
-      const st = state.settings && state.settings.stems;
-      if (!st || !st.auto || !state.engine || !state.engine.installed || !api.stems.ahead) return;
-      if (!state.selection || state.selection.size !== 1) return;
-      const id = [...state.selection][0];
-      const s = state.songs.get(id);
-      if (!s || s.hasStems) return;
-      const cur = state.stems.get(id);
-      if (cur && ['running', 'queued', 'error', 'ready'].includes(cur.state)) return;
-      api.stems.ahead(id).catch(() => {});
-    }, 600)
-  );
+  // 4.27.1: picking a song no longer starts splitting it (a click plays a preview of the whole
+  // song; a double-click opens it, and that splits it). The 4.4 split-ahead on picking is gone.
   api.on('stems:done', (d) => {
     const s = state.songs.get(d.songId);
     if (!s) return;
