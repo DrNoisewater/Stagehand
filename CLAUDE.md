@@ -107,6 +107,8 @@ SH_AUDIT=test/e2e/switch-audit.js node test/e2e/ui3-chromium.js native/build/sta
 node test/wacky-pedals.cjs   # The Lab's sound through the WebAssembly engine, each brief's checks (also in npm test, ~9 min; OWN_ONLY=1 and pedal names for just their own checks)
 # the stem splitting card is the user's Unmixer animation, on a page and on the highway, no sticker; Play now; it goes when the stems are in
 SH_AUDIT=test/e2e/unmixer-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# 4.27.1: one click on a song plays its preview and splits nothing (automatic splitting on); a double-click splits
+SH_AUDIT=test/e2e/click-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # stem splitting: a song in line names the one split first; a split moving along rebuilds nothing
 SH_AUDIT=test/e2e/stems-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # the Quest companion: the real server and page with a pretend Quest browser (pair, library, pick, play/seek both ways, clock); writes q-*.png

@@ -418,7 +418,7 @@ const PANES = {
     load.onchange = () => saveSettings({ stems: { cpuLoad: load.value } });
     el.append(setting('CPU load', 'How hard separation works the CPU when it runs there. “All cores” uses every real core. Songs split in the background run at low priority and, while you play, on half the cores, so playing stays smooth; the song you’re waiting for gets full speed. On a GPU the CPU stays mostly idle either way.', load));
 
-    el.append(setting('Split songs automatically', 'When you pick or open a song without stems, start separating it in the background, so it’s often ready by the time you press play.', toggleCtl(s.stems.auto, (v) => saveSettings({ stems: { auto: v } }), 'Split automatically')));
+    el.append(setting('Split songs automatically', 'When you open a song without stems, start separating it straight away. Clicking a song once only plays a preview.', toggleCtl(s.stems.auto, (v) => saveSettings({ stems: { auto: v } }), 'Split automatically')));
     el.append(setting('Wait for the stems', 'When you open a song to play, it starts once its stems are split and loaded (they’re split for you), so the mix never changes under you. You can always press Play now.', toggleCtl(s.stems.waitFirst !== false, (v) => saveSettings({ stems: { waitFirst: v } }), 'Wait for the stems')));
     el.append(setting('Switch to stems when ready', 'Play through the stem mixer as soon as a song’s stems load, instead of the full mix.', toggleCtl(s.stems.preferStems, (v) => saveSettings({ stems: { preferStems: v } }), 'Prefer stems')));
   },
