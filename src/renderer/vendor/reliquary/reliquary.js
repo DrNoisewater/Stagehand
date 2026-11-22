@@ -34,7 +34,7 @@
     svg.style.cssText='display:block;width:100%;height:auto;background:#101719';
     function art(parent, file, rect) {
       const [x,y,width,height] = rect;
-      return node(parent,'image',{x,y,width,height,href:new URL('art/'+file,baseURL).href});
+      return node(parent,'image',{x,y,width,height,href:new URL('art/'+(file==='vinyl-spindle.png'?file:file.replace(/\.png$/,'.webp')),baseURL).href});
     }
     art(svg,'temple.png',[0,0,1983,793]);
     const auraId = 'reliquary-aura-' + (++nextInstance);

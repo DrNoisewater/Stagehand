@@ -1,3 +1,17 @@
+# 4.27.0 — Smaller updates: the pictures are downloaded once, not packed into every Setup (2026-11-22; nothing tried on the user's PC)
+
+**Asked:** "Now the project is around fifty megabytes … is there anything further we can do to reduce the overall size?" Then: "The art is downloaded the first time, or if you don't have it. And then every update after that, just changes the code or adds anything new."
+
+**Changed:**
+- Setup no longer carries the pictures, clips and fonts (every such file of 8 KB or more, about 50 MB). `windows/setup/make-payload.py` packs only the program (about 2 MB) plus `app/art-files.txt`: a GitHub address pinned to the exact commit Setup was built from, and each art file's SHA-256, size and path. The build stops if an art file differs from that commit (so build only from a pushed commit; CI builds from the pull request's own commit).
+- Setup (`setup.c`, the `art` section; `art_parse` and `payload_read` in `setup_core.c`): each picture comes from the installed copy when its SHA-256 matches, else from `%LOCALAPPDATA%\Stagehand\Downloads\art` (an earlier Setup that stopped), else from GitHub (6 at a time, one connection each, retried 5 times, checked). It all happens while downloading, before Stagehand is closed or anything changes; then the pictures are copied into the new app folder before the swap. The download folder is emptied after a good install. Two names with the same picture are fetched once. The disk space check counts the pictures.
+- The Roadie's clips re-saved (8.9 → 1.5 MB, the same look: frame counts, 60 fps and length unchanged). The Roadie's stills and the Reliquary's pictures are now lossless WebP (pixel for pixel the same; 8.9 → 6.2 MB). `vinyl-spindle.png` stays a PNG (WebP was bigger); `reliquary.js` `art()` knows.
+- Left alone: the pedal and amp photos (25 MB AVIF): shrinking them more loses detail you can see.
+- Tests: `test-windows.ps1` (CI, on a real Windows) checks every picture after each install, a second run with GitHub unreachable for pictures (must need none), a changed and a missing picture fetched again, and picture downloads cut off by `test-mirror.py` (ART_ROOT/ART_DROP) and retried. `core_test.c` checks the art list reader on Linux (bad lists turned down).
+- Not tried: the Roadie's stills in the real app (Electron), and Setup on the user's PC.
+
+**Ask the user:** how long the first install took (the pictures come from GitHub), and whether the next update was quick.
+
 # 4.26.1 — The Unmixer: the user's animation is the stem splitting card (2026-11-22; nothing tried on the user's PC)
 
 **Asked:** "We are going to update the stem splitting card that's shown on the highway. Not the activity bar. We also want to remove the little graphic that's at the top left of the progress screen while splitting." They sent the Unmixer pack (a compact card: a skull at a bench whose hand presses a brass button, a beam through a prism onto a scope; a corrected version replaced the first one the same day, the bar and percentage, the song, and its own Play now button).
