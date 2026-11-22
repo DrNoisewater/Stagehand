@@ -171,6 +171,9 @@ document.addEventListener('keydown', (e) => {
   // 1–9: tone slots. Shift+1–6: mute a stem.
   const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
   if (e.code === 'Space') stage.toggle();
+  // 4.26: the arrows move the song only where the song is shown (the waveform and the tab view on
+  // Now playing; the highway has its own); elsewhere they are free for the page (the Gear page's pedals)
+  else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && state.page !== 'now') return;
   else if (e.key === 'ArrowLeft') stage.seekBy(e.shiftKey ? -15 : -5);
   else if (e.key === 'ArrowRight') stage.seekBy(e.shiftKey ? 15 : 5);
   else if (e.key === 'm' || e.key === 'M') stage.toggleMode();

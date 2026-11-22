@@ -327,4 +327,43 @@ on('page', () => {
   }
 });
 
+// 4.26: the arrow keys walk the pedals on the Gear page: left/right the one before or after,
+// up/down the one above or below in the grid (not while typing or turning a knob)
+document.addEventListener('keydown', (e) => {
+  if (state.page !== 'gear' || e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (!/^Arrow(Left|Right|Up|Down)$/.test(e.key) || !gridEl.getClientRects().length) return;
+  const a = document.activeElement;
+  if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable || a.closest('[role=slider], [role=menu], .modal-backdrop'))) return;
+  if (document.querySelector('.modal-backdrop, .menu[role="menu"]')) return;
+  const cards = [...gridEl.querySelectorAll('.sr-card')];
+  if (!cards.length) return;
+  let i = cards.findIndex((c) => c.dataset.key === S.pick);
+  let to = i;
+  if (i < 0) to = 0;
+  else if (e.key === 'ArrowLeft') to = i - 1;
+  else if (e.key === 'ArrowRight') to = i + 1;
+  else {
+    // the card straight above or below: the nearest one in the next row, by position
+    const r = cards[i].getBoundingClientRect();
+    const down = e.key === 'ArrowDown';
+    let best = -1;
+    let bestD = Infinity;
+    cards.forEach((c, j) => {
+      const q = c.getBoundingClientRect();
+      if (down ? q.top <= r.top + 4 : q.top >= r.top - 4) return;
+      const d = Math.abs(q.top - r.top) * 4 + Math.abs(q.left - r.left);
+      if (d < bestD) (bestD = d), (best = j);
+    });
+    to = best < 0 ? i : best;
+  }
+  e.preventDefault();
+  if (to < 0 || to >= cards.length || to === i) return;
+  pick(cards[to].dataset.key);
+  const card = gridEl.querySelector(`.sr-card[data-key="${CSS.escape(cards[to].dataset.key)}"]`);
+  if (card) {
+    card.scrollIntoView({ block: 'nearest' });
+    card.focus({ preventScroll: true });
+  }
+});
+
 export const _test = { S, testRig, pick, gearName, CAB_RE };
