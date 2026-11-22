@@ -34,7 +34,7 @@
   const NEXT = { idle: 'search-loop', 'search-loop': 'download-enter', 'found-hold': 'download-enter', 'download-loop': 'import-enter', 'import-loop': 'success', 'success-hold': 'reset' };
   const STATES = Object.keys(STILL);
   const pad = (n) => String(n).padStart(2, '0');
-  const still = (n) => `${BASE}art/keyframe-${pad(n)}.png`;
+  const still = (n) => `${BASE}art/keyframe-${pad(n)}.webp`;
 
   class RoadiePlayer {
     constructor(host) {
