@@ -259,6 +259,7 @@ contextBridge.exposeInMainWorld('stagehand', {
     finderUpdates: () => call('finder:updates'),
     setStatus: (ids, status) => call('discover:setStatus', { ids, status }),
     official: () => call('discover:official'),
+    gapSongs: (o) => call('discover:gapSongs', o),
     requestOfficial: (req) => call('discover:requestOfficial', req),
     updates: () => call('discover:updates'),
     clearUpdates: (keys) => call('discover:clearUpdates', keys),

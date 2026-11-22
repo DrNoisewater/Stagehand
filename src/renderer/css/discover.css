@@ -403,3 +403,214 @@ html[data-look='opera'] #app #discover .card { background:var(--rr-grain),var(--
 #app #discover .how.card .how-fold[open] { flex-basis:100%; padding-bottom:6px; }
 #app #discover .how.card .how-status { flex:0 1 auto; display:flex; align-items:center; gap:8px; margin:0; padding:0; border:0; font-size:12.5px; }
 #app #discover .how.card .how-fold[open] + .how-status { flex-basis:100%; padding-top:8px; border-top:1px dashed var(--dv-panel-line); }
+
+/* =====================================================================
+   4.26: one-step Get, the live reading display, Official DLC as one request, and artists that
+   never look like songs. Artists: a square sticker and condensed capitals (like the page titles).
+   Songs: plain sentence-case titles in rows, with a small note where they stand alone.
+   ===================================================================== */
+
+/* ---- artists vs songs, everywhere */
+#app #discover :is(.artist-card,.choice) .name { font-size:17px; font-weight:900; font-stretch:72%; letter-spacing:.02em; text-transform:uppercase; color:var(--sc-ink); }
+#app #discover .artist-card { padding:12px 14px; }
+#app #discover .artist-card .avatar { width:50px; height:50px; font-size:19px; }
+#app #discover .gap-row .c-main .t { font-size:16px; font-weight:900; font-stretch:72%; letter-spacing:.02em; text-transform:uppercase; color:var(--sc-ink); }
+#app #discover .dv-row .c-main .t, #app #discover .want-row .c-main .t { font-size:14px; font-weight:720; text-transform:none; letter-spacing:0; font-stretch:100%; color:var(--ink); }
+#app #discover .dv-row .c-artist, #app #discover .want-row .s .dv-link {
+  font-family:var(--sc-mono); font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-2);
+}
+#app #discover .dv-row .c-artist:hover, #app #discover .want-row .s .dv-link:hover { color:var(--sc-gold-hi); }
+#app #discover .want-head { display:flex; align-items:center; gap:12px; }
+#app #discover .want-head .avatar.sm { width:30px; height:30px; font-size:12px; }
+#app #discover .dv-section > h3 .sec-ic { display:inline-grid; place-items:center; width:24px; height:24px; border-radius:2px; background:var(--sc-gold-soft); color:var(--sc-gold); align-self:center; }
+#app #discover .dv-section > h3 .sec-ic svg { width:14px; height:14px; }
+#app #discover .dv-section > h3 { align-items:center; }
+#app #discover .dv-section > h3 .get-all { margin-left:auto; text-transform:none; letter-spacing:0; font-stretch:100%; }
+
+/* ---- Get it: the one obvious action on a song you don't have */
+#app #discover .dv-row { grid-template-columns:28px minmax(0,2.2fr) minmax(0,1.3fr) 48px 150px 128px; }
+#app #discover .album .tracks .dv-row { grid-template-columns:22px 22px minmax(0,1fr) 40px 150px 116px; }
+#app #discover .dv-row .acts { gap:4px; }
+#app #discover .dv-row .acts .btn.get-it { height:26px; padding:0 10px; }
+#app #discover .dv-row .acts .btn.get-it:disabled { opacity:1; color:#9be9f5; border-color:#33c8e066; background:#33c8e01c; }
+#app #discover .dv-row .acts .icon-btn { opacity:.55; }
+#app #discover .dv-row:hover .acts .icon-btn, #app #discover .dv-row .acts .icon-btn.on { opacity:1; }
+#app #discover .dv-row .acts .icon-btn.on { color:var(--sc-gold-hi); }
+#app #discover .album-head .get-album { margin-left:auto; }
+#app #discover .album-head > .state.have { margin-left:auto; }
+#app #discover .artist-bar { margin:14px 0 4px; }
+#app #discover .dv-artist .dv-tools .get-all { height:36px; padding:0 16px; }
+
+/* the run, on any page: what's being looked for now, with Show the finder, See the list, Skip, Stop */
+#app #discover .get-run {
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:14px 0 16px; padding:12px 14px 12px 16px;
+  border:1px solid var(--dv-panel-line); border-left:3px solid #33c8e0; border-radius:2px; background:linear-gradient(90deg,#33c8e012,transparent 60%),var(--dv-panel); box-shadow:none;
+}
+#app #discover .get-run .status-dot.on { background:#33c8e0; box-shadow:0 0 0 4px #33c8e022; animation:dv-pulse 1.6s ease-in-out infinite; }
+#app #discover .get-run-text { display:grid; flex:1 1 320px; min-width:0; gap:1px; }
+#app #discover .get-run-text small { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:#9be9f5; }
+#app #discover .get-run-text b { font-size:19px; font-weight:900; font-stretch:72%; color:var(--sc-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#app #discover .get-run-text span { color:var(--ink-3); font-size:12.5px; }
+#app #discover .get-run .acts { display:flex; gap:6px; flex-wrap:wrap; }
+@keyframes dv-pulse { 50% { box-shadow:0 0 0 7px #33c8e000; } }
+
+/* ---- Collection gaps: search, Get per artist, the check as a live band */
+#app #discover .dv-bar { flex-wrap:wrap; }
+#app #discover .gaps-find { flex:1 1 260px; max-width:380px; }
+#app #discover .gap-row { grid-template-columns:40px minmax(0,1.8fr) 90px minmax(120px,1fr) 70px 150px; }
+#app #discover .gap-row .acts { gap:8px; }
+#app #discover .gap-row .avatar.sm { width:34px; height:34px; }
+#app #discover .gap-hits { margin-top:10px; }
+#app #discover .gaps-run { display:flex; align-items:stretch; gap:18px; padding:10px 16px 10px 10px; }
+#app #discover .gaps-run .dv-reading { flex:1; }
+#app #discover .gaps-run-side { display:grid; align-content:center; gap:6px; min-width:180px; font-family:var(--sc-mono); font-size:11px; }
+#app #discover .gaps-run-side b { font-family:inherit; font-size:12px; letter-spacing:.04em; text-transform:uppercase; }
+
+/* ---- Wanted: Not available said in words on each song */
+#app #discover .want-row.q { grid-template-columns:22px 26px minmax(0,1fr) 190px 262px; }
+#app #discover .want-row .acts .mark-na { color:var(--ink-3); }
+#app #discover .want-row .acts .mark-na:hover { color:#d8c6a6; }
+@container (max-width: 980px) {
+  #app #discover .want-row.q { grid-template-columns:22px 22px minmax(0,1fr) 140px 240px; }
+  #app #discover .dv-row { grid-template-columns:28px minmax(0,2fr) minmax(0,1fr) 0 128px 120px; }
+}
+
+/* ---- Official DLC: one request, the songs shown by artist */
+#app #discover .off-contact { gap:18px; padding:18px 20px; margin:0 0 18px; border-left:3px solid #b38cf2; background:linear-gradient(90deg,#b38cf214,transparent 55%),var(--dv-panel); }
+#app #discover .off-contact > .off-badge { display:grid; place-items:center; flex:none; width:54px; height:54px; border-radius:3px; background:#b38cf222; color:#dcc4ff; box-shadow:inset 0 0 0 1px #b38cf266; transform:rotate(-3deg); }
+#app #discover .off-badge svg { width:26px; height:26px; }
+#app #discover .off-words { flex:1; min-width:0; }
+#app #discover .off-words small { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:#dcc4ff; }
+#app #discover .off-contact h2 { margin:2px 0 4px; font-size:26px; }
+#app #discover .off-contact .off-request { height:42px; padding:0 20px; font-size:14px; }
+#app #discover .off-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:4px 28px; margin-top:6px; }
+#app #discover .off-group { padding:0 0 14px; border:0; }
+#app #discover .off-artist { display:flex; align-items:center; gap:12px; padding:12px 2px 8px; border-bottom:2px solid var(--dv-th-line); }
+#app #discover .off-artist h3 { flex:1; min-width:0; margin:0; font-size:20px; font-weight:900; font-stretch:68%; letter-spacing:.02em; text-transform:uppercase; color:var(--sc-ink); text-shadow:2px 2px 0 #000; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#app #discover .off-artist .avatar.sm { width:32px; height:32px; }
+#app #discover .off-n { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); white-space:nowrap; }
+#app #discover .off-songs { margin:0; padding:2px 0 0 44px; list-style:none; }
+#app #discover .off-song { display:flex; align-items:center; gap:9px; min-height:30px; border-bottom:1px solid var(--dv-rule); color:var(--ink-2); font-size:13.5px; }
+#app #discover .off-song:last-child { border-bottom:0; }
+#app #discover .off-song .off-ic { display:grid; color:#b38cf2aa; }
+#app #discover .off-song .off-ic svg { width:13px; height:13px; }
+#app #discover .off-song .t { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#app #discover .off-song .off-found { font-family:var(--sc-mono); font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:#dcc4ff; }
+#app #discover .off-song .icon-btn { width:24px; height:24px; }
+.req-all { display:flex; align-items:baseline; gap:10px; padding:10px 14px; border:1px solid #b38cf255; border-radius:2px; background:#b38cf212; }
+.req-all b { font-size:34px; line-height:1; font-weight:900; font-stretch:64%; color:#f5edda; }
+.req-all span { color:#dcc4ff; font-size:13px; }
+.req-fine { margin:0; color:var(--ink-3); font-size:12px; }
+
+/* ---- Updates and Imports: the same flat rows and bands */
+#app #discover .imp-row .t .by { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); }
+#app #discover .imp-card.card { padding:2px 18px; border-left:3px solid var(--dv-th-line); }
+#app #discover .dv-hero.card { display:grid; justify-items:start; padding:24px 26px; border-left:3px solid var(--sc-gold); }
+
+/* ---- the live reading display (discover-reading.js) */
+#app #discover .dv-reading {
+  --rd-accent:var(--sc-gold,#e3c26a);
+  display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1.25fr); grid-template-areas:'stage stage' 'info more'; align-items:start; gap:clamp(16px,2.4vw,30px) clamp(20px,4vw,48px);
+  margin:6px 0 0; padding:0 0 clamp(18px,2.4vw,28px);
+  border:1px solid var(--dv-panel-line); border-radius:2px;
+  background:radial-gradient(70% 90% at 22% 50%,#e3c26a14,transparent 70%),radial-gradient(50% 60% at 90% 10%,#33c8e00d,transparent 70%),var(--dv-panel);
+  overflow:hidden;
+}
+html[data-look='opera'] #app #discover .dv-reading { background:radial-gradient(70% 90% at 22% 50%,#ffd9a00f,transparent 70%),var(--rr-grain),var(--dv-panel); }
+#app #discover .rd-stage { grid-area:stage; display:grid; place-items:center; min-width:0; background:#101719; border-bottom:1px solid var(--dv-panel-line); }
+/* The Reliquary (vendor/reliquary): the whole width, its own 1983 × 793 shape, centred */
+#app #discover .rd-rig { width:100%; aspect-ratio:1983 / 793; }
+#app #discover .rd-rig > svg { display:block; width:100%; height:auto; }
+#app #discover .rd-rig.fallback { aspect-ratio:auto; display:grid; place-items:center; padding:clamp(20px,3vw,36px) 0; background:var(--dv-panel); }
+#app #discover .dv-reading:not(.compact) .rd-info { grid-area:info; padding-left:clamp(18px,2.4vw,28px); }
+#app #discover .rd-more { grid-area:more; display:grid; gap:10px; min-width:0; padding-right:clamp(18px,2.4vw,28px); }
+#app #discover .rd-anim { width:100%; max-width:520px; aspect-ratio:1; object-fit:contain; }
+#app #discover .rd-standin { display:grid; justify-items:center; gap:22px; width:100%; }
+#app #discover .rd-deck { position:relative; width:min(100%,340px); aspect-ratio:1; }
+#app #discover .rd-glow { position:absolute; inset:-12%; border-radius:50%; background:radial-gradient(circle,#e3c26a30,transparent 62%); animation:rd-breathe 3.2s ease-in-out infinite; }
+#app #discover .rd-record {
+  position:absolute; inset:4%; border-radius:50%;
+  background:radial-gradient(circle,#0000 0 30%,#000 30.5% 31%,#0000 31.5%),repeating-radial-gradient(circle,#161412 0 1.5px,#0d0c0b 1.5px 3px),#0d0c0b;
+  box-shadow:0 0 0 2px #000,0 18px 40px #000c,inset 0 0 0 6px #121110;
+  animation:rd-spin 2.4s linear infinite;
+}
+#app #discover .rd-grooves { position:absolute; inset:0; border-radius:50%; background:conic-gradient(from 20deg,#ffffff00 0 8%,#ffffff16 12%,#ffffff00 18% 52%,#ffffff12 58%,#ffffff00 64%); }
+#app #discover .rd-label {
+  --hue:38; position:absolute; inset:33%; display:grid; place-items:center; overflow:hidden; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,hsl(var(--hue) 70% 62%),hsl(var(--hue) 55% 30%));
+  box-shadow:inset 0 0 0 2px #0006; color:#fff; font-weight:900; font-stretch:72%; font-size:clamp(18px,3vw,30px); text-shadow:1px 1px 0 #000;
+}
+#app #discover .rd-label img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+#app #discover .rd-spindle { position:absolute; inset:48.5%; border-radius:50%; background:#d9d2c3; box-shadow:0 0 0 2px #000; }
+#app #discover .rd-arm { position:absolute; top:-2%; right:-4%; width:44%; height:62%; transform-origin:82% 10%; transform:rotate(14deg); animation:rd-arm 6s ease-in-out infinite; }
+#app #discover .rd-arm::before { content:''; position:absolute; top:2%; right:10%; width:16%; aspect-ratio:1; border-radius:50%; background:radial-gradient(circle,#cfc7b6 30%,#6b6458 32% 60%,#2a2622 62%); box-shadow:0 4px 10px #000a; }
+#app #discover .rd-arm i { position:absolute; top:10%; right:17%; width:5px; height:64%; border-radius:3px; background:linear-gradient(90deg,#9c9484,#e9e2d2,#9c9484); transform-origin:top; transform:rotate(24deg); box-shadow:2px 4px 6px #0008; }
+#app #discover .rd-arm i::after { content:''; position:absolute; bottom:-6px; left:-6px; width:16px; height:22px; border-radius:2px; background:#2a2622; box-shadow:inset 0 0 0 1px #6b6458; }
+#app #discover .rd-eq { display:flex; align-items:flex-end; gap:5px; height:34px; }
+#app #discover .rd-eq i { width:8px; height:var(--h); border-radius:1px; background:linear-gradient(#f1ce68,#b98a2c); transform-origin:bottom; animation:rd-eq .9s ease-in-out var(--d) infinite alternate; }
+#app #discover .rd-info { display:grid; align-content:center; gap:10px; min-width:0; }
+#app #discover .rd-kicker { display:inline-flex; align-items:center; gap:7px; font-family:var(--sc-mono); font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--rd-accent); }
+#app #discover .rd-kicker svg { width:14px; height:14px; animation:rd-spin 5s linear infinite; }
+#app #discover .rd-artist { margin:0; font-size:clamp(30px,3.4vw,48px); line-height:.95; font-weight:900; font-stretch:62%; letter-spacing:0; text-transform:uppercase; color:var(--sc-ink); text-shadow:3px 3px 0 #000; overflow-wrap:anywhere; }
+#app #discover .rd-now { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 12px; padding:10px 0 2px; border-top:1px solid var(--dv-panel-line); }
+#app #discover .rd-now small { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+#app #discover .rd-album { font-size:clamp(20px,2.2vw,28px); font-weight:900; font-stretch:72%; color:#f5edda; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+#app #discover .rd-album.flip { animation:rd-in .45s cubic-bezier(.2,.8,.2,1); }
+#app #discover .rd-meta { font-family:var(--sc-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+#app #discover .rd-count { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; color:var(--ink-2); font-size:13px; }
+#app #discover .rd-count b { font-size:30px; line-height:1; font-weight:900; font-stretch:64%; color:var(--rd-accent); }
+#app #discover .rd-count em { margin-left:auto; font-style:normal; font-family:var(--sc-mono); font-size:11px; letter-spacing:.04em; color:var(--ink-3); }
+#app #discover .rd-meter { position:relative; height:8px; overflow:hidden; border-radius:1px; background:#0b0a09; box-shadow:inset 0 1px 2px #000,0 0 0 1px #2f2a25; }
+#app #discover .rd-meter > i { position:absolute; inset:0 auto 0 0; width:0; background:linear-gradient(90deg,#d9ad48,#f1ce68); transition:width .5s ease; }
+#app #discover .rd-meter.busy > i { width:30%; animation:rd-busy 1.3s ease-in-out infinite; }
+#app #discover .rd-last { display:grid; gap:8px; }
+#app #discover .rd-songs-head { display:flex; align-items:baseline; gap:10px; min-height:18px; }
+#app #discover .rd-songs-head small { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+#app #discover .rd-songs-head b { font-size:15px; font-weight:800; color:var(--sc-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#app #discover .rd-songs-head span { font-family:var(--sc-mono); font-size:11px; color:var(--ink-3); }
+#app #discover .rd-songs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:2px 18px; margin:0; padding:0; list-style:none; min-height:120px; align-content:start; }
+#app #discover .rd-songs li { display:flex; align-items:center; gap:8px; min-width:0; padding:3px 0; border-bottom:1px solid var(--dv-rule); color:var(--ink-2); font-size:13px; animation:rd-in .4s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i,0) * 70ms); }
+#app #discover .rd-songs li i { width:18px; font-style:normal; font-family:var(--sc-mono); font-size:10.5px; color:var(--ink-3); text-align:right; flex:none; }
+#app #discover .rd-songs li span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#app #discover .rd-songs li em { display:inline-flex; align-items:center; gap:3px; font-style:normal; font-family:var(--sc-mono); font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--ok); white-space:nowrap; }
+#app #discover .rd-songs li em svg { width:11px; height:11px; }
+#app #discover .rd-songs li.mine span { color:var(--sc-ink); }
+#app #discover .rd-songs li.more { color:var(--ink-3); font-style:italic; border-bottom:0; }
+#app #discover .rd-done { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-height:24px; }
+#app #discover .rd-done small { font-family:var(--sc-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); margin-right:4px; }
+#app #discover .rd-chip { max-width:240px; padding:3px 8px; border-radius:2px; background:#ffffff0a; box-shadow:inset 0 0 0 1px #4a443c; color:var(--ink-2); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#app #discover .rd-chip:first-of-type { box-shadow:inset 0 0 0 1px #e3c26a77; color:var(--sc-ink); }
+#app #discover .rd-fine { margin:6px 0 0; max-width:62ch; color:var(--ink-3); font-size:12px; }
+/* one band (Collection gaps checking) */
+#app #discover .dv-reading.compact { grid-template-columns:minmax(200px,300px) minmax(0,1fr); grid-template-areas:'stage info'; align-items:center; gap:18px; min-height:0; padding:0; border:0; background:none; }
+#app #discover .dv-reading.compact .rd-stage { border:0; border-radius:2px; overflow:hidden; }
+#app #discover .dv-reading.compact .rd-info { grid-area:info; }
+#app #discover .dv-reading.compact .rd-rig.fallback { padding:6px 0; background:none; }
+#app #discover .dv-reading.compact .rd-deck { width:76px; }
+#app #discover .dv-reading.compact :is(.rd-eq,.rd-arm,.rd-glow) { display:none; }
+#app #discover .dv-reading.compact .rd-standin { gap:0; }
+#app #discover .dv-reading.compact .rd-label { font-size:12px; }
+#app #discover .dv-reading.compact .rd-info { gap:4px; }
+#app #discover .dv-reading.compact .rd-artist { font-size:24px; text-shadow:2px 2px 0 #000; }
+#app #discover .dv-reading.compact .rd-now { padding:0; border:0; }
+#app #discover .dv-reading.compact .rd-album { font-size:15px; }
+#app #discover .dv-reading.compact .rd-count b { font-size:16px; }
+#app #discover .dv-reading.compact .rd-meter { height:5px; }
+@keyframes rd-spin { to { transform:rotate(360deg); } }
+@keyframes rd-breathe { 50% { opacity:.55; transform:scale(.96); } }
+@keyframes rd-arm { 0%,100% { transform:rotate(14deg); } 50% { transform:rotate(19deg); } }
+@keyframes rd-eq { from { transform:scaleY(.25); } to { transform:scaleY(1); } }
+@keyframes rd-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+@keyframes rd-busy { from { transform:translateX(-100%); } to { transform:translateX(340%); } }
+@container (max-width: 900px) {
+  #app #discover .dv-reading:not(.compact) { grid-template-columns:1fr; grid-template-areas:'stage' 'info' 'more'; }
+  #app #discover .dv-reading:not(.compact) .rd-more { padding-left:clamp(18px,2.4vw,28px); }
+  #app #discover .dv-reading.compact { grid-template-columns:1fr; grid-template-areas:'stage' 'info'; }
+  #app #discover .rd-deck { width:min(60vw,240px); }
+}
+/* Windows asked for less motion: a still picture */
+@media (prefers-reduced-motion: reduce) {
+  #app #discover .dv-reading *, #app #discover .get-run .status-dot { animation:none !important; transition:none !important; }
+  #app #discover .rd-eq i { transform:scaleY(.6); }
+}
+#app #discover .dv-reading.still * { animation:none !important; }

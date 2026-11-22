@@ -14,6 +14,13 @@ const { OfficialList, norm: officialNorm } = require('./officiallist');
 const officialRequest = require('./officialrequest');
 
 const CHECK_TTL = 1000 * 60 * 60 * 24 * 30;
+
+/** 4.26: an artist's missing songs, short: [{ t: title, a: album, y: year }] (at most 600). */
+function missOf(cmp) {
+  const out = [];
+  for (const al of (cmp && cmp.albums) || []) for (const t of al.tracks || []) if (!t.have && out.length < 600) out.push({ t: t.title, a: al.title || '', y: al.year || null });
+  return out;
+}
 const IGNITION = 'https://ignition4.customsforge.com/';
 
 class Discover extends EventEmitter {
@@ -154,7 +161,7 @@ class Discover extends EventEmitter {
       }
     }
     if (!info) info = (await this.mb.artistInfo(id).catch(() => null)) || { id, name: name || 'Artist', disambiguation: '', country: '', type: '' };
-    const albums = await this.mb.discography(id, (done, total, title) => this.emit('progress', { kind: 'artist', id, done, total, title }), { fresh });
+    const albums = await this.mb.discography(id, (done, total, title, x = {}) => this.emit('progress', { ...x, kind: 'artist', id, artist: info.name || name || '', done, total, title }), { fresh });
     // Library songs credited to this artist (MusicBrainz name or the name the user clicked).
     const keys = new Set([discog.normArtist(info.name), discog.normArtist(name)].filter(Boolean));
     const songs = this._songs().filter((s) => keys.has(discog.normArtist(s.artist)));
@@ -192,8 +199,60 @@ class Discover extends EventEmitter {
       albums: cmp.albums.length,
       checkedAt: Date.now(),
       status: 'ok',
+      // 4.26: the missing songs themselves, so Collection gaps can search them and get them in one go
+      miss: missOf(cmp),
     };
     this.saveSoon();
+  }
+
+  /**
+   * 4.26: the songs missing from your artists' albums, from the last check: for some artists
+   * (keys) or every checked one, narrowed by words (artist, song or album). Songs you have
+   * since got, official DLC (can't be downloaded) and repeats are left out. An artist checked
+   * before 4.26 has no list saved yet: it's read again from MusicBrainz (kept on disk, so
+   * usually instant) when asked for by key. [{ key, artist, songs: [{ artist, title, album,
+   * year, wanted, unavailable }] }]
+   */
+  async gapSongs({ keys = null, query = '', limit = 3000 } = {}) {
+    const q = String(query || '').trim().toLowerCase();
+    const words = q ? q.split(/\s+/).filter(Boolean) : [];
+    const wanted = this._wantedMap();
+    const lib = this._byArtist();
+    const out = [];
+    let n = 0;
+    for (const [k, g] of Object.entries(this.data.gaps)) {
+      if (keys && !keys.includes(k)) continue;
+      if (!g || g.status !== 'ok' || !g.missing) continue;
+      let miss = Array.isArray(g.miss) ? g.miss : null;
+      if (!miss && keys && g.mbid) {
+        try {
+          const albums = await this.mb.discography(g.mbid, () => {}, {});
+          const a = lib.get(k);
+          miss = missOf(discog.compare(albums, a ? a.songs : []));
+          g.miss = miss;
+          this.saveSoon();
+        } catch (err) {
+          this.log(`Discover: couldn't read ${g.name}'s albums again: ${err.message}`);
+        }
+      }
+      if (!miss) continue;
+      const artist = g.name;
+      const songs = [];
+      for (const m of miss) {
+        if (words.length) {
+          const hay = `${artist} ${g.mbName || ''} ${m.t} ${m.a || ''}`.toLowerCase();
+          if (!words.every((w) => hay.includes(w))) continue;
+        }
+        if (this._owned(artist, m.t) || this.isOfficialSong(artist, m.t)) continue;
+        const w = wanted.get(this._wantedKey(artist, m.t));
+        if (w && w.status === 'found') continue;
+        songs.push({ artist, title: m.t, album: m.a || '', year: m.y || null, wanted: !!(w && w.status === 'wanted'), unavailable: !!(w && w.status === 'unavailable') });
+        if (++n >= limit) break;
+      }
+      if (songs.length) out.push({ key: k, artist, songs });
+      if (n >= limit) break;
+    }
+    return out;
   }
 
   // ----------------------------------------------------------------- gaps --
@@ -227,7 +286,7 @@ class Discover extends EventEmitter {
           if (!r.match) {
             this.data.gaps[k] = { name: a.name, status: r.options.length ? 'ambiguous' : 'not-found', checkedAt: Date.now(), options: r.options.slice(0, 5).map((o) => ({ id: o.id, name: o.name, disambiguation: o.disambiguation, country: o.country })) };
           } else {
-            const albums = await this.mb.discography(r.match.id, (done, total, title) => this.emit('progress', { kind: 'gaps', artist: a.name, done, total, title }), { fresh });
+            const albums = await this.mb.discography(r.match.id, (done, total, title, x = {}) => this.emit('progress', { ...x, kind: 'gaps', artist: a.name, done, total, title }), { fresh });
             this._recordGap(r.match, discog.compare(albums, a.songs), a.name);
           }
         } catch (err) {
@@ -415,27 +474,31 @@ class Discover extends EventEmitter {
    * When neither way works (offline), the request is kept and sent later by retryRequests().
    */
   async requestOfficial(req = {}, { name = '', version = '' } = {}) {
-    const songs = officialRequest.songsOf(req.songs);
+    // 4.26: `all` (the Official DLC page's one request): every official song you don't have
+    const all = !!req.all;
+    const songs = all ? [] : officialRequest.songsOf(req.songs);
+    const count = all ? this.official().songs.length : songs.length;
     const contact = String(req.contact || '').trim().slice(0, 200);
-    if (!songs.length) return { ok: false, via: 'none', error: 'Pick at least one song.' };
+    if (!all && !songs.length) return { ok: false, via: 'none', error: 'Pick at least one song.' };
+    if (all && !count) return { ok: false, via: 'none', error: 'You have every official song already.' };
     if (!contact) return { ok: false, via: 'none', error: 'Say how Noisewater Labs can reach you.' };
     this.data.requestContact = contact;
     this.saveSoon();
     const nextAt = this._nextRequestAt();
     if (nextAt && this.now() < nextAt) return { ok: false, via: 'wait', nextAt };
-    const ask = { songs, contact, note: String(req.note || '').slice(0, 2000), name: String(name || ''), version: String(version || ''), at: this.now() };
+    const ask = { songs, all, count, contact, note: String(req.note || '').slice(0, 2000), name: String(name || ''), version: String(version || ''), at: this.now() };
     this.data.lastRequestAt = ask.at;
     this.saveSoon();
     const r = await officialRequest.sendRequest(ask, this.post ? { post: this.post } : {});
     if (r.ok) {
-      this.log(`Discover: asked for ${songs.length} official songs (${r.via})`);
+      this.log(`Discover: asked for ${all ? 'all ' : ''}${count} official songs (${r.via})`);
       await this.save().catch(() => {});
-      return { ok: true, via: r.via, nextAt: this._nextRequestAt(), count: songs.length };
+      return { ok: true, via: r.via, nextAt: this._nextRequestAt(), count };
     }
     this.data.pendingRequests = [...(this.data.pendingRequests || []), { ...ask, tries: 1, lastTry: ask.at }].slice(-10);
     await this.save().catch(() => {});
     this.log(`Discover: song request kept to send later (${r.why})`);
-    return { ok: true, via: 'queued', queued: true, nextAt: this._nextRequestAt(), count: songs.length };
+    return { ok: true, via: 'queued', queued: true, nextAt: this._nextRequestAt(), count };
   }
 
   /** Requests kept while offline: tried again on start and every so often (main.js). */
