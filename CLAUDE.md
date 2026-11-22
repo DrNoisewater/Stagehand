@@ -27,7 +27,7 @@ No `npm install` is needed for tests: there is no lockfile, and no test uses `no
 # test dependencies: Node 20+ (22 used), Python 3 with cryptography
 python3 -m pip install cryptography
 
-npm test                        # the whole suite (~1 min); must pass before committing
+npm test                        # the whole suite (~10 min; wacky-pedals alone is several); ask the user before running it (see "Checking changes")
 node test/detect.test.mjs       # note detection on synthesised playing (~20 s); NOT in npm test: a few assertions can be flaky
 node test/chords.test.mjs       # chord scoring: wrong chords miss, messy right strums count (~40 s); NOT in npm test
 node --test test/instrument.test.mjs   # guitar-or-bass sensing (also in npm test)
@@ -144,6 +144,13 @@ Also documented in HANDOFF.md but not re-run on 2026-11-01:
 - `.github/workflows/release.yml` is manual (Actions → Release → Run workflow, version e.g. `3.9.1`). It fails unless the version is `X.Y.Z`, equals `"version"` in `package.json`, and tag `v<version>` doesn't exist yet. Windows job: tests and the sound engine .exe. Linux job: builds `Stagehand-Setup-<version>.exe` (~4 MB; it downloads the runtime, decoder and uv when missing, pinned in `windows/setup/components.sh`, SHA-256 checked), then pushes tag `v<version>` and publishes the release with that one file and short notes.
 - 4.27: the pictures, clips and fonts (≥ 8 KB) are **not** packed into Setup. `make-payload.py` writes `app/art-files.txt` instead (SHA-256, size, path, and a raw.githubusercontent.com address at the exact commit built from), and stops if any art file differs from that commit: build Setup only from a commit that is pushed. Setup (`setup.c`, the `art` section) keeps what the installed copy has, takes the rest from `%LOCALAPPDATA%\Stagehand\Downloads\art` or GitHub (6 at once, checked), all before changing anything. `STAGEHAND_ART_MIRROR` points it elsewhere (tests); `ART_BASE` / `ART_REF` / `ART_REPO` steer `make-payload.py`. CI builds Setup from the pull request's head commit for this reason. On Linux, `windows/setup/core_test.c` checks the art list reader.
 - To release, bump `version` in `package.json` (and the HANDOFF heading) in a commit on the default branch, then run the Release workflow on that branch.
+
+## Checking changes (the user's choice, 2026-11-22)
+
+- After a change, run only the quick checks for what you touched (the one or two test files for that area, usually seconds), and say which.
+- Ask the user before anything long: `npm test` (~10 min), `ui3-chromium.js` audits (~20 min), `rig-chromium.js`, the SING/PIANO shots and the like. Give a rough time.
+- If a change is risky or reaches across many areas, say so and recommend the full checks, but still ask.
+- CI runs `npm test` on every pull request and must pass before merging; that is never skipped, and it is what lets the long local runs wait.
 
 ## Conventions
 

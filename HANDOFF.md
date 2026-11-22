@@ -1,3 +1,9 @@
+# Working rule (2026-11-22): quick checks after a change, ask before the long ones
+
+**Asked:** "Do we need to [run all the tests] every time most things have been working well? … I'd prefer to just implement the change and ask if I'd like to run tests."
+
+**Changed:** `CLAUDE.md` has a new "Checking changes" section: after a change, run only the quick checks for what was touched; ask before `npm test` (~10 min), the `ui3-chromium.js` audits (~20 min) and the other long runs, with a rough time; recommend the full checks for risky changes, still asking. CI's `npm test` on every pull request is never skipped. No app code changed.
+
 # 4.27.1 — One click previews (and the preview is heard again), a double-click splits (2026-11-22; nothing tried on the user's PC)
 
 **Asked:** "When you click on a song on the list, it immediately starts separating the stems for the preview. We can just show a preview of the actual song without splitting stems. Double clicking on an item starts the stem splitting process."
