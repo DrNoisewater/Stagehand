@@ -4315,3 +4315,6 @@ ol.how-steps li b {
 html[data-win='max'] .win-max .when-normal { display: none; }
 html[data-win='max'] .win-max .when-max { display: block; }
 html[data-win='full'] .win-ctl { display: none; }
+
+/* 4.26: the pointer hides on the highway after a few seconds without moving (cursorhide.js) */
+html.cursor-idle, html.cursor-idle * { cursor: none !important; }
