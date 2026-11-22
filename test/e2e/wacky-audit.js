@@ -22,6 +22,8 @@ module.exports = async ({ page, outDir, check }) => {
     else await page.screenshot({ path: path.join(outDir, `lab-${name}.png`) });
   };
   const lab = () => page.evaluate(() => ({ ...window.__rig.lab }));
+  // 4.26: footswitches that were held click on and off; 'hold' mode is the player's choice
+  const footMode = (m) => page.evaluate(async (m) => (await import('./js/lablive.js')).setFootMode(m), m);
   // is footswitch `bit` of pedal `key` down in the engine? (the thirty that followed have their own slot)
   const down = async (key, bit) => page.evaluate(([k, n, b, old]) => (n ? (window.__rig.labWords[n] | 0) & (1 << b) : window.__rig.lab.labHold & (1 << old)) !== 0, [key, KIND[key] || 0, bit, BITS[key] || 0]);
   const leverAt = (key) => page.evaluate(([n]) => (n ? window.__rig.labLevers[n] || 0 : window.__rig.lab.labLever), [KIND[key] || 0]);
@@ -186,6 +188,20 @@ module.exports = async ({ page, outDir, check }) => {
         check(lit && !(await down(key, bit)), `${name}: ${mn} lights with a click and goes out with the next`);
         continue;
       }
+      if (type === 'hold') {
+        // the default: a click turns it on, the next click turns it off (and it is lit while on)
+        await footMode('toggle');
+        await st.click();
+        await page.waitForTimeout(150);
+        const on1 = await down(key, bit), lit1 = await st.evaluate((e) => e.classList.contains('latched'));
+        await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+        await page.waitForTimeout(100);
+        const stays = await down(key, bit);
+        await st.click();
+        await page.waitForTimeout(150);
+        check(on1 && lit1 && stays && !(await down(key, bit)), `${name}: ${mn} clicks on (lit, stays on) and clicks off`);
+        await footMode('hold');
+      }
       await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
       await page.mouse.down();
       await page.waitForTimeout(150);
@@ -202,7 +218,17 @@ module.exports = async ({ page, outDir, check }) => {
       const k1 = await down(key, bit);
       await page.keyboard.up('Space');
       await page.waitForTimeout(100);
-      check(k1 && !(await down(key, bit)), `${name}: ${mn} also works from the keyboard (Space)`);
+      check(k1 && !(await down(key, bit)), `${name}: ${mn} also works from the keyboard (Space)${type === 'hold' ? ' in Hold mode' : ''}`);
+      if (type === 'hold') {
+        await footMode('toggle');
+        await hb.focus();
+        await page.keyboard.press('Space');
+        await page.waitForTimeout(100);
+        const t1 = await down(key, bit);
+        await page.keyboard.press('Space');
+        await page.waitForTimeout(100);
+        check(t1 && !(await down(key, bit)), `${name}: ${mn} toggles from the keyboard (Space on, Space off)`);
+      }
     }
     // a footswitch in the list that isn't on the picture still works from the strip
     for (const [mn, type, bit = 0] of (G[key].m || []).filter(([x, t]) => t !== 'lever' && !(photo.stomps || {})[x.toLowerCase()])) {
@@ -214,6 +240,14 @@ module.exports = async ({ page, outDir, check }) => {
         await hb.click();
         await page.waitForTimeout(100);
         check(lit && !(await down(key, bit)), `${name}: ${mn} lights and goes out on the strip`);
+      } else if (type === 'hold') {
+        await footMode('toggle');
+        await hb.click();
+        await page.waitForTimeout(100);
+        const k1 = await down(key, bit), lit = await hb.evaluate((e) => e.classList.contains('held'));
+        await hb.click();
+        await page.waitForTimeout(100);
+        check(k1 && lit && !(await down(key, bit)), `${name}: ${mn} clicks on and off on the strip`);
       } else {
         await hb.focus();
         await page.keyboard.down('Space');
@@ -245,14 +279,29 @@ module.exports = async ({ page, outDir, check }) => {
   await page.waitForTimeout(700);
   const cst = page.locator(`${R} .gear-stomp.momentary`).first();
   const cb = await cst.boundingBox();
+  await footMode('toggle');
+  await page.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  check(!!(await lab()).labHold, 'Confetti: one click turns Burst on and it stays on');
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.waitForTimeout(100);
+  check(!!(await lab()).labHold, 'a clicked-on footswitch stays on when the window loses focus');
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  check(!(await lab()).labHold, 'and the next click turns it off');
+  await footMode('hold');
   await page.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2);
   await page.mouse.down();
   await page.waitForTimeout(100);
   const h0 = (await lab()).labHold;
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
   await page.waitForTimeout(100);
-  check(h0 && !(await lab()).labHold, 'a held footswitch lets go when the window loses focus');
+  check(h0 && !(await lab()).labHold, 'in Hold mode a held footswitch lets go when the window loses focus');
   await page.mouse.up();
+  await footMode('toggle');
   // played with your guitar: in front of the amp
   const liveSpec = () => page.evaluate(async () => { const { toSpec } = await import('./js/gearspec.js'); return window.__rig.liveTone ? toSpec(window.__rig.liveTone) : ''; });
   await page.locator('#page-gear .sr-live').click();
