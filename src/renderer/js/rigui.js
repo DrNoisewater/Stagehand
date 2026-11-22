@@ -8,7 +8,7 @@ import { h, esc, icon, toast, modal } from './ui.js';
 import { rig } from './rig.js';
 import { engine } from './stage.js';
 import { TYPE_GELS, TYPE_NAMES, orderedGear, knobsOf, momentsOf, shortGearName } from './tonelib.js';
-import { holdable, labHeld, labLever, labLeverAt } from './lablive.js';
+import { holdable, labHeld, labLever, labLeverAt, footMode, setFootMode } from './lablive.js';
 import { renderTone, demoRiff } from './render.js';
 import { resolveCapture } from './captures.js';
 import { knobDrag, showKnobGuide } from './knobdrag.js';
@@ -331,21 +331,40 @@ export function labStrip(g) {
     const b = h('button.btn.small.rhold', { type: 'button', 'data-moment': m.name.toLowerCase(), 'data-type': m.type, 'data-bit': String(m.bit), 'aria-pressed': 'false' });
     b.innerHTML = `<span class="rh-led"></span><span>${esc(m.name)}</span>`;
     if (m.type === 'lever') {
-      b.title = `${m.name}: hold to pull it all the way (it springs back when you let go). On the picture, pull it as far as you like.`;
+      const words = () => (footMode() === 'toggle' ? `${m.name}: click to pull it all the way, click again to let it go. On the picture, pull it as far as you like.` : `${m.name}: hold to pull it all the way (it springs back when you let go). On the picture, pull it as far as you like.`);
+      b.title = words();
       let down = false;
       const set = (on) => { if (down !== on) (down = on), labLever(on ? 1 : 0, g.key); };
-      b.addEventListener('pointerdown', (e) => { if (e.button) return; e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (_) {} set(true); });
-      for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture', 'blur']) b.addEventListener(ev, () => set(false));
-      b.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) (e.preventDefault(), set(true)); });
-      b.addEventListener('keyup', (e) => (e.key === ' ' || e.key === 'Enter') && set(false));
-      const paint = () => { const on = labLeverAt(g.key) > 0.001; if (!on) down = false; b.classList.toggle('held', on); b.setAttribute('aria-pressed', String(on)); };
+      const press = () => (footMode() === 'toggle' ? labLever(labLeverAt(g.key) > 0.001 ? 0 : 1, g.key) : set(true));
+      const rel = () => footMode() !== 'toggle' && set(false);
+      b.addEventListener('pointerdown', (e) => { if (e.button) return; e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (_) {} press(); });
+      for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture', 'blur']) b.addEventListener(ev, rel);
+      b.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) (e.preventDefault(), press()); });
+      b.addEventListener('keyup', (e) => (e.key === ' ' || e.key === 'Enter') && rel());
+      const paint = () => { const on = labLeverAt(g.key) > 0.001; if (!on) down = false; b.classList.toggle('held', on); b.classList.toggle('latched', on && footMode() === 'toggle'); b.setAttribute('aria-pressed', String(on)); b.title = words(); };
       rig.addEventListener('lab', paint);
       b._dispose = () => rig.removeEventListener('lab', paint);
     } else {
-      b.title = `${m.name}: ${labHelp(g.key, m)}`;
-      b._dispose = holdable(b, g.key, m.bit, m.type);
+      const say = () => { b.title = `${m.name}: ${labHelp(g.key, m)}`; };
+      say();
+      rig.addEventListener('lab', say);
+      const stop = holdable(b, g.key, m.bit, m.type);
+      b._dispose = () => (stop(), rig.removeEventListener('lab', say));
     }
     out.push(b);
+  }
+  // 4.26: footswitches click on and off; players who'd rather hold one down can say so here
+  if (out.some((b) => b.getAttribute('data-type') === 'hold' || b.getAttribute('data-type') === 'lever')) {
+    const mode = h('button.btn.small.rmode', { type: 'button' });
+    const paint = () => {
+      const hold = footMode() === 'hold';
+      mode.textContent = hold ? 'Footswitches: hold' : 'Footswitches: click';
+      mode.setAttribute('aria-pressed', String(hold));
+      mode.title = hold ? 'Footswitches only work while you hold them. Click to make them click on and off.' : 'Footswitches click on and click off. Click to make them work only while held.';
+    };
+    mode.onclick = () => (setFootMode(footMode() === 'hold' ? 'toggle' : 'hold'), paint());
+    paint();
+    out.push(mode);
   }
   return out;
 }
@@ -412,7 +431,13 @@ const LAB_MOMENT_HELP = {
   'Pedal_Sustaint|eternal': 'hold it and the note you are playing rings forever',
 };
 export function labHelp(key, m) {
-  return LAB_MOMENT_HELP[`${key}|${m.name.toLowerCase()}`] || LAB_HOLD_HELP[key] || (m.type === 'latch' ? `click to turn ${m.name} on or off` : m.type === 'tap' ? `press to use ${m.name}` : `hold to use ${m.name}`);
+  const old = LAB_MOMENT_HELP[`${key}|${m.name.toLowerCase()}`] || LAB_HOLD_HELP[key];
+  // 4.26: the footswitches that were held now click on and off, so the words say that
+  const click = m.type === 'hold' && footMode() === 'toggle';
+  if (old) return click ? old.replace(/\bhold it\b/g, 'switch it on').replace(/\blet go\b/g, 'switch it off') : old;
+  if (m.type === 'latch') return `click to turn ${m.name} on or off`;
+  if (m.type === 'tap') return `press to use ${m.name}`;
+  return click ? `click to turn ${m.name} on or off` : `hold to use ${m.name}`;
 }
 
 /** An enlarged gear face with real linked controls placed over its knobs.

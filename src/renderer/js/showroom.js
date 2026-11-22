@@ -204,7 +204,7 @@ function drawShow() {
     if (wrap) {
       const side = h('div.sr-side');
       wrap.before(side);
-      side.append(wrap, sheetFold(aboutCard(it, it.key)));
+      side.append(sheetFold(aboutCard(it, it.key)), wrap); // 4.26: the fold's header on top, always in view
     }
     else panel.append(sheetFold(aboutCard(it, it.key)));
     fullSizeButton(panel.querySelector(':scope > .gb-photo'));

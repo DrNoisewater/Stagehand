@@ -499,7 +499,13 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
       const d0 = panel.dispose;
       panel.dispose = () => (unlink(), d0 && d0());
       fullSizeButton(panel.querySelector(':scope > .gb-photo'));
-      body.append(sheetFold(sheet)); // 4.24: folds to one line; the pedal never shrinks for it
+      // 4.26: the fold's header sits at the top of the column beside the pedal, so it is always in view
+      const wrap = panel.querySelector(':scope > .gb-strip-wrap');
+      if (wrap) {
+        const side = h('div.sr-side');
+        wrap.before(side);
+        side.append(sheetFold(sheet), wrap);
+      } else body.append(sheetFold(sheet));
     }
     inspect.append(body);
   }

@@ -39,10 +39,48 @@ export function labLeverAt(key = 'Pedal_Boing') {
   return key in LAB_KINDS ? rig.labLevers[LAB_KINDS[key]] || 0 : rig.lab.labLever;
 }
 
+/**
+ * 4.26: footswitches that used to work only while held now click on and click off (you can't hold
+ * a switch while you play). A player who wants the old way picks "Hold" once (kept on this PC).
+ * Nothing is saved in a tone either way.
+ */
+const MODE_KEY = 'stagehand.footswitchMode';
+export function footMode() {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'hold' ? 'hold' : 'toggle';
+  } catch (_) {
+    return 'toggle';
+  }
+}
+export function setFootMode(m) {
+  try {
+    localStorage.setItem(MODE_KEY, m === 'hold' ? 'hold' : 'toggle');
+  } catch (_) {}
+  // let go of whatever was left on, then repaint every switch
+  labClearAll();
+  rig.dispatchEvent(new Event('lab'));
+}
+
+// switches pressed in Hold mode right now: only these let go when the window loses focus
+const pressed = new Set();
+
 export function labReleaseAll() {
-  if (rig.lab.labHold) rig.live('labHold', 0);
+  for (const k of [...pressed]) {
+    const [key, bit] = k.split('|');
+    labPress(key, false, Number(bit));
+  }
+  pressed.clear();
   if (rig.lab.labLever) rig.live('labLever', 0);
   rig.labLetGo();
+}
+
+/** Lets go of every switch, clicked on or held (changing the mode). */
+function labClearAll() {
+  pressed.clear();
+  if (rig.lab.labHold) rig.live('labHold', 0);
+  if (rig.lab.labLever) rig.live('labLever', 0);
+  for (const n of Object.keys(rig.labWords).map(Number)) rig.labWord(n, 0);
+  for (const n of Object.keys(rig.labLevers).map(Number)) rig.labVal(n, 0);
 }
 
 if (typeof window !== 'undefined') {
@@ -59,12 +97,18 @@ if (typeof window !== 'undefined') {
 export function holdable(el, key, bit = 0, type = 'hold') {
   if (type === 'latch') return latchable(el, key, bit);
   let down = false;
+  const id = `${key}|${bit}`;
+  // 4.26: a 'hold' switch clicks on and off unless the player chose Hold; a 'tap' acts on the press
+  const toggles = () => type === 'hold' && footMode() === 'toggle';
   const set = (on) => {
     if (down === on) return;
     down = on;
+    if (on) pressed.add(id);
+    else pressed.delete(id);
     labPress(key, on, bit);
   };
-  const up = () => set(false);
+  const press = () => (toggles() ? labPress(key, !labHeld(key, bit), bit) : set(true));
+  const up = () => !toggles() && set(false);
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || el.disabled) return;
     e.preventDefault();
@@ -72,13 +116,13 @@ export function holdable(el, key, bit = 0, type = 'hold') {
       el.setPointerCapture(e.pointerId);
     } catch (_) {}
     el.focus({ preventScroll: true });
-    set(true);
+    press();
   });
   for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture', 'blur']) el.addEventListener(ev, up);
   el.addEventListener('keydown', (e) => {
     if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
       e.preventDefault();
-      set(true);
+      press();
     }
   });
   el.addEventListener('keyup', (e) => (e.key === ' ' || e.key === 'Enter') && up());
@@ -86,11 +130,12 @@ export function holdable(el, key, bit = 0, type = 'hold') {
     const on = labHeld(key, bit);
     if (!on) down = false; // let go elsewhere (focus lost, tone changed)
     el.classList.toggle('held', on);
+    el.classList.toggle('latched', on && toggles());
     el.setAttribute('aria-pressed', String(on));
   };
   rig.addEventListener('lab', paint);
   paint();
-  return () => (up(), rig.removeEventListener('lab', paint));
+  return () => (set(false), rig.removeEventListener('lab', paint));
 }
 
 /** A button that stays lit (Speak, Repeat, Dance): click, Space or Enter turns it on and off. */

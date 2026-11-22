@@ -41,7 +41,7 @@ const sentence = (s) => {
   return t ? t[0].toUpperCase() + t.slice(1) + (/[.!?]$/.test(t) ? '' : '.') : '';
 };
 
-const KIND = { hold: 'Footswitch: hold it', tap: 'Footswitch: press it', latch: 'Button: click on, click off', lever: 'Lever: pull it, it springs back' };
+const KIND = { hold: 'Footswitch: click on, click off', tap: 'Footswitch: press it', latch: 'Button: click on, click off', lever: 'Lever: pull it (or click to hold it down)' };
 
 /** Every control of a piece, in plain words: [{ name, kind, text, positions }]. Knobs first (as on
  * the strip), then the footswitches and levers. */
