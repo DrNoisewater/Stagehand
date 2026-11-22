@@ -4154,6 +4154,7 @@ ol.how-steps li b {
 }
 .hw-status { position: absolute; inset: 0; display: grid; place-items: center; z-index: 4; pointer-events: none; }
 .hw-status[hidden] { display: none; }
+.hw-st-unmixer { pointer-events: auto; width: min(660px, calc(100% - 48px)); filter: drop-shadow(0 20px 50px #000a); } /* after 4.26.0: the Unmixer card */
 .hw-st-box { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: min(520px, 90vw); padding: 22px 28px; border-radius: 16px; background: #111824e8; border: 1px solid #33c8e044; box-shadow: 0 20px 60px #0008; text-align: center; color: var(--ink-2); font-size: 14px; }
 .hw-st-box b { font-size: 18px; color: var(--ink); }
 .hw-st-box.bad { border-color: #ff5d5d66; }

@@ -1,9 +1,9 @@
 /** Bottom pane: transport, timeline, full-mix lane and per-stem lanes. */
-import { cameo } from './cameo.js';
 import { did } from './rewards.js';
 import { api } from './api.js';
 import { state, on, emit, upsertSongs, setPage, splitFirst } from './store.js';
 import { h, icon, esc, toast, stemsLeft } from './ui.js';
+import { stemCard, loadUnmixer, unmixerReady } from './stemcard.js';
 import { AudioEngine, loadTrackData, STEM_ORDER } from './audio-engine.js';
 import { WaveLane, drawBeam, drawRuler, drawSpectrum, fmtTime, overview, drawBars } from './wave.js';
 import * as actions from './actions.js';
@@ -803,7 +803,7 @@ function setPhase(phase) {
 }
 
 export function loadInfo() {
-  return { phase: S.phase || (S.song ? 'ready' : 'none'), song: S.song, error: S.error, code: S.errorCode || null, note: S.loadNote || '', prev: S.prevSong, waiting: S.waitPlay ? S.waitStatus || S.status || { state: 'queued' } : null };
+  return { phase: S.phase || (S.song ? 'ready' : 'none'), song: S.song, error: S.error, code: S.errorCode || null, note: S.loadNote || '', prev: S.prevSong, waitId: S.waitPlay, waiting: S.waitPlay ? S.waitStatus || S.status || { state: 'queued' } : null };
 }
 
 // 4.11: finding a song's audio in Rocksmith's folder can take a moment the first time: say so
@@ -1245,10 +1245,12 @@ async function stemsFirst(song, token) {
 function startWaiting(token) {
   S.waitPlay = token;
   renderWaiting(S.waitStatus || S.status);
-  // 4.9: someone keeps you company while the stems split (a new one each song)
-  waitBox.querySelector('.sw-cameo')?.remove();
-  const who = cameo('event-stems', { enter: 'peek', cls: 'sw-cameo', delay: 200 });
-  if (who) waitBox.append(who);
+  // after 4.26.0: the Unmixer card (the user's animation) instead of the plain card and its sticker;
+  // the plain card stays until the animation has loaded, and if it can't load
+  if (!unmixerReady())
+    loadUnmixer().then((ok) => {
+      if (ok && S.waitPlay === token) renderWaiting(S.waitStatus || S.status);
+    });
   emit('stage-waiting', true);
   emit('stage-phase');
   renderStemsCall();
@@ -1258,6 +1260,9 @@ function stopWaiting() {
   if (!S.waitPlay) return;
   S.waitPlay = 0;
   waitBox.hidden = true;
+  if (waitCard) waitCard.destroy();
+  waitCard = null;
+  waitBox.replaceChildren();
   emit('stage-waiting', false);
   emit('stage-phase');
   renderStemsCall();
@@ -1271,9 +1276,33 @@ export function stemsStep(st) {
   return 'Splitting the stems…';
 }
 
+let waitCard = null;
+
 function renderWaiting(st) {
   if (!S.waitPlay) return;
   st = st || { state: 'queued' };
+  if (waitCard && waitCard.jobKey !== S.waitPlay) {
+    waitCard.destroy();
+    waitCard = null;
+  }
+  if (!waitCard && unmixerReady()) {
+    waitCard = stemCard({
+      song: S.song,
+      jobKey: S.waitPlay,
+      onPlay: () => {
+        stopWaiting();
+        engine.play();
+      },
+    });
+    if (waitCard) waitBox.replaceChildren(waitCard.el);
+  }
+  if (waitCard) {
+    waitCard.feed(st);
+    waitBox.classList.add('unmixer');
+    waitBox.hidden = false;
+    return;
+  }
+  waitBox.classList.remove('unmixer');
   const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
   const title = st.state === 'ready' ? 'Loading the stems' : st.state === 'queued' ? 'Waiting to split the stems' : pct ? `Splitting the stems · ${pct}%` : stemsStep(st);
   const left = stemsLeft(st);

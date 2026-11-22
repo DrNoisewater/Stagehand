@@ -31,6 +31,7 @@ import { capoLabel } from './songbadges.js';
 import { createTuner } from './tuner.js';
 import { breakdown, cheer } from './scorecard.js';
 import { cameo } from './cameo.js';
+import { stemCard, loadUnmixer, unmixerReady } from './stemcard.js';
 import { StruggleWatch, nearestPick } from './struggle.js';
 import { state, on, splitFirst, setPage } from './store.js';
 import { createClassicHighway } from './highway-classic.js';
@@ -1430,11 +1431,22 @@ export function createHighway(stage) {
     renderStatus();
   }
 
+  let waitCard = null;
+  let loadingCard = false;
+  function dropWaitCard() {
+    if (!waitCard) return;
+    waitCard.destroy();
+    waitCard = null;
+    statusBox.dataset.key = '';
+    statusBox.replaceChildren();
+  }
+
   /** The panel in the middle when the song can't play yet, and why. */
   function renderStatus() {
     const info = stage.loadInfo ? stage.loadInfo() : null;
     if (!H.open || !info || !info.song || H.training) {
       statusBox.hidden = true;
+      dropWaitCard();
       return;
     }
     const title = esc(info.song.title || 'this song');
@@ -1446,7 +1458,26 @@ export function createHighway(stage) {
     } else if (info.phase === 'error') {
       key = `error:${info.song.id}:${info.error}`;
       html = `<div class="hw-st-box bad"><b>${title} didn’t open</b><span>${esc(info.error || 'Something went wrong.')}</span><div class="hw-st-acts">${info.code === 'AUDIO_NO_GAME' ? '<button type="button" class="btn small primary" data-act="game">Find my Rocksmith folder</button>' : ''}<button type="button" class="btn small${info.code === 'AUDIO_NO_GAME' ? ' ghost' : ' primary'}" data-act="retry">Try again</button>${info.prev ? `<button type="button" class="btn small ghost" data-act="prev">Back to ${esc(info.prev.title)}</button>` : ''}</div></div>`;
+    } else if (info.waiting && (waitCard || unmixerReady())) {
+      // after 4.26.0: the Unmixer card (the user's animation) while the song waits for its stems
+      if (!waitCard || waitCard.jobKey !== info.waitId || !statusBox.contains(waitCard.el)) {
+        dropWaitCard();
+        waitCard = stemCard({ song: info.song, jobKey: info.waitId, onPlay: () => stage.playNow() });
+        if (waitCard) {
+          statusBox.dataset.key = `unmixer:${info.waitId}`;
+          statusBox.replaceChildren(h('div.hw-st-unmixer', null, waitCard.el));
+        }
+      }
+      if (waitCard) {
+        waitCard.feed(info.waiting);
+        statusBox.hidden = false;
+        return;
+      }
     } else if (info.waiting) {
+      if (!loadingCard) {
+        loadingCard = true;
+        loadUnmixer().then((ok) => ok && renderStatus());
+      }
       const st = info.waiting;
       const pct = st.state === 'ready' ? 100 : Math.round((st.progress || 0) * 100);
       const left = stemsLeft(st);
@@ -1466,6 +1497,7 @@ export function createHighway(stage) {
       }
       html = `<div class="hw-st-box"><b>${what}</b><span>${sub}</span><div class="hw-st-bar"><i style="width:${Math.max(2, pct)}%"></i></div><div class="hw-st-acts"><button type="button" class="btn small" data-act="now">Play now with the full mix</button></div></div>`;
     }
+    dropWaitCard();
     if (!html) {
       statusBox.hidden = true;
       statusBox.dataset.key = '';
