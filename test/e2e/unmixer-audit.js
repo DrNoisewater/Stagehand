@@ -54,6 +54,13 @@ module.exports = async ({ page, outDir, check, stemHold }) => {
   await page.waitForTimeout(300);
   c = await card();
   check(/68%/.test(c.text), `and keeps up (${c.text.match(/\d+%/)})`);
+  const fits = await page.evaluate(() => {
+    const b = document.querySelector('.stem-wait .stem-card svg [role=button]');
+    const r = b.querySelector('rect').getBoundingClientRect();
+    const t = b.querySelector('text').getBoundingClientRect();
+    return { inside: t.left >= r.left && t.right <= r.right - 4, gap: Math.round(r.right - t.right) };
+  });
+  check(fits.inside, `“Play now with the full mix” fits inside its button (${fits.gap} px to spare)`);
 
   // its Play now plays the full mix
   await page.locator('.stem-wait .stem-card [role=button]').click();

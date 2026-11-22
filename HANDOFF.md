@@ -7,6 +7,7 @@
 - The sticker in the card's top-left corner (the `event-stems` cameo) is gone.
 - The pack lives in `src/renderer/vendor/unmixer/` (`unmixer.js`, `art/`) exactly as sent; `docs/unmixer/Integration.md` and `Poster.jpg` are its notes. The preview page, demo events and video were left out.
 - What it shows: queued → "Waiting to split stems" with which song is split first; splitting before a number → no percentage, "Reading the song…" or "Starting the splitter…"; splitting → the real percentage and the time left; stems in → "Stems ready, loading the stems" for the moment before the song starts. Nothing is guessed from time. Play now with the full mix (its own button, mouse or keyboard) does what the old button did.
+- "Play now with the full mix" ran past the right edge of its button (the font on the PC is wider than the one the card was drawn with): `stemcard.js` shrinks those words, a half size at a time, until they fit with a margin. The animation file itself is left as sent.
 - A hidden line says the same in words for screen readers. If the script can't load, the old plain card shows instead.
 - Left alone: the Activity bar, the top bar's splitting pill, the highway's Sound & settings text.
 

@@ -92,6 +92,21 @@ export function stemCard({ song, jobKey, onPlay }) {
   let seq = 0;
   let last = '';
   rig.start({ jobId, songId, song: (song && song.title) || '', artist: (song && song.artist) || '', sequence: 0, phase: 'queued', progress: null });
+  // "Play now with the full mix" ran past its button (the font on this PC is wider than the one it
+  // was drawn with): once the card is on screen, the words get smaller until they fit, with a margin
+  let fitted = false;
+  const fitButton = () => {
+    if (fitted || !el.isConnected) return;
+    const b = host.querySelector('svg [role=button]');
+    const box = b && b.querySelector('rect');
+    const t = b && b.querySelector('text');
+    if (!box || !t || typeof t.getComputedTextLength !== 'function') return (fitted = true);
+    const room = Number(box.getAttribute('x')) + Number(box.getAttribute('width')) - Number(t.getAttribute('x')) - 10;
+    let size = Number(t.getAttribute('font-size')) || 13;
+    if (!(t.getComputedTextLength() > 0)) return; // not laid out yet
+    while (t.getComputedTextLength() > room && size > 9) t.setAttribute('font-size', (size -= 0.5));
+    fitted = true;
+  };
   return {
     el,
     jobKey,
@@ -99,6 +114,7 @@ export function stemCard({ song, jobKey, onPlay }) {
       const e = unmixerEvent(st);
       const sig = JSON.stringify(e);
       said.textContent = words(st, song);
+      if (!fitted) fitButton(), requestAnimationFrame(fitButton);
       if (sig === last) return; // nothing new to say (the time left ticks every second)
       last = sig;
       rig.update({ jobId, songId, sequence: ++seq, ...e });
