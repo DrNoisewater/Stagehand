@@ -4318,3 +4318,20 @@ html[data-win='full'] .win-ctl { display: none; }
 
 /* 4.26: the pointer hides on the highway after a few seconds without moving (cursorhide.js) */
 html.cursor-idle, html.cursor-idle * { cursor: none !important; }
+
+/* 4.26: "Requires capo · Capo on 2nd fret", shown on the highway before the song starts */
+.hw-capo { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); z-index: 4; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 26px; border-radius: 14px; background: #111824ee; border: 2px solid #ffb547; box-shadow: 0 16px 48px #000a; text-align: center; max-width: 90vw; }
+.hw-capo[hidden] { display: none; }
+.hw-capo b { font-size: 22px; font-weight: 800; color: #ffb547; letter-spacing: 0.02em; }
+.hw-capo span { font-size: 16px; color: var(--ink); font-weight: 600; }
+
+/* 4.26: the small bar shown while a song is previewing (Songs), with its Stop */
+.pv-bar { position: fixed; left: 226px; bottom: 96px; z-index: 250; display: flex; align-items: center; gap: 10px; max-width: min(420px, 80vw); padding: 7px 8px 7px 12px; border-radius: 999px; background: #1a2134f2; border: 1px solid #ffb54766; box-shadow: 0 10px 30px #0009; color: var(--ink-2); font-size: 12.5px; }
+.pv-bar[hidden] { display: none; }
+.pv-bar .pv-ic { display: grid; color: #ffb547; }
+.pv-bar .pv-ic svg { width: 16px; height: 16px; }
+.pv-bar .pv-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-bar .pv-t b { color: var(--ink); font-weight: 650; }
+.pv-bar .pv-stop { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid #ffffff2a; background: #ffffff10; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+.pv-bar .pv-stop:hover { background: #ffffff22; }
+.pv-bar .pv-stop svg { width: 12px; height: 12px; }

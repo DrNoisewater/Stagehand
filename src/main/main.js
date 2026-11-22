@@ -950,6 +950,12 @@ function registerIpc() {
     return withFileRead(song.path, () => audio.prepare(song));
   });
 
+  // 4.26: the short clip played when a song is clicked in Songs
+  handle('audio:preview', async (songId) => {
+    const song = requireSong(songId);
+    return withFileRead(song.path, () => audio.preparePreview(song));
+  });
+
   handle('tab:list', (songId) => tabs.list(requireSong(songId)));
   handle('tab:vocals', (songId) => {
     const song = requireSong(songId);

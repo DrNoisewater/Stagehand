@@ -6,6 +6,7 @@ import { state, on, emit, selectedSongs, upsertSongs, setView, splitFirst } from
 import { h, icon, esc, fmtDuration, fmtBytes, fmtDate, toast } from './ui.js';
 import * as actions from './actions.js';
 import { setPage } from './store.js';
+import { capoOf, capoLabel } from './songbadges.js';
 
 const SONG_GELS = ['#ff6b3d', '#8c7bff', '#ff4d8d', '#33c8e0', '#9bdb5a', '#ffb547'];
 function gelOf(s) {
@@ -175,7 +176,7 @@ function renderOne(s) {
   // Arrangements
   const arrs = h('div.arr-list');
   for (const a of s.arrangements || []) {
-    const tuning = a.tuningName ? `${a.tuningName}${a.capo ? `, capo ${a.capo}` : ''}` : '';
+    const tuning = a.tuningName ? `${a.tuningName}${a.capo ? `, ${capoLabel(a.capo).toLowerCase()}` : ''}` : '';
     const el = h('div.arr');
     el.innerHTML = `<span class="part on">${TYPE_LETTER[a.type] || '?'}</span>
       <span class="name">${esc(TYPE_LABEL[a.type] || a.name)}${a.bonus ? '<small>Bonus</small>' : !a.represent ? '<small>Alternate</small>' : ''}</span>
@@ -194,6 +195,7 @@ function renderOne(s) {
   const chips = h('div.insp-facts');
   const chip = (ic, text, title, cls = '') => chips.append(h(`span.fact${cls}`, { title }, h('span.fi', { html: icon(ic) }), h('span', { text })));
   if (s.tuning) chip('tuning', `${s.tuning}${s.tuningCents ? ` ${s.tuningCents}` : ''}`, 'Tuning', s.tuning !== 'E Standard' ? '.alt' : '');
+  { const cp = capoOf(s); if (cp) chip('tuning', cp.label, `Requires a capo.${cp.differs ? ` ${cp.parts.map((p) => `${p.name}: ${p.fret ? `fret ${p.fret}` : 'no capo'}`).join(', ')}.` : ''}`, '.alt'); }
   if (s.length) chip('clock', fmtDuration(s.length), 'Length');
   if (s.tempo) chip('drum', `${Math.round(s.tempo)}`, 'Tempo (BPM)');
   if (s.user && s.user.plays) chip('play', `${s.user.plays}×`, 'Times played');
