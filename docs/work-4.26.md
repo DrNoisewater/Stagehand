@@ -24,5 +24,9 @@ The user's asks (2026-11-22, after 4.25.0), and who builds what. Keep this up to
     come through (only a screenshot): build the spot with a stand-in, ask the user to resend. → "Discover redesigner".
 13. Facelift for all Discover pages. → "Discover redesigner".
 
+14. (later) Arrow keys move the song only on highway/waveform/tab view; on pedals they navigate. → lead.
+
 ## Status
 - helpers started 2026-11-22, each in its own worktree branch; merged into claude/clever-volta-zpv64h by the lead.
+- [x] all five merged (Highway helper, Songs helper, Finder fixer, Pedal fixer, Discover redesigner) + arrows (lead).
+- [x] README, HANDOFF, version 4.26.0. Not released (waiting for the user).
