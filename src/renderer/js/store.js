@@ -1,6 +1,6 @@
 /** App state, derived song lists and a tiny event bus. */
 import { api } from './api.js';
-import { normText, matchSong } from './searchmatch.js';
+import { normText, matchSong, tuningFromWords, inTuning } from './searchmatch.js';
 
 export const bus = new EventTarget();
 export const emit = (type, detail) => bus.dispatchEvent(new CustomEvent(type, { detail }));
@@ -237,9 +237,10 @@ export function visibleSongs() {
       keepOrder = false;
     }
     const terms = q.split(' ');
+    const tw = tuningFromWords(state.search); // 4.26: "e flat", "drop d": the songs in that tuning
     scores = new Map();
     for (const s of list) {
-      const sc = matchSong(s, terms, q);
+      const sc = tw && inTuning(s, tw.name) ? 5000 : tw && tw.strict ? 0 : matchSong(s, terms, q);
       if (sc > 0) scores.set(s, sc);
     }
     list = list.filter((s) => scores.has(s));

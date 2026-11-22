@@ -5,7 +5,7 @@
  * In Discover the same box searches MusicBrainz and shows no suggestions.
  */
 import { state, emit, on, bump, setPage, setView } from './store.js';
-import { suggest, completion } from './searchmatch.js';
+import { suggest, completion, tuningFromWords } from './searchmatch.js';
 import { h, icon, esc } from './ui.js';
 import * as library from './library.js';
 import * as discover from './discover.js';
@@ -57,15 +57,39 @@ function forget() {
 }
 
 // ------------------------------------------------------------ the list --
-const GROUP = { song: 'Songs', artist: 'Artists', album: 'Albums', tuning: 'Tunings', year: 'Year', setlist: 'Setlists', recent: 'Recent searches' };
-const ICON = { song: 'music', artist: 'person', album: 'library', tuning: 'tuning', year: 'clock', setlist: 'setlist', recent: 'history', all: 'search', online: 'globe' };
+const GROUP = { tuningcard: 'Tuning', song: 'Songs', artist: 'Artists', album: 'Albums', tuning: 'Tunings', year: 'Year', setlist: 'Setlists', recent: 'Recent searches' };
+const ICON = { tuningcard: 'tuning', song: 'music', artist: 'person', album: 'library', tuning: 'tuning', year: 'clock', setlist: 'setlist', recent: 'history', all: 'search', online: 'globe' };
 
+/** One letter, lower case and without its accent, so "motley" lights up in "Mötley" (same length, so places line up). */
+const fold1 = (c) => {
+  const f = c.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  return f.length === 1 ? f : c.toLowerCase().slice(0, 1) || c;
+};
+
+/** Bold every word you typed, wherever it is in the label (accents and capitals don't matter). */
 function mark(label, q) {
-  // bold the part you typed, where it's plainly there
-  const t = String(q || '').trim();
-  const i = t ? label.toLowerCase().indexOf(t.toLowerCase()) : -1;
-  if (i < 0) return esc(label);
-  return `${esc(label.slice(0, i))}<b>${esc(label.slice(i, i + t.length))}</b>${esc(label.slice(i + t.length))}`;
+  const words = String(q || '').trim().split(/\s+/).filter(Boolean).map((w) => [...w].map(fold1).join(''));
+  if (!words.length) return esc(label);
+  const chars = [...label];
+  const folded = chars.map(fold1).join('');
+  const on = new Array(chars.length).fill(false);
+  for (const w of words) {
+    let i = folded.indexOf(w);
+    while (i >= 0) {
+      for (let k = i; k < i + w.length; k++) on[k] = true;
+      i = folded.indexOf(w, i + w.length);
+    }
+  }
+  if (!on.some(Boolean)) return esc(label);
+  let out = '';
+  let open = false;
+  chars.forEach((c, i) => {
+    if (on[i] && !open) out += '<b>';
+    if (!on[i] && open) out += '</b>';
+    open = on[i];
+    out += esc(c);
+  });
+  return out + (open ? '</b>' : '');
 }
 
 function build() {
@@ -92,9 +116,11 @@ function build() {
   }
   const groups = suggest(q, [...state.songs.values()], state.setlists || []);
   rest = completion(raw, groups);
+  const tw = tuningFromWords(q);
   for (const g of groups) {
-    pop.append(h('div.sp-head', null, h('span', { text: GROUP[g.kind] }), g.more > 0 ? h('span.sp-more', { text: `+${g.more} more` }) : null));
-    for (const it of g.items) add(it, q);
+    // the tuning card stands on its own at the top, no heading
+    if (g.kind !== 'tuningcard') pop.append(h('div.sp-head', null, h('span', { text: GROUP[g.kind] }), g.more > 0 ? h('span.sp-more', { text: `+${g.more} more` }) : null));
+    for (const it of g.items) add(it, tw ? '' : q); // no bolding of single letters for tuning words
   }
   // always: see every match in the list, or look further afield
   pop.append(h('div.sp-sep'));
@@ -102,6 +128,7 @@ function build() {
   const count = n ? n.items.length + n.more : 0;
   add({ kind: 'all', label: count ? `Show all ${count} matching song${count === 1 ? '' : 's'}` : `No songs match “${q}”`, sub: count ? 'Enter' : '' }, '');
   add({ kind: 'online', label: `Find “${q.length > 32 ? q.slice(0, 32) + '…' : q}” on MusicBrainz`, sub: 'songs you don’t have yet' }, '');
+  pop.append(h('div.sp-keys', { 'aria-hidden': 'true' }, h('span', { text: '↑ ↓ move' }), h('span', { text: 'Enter open' }), h('span', { text: 'Tab finish' }), h('span', { text: 'Esc close' })));
   showGhost();
   open();
 }
@@ -112,7 +139,12 @@ function add(it, q) {
   const el = h('div.sp-item', { role: 'option', id: `sp-${i}`, 'aria-selected': 'false' });
   el.dataset.i = i;
   el.dataset.kind = it.kind;
-  el.innerHTML = `<span class="sp-ic">${icon(ICON[it.kind] || 'search')}</span><span class="sp-label">${it.kind === 'all' || it.kind === 'online' ? esc(it.label) : mark(it.label, q)}</span>${it.sub ? `<span class="sp-sub">${esc(it.sub)}</span>` : ''}`;
+  if (it.kind === 'tuningcard') {
+    el.classList.add('sp-card');
+    if (!it.n) el.classList.add('dim');
+    el.title = it.n ? 'Show the songs in this tuning' : 'None of your songs are in this tuning yet';
+  }
+  el.innerHTML = `<span class="sp-ic">${icon(ICON[it.kind] || 'search')}</span><span class="sp-label">${it.kind === 'all' || it.kind === 'online' || it.kind === 'tuningcard' ? esc(it.label) : mark(it.label, q)}</span>${it.sub ? `<span class="sp-sub">${esc(it.sub)}</span>` : ''}`;
   if (it.kind === 'all' && !/^Show/.test(it.label)) el.classList.add('dim');
   // keep the focus in the box: the click picks, the box stays put
   el.addEventListener('mousedown', (e) => e.preventDefault());
@@ -200,6 +232,12 @@ function pick(i) {
   }
   remember(q);
   close();
+  if (it.kind === 'tuningcard') {
+    if (!it.n) return;
+    setView({ kind: 'tuning', id: it.id });
+    input.blur();
+    return;
+  }
   if (it.kind === 'song') return library.showSong(it.id);
   // a name: open its list (this clears the search, so nothing else hides it)
   if (it.kind === 'artist') setView({ kind: 'artist', id: it.id });
@@ -255,10 +293,13 @@ input.addEventListener('keydown', (e) => {
     return;
   }
   if (k === 'ArrowDown' && isOpen()) {
-    highlight(Math.min(items.length - 1, active + 1));
+    highlight(active >= items.length - 1 ? 0 : active + 1); // down from the bottom wraps to the top
     e.preventDefault();
   } else if (k === 'ArrowUp' && isOpen()) {
-    highlight(Math.max(-1, active - 1));
+    highlight(active <= 0 ? items.length - 1 : active - 1); // up from the top wraps to the bottom
+    e.preventDefault();
+  } else if ((k === 'PageDown' || k === 'PageUp') && isOpen()) {
+    highlight(Math.max(0, Math.min(items.length - 1, active + (k === 'PageDown' ? 5 : -5))));
     e.preventDefault();
   } else if (k === 'Enter') {
     if (isOpen() && active >= 0) pick(active);
