@@ -86,7 +86,11 @@ jobs:
       DEPS: ${{ github.workspace }}/../deps
       SH_LLVM_MINGW: ${{ github.workspace }}/../llvm-mingw
     steps:
+      # 4.27: Setup fetches the pictures from GitHub at the commit it was built from, so build
+      # from the pull request's own (pushed) commit, not the merge GitHub makes to test it
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -110,6 +114,8 @@ jobs:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}

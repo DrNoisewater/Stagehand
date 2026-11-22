@@ -420,12 +420,15 @@ static int sha256_file(const wchar_t *path, char hex[65]) {
   HANDLE f = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (f == INVALID_HANDLE_VALUE) return 0;
   if (BCryptOpenAlgorithmProvider(&alg, BCRYPT_SHA256_ALGORITHM, NULL, 0) == 0 && BCryptCreateHash(alg, &hh, NULL, 0, NULL, 0, 0) == 0) {
-    static unsigned char buf[1 << 20];
+    /* its own buffer: the pictures are checked by several downloads at once */
+    enum { BN = 1 << 18 };
+    unsigned char *buf = malloc(BN);
     DWORD r = 0;
-    ok = 1;
-    while (ReadFile(f, buf, sizeof buf, &r, NULL) && r) {
+    ok = !!buf;
+    while (ok && ReadFile(f, buf, BN, &r, NULL) && r) {
       if (BCryptHashData(hh, buf, r, 0)) { ok = 0; break; }
     }
+    free(buf);
     unsigned char d[32];
     if (ok && BCryptFinishHash(hh, d, 32, 0) == 0) {
       for (int i = 0; i < 32; i++) sprintf(hex + i * 2, "%02x", d[i]);
@@ -598,6 +601,14 @@ static DWORD WINAPI detect_thread(void *arg) {
     set_row(R_DATA, ST_HAVE, L"Kept: your library, settings, stems, tones and the stem splitter");
   } else {
     Part app = payload_part(&S.pay, "app/");
+    /* (the pictures are counted too: most of them are downloaded on a new install) */
+    {
+      size_t n = 0;
+      char *txt = payload_read(&S.pay, "app/art-files.txt", &n), err[100];
+      ArtList a;
+      if (txt && art_parse(txt, &a, err, sizeof err)) app.bytes += a.bytes, art_free(&a);
+      free(txt);
+    }
     if (!S.installed_ver[0]) set_row(R_APP, ST_WILL, L"New install (%.0f MB)", mb(app.bytes));
     else if (!wcscmp(S.installed_ver, WSTR(SH_VERSION))) set_row(R_APP, ST_WILL, L"Version " WSTR(SH_VERSION) L" is installed. Reinstall it");
     else set_row(R_APP, ST_WILL, L"Update from %s", S.installed_ver);
@@ -803,6 +814,276 @@ static int fetch(const Comp *c, int row, wchar_t *out) {
   }
   _snwprintf(S.error, 512, L"Couldn't download %s: %s. Check your internet connection and run Setup again: it carries on from where it stopped.", c->name, why);
   return 0;
+}
+
+/* ---------------------------------------------------------------- art -- */
+/* 4.27: the pictures, clips and fonts aren't packed into Setup (they were most of its size).
+   app/art-files.txt says where they are on GitHub (the exact commit this Setup was built from)
+   and each file's SHA-256 and size. Each one is taken, in this order, from: the Stagehand
+   already installed (same SHA-256), the art folder in Downloads (an earlier Setup that stopped
+   partway), or GitHub (checked against its SHA-256). So the first install fetches the art once,
+   and an update fetches only what's new or changed. Nothing is changed on the PC until every
+   file is here and checked; what's downloaded is kept if it stops. */
+enum { ART_GET, ART_OLD, ART_CACHE, ART_DUP };
+static ArtList ART;
+static unsigned char *art_from;     /* per file: ART_GET, ART_OLD, ART_CACHE, or ART_DUP (the old copy of art_dup[i]) */
+static int *art_dup;
+static uint64_t art_get_bytes;      /* still to download */
+static int art_get_n;
+static volatile LONG art_next, art_done_n, art_failed;
+static volatile LONG64 art_done_bytes;
+static wchar_t art_why[300];
+static wchar_t art_host[256], art_root[1024];
+static INTERNET_PORT art_port;
+static int art_https;
+
+static void art_wpath(const char *rel, wchar_t *out, int n) {
+  MultiByteToWideChar(CP_UTF8, 0, rel, -1, out, n);
+  for (wchar_t *q = out; *q; q++) if (*q == L'/') *q = L'\\';
+}
+static void art_old_path(int i, wchar_t *out) {
+  wchar_t rel[MAX_PATH];
+  art_wpath(ART.f[i].path, rel, MAX_PATH);
+  _snwprintf(out, MAX_PATH, L"%s\\resources\\app\\%s", S.dest, rel);
+  out[MAX_PATH - 1] = 0;
+}
+static void art_cache_path(int i, wchar_t *out, const wchar_t *ext) {
+  _snwprintf(out, MAX_PATH, L"%s\\Downloads\\art\\%S%s", S.local, ART.f[i].sha, ext);
+}
+static int art_matches(const wchar_t *p, int i) {
+  char hex[65];
+  return file_size(p) == ART.f[i].size && wexists(p) && sha256_file(p, hex) && !strcmp(hex, ART.f[i].sha);
+}
+
+/* Reads the list from the payload and sees what this PC has. 1 = fine (nothing to fetch when
+   art_get_n is 0), 0 = this Setup is damaged (S.error set). */
+static int art_load(void) {
+  art_free(&ART);
+  free(art_from);
+  free(art_dup);
+  art_from = NULL;
+  art_dup = NULL;
+  art_get_bytes = 0;
+  art_get_n = 0;
+  size_t n = 0;
+  char *txt = payload_read(&S.pay, "app/art-files.txt", &n);
+  if (!txt) return 1; /* an older Setup layout: everything is in the payload */
+  char err[200];
+  int ok = art_parse(txt, &ART, err, sizeof err);
+  free(txt);
+  if (!ok) {
+    _snwprintf(S.error, 512, L"This Setup is damaged (%S). Download Stagehand Setup again.", err);
+    return 0;
+  }
+  art_from = calloc(ART.n ? ART.n : 1, 1);
+  art_dup = calloc(ART.n ? ART.n : 1, sizeof *art_dup);
+  if (!art_from || !art_dup) {
+    wcscpy(S.error, L"Not enough memory. Close some programs and run Setup again.");
+    return 0;
+  }
+  wchar_t mirror[1024], base[1100];
+  if (GetEnvironmentVariableW(L"STAGEHAND_ART_MIRROR", mirror, 1024)) _snwprintf(base, 1100, L"%s/", mirror);
+  else MultiByteToWideChar(CP_UTF8, 0, ART.base, -1, base, 1100);
+  URL_COMPONENTSW uc;
+  memset(&uc, 0, sizeof uc);
+  uc.dwStructSize = sizeof uc;
+  uc.lpszHostName = art_host;
+  uc.dwHostNameLength = 256;
+  uc.lpszUrlPath = art_root;
+  uc.dwUrlPathLength = 1024;
+  if (!WinHttpCrackUrl(base, 0, 0, &uc)) {
+    wcscpy(S.error, L"This Setup doesn't know where to get the pictures. Download Stagehand Setup again.");
+    return 0;
+  }
+  art_port = uc.nPort;
+  art_https = uc.nScheme == INTERNET_SCHEME_HTTPS;
+  size_t rl = wcslen(art_root);
+  while (rl > 1 && art_root[rl - 1] == L'/' && art_root[rl - 2] == L'/') art_root[--rl] = 0;
+  if (!rl || art_root[rl - 1] != L'/') wcscat(art_root, L"/");
+  wchar_t p[MAX_PATH];
+  for (int i = 0; i < ART.n; i++) {
+    art_old_path(i, p);
+    if (art_matches(p, i)) { art_from[i] = ART_OLD; continue; }
+    art_cache_path(i, p, L"");
+    if (art_matches(p, i)) { art_from[i] = ART_CACHE; continue; }
+    /* the same picture under another name: fetched (or kept) once */
+    int same = -1;
+    for (int j = 0; j < i && same < 0; j++)
+      if (!strcmp(ART.f[j].sha, ART.f[i].sha)) same = j;
+    if (same >= 0) {
+      art_from[i] = art_from[same] == ART_OLD ? ART_DUP : ART_CACHE;
+      art_dup[i] = same;
+      continue;
+    }
+    art_from[i] = ART_GET;
+    art_get_n++;
+    art_get_bytes += ART.f[i].size;
+  }
+  return 1;
+}
+
+/* One file over an open connection, into its .part file. 0 = done and checked, 1 = try again, 2 = give up. */
+static int art_get1(HINTERNET con, int i, unsigned char *buf, int bufn) {
+  wchar_t url[2048], part[MAX_PATH], fin[MAX_PATH];
+  /* the path, with anything unusual in it written the safe way */
+  int k = _snwprintf(url, 1024, L"%s", art_root);
+  for (const unsigned char *s = (const unsigned char *)ART.f[i].path; *s && k < 2040; s++) {
+    if ((*s >= 'a' && *s <= 'z') || (*s >= 'A' && *s <= 'Z') || (*s >= '0' && *s <= '9') || strchr("-._~/", *s)) url[k++] = *s;
+    else k += _snwprintf(url + k, 2048 - k, L"%%%02X", *s);
+  }
+  url[k] = 0;
+  art_cache_path(i, part, L".part");
+  art_cache_path(i, fin, L"");
+  HINTERNET req = WinHttpOpenRequest(con, L"GET", url, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, art_https ? WINHTTP_FLAG_SECURE : 0);
+  if (!req) return 1;
+  int rc = 1;
+  HANDLE out = INVALID_HANDLE_VALUE;
+  uint64_t have = 0;
+  if (!WinHttpSendRequest(req, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) || !WinHttpReceiveResponse(req, NULL)) {
+    _snwprintf(art_why, 300, L"no answer from %s (error %lu)", art_host, GetLastError());
+    goto done;
+  }
+  DWORD status = 0, sl = sizeof status;
+  WinHttpQueryHeaders(req, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status, &sl, WINHTTP_NO_HEADER_INDEX);
+  if (status == 404 || status == 410) { _snwprintf(art_why, 300, L"%S isn't there (HTTP %lu)", ART.f[i].path, status); rc = 2; goto done; }
+  if (status != 200) { _snwprintf(art_why, 300, L"the server said HTTP %lu", status); goto done; }
+  out = CreateFileW(part, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (out == INVALID_HANDLE_VALUE) { _snwprintf(art_why, 300, L"couldn't write to the Downloads folder"); rc = 2; goto done; }
+  for (;;) {
+    if (S.cancel || art_failed) goto done;
+    DWORD r = 0, w = 0;
+    if (!WinHttpReadData(req, buf, bufn, &r)) { _snwprintf(art_why, 300, L"the connection dropped"); goto done; }
+    if (!r) break;
+    if (have + r > ART.f[i].size) { _snwprintf(art_why, 300, L"a picture came back the wrong size"); goto done; }
+    if (!WriteFile(out, buf, r, &w, NULL) || w != r) { _snwprintf(art_why, 300, L"couldn't write the download (is the disk full?)"); rc = 2; goto done; }
+    have += r;
+    InterlockedExchangeAdd64(&art_done_bytes, r);
+  }
+  CloseHandle(out);
+  out = INVALID_HANDLE_VALUE;
+  if (have == ART.f[i].size && art_matches(part, i)) {
+    DeleteFileW(fin);
+    if (MoveFileW(part, fin)) { rc = 0; goto done; }
+    _snwprintf(art_why, 300, L"couldn't keep the download");
+    rc = 2;
+  } else _snwprintf(art_why, 300, L"a picture came back damaged");
+done:
+  if (out != INVALID_HANDLE_VALUE) CloseHandle(out);
+  if (rc) {
+    DeleteFileW(part);
+    InterlockedExchangeAdd64(&art_done_bytes, -(LONG64)have); /* it's counted again on the next try */
+  }
+  WinHttpCloseHandle(req);
+  return rc;
+}
+
+static HINTERNET art_session(void) {
+  HINTERNET ses = WinHttpOpen(L"StagehandSetup/" WSTR(SH_VERSION), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+  if (!ses) ses = WinHttpOpen(L"StagehandSetup/" WSTR(SH_VERSION), WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+  if (!ses) return NULL;
+  DWORD protos = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2 | WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3;
+  if (!WinHttpSetOption(ses, WINHTTP_OPTION_SECURE_PROTOCOLS, &protos, sizeof protos)) {
+    protos = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+    WinHttpSetOption(ses, WINHTTP_OPTION_SECURE_PROTOCOLS, &protos, sizeof protos);
+  }
+  WinHttpSetTimeouts(ses, 20000, 20000, 30000, 60000);
+  return ses;
+}
+
+/* A few of these run at once, each taking the next file to fetch, over one connection each. */
+static DWORD WINAPI art_worker(void *arg) {
+  (void)arg;
+  static const int bufn = 1 << 16;
+  unsigned char *buf = malloc(bufn);
+  HINTERNET ses = art_session(), con = ses ? WinHttpConnect(ses, art_host, art_port, 0) : NULL;
+  if (!buf || !con) {
+    _snwprintf(art_why, 300, L"couldn't reach %s", art_host);
+    InterlockedExchange(&art_failed, 1);
+  }
+  while (!art_failed && !S.cancel) {
+    LONG i = InterlockedIncrement(&art_next) - 1;
+    if (i >= ART.n) break;
+    if (art_from[i] != ART_GET) continue;
+    int rc = 1;
+    for (int attempt = 0; attempt < 5 && rc == 1 && !art_failed && !S.cancel; attempt++) {
+      if (attempt) {
+        /* a fresh connection, after a little wait: 2, 4, 8, 15 s */
+        for (DWORD t = attempt < 4 ? (1000u << attempt) : 15000; t > 0 && !S.cancel && !art_failed; t -= t < 250 ? t : 250) Sleep(250);
+        if (con) WinHttpCloseHandle(con);
+        con = ses ? WinHttpConnect(ses, art_host, art_port, 0) : NULL;
+        if (!con) continue;
+      }
+      rc = art_get1(con, i, buf, bufn);
+    }
+    if (rc) {
+      if (!S.cancel) InterlockedExchange(&art_failed, 1);
+      break;
+    }
+    InterlockedIncrement(&art_done_n);
+  }
+  if (con) WinHttpCloseHandle(con);
+  if (ses) WinHttpCloseHandle(ses);
+  free(buf);
+  return 0;
+}
+
+/* Downloads every file this PC doesn't have. 1 = all here and checked, 0 = S.error set. */
+static int art_fetch(void) {
+  if (!art_get_n) return 1;
+  wchar_t dir[MAX_PATH];
+  _snwprintf(dir, MAX_PATH, L"%s\\Downloads\\art", S.local);
+  SHCreateDirectoryExW(NULL, dir, NULL);
+  art_next = 0, art_done_n = 0, art_failed = 0, art_done_bytes = 0;
+  art_why[0] = 0;
+  enum { NW = 6 };
+  HANDLE th[NW];
+  int nt = 0;
+  for (int t = 0; t < NW && t < art_get_n; t++)
+    if ((th[nt] = CreateThread(NULL, 0, art_worker, NULL, 0, NULL))) nt++;
+  if (!nt) {
+    wcscpy(S.error, L"Couldn't start downloading the pictures. Run Setup again.");
+    return 0;
+  }
+  DWORD t0 = GetTickCount();
+  while (WaitForMultipleObjects(nt, th, TRUE, 250) == WAIT_TIMEOUT) {
+    uint64_t got = (uint64_t)art_done_bytes;
+    double secs = (GetTickCount() - t0) / 1000.0, speed = secs > 0.5 ? got / secs : 0;
+    set_row(R_APP, ST_BUSY, L"Downloading the pictures: %ld of %d · %.0f of %.0f MB%s%.1f MB/s", art_done_n, art_get_n, mb(got), mb(art_get_bytes), speed > 0 ? L" · " : L"", speed / 1048576.0);
+    EnterCriticalSection(&S.cs);
+    S.rows[R_APP].prog = art_get_bytes ? (double)got / (double)art_get_bytes : 0;
+    LeaveCriticalSection(&S.cs);
+  }
+  for (int t = 0; t < nt; t++) CloseHandle(th[t]);
+  if (S.cancel) return 0;
+  if (art_failed || art_done_n != art_get_n) {
+    _snwprintf(S.error, 512, L"Couldn't download Stagehand's pictures: %s. Check your internet connection and run Setup again: it carries on from where it stopped.", art_why[0] ? art_why : L"the download stopped");
+    return 0;
+  }
+  return 1;
+}
+
+/* Puts every art file into the new app folder (from the old install or from Downloads). */
+static int art_place(const wchar_t *appdir, uint64_t *done) {
+  wchar_t src[MAX_PATH], dst[MAX_PATH], rel[MAX_PATH];
+  for (int i = 0; i < ART.n; i++) {
+    if (art_from[i] == ART_OLD) art_old_path(i, src);
+    else if (art_from[i] == ART_DUP) art_old_path(art_dup[i], src);
+    else art_cache_path(i, src, L"");
+    art_wpath(ART.f[i].path, rel, MAX_PATH);
+    _snwprintf(dst, MAX_PATH, L"%s\\%s", appdir, rel);
+    dst[MAX_PATH - 1] = 0;
+    wchar_t *cut = wcsrchr(dst, L'\\');
+    *cut = 0;
+    SHCreateDirectoryExW(NULL, dst, NULL);
+    *cut = L'\\';
+    if (!CopyFileW(src, dst, FALSE) || file_size(dst) != ART.f[i].size) {
+      _snwprintf(S.error, 512, L"Couldn't copy the pictures into place (%S). Run Setup again.", ART.f[i].path);
+      return 0;
+    }
+    *done += ART.f[i].size;
+    on_progress(NULL, *done);
+  }
+  return 1;
 }
 
 /* Unpacks a downloaded zip into dest (made fresh). */
@@ -1110,9 +1391,17 @@ static DWORD WINAPI install_thread(void *arg) {
 
   /* enough room on the drive? Say so now, not halfway through: the downloads, the new
      copy built next to the old one, and room for the stem splitter's first download */
+  /* 4.27: which pictures this PC has already, and which to fetch */
+  set_row(R_APP, ST_BUSY, L"Checking the pictures you have…");
+  if (!art_load()) {
+    set_row(R_APP, ST_ERR, L"Couldn't read this Setup");
+    fail(NULL);
+    CoUninitialize();
+    return 0;
+  }
   {
     Part app0 = payload_part(&S.pay, "app/");
-    uint64_t need = app0.bytes + 300ull * 1024 * 1024;
+    uint64_t need = app0.bytes + ART.bytes + art_get_bytes + 300ull * 1024 * 1024;
     if (S.need_runtime) need += C_ELECTRON.size * 7 / 2;
     if (S.need_decoder) need += C_DECODER.size * 7 / 2;
     wchar_t at[MAX_PATH];
@@ -1166,6 +1455,18 @@ static DWORD WINAPI install_thread(void *arg) {
       }
     }
   }
+  if (art_get_n) {
+    wcscpy(S.headline, art_get_n == ART.n ? L"Downloading Stagehand's pictures (one time only)…" : L"Downloading the new pictures…");
+    update();
+    if (!art_fetch()) {
+      S.downloading = 0;
+      set_row(R_APP, S.cancel ? ST_LATER : ST_ERR, S.cancel ? L"Stopped. What's downloaded is kept for next time" : L"Couldn't download the pictures");
+      fail(NULL);
+      CoUninitialize();
+      return 0;
+    }
+  }
+  if (ART.n) set_row(R_APP, ST_BUSY, art_get_n ? L"Pictures downloaded and checked" : L"Keeping the pictures you have");
   S.downloading = 0;
   wcscpy(S.headline, L"Installing…");
   update();
@@ -1195,7 +1496,7 @@ static DWORD WINAPI install_thread(void *arg) {
     to8(dec_zip, z8, sizeof z8);
     if (zipfile_open(&z, z8)) dec = payload_part(&z, ""), payload_close(&z);
   }
-  P.total = app.bytes + rt.bytes + dec.bytes;
+  P.total = app.bytes + ART.bytes + rt.bytes + dec.bytes;
   uint64_t done = 0;
   wchar_t stage[MAX_PATH], appdir[MAX_PATH], icon[MAX_PATH], uninst[MAX_PATH];
   char uninst8[MAX_PATH * 3];
@@ -1249,10 +1550,11 @@ static DWORD WINAPI install_thread(void *arg) {
   wrmtree(appdir);
   P.row = R_APP;
   P.row_base = done;
-  P.row_total = app.bytes;
+  P.row_total = app.bytes + ART.bytes;
   set_row(R_APP, ST_BUSY, L"Copying Stagehand " WSTR(SH_VERSION) L"…");
-  if (!extract("app/", appdir, &done)) {
+  if (!extract("app/", appdir, &done) || !art_place(appdir, &done)) {
     set_row(R_APP, ST_ERR, L"Couldn't copy the app files");
+    wrmtree(appdir);
     fail(NULL);
     CoUninitialize();
     return 0;
@@ -1301,6 +1603,10 @@ static DWORD WINAPI install_thread(void *arg) {
     wjoin(uninst, S.dest, L"Uninstall Stagehand.exe");
   }
   if (S.need_runtime) DeleteFileW(rt_zip); /* installed: the download isn't needed any more */
+  if (art_get_n) {
+    _snwprintf(path, MAX_PATH, L"%s\\Downloads\\art", S.local);
+    wrmtree(path); /* the pictures are in place now */
+  }
   set_row(R_APP, ST_DONE, L"Installed (" WSTR(SH_VERSION) L")");
 
   /* the song audio decoder, where Stagehand looks for it */
@@ -1350,7 +1656,7 @@ static DWORD WINAPI install_thread(void *arg) {
     reg_set(k, L"QuietUninstallString", cmd);
     reg_dw(k, L"NoModify", 1);
     reg_dw(k, L"NoRepair", 1);
-    reg_dw(k, L"EstimatedSize", (DWORD)(((rt.bytes ? rt.bytes : 330ull * 1048576) + app.bytes) / 1024));
+    reg_dw(k, L"EstimatedSize", (DWORD)(((rt.bytes ? rt.bytes : 330ull * 1048576) + app.bytes + ART.bytes) / 1024));
     RegCloseKey(k);
   }
 

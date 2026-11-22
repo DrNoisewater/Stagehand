@@ -366,3 +366,77 @@ int payload_extract(Payload *p, const char *prefix, const char *dest, progress_f
   free(path);
   return rc;
 }
+
+/* ---------------------------------------------------------------- art -- */
+char *payload_read(Payload *p, const char *name, size_t *n) {
+  if (!p->ok) return NULL;
+  int i = mz_zip_reader_locate_file(&p->zip, name, NULL, 0);
+  if (i < 0) return NULL;
+  mz_zip_archive_file_stat st;
+  if (!mz_zip_reader_file_stat(&p->zip, (mz_uint)i, &st) || st.m_uncomp_size > (64u << 20)) return NULL;
+  char *buf = malloc((size_t)st.m_uncomp_size + 1);
+  if (!buf) return NULL;
+  if (!mz_zip_reader_extract_to_mem(&p->zip, (mz_uint)i, buf, (size_t)st.m_uncomp_size, 0)) { free(buf); return NULL; }
+  buf[st.m_uncomp_size] = 0;
+  if (n) *n = (size_t)st.m_uncomp_size;
+  return buf;
+}
+
+void art_free(ArtList *a) {
+  for (int i = 0; i < a->n; i++) free(a->f[i].path);
+  free(a->f);
+  memset(a, 0, sizeof *a);
+}
+
+static int art_path_ok(const char *s) {
+  if (!*s || *s == '/' || strstr(s, "..") || strchr(s, '\\') || strchr(s, ':')) return 0;
+  for (; *s; s++) if ((unsigned char)*s < 0x20) return 0;
+  return 1;
+}
+
+int art_parse(const char *text, ArtList *a, char *err, int errlen) {
+  memset(a, 0, sizeof *a);
+  int cap = 0, line = 0;
+  const char *s = text;
+  while (*s) {
+    const char *e = strchr(s, '\n');
+    size_t len = e ? (size_t)(e - s) : strlen(s);
+    line++;
+    char buf[2048];
+    if (len >= sizeof buf) { snprintf(err, errlen, "art list line %d is too long", line); goto bad; }
+    memcpy(buf, s, len);
+    buf[len] = 0;
+    if (len && buf[len - 1] == '\r') buf[--len] = 0;
+    s = e ? e + 1 : s + len;
+    if (!len || buf[0] == '#') continue;
+    if (!strncmp(buf, "base ", 5)) {
+      if (strlen(buf + 5) >= sizeof a->base) { snprintf(err, errlen, "art list: address too long"); goto bad; }
+      memcpy(a->base, buf + 5, strlen(buf + 5) + 1);
+      size_t bl = strlen(a->base);
+      if (!bl || a->base[bl - 1] != '/' || (strncmp(a->base, "https://", 8) && strncmp(a->base, "http://", 7))) { snprintf(err, errlen, "art list: odd address"); goto bad; }
+      continue;
+    }
+    char sha[80], path[2048];
+    unsigned long long size;
+    if (sscanf(buf, "%79s %llu %2047s", sha, &size, path) != 3 || strlen(sha) != 64 || strspn(sha, "0123456789abcdef") != 64 || !art_path_ok(path)) {
+      snprintf(err, errlen, "art list line %d doesn't make sense", line);
+      goto bad;
+    }
+    if (a->n == cap) {
+      cap = cap ? cap * 2 : 256;
+      ArtFile *f = realloc(a->f, cap * sizeof *f);
+      if (!f) { snprintf(err, errlen, "out of memory"); goto bad; }
+      a->f = f;
+    }
+    ArtFile *f = &a->f[a->n++];
+    memcpy(f->sha, sha, 65);
+    f->size = size;
+    f->path = strdup(path);
+    a->bytes += size;
+  }
+  if (a->n && !a->base[0]) { snprintf(err, errlen, "art list: no address"); goto bad; }
+  return 1;
+bad:
+  art_free(a);
+  return 0;
+}
