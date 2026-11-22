@@ -47,7 +47,6 @@ html[data-calm='true'] .cameo { animation:none !important; }
 .hw-syncbox:has(.sync-cameo) .hw-sync-ring { display:none; }
 
 /* ------------------------------------------------------------- stems, updates -- */
-.stem-wait .cameo.sw-cameo { position:absolute; left:-30px; bottom:calc(100% - 30px); --size:96px; }
 .modal .cameo.modal-cameo { float:right; margin:0 0 6px 12px; --size:110px; }
 
 /* ----------------------------------------------------------- rig room: saved -- */
