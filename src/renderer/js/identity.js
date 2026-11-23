@@ -86,8 +86,17 @@ const operaMoods = new Proxy({}, { get: (_t, k) => {
   const [kicker, text] = pickFor('line:' + k, operaLines[k]);
   return [names[k], kicker, text];
 } });
-// 4.28: one look for the whole app (Warm Club on the Rehearsal Room). Roadshow is gone; an old saved choice is ignored.
+// 4.28: one look for the whole app (the Rehearsal Room). Roadshow is gone; an old saved choice is ignored.
 const opera = () => true;
+// 4.29: the colours of the whole app are the user's pick (Settings › Appearance › Theme). Brown is the Rehearsal Room itself.
+export const THEMES = [
+  ['brown', 'Brown', 'The rehearsal room: worn tolex, masking tape, cream labels.', ['#0d0c0b', '#1a1714', '#e3d6b1', '#d23a2c']],
+  ['mahogany', 'Mahogany', 'The brown room with the lights up: wood grain, bright cream writing, gold.', ['#3a271b', '#4a3122', '#fbf1dc', '#f0c46a']],
+  ['recordshop', 'Record Shop', 'Chocolate shelves and old album-cover stripes: mustard, orange, rust.', ['#36210f', '#e9b437', '#e8742a', '#b8432a']],
+  ['bluenote', 'Blue Note', 'A jazz record sleeve: slate blue, cream writing, orange buttons.', ['#26384d', '#2f4560', '#f6f0e3', '#f59a2c']],
+  ['club', 'Warm Club', 'Red brick and neon signs: each part of the menu lights up in its own colour.', ['#1a1414', '#ffb547', '#9a7bff', '#2fd3ee']],
+];
+export const themeNow = () => (THEMES.some(([id]) => id === prefs.theme) ? prefs.theme : 'brown');
 const moodsNow = () => (opera() ? operaMoods : roadshowMoods);
 const moods = new Proxy({}, { get: (_t, k) => moodsNow()[k] });
 const banner = document.getElementById('identity-banner');
@@ -123,6 +132,7 @@ function save() {
   document.documentElement.dataset.decoration = prefs.reduced ? 'reduced' : 'full';
   document.documentElement.dataset.calm = prefs.calm ? 'true' : 'false';
   document.documentElement.dataset.look = opera() ? 'opera' : 'roadshow';
+  document.documentElement.dataset.skin = themeNow();
 }
 function restartEntrance(els) {
   for (const el of els) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
@@ -279,6 +289,20 @@ export function appearancePane(el) {
     input.onchange = () => { prefs[key] = input.checked; save(); };
     el.append(h('label.identity-setting', null, input, h('span', null, h('b',{text:name}), h('small',{text:desc}))));
   };
+  // 4.29: the theme: the colours of the whole app
+  el.append(h('h3', { text: 'Theme' }), h('p', { text: 'The colours of the whole app. The note highway keeps its own look.' }));
+  const picks = h('div.theme-picks', { role: 'group', 'aria-label': 'Theme' });
+  const drawThemes = () => {
+    picks.innerHTML = '';
+    for (const [id, name, desc, sw] of THEMES) {
+      const b = h('button.theme-pick', { type: 'button', 'data-theme-id': id, 'aria-pressed': String(themeNow() === id) },
+        h('span.tp-sw', { 'aria-hidden': 'true' }, ...sw.map((c) => h('i', { style: `background:${c}` }))), h('b', { text: name }), h('small', { text: desc }));
+      b.onclick = () => { prefs.theme = id; save(); drawThemes(); };
+      picks.append(b);
+    }
+  };
+  drawThemes();
+  el.append(picks);
   const rotate = h('input', {type:'checkbox', checked:prefs.rotateMenus !== false});
   rotate.onchange = () => { prefs.rotateMenus = rotate.checked; save(); };
   el.append(h('label.identity-setting', null, rotate, h('span', null, h('b',{text:'Fresh artwork on menu visits'}), h('small',{text:'Shuffle illustrations without immediate repeats. Pinned artwork stays put.'}))));

@@ -1,108 +1,108 @@
-/* WARM CLUB (4.28): the one look. Sits on top of the Rehearsal Room (rockopera.css), loaded after it.
+/* WARM CLUB (4.28; since 4.29 one of the themes: html[data-skin='club']). Sits on top of the Rehearsal Room (rockopera.css), loaded after it.
    A warm red-brick room instead of muddy brown, and a neon sign for each part of the app in the menu.
    Each part has its own colour (--sec); the open part's sign lights up and its colour glows down the page.
    Scope: #app only (menus and pages). Never touched: the note highway, the Jam visualizer. */
 
 /* the room */
-html[data-look='opera'] {
+html[data-look='opera'][data-skin='club'] {
   --rr-black:#1a1414; --rr-tolex:#211a19; --rr-card:#2a2120; --rr-line:#3f3230;
   --house:#1a1414; --deck:#211a19; --deck-2:#2a2120; --riser:#3f3230; --riser-2:#47393a;
   --card:#2a2120; --card-line:#3f3230; --well:#161111; --rule:#3f3230; --rule-soft:#2a2120;
 }
 
 /* each part of the app has its own neon colour */
-#app { --sec:#ffb547; --sec-2:#ffd497; }
-#app[data-mood='songs'] { --sec:#ffb547; --sec-2:#ffd497; }
-#app[data-mood='play'] { --sec:#ff5a36; --sec-2:#ffa184; }
-#app[data-mood='tones'] { --sec:#9a7bff; --sec-2:#c9b9ff; }
-#app[data-mood='gear'] { --sec:#ff8a1f; --sec-2:#ffc285; }
-#app[data-mood='progress'] { --sec:#7fe05a; --sec-2:#c4f5a8; }
-#app[data-mood='discover'] { --sec:#2fd3ee; --sec-2:#a6eefb; }
-#app[data-mood='greenroom'], #app[data-mood='karaoke'] { --sec:#ff3d8b; --sec-2:#ff9cc4; }
-#app .nav-section { --lamp:#e8e3d6; }
-#app .nav-section[data-page='songs'] { --lamp:#ffb547; }
-#app .nav-section[data-page='play'] { --lamp:#ff5a36; }
-#app .nav-section[data-page='tones'] { --lamp:#9a7bff; }
-#app .nav-section[data-page='gear'] { --lamp:#ff8a1f; }
-#app .nav-section[data-page='progress'] { --lamp:#7fe05a; }
-#app .nav-section[data-page='discover'] { --lamp:#2fd3ee; }
-#app .nav-section[data-page='greenroom'], #app .nav-section[data-page='karaoke'] { --lamp:#ff3d8b; }
+html[data-skin='club'] #app { --sec:#ffb547; --sec-2:#ffd497; }
+html[data-skin='club'] #app[data-mood='songs'] { --sec:#ffb547; --sec-2:#ffd497; }
+html[data-skin='club'] #app[data-mood='play'] { --sec:#ff5a36; --sec-2:#ffa184; }
+html[data-skin='club'] #app[data-mood='tones'] { --sec:#9a7bff; --sec-2:#c9b9ff; }
+html[data-skin='club'] #app[data-mood='gear'] { --sec:#ff8a1f; --sec-2:#ffc285; }
+html[data-skin='club'] #app[data-mood='progress'] { --sec:#7fe05a; --sec-2:#c4f5a8; }
+html[data-skin='club'] #app[data-mood='discover'] { --sec:#2fd3ee; --sec-2:#a6eefb; }
+html[data-skin='club'] #app[data-mood='greenroom'], html[data-skin='club'] #app[data-mood='karaoke'] { --sec:#ff3d8b; --sec-2:#ff9cc4; }
+html[data-skin='club'] #app .nav-section { --lamp:#e8e3d6; }
+html[data-skin='club'] #app .nav-section[data-page='songs'] { --lamp:#ffb547; }
+html[data-skin='club'] #app .nav-section[data-page='play'] { --lamp:#ff5a36; }
+html[data-skin='club'] #app .nav-section[data-page='tones'] { --lamp:#9a7bff; }
+html[data-skin='club'] #app .nav-section[data-page='gear'] { --lamp:#ff8a1f; }
+html[data-skin='club'] #app .nav-section[data-page='progress'] { --lamp:#7fe05a; }
+html[data-skin='club'] #app .nav-section[data-page='discover'] { --lamp:#2fd3ee; }
+html[data-skin='club'] #app .nav-section[data-page='greenroom'], html[data-skin='club'] #app .nav-section[data-page='karaoke'] { --lamp:#ff3d8b; }
 
 /* top bar, menu, bottom bar */
-html[data-look='opera'] #app .titlebar { background:linear-gradient(180deg,#261d1b,#1d1716); }
-html[data-look='opera'] #app .sidebar { background:linear-gradient(180deg,#201918,#171211); box-shadow:inset -1px 0 0 #ffffff14; }
-html[data-look='opera'] #app .nowbar { background:linear-gradient(180deg,#231b1a,#1a1414); box-shadow:0 -1px 0 #ffffff10,0 -8px 20px #0008; }
+html[data-look='opera'][data-skin='club'] #app .titlebar { background:linear-gradient(180deg,#261d1b,#1d1716); }
+html[data-look='opera'][data-skin='club'] #app .sidebar { background:linear-gradient(180deg,#201918,#171211); box-shadow:inset -1px 0 0 #ffffff14; }
+html[data-look='opera'][data-skin='club'] #app .nowbar { background:linear-gradient(180deg,#231b1a,#1a1414); box-shadow:0 -1px 0 #ffffff10,0 -8px 20px #0008; }
 
 /* the menu: a row of neon signs, unlit until their page is open */
-html[data-look='opera'] #app .nav-section {
+html[data-look='opera'][data-skin='club'] #app .nav-section {
   clip-path:none; transform:none; background:transparent; border-radius:10px; box-shadow:inset 0 0 0 1.5px #ffffff12;
   letter-spacing:.05em; font-size:13px; color:color-mix(in srgb,var(--lamp) 45%,#6a5d5a);
 }
-html[data-look='opera'] #app .nav-section svg { color:color-mix(in srgb,var(--lamp) 45%,#6a5d5a); }
-html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { background:#ffffff07; transform:none; color:color-mix(in srgb,var(--lamp) 75%,#fff); }
-html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) svg { color:color-mix(in srgb,var(--lamp) 75%,#fff); }
-html[data-look='opera'] #app .nav-section[aria-current='page'] {
+html[data-look='opera'][data-skin='club'] #app .nav-section svg { color:color-mix(in srgb,var(--lamp) 45%,#6a5d5a); }
+html[data-look='opera'][data-skin='club'] #app .nav-section:hover:not([aria-current='page']) { background:#ffffff07; transform:none; color:color-mix(in srgb,var(--lamp) 75%,#fff); }
+html[data-look='opera'][data-skin='club'] #app .nav-section:hover:not([aria-current='page']) svg { color:color-mix(in srgb,var(--lamp) 75%,#fff); }
+html[data-look='opera'][data-skin='club'] #app .nav-section[aria-current='page'] {
   transform:none; color:#fff; background:color-mix(in srgb,var(--lamp) 11%,transparent);
   text-shadow:0 0 4px var(--lamp),0 0 12px var(--lamp),0 0 26px var(--lamp);
   box-shadow:inset 0 0 0 1.5px var(--lamp),0 0 14px color-mix(in srgb,var(--lamp) 70%,transparent),inset 0 0 14px color-mix(in srgb,var(--lamp) 45%,transparent);
   animation:club-sign-on .55s steps(1) both;
 }
-html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#fff; filter:drop-shadow(0 0 4px var(--lamp)) drop-shadow(0 0 8px var(--lamp)); }
-html[data-look='opera'] #app .nav-section[aria-current='page']::after { display:none; }
-html[data-look='opera'] #app .nav-section:focus-visible { outline:2px solid var(--lamp); outline-offset:2px; }
+html[data-look='opera'][data-skin='club'] #app .nav-section[aria-current='page'] svg { color:#fff; filter:drop-shadow(0 0 4px var(--lamp)) drop-shadow(0 0 8px var(--lamp)); }
+html[data-look='opera'][data-skin='club'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='club'] #app .nav-section:focus-visible { outline:2px solid var(--lamp); outline-offset:2px; }
 /* a neon sign coming on: two quick stutters, then steady */
 @keyframes club-sign-on { 0% { opacity:.45; } 12% { opacity:1; } 22% { opacity:.55; } 34%,100% { opacity:1; } }
-html[data-calm='true'] #app .nav-section[aria-current='page'] { animation:none; }
-@media (prefers-reduced-motion: reduce) { #app .nav-section[aria-current='page'] { animation:none !important; } }
+html[data-skin='club'][data-calm='true'] #app .nav-section[aria-current='page'] { animation:none; }
+@media (prefers-reduced-motion: reduce) { html[data-skin='club'] #app .nav-section[aria-current='page'] { animation:none !important; } }
 /* the lists under a sign (All songs, Favourites…) */
-html[data-look='opera'] #app .nav-item:hover { background:#ffffff0a; }
-html[data-look='opera'] #app .nav-item[aria-current='true'] { color:#fff; border-left:3px solid var(--sec); background:linear-gradient(90deg,color-mix(in srgb,var(--sec) 22%,transparent),transparent); }
+html[data-look='opera'][data-skin='club'] #app .nav-item:hover { background:#ffffff0a; }
+html[data-look='opera'][data-skin='club'] #app .nav-item[aria-current='true'] { color:#fff; border-left:3px solid var(--sec); background:linear-gradient(90deg,color-mix(in srgb,var(--sec) 22%,transparent),transparent); }
 
 /* pages: the warm room, with the open part's colour glowing down from above */
-html[data-look='opera'] #app :is(.page,.library,.discover) {
+html[data-look='opera'][data-skin='club'] #app :is(.page,.library,.discover) {
   background:radial-gradient(70% 50% at 30% -5%,color-mix(in srgb,var(--sec) 20%,transparent),transparent 70%),
     radial-gradient(50% 50% at 100% 100%,#ff5a3612,transparent 70%),linear-gradient(180deg,#231b1a,#1a1413);
 }
-html[data-look='opera'] #app .identity-banner { box-shadow:inset 0 -2px 0 var(--sec),0 2px 18px color-mix(in srgb,var(--sec) 50%,transparent); }
-html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card) { background-color:#2a2120; border-color:#3f3230; border-radius:10px; }
+html[data-look='opera'][data-skin='club'] #app .identity-banner { box-shadow:inset 0 -2px 0 var(--sec),0 2px 18px color-mix(in srgb,var(--sec) 50%,transparent); }
+html[data-look='opera'][data-skin='club'] #app :is(.card,.dis-card,.gr-card,.goal-card) { background-color:#2a2120; border-color:#3f3230; border-radius:10px; }
 
 /* the main button on a page: lit in that part's colour */
-html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary) {
+html[data-look='opera'][data-skin='club'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary) {
   background:color-mix(in srgb,var(--sec) 18%,transparent); color:#fff; border:1.5px solid var(--sec);
   box-shadow:0 0 12px color-mix(in srgb,var(--sec) 55%,transparent); text-shadow:0 0 8px var(--sec);
 }
-html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary):hover {
+html[data-look='opera'][data-skin='club'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary):hover {
   background:color-mix(in srgb,var(--sec) 28%,transparent); box-shadow:0 0 18px color-mix(in srgb,var(--sec) 70%,transparent); filter:none;
 }
-html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary):active { box-shadow:0 0 8px color-mix(in srgb,var(--sec) 45%,transparent); }
-html[data-look='opera'] #app .btn.soft { background:linear-gradient(180deg,#2d2322,#231b1a); border-color:#46383a; }
-html[data-look='opera'] #app .btn.soft:hover { background:linear-gradient(180deg,#372b29,#2a2120); border-color:#6a5450; }
+html[data-look='opera'][data-skin='club'] #app :is(.btn.primary,.btn.glow-primary):active { box-shadow:0 0 8px color-mix(in srgb,var(--sec) 45%,transparent); }
+html[data-look='opera'][data-skin='club'] #app .btn.soft { background:linear-gradient(180deg,#2d2322,#231b1a); border-color:#46383a; }
+html[data-look='opera'][data-skin='club'] #app .btn.soft:hover { background:linear-gradient(180deg,#372b29,#2a2120); border-color:#6a5450; }
 
 /* a picked button in a row (Guitar / bass, List, All…): lit in the part's colour instead of cream tape */
-html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'] {
+html[data-look='opera'][data-skin='club'] #app :is(.gseg,.seg) button[aria-pressed='true'] {
   color:#fff; background:color-mix(in srgb,var(--sec) 24%,#2a2120); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sec) 75%,transparent),0 0 10px color-mix(in srgb,var(--sec) 30%,transparent);
 }
-html[data-look='opera'] #app #discover { background:radial-gradient(70% 50% at 30% -5%,color-mix(in srgb,var(--sec) 20%,transparent),transparent 70%),linear-gradient(180deg,#231b1a,#1a1413); }
+html[data-look='opera'][data-skin='club'] #app #discover { background:radial-gradient(70% 50% at 30% -5%,color-mix(in srgb,var(--sec) 20%,transparent),transparent 70%),linear-gradient(180deg,#231b1a,#1a1413); }
 
 /* windows over the app (Settings and the rest), not over a song */
-html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .modal { border-color:#46383a; background:linear-gradient(180deg,#261e1d,#1c1615); }
-html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .modal > header { background:linear-gradient(180deg,#2a2120,#221a19) !important; border-bottom-color:#46383a !important; }
-html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .modal > footer { background:#1d1716 !important; border-top-color:#46383a !important; }
-html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .settings .nav-item[aria-current='true'] {
+html[data-look='opera'][data-skin='club'] body:not(:has(.highway:not([hidden]))) #overlays .modal { border-color:#46383a; background:linear-gradient(180deg,#261e1d,#1c1615); }
+html[data-look='opera'][data-skin='club'] body:not(:has(.highway:not([hidden]))) #overlays .modal > header { background:linear-gradient(180deg,#2a2120,#221a19) !important; border-bottom-color:#46383a !important; }
+html[data-look='opera'][data-skin='club'] body:not(:has(.highway:not([hidden]))) #overlays .modal > footer { background:#1d1716 !important; border-top-color:#46383a !important; }
+html[data-look='opera'][data-skin='club'] body:not(:has(.highway:not([hidden]))) #overlays .settings .nav-item[aria-current='true'] {
   background:#ffb5471f; color:#fff; border-left:3px solid #ffb547; border-radius:2px; text-shadow:0 0 8px #ffb547aa;
 }
-html[data-look='opera'] body:not(:has(.highway:not([hidden]))) #overlays .modal :is(.btn.primary,.btn.glow-primary) {
+html[data-look='opera'][data-skin='club'] body:not(:has(.highway:not([hidden]))) #overlays .modal :is(.btn.primary,.btn.glow-primary) {
   color:#fff; border:1.5px solid #ffb547; background:#ffb5472e; box-shadow:0 0 12px #ffb5478c; text-shadow:0 0 8px #ffb547;
 }
 
 /* other "this one is picked" spots: lit, not cream */
-html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true']) {
+html[data-look='opera'][data-skin='club'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true']) {
   color:#fff; background:color-mix(in srgb,var(--sec) 22%,#2a2120); border-color:var(--sec); outline:0;
   box-shadow:inset 0 0 0 1px var(--sec),0 0 12px color-mix(in srgb,var(--sec) 35%,transparent); text-shadow:none; transform:none;
 }
-html[data-look='opera'] #app :is(.tk-card.on .tk-sub,.sr-shelf[aria-pressed='true'] small) { color:color-mix(in srgb,var(--sec) 45%,#e6dfcf); }
-html[data-look='opera'] #app .tk-card.on .tk-n { box-shadow:inset 0 0 0 1px var(--gel); color:var(--gel); }
-html[data-look='opera'] #app .tk-card.on.playing .tk-n { background:var(--gel); color:#14110d; box-shadow:none; }
+html[data-look='opera'][data-skin='club'] #app :is(.tk-card.on .tk-sub,.sr-shelf[aria-pressed='true'] small) { color:color-mix(in srgb,var(--sec) 45%,#e6dfcf); }
+html[data-look='opera'][data-skin='club'] #app .tk-card.on .tk-n { box-shadow:inset 0 0 0 1px var(--gel); color:var(--gel); }
+html[data-look='opera'][data-skin='club'] #app .tk-card.on.playing .tk-n { background:var(--gel); color:#14110d; box-shadow:none; }
 /* Hear a tone: lit like the page's main button */
-html[data-look='opera'] #app .te-demo { color:#fff; border:1.5px solid var(--sec); background:color-mix(in srgb,var(--sec) 16%,transparent); box-shadow:0 0 10px color-mix(in srgb,var(--sec) 45%,transparent); }
-html[data-look='opera'] #app .te-demo:is(:hover,[aria-pressed='true']) { background:color-mix(in srgb,var(--sec) 28%,transparent); }
+html[data-look='opera'][data-skin='club'] #app .te-demo { color:#fff; border:1.5px solid var(--sec); background:color-mix(in srgb,var(--sec) 16%,transparent); box-shadow:0 0 10px color-mix(in srgb,var(--sec) 45%,transparent); }
+html[data-look='opera'][data-skin='club'] #app .te-demo:is(:hover,[aria-pressed='true']) { background:color-mix(in srgb,var(--sec) 28%,transparent); }
