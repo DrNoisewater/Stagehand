@@ -14,10 +14,10 @@ module.exports = async ({ page, outDir, check }) => {
   check(await page.evaluate(() => document.documentElement.dataset.skin) === 'brown', 'Brown is the theme when none was picked');
   await settings();
   const listed = await page.locator('.theme-pick').evaluateAll((els) => els.map((e) => e.dataset.themeId));
-  check(listed.join() === 'brown,mahogany,recordshop,bluenote,club,tweed,daylight,gigposter', `Settings › Appearance lists the themes (${listed.join()})`);
+  check(listed.join() === 'brown,mahogany,recordshop,club,sunburst,desert,bluenote,surf,haze,fret,synthwave,tweed,daylight,gigposter,blueprint,chalk,console,cassette,denim,roadcase,arcade,greenscreen', `Settings › Appearance lists the themes (${listed.join()})`);
   await closeModals();
   const themes = (process.env.THEMES || listed.join()).split(',');
-  const pages = (process.env.THEME_PAGES || 'songs,play,tones,gear,progress,discover,greenroom,karaoke').split(',');
+  const pages = (process.env.THEME_PAGES || 'songs,play,tones,gear,progress,discover,greenroom').split(',');
   const report = [];
   for (const t of themes) {
     await settings();

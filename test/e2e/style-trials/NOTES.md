@@ -22,3 +22,11 @@ Status: waiting for the user's pick.
 The user said: keep all eight shown so far as choices (being built into Settings › Appearance), and show more varied ones, some completely different.
 Nine more trials in `more/`: Sunburst, Surf Green, Purple Haze, Fret Lights, Desert Road (new colours), and Blueprint, Chalkboard, Mixing Desk, Cassette (completely different). Pictures shown on a page; waiting for the user to say which to add and which should be the main look.
 Pictures: `TRIAL_DIR=test/e2e/style-trials/more TRIALS=sunburst,... SH_AUDIT=test/e2e/style-trials/trial-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>`.
+
+## Built in (2026-11-23)
+The user asked to add all of them to Appearance, with a small example of each, without taking much room.
+- All 22 looks are choices: `THEMES` in `src/renderer/js/identity.js` (id, name, line, five colours for the little picture, row).
+- The 14 new ones live in `src/renderer/css/themes-more.css` (made from `more/*.css` with the scoping script: each rule gets `[data-skin='<id>']`), with their Settings windows at the end.
+- The picker: four short rows (Warm rooms, Colour, Light, Something different) of 96 px tiles, each a tiny drawing of the app (menu, banner, card, button) in that look's colours. The words for the look under the pointer show once below.
+- Theme checker (Sonnet) fixed the first eight across Discover, Progress, Backstage and more. The 14 new ones have only been checked on Songs, Jam, Tones and Gear.
+- Still open: which look is the main one (default Brown); checking the 14 new ones on the other pages.

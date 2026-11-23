@@ -117,7 +117,7 @@ html[data-look='opera'][data-skin='recordshop'] #app #discover :is(.dv-table,.al
 html[data-look='opera'][data-skin='recordshop'] #app #discover :is(.dv-head,.dv-artist.card) { background:#3a2314; }
 html[data-look='opera'][data-skin='recordshop'] #page-progress .pg-head { background:linear-gradient(180deg,#36210f 75%,transparent); }
 html[data-look='opera'][data-skin='recordshop'] #app .gr-count { background:#ffffff1f; color:#fbefd6; }
-html[data-look='opera'][data-skin='bluenote'] #app :is(.tk-card .tk-sub,.ts-key small,.ts-label,.tk-card .tk-n,.ts-key b,.slot .num) { color:#d5dbe3; }
+html[data-look='opera'][data-skin='bluenote'] #app :is(.tk-card .tk-sub,.ts-key small,.ts-label,.tk-card .tk-n,.ts-key b) { color:#d5dbe3; }
 html[data-look='opera'][data-skin='bluenote'] #app :is(.tk-card.on *,.ts-key.here *) { color:#1b293a; }
 
 
@@ -133,10 +133,22 @@ html[data-look='opera']:is([data-skin='mahogany'],[data-skin='bluenote'],[data-s
 html[data-look='opera']:is([data-skin='mahogany'],[data-skin='bluenote'],[data-skin='recordshop']) body:not(:has(.highway:not([hidden]))) #overlays .settings .nav-item[aria-current='true'] { background:var(--th-modal-2); border-left:3px solid var(--th-modal-acc); color:#fff; }
 
 /* the theme picker in Settings › Appearance */
-.theme-picks { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin:6px 0 14px; }
-.theme-pick { display:grid; gap:6px; padding:8px; border-radius:8px; border:1.5px solid #ffffff22; background:#0000002a; color:inherit; text-align:left; cursor:pointer; font:inherit; }
-.theme-pick:hover { border-color:#ffffff55; }
-.theme-pick[aria-pressed='true'] { border-color:currentColor; box-shadow:0 0 0 2px #ffffff33; }
-.theme-pick .tp-sw { display:flex; height:30px; border-radius:5px; overflow:hidden; box-shadow:inset 0 0 0 1px #0004; }
-.theme-pick .tp-sw i { flex:1; }
-.theme-pick b { font-size:13px; } .theme-pick small { font-size:11.5px; opacity:.8; line-height:1.3; }
+.theme-picks { display:grid; gap:8px; margin:6px 0 4px; }
+.theme-row { display:flex; flex-wrap:wrap; align-items:flex-start; gap:6px; }
+.theme-row-name { flex:0 0 100%; font-size:11px; letter-spacing:.08em; text-transform:uppercase; opacity:.7; margin:2px 0 -1px; }
+.theme-pick { display:grid; gap:3px; width:96px; padding:4px; border-radius:7px; border:1.5px solid transparent; background:transparent; color:inherit; text-align:center; cursor:pointer; font:inherit; }
+.theme-pick:hover, .theme-pick:focus-visible { border-color:#ffffff44; outline:0; }
+.theme-pick[aria-pressed='true'] { border-color:currentColor; background:#ffffff10; }
+.theme-pick b { font-size:11.5px; line-height:1.2; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* the tiny app: menu down the left, a banner, a card, the main button */
+.tp-mini { position:relative; display:block; height:50px; border-radius:4px; overflow:hidden; background:var(--p); box-shadow:inset 0 0 0 1px #0005; }
+.tp-mini i { position:absolute; display:block; }
+.tp-side { left:0; top:0; bottom:0; width:24%; background:var(--s); box-shadow:1px 0 0 color-mix(in srgb,var(--k) 25%,transparent); }
+.tp-on { left:3px; right:3px; top:9px; height:6px; border-radius:2px; background:var(--c); box-shadow:0 10px 0 color-mix(in srgb,var(--k) 35%,transparent),0 18px 0 color-mix(in srgb,var(--k) 35%,transparent); }
+.tp-ban { left:24%; right:0; top:0; height:13px; background:linear-gradient(90deg,color-mix(in srgb,var(--k) 18%,var(--p)),color-mix(in srgb,var(--a) 35%,var(--p))); }
+.tp-card { left:31%; width:40%; top:19px; height:24px; border-radius:2px; background:color-mix(in srgb,var(--k) 10%,var(--p)); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--k) 30%,transparent); }
+.tp-l { left:4px; top:5px; width:70%; height:3px; border-radius:2px; background:var(--k); }
+.tp-l + .tp-l { top:12px; width:45%; opacity:.6; }
+.tp-btn { right:6%; top:20px; width:18%; height:8px; border-radius:2px; background:var(--a); box-shadow:inset 0 0 0 1px #0003; }
+.theme-about { margin:2px 0 14px; min-height:2.6em; font-size:12.5px; opacity:.85; }
+.theme-about b { opacity:1; }
