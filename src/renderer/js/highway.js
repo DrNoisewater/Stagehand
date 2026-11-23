@@ -164,6 +164,14 @@ export function createHighway(stage) {
   const mixPanel = h('div.hw-mix');
   const dock = h('div.hw-dock', null, mixPanel);
   let mixOpen = !!prefs.mixOpen;
+  // 4.29: every change to the mix or the guitar (each stem as it loads, a song tone) rebuilt the top
+  // bar, the section strip and the whole open Settings panel (a blink). Now each piece is only redone
+  // when what it shows changed.
+  const shown = new Map();
+  const changed = (k, v) => (shown.get(k) === v ? false : (shown.set(k, v), true));
+  function setHtml(el, k, html) {
+    if (changed(k, html)) el.innerHTML = html;
+  }
   const score = h('div.hw-score');
   // the score sits up top (as in the game), leaving the fret numbers under the neck clear
   // switch straight to the Tab or Waveform view of the same song (Back goes to your songs)
@@ -1135,6 +1143,8 @@ export function createHighway(stage) {
     if (!mixOpen) return;
     // Don't rebuild under a volume slider that's being dragged.
     if (document.activeElement && document.activeElement.classList.contains('stem-vol') && mixPanel.contains(document.activeElement)) return;
+    shown.set('mix', mixKey());
+    const scroll = mixPanel.scrollTop; // stay where you had scrolled to
     mixPanel.innerHTML = '';
     mixMeters.clear();
     mixPanel.append(h('div.hw-master-title', null, h('b', { text: 'Sound & settings' })), syncButton());
@@ -1143,6 +1153,17 @@ export function createHighway(stage) {
     renderTunerSec();
     renderDropBox();
     renderOpts();
+    mixPanel.scrollTop = scroll;
+  }
+  /** What Sound & settings shows that can change from outside it (the mix, your guitar, the split, the song). */
+  function mixKey() {
+    const kind = instrument();
+    const tracks = stage.stems().map((n) => {
+      const x = stage.engine.tracks[stage.trackIndex(n)] || {};
+      return [n, !!x.muted, !!x.solo, x.volume];
+    });
+    const st = splitNow();
+    return JSON.stringify([tracks, stage.engine.mode, rig.on, rig.muted, rig.knobs.volume, stage.songLevel(), st.state === 'queued' || st.state === 'running' ? st.state : 'none', kind, H.tab && H.tab.id, myTuning(kind), myCents(kind), prefs.offsetMs || 0, !!stage.requestStems]);
   }
   // 4.12: the split's progress in Sound & settings moves as the split goes (it was written
   // once when the menu opened, so it looked stalled until the stems suddenly appeared)
@@ -1170,7 +1191,7 @@ export function createHighway(stage) {
     const st = splitNow();
     const busy = st.state === 'queued' || st.state === 'running';
     const was = note.dataset.split;
-    if (stage.stems().length || (busy ? st.state : 'none') !== was) return renderMix();
+    if (stage.stems().length || (busy ? st.state : 'none') !== was) return shown.get('mix') !== mixKey() && renderMix();
     if (busy) fillMixSplit(note, st);
   }
   function renderMixBody() {
@@ -1717,10 +1738,26 @@ export function createHighway(stage) {
   // above its size (up to 1.5x, then shrunk to fit: smoother strings and edges, less shimmer). That is
   // only decided while paused or before the first note, never while you play; if frames then suffer,
   // it steps back down (and never tries that size again this session).
-  const perf = { noGlow: false, acc: 0, n: 0, since: 0, msAcc: 0, best: Infinity, cap: 1.5 };
+  const perf = { noGlow: false, acc: 0, n: 0, since: 0, msAcc: 0, best: Infinity, cap: 1.5, want: 0, stalls: 0 };
   H.perfState = perf;
+  // 4.29: a new sharpness empties the canvas, so it is put in just before a frame is drawn, never after
+  // one (that frame showed empty: a flash as a split finished or Settings opened).
+  function setScale(s, ratio) {
+    perf.want = s;
+    perf.ratio = ratio;
+  }
+  function applyScale() {
+    if (!perf.want) return;
+    if (R3 && perf.want !== R3.scale) R3.setScale(perf.want, perf.ratio);
+    perf.want = 0;
+  }
   function govern(ms, dt) {
     if (!R3) return;
+    // a few long frames are the page busy elsewhere (stems loading, a panel being built), not the
+    // graphics: they don't count (many in a row do)
+    if (dt * 1000 > Math.max(50, perf.best * 4)) {
+      if (perf.stalls++ < 10) return;
+    } else perf.stalls = 0;
     perf.acc += Math.max(ms, dt * 1000);
     perf.msAcc += ms;
     perf.n++;
@@ -1736,14 +1773,14 @@ export function createHighway(stage) {
     const calm = !stage.engine.playing || (H.targets && H.targets.length && H.clock < H.targets[0].t - 1.5);
     if (avg > 26 && R3.scale > 1) {
       perf.cap = 1;
-      R3.setScale(1, ratio);
-    } else if (avg > 26 && R3.scale > 0.5) R3.setScale(R3.scale > 0.75 ? 0.75 : 0.5, ratio);
+      setScale(1, ratio);
+    } else if (avg > 26 && R3.scale > 0.5) setScale(R3.scale > 0.75 ? 0.75 : 0.5, ratio);
     else if (calm && R3.scale > 1 && avg > perf.best * 1.25) {
       // the sharper picture costs frames: back down a step, and stay there
       perf.cap = R3.scale - 0.25;
-      R3.setScale(perf.cap, ratio);
+      setScale(perf.cap, ratio);
     } else if (calm && R3.scale >= 1 && R3.scale + 0.25 <= top + 1e-6 && avg < Math.min(18, perf.best * 1.1) && cpu < 6) {
-      R3.setScale(R3.scale + 0.25, ratio);
+      setScale(R3.scale + 0.25, ratio);
     }
     H.perf = { avg, glow: R3.glow, scale: R3.scale };
   }
@@ -1765,8 +1802,12 @@ export function createHighway(stage) {
       H.clock = raw; // scoring keeps the exact song clock
       const realDt = Math.min(0.25, (now - (H.lastNow || now)) / 1000);
       H.lastNow = now;
-      if (!eng.playing || !Number.isFinite(H.vclock) || Math.abs(raw - H.vclock) > 0.2) H.vclock = raw;
+      // 4.29: after a start or a jump the song clock waits for the sound to reach the speakers; the
+      // picture waits with it (it ran ahead, then snapped back: a hitch as the song started)
+      if (!eng.playing || !Number.isFinite(H.vclock) || Math.abs(raw - H.vclock) > 0.2) H.vclock = H.holdAt = raw;
+      else if (raw === H.holdAt) H.vclock = raw;
       else {
+        H.holdAt = NaN;
         H.vclock += realDt * (eng.speed || 1);
         H.vclock += (raw - H.vclock) * Math.min(1, realDt * 4);
       }
@@ -1792,6 +1833,7 @@ export function createHighway(stage) {
       if (H.judge && eng.playing && prefs.detect && rig.on && !aside()) H.judge.tick(H.clock - (((rig.latencyMs || 20) / 1000 + 0.03) * eng.speed));
       processEvents(vis);
       followTone(H.clock);
+      applyScale();
       const f0 = performance.now();
       draw(vis, dt);
       govern(performance.now() - f0, dt);
@@ -3369,10 +3411,11 @@ export function createHighway(stage) {
   function renderControls() {
     if (H.open) renderDropPop();
     const t = H.tab;
-    titleBox.innerHTML = H.song ? `<b>${esc(H.song.title)}</b><span>${esc(H.song.artist)}${t ? ` · ${esc(t.tuningName || '')}${t.capo ? `, capo ${t.capo}` : ''}` : ''}</span>` : '';
-    capoBox.innerHTML = t && t.capo > 0 ? `<b>Requires capo</b><span>${esc(capoLabel(t.capo))}${t.name ? ` · ${esc(t.name)}` : ''}</span>` : '';
-    parts.innerHTML = '';
-    for (const p of H.parts) {
+    setHtml(titleBox, 'title', H.song ? `<b>${esc(H.song.title)}</b><span>${esc(H.song.artist)}${t ? ` · ${esc(t.tuningName || '')}${t.capo ? `, capo ${t.capo}` : ''}` : ''}</span>` : '');
+    setHtml(capoBox, 'capo', t && t.capo > 0 ? `<b>Requires capo</b><span>${esc(capoLabel(t.capo))}${t.name ? ` · ${esc(t.name)}` : ''}</span>` : '');
+    const partsKey = JSON.stringify([t && t.id, aside(), instrument(), H.parts.map((p) => [p.id, p.name, p.type])]);
+    if (changed('parts', partsKey)) parts.innerHTML = '';
+    for (const p of parts.firstChild ? [] : H.parts) {
       const b = h('button.hw-chip', { type: 'button', 'aria-pressed': String(!!(t && t.id === p.id) && !aside()), text: p.name, title: `Play the ${String(p.name).toLowerCase()} part on your ${p.type === 'bass' ? 'bass' : 'guitar'}` });
       b.dataset.id = p.id;
       b.onclick = () => playAs('guitar', p.id);
@@ -3387,20 +3430,20 @@ export function createHighway(stage) {
     guitarBtn.setAttribute('aria-pressed', String(rig.on && !rig.muted));
     guitarBtn.title = !rig.on ? 'Your guitar isn’t connected' : muted ? 'Your guitar is muted: click to hear it' : 'Mute your guitar';
     guitarBtn.setAttribute('aria-label', guitarBtn.title);
-    guitarBtn.innerHTML = icon(muted || !rig.on ? 'volumeOff' : 'volume');
+    setHtml(guitarBtn, 'guitar', icon(muted || !rig.on ? 'volumeOff' : 'volume'));
     const mineT = (tonelib.list || []).find((x) => x.id === rig.toneId);
     const cur = rig.mode === 'song' ? songToneAt(stage.engine.position) : null;
     const toneName = rig.mode === 'song' ? `Song tone${cur && cur.name ? ` · ${cur.name}` : ''}` : rig.mode === 'live' && rig.liveTone ? rig.liveTone.name : mineT ? `${mineT.slot ? `${mineT.slot} · ` : ''}${mineT.name}` : (TONES.find((x) => x.id === rig.toneId) || {}).name || 'Tone';
-    const shown = toneName;
-    toneBtn.innerHTML = `${icon('amp')}${instrumentTag(rig)}<span>${esc(shown)}</span>${rig.capture ? '<span class="real-badge sm" title="A real amp is playing">REAL</span>' : ''}${icon('chevron')}`;
+    setHtml(toneBtn, 'tone', `${icon('amp')}${instrumentTag(rig)}<span>${esc(toneName)}</span>${rig.capture ? '<span class="real-badge sm" title="A real amp is playing">REAL</span>' : ''}${icon('chevron')}`);
     toneBtn.hidden = !rig.on;
     rigBox.classList.toggle('real', !!rig.capture);
-    renderMix();
+    if (mixOpen && shown.get('mix') !== mixKey()) renderMix();
     paintSpeedChip(speedChip, stage.engine.speed || 1);
-    // section strip
+    // section strip (the same song part and length: left as it is)
+    const total = (t && (stage.engine.duration || t.length)) || 1;
+    if (!changed('sections', JSON.stringify([t && t.id, total, t && t.sections]))) return;
     sections.innerHTML = '';
     if (t && t.sections.length) {
-      const total = stage.engine.duration || t.length || 1;
       // 4.2: a long section (some songs have only one or two) goes to the spot you click,
       // like the arrow keys; a normal one goes to its start. The time shows as you hover.
       const LONG = 30;
