@@ -4331,6 +4331,7 @@ html.cursor-idle, html.cursor-idle * { cursor: none !important; }
 .pv-bar[hidden] { display: none; }
 .pv-bar .pv-ic { display: grid; color: #ffb547; }
 .pv-bar .pv-ic svg { width: 16px; height: 16px; }
+.pv-bar.loading .pv-ic { opacity: 0.5; }
 .pv-bar .pv-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-bar .pv-t b { color: var(--ink); font-weight: 650; }
 .pv-bar .pv-stop { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid #ffffff2a; background: #ffffff10; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }

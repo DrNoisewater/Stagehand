@@ -262,6 +262,8 @@ export class AudioEngine extends EventTarget {
    * level so it keeps its own volume.
    */
   async extraOut() {
+    // 4.29.1: a player being rebuilt for a new song finishes first, so nothing joins the one about to close
+    if (this._ctxQueue) await this._ctxQueue;
     if (!this.ctx) await this.ensureContext(48000);
     if (!this.extra) {
       this.extra = this.ctx.createGain();

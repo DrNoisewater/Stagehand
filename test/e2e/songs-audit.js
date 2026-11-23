@@ -5,13 +5,9 @@ module.exports = async ({ page, outDir, check }) => {
   const errs = [];
   page.on('pageerror', (e) => errs.push(e.message));
   // count what the page tries to play
-  await page.evaluate(() => {
-    window.__plays = [];
-    const orig = HTMLMediaElement.prototype.play;
-    HTMLMediaElement.prototype.play = function () {
-      window.__plays.push(this.src);
-      return orig.call(this);
-    };
+  await page.evaluate(async () => {
+    const pv = await import('./js/preview.js');
+    window.__nplays = () => pv.previewState().plays;
   });
   await page.addStyleTag({ content: '.toasts, .toast-stack { display: none !important; }' });
   // made-up songs: tunings, a capo
@@ -45,12 +41,12 @@ module.exports = async ({ page, outDir, check }) => {
   await rows.nth(1).click();
   await page.waitForTimeout(1200);
   let bar = await page.evaluate(() => { const b = document.querySelector('.pv-bar'); return b && !b.hidden ? b.textContent : null; });
-  const plays1 = await page.evaluate(() => window.__plays.length);
+  const plays1 = await page.evaluate(() => window.__nplays());
   check(bar && /Preview/.test(bar) && plays1 === 1, `clicking a song starts a preview with a Stop (${bar}, plays ${plays1})`);
   await page.screenshot({ path: path.join(outDir, 'songs-preview.png') });
   await rows.nth(2).click();
   await page.waitForTimeout(900);
-  const plays2 = await page.evaluate(() => window.__plays.length);
+  const plays2 = await page.evaluate(() => window.__nplays());
   check(plays2 === 2, `another song replaces it (plays ${plays2})`);
   await page.locator('.pv-stop').click();
   await page.waitForTimeout(500);
@@ -71,10 +67,10 @@ module.exports = async ({ page, outDir, check }) => {
   await page.waitForTimeout(500);
   // setting off: no preview
   await page.evaluate(async () => { const { state } = await import('./js/store.js'); state.settings = { ...(state.settings || {}), playback: { ...((state.settings || {}).playback || {}), preview: false } }; });
-  const before = await page.evaluate(() => window.__plays.length);
+  const before = await page.evaluate(() => window.__nplays());
   await rows.nth(3).click();
   await page.waitForTimeout(900);
-  check((await page.evaluate(() => window.__plays.length)) === before, 'with previews off, nothing plays');
+  check((await page.evaluate(() => window.__nplays())) === before, 'with previews off, nothing plays');
   await page.evaluate(async () => { const { state } = await import('./js/store.js'); state.settings.playback.preview = true; });
   // a song playing in the player: no preview
   const id0 = await page.evaluate(async () => [...(await import('./js/store.js')).state.songs.keys()][0]);
@@ -84,10 +80,10 @@ module.exports = async ({ page, outDir, check }) => {
   const playing = await page.evaluate(async () => (await import('./js/stage.js')).engine.playing);
   await page.evaluate(async () => (await import('./js/store.js')).setPage('songs'));
   await page.waitForTimeout(600);
-  const b4 = await page.evaluate(() => window.__plays.length);
+  const b4 = await page.evaluate(() => window.__nplays());
   await rows.nth(2).click();
   await page.waitForTimeout(900);
-  check(!playing || (await page.evaluate(() => window.__plays.length)) === b4, `no preview over a playing song (playing: ${playing})`);
+  check(!playing || (await page.evaluate(() => window.__nplays())) === b4, `no preview over a playing song (playing: ${playing})`);
 
   // ---- search: the tuning card
   await page.evaluate(async () => { const s = await import('./js/store.js'); s.clearSearch(); s.setPage('songs'); });
