@@ -1209,6 +1209,11 @@ span.official svg { width: 11px; height: 11px; fill: none; stroke: currentColor;
 .tcheck-tuner { padding: 14px 16px 12px; border-radius: var(--r-md); background: var(--deck-2); border: 1px solid var(--rule-soft); margin-top: 4px; }
 .tcheck-tuner .tn-needle { opacity: 1; background: #fff; }
 .tcheck-tuner .tn-needle.ok { background: #7fe0a6; }
+.tcheck-offer { display: grid; gap: 8px; justify-items: center; padding: 14px 16px; border-radius: var(--r-md); background: var(--tungsten-soft); border: 1px solid var(--tungsten-line); }
+.tcheck-dropbtn { width: 100%; height: 54px; font-size: 19px; gap: 10px; box-shadow: 0 0 0 3px var(--tungsten-soft), 0 4px 14px rgba(0, 0, 0, 0.35); }
+.tcheck-dropgo { font-size: 24px; line-height: 1; font-weight: 800; }
+.tcheck-offer-why { margin: 0; color: var(--ink); font-size: 14px; text-align: center; }
+.tcheck-or { margin: 4px 0 0; color: var(--ink-2); font-size: 13px; }
 .tcheck-live { color: var(--ink-2); font-size: 13px; }
 .tcheck-always { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); cursor: pointer; }
 .hw-drop-guide { margin-top: 6px; }

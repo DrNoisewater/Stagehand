@@ -599,14 +599,22 @@ const srv = http.createServer((req, res) => {
     if (process.env.TCHECK) {
       // the tuning check card: a Drop D song at A425 on an E Standard guitar, the low string
       // half way down (heard 100 cents above D), then in tune: it gets a tick
-      await page.evaluate(async () => {
+      await page.evaluate(async (dropVariant) => {
         const { rig } = await import('/js/rig.js');
         const { tuningGuide } = await import('/js/tuning-check.js');
         localStorage.removeItem('stagehand.myTuning');
         window.__pitch = 3900 - 60 + 100;
         rig.pitch = () => { const c = window.__pitch; if (c == null) return null; const midi = Math.round(c / 100); return { hz: 440 * 2 ** ((c - 6900) / 1200), midi, cents: c - midi * 100, clarity: 0.97 }; };
-        tuningGuide({ tuning: [-2, 0, 0, 0, 0, 0], cents: -60, type: 'lead' }, { id: 's1', title: 'Scene T' });
-      });
+        tuningGuide(dropVariant ? { tuning: [-2, -2, -2, -2, -2, -2], cents: 0, type: 'lead' } : { tuning: [-2, 0, 0, 0, 0, 0], cents: -60, type: 'lead' }, { id: 's1', title: 'Scene T' });
+      }, process.env.TCHECK === 'drop');
+      if (process.env.TCHECK === 'drop') {
+        await page.waitForTimeout(900);
+        await page.screenshot({ path: path.join(out, 'tcheck-drop.png') });
+        const d = await page.evaluate(() => ({ btn: !!document.querySelector('.tcheck-dropbtn'), first: document.querySelector('.modal .btn.primary') === document.querySelector('.tcheck-dropbtn'), focus: document.activeElement === document.querySelector('.tcheck-dropbtn') }));
+        if (!d.btn || !d.first || !d.focus) throw new Error('drop offer: ' + JSON.stringify(d));
+        console.log('PASS the tuning card offers the Drop as the big first choice, focused');
+        continue;
+      }
       await page.waitForTimeout(900);
       await page.screenshot({ path: path.join(out, 'tcheck-1.png') });
       // string 6 right, string 5 four cents off (must NOT tick), string 4 right, then string 6 played
