@@ -26,6 +26,7 @@ class AudioService {
     this.pending = new Map();
     this._evictTimer = null;
     this.inUse = new Set();
+    this.previewKeys = new Map(); // a song file and its preview → the clip already made from it
   }
 
   markInUse(key) {
@@ -95,22 +96,73 @@ class AudioService {
   async preparePreview(song) {
     if (!song) return null;
     if (song.previewEntry) {
-      const wem = await this._read({ path: song.path, entry: song.previewEntry });
-      const key = `pv${crypto.createHash('sha1').update(wem).digest('hex').slice(0, 22)}`;
+      // 4.29.1: a song clicked before goes straight to its clip, without reading its file again
+      let st = null;
+      try {
+        st = await fsp.stat(song.path);
+      } catch (_) {}
+      const seen = st ? `${song.path}|${song.previewEntry}|${st.size}|${st.mtimeMs}` : null;
+      let key = seen ? this.previewKeys.get(seen) : null;
+      if (!key || !fs.existsSync(this.wavPath(key))) {
+        const wem = await this._read({ path: song.path, entry: song.previewEntry });
+        key = `pv${crypto.createHash('sha1').update(wem).digest('hex').slice(0, 22)}`;
+        if (!fs.existsSync(this.wavPath(key))) {
+          if (!this.pending.has(key)) this.pending.set(key, this._decode(wem, key).finally(() => this.pending.delete(key)));
+          await this.pending.get(key);
+          this.evictSoon();
+        }
+        if (seen) {
+          this.previewKeys.set(seen, key);
+          while (this.previewKeys.size > 500) this.previewKeys.delete(this.previewKeys.keys().next().value);
+        }
+      }
+      const i = await this._info(key);
+      return { url: i.url, duration: i.duration, start: 0, length: i.duration };
+    }
+    if (song.audioKey && fs.existsSync(this.wavPath(song.audioKey))) {
+      // 4.29.1: a slice of the song in a small file of its own, so a click fetches 30 s, not the whole song
+      const key = `pv${crypto.createHash('sha1').update(`slice:${song.audioKey}`).digest('hex').slice(0, 22)}`;
       if (!fs.existsSync(this.wavPath(key))) {
-        if (!this.pending.has(key)) this.pending.set(key, this._decode(wem, key).finally(() => this.pending.delete(key)));
+        if (!this.pending.has(key)) this.pending.set(key, this._slice(song.audioKey, key, 30).finally(() => this.pending.delete(key)));
         await this.pending.get(key);
         this.evictSoon();
       }
       const i = await this._info(key);
       return { url: i.url, duration: i.duration, start: 0, length: i.duration };
     }
-    if (song.audioKey && fs.existsSync(this.wavPath(song.audioKey))) {
-      const i = await this._info(song.audioKey);
-      const length = Math.min(30, i.duration);
-      return { url: i.url, duration: i.duration, start: Math.max(0, Math.min(i.duration * 0.3, i.duration - length)), length };
-    }
     return null;
+  }
+
+  /** Copies `secs` of a decoded song (from 30% in) into its own small WAV. */
+  async _slice(fromKey, key, secs) {
+    const src = this.wavPath(fromKey);
+    const info = await readWavInfo(src);
+    const frameBytes = (info.bitsPerSample / 8) * info.channels;
+    const frames = Math.min(info.frames, Math.round(secs * info.sampleRate));
+    const first = Math.max(0, Math.min(Math.floor(info.frames * 0.3), info.frames - frames));
+    const data = Buffer.alloc(frames * frameBytes);
+    const fh = await fsp.open(src, 'r');
+    try {
+      await fh.read(data, 0, data.length, info.dataOffset + first * frameBytes);
+    } finally {
+      await fh.close();
+    }
+    const head = Buffer.alloc(44);
+    head.write('RIFF', 0, 'latin1');
+    head.writeUInt32LE(36 + data.length, 4);
+    head.write('WAVEfmt ', 8, 'latin1');
+    head.writeUInt32LE(16, 16);
+    head.writeUInt16LE(info.format === 3 ? 3 : 1, 20);
+    head.writeUInt16LE(info.channels, 22);
+    head.writeUInt32LE(info.sampleRate, 24);
+    head.writeUInt32LE(info.sampleRate * frameBytes, 28);
+    head.writeUInt16LE(frameBytes, 32);
+    head.writeUInt16LE(info.bitsPerSample, 34);
+    head.write('data', 36, 'latin1');
+    head.writeUInt32LE(data.length, 40);
+    const tmp = path.join(this.dir, `${key}.${crypto.randomBytes(3).toString('hex')}.tmp.wav`);
+    await fsp.writeFile(tmp, Buffer.concat([head, data]));
+    await fsp.rename(tmp, this.wavPath(key));
   }
 
   async _read(src) {
