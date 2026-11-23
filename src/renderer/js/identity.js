@@ -86,8 +86,36 @@ const operaMoods = new Proxy({}, { get: (_t, k) => {
   const [kicker, text] = pickFor('line:' + k, operaLines[k]);
   return [names[k], kicker, text];
 } });
-// 4.28: one look for the whole app (Warm Club on the Rehearsal Room). Roadshow is gone; an old saved choice is ignored.
+// 4.28: one look for the whole app (the Rehearsal Room). Roadshow is gone; an old saved choice is ignored.
 const opera = () => true;
+// 4.29: the colours of the whole app are the user's pick (Settings › Appearance › Theme). Brown is the Rehearsal Room itself.
+// Each: id, name, one line, the little picture's colours (page, menu, writing, button, picked), and its row in the picker.
+export const THEMES = [
+  ['brown', 'Brown', 'The rehearsal room: worn tolex, masking tape, cream labels.', ['#1a1714', '#0d0c0b', '#e3d6b1', '#d23a2c', '#e3d6b1'], 'warm'],
+  ['mahogany', 'Mahogany', 'The brown room with the lights up: wood grain, bright cream writing, gold.', ['#43301f', '#2f2016', '#fbf1dc', '#f0c46a', '#f6e4b5'], 'warm'],
+  ['recordshop', 'Record Shop', 'Chocolate shelves and old album-cover stripes: mustard, orange, rust.', ['#3f2716', '#2a190d', '#fbefd6', '#e0662a', '#e9b437'], 'warm'],
+  ['club', 'Warm Club', 'Red brick and neon signs: each part of the menu lights up in its own colour.', ['#231b1a', '#1a1414', '#e8e3d6', '#ffb547', '#ff5a36'], 'warm'],
+  ['sunburst', 'Sunburst', 'A sunburst guitar: cherry edges fading to amber, cream binding, a black pickguard menu.', ['#9a3515', '#121010', '#fff3dc', '#f2a23a', '#f2a23a'], 'warm'],
+  ['desert', 'Desert Road', 'A desert road trip: terracotta, a sunset up top, turquoise buttons, a stitched menu.', ['#4a2619', '#5a2e1d', '#fbecd6', '#3ec2b0', '#f2b35a'], 'warm'],
+  ['bluenote', 'Blue Note', 'A jazz record sleeve: slate blue, cream writing, orange buttons.', ['#2a3e55', '#1b293a', '#f6f0e3', '#f59a2c', '#f6f0e3'], 'colour'],
+  ['surf', 'Surf Green', 'A sixties seafoam guitar: deep sea green, cream writing, round chrome buttons.', ['#1d3d37', '#11241f', '#f4efe0', '#8fe0c9', '#f4efe0'], 'colour'],
+  ['haze', 'Purple Haze', 'A sixties light show: deep plum, orange-to-pink buttons, a swirl across the top.', ['#2b1a39', '#1a0f22', '#fbeede', '#ff9a3c', '#ff5fa2'], 'colour'],
+  ['fret', 'Fret Lights', 'A deep indigo stage: each part of the app has its own string colour, like the highway.', ['#191c36', '#0e1022', '#f3f4ff', '#3aa8ff', '#ff3b4f'], 'colour'],
+  ['synthwave', 'Synthwave', 'An eighties sunset: night purple, a glowing grid, hot pink and blue.', ['#24164a', '#140c26', '#fff2fb', '#ff3fa4', '#29e3ff'], 'colour'],
+  ['tweed', 'Tweed', 'Light: the tan weave of a vintage amp in dark brown tolex, gold and oxblood.', ['#e4d1a8', '#3d2a1b', '#2a1d12', '#9a2b1e', '#c49a3a'], 'light'],
+  ['daylight', 'Studio Daylight', 'Lightest: a white track sheet, black writing, coloured tape on the menu.', ['#f3f1ec', '#1b1c20', '#1b1c20', '#e2412d', '#ffd34d'], 'light'],
+  ['gigposter', 'Gig Poster', 'Light and loud: a screen-printed poster, thick black lines, mustard, teal and red.', ['#efe9dc', '#141414', '#141414', '#e63b2e', '#f2c230'], 'light'],
+  ['blueprint', 'Blueprint', 'Plans for a guitar build: blueprint blue, a white grid, white outlines.', ['#1d4f86', '#1d4f86', '#ffffff', '#ffffff', '#ffffff'], 'odd'],
+  ['chalk', 'Chalkboard', 'A music-room chalkboard in a wooden frame: chalk-white writing, yellow chalk buttons.', ['#22302a', '#6e4526', '#f3f1e8', '#ffe27a', '#22302a'], 'odd'],
+  ['console', 'Mixing Desk', 'A seventies studio console: grey-green metal, amber meter glow, fader-cap buttons.', ['#47504b', '#262b29', '#f4f2ea', '#e0532a', '#f6b23c'], 'odd'],
+  ['cassette', 'Cassette', 'An eighties tape deck: graphite plastic, a cream label with orange, red and yellow stripes.', ['#393b40', '#24262a', '#f5efe2', '#f5efe2', '#ec6b2d'], 'odd'],
+  ['denim', 'Denim', 'A worn denim jacket: orange stitching round everything, sewn-on patches for the menu.', ['#2a3f5e', '#22344f', '#f5f1e6', '#e8963a', '#5b2430'], 'odd'],
+  ['roadcase', 'Road Case', 'A touring flight case: black board, aluminium edges, rivets, hazard-yellow buttons.', ['#232427', '#1b1c1e', '#f2f2ee', '#ffcf1f', '#ffcf1f'], 'odd'],
+  ['arcade', 'Arcade', 'An eighties arcade cabinet: midnight blue, stars, chunky edges, arcade-button colours.', ['#141c4f', '#0a0f2e', '#ffffff', '#ff2d55', '#ffd400'], 'odd'],
+  ['greenscreen', 'Green Screen', 'An old computer terminal: black glass, glowing green writing, scan lines.', ['#0f2a17', '#07100a', '#b6ffc8', '#6dff95', '#6dff95'], 'odd'],
+];
+const THEME_ROWS = [['warm', 'Warm rooms'], ['colour', 'Colour'], ['light', 'Light'], ['odd', 'Something different']];
+export const themeNow = () => (THEMES.some(([id]) => id === prefs.theme) ? prefs.theme : 'brown');
 const moodsNow = () => (opera() ? operaMoods : roadshowMoods);
 const moods = new Proxy({}, { get: (_t, k) => moodsNow()[k] });
 const banner = document.getElementById('identity-banner');
@@ -123,6 +151,7 @@ function save() {
   document.documentElement.dataset.decoration = prefs.reduced ? 'reduced' : 'full';
   document.documentElement.dataset.calm = prefs.calm ? 'true' : 'false';
   document.documentElement.dataset.look = opera() ? 'opera' : 'roadshow';
+  document.documentElement.dataset.skin = themeNow();
 }
 function restartEntrance(els) {
   for (const el of els) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
@@ -279,6 +308,32 @@ export function appearancePane(el) {
     input.onchange = () => { prefs[key] = input.checked; save(); };
     el.append(h('label.identity-setting', null, input, h('span', null, h('b',{text:name}), h('small',{text:desc}))));
   };
+  // 4.29: the theme: the colours of the whole app
+  el.append(h('h3', { text: 'Theme' }), h('p', { text: 'The colours of the whole app. The note highway keeps its own look.' }));
+  // 4.29: small: a tiny drawing of the app in each theme, in four short rows; the words for the one under the pointer below
+  const picks = h('div.theme-picks', { role: 'group', 'aria-label': 'Theme' });
+  const about = h('p.theme-about', { 'aria-live': 'polite' });
+  const tell = (id) => { const t = THEMES.find((x) => x[0] === id) || THEMES[0]; about.replaceChildren(h('b', { text: t[1] }), ' ', t[2]); };
+  const drawThemes = () => {
+    picks.innerHTML = '';
+    for (const [row, label] of THEME_ROWS) {
+      const line = h('div.theme-row', null, h('span.theme-row-name', { text: label }));
+      for (const [id, name, desc, [pg, side, ink, acc, on], r] of THEMES) {
+        if (r !== row) continue;
+        const b = h('button.theme-pick', { type: 'button', 'data-theme-id': id, title: desc, 'aria-pressed': String(themeNow() === id),
+          style: `--p:${pg};--s:${side};--k:${ink};--a:${acc};--c:${on}` },
+          h('span.tp-mini', { 'aria-hidden': 'true' }, h('i.tp-side', null, h('i.tp-on')), h('i.tp-ban'), h('i.tp-card', null, h('i.tp-l'), h('i.tp-l')), h('i.tp-btn')),
+          h('b', { text: name }));
+        b.onclick = () => { prefs.theme = id; save(); drawThemes(); tell(id); };
+        b.onmouseenter = b.onfocus = () => tell(id);
+        b.onmouseleave = b.onblur = () => tell(themeNow());
+        line.append(b);
+      }
+      picks.append(line);
+    }
+  };
+  drawThemes(); tell(themeNow());
+  el.append(picks, about);
   const rotate = h('input', {type:'checkbox', checked:prefs.rotateMenus !== false});
   rotate.onchange = () => { prefs.rotateMenus = rotate.checked; save(); };
   el.append(h('label.identity-setting', null, rotate, h('span', null, h('b',{text:'Fresh artwork on menu visits'}), h('small',{text:'Shuffle illustrations without immediate repeats. Pinned artwork stays put.'}))));

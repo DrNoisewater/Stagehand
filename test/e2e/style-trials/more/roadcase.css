@@ -1,0 +1,30 @@
+/* ROAD CASE: the flight cases a band tours with. Black textured board, aluminium edges, corner rivets, stencilled labels, hazard-yellow buttons */
+html[data-look='opera'] { --rr-bone:#f2f2ee; --rr-bone-2:#d0d2d4; --rr-bone-3:#a3a7ac; --rr-line:#5c6066; --rr-card:#26282b; }
+html[data-look='opera'] #app { --house:#1b1c1e; --deck:#222326; --deck-2:#26282b; --riser:#2e3034; --riser-2:#2e3034; --card:#26282b; --card-line:#5c6066; --well:#141516; --ink:#f2f2ee; --ink-2:#d0d2d4; --ink-3:#a3a7ac; --rule:#5c6066; --rule-soft:#2e3034; background:#1b1c1e; color:#f2f2ee; }
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#222326; border-color:#5c6066; box-shadow:none; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#141516; border-color:#5c6066; box-shadow:none; }
+html[data-look='opera'] #app .tk-keys { background:#5c6066; }
+html[data-look='opera'] #app .row .go { color:#d0d2d4; }
+html[data-look='opera'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { transform:none; background:#ffffff10; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#141516; background:#ffcf1f; border-color:#ffcf1f; text-shadow:none; }
+html[data-look='opera'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#141516 !important; }
+html[data-look='opera'] #app .row.sel { background:#ffcf1f22; box-shadow:inset 4px 0 #ffcf1f; }
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(circle,#ffffff0a 1px,transparent 1.6px) 0 0/5px 5px,linear-gradient(180deg,#232427,#1b1c1e); }
+html[data-look='opera'] #app :is(.titlebar,.nowbar) { background:linear-gradient(180deg,#d9dde1,#9aa0a6 50%,#c4c9ce); color:#141516; }
+html[data-look='opera'] #app .titlebar :is(.brand,span,b,strong) { color:#141516; }
+html[data-look='opera'] #app .nowbar, html[data-look='opera'] #app .nowbar * { color:#141516; }
+html[data-look='opera'] #app .sidebar { background:radial-gradient(circle,#ffffff0a 1px,transparent 1.6px) 0 0/5px 5px,#1b1c1e; box-shadow:inset -8px 0 0 #a9aeb4,inset -9px 0 0 #5c6066; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:radial-gradient(circle at 7px 7px,#d9dde1 0 2.5px,transparent 3px),radial-gradient(circle at calc(100% - 7px) 7px,#d9dde1 0 2.5px,transparent 3px),radial-gradient(circle at 7px calc(100% - 7px),#d9dde1 0 2.5px,transparent 3px),radial-gradient(circle at calc(100% - 7px) calc(100% - 7px),#d9dde1 0 2.5px,transparent 3px),#26282b; border:2px solid #a9aeb4; border-radius:3px; box-shadow:0 3px 0 #000a; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#141516; background:#ffcf1f; border:2px solid #141516; border-radius:2px; box-shadow:0 0 0 2px #ffcf1f,0 3px 0 2px #000a; text-transform:uppercase; letter-spacing:.06em; text-shadow:none; }
+html[data-look='opera'] #app .btn.soft { color:#f2f2ee; background:#2e3034; border:2px solid #5c6066; border-radius:2px; }
+html[data-look='opera'] #app .nav-section { color:#f2f2ee; background:#26282b; border:2px solid #5c6066; border-radius:2px; margin-right:16px; letter-spacing:.14em; font-stretch:75%; }
+html[data-look='opera'] #app .nav-section svg { color:#ffcf1f; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#141516; background:#ffcf1f; border-color:#141516; box-shadow:0 0 0 2px #ffcf1f; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#141516; }
+html[data-look='opera'] #app .identity-banner { background:repeating-linear-gradient(-45deg,#ffcf1f 0 14px,#141516 14px 28px) 0 100%/100% 10px no-repeat,radial-gradient(circle,#ffffff0b 1px,transparent 1.6px) 0 0/5px 5px,linear-gradient(180deg,#2a2c30,#1b1c1e); box-shadow:inset 0 3px 0 #a9aeb4; }
+html[data-look='opera'] #app .nowbar { background:#141516; box-shadow:0 -3px 0 #a9aeb4; }
+html[data-look='opera'] #app .nowbar, html[data-look='opera'] #app .nowbar * { color:#d0d2d4; }
+html[data-look='opera'] #app .nav-section { letter-spacing:.08em; margin-right:20px; }

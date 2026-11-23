@@ -1,0 +1,26 @@
+/* SYNTHWAVE: an eighties sunset. Night purple, a glowing grid running to the horizon, hot pink and cyan */
+html[data-look='opera'] { --rr-bone:#fff2fb; --rr-bone-2:#e2d4f5; --rr-bone-3:#b7a6d6; --rr-line:#4f3a85; --rr-card:#2a1c4a; }
+html[data-look='opera'] #app { --house:#1c1233; --deck:#22163d; --deck-2:#2a1c4a; --riser:#33235a; --riser-2:#33235a; --card:#2a1c4a; --card-line:#4f3a85; --well:#140c26; --ink:#fff2fb; --ink-2:#e2d4f5; --ink-3:#b7a6d6; --rule:#4f3a85; --rule-soft:#33235a; background:#1c1233; color:#fff2fb; }
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#22163d; border-color:#4f3a85; box-shadow:none; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#140c26; border-color:#4f3a85; box-shadow:none; }
+html[data-look='opera'] #app .tk-keys { background:#4f3a85; }
+html[data-look='opera'] #app .row .go { color:#e2d4f5; }
+html[data-look='opera'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { transform:none; background:#ffffff10; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#0b0420; background:#29e3ff; border-color:#29e3ff; text-shadow:none; }
+html[data-look='opera'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#0b0420 !important; }
+html[data-look='opera'] #app .row.sel { background:#29e3ff22; box-shadow:inset 4px 0 #29e3ff; }
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover) { background:linear-gradient(180deg,transparent 60%,#1c1233 60%),linear-gradient(0deg,#ff3fa433 0 1px,transparent 1px) 0 0/100% 32px,linear-gradient(90deg,#29e3ff22 0 1px,transparent 1px) 0 0/48px 100%,linear-gradient(180deg,#24164a,#1c1233); background-attachment:fixed; }
+html[data-look='opera'] #app :is(.titlebar,.nowbar,.sidebar) { background:#140c26; }
+html[data-look='opera'] #app .titlebar { box-shadow:0 2px 0 #ff3fa4,0 0 18px #ff3fa466; } html[data-look='opera'] #app .nowbar { box-shadow:0 -2px 0 #29e3ff,0 0 18px #29e3ff55; }
+html[data-look='opera'] #app .sidebar { box-shadow:inset -2px 0 0 #ff3fa4; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#24164ae6; background-image:none; border:1px solid #ff3fa477; border-radius:4px; box-shadow:0 0 14px #ff3fa422; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#fff; background:linear-gradient(180deg,#ff6ac1,#c2188a); border:0; border-radius:4px; box-shadow:0 0 16px #ff3fa488; text-shadow:none; }
+html[data-look='opera'] #app .btn.soft { color:#29e3ff; background:transparent; border:1px solid #29e3ff; box-shadow:0 0 8px #29e3ff44; }
+html[data-look='opera'] #app .nav-section { color:#e2d4f5; background:transparent; border-radius:4px; font-style:italic; letter-spacing:.08em; }
+html[data-look='opera'] #app .nav-section svg { color:#29e3ff; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#fff; background:linear-gradient(90deg,#ff3fa4,#8a3cff); box-shadow:0 0 18px #ff3fa488; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#fff; }
+html[data-look='opera'] #app .identity-banner { background:radial-gradient(circle at 78% 100%,#ffd36b 0 40px,#ff7a59 40px 60px,#ff3fa4 60px 80px,transparent 80px),repeating-linear-gradient(180deg,transparent 0 8px,#1c1233 8px 11px) 78% 100%/170px 70px no-repeat,linear-gradient(180deg,#2a1452,#5a1f6b 70%,#1c1233); box-shadow:inset 0 -2px 0 #29e3ff; }

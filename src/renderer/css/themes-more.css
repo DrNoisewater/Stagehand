@@ -1,0 +1,454 @@
+/* MORE THEMES (4.29): fourteen more looks for Settings › Appearance › Theme, each on html[data-skin='<id>'].
+   Sit on top of the Rehearsal Room (rockopera.css). The note highway and the Jam visualizer keep their own look. */
+
+/* SUNBURST: a guitar's sunburst finish. Deep cherry edges fading to amber, cream binding round every panel, a black pickguard menu */
+html[data-look='opera'][data-skin='sunburst'] { --rr-bone:#fff3dc; --rr-bone-2:#f2d6aa; --rr-bone-3:#d6a878; --rr-cream:#f2a23a; --rr-pilot:#f2a23a; --rr-pilot-glow:#f2a23a88; --rr-brass:#f2a23a; --rr-brass-dim:#f2a23a66; --rr-line:#7a3a22; --rr-card:#3e1c13; }
+html[data-look='opera'][data-skin='sunburst'] #app {
+  --house:#2a1210; --deck:#34160f; --deck-2:#3e1c13; --riser:#4c2418; --riser-2:#4c2418; --card:#3e1c13; --card-line:#7a3a22; --well:#1f0d0a;
+  --ink:#fff3dc; --ink-2:#f2d6aa; --ink-3:#d6a878; --rule:#7a3a22; --rule-soft:#4c2418;
+  background:#2a1210; color:#fff3dc;
+}
+html[data-look='opera'][data-skin='sunburst'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#34160f; border-color:#7a3a22; box-shadow:none; }
+html[data-look='opera'][data-skin='sunburst'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#3e1c13; background-image:none; border:1px solid #7a3a22; box-shadow:0 3px 0 #0005; }
+html[data-look='opera'][data-skin='sunburst'] #app .tk-keys { background:#7a3a22; }
+html[data-look='opera'][data-skin='sunburst'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#1f0d0a; border-color:#7a3a22; box-shadow:none; }
+html[data-look='opera'][data-skin='sunburst'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#241005; background:#f2a23a; border:1px solid #f2a23a; box-shadow:0 3px 0 #0006; text-shadow:none; }
+html[data-look='opera'][data-skin='sunburst'] #app .btn.soft { color:#fff3dc; background:#4c2418; border-color:#7a3a22; }
+html[data-look='opera'][data-skin='sunburst'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='sunburst'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#3a160c; background:#fff3dc; border-color:#fff3dc; box-shadow:none; text-shadow:none; }
+html[data-look='opera'][data-skin='sunburst'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#3a160c !important; }
+html[data-look='opera'][data-skin='sunburst'] #app .row.sel { background:#f2a23a22; box-shadow:inset 4px 0 #f2a23a; }
+html[data-look='opera'][data-skin='sunburst'] #app .row:hover { background:#ffffff0d; } html[data-look='opera'][data-skin='sunburst'] #app .row .go { color:#f2d6aa; }
+html[data-look='opera'][data-skin='sunburst'] #app .nav-section svg { color:#f2a23a; }
+html[data-look='opera'][data-skin='sunburst'] #app .nav-section[aria-current='page'] svg { color:#3a160c; }
+html[data-look='opera'][data-skin='sunburst'] #app .nav-item[aria-current='true'] { border-left-color:#f2a23a; }
+html[data-look='opera'][data-skin='sunburst'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(75% 85% at 50% 42%,#c7641f 0%,#9a3515 38%,#5a1a10 68%,#2a0e0b 100%); background-attachment:fixed; }
+html[data-look='opera'][data-skin='sunburst'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#2c120dd9; border:1px solid #f2d6aa; box-shadow:0 0 0 3px #2c120d,0 0 0 4px #f2d6aa66,0 6px 14px #0007; border-radius:10px; }
+html[data-look='opera'][data-skin='sunburst'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#2c120dcc; border-color:#f2d6aa55; }
+html[data-look='opera'][data-skin='sunburst'] #app :is(.titlebar,.nowbar) { background:#121010; box-shadow:0 1px 0 #f2d6aa,0 3px 0 #121010,0 4px 0 #f2d6aa55; }
+html[data-look='opera'][data-skin='sunburst'] #app .nowbar { box-shadow:0 -1px 0 #f2d6aa,0 -3px 0 #121010,0 -4px 0 #f2d6aa55; }
+html[data-look='opera'][data-skin='sunburst'] #app .sidebar { background:linear-gradient(160deg,#1b1a1a,#0e0d0d); box-shadow:inset -1px 0 0 #f2d6aa,inset -4px 0 0 #121010,inset -5px 0 0 #f2d6aa55; }
+html[data-look='opera'][data-skin='sunburst'] #app .nav-section { clip-path:none; transform:none; border-radius:8px; color:#f2d6aa; background:transparent; box-shadow:none; }
+html[data-look='opera'][data-skin='sunburst'] #app .nav-section:hover:not([aria-current='page']) { background:#ffffff0c; color:#fff3dc; transform:none; }
+html[data-look='opera'][data-skin='sunburst'] #app .nav-section[aria-current='page'] { transform:none; color:#3a160c; background:radial-gradient(120% 160% at 50% 50%,#ffd27a,#f2a23a 55%,#c4561c); box-shadow:inset 0 0 0 1px #fff3dc; }
+html[data-look='opera'][data-skin='sunburst'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='sunburst'] #app .identity-banner { background:radial-gradient(60% 140% at 30% 50%,#f2a23a 0%,#c4561c 35%,#6a1c10 70%,#2a0e0b 100%); box-shadow:inset 0 -1px 0 #f2d6aa,inset 0 -4px 0 #2a0e0b,inset 0 -5px 0 #f2d6aa66; }
+
+/* SURF GREEN: a sixties seafoam guitar. Deep sea-green room, cream writing, chrome buttons, a seafoam stripe */
+html[data-look='opera'][data-skin='surf'] { --rr-bone:#f4efe0; --rr-bone-2:#cfe6dd; --rr-bone-3:#9cc7b9; --rr-cream:#8fe0c9; --rr-pilot:#8fe0c9; --rr-pilot-glow:#8fe0c988; --rr-brass:#8fe0c9; --rr-brass-dim:#8fe0c966; --rr-line:#3f7469; --rr-card:#22463f; }
+html[data-look='opera'][data-skin='surf'] #app {
+  --house:#17312d; --deck:#1c3a35; --deck-2:#22463f; --riser:#2b5750; --riser-2:#2b5750; --card:#22463f; --card-line:#3f7469; --well:#11241f;
+  --ink:#f4efe0; --ink-2:#cfe6dd; --ink-3:#9cc7b9; --rule:#3f7469; --rule-soft:#2b5750;
+  background:#17312d; color:#f4efe0;
+}
+html[data-look='opera'][data-skin='surf'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#1c3a35; border-color:#3f7469; box-shadow:none; }
+html[data-look='opera'][data-skin='surf'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#22463f; background-image:none; border:1px solid #3f7469; box-shadow:0 3px 0 #0005; }
+html[data-look='opera'][data-skin='surf'] #app .tk-keys { background:#3f7469; }
+html[data-look='opera'][data-skin='surf'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#11241f; border-color:#3f7469; box-shadow:none; }
+html[data-look='opera'][data-skin='surf'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#0f2a24; background:#8fe0c9; border:1px solid #8fe0c9; box-shadow:0 3px 0 #0006; text-shadow:none; }
+html[data-look='opera'][data-skin='surf'] #app .btn.soft { color:#f4efe0; background:#2b5750; border-color:#3f7469; }
+html[data-look='opera'][data-skin='surf'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='surf'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#17312d; background:#f4efe0; border-color:#f4efe0; box-shadow:none; text-shadow:none; }
+html[data-look='opera'][data-skin='surf'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#17312d !important; }
+html[data-look='opera'][data-skin='surf'] #app .row.sel { background:#8fe0c922; box-shadow:inset 4px 0 #8fe0c9; }
+html[data-look='opera'][data-skin='surf'] #app .row:hover { background:#ffffff0d; } html[data-look='opera'][data-skin='surf'] #app .row .go { color:#cfe6dd; }
+html[data-look='opera'][data-skin='surf'] #app .nav-section svg { color:#8fe0c9; }
+html[data-look='opera'][data-skin='surf'] #app .nav-section[aria-current='page'] svg { color:#17312d; }
+html[data-look='opera'][data-skin='surf'] #app .nav-item[aria-current='true'] { border-left-color:#8fe0c9; }
+html[data-look='opera'][data-skin='surf'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(70% 50% at 80% 0%,#8fe0c922,transparent 70%),repeating-linear-gradient(0deg,#ffffff04 0 2px,transparent 2px 6px),linear-gradient(180deg,#1d3d37,#163029); }
+html[data-look='opera'][data-skin='surf'] #app .titlebar { background:#11241f; box-shadow:0 3px 0 #8fe0c9,0 6px 0 #f4efe0; z-index:41; }
+html[data-look='opera'][data-skin='surf'] #app .nowbar { background:#11241f; box-shadow:0 -3px 0 #8fe0c9; }
+html[data-look='opera'][data-skin='surf'] #app .sidebar { background:#11241f; box-shadow:inset -3px 0 0 #8fe0c9; }
+html[data-look='opera'][data-skin='surf'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { border-radius:14px; }
+html[data-look='opera'][data-skin='surf'] #app :is(.btn,.gseg,.seg,.search) { border-radius:999px; }
+html[data-look='opera'][data-skin='surf'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { background:linear-gradient(180deg,#b8f2e0,#6fd0b4); border-color:#cfe6dd; }
+html[data-look='opera'][data-skin='surf'] #app .btn.soft { color:#17312d; background:linear-gradient(180deg,#f7f7f2,#c9ccc6 48%,#e6e8e3 52%,#b5b9b3); border-color:#eef0ea; text-shadow:none; }
+html[data-look='opera'][data-skin='surf'] #app .nav-section { clip-path:none; transform:none; border-radius:999px; margin-right:12px; color:#cfe6dd; background:#ffffff08; box-shadow:none; }
+html[data-look='opera'][data-skin='surf'] #app .nav-section:hover:not([aria-current='page']) { background:#ffffff14; color:#fff; transform:none; }
+html[data-look='opera'][data-skin='surf'] #app .nav-section[aria-current='page'] { transform:none; color:#17312d; background:#f4efe0; box-shadow:inset 0 0 0 3px #8fe0c9; }
+html[data-look='opera'][data-skin='surf'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='surf'] #app .identity-banner { background:linear-gradient(180deg,transparent 0 70%,#f4efe0 70% 76%,#8fe0c9 76% 88%,#f4efe0 88% 94%,transparent 94%),linear-gradient(180deg,#2b5750,#17312d); }
+
+/* PURPLE HAZE: a sixties light show. Deep plum room, warm cream writing, orange and hot pink, a swirl over the top */
+html[data-look='opera'][data-skin='haze'] { --rr-bone:#fbeede; --rr-bone-2:#e6cfe8; --rr-bone-3:#bfa1c8; --rr-cream:#ff9a3c; --rr-pilot:#ff9a3c; --rr-pilot-glow:#ff9a3c88; --rr-brass:#ff9a3c; --rr-brass-dim:#ff9a3c66; --rr-line:#5e3f78; --rr-card:#352245; }
+html[data-look='opera'][data-skin='haze'] #app {
+  --house:#24162f; --deck:#2c1b3a; --deck-2:#352245; --riser:#432b56; --riser-2:#432b56; --card:#352245; --card-line:#5e3f78; --well:#1a0f22;
+  --ink:#fbeede; --ink-2:#e6cfe8; --ink-3:#bfa1c8; --rule:#5e3f78; --rule-soft:#432b56;
+  background:#24162f; color:#fbeede;
+}
+html[data-look='opera'][data-skin='haze'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#2c1b3a; border-color:#5e3f78; box-shadow:none; }
+html[data-look='opera'][data-skin='haze'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#352245; background-image:none; border:1px solid #5e3f78; box-shadow:0 3px 0 #0005; }
+html[data-look='opera'][data-skin='haze'] #app .tk-keys { background:#5e3f78; }
+html[data-look='opera'][data-skin='haze'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#1a0f22; border-color:#5e3f78; box-shadow:none; }
+html[data-look='opera'][data-skin='haze'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#241005; background:#ff9a3c; border:1px solid #ff9a3c; box-shadow:0 3px 0 #0006; text-shadow:none; }
+html[data-look='opera'][data-skin='haze'] #app .btn.soft { color:#fbeede; background:#432b56; border-color:#5e3f78; }
+html[data-look='opera'][data-skin='haze'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='haze'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#24062a; background:#ff5fa2; border-color:#ff5fa2; box-shadow:none; text-shadow:none; }
+html[data-look='opera'][data-skin='haze'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#24062a !important; }
+html[data-look='opera'][data-skin='haze'] #app .row.sel { background:#ff9a3c22; box-shadow:inset 4px 0 #ff9a3c; }
+html[data-look='opera'][data-skin='haze'] #app .row:hover { background:#ffffff0d; } html[data-look='opera'][data-skin='haze'] #app .row .go { color:#e6cfe8; }
+html[data-look='opera'][data-skin='haze'] #app .nav-section svg { color:#ff9a3c; }
+html[data-look='opera'][data-skin='haze'] #app .nav-section[aria-current='page'] svg { color:#24062a; }
+html[data-look='opera'][data-skin='haze'] #app .nav-item[aria-current='true'] { border-left-color:#ff9a3c; }
+html[data-look='opera'][data-skin='haze'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(50% 45% at 85% 5%,#ff5fa22a,transparent 70%),radial-gradient(45% 40% at 10% 0%,#ff9a3c22,transparent 70%),linear-gradient(180deg,#2b1a39,#21142b); }
+html[data-look='opera'][data-skin='haze'] #app :is(.titlebar,.nowbar) { background:#1a0f22; box-shadow:0 2px 0 #ff5fa2,0 4px 0 #ff9a3c; }
+html[data-look='opera'][data-skin='haze'] #app .nowbar { box-shadow:0 -2px 0 #ff5fa2,0 -4px 0 #ff9a3c; }
+html[data-look='opera'][data-skin='haze'] #app .sidebar { background:linear-gradient(180deg,#1f1229,#160c1d); box-shadow:inset -2px 0 0 #ff5fa2; }
+html[data-look='opera'][data-skin='haze'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { border-radius:16px; border-color:#5e3f78; }
+html[data-look='opera'][data-skin='haze'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { background:linear-gradient(90deg,#ff9a3c,#ff5fa2); border:0; border-radius:999px; }
+html[data-look='opera'][data-skin='haze'] #app .nav-section { clip-path:none; transform:none; border-radius:0 999px 999px 0; margin-right:10px; color:#e6cfe8; background:transparent; box-shadow:none; }
+html[data-look='opera'][data-skin='haze'] #app .nav-section:hover:not([aria-current='page']) { background:#ffffff0e; color:#fff; transform:none; }
+html[data-look='opera'][data-skin='haze'] #app .nav-section[aria-current='page'] { transform:none; color:#24062a; background:linear-gradient(90deg,#ff9a3c,#ff5fa2); box-shadow:0 0 18px #ff5fa255; }
+html[data-look='opera'][data-skin='haze'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='haze'] #app .identity-banner { background:repeating-radial-gradient(circle at 82% 140%,#ff5fa2 0 14px,#ff9a3c 14px 28px,#7a3fb0 28px 42px,#352245 42px 56px); box-shadow:inset 0 0 0 2000px #24162f99,inset 0 -3px 0 #ff5fa2; }
+
+/* FRET LIGHTS: a deep indigo stage, each part of the app gets a string colour like the note highway, bright white writing */
+html[data-look='opera'][data-skin='fret'] { --rr-bone:#f3f4ff; --rr-bone-2:#c9cdef; --rr-bone-3:#9aa0cf; --rr-cream:#ffd23f; --rr-pilot:#ffd23f; --rr-pilot-glow:#ffd23f88; --rr-brass:#ffd23f; --rr-brass-dim:#ffd23f66; --rr-line:#3a4170; --rr-card:#1f2341; }
+html[data-look='opera'][data-skin='fret'] #app {
+  --house:#14162b; --deck:#191c36; --deck-2:#1f2341; --riser:#282d52; --riser-2:#282d52; --card:#1f2341; --card-line:#3a4170; --well:#0e1022;
+  --ink:#f3f4ff; --ink-2:#c9cdef; --ink-3:#9aa0cf; --rule:#3a4170; --rule-soft:#282d52;
+  background:#14162b; color:#f3f4ff;
+}
+html[data-look='opera'][data-skin='fret'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#191c36; border-color:#3a4170; box-shadow:none; }
+html[data-look='opera'][data-skin='fret'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#1f2341; background-image:none; border:1px solid #3a4170; box-shadow:0 3px 0 #0005; }
+html[data-look='opera'][data-skin='fret'] #app .tk-keys { background:#3a4170; }
+html[data-look='opera'][data-skin='fret'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#0e1022; border-color:#3a4170; box-shadow:none; }
+html[data-look='opera'][data-skin='fret'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#14162b; background:#ffd23f; border:1px solid #ffd23f; box-shadow:0 3px 0 #0006; text-shadow:none; }
+html[data-look='opera'][data-skin='fret'] #app .btn.soft { color:#f3f4ff; background:#282d52; border-color:#3a4170; }
+html[data-look='opera'][data-skin='fret'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='fret'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#14162b; background:#f3f4ff; border-color:#f3f4ff; box-shadow:none; text-shadow:none; }
+html[data-look='opera'][data-skin='fret'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#14162b !important; }
+html[data-look='opera'][data-skin='fret'] #app .row.sel { background:#ffd23f22; box-shadow:inset 4px 0 #ffd23f; }
+html[data-look='opera'][data-skin='fret'] #app .row:hover { background:#ffffff0d; } html[data-look='opera'][data-skin='fret'] #app .row .go { color:#c9cdef; }
+html[data-look='opera'][data-skin='fret'] #app .nav-section svg { color:#ffd23f; }
+html[data-look='opera'][data-skin='fret'] #app .nav-section[aria-current='page'] svg { color:#14162b; }
+html[data-look='opera'][data-skin='fret'] #app .nav-item[aria-current='true'] { border-left-color:#ffd23f; }
+html[data-look='opera'][data-skin='fret'] #app { --lane:#ffd23f; }
+html[data-look='opera'][data-skin='fret'] #app[data-mood='songs'] { --lane:#ff3b4f; } html[data-look='opera'][data-skin='fret'] #app[data-mood='play'] { --lane:#ffd23f; }
+html[data-look='opera'][data-skin='fret'] #app[data-mood='tones'] { --lane:#3aa8ff; } html[data-look='opera'][data-skin='fret'] #app[data-mood='gear'] { --lane:#ff8f1f; }
+html[data-look='opera'][data-skin='fret'] #app[data-mood='progress'] { --lane:#3ddc6a; } html[data-look='opera'][data-skin='fret'] #app[data-mood='discover'] { --lane:#b46bff; }
+html[data-look='opera'][data-skin='fret'] #app[data-mood='greenroom'] { --lane:#ff5fc8; }
+html[data-look='opera'][data-skin='fret'] #app .nav-section { --s:#ffd23f; clip-path:none; transform:none; border-radius:6px; color:#c9cdef; background:transparent; box-shadow:inset 4px 0 0 color-mix(in srgb,var(--s) 55%,transparent); }
+html[data-look='opera'][data-skin='fret'] #app .nav-section[data-page='songs'] { --s:#ff3b4f; } html[data-look='opera'][data-skin='fret'] #app .nav-section[data-page='play'] { --s:#ffd23f; }
+html[data-look='opera'][data-skin='fret'] #app .nav-section[data-page='tones'] { --s:#3aa8ff; } html[data-look='opera'][data-skin='fret'] #app .nav-section[data-page='gear'] { --s:#ff8f1f; }
+html[data-look='opera'][data-skin='fret'] #app .nav-section[data-page='progress'] { --s:#3ddc6a; } html[data-look='opera'][data-skin='fret'] #app .nav-section[data-page='discover'] { --s:#b46bff; }
+html[data-look='opera'][data-skin='fret'] #app .nav-section[data-page='greenroom'] { --s:#ff5fc8; }
+html[data-look='opera'][data-skin='fret'] #app .nav-section svg { color:var(--s); }
+html[data-look='opera'][data-skin='fret'] #app .nav-section:hover:not([aria-current='page']) { background:#ffffff0c; color:#fff; transform:none; }
+html[data-look='opera'][data-skin='fret'] #app .nav-section[aria-current='page'] { transform:none; color:#14162b; background:var(--s); box-shadow:0 0 16px color-mix(in srgb,var(--s) 60%,transparent); }
+html[data-look='opera'][data-skin='fret'] #app .nav-section[aria-current='page'] svg { color:#14162b; }
+html[data-look='opera'][data-skin='fret'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='fret'] #app :is(.page,.library,.discover,#discover) { background:repeating-linear-gradient(90deg,transparent 0 119px,#ffffff08 119px 121px),radial-gradient(60% 40% at 50% 0%,color-mix(in srgb,var(--lane) 16%,transparent),transparent 70%),linear-gradient(180deg,#191c36,#111329); }
+html[data-look='opera'][data-skin='fret'] #app :is(.titlebar,.nowbar) { background:#0e1022; box-shadow:0 2px 0 var(--lane); }
+html[data-look='opera'][data-skin='fret'] #app .nowbar { box-shadow:0 -2px 0 var(--lane); }
+html[data-look='opera'][data-skin='fret'] #app .sidebar { background:#0e1022; box-shadow:inset -1px 0 0 #3a4170; }
+html[data-look='opera'][data-skin='fret'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { border-radius:8px; }
+html[data-look='opera'][data-skin='fret'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { background:var(--lane); border-color:var(--lane); color:#14162b; box-shadow:0 0 14px color-mix(in srgb,var(--lane) 50%,transparent); }
+html[data-look='opera'][data-skin='fret'] #app .row.sel { background:color-mix(in srgb,var(--lane) 14%,transparent); box-shadow:inset 4px 0 var(--lane); }
+html[data-look='opera'][data-skin='fret'] #app .identity-banner { background:linear-gradient(180deg,transparent 0 30%,#ff3b4f55 30% 31%,transparent 31% 42%,#ffd23f55 42% 43%,transparent 43% 54%,#3aa8ff55 54% 55%,transparent 55% 66%,#ff8f1f55 66% 67%,transparent 67% 78%,#3ddc6a55 78% 79%,transparent 79%),linear-gradient(180deg,#232859,#14162b); box-shadow:inset 0 -2px 0 var(--lane); }
+
+/* DESERT ROAD: a sun-baked road-trip look. Terracotta and rust, sand-coloured writing, turquoise buttons, a stitched leather menu */
+html[data-look='opera'][data-skin='desert'] { --rr-bone:#fbecd6; --rr-bone-2:#ecd0aa; --rr-bone-3:#cfa57c; --rr-cream:#3ec2b0; --rr-pilot:#3ec2b0; --rr-pilot-glow:#3ec2b088; --rr-brass:#3ec2b0; --rr-brass-dim:#3ec2b066; --rr-line:#87523a; --rr-card:#4e291c; }
+html[data-look='opera'][data-skin='desert'] #app {
+  --house:#3a1d14; --deck:#432218; --deck-2:#4e291c; --riser:#5c3222; --riser-2:#5c3222; --card:#4e291c; --card-line:#87523a; --well:#2c150e;
+  --ink:#fbecd6; --ink-2:#ecd0aa; --ink-3:#cfa57c; --rule:#87523a; --rule-soft:#5c3222;
+  background:#3a1d14; color:#fbecd6;
+}
+html[data-look='opera'][data-skin='desert'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#432218; border-color:#87523a; box-shadow:none; }
+html[data-look='opera'][data-skin='desert'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#4e291c; background-image:none; border:1px solid #87523a; box-shadow:0 3px 0 #0005; }
+html[data-look='opera'][data-skin='desert'] #app .tk-keys { background:#87523a; }
+html[data-look='opera'][data-skin='desert'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#2c150e; border-color:#87523a; box-shadow:none; }
+html[data-look='opera'][data-skin='desert'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#0d2622; background:#3ec2b0; border:1px solid #3ec2b0; box-shadow:0 3px 0 #0006; text-shadow:none; }
+html[data-look='opera'][data-skin='desert'] #app .btn.soft { color:#fbecd6; background:#5c3222; border-color:#87523a; }
+html[data-look='opera'][data-skin='desert'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='desert'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#2c150e; background:#f2b35a; border-color:#f2b35a; box-shadow:none; text-shadow:none; }
+html[data-look='opera'][data-skin='desert'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#2c150e !important; }
+html[data-look='opera'][data-skin='desert'] #app .row.sel { background:#3ec2b022; box-shadow:inset 4px 0 #3ec2b0; }
+html[data-look='opera'][data-skin='desert'] #app .row:hover { background:#ffffff0d; } html[data-look='opera'][data-skin='desert'] #app .row .go { color:#ecd0aa; }
+html[data-look='opera'][data-skin='desert'] #app .nav-section svg { color:#3ec2b0; }
+html[data-look='opera'][data-skin='desert'] #app .nav-section[aria-current='page'] svg { color:#2c150e; }
+html[data-look='opera'][data-skin='desert'] #app .nav-item[aria-current='true'] { border-left-color:#3ec2b0; }
+html[data-look='opera'][data-skin='desert'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(60% 50% at 85% -10%,#f2b35a33,transparent 70%),linear-gradient(180deg,#4a2619 0%,#3a1d14 60%,#311810 100%); }
+html[data-look='opera'][data-skin='desert'] #app :is(.titlebar,.nowbar) { background:#2c150e; box-shadow:0 2px 0 #3ec2b0; }
+html[data-look='opera'][data-skin='desert'] #app .nowbar { box-shadow:0 -2px 0 #3ec2b0; }
+html[data-look='opera'][data-skin='desert'] #app .sidebar { background:linear-gradient(180deg,#5a2e1d,#3e1f13); box-shadow:inset -6px 0 0 #2c150e,inset -8px 0 0 #3ec2b0; }
+html[data-look='opera'][data-skin='desert'] #app .nav-section { clip-path:none; transform:none; border-radius:6px; color:#fbecd6; background:#00000022; box-shadow:inset 0 0 0 1px #ecd0aa22; outline:1px dashed #ecd0aa55; outline-offset:-5px; }
+html[data-look='opera'][data-skin='desert'] #app .nav-section:hover:not([aria-current='page']) { background:#ffffff10; color:#fff; transform:none; }
+html[data-look='opera'][data-skin='desert'] #app .nav-section[aria-current='page'] { transform:none; color:#2c150e; background:#f2b35a; outline-color:#2c150e66; box-shadow:0 3px 0 #9a4a20; }
+html[data-look='opera'][data-skin='desert'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='desert'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { border-radius:6px; }
+html[data-look='opera'][data-skin='desert'] #app .identity-banner { background:radial-gradient(14% 40% at 82% 62%,#f7d57a,#f2b35a 60%,transparent 62%),linear-gradient(180deg,#d9733f 0%,#b4512c 45%,#7a3020 72%,#3a1d14 72.5%,#2c150e 100%); box-shadow:inset 0 -3px 0 #3ec2b0; }
+
+/* BLUEPRINT: the whole app drawn like a plan for a guitar build. Blueprint blue, white drawn lines, a grid, handwritten-style labels */
+html[data-look='opera'][data-skin='blueprint'] { --rr-bone:#ffffff; --rr-bone-2:#dcebfb; --rr-bone-3:#a9cbef; --rr-line:#9cc3ee; --rr-card:#235d9b; }
+html[data-look='opera'][data-skin='blueprint'] #app { --house:#1d4f86; --deck:#1f5590; --deck-2:#235d9b; --riser:#2a67a8; --riser-2:#2a67a8; --card:#235d9b; --card-line:#9cc3ee; --well:#173f6b; --ink:#ffffff; --ink-2:#dcebfb; --ink-3:#a9cbef; --rule:#9cc3ee; --rule-soft:#2a67a8; background:#1d4f86; color:#ffffff; }
+html[data-look='opera'][data-skin='blueprint'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#1f5590; border-color:#9cc3ee; box-shadow:none; }
+html[data-look='opera'][data-skin='blueprint'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#173f6b; border-color:#9cc3ee; box-shadow:none; }
+html[data-look='opera'][data-skin='blueprint'] #app .tk-keys { background:#9cc3ee; }
+html[data-look='opera'][data-skin='blueprint'] #app .row .go { color:#dcebfb; }
+html[data-look='opera'][data-skin='blueprint'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'][data-skin='blueprint'] #app .nav-section:hover:not([aria-current='page']) { transform:none; }
+html[data-look='opera'][data-skin='blueprint'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'][data-skin='blueprint'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='blueprint'] #app :is(.page,.library,.discover,#discover,.sidebar,.titlebar,.nowbar) { background:linear-gradient(#ffffff14 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#ffffff14 1px,transparent 1px) 0 0/24px 24px,linear-gradient(#ffffff22 1px,transparent 1px) 0 0/120px 120px,linear-gradient(90deg,#ffffff22 1px,transparent 1px) 0 0/120px 120px,#1d4f86; }
+html[data-look='opera'][data-skin='blueprint'] #app .sidebar { box-shadow:inset -2px 0 0 #ffffffcc; } html[data-look='opera'][data-skin='blueprint'] #app .titlebar { box-shadow:0 2px 0 #ffffffcc; } html[data-look='opera'][data-skin='blueprint'] #app .nowbar { box-shadow:0 -2px 0 #ffffffcc; }
+html[data-look='opera'][data-skin='blueprint'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#1d4f86cc; background-image:none; border:1.5px solid #ffffffcc; box-shadow:4px 4px 0 -1px #1d4f86,4px 4px 0 0 #ffffff55; border-radius:0; }
+html[data-look='opera'][data-skin='blueprint'] #app :is(.btn,.gseg,.seg,.search) { border-radius:0; }
+html[data-look='opera'][data-skin='blueprint'] #app .btn.soft { color:#fff; background:transparent; border:1.5px dashed #ffffffcc; }
+html[data-look='opera'][data-skin='blueprint'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#1d4f86; background:#fff; border:1.5px solid #fff; box-shadow:4px 4px 0 #ffffff55; text-shadow:none; }
+html[data-look='opera'][data-skin='blueprint'] #app .nav-section { border-radius:0; color:#fff; background:transparent; border:1.5px dashed #ffffff55; margin-right:12px; }
+html[data-look='opera'][data-skin='blueprint'] #app .nav-section svg { color:#fff; }
+html[data-look='opera'][data-skin='blueprint'] #app .nav-section[aria-current='page'] { color:#1d4f86; background:#fff; border:1.5px solid #fff; }
+html[data-look='opera'][data-skin='blueprint'] #app .nav-section[aria-current='page'] svg { color:#1d4f86; }
+html[data-look='opera'][data-skin='blueprint'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='blueprint'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#1d4f86; background:#fff; border-color:#fff; box-shadow:none; }
+html[data-look='opera'][data-skin='blueprint'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#1d4f86 !important; }
+html[data-look='opera'][data-skin='blueprint'] #app .row.sel { background:#ffffff1a; box-shadow:inset 4px 0 #fff; }
+html[data-look='opera'][data-skin='blueprint'] #app .identity-banner { background:radial-gradient(circle at 80% 55%,transparent 0 46px,#ffffffcc 46px 48px,transparent 48px 70px,#ffffff66 70px 71px,transparent 71px),linear-gradient(#ffffff22 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#ffffff22 1px,transparent 1px) 0 0/24px 24px,#1a4778; box-shadow:inset 0 -2px 0 #fff; }
+
+/* CHALKBOARD: a teacher's board in a music room. Green-black slate, chalk-white writing, coloured chalk for each part, a wooden frame */
+html[data-look='opera'][data-skin='chalk'] { --rr-bone:#f3f1e8; --rr-bone-2:#d8dccf; --rr-bone-3:#aab4a8; --rr-line:#5a6e64; --rr-card:#2b3d35; }
+html[data-look='opera'][data-skin='chalk'] #app { --house:#22302a; --deck:#26362f; --deck-2:#2b3d35; --riser:#334840; --riser-2:#334840; --card:#2b3d35; --card-line:#5a6e64; --well:#1b2622; --ink:#f3f1e8; --ink-2:#d8dccf; --ink-3:#aab4a8; --rule:#5a6e64; --rule-soft:#334840; background:#22302a; color:#f3f1e8; }
+html[data-look='opera'][data-skin='chalk'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#26362f; border-color:#5a6e64; box-shadow:none; }
+html[data-look='opera'][data-skin='chalk'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#1b2622; border-color:#5a6e64; box-shadow:none; }
+html[data-look='opera'][data-skin='chalk'] #app .tk-keys { background:#5a6e64; }
+html[data-look='opera'][data-skin='chalk'] #app .row .go { color:#d8dccf; }
+html[data-look='opera'][data-skin='chalk'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'][data-skin='chalk'] #app .nav-section:hover:not([aria-current='page']) { transform:none; }
+html[data-look='opera'][data-skin='chalk'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'][data-skin='chalk'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='chalk'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(40% 30% at 30% 20%,#ffffff0d,transparent 70%),radial-gradient(35% 25% at 75% 70%,#ffffff0a,transparent 70%),linear-gradient(180deg,#26362f,#1f2c26); }
+html[data-look='opera'][data-skin='chalk'] #app :is(.titlebar,.nowbar,.sidebar) { background:repeating-linear-gradient(90deg,#00000014 0 2px,transparent 2px 9px),linear-gradient(180deg,#8a5a34,#6e4526); }
+html[data-look='opera'][data-skin='chalk'] #app :is(.titlebar,.nowbar,.sidebar) :is(*) { --ink:#fff6e4; }
+html[data-look='opera'][data-skin='chalk'] #app .sidebar { background:repeating-linear-gradient(0deg,#00000014 0 2px,transparent 2px 9px),linear-gradient(90deg,#7a4d2c,#64401f); }
+html[data-look='opera'][data-skin='chalk'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:transparent; background-image:none; border:2px solid #f3f1e8aa; border-radius:12px 4px 14px 5px; box-shadow:none; }
+html[data-look='opera'][data-skin='chalk'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#22302a; background:#ffe27a; border:0; border-radius:4px; box-shadow:0 2px 0 #0005; text-shadow:none; }
+html[data-look='opera'][data-skin='chalk'] #app .btn.soft { color:#f3f1e8; background:transparent; border:2px solid #f3f1e8aa; }
+html[data-look='opera'][data-skin='chalk'] #app .nav-section { border-radius:6px; color:#fff6e4; background:#00000026; }
+html[data-look='opera'][data-skin='chalk'] #app .nav-section svg { color:#ffe27a; }
+html[data-look='opera'][data-skin='chalk'] #app .nav-section[aria-current='page'] { color:#22302a; background:#22302a; color:#f3f1e8; box-shadow:inset 0 0 0 2px #f3f1e8bb; }
+html[data-look='opera'][data-skin='chalk'] #app .nav-section[aria-current='page'] svg { color:#ffe27a; }
+html[data-look='opera'][data-skin='chalk'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='chalk'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#22302a; background:#f3f1e8; border-color:#f3f1e8; box-shadow:none; }
+html[data-look='opera'][data-skin='chalk'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#22302a !important; }
+html[data-look='opera'][data-skin='chalk'] #app .row.sel { background:#ffe27a1f; box-shadow:inset 4px 0 #ffe27a; }
+html[data-look='opera'][data-skin='chalk'] #app .identity-banner { background:radial-gradient(50% 60% at 70% 40%,#ffffff12,transparent 70%),linear-gradient(180deg,#2b3d35,#22302a); box-shadow:inset 0 -8px 0 #7a4d2c; }
+
+/* MIXING DESK: a seventies studio console. Warm grey-green metal, amber VU-meter glow, coloured fader caps for buttons, white legends */
+html[data-look='opera'][data-skin='console'] { --rr-bone:#f4f2ea; --rr-bone-2:#dcded6; --rr-bone-3:#b3b9b1; --rr-line:#6f7c74; --rr-card:#4a544e; }
+html[data-look='opera'][data-skin='console'] #app { --house:#3d4541; --deck:#434c47; --deck-2:#4a544e; --riser:#545f58; --riser-2:#545f58; --card:#4a544e; --card-line:#6f7c74; --well:#2a302d; --ink:#f4f2ea; --ink-2:#dcded6; --ink-3:#b3b9b1; --rule:#6f7c74; --rule-soft:#545f58; background:#3d4541; color:#f4f2ea; }
+html[data-look='opera'][data-skin='console'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#434c47; border-color:#6f7c74; box-shadow:none; }
+html[data-look='opera'][data-skin='console'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#2a302d; border-color:#6f7c74; box-shadow:none; }
+html[data-look='opera'][data-skin='console'] #app .tk-keys { background:#6f7c74; }
+html[data-look='opera'][data-skin='console'] #app .row .go { color:#dcded6; }
+html[data-look='opera'][data-skin='console'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'][data-skin='console'] #app .nav-section:hover:not([aria-current='page']) { transform:none; }
+html[data-look='opera'][data-skin='console'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'][data-skin='console'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='console'] #app :is(.page,.library,.discover,#discover) { background:repeating-linear-gradient(90deg,#ffffff05 0 1px,transparent 1px 3px),linear-gradient(180deg,#47504b,#3a423e); }
+html[data-look='opera'][data-skin='console'] #app :is(.titlebar,.nowbar) { background:linear-gradient(180deg,#1f2321,#171a19); box-shadow:0 2px 0 #f6b23c99; }
+html[data-look='opera'][data-skin='console'] #app .nowbar { box-shadow:0 -2px 0 #f6b23c99; }
+html[data-look='opera'][data-skin='console'] #app .sidebar { background:linear-gradient(90deg,#2d3330,#262b29); box-shadow:inset -3px 0 0 #1b1f1d; }
+html[data-look='opera'][data-skin='console'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:linear-gradient(180deg,#505b55,#47514b); background-image:none; border:1px solid #6f7c74; box-shadow:inset 0 1px 0 #ffffff1a,0 2px 0 #0005; border-radius:3px; }
+html[data-look='opera'][data-skin='console'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#1b1f1d; background:linear-gradient(180deg,#ff8a5c,#e0532a); border:1px solid #1b1f1d; border-radius:3px; box-shadow:inset 0 2px 0 #ffffff55,0 3px 0 #0007; text-shadow:none; }
+html[data-look='opera'][data-skin='console'] #app .btn.soft { color:#f4f2ea; background:linear-gradient(180deg,#6a756e,#555f59); border:1px solid #1b1f1d; border-radius:3px; box-shadow:inset 0 1px 0 #ffffff33; }
+html[data-look='opera'][data-skin='console'] #app .nav-section { border-radius:3px; color:#dcded6; background:linear-gradient(180deg,#353b38,#2c312f); box-shadow:inset 0 1px 0 #ffffff12,0 1px 0 #0006; }
+html[data-look='opera'][data-skin='console'] #app .nav-section svg { color:#f6b23c; }
+html[data-look='opera'][data-skin='console'] #app .nav-section[aria-current='page'] { color:#2a1c06; background:radial-gradient(120% 140% at 50% 120%,#ffe7a6,#f6b23c 60%,#c9821c); box-shadow:0 0 14px #f6b23c66,inset 0 0 0 1px #1b1f1d; }
+html[data-look='opera'][data-skin='console'] #app .nav-section[aria-current='page'] svg { color:#2a1c06; }
+html[data-look='opera'][data-skin='console'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='console'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#2a1c06; background:radial-gradient(120% 140% at 50% 120%,#ffe7a6,#f6b23c); border-color:#f6b23c; box-shadow:0 0 10px #f6b23c55; }
+html[data-look='opera'][data-skin='console'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#2a1c06 !important; }
+html[data-look='opera'][data-skin='console'] #app .row.sel { background:#f6b23c1c; box-shadow:inset 4px 0 #f6b23c; }
+html[data-look='opera'][data-skin='console'] #app .identity-banner { background:repeating-linear-gradient(90deg,transparent 0 58px,#1b1f1d 58px 60px),linear-gradient(90deg,#e0532a 0 8%,#f6b23c 8% 16%,#4aa0d8 16% 24%,#e8e4d8 24% 32%,transparent 32%) 0 100%/100% 6px no-repeat,linear-gradient(180deg,#59645d,#3d4541); }
+
+/* CASSETTE: an eighties tape deck. Graphite plastic, a cream label with orange, red and yellow stripes, green display writing for numbers */
+html[data-look='opera'][data-skin='cassette'] { --rr-bone:#f5efe2; --rr-bone-2:#d9d6cf; --rr-bone-3:#aeaba5; --rr-line:#62666f; --rr-card:#3d4046; }
+html[data-look='opera'][data-skin='cassette'] #app { --house:#2f3135; --deck:#36383d; --deck-2:#3d4046; --riser:#474a51; --riser-2:#474a51; --card:#3d4046; --card-line:#62666f; --well:#232528; --ink:#f5efe2; --ink-2:#d9d6cf; --ink-3:#aeaba5; --rule:#62666f; --rule-soft:#474a51; background:#2f3135; color:#f5efe2; }
+html[data-look='opera'][data-skin='cassette'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#36383d; border-color:#62666f; box-shadow:none; }
+html[data-look='opera'][data-skin='cassette'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#232528; border-color:#62666f; box-shadow:none; }
+html[data-look='opera'][data-skin='cassette'] #app .tk-keys { background:#62666f; }
+html[data-look='opera'][data-skin='cassette'] #app .row .go { color:#d9d6cf; }
+html[data-look='opera'][data-skin='cassette'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'][data-skin='cassette'] #app .nav-section:hover:not([aria-current='page']) { transform:none; }
+html[data-look='opera'][data-skin='cassette'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'][data-skin='cassette'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='cassette'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(circle,#ffffff09 1px,transparent 1.5px) 0 0/6px 6px,linear-gradient(180deg,#393b40,#2c2e32); }
+html[data-look='opera'][data-skin='cassette'] #app :is(.titlebar,.nowbar) { background:#1e2023; box-shadow:0 3px 0 #f0a92a,0 6px 0 #ec6b2d,0 9px 0 #d63a2f; z-index:41; }
+html[data-look='opera'][data-skin='cassette'] #app .nowbar { box-shadow:0 -3px 0 #f0a92a,0 -6px 0 #ec6b2d,0 -9px 0 #d63a2f; }
+html[data-look='opera'][data-skin='cassette'] #app .sidebar { background:#24262a; box-shadow:inset -1px 0 0 #62666f; }
+html[data-look='opera'][data-skin='cassette'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#3d4046; background-image:none; border:1px solid #62666f; border-radius:8px; box-shadow:inset 0 0 0 4px #36383d,inset 0 0 0 5px #62666f55,0 3px 0 #0006; }
+html[data-look='opera'][data-skin='cassette'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#1e2023; background:#f5efe2; border:0; border-radius:4px; box-shadow:inset 0 -4px 0 #ec6b2d,0 3px 0 #0007; text-shadow:none; }
+html[data-look='opera'][data-skin='cassette'] #app .btn.soft { color:#f5efe2; background:linear-gradient(180deg,#55585f,#44474d); border:1px solid #1e2023; border-radius:4px; }
+html[data-look='opera'][data-skin='cassette'] #app .nav-section { border-radius:4px; color:#d9d6cf; background:linear-gradient(180deg,#3a3c41,#303236); box-shadow:inset 0 1px 0 #ffffff12,0 2px 0 #0008; font-variant:small-caps; }
+html[data-look='opera'][data-skin='cassette'] #app .nav-section svg { color:#ec6b2d; }
+html[data-look='opera'][data-skin='cassette'] #app .nav-section[aria-current='page'] { color:#1e2023; background:linear-gradient(180deg,transparent 0 70%,#f0a92a 70% 78%,#ec6b2d 78% 86%,#d63a2f 86%),#f5efe2; box-shadow:inset 0 2px 4px #0004; }
+html[data-look='opera'][data-skin='cassette'] #app .nav-section[aria-current='page'] svg { color:#1e2023; }
+html[data-look='opera'][data-skin='cassette'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='cassette'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#1e2023; background:#f5efe2; border-color:#f5efe2; box-shadow:inset 0 -3px 0 #ec6b2d; }
+html[data-look='opera'][data-skin='cassette'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#1e2023 !important; }
+html[data-look='opera'][data-skin='cassette'] #app .row.sel { background:#7fe08a14; box-shadow:inset 4px 0 #7fe08a; }
+html[data-look='opera'][data-skin='cassette'] #app .identity-banner { background:radial-gradient(circle at 72% 52%,#1e2023 0 18px,#f5efe2 18px 22px,transparent 22px),radial-gradient(circle at 88% 52%,#1e2023 0 18px,#f5efe2 18px 22px,transparent 22px),linear-gradient(180deg,transparent 0 62%,#f0a92a 62% 70%,#ec6b2d 70% 78%,#d63a2f 78% 86%,transparent 86%),linear-gradient(180deg,#46494f,#2f3135); }
+
+/* DENIM: a well-worn denim jacket. Indigo twill, orange stitching round everything, embroidered patches for the menu, brass rivets */
+html[data-look='opera'][data-skin='denim'] { --rr-bone:#f5f1e6; --rr-bone-2:#d4dceb; --rr-bone-3:#a6b5cc; --rr-line:#4c6a94; --rr-card:#2d4363; }
+html[data-look='opera'][data-skin='denim'] #app { --house:#22344f; --deck:#273b58; --deck-2:#2d4363; --riser:#344c70; --riser-2:#344c70; --card:#2d4363; --card-line:#4c6a94; --well:#1b2a40; --ink:#f5f1e6; --ink-2:#d4dceb; --ink-3:#a6b5cc; --rule:#4c6a94; --rule-soft:#344c70; background:#22344f; color:#f5f1e6; }
+html[data-look='opera'][data-skin='denim'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#273b58; border-color:#4c6a94; box-shadow:none; }
+html[data-look='opera'][data-skin='denim'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#1b2a40; border-color:#4c6a94; box-shadow:none; }
+html[data-look='opera'][data-skin='denim'] #app .tk-keys { background:#4c6a94; }
+html[data-look='opera'][data-skin='denim'] #app .row .go { color:#d4dceb; }
+html[data-look='opera'][data-skin='denim'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'][data-skin='denim'] #app .nav-section:hover:not([aria-current='page']) { transform:none; background:#ffffff10; }
+html[data-look='opera'][data-skin='denim'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'][data-skin='denim'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='denim'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='denim'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#1b1206; background:#e8963a; border-color:#e8963a; text-shadow:none; }
+html[data-look='opera'][data-skin='denim'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#1b1206 !important; }
+html[data-look='opera'][data-skin='denim'] #app .row.sel { background:#e8963a22; box-shadow:inset 4px 0 #e8963a; }
+html[data-look='opera'][data-skin='denim'] #app :is(.page,.library,.discover,#discover,.sidebar,.titlebar,.nowbar) { background:repeating-linear-gradient(45deg,#ffffff07 0 1px,transparent 1px 3px),repeating-linear-gradient(-45deg,#00000018 0 1px,transparent 1px 4px),linear-gradient(180deg,#2a3f5e,#22344f); }
+html[data-look='opera'][data-skin='denim'] #app .sidebar { box-shadow:inset -6px 0 0 #1b2a40,inset -8px 0 0 #e8963a55; }
+html[data-look='opera'][data-skin='denim'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#2d4363; background-image:none; border:0; border-radius:8px; outline:2px dashed #e8963acc; outline-offset:-6px; box-shadow:0 3px 0 #0005; }
+html[data-look='opera'][data-skin='denim'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#1b1206; background:radial-gradient(circle at 12px 50%,#f7d27a 0 3px,#8a5a18 3px 4px,transparent 4px),#e8963a; border:0; padding-left:24px; border-radius:6px; box-shadow:0 3px 0 #0006; text-shadow:none; }
+html[data-look='opera'][data-skin='denim'] #app .btn.soft { color:#f5f1e6; background:#344c70; border:1px solid #4c6a94; border-radius:6px; }
+html[data-look='opera'][data-skin='denim'] #app .nav-section { color:#f5f1e6; background:#3a2b22; border-radius:14px; margin-right:12px; outline:2px dashed #e8963a99; outline-offset:-5px; box-shadow:0 2px 0 #0006; }
+html[data-look='opera'][data-skin='denim'] #app .nav-section:nth-child(3n+2) { background:#5b2430; } html[data-look='opera'][data-skin='denim'] #app .nav-section:nth-child(3n) { background:#2f4a30; }
+html[data-look='opera'][data-skin='denim'] #app .nav-section svg { color:#f7d27a; }
+html[data-look='opera'][data-skin='denim'] #app .nav-section[aria-current='page'] { color:#1b1206; background:#f2e6c8 !important; outline-color:#c8642a; }
+html[data-look='opera'][data-skin='denim'] #app .nav-section[aria-current='page'] svg { color:#c8642a; }
+html[data-look='opera'][data-skin='denim'] #app .identity-banner { background:repeating-linear-gradient(45deg,#ffffff08 0 1px,transparent 1px 3px),linear-gradient(180deg,#34507a,#22344f); box-shadow:inset 0 -10px 0 -6px #e8963a00,inset 0 -3px 0 #e8963a; }
+
+/* SYNTHWAVE: an eighties sunset. Night purple, a glowing grid running to the horizon, hot pink and cyan */
+html[data-look='opera'][data-skin='synthwave'] { --rr-bone:#fff2fb; --rr-bone-2:#e2d4f5; --rr-bone-3:#b7a6d6; --rr-line:#4f3a85; --rr-card:#2a1c4a; }
+html[data-look='opera'][data-skin='synthwave'] #app { --house:#1c1233; --deck:#22163d; --deck-2:#2a1c4a; --riser:#33235a; --riser-2:#33235a; --card:#2a1c4a; --card-line:#4f3a85; --well:#140c26; --ink:#fff2fb; --ink-2:#e2d4f5; --ink-3:#b7a6d6; --rule:#4f3a85; --rule-soft:#33235a; background:#1c1233; color:#fff2fb; }
+html[data-look='opera'][data-skin='synthwave'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#22163d; border-color:#4f3a85; box-shadow:none; }
+html[data-look='opera'][data-skin='synthwave'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#140c26; border-color:#4f3a85; box-shadow:none; }
+html[data-look='opera'][data-skin='synthwave'] #app .tk-keys { background:#4f3a85; }
+html[data-look='opera'][data-skin='synthwave'] #app .row .go { color:#e2d4f5; }
+html[data-look='opera'][data-skin='synthwave'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'][data-skin='synthwave'] #app .nav-section:hover:not([aria-current='page']) { transform:none; background:#ffffff10; }
+html[data-look='opera'][data-skin='synthwave'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'][data-skin='synthwave'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='synthwave'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='synthwave'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#0b0420; background:#29e3ff; border-color:#29e3ff; text-shadow:none; }
+html[data-look='opera'][data-skin='synthwave'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#0b0420 !important; }
+html[data-look='opera'][data-skin='synthwave'] #app .row.sel { background:#29e3ff22; box-shadow:inset 4px 0 #29e3ff; }
+html[data-look='opera'][data-skin='synthwave'] #app :is(.page,.library,.discover,#discover) { background:linear-gradient(180deg,transparent 60%,#1c1233 60%),linear-gradient(0deg,#ff3fa433 0 1px,transparent 1px) 0 0/100% 32px,linear-gradient(90deg,#29e3ff22 0 1px,transparent 1px) 0 0/48px 100%,linear-gradient(180deg,#24164a,#1c1233); background-attachment:fixed; }
+html[data-look='opera'][data-skin='synthwave'] #app :is(.titlebar,.nowbar,.sidebar) { background:#140c26; }
+html[data-look='opera'][data-skin='synthwave'] #app .titlebar { box-shadow:0 2px 0 #ff3fa4,0 0 18px #ff3fa466; } html[data-look='opera'][data-skin='synthwave'] #app .nowbar { box-shadow:0 -2px 0 #29e3ff,0 0 18px #29e3ff55; }
+html[data-look='opera'][data-skin='synthwave'] #app .sidebar { box-shadow:inset -2px 0 0 #ff3fa4; }
+html[data-look='opera'][data-skin='synthwave'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#24164ae6; background-image:none; border:1px solid #ff3fa477; border-radius:4px; box-shadow:0 0 14px #ff3fa422; }
+html[data-look='opera'][data-skin='synthwave'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#fff; background:linear-gradient(180deg,#ff6ac1,#c2188a); border:0; border-radius:4px; box-shadow:0 0 16px #ff3fa488; text-shadow:none; }
+html[data-look='opera'][data-skin='synthwave'] #app .btn.soft { color:#29e3ff; background:transparent; border:1px solid #29e3ff; box-shadow:0 0 8px #29e3ff44; }
+html[data-look='opera'][data-skin='synthwave'] #app .nav-section { color:#e2d4f5; background:transparent; border-radius:4px; font-style:italic; letter-spacing:.08em; }
+html[data-look='opera'][data-skin='synthwave'] #app .nav-section svg { color:#29e3ff; }
+html[data-look='opera'][data-skin='synthwave'] #app .nav-section[aria-current='page'] { color:#fff; background:linear-gradient(90deg,#ff3fa4,#8a3cff); box-shadow:0 0 18px #ff3fa488; }
+html[data-look='opera'][data-skin='synthwave'] #app .nav-section[aria-current='page'] svg { color:#fff; }
+html[data-look='opera'][data-skin='synthwave'] #app .identity-banner { background:radial-gradient(circle at 78% 100%,#ffd36b 0 40px,#ff7a59 40px 60px,#ff3fa4 60px 80px,transparent 80px),repeating-linear-gradient(180deg,transparent 0 8px,#1c1233 8px 11px) 78% 100%/170px 70px no-repeat,linear-gradient(180deg,#2a1452,#5a1f6b 70%,#1c1233); box-shadow:inset 0 -2px 0 #29e3ff; }
+
+/* ROAD CASE: the flight cases a band tours with. Black textured board, aluminium edges, corner rivets, stencilled labels, hazard-yellow buttons */
+html[data-look='opera'][data-skin='roadcase'] { --rr-bone:#f2f2ee; --rr-bone-2:#d0d2d4; --rr-bone-3:#a3a7ac; --rr-line:#5c6066; --rr-card:#26282b; }
+html[data-look='opera'][data-skin='roadcase'] #app { --house:#1b1c1e; --deck:#222326; --deck-2:#26282b; --riser:#2e3034; --riser-2:#2e3034; --card:#26282b; --card-line:#5c6066; --well:#141516; --ink:#f2f2ee; --ink-2:#d0d2d4; --ink-3:#a3a7ac; --rule:#5c6066; --rule-soft:#2e3034; background:#1b1c1e; color:#f2f2ee; }
+html[data-look='opera'][data-skin='roadcase'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#222326; border-color:#5c6066; box-shadow:none; }
+html[data-look='opera'][data-skin='roadcase'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#141516; border-color:#5c6066; box-shadow:none; }
+html[data-look='opera'][data-skin='roadcase'] #app .tk-keys { background:#5c6066; }
+html[data-look='opera'][data-skin='roadcase'] #app .row .go { color:#d0d2d4; }
+html[data-look='opera'][data-skin='roadcase'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'][data-skin='roadcase'] #app .nav-section:hover:not([aria-current='page']) { transform:none; background:#ffffff10; }
+html[data-look='opera'][data-skin='roadcase'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'][data-skin='roadcase'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='roadcase'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='roadcase'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#141516; background:#ffcf1f; border-color:#ffcf1f; text-shadow:none; }
+html[data-look='opera'][data-skin='roadcase'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#141516 !important; }
+html[data-look='opera'][data-skin='roadcase'] #app .row.sel { background:#ffcf1f22; box-shadow:inset 4px 0 #ffcf1f; }
+html[data-look='opera'][data-skin='roadcase'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(circle,#ffffff0a 1px,transparent 1.6px) 0 0/5px 5px,linear-gradient(180deg,#232427,#1b1c1e); }
+html[data-look='opera'][data-skin='roadcase'] #app :is(.titlebar,.nowbar) { background:linear-gradient(180deg,#d9dde1,#9aa0a6 50%,#c4c9ce); color:#141516; }
+html[data-look='opera'][data-skin='roadcase'] #app .titlebar :is(.brand,span,b,strong) { color:#141516; }
+html[data-look='opera'][data-skin='roadcase'] #app .nowbar, html[data-look='opera'][data-skin='roadcase'] #app .nowbar * { color:#141516; }
+html[data-look='opera'][data-skin='roadcase'] #app .sidebar { background:radial-gradient(circle,#ffffff0a 1px,transparent 1.6px) 0 0/5px 5px,#1b1c1e; box-shadow:inset -8px 0 0 #a9aeb4,inset -9px 0 0 #5c6066; }
+html[data-look='opera'][data-skin='roadcase'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:radial-gradient(circle at 7px 7px,#d9dde1 0 2.5px,transparent 3px),radial-gradient(circle at calc(100% - 7px) 7px,#d9dde1 0 2.5px,transparent 3px),radial-gradient(circle at 7px calc(100% - 7px),#d9dde1 0 2.5px,transparent 3px),radial-gradient(circle at calc(100% - 7px) calc(100% - 7px),#d9dde1 0 2.5px,transparent 3px),#26282b; border:2px solid #a9aeb4; border-radius:3px; box-shadow:0 3px 0 #000a; }
+html[data-look='opera'][data-skin='roadcase'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#141516; background:#ffcf1f; border:2px solid #141516; border-radius:2px; box-shadow:0 0 0 2px #ffcf1f,0 3px 0 2px #000a; text-transform:uppercase; letter-spacing:.06em; text-shadow:none; }
+html[data-look='opera'][data-skin='roadcase'] #app .btn.soft { color:#f2f2ee; background:#2e3034; border:2px solid #5c6066; border-radius:2px; }
+html[data-look='opera'][data-skin='roadcase'] #app .nav-section { color:#f2f2ee; background:#26282b; border:2px solid #5c6066; border-radius:2px; margin-right:16px; letter-spacing:.14em; font-stretch:75%; }
+html[data-look='opera'][data-skin='roadcase'] #app .nav-section svg { color:#ffcf1f; }
+html[data-look='opera'][data-skin='roadcase'] #app .nav-section[aria-current='page'] { color:#141516; background:#ffcf1f; border-color:#141516; box-shadow:0 0 0 2px #ffcf1f; }
+html[data-look='opera'][data-skin='roadcase'] #app .nav-section[aria-current='page'] svg { color:#141516; }
+html[data-look='opera'][data-skin='roadcase'] #app .identity-banner { background:repeating-linear-gradient(-45deg,#ffcf1f 0 14px,#141516 14px 28px) 0 100%/100% 10px no-repeat,radial-gradient(circle,#ffffff0b 1px,transparent 1.6px) 0 0/5px 5px,linear-gradient(180deg,#2a2c30,#1b1c1e); box-shadow:inset 0 3px 0 #a9aeb4; }
+html[data-look='opera'][data-skin='roadcase'] #app .nowbar { background:#141516; box-shadow:0 -3px 0 #a9aeb4; }
+html[data-look='opera'][data-skin='roadcase'] #app .nowbar, html[data-look='opera'][data-skin='roadcase'] #app .nowbar * { color:#d0d2d4; }
+html[data-look='opera'][data-skin='roadcase'] #app .nav-section { letter-spacing:.08em; margin-right:20px; }
+
+/* ARCADE: an eighties arcade cabinet. Midnight blue, chunky pixel-step edges, bright arcade-button colours, a starfield */
+html[data-look='opera'][data-skin='arcade'] { --rr-bone:#ffffff; --rr-bone-2:#d6dcff; --rr-bone-3:#a7b0ef; --rr-line:#3b4bb0; --rr-card:#18225c; }
+html[data-look='opera'][data-skin='arcade'] #app { --house:#0f1640; --deck:#141c4f; --deck-2:#18225c; --riser:#1f2b70; --riser-2:#1f2b70; --card:#18225c; --card-line:#3b4bb0; --well:#0a0f2e; --ink:#ffffff; --ink-2:#d6dcff; --ink-3:#a7b0ef; --rule:#3b4bb0; --rule-soft:#1f2b70; background:#0f1640; color:#ffffff; }
+html[data-look='opera'][data-skin='arcade'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#141c4f; border-color:#3b4bb0; box-shadow:none; }
+html[data-look='opera'][data-skin='arcade'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#0a0f2e; border-color:#3b4bb0; box-shadow:none; }
+html[data-look='opera'][data-skin='arcade'] #app .tk-keys { background:#3b4bb0; }
+html[data-look='opera'][data-skin='arcade'] #app .row .go { color:#d6dcff; }
+html[data-look='opera'][data-skin='arcade'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'][data-skin='arcade'] #app .nav-section:hover:not([aria-current='page']) { transform:none; background:#ffffff10; }
+html[data-look='opera'][data-skin='arcade'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'][data-skin='arcade'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='arcade'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='arcade'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#0a0f2e; background:#3cff7a; border-color:#3cff7a; text-shadow:none; }
+html[data-look='opera'][data-skin='arcade'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#0a0f2e !important; }
+html[data-look='opera'][data-skin='arcade'] #app .row.sel { background:#3cff7a22; box-shadow:inset 4px 0 #3cff7a; }
+html[data-look='opera'][data-skin='arcade'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(circle,#ffffff66 0 1px,transparent 1.5px) 0 0/97px 89px,radial-gradient(circle,#ffffff33 0 1px,transparent 1.5px) 40px 30px/61px 53px,linear-gradient(180deg,#141c4f,#0f1640); }
+html[data-look='opera'][data-skin='arcade'] #app :is(.titlebar,.nowbar,.sidebar) { background:#0a0f2e; }
+html[data-look='opera'][data-skin='arcade'] #app .titlebar { box-shadow:0 4px 0 #ff2d55; } html[data-look='opera'][data-skin='arcade'] #app .nowbar { box-shadow:0 -4px 0 #ff2d55; }
+html[data-look='opera'][data-skin='arcade'] #app .sidebar { box-shadow:inset -4px 0 0 #3b4bb0; }
+html[data-look='opera'][data-skin='arcade'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#18225c; background-image:none; border:0; border-radius:0; box-shadow:0 -4px 0 #3b4bb0,0 4px 0 #3b4bb0,-4px 0 0 #3b4bb0,4px 0 0 #3b4bb0; }
+html[data-look='opera'][data-skin='arcade'] #app :is(.btn,.gseg,.seg,.search,.input) { border-radius:0; }
+html[data-look='opera'][data-skin='arcade'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#fff; background:#ff2d55; border:0; box-shadow:0 -3px 0 #ff2d55,0 3px 0 #9e0f2c,-3px 0 0 #ff2d55,3px 0 0 #ff2d55,0 6px 0 #0008; text-shadow:2px 2px 0 #9e0f2c; text-transform:uppercase; }
+html[data-look='opera'][data-skin='arcade'] #app .btn.soft { color:#fff; background:#2a3a9a; border:0; box-shadow:0 3px 0 #141c4f; }
+html[data-look='opera'][data-skin='arcade'] #app .nav-section { color:#d6dcff; background:transparent; border-radius:0; text-transform:uppercase; letter-spacing:.12em; font-stretch:62%; }
+html[data-look='opera'][data-skin='arcade'] #app .nav-section:nth-child(4n+1) svg { color:#ff2d55; } html[data-look='opera'][data-skin='arcade'] #app .nav-section:nth-child(4n+2) svg { color:#ffd400; }
+html[data-look='opera'][data-skin='arcade'] #app .nav-section:nth-child(4n+3) svg { color:#3cff7a; } html[data-look='opera'][data-skin='arcade'] #app .nav-section:nth-child(4n) svg { color:#33c7ff; }
+html[data-look='opera'][data-skin='arcade'] #app .nav-section[aria-current='page'] { color:#0a0f2e; background:#ffd400; box-shadow:0 -3px 0 #ffd400,0 3px 0 #b89900,-3px 0 0 #ffd400,3px 0 0 #ffd400; }
+html[data-look='opera'][data-skin='arcade'] #app .nav-section[aria-current='page']::before { content:'▶'; margin-right:4px; color:#0a0f2e; }
+html[data-look='opera'][data-skin='arcade'] #app .nav-section[aria-current='page'] svg { color:#0a0f2e !important; }
+html[data-look='opera'][data-skin='arcade'] #app .identity-banner { background:linear-gradient(90deg,#ff2d55 0 25%,#ffd400 25% 50%,#3cff7a 50% 75%,#33c7ff 75%) 0 100%/100% 6px no-repeat,radial-gradient(circle,#ffffff88 0 1px,transparent 1.5px) 0 0/53px 47px,linear-gradient(180deg,#1f2b70,#0f1640); }
+
+/* GREEN SCREEN: an old computer terminal. Black glass, glowing green writing, faint scan lines, everything in outlines */
+html[data-look='opera'][data-skin='greenscreen'] { --rr-bone:#b6ffc8; --rr-bone-2:#86e8a0; --rr-bone-3:#5fbf7a; --rr-line:#2f7a45; --rr-card:#0d1c11; }
+html[data-look='opera'][data-skin='greenscreen'] #app { --house:#07100a; --deck:#0a160d; --deck-2:#0d1c11; --riser:#112416; --riser-2:#112416; --card:#0d1c11; --card-line:#2f7a45; --well:#050b07; --ink:#b6ffc8; --ink-2:#86e8a0; --ink-3:#5fbf7a; --rule:#2f7a45; --rule-soft:#112416; background:#07100a; color:#b6ffc8; }
+html[data-look='opera'][data-skin='greenscreen'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#0a160d; border-color:#2f7a45; box-shadow:none; }
+html[data-look='opera'][data-skin='greenscreen'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#050b07; border-color:#2f7a45; box-shadow:none; }
+html[data-look='opera'][data-skin='greenscreen'] #app .tk-keys { background:#2f7a45; }
+html[data-look='opera'][data-skin='greenscreen'] #app .row .go { color:#86e8a0; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section:hover:not([aria-current='page']) { transform:none; background:#ffffff10; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'][data-skin='greenscreen'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'][data-skin='greenscreen'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#04110a; background:#6dff95; border-color:#6dff95; text-shadow:none; }
+html[data-look='opera'][data-skin='greenscreen'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#04110a !important; }
+html[data-look='opera'][data-skin='greenscreen'] #app .row.sel { background:#6dff9522; box-shadow:inset 4px 0 #6dff95; }
+html[data-look='opera'][data-skin='greenscreen'] #app { text-shadow:0 0 6px #6dff9544; }
+html[data-look='opera'][data-skin='greenscreen'] #app :is(.page,.library,.discover,#discover,.sidebar,.titlebar,.nowbar) { background:repeating-linear-gradient(180deg,#00000000 0 2px,#00000040 2px 3px),radial-gradient(90% 80% at 50% 40%,#0f2a17,#07100a); }
+html[data-look='opera'][data-skin='greenscreen'] #app .sidebar { box-shadow:inset -1px 0 0 #2f7a45; } html[data-look='opera'][data-skin='greenscreen'] #app .titlebar { box-shadow:0 1px 0 #2f7a45; } html[data-look='opera'][data-skin='greenscreen'] #app .nowbar { box-shadow:0 -1px 0 #2f7a45; }
+html[data-look='opera'][data-skin='greenscreen'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#07100acc; background-image:none; border:1px solid #2f7a45; border-radius:0; box-shadow:none; }
+html[data-look='opera'][data-skin='greenscreen'] #app :is(.btn,.gseg,.seg,.search,.input) { border-radius:0; }
+html[data-look='opera'][data-skin='greenscreen'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#04110a; background:#6dff95; border:0; box-shadow:0 0 12px #6dff9577; text-shadow:none; }
+html[data-look='opera'][data-skin='greenscreen'] #app .btn.soft { color:#b6ffc8; background:transparent; border:1px solid #2f7a45; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section { color:#86e8a0; background:transparent; border-radius:0; font-family:ui-monospace,'Cascadia Mono',Consolas,monospace; letter-spacing:.04em; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section::before { content:'  '; white-space:pre; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section svg { color:#5fbf7a; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section[aria-current='page'] { color:#04110a; background:#6dff95; text-shadow:none; box-shadow:0 0 14px #6dff9566; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section[aria-current='page']::before { content:'> '; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section[aria-current='page'] svg { color:#04110a; }
+html[data-look='opera'][data-skin='greenscreen'] #app .identity-banner { background:repeating-linear-gradient(180deg,#00000000 0 2px,#00000050 2px 3px),radial-gradient(80% 120% at 50% 50%,#13361d,#07100a); box-shadow:inset 0 -1px 0 #6dff95; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section { font-size:12px; letter-spacing:0; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section::before { content:none; }
+html[data-look='opera'][data-skin='greenscreen'] #app .nav-section[aria-current='page']::before { content:'>'; margin-right:2px; }
+
+/* windows over the app (Settings and the rest), not over a song */
+html[data-skin='sunburst'] { --th-modal:#2a1210; --th-modal-2:#3e1c13; --th-modal-line:#7a3a22; --th-modal-acc:#f2a23a; --th-modal-acc-ink:#241005; }
+html[data-skin='surf'] { --th-modal:#17312d; --th-modal-2:#22463f; --th-modal-line:#3f7469; --th-modal-acc:#8fe0c9; --th-modal-acc-ink:#0f2a24; }
+html[data-skin='haze'] { --th-modal:#24162f; --th-modal-2:#352245; --th-modal-line:#5e3f78; --th-modal-acc:#ff9a3c; --th-modal-acc-ink:#241005; }
+html[data-skin='fret'] { --th-modal:#14162b; --th-modal-2:#1f2341; --th-modal-line:#3a4170; --th-modal-acc:#ffd23f; --th-modal-acc-ink:#14162b; }
+html[data-skin='desert'] { --th-modal:#3a1d14; --th-modal-2:#4e291c; --th-modal-line:#87523a; --th-modal-acc:#3ec2b0; --th-modal-acc-ink:#0d2622; }
+html[data-skin='blueprint'] { --th-modal:#1d4f86; --th-modal-2:#235d9b; --th-modal-line:#9cc3ee; --th-modal-acc:#ffffff; --th-modal-acc-ink:#1d4f86; }
+html[data-skin='chalk'] { --th-modal:#22302a; --th-modal-2:#2b3d35; --th-modal-line:#5a6e64; --th-modal-acc:#ffe27a; --th-modal-acc-ink:#22302a; }
+html[data-skin='console'] { --th-modal:#3d4541; --th-modal-2:#4a544e; --th-modal-line:#6f7c74; --th-modal-acc:#e0532a; --th-modal-acc-ink:#1b1f1d; }
+html[data-skin='cassette'] { --th-modal:#2f3135; --th-modal-2:#3d4046; --th-modal-line:#62666f; --th-modal-acc:#f5efe2; --th-modal-acc-ink:#1e2023; }
+html[data-skin='denim'] { --th-modal:#22344f; --th-modal-2:#2d4363; --th-modal-line:#4c6a94; --th-modal-acc:#e8963a; --th-modal-acc-ink:#1b1206; }
+html[data-skin='synthwave'] { --th-modal:#1c1233; --th-modal-2:#2a1c4a; --th-modal-line:#4f3a85; --th-modal-acc:#ff3fa4; --th-modal-acc-ink:#ffffff; }
+html[data-skin='roadcase'] { --th-modal:#1b1c1e; --th-modal-2:#26282b; --th-modal-line:#5c6066; --th-modal-acc:#ffcf1f; --th-modal-acc-ink:#141516; }
+html[data-skin='arcade'] { --th-modal:#0f1640; --th-modal-2:#18225c; --th-modal-line:#3b4bb0; --th-modal-acc:#ff2d55; --th-modal-acc-ink:#ffffff; }
+html[data-skin='greenscreen'] { --th-modal:#07100a; --th-modal-2:#0d1c11; --th-modal-line:#2f7a45; --th-modal-acc:#6dff95; --th-modal-acc-ink:#04110a; }
+html[data-look='opera']:is([data-skin='sunburst'],[data-skin='surf'],[data-skin='haze'],[data-skin='fret'],[data-skin='desert'],[data-skin='blueprint'],[data-skin='chalk'],[data-skin='console'],[data-skin='cassette'],[data-skin='denim'],[data-skin='synthwave'],[data-skin='roadcase'],[data-skin='arcade'],[data-skin='greenscreen']) body:not(:has(.highway:not([hidden]))) #overlays .modal { border-color:var(--th-modal-line); background:var(--th-modal); }
+html[data-look='opera']:is([data-skin='sunburst'],[data-skin='surf'],[data-skin='haze'],[data-skin='fret'],[data-skin='desert'],[data-skin='blueprint'],[data-skin='chalk'],[data-skin='console'],[data-skin='cassette'],[data-skin='denim'],[data-skin='synthwave'],[data-skin='roadcase'],[data-skin='arcade'],[data-skin='greenscreen']) body:not(:has(.highway:not([hidden]))) #overlays .modal > header { background:var(--th-modal-2) !important; border-bottom-color:var(--th-modal-line) !important; }
+html[data-look='opera']:is([data-skin='sunburst'],[data-skin='surf'],[data-skin='haze'],[data-skin='fret'],[data-skin='desert'],[data-skin='blueprint'],[data-skin='chalk'],[data-skin='console'],[data-skin='cassette'],[data-skin='denim'],[data-skin='synthwave'],[data-skin='roadcase'],[data-skin='arcade'],[data-skin='greenscreen']) body:not(:has(.highway:not([hidden]))) #overlays .modal > footer { background:var(--th-modal) !important; border-top-color:var(--th-modal-line) !important; }
+html[data-look='opera']:is([data-skin='sunburst'],[data-skin='surf'],[data-skin='haze'],[data-skin='fret'],[data-skin='desert'],[data-skin='blueprint'],[data-skin='chalk'],[data-skin='console'],[data-skin='cassette'],[data-skin='denim'],[data-skin='synthwave'],[data-skin='roadcase'],[data-skin='arcade'],[data-skin='greenscreen']) body:not(:has(.highway:not([hidden]))) #overlays .modal :is(.btn.primary,.btn.glow-primary) { color:var(--th-modal-acc-ink); background:var(--th-modal-acc); border:1px solid var(--th-modal-acc); text-shadow:none; }
+html[data-look='opera']:is([data-skin='sunburst'],[data-skin='surf'],[data-skin='haze'],[data-skin='fret'],[data-skin='desert'],[data-skin='blueprint'],[data-skin='chalk'],[data-skin='console'],[data-skin='cassette'],[data-skin='denim'],[data-skin='synthwave'],[data-skin='roadcase'],[data-skin='arcade'],[data-skin='greenscreen']) body:not(:has(.highway:not([hidden]))) #overlays .modal .btn.soft { background:var(--th-modal-2); border-color:var(--th-modal-line); }
+html[data-look='opera']:is([data-skin='sunburst'],[data-skin='surf'],[data-skin='haze'],[data-skin='fret'],[data-skin='desert'],[data-skin='blueprint'],[data-skin='chalk'],[data-skin='console'],[data-skin='cassette'],[data-skin='denim'],[data-skin='synthwave'],[data-skin='roadcase'],[data-skin='arcade'],[data-skin='greenscreen']) body:not(:has(.highway:not([hidden]))) #overlays .settings .nav-item[aria-current='true'] { background:var(--th-modal-2); border-left:3px solid var(--th-modal-acc); color:#fff; }
+
+/* Backstage tab counts: readable on a dark tab, and on the lit tab take its own text colour. */
+html[data-look='opera']:is([data-skin='sunburst'],[data-skin='surf'],[data-skin='haze'],[data-skin='fret'],[data-skin='desert'],[data-skin='blueprint'],[data-skin='chalk'],[data-skin='console'],[data-skin='cassette'],[data-skin='denim'],[data-skin='synthwave'],[data-skin='roadcase'],[data-skin='arcade'],[data-skin='greenscreen']) #app .gr-count { background:#ffffff26; color:#f4efe6; }
+html[data-look='opera']:is([data-skin='sunburst'],[data-skin='surf'],[data-skin='haze'],[data-skin='fret'],[data-skin='desert'],[data-skin='blueprint'],[data-skin='chalk'],[data-skin='console'],[data-skin='cassette'],[data-skin='denim'],[data-skin='synthwave'],[data-skin='roadcase'],[data-skin='arcade'],[data-skin='greenscreen']) #app .gr-tabs button[aria-pressed='true'] .gr-count { background:#00000026; color:inherit; }

@@ -1,0 +1,215 @@
+/* LIGHT THEMES (4.29): Tweed, Studio Daylight, Gig Poster. Picked in Settings › Appearance › Theme (html[data-skin]).
+   The Rehearsal Room is dark and many pages hard-code dark colours; the shared part first maps those onto --L-* colours,
+   then each theme sets its --L-* colours and its own menu and banner. Loaded after themes.css. */
+
+/* ---------------------------------------------------------- shared by the light themes */
+/* shared base for the light trials. Each trial sets:
+   --L-bg page, --L-bg-img page texture, --L-panel cards, --L-panel-2 heads/insets, --L-line lines,
+   --L-ink text, --L-ink-2, --L-ink-3, --L-frame sidebar/top/bottom, --L-frame-ink, --L-frame-ink-2,
+   --L-acc main button, --L-acc-ink, --L-pick picked things, --L-pick-ink, --L-banner banner background */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) { --rr-bone:var(--L-ink); --rr-bone-2:var(--L-ink-2); --rr-bone-3:var(--L-ink-3); --rr-cream:var(--L-acc); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app {
+  --house:var(--L-bg); --deck:var(--L-panel); --deck-2:var(--L-panel); --riser:var(--L-panel-2); --riser-2:var(--L-line);
+  --card:var(--L-panel); --card-line:var(--L-line); --well:var(--L-panel-2); --ink:var(--L-ink); --ink-2:var(--L-ink-2); --ink-3:var(--L-ink-3);
+  --rule:var(--L-line); --rule-soft:var(--L-line);
+  background:var(--L-bg-img,none),var(--L-bg); color:var(--L-ink);
+}
+/* frame */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .titlebar { background:var(--L-frame); border-bottom:0; box-shadow:0 3px 0 var(--L-edge,#0002); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .sidebar { background:var(--L-frame); border-right:0; box-shadow:3px 0 0 var(--L-edge,#0002); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .nowbar { background:var(--L-frame); border-top:0; box-shadow:0 -3px 0 var(--L-edge,#0002); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.brand > span:not(.brand-ver),.titlebar .icon-btn) { color:var(--L-frame-ink); text-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .brand-ver { color:var(--L-frame-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .search { background:var(--L-panel); border:1.5px solid var(--L-line); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .search input { color:var(--L-ink); } html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .search input::placeholder { color:var(--L-ink-3); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .search :is(.i,kbd) { color:var(--L-ink-2); background:transparent; border-color:var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .win-ctl { background:transparent; border-color:transparent; box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .win-btn { background:transparent; border-color:transparent; box-shadow:none; color:var(--L-frame-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .win-btn svg { filter:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.nav-item,.nav-toggle,.nav-item .count,.nav-gcount,.act-head span,.act-head em,.nav-group-label) { color:var(--L-frame-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.nav-item .count,.nav-gcount,.act-head em,.nav-group-label) { color:var(--L-frame-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .nav-item:hover { background:#ffffff1a; color:var(--L-frame-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .nav-item[aria-current='true'] { color:var(--L-frame-ink); background:#ffffff22; border-left-color:var(--L-acc); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.roadshow-sticker,.roadshow-sticker span) { color:var(--L-frame-ink-2); border-color:var(--L-frame-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .guitar-card, html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .act-head { background:transparent; border-color:var(--L-frame-ink-2); }
+/* pages */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.page,.library,.discover,#discover,.scroller) { background:var(--L-bg-img,none),var(--L-bg); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.lib-head,.tones-head) { background:transparent; border-bottom:2px solid var(--L-line); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.page-title,.progress-head h1,.play-head h1,.gr-head h1,.tones-titlebar h1,.lib-head h1,.dv-title h1,.discover h1,.tones-head h1,.card-head h2,.card > h2,.tones-sec h3,h1.page-title) { color:var(--L-ink); text-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.eyebrow,.table-head,.tones-cols) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.table-head,.tones-cols) { background:var(--L-panel-2); border-bottom:2px solid var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .row { border-bottom:1px solid var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .row:hover { background:var(--L-panel); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.row .t,.row.sel .t,.row .go,.row .num,.row .best span,.row .cols > div) { color:var(--L-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .row .go { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .row.sel { background:var(--L-panel); box-shadow:inset 4px 0 var(--L-acc); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .row sup.acc { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .sbadge { color:var(--L-ink); border-color:currentColor; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .sbadge.sb-challenge { color:#b0245a; } html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .sbadge.sb-added { color:#0f6f8a; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pm-more { background:var(--L-panel); color:var(--L-ink); border:1px solid var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pm-more span { color:var(--L-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .inspector { background:var(--L-panel); border-left:2px solid var(--L-line); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .inspector :is(h2,h3,p,div,span) { color:inherit; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.knob-well,.sr-card,.gb-strip-wrap) {
+  background:var(--L-panel); background-image:none; border:1.5px solid var(--L-line); box-shadow:0 2px 0 var(--L-line); border-radius:var(--L-r,8px);
+}
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .block .bk-art { background:transparent; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .block .gear-photo { filter:drop-shadow(0 4px 4px #0005); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.block .bk-name,.block .bk-kind,.rknob .kn-name,.rknob .kn-val,.slot .name,.slot .kind,.slot .num) { color:var(--L-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.block .bk-kind,.slot .kind,.rknob .kn-name) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.slot.on,.slot.on.lit) { background:var(--L-pick); border-color:var(--L-pick); box-shadow:0 3px 0 #0003; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.slot.on .name,.slot.on .kind,.slot.on .num) { color:var(--L-pick-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .cable { background:var(--L-ink-2); }
+/* buttons */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .btn.soft, html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.jam-chip,.gear-full-btn,.demo-btn,.gear-sheet summary) { color:var(--L-ink); background:var(--L-panel); border:1.5px solid var(--L-line); box-shadow:0 2px 0 var(--L-line); text-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .btn.soft:hover { background:var(--L-panel-2); border-color:var(--L-ink-3); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) {
+  color:var(--L-acc-ink); background:var(--L-acc); border:1.5px solid var(--L-acc); box-shadow:0 3px 0 #0003; text-shadow:none; filter:none;
+}
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary):hover { filter:brightness(1.08); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.gseg,.seg) { background:var(--L-panel-2); border:1.5px solid var(--L-line); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.gseg,.seg) button { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.gseg,.seg) button[aria-pressed='true'] { color:var(--L-pick-ink); background:var(--L-pick); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.input,select,textarea,input[type='text'],input[type='number'],input[type='search']) { background:var(--L-panel); color:var(--L-ink); border:1.5px solid var(--L-line); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app ::-webkit-scrollbar-track { background:var(--L-panel-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app ::-webkit-scrollbar-thumb { border-color:var(--L-panel-2); background:var(--L-ink-3); }
+/* Tones */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .tones-list { background:var(--L-panel); border-right:2px solid var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .tk-keys { background:var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tk-card,.ts-key) { background:var(--L-panel); color:var(--L-ink); border-color:var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tk-card .tk-sub,.ts-key small) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true']) { color:var(--L-pick-ink); background:var(--L-pick); border-color:var(--L-pick); box-shadow:none; text-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tk-card.on .tk-sub,.sr-shelf[aria-pressed='true'] small) { color:var(--L-pick-ink); opacity:.85; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.ts-what,.te-chain,.tones-edit .chain-line) { background:var(--L-panel-2); color:var(--L-ink); border:1.5px solid var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.te-kicker,.ts-h,.ts-note,.te-from,.te-from span,.gate-name,.tone-item .sub,.tone-item small) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .tone-item { border-color:var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .tone-item :is(b,.name,.ti-name) { color:var(--L-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .tone-item.on { background:var(--L-panel-2); box-shadow:inset 4px 0 var(--L-acc); }
+/* Gear */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.sr-count,.sr-title small,.sr-shelf small) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.sr-shelf,.sr-shelf span,.sr-title h2,.sr-card) { color:var(--L-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .sr-shelf { background:transparent; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) .gear-faceplate { background:var(--L-panel-2); box-shadow:inset 0 0 0 1.5px var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) .gear-face > img { filter:drop-shadow(0 10px 10px #0006); }
+/* Jam tuner */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tn-read span,.tn-hz) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tn-note.ok,.tn-read .c.ok) { color:#0f8a4a; }
+/* Progress */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.lv-xp,.lv-today,.np-fine,.pspot-eyebrow,.pg-tab) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-tab { background:var(--L-panel); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-xpbar { background:var(--L-panel-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .nowbar .nb-empty { color:var(--L-frame-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.act-head span) { color:var(--L-frame-ink) !important; } html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .act-head em { color:var(--L-frame-ink-2) !important; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gchip-tuner kbd { color:#cdbf9f; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tones-title .sub,.tk-h,.tk-note,.ti-main span,.tslot,.ts-label,.gb-note,.tk-card .tk-n,.ts-key b) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tk-card .tk-n,.ts-key b,.tslot) { box-shadow:inset 0 0 0 1.5px currentColor; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .ts-chain { color:var(--L-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tk-card.on .tk-name,.tk-card.on .tk-n,.ts-key.here span,.ts-key.here b,.sr-shelf[aria-pressed='true'] span,.slot.on .num,.slot.on span) { color:var(--L-pick-ink) !important; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .demo-btn { color:var(--L-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .tn-strings button { color:var(--L-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .sh-activity { background:transparent; border-color:var(--L-frame-ink-2); opacity:1; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .search input { border:0 !important; background:transparent !important; }
+
+
+/* pages that carry their own dark colours (4.29 pass 2): Discover, Progress, Backstage, chips, small details.
+   Their colour names (--sc-*, --dv-*) are pointed at the --L-* colours so the whole page turns light together. */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app {
+  --sc-ink:var(--L-ink); --sc-ink-2:var(--L-ink-2); --sc-ink-3:var(--L-ink-3); --sc-gold:var(--L-acc); --sc-gold-hi:var(--L-acc); --sc-gold-soft:color-mix(in srgb,var(--L-acc) 14%,transparent);
+  --sc-case:var(--L-panel-2); --sc-deck:var(--L-panel); --sc-plate:var(--L-panel); --sc-line:var(--L-line); --sc-line-2:var(--L-line); --sc-red:#b0245a;
+}
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover {
+  --dv-band:var(--L-panel-2); --dv-band-line:var(--L-line); --dv-band-ink:var(--L-ink); --dv-th:var(--L-panel-2); --dv-th-ink:var(--L-ink-2); --dv-th-line:var(--L-line);
+  --dv-rule:#00000016; --dv-panel:var(--L-panel); --dv-panel-line:var(--L-line); --dv-hover:#0000000a; --dv-pick:color-mix(in srgb,var(--L-acc) 14%,transparent); --dv-pick-line:var(--L-acc);
+}
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.dv-title h1,.dv-hero h2,.dv-hero b,.dv-section > h3,.dv-list > .want-head h3,.sum-title b,.sum-stat b,.off-contact h2,.artist-card .name,.choice .name,.gap-row .c-main .t) { color:var(--L-ink); text-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.dv-title .kicker,.dv-tabs small) { color:var(--L-acc); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.dv-title .sub,.dv-hero p,.fine,.dv-note,.dv-listbar .muted,.sum-title small,.sum-stat span,.off-contact p,.dv-section > h3 .hint,.dv-hero) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover .dv-hero .hero-icon { background:var(--L-panel-2); color:var(--L-acc); border-color:var(--L-line); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.card,.artist-card,.choice,.want-now,.dv-summary) { background:var(--L-panel); background-image:none; border-color:var(--L-line); box-shadow:0 2px 0 var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.dv-table,.album,.imp-list).card { background:none; box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover .dv-artist.card { background:var(--L-panel-2); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover .dv-head { background:var(--L-panel-2); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.dv-tabs button) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover .dv-tabs button[aria-selected='true'] { color:var(--L-ink); border-bottom-color:var(--L-acc); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .search .online-tag { background:var(--L-panel-2); color:var(--L-ink-2); border-color:var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .search.online .online-tag { background:var(--L-panel-2); color:var(--L-ink-2); border-color:var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.own,.foot .own,.ok) { color:#0f6f3a; }
+/* small things on the banner keep their dark plates, so their writing stays light */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .identity-options { color:#f3e3bb; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='gigposter']) #app .opera-sticker { color:#f6ead0; border-color:#f6ead0; }
+/* Progress: the tab strip and its band */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #page-progress .pg-head { background:linear-gradient(180deg,var(--L-bg) 75%,transparent); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-tab { background:var(--L-panel); border-color:var(--L-line); color:var(--L-ink-2); text-shadow:none; box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-tab[aria-selected='true'] { background:var(--L-pick); border-color:var(--L-pick); color:var(--L-pick-ink); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-headxp { color:var(--L-ink-2); } html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-headxp b { color:var(--L-ink); }
+/* the orange number tags on picked things need dark ink */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tk-card.on .tk-n,.ts-key.here b,.slot.on .num,.slot.on .sl-top .num) { color:#1a1208 !important; }
+/* Backstage */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-neon.page-title, html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-neon.page-title span { color:#f9c1dd; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-section .gr-label { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-count { background:var(--L-panel-2); color:var(--L-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-toggle { color:var(--L-ink-2); border-color:var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-toggle[aria-pressed='true'] { color:var(--L-pick-ink); background:var(--L-pick); border-color:var(--L-pick); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-by { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.gr-who b) { color:var(--L-ink); } html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-who span { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-card { background:var(--L-panel); border-color:var(--L-line); box-shadow:0 2px 0 var(--L-line); }
+
+/* ---------------------------------------------------------- tweed */
+/* TWEED: the light tan weave of a vintage amp, dark brown tolex round it, gold piping, oxblood */
+html[data-look='opera'][data-skin='tweed'] #app {
+  --L-bg:#e4d1a8; --L-bg-img:repeating-linear-gradient(45deg,#7a5a2a14 0 2px,transparent 2px 5px),repeating-linear-gradient(-45deg,#ffffff26 0 2px,transparent 2px 5px);
+  --L-panel:#f5ead0; --L-panel-2:#ead9b2; --L-line:#c2a46c; --L-ink:#2a1b0f; --L-ink-2:#57402a; --L-ink-3:#80684c;
+  --L-frame:linear-gradient(180deg,#3d2a1b,#2c1d12); --L-frame-ink:#f3e3bb; --L-frame-ink-2:#cdb27a; --L-edge:#c49a3a;
+  --L-acc:#9a2b1e; --L-acc-ink:#fff2dc; --L-pick:#3d2a1b; --L-pick-ink:#f6e3b0; --L-r:4px;
+}
+html[data-look='opera'][data-skin='tweed'] #app .nav-section { clip-path:none; border-radius:4px; color:#f0dfb6; background:linear-gradient(180deg,#5a3f28,#47311f); box-shadow:inset 0 1px 0 #ffffff1c,0 2px 0 #0007; }
+html[data-look='opera'][data-skin='tweed'] #app .nav-section svg { color:#d9b86a; }
+html[data-look='opera'][data-skin='tweed'] #app .nav-section:hover:not([aria-current='page']) { background:linear-gradient(180deg,#6b4c33,#563c27); color:#fff; }
+html[data-look='opera'][data-skin='tweed'] #app .nav-section[aria-current='page'] { color:#2a1b0f; transform:translateX(3px); background:repeating-linear-gradient(45deg,#7a5a2a1c 0 2px,transparent 2px 5px),linear-gradient(180deg,#f1dfae,#dcc187); box-shadow:inset 0 0 0 2px #c49a3a,0 2px 0 #0007; }
+html[data-look='opera'][data-skin='tweed'] #app .nav-section[aria-current='page'] svg { color:#7a2a1c; }
+html[data-look='opera'][data-skin='tweed'] #app .identity-banner { background:radial-gradient(70% 90% at 50% 50%,transparent 50%,#0000003a 100%),repeating-linear-gradient(45deg,#00000018 0 2px,transparent 2px 5px),linear-gradient(180deg,#8e3024,#6c2117); box-shadow:inset 0 -4px 0 #c49a3a; }
+
+
+/* ---------------------------------------------------------- daylight */
+/* STUDIO DAYLIGHT: a bright studio track sheet. White paper, black ink, a strip of coloured console tape for each part */
+html[data-look='opera'][data-skin='daylight'] #app {
+  --L-bg:#f3f1ec; --L-bg-img:linear-gradient(#0000000a 1px,transparent 1px) 0 0/100% 28px;
+  --L-panel:#ffffff; --L-panel-2:#ebe8e1; --L-line:#d3cec3; --L-ink:#1b1c20; --L-ink-2:#4a4c54; --L-ink-3:#7c7e86;
+  --L-frame:#fbfaf7; --L-frame-ink:#1b1c20; --L-frame-ink-2:#6b6d75; --L-edge:#e1ddd3;
+  --L-acc:#e2412d; --L-acc-ink:#fff; --L-pick:#1b1c20; --L-pick-ink:#fff; --L-r:6px;
+}
+html[data-skin='daylight'] #app .nav-section { --tape:#ffd34d; }
+html[data-skin='daylight'] #app .nav-section[data-page='songs'] { --tape:#ffd34d; } html[data-skin='daylight'] #app .nav-section[data-page='play'] { --tape:#ff7a59; }
+html[data-skin='daylight'] #app .nav-section[data-page='tones'] { --tape:#b9a3ff; } html[data-skin='daylight'] #app .nav-section[data-page='gear'] { --tape:#ffab4d; }
+html[data-skin='daylight'] #app .nav-section[data-page='progress'] { --tape:#8fdc6c; } html[data-skin='daylight'] #app .nav-section[data-page='discover'] { --tape:#6fd3f0; }
+html[data-skin='daylight'] #app .nav-section[data-page='greenroom'] { --tape:#ff8fbf; } html[data-skin='daylight'] #app .nav-section[data-page='karaoke'] { --tape:#ff8fbf; }
+html[data-look='opera'][data-skin='daylight'] #app .nav-section { color:#1b1c20; background:color-mix(in srgb,var(--tape) 38%,#fff); box-shadow:none; transform:none; font-family:var(--rr-mono); letter-spacing:.04em; }
+html[data-look='opera'][data-skin='daylight'] #app .nav-section svg { color:#1b1c20; }
+html[data-look='opera'][data-skin='daylight'] #app .nav-section:hover:not([aria-current='page']) { background:color-mix(in srgb,var(--tape) 65%,#fff); color:#000; }
+html[data-look='opera'][data-skin='daylight'] #app .nav-section[aria-current='page'] { color:#000; background:var(--tape); transform:rotate(-1.2deg) translateX(4px); box-shadow:2px 3px 0 #0002; }
+html[data-look='opera'][data-skin='daylight'] #app .nav-section[aria-current='page'] svg { color:#000; }
+html[data-look='opera'][data-skin='daylight'] #app .nav-section[aria-current='page']::after { background:#e2412d; box-shadow:0 0 6px #e2412d88; }
+html[data-look='opera'][data-skin='daylight'] #app .identity-banner { background:linear-gradient(90deg,#0000000d 1px,transparent 1px) 0 0/48px 100%,linear-gradient(#0000000d 1px,transparent 1px) 0 0/100% 24px,#e9e6de; box-shadow:inset 0 -2px 0 #d3cec3; }
+html[data-look='opera'][data-skin='daylight'] #app .opera-sticker { background:#fff; color:#1b1c20; border-color:#1b1c20; box-shadow:0 0 0 3px #fff,0 3px 6px #0003; }
+
+
+/* ---------------------------------------------------------- gigposter */
+/* GIG POSTER: screen-printed. Off-white paper, thick black lines, hard shadows, red, teal and mustard ink */
+html[data-look='opera'][data-skin='gigposter'] #app {
+  --L-bg:#efe9dc; --L-bg-img:radial-gradient(#00000014 1px,transparent 1.4px) 0 0/7px 7px;
+  --L-panel:#fffcf3; --L-panel-2:#f2ead6; --L-line:#141414; --L-ink:#141414; --L-ink-2:#3b3b3b; --L-ink-3:#666;
+  --L-frame:#f2c230; --L-frame-ink:#141414; --L-frame-ink-2:#4a3b0a; --L-edge:#141414;
+  --L-acc:#e63b2e; --L-acc-ink:#fff; --L-pick:#138a8a; --L-pick-ink:#fff; --L-r:2px;
+}
+html[data-look='opera'][data-skin='gigposter'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.sr-card,.gb-strip-wrap) { border-width:2.5px; box-shadow:5px 5px 0 #141414; }
+html[data-look='opera'][data-skin='gigposter'] #app :is(.btn.soft,.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.jam-chip) { border:2.5px solid #141414; box-shadow:3px 3px 0 #141414; }
+html[data-look='opera'][data-skin='gigposter'] #app .row { border-bottom:1.5px solid #14141433; }
+html[data-look='opera'][data-skin='gigposter'] #app .nav-section { clip-path:none; border-radius:2px; color:#141414; background:#fffcf3; border:2.5px solid #141414; box-shadow:3px 3px 0 #141414; font-size:15px; }
+html[data-look='opera'][data-skin='gigposter'] #app .nav-section svg { color:#141414; }
+html[data-look='opera'][data-skin='gigposter'] #app .nav-section:hover:not([aria-current='page']) { background:#fff; transform:translate(-1px,-1px); box-shadow:4px 4px 0 #141414; }
+html[data-look='opera'][data-skin='gigposter'] #app .nav-section[aria-current='page'] { color:#fff; background:#e63b2e; transform:rotate(-1.5deg); box-shadow:4px 4px 0 #141414; }
+html[data-look='opera'][data-skin='gigposter'] #app .nav-section[aria-current='page'] svg { color:#fff; }
+html[data-look='opera'][data-skin='gigposter'] #app .nav-section[aria-current='page']::after { background:#f2c230; box-shadow:0 0 0 2px #141414; }
+html[data-look='opera'][data-skin='gigposter'] #app .nav-item[aria-current='true'] { background:#14141418; border-left-color:#e63b2e; }
+html[data-look='opera'][data-skin='gigposter'] #app .identity-banner { background:radial-gradient(#00000030 1.2px,transparent 1.6px) 0 0/8px 8px,linear-gradient(100deg,#138a8a 0 62%,#e63b2e 62% 64%,#138a8a 64%); box-shadow:inset 0 -4px 0 #141414; }
+html[data-look='opera'][data-skin='gigposter'] #app .titlebar { box-shadow:0 3px 0 #141414; } html[data-look='opera'][data-skin='gigposter'] #app .sidebar { box-shadow:3px 0 0 #141414; } html[data-look='opera'][data-skin='gigposter'] #app .nowbar { box-shadow:0 -3px 0 #141414; }

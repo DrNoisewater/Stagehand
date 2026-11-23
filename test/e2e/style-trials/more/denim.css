@@ -1,0 +1,25 @@
+/* DENIM: a well-worn denim jacket. Indigo twill, orange stitching round everything, embroidered patches for the menu, brass rivets */
+html[data-look='opera'] { --rr-bone:#f5f1e6; --rr-bone-2:#d4dceb; --rr-bone-3:#a6b5cc; --rr-line:#4c6a94; --rr-card:#2d4363; }
+html[data-look='opera'] #app { --house:#22344f; --deck:#273b58; --deck-2:#2d4363; --riser:#344c70; --riser-2:#344c70; --card:#2d4363; --card-line:#4c6a94; --well:#1b2a40; --ink:#f5f1e6; --ink-2:#d4dceb; --ink-3:#a6b5cc; --rule:#4c6a94; --rule-soft:#344c70; background:#22344f; color:#f5f1e6; }
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#273b58; border-color:#4c6a94; box-shadow:none; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#1b2a40; border-color:#4c6a94; box-shadow:none; }
+html[data-look='opera'] #app .tk-keys { background:#4c6a94; }
+html[data-look='opera'] #app .row .go { color:#d4dceb; }
+html[data-look='opera'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { transform:none; background:#ffffff10; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#1b1206; background:#e8963a; border-color:#e8963a; text-shadow:none; }
+html[data-look='opera'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#1b1206 !important; }
+html[data-look='opera'] #app .row.sel { background:#e8963a22; box-shadow:inset 4px 0 #e8963a; }
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover,.sidebar,.titlebar,.nowbar) { background:repeating-linear-gradient(45deg,#ffffff07 0 1px,transparent 1px 3px),repeating-linear-gradient(-45deg,#00000018 0 1px,transparent 1px 4px),linear-gradient(180deg,#2a3f5e,#22344f); }
+html[data-look='opera'] #app .sidebar { box-shadow:inset -6px 0 0 #1b2a40,inset -8px 0 0 #e8963a55; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#2d4363; background-image:none; border:0; border-radius:8px; outline:2px dashed #e8963acc; outline-offset:-6px; box-shadow:0 3px 0 #0005; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#1b1206; background:radial-gradient(circle at 12px 50%,#f7d27a 0 3px,#8a5a18 3px 4px,transparent 4px),#e8963a; border:0; padding-left:24px; border-radius:6px; box-shadow:0 3px 0 #0006; text-shadow:none; }
+html[data-look='opera'] #app .btn.soft { color:#f5f1e6; background:#344c70; border:1px solid #4c6a94; border-radius:6px; }
+html[data-look='opera'] #app .nav-section { color:#f5f1e6; background:#3a2b22; border-radius:14px; margin-right:12px; outline:2px dashed #e8963a99; outline-offset:-5px; box-shadow:0 2px 0 #0006; }
+html[data-look='opera'] #app .nav-section:nth-child(3n+2) { background:#5b2430; } html[data-look='opera'] #app .nav-section:nth-child(3n) { background:#2f4a30; }
+html[data-look='opera'] #app .nav-section svg { color:#f7d27a; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#1b1206; background:#f2e6c8 !important; outline-color:#c8642a; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#c8642a; }
+html[data-look='opera'] #app .identity-banner { background:repeating-linear-gradient(45deg,#ffffff08 0 1px,transparent 1px 3px),linear-gradient(180deg,#34507a,#22344f); box-shadow:inset 0 -10px 0 -6px #e8963a00,inset 0 -3px 0 #e8963a; }

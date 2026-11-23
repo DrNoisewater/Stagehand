@@ -1,0 +1,27 @@
+/* BLUE NOTE: a jazz record sleeve. Slate blue instead of brown, cream writing, bright orange and cream buttons */
+html[data-look='opera'] { --rr-bone:#f6f0e3; --rr-bone-2:#d5dbe3; --rr-bone-3:#a3b0c0; --rr-cream:#f59a2c; --rr-pilot:#f59a2c; --rr-pilot-glow:#f59a2c88; --rr-brass:#f59a2c; --rr-brass-dim:#f59a2c55; --rr-line:#4b6684; --rr-card:#2f4560; }
+html[data-look='opera'] #app {
+  --house:#26384d; --deck:#2c4058; --deck-2:#2f4560; --riser:#38506d; --riser-2:#425c7b; --card:#2f4560; --card-line:#4b6684; --well:#1e2d3e;
+  --ink:#f6f0e3; --ink-2:#d5dbe3; --ink-3:#a3b0c0; --rule:#4b6684; --rule-soft:#3a5270;
+  background:#26384d; color:#f6f0e3;
+}
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(70% 50% at 80% 0%,#4b6a9055,transparent 70%),linear-gradient(180deg,#2a3e55,#22334a); }
+html[data-look='opera'] #app :is(.titlebar,.nowbar) { background:#1b293a; box-shadow:0 2px 0 #f59a2c; }
+html[data-look='opera'] #app .nowbar { box-shadow:0 -2px 0 #f59a2c; }
+html[data-look='opera'] #app .sidebar { background:#1b293a; box-shadow:inset -2px 0 0 #f59a2c; }
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#22334a; border-color:#4b6684; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#2f4560; background-image:none; border:1px solid #4b6684; box-shadow:0 3px 0 #0004; border-radius:4px; }
+html[data-look='opera'] #app .tk-keys { background:#4b6684; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#1b293a; border-color:#4b6684; box-shadow:none; }
+html[data-look='opera'] #app .nav-section { clip-path:none; border-radius:0; color:#f6f0e3; background:transparent; box-shadow:inset 0 -1px 0 #ffffff1a; font-size:16px; font-stretch:62%; letter-spacing:.02em; }
+html[data-look='opera'] #app .nav-section svg { color:#7f9bbd; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { background:#ffffff10; color:#fff; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#1b293a; background:#f6f0e3; transform:none; box-shadow:6px 0 0 #f59a2c inset; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#1b293a; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { background:#f59a2c; box-shadow:none; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#1b1b1b; background:#f59a2c; border:1px solid #f59a2c; box-shadow:0 3px 0 #0005; text-shadow:none; }
+html[data-look='opera'] #app .btn.soft { color:#f6f0e3; background:#38506d; border-color:#5a7698; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true']) { color:#1b293a; background:#f6f0e3; border-color:#f6f0e3; box-shadow:none; }
+html[data-look='opera'] #app .row.sel { background:#f59a2c22; box-shadow:inset 4px 0 #f59a2c; }
+html[data-look='opera'] #app .row .go { color:#d5dbe3; }
+html[data-look='opera'] #app .identity-banner { background:linear-gradient(90deg,transparent 0 55%,#f59a2c 55% 56.2%,transparent 56.2% 58%,#f6f0e322 58% 66%,transparent 66%),linear-gradient(180deg,#3b5a80,#22364f); box-shadow:inset 0 -3px 0 #f59a2c; }

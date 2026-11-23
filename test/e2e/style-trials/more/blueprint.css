@@ -1,0 +1,25 @@
+/* BLUEPRINT: the whole app drawn like a plan for a guitar build. Blueprint blue, white drawn lines, a grid, handwritten-style labels */
+html[data-look='opera'] { --rr-bone:#ffffff; --rr-bone-2:#dcebfb; --rr-bone-3:#a9cbef; --rr-line:#9cc3ee; --rr-card:#235d9b; }
+html[data-look='opera'] #app { --house:#1d4f86; --deck:#1f5590; --deck-2:#235d9b; --riser:#2a67a8; --riser-2:#2a67a8; --card:#235d9b; --card-line:#9cc3ee; --well:#173f6b; --ink:#ffffff; --ink-2:#dcebfb; --ink-3:#a9cbef; --rule:#9cc3ee; --rule-soft:#2a67a8; background:#1d4f86; color:#ffffff; }
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#1f5590; border-color:#9cc3ee; box-shadow:none; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#173f6b; border-color:#9cc3ee; box-shadow:none; }
+html[data-look='opera'] #app .tk-keys { background:#9cc3ee; }
+html[data-look='opera'] #app .row .go { color:#dcebfb; }
+html[data-look='opera'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover,.sidebar,.titlebar,.nowbar) { background:linear-gradient(#ffffff14 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#ffffff14 1px,transparent 1px) 0 0/24px 24px,linear-gradient(#ffffff22 1px,transparent 1px) 0 0/120px 120px,linear-gradient(90deg,#ffffff22 1px,transparent 1px) 0 0/120px 120px,#1d4f86; }
+html[data-look='opera'] #app .sidebar { box-shadow:inset -2px 0 0 #ffffffcc; } html[data-look='opera'] #app .titlebar { box-shadow:0 2px 0 #ffffffcc; } html[data-look='opera'] #app .nowbar { box-shadow:0 -2px 0 #ffffffcc; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#1d4f86cc; background-image:none; border:1.5px solid #ffffffcc; box-shadow:4px 4px 0 -1px #1d4f86,4px 4px 0 0 #ffffff55; border-radius:0; }
+html[data-look='opera'] #app :is(.btn,.gseg,.seg,.search) { border-radius:0; }
+html[data-look='opera'] #app .btn.soft { color:#fff; background:transparent; border:1.5px dashed #ffffffcc; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#1d4f86; background:#fff; border:1.5px solid #fff; box-shadow:4px 4px 0 #ffffff55; text-shadow:none; }
+html[data-look='opera'] #app .nav-section { border-radius:0; color:#fff; background:transparent; border:1.5px dashed #ffffff55; margin-right:12px; }
+html[data-look='opera'] #app .nav-section svg { color:#fff; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#1d4f86; background:#fff; border:1.5px solid #fff; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#1d4f86; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#1d4f86; background:#fff; border-color:#fff; box-shadow:none; }
+html[data-look='opera'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#1d4f86 !important; }
+html[data-look='opera'] #app .row.sel { background:#ffffff1a; box-shadow:inset 4px 0 #fff; }
+html[data-look='opera'] #app .identity-banner { background:radial-gradient(circle at 80% 55%,transparent 0 46px,#ffffffcc 46px 48px,transparent 48px 70px,#ffffff66 70px 71px,transparent 71px),linear-gradient(#ffffff22 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#ffffff22 1px,transparent 1px) 0 0/24px 24px,#1a4778; box-shadow:inset 0 -2px 0 #fff; }

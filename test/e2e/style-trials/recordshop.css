@@ -1,0 +1,16 @@
+/* @use _light  RECORD SHOP '70s: cream sleeves, chocolate shelves, orange, mustard and rust stripes, round friendly corners */
+html[data-look='opera'] #app {
+  --L-bg:#f4e7c9; --L-panel:#fdf5e2; --L-panel-2:#f0dfba; --L-line:#d9bd85; --L-ink:#3a2414; --L-ink-2:#6a4a2e; --L-ink-3:#93734f;
+  --L-frame:linear-gradient(180deg,#4b2e1b,#3c2414); --L-frame-ink:#fbe9c4; --L-frame-ink-2:#e0b878; --L-edge:#e8742a;
+  --L-acc:#e0662a; --L-acc-ink:#fff8ec; --L-pick:#e9b437; --L-pick-ink:#3a2414; --L-r:14px;
+}
+html[data-look='opera'] #app .sidebar { background:linear-gradient(90deg,transparent calc(100% - 18px),#b8432a calc(100% - 18px) calc(100% - 12px),#e8742a calc(100% - 12px) calc(100% - 6px),#e9b437 calc(100% - 6px)),linear-gradient(180deg,#4b2e1b,#3c2414); box-shadow:none; }
+html[data-look='opera'] #app .titlebar { box-shadow:0 3px 0 #e9b437,0 6px 0 #e8742a,0 9px 0 #b8432a; z-index:41; }
+html[data-look='opera'] #app .nav-section { clip-path:none; border-radius:999px; margin-right:16px; color:#fbe9c4; background:#ffffff12; box-shadow:none; font-stretch:90%; }
+html[data-look='opera'] #app .nav-section svg { color:#e9b437; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { background:#ffffff22; color:#fff; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#3a2414; background:#e9b437; transform:none; box-shadow:0 3px 0 #b8432a; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#3a2414; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { background:#b8432a; box-shadow:none; }
+html[data-look='opera'] #app .identity-banner { background:radial-gradient(120% 140% at 85% 120%,#e9b437 0 22%,#e8742a 22% 34%,#b8432a 34% 46%,#4b2e1b 46% 58%,transparent 58%),#f0dfba; box-shadow:inset 0 -3px 0 #d9bd85; }
+html[data-look='opera'] #app .btn, html[data-look='opera'] #app :is(.gseg,.seg) { border-radius:999px; }

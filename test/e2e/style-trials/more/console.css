@@ -1,0 +1,26 @@
+/* MIXING DESK: a seventies studio console. Warm grey-green metal, amber VU-meter glow, coloured fader caps for buttons, white legends */
+html[data-look='opera'] { --rr-bone:#f4f2ea; --rr-bone-2:#dcded6; --rr-bone-3:#b3b9b1; --rr-line:#6f7c74; --rr-card:#4a544e; }
+html[data-look='opera'] #app { --house:#3d4541; --deck:#434c47; --deck-2:#4a544e; --riser:#545f58; --riser-2:#545f58; --card:#4a544e; --card-line:#6f7c74; --well:#2a302d; --ink:#f4f2ea; --ink-2:#dcded6; --ink-3:#b3b9b1; --rule:#6f7c74; --rule-soft:#545f58; background:#3d4541; color:#f4f2ea; }
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#434c47; border-color:#6f7c74; box-shadow:none; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#2a302d; border-color:#6f7c74; box-shadow:none; }
+html[data-look='opera'] #app .tk-keys { background:#6f7c74; }
+html[data-look='opera'] #app .row .go { color:#dcded6; }
+html[data-look='opera'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover) { background:repeating-linear-gradient(90deg,#ffffff05 0 1px,transparent 1px 3px),linear-gradient(180deg,#47504b,#3a423e); }
+html[data-look='opera'] #app :is(.titlebar,.nowbar) { background:linear-gradient(180deg,#1f2321,#171a19); box-shadow:0 2px 0 #f6b23c99; }
+html[data-look='opera'] #app .nowbar { box-shadow:0 -2px 0 #f6b23c99; }
+html[data-look='opera'] #app .sidebar { background:linear-gradient(90deg,#2d3330,#262b29); box-shadow:inset -3px 0 0 #1b1f1d; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:linear-gradient(180deg,#505b55,#47514b); background-image:none; border:1px solid #6f7c74; box-shadow:inset 0 1px 0 #ffffff1a,0 2px 0 #0005; border-radius:3px; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#1b1f1d; background:linear-gradient(180deg,#ff8a5c,#e0532a); border:1px solid #1b1f1d; border-radius:3px; box-shadow:inset 0 2px 0 #ffffff55,0 3px 0 #0007; text-shadow:none; }
+html[data-look='opera'] #app .btn.soft { color:#f4f2ea; background:linear-gradient(180deg,#6a756e,#555f59); border:1px solid #1b1f1d; border-radius:3px; box-shadow:inset 0 1px 0 #ffffff33; }
+html[data-look='opera'] #app .nav-section { border-radius:3px; color:#dcded6; background:linear-gradient(180deg,#353b38,#2c312f); box-shadow:inset 0 1px 0 #ffffff12,0 1px 0 #0006; }
+html[data-look='opera'] #app .nav-section svg { color:#f6b23c; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#2a1c06; background:radial-gradient(120% 140% at 50% 120%,#ffe7a6,#f6b23c 60%,#c9821c); box-shadow:0 0 14px #f6b23c66,inset 0 0 0 1px #1b1f1d; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#2a1c06; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#2a1c06; background:radial-gradient(120% 140% at 50% 120%,#ffe7a6,#f6b23c); border-color:#f6b23c; box-shadow:0 0 10px #f6b23c55; }
+html[data-look='opera'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#2a1c06 !important; }
+html[data-look='opera'] #app .row.sel { background:#f6b23c1c; box-shadow:inset 4px 0 #f6b23c; }
+html[data-look='opera'] #app .identity-banner { background:repeating-linear-gradient(90deg,transparent 0 58px,#1b1f1d 58px 60px),linear-gradient(90deg,#e0532a 0 8%,#f6b23c 8% 16%,#4aa0d8 16% 24%,#e8e4d8 24% 32%,transparent 32%) 0 100%/100% 6px no-repeat,linear-gradient(180deg,#59645d,#3d4541); }

@@ -412,7 +412,14 @@ export function createHighway(stage) {
       };
       grid.append(b);
     }
-    const row = h('div.hw-opt-row', null, h('span.hw-opt-label', { text: 'Venue' }), grid);
+    // 4.29: the list folds away under one line that names the venue in use; it stays as you left it
+    const open = prefs.venueOpen === true;
+    const curName = (VENUES.find((x) => x.id === cur) || {}).name || 'Warehouse';
+    const head = h('button.hw-venue-head', { type: 'button', 'aria-expanded': String(open) },
+      h('span.hw-opt-label', { text: 'Venue' }), h('b', { text: curName }), h('span.hw-venue-caret', { 'aria-hidden': 'true', text: open ? '▾' : '▸' }));
+    head.onclick = () => { setPref('venueOpen', !open); renderOpts(); };
+    grid.hidden = !open;
+    const row = h('div.hw-opt-row.hw-venue-fold', null, head, grid);
     const pv = venuePreview && VENUES.find((x) => x.id === venuePreview);
     if (pv && venueLock(pv.id)) {
       const lvl = venueLock(pv.id);

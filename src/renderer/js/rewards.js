@@ -49,14 +49,8 @@ export async function wearTitle(id) {
  * levels have loaded (or with the developer menu's "preview locked content").
  */
 export function venueLock(id) {
-  const st = L.st;
-  if (!st || L.previewAll) return 0;
-  if (st.venues) {
-    const v = st.venues.find((x) => x.venue === id);
-    return v && !v.unlocked ? v.level : 0;
-  }
-  const u = (st.unlocks || []).find((x) => x.venue === id);
-  return u && st.level < u.level ? u.level : 0;
+  // 4.29: every venue is open from the start; levels no longer lock any of them.
+  return 0;
 }
 /** XP still needed before a venue opens (0 when it's open). */
 export function venueXpLeft(id) {
