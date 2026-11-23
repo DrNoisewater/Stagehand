@@ -36,3 +36,9 @@ The user asked: every screen takes the theme, the highway's menus and bars too; 
 - `src/renderer/css/themes-stage.css`: each theme sets nine colours (--t-bar, --t-bar-2, --t-line, --t-ink(-2,-3), --t-acc(-hi,-ink)); one set of rules recolours the top bar, chips, section strip, Sound & settings drawer, score card, timing check, loading box, pop-ups (Tools menu, speed, tone) and windows over the song. Brown keeps stagechrome.css as it was.
 - Pictures: `SKIN=<theme> MASTER=1 VW=1440 VH=900 PLAYWRIGHT=playwright node test/hwlook/shoot.js <out> T:3` (SKIN is new in shoot.js).
 - Not yet looked at: Sing along and Piano on the highway (they have their own looks), the karaoke screen.
+
+## 4.29 wrap-up (2026-11-23)
+- Every venue open (`venueLock` returns 0); the venue list folds under one line in Sound & settings.
+- Progress's Next gig card says every venue is open.
+- Version 4.29.0; HANDOFF and README updated. Brown stays the default until the user picks a main look.
+- Theme checker went over the 14 newer looks on Progress, Discover, Backstage, and Sing/Piano on the song screen.
