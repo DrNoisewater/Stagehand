@@ -91,6 +91,21 @@ export async function pane(el, setting) {
         await rig.setEngine({ engine: fb.checked ? 'auto' : 'native' });
         draw();
       };
+      const rse = h('button.btn.small.soft', { type: 'button', text: 'Restart sound engine' });
+      rse.onclick = async () => {
+        rse.disabled = true;
+        const was = rig.on;
+        try {
+          if (was) rig.stop();
+          await window.stagehand.rig.restartEngine();
+          if (was) await rig.start();
+          toast('Sound engine restarted.');
+        } catch (_) {
+          toast('The sound engine could not restart. Try again.');
+        }
+        draw();
+      };
+      el.append(setting('Restart sound engine', 'Use this if the sound stops or crackles. It ends the engine and starts it fresh with your tone and devices.', rse));
       el.append(setting('If the fast engine can’t start', 'Use the in-app engine instead (more delay, but you can still play). Turn off to see the error instead.', h('label.switch-row', null, fb)));
     }
 

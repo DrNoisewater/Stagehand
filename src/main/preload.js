@@ -93,6 +93,7 @@ contextBridge.exposeInMainWorld('stagehand', {
   },
   rig: {
     available: () => call('rig:available'),
+    restartEngine: () => call('rig:restartEngine'),
     // The port arrives as a window message ('stagehand-rig-port'), since ports can't cross the bridge.
     connect: (kind) => ipcRenderer.send('rig:connect', kind),
   },
