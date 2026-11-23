@@ -27,7 +27,7 @@ module.exports = async ({ page, outDir, check }) => {
   const looks = async (n) => {
     if (process.env.DV_LOOKS === '0') return;
     const was = await page.evaluate(() => document.documentElement.dataset.look || 'opera');
-    for (const lk of ['opera', 'roadshow']) {
+    for (const lk of ['opera']) {
       await setLook(lk);
       for (const [w, hgt] of [[1500, 900], [1280, 720]]) {
         await page.setViewportSize({ width: w, height: hgt });

@@ -22,7 +22,7 @@ module.exports = async ({ page, outDir, check }) => {
   await closeModals();
   await quiet();
 
-  for (const lk of ['roadshow', 'opera']) {
+  for (const lk of ['opera']) {
     await look(lk);
     for (const [w, hgt] of [[1500, 900], [1280, 720]]) {
       await page.setViewportSize({ width: w, height: hgt });
@@ -45,7 +45,7 @@ module.exports = async ({ page, outDir, check }) => {
   }
 
   // the page head and the pieces the tests use are all there
-  await look('roadshow');
+  await look('opera');
   await page.setViewportSize({ width: 1500, height: 900 });
   await go('tones');
   const info = await page.evaluate(() => {

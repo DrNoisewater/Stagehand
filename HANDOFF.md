@@ -1,3 +1,16 @@
+# 4.28.0 — One look: Warm Club (2026-11-23; nothing tried on the user's PC)
+
+**Asked:** "We currently have a few different appearances … We just want one look to the whole app. I'm quite fond of the guitar hero style … there is quite a lot of the same muted brown color over the entire app … give it a little bit more vibrance and personality. The old one made it look like the left side menus had lights that would turn on when you clicked them." They wanted examples first. Six trials were shown on a page (screenshots of the real app with trial styles): Stage Lights, Neon Club, Pedalboard, then the Neon Club menu over Purple Haze, Warm Club and Coloured Rooms. They liked the Neon Club menu but not the all-black pages, then picked **Warm Club**.
+
+**Changed:**
+- `src/renderer/css/club.css` (new, loaded last in `index.html`): the room is warm red-brick (`#1a1414` / `#211a19` / `#2a2120` / `#3f3230`) instead of muddy brown. Each part has a neon colour (`--sec` on `#app[data-mood]`, `--lamp` on `.nav-section[data-page]`): Songs amber, Jam red, Tones violet, Gear orange, Progress green, Discover cyan, Backstage and Karaoke pink, Getting started white. The menu is a row of unlit neon signs; the open one lights and glows, with a short stutter as it comes on (off with Calmer interface or reduced motion). The page gets that colour as a glow from the top and along the banner's lower edge; the main button, picked buttons in a row, the Tones key cards, "This tone", the Gear shelf, the Progress tabs and Demo riff are lit in it instead of cream tape. Settings and other windows over the app are in the warm room too.
+- One look: `identity.js` `opera()` is always true and the "Rehearsal Room look" switch is gone from Settings › Appearance. A saved Roadshow choice is ignored. `roadshow.css` stays: it is also the base the Rehearsal Room builds on (unscoped `#app` rules), so deleting it needs a careful pass of its own.
+- Paper pieces keep their paper colour on purpose: the banner flyer and notes, the Next gig card, the gear spec sheet, REAL badges, tape labels.
+- e2e audits no longer ask for Roadshow (`banner-audit`, `cameo-audit`, `discover-audit`, `tones-look-audit`).
+- Not touched: the note highway and its top bar (`stagechrome.css`), the Jam visualizer, the Unmixer card, gear photos, Setup's look.
+
+**Ask the user:** how it looks on their screen; whether the neon menu is bright enough or too bright; whether a part's colour should change; whether the highway's top bar and Setup should get the same look; ChatGPT pictures (a warm brick wall background, neon menu icons) if they want more character.
+
 # 4.27.1 — One click previews (and the preview is heard again), a double-click splits (2026-11-22; nothing tried on the user's PC)
 
 **Asked:** "When you click on a song on the list, it immediately starts separating the stems for the preview. We can just show a preview of the actual song without splitting stems. Double clicking on an item starts the stem splitting process."
