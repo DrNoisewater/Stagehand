@@ -93,6 +93,33 @@ html[data-look='opera'][data-skin='recordshop'] #app .row.sel { background:#e9b4
 html[data-look='opera'][data-skin='recordshop'] #app .row .go { color:#e9d3ab; }
 html[data-look='opera'][data-skin='recordshop'] #app .identity-banner { background:radial-gradient(120% 150% at 88% 130%,#e9b437 0 20%,#e8742a 20% 31%,#b8432a 31% 42%,transparent 42%),linear-gradient(180deg,#4a2d1c,#36210f); box-shadow:inset 0 -3px 0 #e9b437; }
 
+/* mahogany: Discover, Progress and Backstage use their own colour names; point them at this theme (4.29 pass 2) */
+html[data-look='opera'][data-skin='mahogany'] #app { --sc-ink:#fbf1dc; --sc-ink-2:#ead9b8; --sc-ink-3:#c7ad85; --sc-gold:#f0c46a; --sc-gold-hi:#f0c46a; --sc-case:#3d291d; --sc-deck:#4a3122; --sc-plate:#4a3122; --sc-line:#6e4d37; --sc-line-2:#6e4d37; }
+html[data-look='opera'][data-skin='mahogany'] #app #discover { --dv-band:#3d291d; --dv-band-line:#6e4d37; --dv-band-ink:#fbf1dc; --dv-th:#3d291d; --dv-th-ink:#ead9b8; --dv-th-line:#6e4d37; --dv-rule:#ffffff12; --dv-panel:#4a3122; --dv-panel-line:#6e4d37; --dv-hover:#ffffff0a; --dv-pick:#f0c46a22; --dv-pick-line:#f0c46a; }
+html[data-look='opera'][data-skin='mahogany'] #app #discover :is(.card,.artist-card,.choice,.want-now,.dv-summary) { background:#4a3122; background-image:none; border-color:#6e4d37; }
+html[data-look='opera'][data-skin='mahogany'] #app #discover :is(.dv-table,.album,.imp-list).card { background:none; }
+html[data-look='opera'][data-skin='mahogany'] #app #discover :is(.dv-head,.dv-artist.card) { background:#3d291d; }
+html[data-look='opera'][data-skin='mahogany'] #page-progress .pg-head { background:linear-gradient(180deg,#3d291d 75%,transparent); }
+html[data-look='opera'][data-skin='mahogany'] #app .gr-count { background:#ffffff1f; color:#fbf1dc; }
+/* bluenote: Discover, Progress and Backstage use their own colour names; point them at this theme (4.29 pass 2) */
+html[data-look='opera'][data-skin='bluenote'] #app { --sc-ink:#f6f0e3; --sc-ink-2:#d5dbe3; --sc-ink-3:#a3b0c0; --sc-gold:#f59a2c; --sc-gold-hi:#f59a2c; --sc-case:#22334a; --sc-deck:#2f4560; --sc-plate:#2f4560; --sc-line:#4b6684; --sc-line-2:#4b6684; }
+html[data-look='opera'][data-skin='bluenote'] #app #discover { --dv-band:#22334a; --dv-band-line:#4b6684; --dv-band-ink:#f6f0e3; --dv-th:#22334a; --dv-th-ink:#d5dbe3; --dv-th-line:#4b6684; --dv-rule:#ffffff12; --dv-panel:#2f4560; --dv-panel-line:#4b6684; --dv-hover:#ffffff0a; --dv-pick:#f59a2c22; --dv-pick-line:#f59a2c; }
+html[data-look='opera'][data-skin='bluenote'] #app #discover :is(.card,.artist-card,.choice,.want-now,.dv-summary) { background:#2f4560; background-image:none; border-color:#4b6684; }
+html[data-look='opera'][data-skin='bluenote'] #app #discover :is(.dv-table,.album,.imp-list).card { background:none; }
+html[data-look='opera'][data-skin='bluenote'] #app #discover :is(.dv-head,.dv-artist.card) { background:#22334a; }
+html[data-look='opera'][data-skin='bluenote'] #page-progress .pg-head { background:linear-gradient(180deg,#26384d 75%,transparent); }
+html[data-look='opera'][data-skin='bluenote'] #app .gr-count { background:#ffffff1f; color:#f6f0e3; }
+/* recordshop: Discover, Progress and Backstage use their own colour names; point them at this theme (4.29 pass 2) */
+html[data-look='opera'][data-skin='recordshop'] #app { --sc-ink:#fbefd6; --sc-ink-2:#e9d3ab; --sc-ink-3:#c9a878; --sc-gold:#e9b437; --sc-gold-hi:#e9b437; --sc-case:#3a2314; --sc-deck:#4a2d1c; --sc-plate:#4a2d1c; --sc-line:#6a4630; --sc-line-2:#6a4630; }
+html[data-look='opera'][data-skin='recordshop'] #app #discover { --dv-band:#3a2314; --dv-band-line:#6a4630; --dv-band-ink:#fbefd6; --dv-th:#3a2314; --dv-th-ink:#e9d3ab; --dv-th-line:#6a4630; --dv-rule:#ffffff12; --dv-panel:#4a2d1c; --dv-panel-line:#6a4630; --dv-hover:#ffffff0a; --dv-pick:#e9b43722; --dv-pick-line:#e9b437; }
+html[data-look='opera'][data-skin='recordshop'] #app #discover :is(.card,.artist-card,.choice,.want-now,.dv-summary) { background:#4a2d1c; background-image:none; border-color:#6a4630; }
+html[data-look='opera'][data-skin='recordshop'] #app #discover :is(.dv-table,.album,.imp-list).card { background:none; }
+html[data-look='opera'][data-skin='recordshop'] #app #discover :is(.dv-head,.dv-artist.card) { background:#3a2314; }
+html[data-look='opera'][data-skin='recordshop'] #page-progress .pg-head { background:linear-gradient(180deg,#36210f 75%,transparent); }
+html[data-look='opera'][data-skin='recordshop'] #app .gr-count { background:#ffffff1f; color:#fbefd6; }
+html[data-look='opera'][data-skin='bluenote'] #app :is(.tk-card .tk-sub,.ts-key small,.ts-label,.tk-card .tk-n,.ts-key b,.slot .num) { color:#d5dbe3; }
+html[data-look='opera'][data-skin='bluenote'] #app :is(.tk-card.on *,.ts-key.here *) { color:#1b293a; }
+
 
 /* ---------------------------------------------------------- windows over the app (Settings and the rest), per theme */
 html[data-skin='mahogany'] { --th-modal:#3d291d; --th-modal-2:#4a3122; --th-modal-line:#6e4d37; --th-modal-acc:#f0c46a; --th-modal-acc-ink:#2a1a0e; }

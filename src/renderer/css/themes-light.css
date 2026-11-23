@@ -100,7 +100,7 @@ html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin
 html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-xpbar { background:var(--L-panel-2); }
 html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .nowbar .nb-empty { color:var(--L-frame-ink); }
 html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.act-head span) { color:var(--L-frame-ink) !important; } html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .act-head em { color:var(--L-frame-ink-2) !important; }
-html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gchip-tuner kbd { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gchip-tuner kbd { color:#cdbf9f; }
 html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tones-title .sub,.tk-h,.tk-note,.ti-main span,.tslot,.ts-label,.gb-note,.tk-card .tk-n,.ts-key b) { color:var(--L-ink-2); }
 html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tk-card .tk-n,.ts-key b,.tslot) { box-shadow:inset 0 0 0 1.5px currentColor; }
 html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .ts-chain { color:var(--L-ink); }
@@ -110,6 +110,49 @@ html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin
 html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .sh-activity { background:transparent; border-color:var(--L-frame-ink-2); opacity:1; }
 html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .search input { border:0 !important; background:transparent !important; }
 
+
+/* pages that carry their own dark colours (4.29 pass 2): Discover, Progress, Backstage, chips, small details.
+   Their colour names (--sc-*, --dv-*) are pointed at the --L-* colours so the whole page turns light together. */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app {
+  --sc-ink:var(--L-ink); --sc-ink-2:var(--L-ink-2); --sc-ink-3:var(--L-ink-3); --sc-gold:var(--L-acc); --sc-gold-hi:var(--L-acc); --sc-gold-soft:color-mix(in srgb,var(--L-acc) 14%,transparent);
+  --sc-case:var(--L-panel-2); --sc-deck:var(--L-panel); --sc-plate:var(--L-panel); --sc-line:var(--L-line); --sc-line-2:var(--L-line); --sc-red:#b0245a;
+}
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover {
+  --dv-band:var(--L-panel-2); --dv-band-line:var(--L-line); --dv-band-ink:var(--L-ink); --dv-th:var(--L-panel-2); --dv-th-ink:var(--L-ink-2); --dv-th-line:var(--L-line);
+  --dv-rule:#00000016; --dv-panel:var(--L-panel); --dv-panel-line:var(--L-line); --dv-hover:#0000000a; --dv-pick:color-mix(in srgb,var(--L-acc) 14%,transparent); --dv-pick-line:var(--L-acc);
+}
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.dv-title h1,.dv-hero h2,.dv-hero b,.dv-section > h3,.dv-list > .want-head h3,.sum-title b,.sum-stat b,.off-contact h2,.artist-card .name,.choice .name,.gap-row .c-main .t) { color:var(--L-ink); text-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.dv-title .kicker,.dv-tabs small) { color:var(--L-acc); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.dv-title .sub,.dv-hero p,.fine,.dv-note,.dv-listbar .muted,.sum-title small,.sum-stat span,.off-contact p,.dv-section > h3 .hint,.dv-hero) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover .dv-hero .hero-icon { background:var(--L-panel-2); color:var(--L-acc); border-color:var(--L-line); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.card,.artist-card,.choice,.want-now,.dv-summary) { background:var(--L-panel); background-image:none; border-color:var(--L-line); box-shadow:0 2px 0 var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.dv-table,.album,.imp-list).card { background:none; box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover .dv-artist.card { background:var(--L-panel-2); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover .dv-head { background:var(--L-panel-2); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.dv-tabs button) { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover .dv-tabs button[aria-selected='true'] { color:var(--L-ink); border-bottom-color:var(--L-acc); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .search .online-tag { background:var(--L-panel-2); color:var(--L-ink-2); border-color:var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .search.online .online-tag { background:var(--L-panel-2); color:var(--L-ink-2); border-color:var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app #discover :is(.own,.foot .own,.ok) { color:#0f6f3a; }
+/* small things on the banner keep their dark plates, so their writing stays light */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .identity-options { color:#f3e3bb; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='gigposter']) #app .opera-sticker { color:#f6ead0; border-color:#f6ead0; }
+/* Progress: the tab strip and its band */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #page-progress .pg-head { background:linear-gradient(180deg,var(--L-bg) 75%,transparent); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-tab { background:var(--L-panel); border-color:var(--L-line); color:var(--L-ink-2); text-shadow:none; box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-tab[aria-selected='true'] { background:var(--L-pick); border-color:var(--L-pick); color:var(--L-pick-ink); box-shadow:none; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-headxp { color:var(--L-ink-2); } html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .pg-headxp b { color:var(--L-ink); }
+/* the orange number tags on picked things need dark ink */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.tk-card.on .tk-n,.ts-key.here b,.slot.on .num,.slot.on .sl-top .num) { color:#1a1208 !important; }
+/* Backstage */
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-neon.page-title, html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-neon.page-title span { color:#f9c1dd; }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-section .gr-label { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-count { background:var(--L-panel-2); color:var(--L-ink); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-toggle { color:var(--L-ink-2); border-color:var(--L-line); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-toggle[aria-pressed='true'] { color:var(--L-pick-ink); background:var(--L-pick); border-color:var(--L-pick); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-by { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app :is(.gr-who b) { color:var(--L-ink); } html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-who span { color:var(--L-ink-2); }
+html[data-look='opera']:is([data-skin='tweed'],[data-skin='daylight'],[data-skin='gigposter']) #app .gr-card { background:var(--L-panel); border-color:var(--L-line); box-shadow:0 2px 0 var(--L-line); }
 
 /* ---------------------------------------------------------- tweed */
 /* TWEED: the light tan weave of a vintage amp, dark brown tolex round it, gold piping, oxblood */
