@@ -1,0 +1,29 @@
+/* ARCADE: an eighties arcade cabinet. Midnight blue, chunky pixel-step edges, bright arcade-button colours, a starfield */
+html[data-look='opera'] { --rr-bone:#ffffff; --rr-bone-2:#d6dcff; --rr-bone-3:#a7b0ef; --rr-line:#3b4bb0; --rr-card:#18225c; }
+html[data-look='opera'] #app { --house:#0f1640; --deck:#141c4f; --deck-2:#18225c; --riser:#1f2b70; --riser-2:#1f2b70; --card:#18225c; --card-line:#3b4bb0; --well:#0a0f2e; --ink:#ffffff; --ink-2:#d6dcff; --ink-3:#a7b0ef; --rule:#3b4bb0; --rule-soft:#1f2b70; background:#0f1640; color:#ffffff; }
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#141c4f; border-color:#3b4bb0; box-shadow:none; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#0a0f2e; border-color:#3b4bb0; box-shadow:none; }
+html[data-look='opera'] #app .tk-keys { background:#3b4bb0; }
+html[data-look='opera'] #app .row .go { color:#d6dcff; }
+html[data-look='opera'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { transform:none; background:#ffffff10; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#0a0f2e; background:#3cff7a; border-color:#3cff7a; text-shadow:none; }
+html[data-look='opera'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#0a0f2e !important; }
+html[data-look='opera'] #app .row.sel { background:#3cff7a22; box-shadow:inset 4px 0 #3cff7a; }
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(circle,#ffffff66 0 1px,transparent 1.5px) 0 0/97px 89px,radial-gradient(circle,#ffffff33 0 1px,transparent 1.5px) 40px 30px/61px 53px,linear-gradient(180deg,#141c4f,#0f1640); }
+html[data-look='opera'] #app :is(.titlebar,.nowbar,.sidebar) { background:#0a0f2e; }
+html[data-look='opera'] #app .titlebar { box-shadow:0 4px 0 #ff2d55; } html[data-look='opera'] #app .nowbar { box-shadow:0 -4px 0 #ff2d55; }
+html[data-look='opera'] #app .sidebar { box-shadow:inset -4px 0 0 #3b4bb0; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#18225c; background-image:none; border:0; border-radius:0; box-shadow:0 -4px 0 #3b4bb0,0 4px 0 #3b4bb0,-4px 0 0 #3b4bb0,4px 0 0 #3b4bb0; }
+html[data-look='opera'] #app :is(.btn,.gseg,.seg,.search,.input) { border-radius:0; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#fff; background:#ff2d55; border:0; box-shadow:0 -3px 0 #ff2d55,0 3px 0 #9e0f2c,-3px 0 0 #ff2d55,3px 0 0 #ff2d55,0 6px 0 #0008; text-shadow:2px 2px 0 #9e0f2c; text-transform:uppercase; }
+html[data-look='opera'] #app .btn.soft { color:#fff; background:#2a3a9a; border:0; box-shadow:0 3px 0 #141c4f; }
+html[data-look='opera'] #app .nav-section { color:#d6dcff; background:transparent; border-radius:0; text-transform:uppercase; letter-spacing:.12em; font-stretch:62%; }
+html[data-look='opera'] #app .nav-section:nth-child(4n+1) svg { color:#ff2d55; } html[data-look='opera'] #app .nav-section:nth-child(4n+2) svg { color:#ffd400; }
+html[data-look='opera'] #app .nav-section:nth-child(4n+3) svg { color:#3cff7a; } html[data-look='opera'] #app .nav-section:nth-child(4n) svg { color:#33c7ff; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#0a0f2e; background:#ffd400; box-shadow:0 -3px 0 #ffd400,0 3px 0 #b89900,-3px 0 0 #ffd400,3px 0 0 #ffd400; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::before { content:'▶'; margin-right:4px; color:#0a0f2e; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#0a0f2e !important; }
+html[data-look='opera'] #app .identity-banner { background:linear-gradient(90deg,#ff2d55 0 25%,#ffd400 25% 50%,#3cff7a 50% 75%,#33c7ff 75%) 0 100%/100% 6px no-repeat,radial-gradient(circle,#ffffff88 0 1px,transparent 1.5px) 0 0/53px 47px,linear-gradient(180deg,#1f2b70,#0f1640); }

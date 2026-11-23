@@ -1,0 +1,31 @@
+/* GREEN SCREEN: an old computer terminal. Black glass, glowing green writing, faint scan lines, everything in outlines */
+html[data-look='opera'] { --rr-bone:#b6ffc8; --rr-bone-2:#86e8a0; --rr-bone-3:#5fbf7a; --rr-line:#2f7a45; --rr-card:#0d1c11; }
+html[data-look='opera'] #app { --house:#07100a; --deck:#0a160d; --deck-2:#0d1c11; --riser:#112416; --riser-2:#112416; --card:#0d1c11; --card-line:#2f7a45; --well:#050b07; --ink:#b6ffc8; --ink-2:#86e8a0; --ink-3:#5fbf7a; --rule:#2f7a45; --rule-soft:#112416; background:#07100a; color:#b6ffc8; }
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#0a160d; border-color:#2f7a45; box-shadow:none; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#050b07; border-color:#2f7a45; box-shadow:none; }
+html[data-look='opera'] #app .tk-keys { background:#2f7a45; }
+html[data-look='opera'] #app .row .go { color:#86e8a0; }
+html[data-look='opera'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { transform:none; background:#ffffff10; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#04110a; background:#6dff95; border-color:#6dff95; text-shadow:none; }
+html[data-look='opera'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#04110a !important; }
+html[data-look='opera'] #app .row.sel { background:#6dff9522; box-shadow:inset 4px 0 #6dff95; }
+html[data-look='opera'] #app { text-shadow:0 0 6px #6dff9544; }
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover,.sidebar,.titlebar,.nowbar) { background:repeating-linear-gradient(180deg,#00000000 0 2px,#00000040 2px 3px),radial-gradient(90% 80% at 50% 40%,#0f2a17,#07100a); }
+html[data-look='opera'] #app .sidebar { box-shadow:inset -1px 0 0 #2f7a45; } html[data-look='opera'] #app .titlebar { box-shadow:0 1px 0 #2f7a45; } html[data-look='opera'] #app .nowbar { box-shadow:0 -1px 0 #2f7a45; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#07100acc; background-image:none; border:1px solid #2f7a45; border-radius:0; box-shadow:none; }
+html[data-look='opera'] #app :is(.btn,.gseg,.seg,.search,.input) { border-radius:0; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#04110a; background:#6dff95; border:0; box-shadow:0 0 12px #6dff9577; text-shadow:none; }
+html[data-look='opera'] #app .btn.soft { color:#b6ffc8; background:transparent; border:1px solid #2f7a45; }
+html[data-look='opera'] #app .nav-section { color:#86e8a0; background:transparent; border-radius:0; font-family:ui-monospace,'Cascadia Mono',Consolas,monospace; letter-spacing:.04em; }
+html[data-look='opera'] #app .nav-section::before { content:'  '; white-space:pre; }
+html[data-look='opera'] #app .nav-section svg { color:#5fbf7a; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#04110a; background:#6dff95; text-shadow:none; box-shadow:0 0 14px #6dff9566; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::before { content:'> '; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#04110a; }
+html[data-look='opera'] #app .identity-banner { background:repeating-linear-gradient(180deg,#00000000 0 2px,#00000050 2px 3px),radial-gradient(80% 120% at 50% 50%,#13361d,#07100a); box-shadow:inset 0 -1px 0 #6dff95; }
+html[data-look='opera'] #app .nav-section { font-size:12px; letter-spacing:0; }
+html[data-look='opera'] #app .nav-section::before { content:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::before { content:'>'; margin-right:2px; }
