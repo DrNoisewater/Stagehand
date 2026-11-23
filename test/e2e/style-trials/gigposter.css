@@ -1,0 +1,19 @@
+/* @use _light  GIG POSTER: screen-printed. Off-white paper, thick black lines, hard shadows, red, teal and mustard ink */
+html[data-look='opera'] #app {
+  --L-bg:#efe9dc; --L-bg-img:radial-gradient(#00000014 1px,transparent 1.4px) 0 0/7px 7px;
+  --L-panel:#fffcf3; --L-panel-2:#f2ead6; --L-line:#141414; --L-ink:#141414; --L-ink-2:#3b3b3b; --L-ink-3:#666;
+  --L-frame:#f2c230; --L-frame-ink:#141414; --L-frame-ink-2:#4a3b0a; --L-edge:#141414;
+  --L-acc:#e63b2e; --L-acc-ink:#fff; --L-pick:#138a8a; --L-pick-ink:#fff; --L-r:2px;
+}
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.sr-card,.gb-strip-wrap) { border-width:2.5px; box-shadow:5px 5px 0 #141414; }
+html[data-look='opera'] #app :is(.btn.soft,.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.jam-chip) { border:2.5px solid #141414; box-shadow:3px 3px 0 #141414; }
+html[data-look='opera'] #app .row { border-bottom:1.5px solid #14141433; }
+html[data-look='opera'] #app .nav-section { clip-path:none; border-radius:2px; color:#141414; background:#fffcf3; border:2.5px solid #141414; box-shadow:3px 3px 0 #141414; font-size:15px; }
+html[data-look='opera'] #app .nav-section svg { color:#141414; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { background:#fff; transform:translate(-1px,-1px); box-shadow:4px 4px 0 #141414; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#fff; background:#e63b2e; transform:rotate(-1.5deg); box-shadow:4px 4px 0 #141414; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#fff; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { background:#f2c230; box-shadow:0 0 0 2px #141414; }
+html[data-look='opera'] #app .nav-item[aria-current='true'] { background:#14141418; border-left-color:#e63b2e; }
+html[data-look='opera'] #app .identity-banner { background:radial-gradient(#00000030 1.2px,transparent 1.6px) 0 0/8px 8px,linear-gradient(100deg,#138a8a 0 62%,#e63b2e 62% 64%,#138a8a 64%); box-shadow:inset 0 -4px 0 #141414; }
+html[data-look='opera'] #app .titlebar { box-shadow:0 3px 0 #141414; } html[data-look='opera'] #app .sidebar { box-shadow:3px 0 0 #141414; } html[data-look='opera'] #app .nowbar { box-shadow:0 -3px 0 #141414; }

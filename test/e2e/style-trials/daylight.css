@@ -1,0 +1,20 @@
+/* @use _light  STUDIO DAYLIGHT: a bright studio track sheet. White paper, black ink, a strip of coloured console tape for each part */
+html[data-look='opera'] #app {
+  --L-bg:#f3f1ec; --L-bg-img:linear-gradient(#0000000a 1px,transparent 1px) 0 0/100% 28px;
+  --L-panel:#ffffff; --L-panel-2:#ebe8e1; --L-line:#d3cec3; --L-ink:#1b1c20; --L-ink-2:#4a4c54; --L-ink-3:#7c7e86;
+  --L-frame:#fbfaf7; --L-frame-ink:#1b1c20; --L-frame-ink-2:#6b6d75; --L-edge:#e1ddd3;
+  --L-acc:#e2412d; --L-acc-ink:#fff; --L-pick:#1b1c20; --L-pick-ink:#fff; --L-r:6px;
+}
+#app .nav-section { --tape:#ffd34d; }
+#app .nav-section[data-page='songs'] { --tape:#ffd34d; } #app .nav-section[data-page='play'] { --tape:#ff7a59; }
+#app .nav-section[data-page='tones'] { --tape:#b9a3ff; } #app .nav-section[data-page='gear'] { --tape:#ffab4d; }
+#app .nav-section[data-page='progress'] { --tape:#8fdc6c; } #app .nav-section[data-page='discover'] { --tape:#6fd3f0; }
+#app .nav-section[data-page='greenroom'] { --tape:#ff8fbf; } #app .nav-section[data-page='karaoke'] { --tape:#ff8fbf; }
+html[data-look='opera'] #app .nav-section { color:#1b1c20; background:color-mix(in srgb,var(--tape) 38%,#fff); box-shadow:none; transform:none; font-family:var(--rr-mono); letter-spacing:.04em; }
+html[data-look='opera'] #app .nav-section svg { color:#1b1c20; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { background:color-mix(in srgb,var(--tape) 65%,#fff); color:#000; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#000; background:var(--tape); transform:rotate(-1.2deg) translateX(4px); box-shadow:2px 3px 0 #0002; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#000; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { background:#e2412d; box-shadow:0 0 6px #e2412d88; }
+html[data-look='opera'] #app .identity-banner { background:linear-gradient(90deg,#0000000d 1px,transparent 1px) 0 0/48px 100%,linear-gradient(#0000000d 1px,transparent 1px) 0 0/100% 24px,#e9e6de; box-shadow:inset 0 -2px 0 #d3cec3; }
+html[data-look='opera'] #app .opera-sticker { background:#fff; color:#1b1c20; border-color:#1b1c20; box-shadow:0 0 0 3px #fff,0 3px 6px #0003; }

@@ -1,0 +1,13 @@
+/* @use _light  TWEED: the light tan weave of a vintage amp, dark brown tolex round it, gold piping, oxblood */
+html[data-look='opera'] #app {
+  --L-bg:#e4d1a8; --L-bg-img:repeating-linear-gradient(45deg,#7a5a2a14 0 2px,transparent 2px 5px),repeating-linear-gradient(-45deg,#ffffff26 0 2px,transparent 2px 5px);
+  --L-panel:#f5ead0; --L-panel-2:#ead9b2; --L-line:#c2a46c; --L-ink:#2a1b0f; --L-ink-2:#57402a; --L-ink-3:#80684c;
+  --L-frame:linear-gradient(180deg,#3d2a1b,#2c1d12); --L-frame-ink:#f3e3bb; --L-frame-ink-2:#cdb27a; --L-edge:#c49a3a;
+  --L-acc:#9a2b1e; --L-acc-ink:#fff2dc; --L-pick:#3d2a1b; --L-pick-ink:#f6e3b0; --L-r:4px;
+}
+html[data-look='opera'] #app .nav-section { clip-path:none; border-radius:4px; color:#f0dfb6; background:linear-gradient(180deg,#5a3f28,#47311f); box-shadow:inset 0 1px 0 #ffffff1c,0 2px 0 #0007; }
+html[data-look='opera'] #app .nav-section svg { color:#d9b86a; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { background:linear-gradient(180deg,#6b4c33,#563c27); color:#fff; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#2a1b0f; transform:translateX(3px); background:repeating-linear-gradient(45deg,#7a5a2a1c 0 2px,transparent 2px 5px),linear-gradient(180deg,#f1dfae,#dcc187); box-shadow:inset 0 0 0 2px #c49a3a,0 2px 0 #0007; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#7a2a1c; }
+html[data-look='opera'] #app .identity-banner { background:radial-gradient(70% 90% at 50% 50%,transparent 50%,#0000003a 100%),repeating-linear-gradient(45deg,#00000018 0 2px,transparent 2px 5px),linear-gradient(180deg,#8e3024,#6c2117); box-shadow:inset 0 -4px 0 #c49a3a; }

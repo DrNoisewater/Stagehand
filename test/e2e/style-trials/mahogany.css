@@ -1,0 +1,25 @@
+/* MAHOGANY: the brown room you liked, with the lights turned up. Rich mid-brown wood, bright cream writing, gold */
+html[data-look='opera'] { --rr-bone:#fbf1dc; --rr-bone-2:#ead9b8; --rr-bone-3:#c7ad85; --rr-cream:#f0c46a; --rr-brass:#d9a441; --rr-brass-dim:#d9a44177; --rr-line:#6e4d37; --rr-card:#4a3122; }
+html[data-look='opera'] #app {
+  --house:#3a271b; --deck:#432d20; --deck-2:#4a3122; --riser:#563a28; --riser-2:#624330; --card:#4a3122; --card-line:#6e4d37; --well:#2e1f15;
+  --ink:#fbf1dc; --ink-2:#ead9b8; --ink-3:#c7ad85; --rule:#6e4d37; --rule-soft:#553a29;
+  background:linear-gradient(180deg,#3d291d,#33231a); color:#fbf1dc; font-size:13.5px;
+}
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(80% 50% at 25% 0%,#f0c46a1c,transparent 70%),repeating-linear-gradient(92deg,#ffffff05 0 3px,transparent 3px 11px,#00000010 11px 13px,transparent 13px 29px),linear-gradient(180deg,#43301f,#382619); }
+html[data-look='opera'] #app :is(.titlebar,.nowbar) { background:linear-gradient(180deg,#2f2016,#281b12); box-shadow:0 1px 0 #d9a44166,0 6px 14px #0006; }
+html[data-look='opera'] #app .sidebar { background:linear-gradient(180deg,#2f2016,#261910); box-shadow:inset -2px 0 0 #d9a44155; }
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector) { background:#3d291d; border-color:#6e4d37; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block) { background:linear-gradient(180deg,#523727,#46301f); border:1px solid #7a5640; box-shadow:0 3px 0 #0005; }
+html[data-look='opera'] #app .nav-section { color:#f3e2bd; background:var(--rr-cloth),linear-gradient(180deg,#5a3e2b,#4a3222); }
+html[data-look='opera'] #app .nav-section svg { color:#e0bf7d; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { background:var(--rr-grain),linear-gradient(180deg,#f6e4b5,#e2c98d); color:#2a1a0e; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#2b1d14; border-color:#7a5640; }
+html[data-look='opera'] #app .row:hover { background:#ffffff0d; } html[data-look='opera'] #app .row .go { color:#ead9b8; }
+html[data-look='opera'] #app .identity-banner { background:radial-gradient(38% 120% at 14% -10%,#ffd9a040,transparent 70%),radial-gradient(70% 90% at 50% 50%,transparent 40%,#00000080 100%),repeating-linear-gradient(92deg,#ffffff06 0 3px,transparent 3px 11px,#00000018 11px 13px,transparent 13px 29px),linear-gradient(180deg,#5a3b27,#3f2a1c); }
+html[data-look='opera'] #app :is(.tones-list,.tk-card,.ts-key,.ts-what) { background:#3d291d; border-color:#6e4d37; }
+html[data-look='opera'] #app .tk-keys { background:#6e4d37; }
+html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#2a1a0e; background:linear-gradient(180deg,#f6e4b5,#e2c98d); border-color:#f0c46a; box-shadow:none; }
+html[data-look='opera'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind) { color:#2a1a0e !important; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'] { color:#2a1a0e; background:linear-gradient(180deg,#f6e4b5,#e2c98d); }
+html[data-look='opera'] #app .btn.soft { color:#fbf1dc; background:linear-gradient(180deg,#5e4130,#4c3424); border-color:#8a654b; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#2a1a0e; background:linear-gradient(180deg,#f6cf72,#e0ab45); border:1px solid #f0c46a; text-shadow:none; }
