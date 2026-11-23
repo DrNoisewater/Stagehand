@@ -26,6 +26,12 @@ class El {
     this.children.push(...c);
   }
   before() {}
+  after(...c) {
+    const p = this._parent;
+    if (!p) return;
+    for (const x of c) if (x && typeof x === 'object') x._parent = p;
+    p.children.splice(p.children.indexOf(this) + 1, 0, ...c);
+  }
   remove() {}
   setAttribute(k, v) {
     this.attrs[k] = v;
@@ -90,9 +96,10 @@ const reset = () => {
   cards = 0;
   toasts = [];
 };
+const textOf = (el) => (el && typeof el === 'object' ? (el.textContent || '') + (el.children || []).map(textOf).join('') : typeof el === 'string' ? el : '');
 const findButton = (el, re) => {
   if (!el || typeof el !== 'object') return null;
-  if (el.tag === 'button' && re.test(el.textContent)) return el;
+  if (el.tag === 'button' && re.test(textOf(el))) return el;
   for (const c of el.children || []) {
     const f = findButton(c, re);
     if (f) return f;

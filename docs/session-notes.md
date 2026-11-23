@@ -11,4 +11,4 @@ Helpers, each in its own worktree, merged here after checking:
 - Shutdown checker (Sonnet): read-only report on quitting and the engine at start.
 - Highway designer (Opus): test/visuals/highway-2035/ mockups; videos in the scratchpad, not committed.
 
-Status: in progress.
+Status: all five merged here (plus Shutdown fixer, Sonnet). Full npm test run at the end; drop.test.mjs needed its stand-in page to know `after()` and button words in pieces. Waiting on the user: try on the PC, pick a highway look.
