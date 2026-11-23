@@ -86,7 +86,8 @@ const operaMoods = new Proxy({}, { get: (_t, k) => {
   const [kicker, text] = pickFor('line:' + k, operaLines[k]);
   return [names[k], kicker, text];
 } });
-const opera = () => prefs.look !== 'roadshow';
+// 4.28: one look for the whole app (Warm Club on the Rehearsal Room). Roadshow is gone; an old saved choice is ignored.
+const opera = () => true;
 const moodsNow = () => (opera() ? operaMoods : roadshowMoods);
 const moods = new Proxy({}, { get: (_t, k) => moodsNow()[k] });
 const banner = document.getElementById('identity-banner');
@@ -278,9 +279,6 @@ export function appearancePane(el) {
     input.onchange = () => { prefs[key] = input.checked; save(); };
     el.append(h('label.identity-setting', null, input, h('span', null, h('b',{text:name}), h('small',{text:desc}))));
   };
-  const look = h('input', { type:'checkbox', checked: opera() });
-  look.onchange = () => { prefs.look = look.checked ? 'opera' : 'roadshow'; save(); const p = shown; shown = null; if (p) show(); };
-  el.append(h('label.identity-setting', null, look, h('span', null, h('b',{text:'Rehearsal Room look'}), h('small',{text:'Torn flyers, gaffer tape, worn gear and bad jokes. A new picture every visit. Turn it off for the Roadshow look.'}))));
   const rotate = h('input', {type:'checkbox', checked:prefs.rotateMenus !== false});
   rotate.onchange = () => { prefs.rotateMenus = rotate.checked; save(); };
   el.append(h('label.identity-setting', null, rotate, h('span', null, h('b',{text:'Fresh artwork on menu visits'}), h('small',{text:'Shuffle illustrations without immediate repeats. Pinned artwork stays put.'}))));

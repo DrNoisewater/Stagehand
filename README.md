@@ -184,6 +184,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.28.0:** One look for the whole app: a warm club with a neon sign for each part in the menu. The open part's sign lights up and its colour glows over the page. The Roadshow look is gone.
 - **4.27.1:** Clicking a song once plays its preview again (it had gone silent), and no longer starts splitting the stems. Double-click a song to open it and split it.
 - **4.27.0:** Updates are much smaller: Setup is now a few MB and downloads only pictures that are new or changed (the first install downloads them once). The song finder's animations take less room too, and look the same.
 - **4.26.1:** While a song waits for its stems, a new animated card shows the split (on the highway and everywhere else), with its percentage, the time left and Play now with the full mix; the little sticker in its corner is gone.

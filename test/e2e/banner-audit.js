@@ -3,7 +3,7 @@
  *  BANNER_LOOKS=roadshow,opera  BANNER_SIZES=1920x1080,1280x800  BANNER_PAGES=play,songs,...  */
 const path = require('path');
 module.exports = async ({ page, outDir, check }) => {
-  const looks = (process.env.BANNER_LOOKS || 'roadshow,opera').split(',');
+  const looks = (process.env.BANNER_LOOKS || 'opera').split(',');
   const sizes = (process.env.BANNER_SIZES || '1920x1080,1600x950,1280x800,1024x768').split(',').map(s => s.split('x').map(Number));
   const pages = (process.env.BANNER_PAGES || 'play,songs,discover,progress,tones,greenroom').split(',');
   const shots = new Set((process.env.BANNER_SHOTS || '1920x1080,1280x800').split(','));
@@ -78,7 +78,7 @@ module.exports = async ({ page, outDir, check }) => {
   await page.evaluate(() => { const k = 'stagehand.appearance.v1'; const p = JSON.parse(localStorage.getItem(k) || '{}'); p.reduced = true; localStorage.setItem(k, JSON.stringify(p)); });
   await page.reload(); await page.waitForTimeout(2500); await closeModals(); await go('play');
   check(!(await measure()).art, 'less decoration hides the picture');
-  await page.evaluate(() => { const k = 'stagehand.appearance.v1'; const p = JSON.parse(localStorage.getItem(k) || '{}'); p.reduced = false; p.look = 'roadshow'; localStorage.setItem(k, JSON.stringify(p)); });
+  await page.evaluate(() => { const k = 'stagehand.appearance.v1'; const p = JSON.parse(localStorage.getItem(k) || '{}'); p.reduced = false; p.look = 'opera'; localStorage.setItem(k, JSON.stringify(p)); });
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.reload(); await page.waitForTimeout(2500); await closeModals(); await go('songs');
   check(await page.evaluate(() => getComputedStyle(document.querySelector('.identity-art')).animationName === 'none'), 'reduced motion: the picture does not animate');
   await page.emulateMedia({ reducedMotion: 'no-preference' });

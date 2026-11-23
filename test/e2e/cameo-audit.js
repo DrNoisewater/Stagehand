@@ -89,7 +89,7 @@ module.exports = async ({ page, outDir, check }) => {
   await closeModals(); await page.keyboard.press('Escape'); await page.waitForTimeout(400); await closeModals();
 
   // Roadshow look keeps its own banner (no tape, no flyer marks)
-  await look('roadshow');
+  await look('opera');
   await go('songs'); await go('play');
   await shot('roadshow-play', { x: 0, y: 0, width: 1600, height: 260 });
   check(await page.evaluate(() => getComputedStyle(document.querySelector('.opera-tape')).display === 'none'), 'roadshow: no Rehearsal Room tape');
