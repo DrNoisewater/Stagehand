@@ -26,6 +26,7 @@ const MODELS = {
 const EXT = { wav: 'wav', flac: 'flac', opus192: 'opus', opus128: 'opus', opus256: 'opus' };
 
 const IS_WIN = process.platform === 'win32';
+const { killTree } = require('./proctree');
 // songs split ahead because you picked them in the list: at most this many waiting
 const AHEAD_MAX = 3;
 
@@ -49,27 +50,6 @@ function folderName(song, key) {
     .replace(/[. ]+$/, '');
   if (/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(n)) n = `_${n}`;
   return `${n || 'Song'} [${key.slice(0, 8)}]`;
-}
-
-/** Ends a process and everything it started (on Windows, a venv python.exe is a launcher). */
-function killTree(child) {
-  if (!child || child.exitCode !== null || child.killedTree) return;
-  child.killedTree = true;
-  try {
-  } catch (_) {}
-  if (IS_WIN && child.pid) {
-    // the whole tree first: once the launcher is gone, its child can't be found from it
-    let k;
-    try {
-      k = spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
-    } catch (_) {}
-    if (k) {
-      k.on('error', () => child.kill());
-      k.on('exit', () => child.kill());
-      return;
-    }
-  }
-  child.kill();
 }
 
 class StemService extends EventEmitter {

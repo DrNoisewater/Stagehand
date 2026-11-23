@@ -8,6 +8,7 @@ const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
 const { spawn } = require('child_process');
+const { track } = require('./proctree');
 const { EventEmitter, once } = require('events');
 const { unzip } = require('../core/files');
 const gpu = require('../core/gpu');
@@ -48,7 +49,7 @@ function which(cmd) {
 
 function run(cmd, args, { env, cwd, onLine, signal, timeoutMs } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { cwd, env: { ...process.env, ...env }, windowsHide: true });
+    const child = track(spawn(cmd, args, { cwd, env: { ...process.env, ...env }, windowsHide: true }));
     let tail = '';
     const feed = (chunk) => {
       const text = chunk.toString();
