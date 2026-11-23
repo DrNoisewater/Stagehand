@@ -95,6 +95,9 @@ export const THEMES = [
   ['recordshop', 'Record Shop', 'Chocolate shelves and old album-cover stripes: mustard, orange, rust.', ['#36210f', '#e9b437', '#e8742a', '#b8432a']],
   ['bluenote', 'Blue Note', 'A jazz record sleeve: slate blue, cream writing, orange buttons.', ['#26384d', '#2f4560', '#f6f0e3', '#f59a2c']],
   ['club', 'Warm Club', 'Red brick and neon signs: each part of the menu lights up in its own colour.', ['#1a1414', '#ffb547', '#9a7bff', '#2fd3ee']],
+  ['tweed', 'Tweed', 'Light: the tan weave of a vintage amp in dark brown tolex, gold and oxblood.', ['#e4d1a8', '#3d2a1b', '#c49a3a', '#9a2b1e']],
+  ['daylight', 'Studio Daylight', 'Lightest: a white track sheet, black writing, coloured tape on the menu.', ['#f3f1ec', '#1b1c20', '#e2412d', '#ffd34d']],
+  ['gigposter', 'Gig Poster', 'Light and loud: a screen-printed poster, thick black lines, mustard, teal and red.', ['#efe9dc', '#f2c230', '#138a8a', '#e63b2e']],
 ];
 export const themeNow = () => (THEMES.some(([id]) => id === prefs.theme) ? prefs.theme : 'brown');
 const moodsNow = () => (opera() ? operaMoods : roadshowMoods);
