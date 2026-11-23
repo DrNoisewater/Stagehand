@@ -37,6 +37,11 @@ const srv = http.createServer((req, res) => {
       await page.reload();
       await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     }
+    // SKIN=<theme>: the song screen in that Appearance theme (its bars and menus; the notes keep their look)
+    if (process.env.SKIN) {
+      await page.evaluate((k) => { document.documentElement.dataset.look = 'opera'; document.documentElement.dataset.skin = k; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/themes-stage.css'; document.head.append(l); }, process.env.SKIN);
+      await page.waitForTimeout(400);
+    }
     // software rendering here is slow: keep the glow on for stills (the app turns it off on slow PCs)
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
     if (process.env.PLAYCAL) {

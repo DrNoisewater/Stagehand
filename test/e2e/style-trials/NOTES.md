@@ -30,3 +30,9 @@ The user asked to add all of them to Appearance, with a small example of each, w
 - The picker: four short rows (Warm rooms, Colour, Light, Something different) of 96 px tiles, each a tiny drawing of the app (menu, banner, card, button) in that look's colours. The words for the look under the pointer show once below.
 - Theme checker (Sonnet) fixed the first eight across Discover, Progress, Backstage and more. The 14 new ones have only been checked on Songs, Jam, Tones and Gear.
 - Still open: which look is the main one (default Brown); checking the 14 new ones on the other pages.
+
+## The song screen too (2026-11-23)
+The user asked: every screen takes the theme, the highway's menus and bars too; the 3D note area stays as is.
+- `src/renderer/css/themes-stage.css`: each theme sets nine colours (--t-bar, --t-bar-2, --t-line, --t-ink(-2,-3), --t-acc(-hi,-ink)); one set of rules recolours the top bar, chips, section strip, Sound & settings drawer, score card, timing check, loading box, pop-ups (Tools menu, speed, tone) and windows over the song. Brown keeps stagechrome.css as it was.
+- Pictures: `SKIN=<theme> MASTER=1 VW=1440 VH=900 PLAYWRIGHT=playwright node test/hwlook/shoot.js <out> T:3` (SKIN is new in shoot.js).
+- Not yet looked at: Sing along and Piano on the highway (they have their own looks), the karaoke screen.
