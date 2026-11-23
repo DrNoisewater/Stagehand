@@ -1,0 +1,26 @@
+/* CHALKBOARD: a teacher's board in a music room. Green-black slate, chalk-white writing, coloured chalk for each part, a wooden frame */
+html[data-look='opera'] { --rr-bone:#f3f1e8; --rr-bone-2:#d8dccf; --rr-bone-3:#aab4a8; --rr-line:#5a6e64; --rr-card:#2b3d35; }
+html[data-look='opera'] #app { --house:#22302a; --deck:#26362f; --deck-2:#2b3d35; --riser:#334840; --riser-2:#334840; --card:#2b3d35; --card-line:#5a6e64; --well:#1b2622; --ink:#f3f1e8; --ink-2:#d8dccf; --ink-3:#aab4a8; --rule:#5a6e64; --rule-soft:#334840; background:#22302a; color:#f3f1e8; }
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#26362f; border-color:#5a6e64; box-shadow:none; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#1b2622; border-color:#5a6e64; box-shadow:none; }
+html[data-look='opera'] #app .tk-keys { background:#5a6e64; }
+html[data-look='opera'] #app .row .go { color:#d8dccf; }
+html[data-look='opera'] #app .nav-section { clip-path:none; transform:none; box-shadow:none; }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover) { background:radial-gradient(40% 30% at 30% 20%,#ffffff0d,transparent 70%),radial-gradient(35% 25% at 75% 70%,#ffffff0a,transparent 70%),linear-gradient(180deg,#26362f,#1f2c26); }
+html[data-look='opera'] #app :is(.titlebar,.nowbar,.sidebar) { background:repeating-linear-gradient(90deg,#00000014 0 2px,transparent 2px 9px),linear-gradient(180deg,#8a5a34,#6e4526); }
+html[data-look='opera'] #app :is(.titlebar,.nowbar,.sidebar) :is(*) { --ink:#fff6e4; }
+html[data-look='opera'] #app .sidebar { background:repeating-linear-gradient(0deg,#00000014 0 2px,transparent 2px 9px),linear-gradient(90deg,#7a4d2c,#64401f); }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:transparent; background-image:none; border:2px solid #f3f1e8aa; border-radius:12px 4px 14px 5px; box-shadow:none; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#22302a; background:#ffe27a; border:0; border-radius:4px; box-shadow:0 2px 0 #0005; text-shadow:none; }
+html[data-look='opera'] #app .btn.soft { color:#f3f1e8; background:transparent; border:2px solid #f3f1e8aa; }
+html[data-look='opera'] #app .nav-section { border-radius:6px; color:#fff6e4; background:#00000026; }
+html[data-look='opera'] #app .nav-section svg { color:#ffe27a; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { color:#22302a; background:#22302a; color:#f3f1e8; box-shadow:inset 0 0 0 2px #f3f1e8bb; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#ffe27a; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#22302a; background:#f3f1e8; border-color:#f3f1e8; box-shadow:none; }
+html[data-look='opera'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#22302a !important; }
+html[data-look='opera'] #app .row.sel { background:#ffe27a1f; box-shadow:inset 4px 0 #ffe27a; }
+html[data-look='opera'] #app .identity-banner { background:radial-gradient(50% 60% at 70% 40%,#ffffff12,transparent 70%),linear-gradient(180deg,#2b3d35,#22302a); box-shadow:inset 0 -8px 0 #7a4d2c; }

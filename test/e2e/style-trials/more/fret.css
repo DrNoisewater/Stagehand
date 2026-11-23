@@ -1,0 +1,43 @@
+/* FRET LIGHTS: a deep indigo stage, each part of the app gets a string colour like the note highway, bright white writing */
+html[data-look='opera'] { --rr-bone:#f3f4ff; --rr-bone-2:#c9cdef; --rr-bone-3:#9aa0cf; --rr-cream:#ffd23f; --rr-pilot:#ffd23f; --rr-pilot-glow:#ffd23f88; --rr-brass:#ffd23f; --rr-brass-dim:#ffd23f66; --rr-line:#3a4170; --rr-card:#1f2341; }
+html[data-look='opera'] #app {
+  --house:#14162b; --deck:#191c36; --deck-2:#1f2341; --riser:#282d52; --riser-2:#282d52; --card:#1f2341; --card-line:#3a4170; --well:#0e1022;
+  --ink:#f3f4ff; --ink-2:#c9cdef; --ink-3:#9aa0cf; --rule:#3a4170; --rule-soft:#282d52;
+  background:#14162b; color:#f3f4ff;
+}
+html[data-look='opera'] #app :is(.lib-head,.tones-head,.table-head,.tones-cols,.inspector,.tones-list) { background:#191c36; border-color:#3a4170; box-shadow:none; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { background:#1f2341; background-image:none; border:1px solid #3a4170; box-shadow:0 3px 0 #0005; }
+html[data-look='opera'] #app .tk-keys { background:#3a4170; }
+html[data-look='opera'] #app :is(.gseg,.seg,.input,select,input[type='text'],.search) { background:#0e1022; border-color:#3a4170; box-shadow:none; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { color:#14162b; background:#ffd23f; border:1px solid #ffd23f; box-shadow:0 3px 0 #0006; text-shadow:none; }
+html[data-look='opera'] #app .btn.soft { color:#f3f4ff; background:#282d52; border-color:#3a4170; }
+html[data-look='opera'] #app :is(.gseg,.seg) button[aria-pressed='true'], html[data-look='opera'] #app :is(.tk-card.on,.ts-key.here,.sr-shelf[aria-pressed='true'],.pg-tab[aria-selected='true'],.slot.on) { color:#14162b; background:#f3f4ff; border-color:#f3f4ff; box-shadow:none; text-shadow:none; }
+html[data-look='opera'] #app :is(.tk-card.on *,.ts-key.here *,.sr-shelf[aria-pressed='true'] *,.slot.on .name,.slot.on .kind,.slot.on .num) { color:#14162b !important; }
+html[data-look='opera'] #app .row.sel { background:#ffd23f22; box-shadow:inset 4px 0 #ffd23f; }
+html[data-look='opera'] #app .row:hover { background:#ffffff0d; } html[data-look='opera'] #app .row .go { color:#c9cdef; }
+html[data-look='opera'] #app .nav-section svg { color:#ffd23f; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#14162b; }
+html[data-look='opera'] #app .nav-item[aria-current='true'] { border-left-color:#ffd23f; }
+html[data-look='opera'] #app { --lane:#ffd23f; }
+html[data-look='opera'] #app[data-mood='songs'] { --lane:#ff3b4f; } html[data-look='opera'] #app[data-mood='play'] { --lane:#ffd23f; }
+html[data-look='opera'] #app[data-mood='tones'] { --lane:#3aa8ff; } html[data-look='opera'] #app[data-mood='gear'] { --lane:#ff8f1f; }
+html[data-look='opera'] #app[data-mood='progress'] { --lane:#3ddc6a; } html[data-look='opera'] #app[data-mood='discover'] { --lane:#b46bff; }
+html[data-look='opera'] #app[data-mood='greenroom'] { --lane:#ff5fc8; }
+html[data-look='opera'] #app .nav-section { --s:#ffd23f; clip-path:none; transform:none; border-radius:6px; color:#c9cdef; background:transparent; box-shadow:inset 4px 0 0 color-mix(in srgb,var(--s) 55%,transparent); }
+html[data-look='opera'] #app .nav-section[data-page='songs'] { --s:#ff3b4f; } html[data-look='opera'] #app .nav-section[data-page='play'] { --s:#ffd23f; }
+html[data-look='opera'] #app .nav-section[data-page='tones'] { --s:#3aa8ff; } html[data-look='opera'] #app .nav-section[data-page='gear'] { --s:#ff8f1f; }
+html[data-look='opera'] #app .nav-section[data-page='progress'] { --s:#3ddc6a; } html[data-look='opera'] #app .nav-section[data-page='discover'] { --s:#b46bff; }
+html[data-look='opera'] #app .nav-section[data-page='greenroom'] { --s:#ff5fc8; }
+html[data-look='opera'] #app .nav-section svg { color:var(--s); }
+html[data-look='opera'] #app .nav-section:hover:not([aria-current='page']) { background:#ffffff0c; color:#fff; transform:none; }
+html[data-look='opera'] #app .nav-section[aria-current='page'] { transform:none; color:#14162b; background:var(--s); box-shadow:0 0 16px color-mix(in srgb,var(--s) 60%,transparent); }
+html[data-look='opera'] #app .nav-section[aria-current='page'] svg { color:#14162b; }
+html[data-look='opera'] #app .nav-section[aria-current='page']::after { display:none; }
+html[data-look='opera'] #app :is(.page,.library,.discover,#discover) { background:repeating-linear-gradient(90deg,transparent 0 119px,#ffffff08 119px 121px),radial-gradient(60% 40% at 50% 0%,color-mix(in srgb,var(--lane) 16%,transparent),transparent 70%),linear-gradient(180deg,#191c36,#111329); }
+html[data-look='opera'] #app :is(.titlebar,.nowbar) { background:#0e1022; box-shadow:0 2px 0 var(--lane); }
+html[data-look='opera'] #app .nowbar { box-shadow:0 -2px 0 var(--lane); }
+html[data-look='opera'] #app .sidebar { background:#0e1022; box-shadow:inset -1px 0 0 #3a4170; }
+html[data-look='opera'] #app :is(.card,.dis-card,.gr-card,.goal-card,.slot,.block,.tk-card,.ts-key,.ts-what) { border-radius:8px; }
+html[data-look='opera'] #app :is(.btn.primary,.btn.glow-primary,.jam-open.glow-primary,.te-demo) { background:var(--lane); border-color:var(--lane); color:#14162b; box-shadow:0 0 14px color-mix(in srgb,var(--lane) 50%,transparent); }
+html[data-look='opera'] #app .row.sel { background:color-mix(in srgb,var(--lane) 14%,transparent); box-shadow:inset 4px 0 var(--lane); }
+html[data-look='opera'] #app .identity-banner { background:linear-gradient(180deg,transparent 0 30%,#ff3b4f55 30% 31%,transparent 31% 42%,#ffd23f55 42% 43%,transparent 43% 54%,#3aa8ff55 54% 55%,transparent 55% 66%,#ff8f1f55 66% 67%,transparent 67% 78%,#3ddc6a55 78% 79%,transparent 79%),linear-gradient(180deg,#232859,#14162b); box-shadow:inset 0 -2px 0 var(--lane); }

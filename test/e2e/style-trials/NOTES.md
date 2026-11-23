@@ -17,3 +17,8 @@ the risky ones: many pages (Discover, Backstage, Progress, Settings, dialogs, Ka
 TRIAL_PROBE=1 and fix what it lists before shipping one.
 
 Status: waiting for the user's pick.
+
+## More looks (2026-11-23)
+The user said: keep all eight shown so far as choices (being built into Settings › Appearance), and show more varied ones, some completely different.
+Nine more trials in `more/`: Sunburst, Surf Green, Purple Haze, Fret Lights, Desert Road (new colours), and Blueprint, Chalkboard, Mixing Desk, Cassette (completely different). Pictures shown on a page; waiting for the user to say which to add and which should be the main look.
+Pictures: `TRIAL_DIR=test/e2e/style-trials/more TRIALS=sunburst,... SH_AUDIT=test/e2e/style-trials/trial-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <out>`.
