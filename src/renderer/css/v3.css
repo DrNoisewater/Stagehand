@@ -772,6 +772,13 @@ body:has(> .highway:not([hidden])) .stem-wait { display: none; }
 .hw-opts { position: absolute; top: 62px; right: 16px; z-index: 260; width: 360px; padding: 12px; border-radius: 14px; background: rgba(18, 22, 34, 0.96); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55); display: grid; gap: 10px; backdrop-filter: blur(10px); }
 .hw-opt-row { display: grid; gap: 5px; }
 .hw-opt-label { font: 700 11px var(--font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+/* 4.29: the venue list folds away under one line: Venue, the one in use, an arrow */
+.hw-venue-head { display:flex; align-items:center; gap:8px; width:100%; padding:7px 8px; border:1px solid var(--sc-line, #ffffff22); border-radius:3px; background:color-mix(in srgb, var(--sc-ink, #fff) 5%, transparent); color:var(--sc-ink, var(--ink)); font:inherit; text-align:left; cursor:pointer; }
+.hw-venue-head:hover { border-color:var(--sc-gold, var(--tungsten)); }
+.hw-venue-head b { flex:1; font-weight:800; font-size:12.5px; }
+.hw-venue-head .hw-opt-label { margin:0; }
+.hw-venue-caret { font-size:12px; color:var(--sc-ink-3, var(--ink-3)); }
+.hw-venue-fold .hw-venues { margin-top:8px; }
 .hw-seg { display: flex; gap: 3px; padding: 3px; border-radius: 9px; background: rgba(255, 255, 255, 0.05); }
 .hw-seg button { flex: 1; height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--ink-2); font: 600 12px var(--font); cursor: pointer; white-space: nowrap; }
 .hw-seg button:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }

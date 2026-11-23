@@ -166,25 +166,10 @@ function hero(st) {
   return h('section.card.pg-hero', { 'aria-label': 'Your level' }, medal, who, nextGig(st));
 }
 
-function nextGig(st) {
-  const v = st.next;
+function nextGig() {
+  // 4.29: every venue is open from the start, so there is no next gig to wait for
   const box = h('div.pg-nextgig');
-  if (!v) {
-    box.append(h('div.pg-eyebrow', { text: 'Every venue is yours' }), venuePic({ venue: 'valhalla' }, false), h('b', { text: 'Valhalla' }), h('small', { text: 'You’ve played your way to the top.' }));
-    return box;
-  }
-  const lx = st.levelXp || [];
-  const prev = (st.venues || []).filter((x) => x.level <= st.level).map((x) => x.level).pop() || 1;
-  const from = lx[Math.min(prev, st.level)] || st.from;
-  const to = lx[v.level] || st.to;
-  const left = Math.max(0, to - st.xp);
-  const pctTo = to > from ? Math.max(0, Math.min(1, (st.xp - from) / (to - from))) : 0;
-  box.append(
-    h('div.pg-eyebrow', { text: 'Next gig' }),
-    h('div.pg-gigrow', null, venuePic(v, true), h('div', null, h('b', { text: v.name }), h('small', { text: `Opens at level ${v.level}${v.milestone ? ' · milestone' : ''}` }))),
-    h('div.pg-gigbar', null, h('i', { style: { width: `${Math.round(pctTo * 100)}%` } })),
-    h('small.pg-gigleft', { text: `${n(left)} XP to go` }));
-  box.title = 'Preview it in the highway’s venue list (locked venues show a preview)';
+  box.append(h('div.pg-eyebrow', { text: 'Every venue is open' }), venuePic({ venue: 'valhalla' }, false), h('b', { text: 'Play anywhere' }), h('small', { text: 'Pick a venue in a song’s Sound & settings.' }));
   return box;
 }
 
@@ -327,7 +312,7 @@ function career(body, st) {
     ['Tunings', n(l.tunings), 'different tunings'],
     ['Challenges done', n(st ? st.challengesDone : 0), 'daily and weekly'],
     ['Total XP', n(st ? st.xp : 0), st && st.legacyLevel ? `was level ${st.legacyLevel} before the Road to 100` : 'on the Road to 100'],
-    ['Venues unlocked', st ? `${st.unlocked.length} / ${st.venues.length}` : '–', 'on the highway'],
+    ['Venues', st ? n(st.venues.length) : '–', 'all open on the highway'],
     ['First played', fmtDate(l.firstAt), l.firstAt ? `${n(Math.round((Date.now() - l.firstAt) / 864e5))} days ago` : ''],
   ];
   const grid = h('div.pg-statgrid');
