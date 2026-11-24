@@ -12,8 +12,7 @@
  *
  * 4.30.1: a click is never silent without saying why. A clip that fails to load or decode is asked
  * for once more; a song whose own clip can't be read plays a slice of the song instead (the app
- * does that); when nothing can play, the bar says so in a few words. The clips of the songs around
- * the one clicked are made ready in the background, so the next click starts at once.
+ * does that); when nothing can play, the bar says so in a few words.
  */
 import { state, on } from './store.js';
 import { api } from './api.js';
@@ -96,19 +95,6 @@ function whyNot(err) {
   return 'It couldn’t be loaded. Click the song again to try once more.';
 }
 
-let warmTimer = 0;
-/** 4.30.1: get the clips of these songs ready in the background (the songs around the one clicked). */
-export function warmPreviews(ids) {
-  if (!enabled() || !ids || !ids.length) return;
-  clearTimeout(warmTimer);
-  warmTimer = setTimeout(() => {
-    try {
-      const p = api.audio.warmPreviews && api.audio.warmPreviews(ids);
-      if (p && p.catch) p.catch(() => {});
-    } catch (_) {}
-  }, 400);
-}
-
 /** Tell the player's sound engine a preview is on (or off), so the rig can check it reaches the speakers. */
 function markEngine(until) {
   try {
@@ -186,8 +172,8 @@ function soundFor(ctx, url) {
   return p;
 }
 
-/** Play a short clip of a song (call it when a song is clicked). `near`: the songs around it, to get ready. */
-export async function previewSong(id, { near = null } = {}) {
+/** Play a short clip of a song (call it when a song is clicked). */
+export async function previewSong(id) {
   if (!enabled()) return;
   if (cur && cur.id === id && !cur.ended) return; // already playing this one
   const mine = ++token;
@@ -274,8 +260,6 @@ export async function previewSong(id, { near = null } = {}) {
   showBar(song, false);
   // a safety net: the bar goes even if the sound's own end never arrives (a closed engine)
   c.timer = setTimeout(() => end(c, true), (length + 1) * 1000);
-  // the songs around this one: their clips made ready while this one plays
-  if (near && near.length) warmPreviews(near);
 }
 
 // the player starting (or already playing) ends the preview; so does leaving Songs or picking another song.

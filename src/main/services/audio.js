@@ -111,9 +111,9 @@ class AudioService {
    * Returns { url, duration, start, length, from: 'preview' | 'song' }. Throws when nothing can play,
    * with a plain reason; code PREVIEW_SKIPPED when another song was clicked while this one waited.
    */
-  async preparePreview(song, { warm = false } = {}) {
+  async preparePreview(song) {
     if (!song) return null;
-    if (!warm) this._pvWant = song.id;
+    this._pvWant = song.id;
     let failed = null;
     const entry = song.previewEntry || (await this._lookForPreview(song));
     if (entry) {
@@ -124,10 +124,9 @@ class AudioService {
       } catch (err) {
         if (err.code === 'NEED_VGMSTREAM') throw err;
         failed = err;
-        if (!warm) this.log(`Preview clip of ${song.title || song.songKey} didn't decode (${err.message}); using a slice of the song`);
+        this.log(`Preview clip of ${song.title || song.songKey} didn't decode (${err.message}); using a slice of the song`);
       }
     }
-    if (warm) return null; // warming up never decodes a whole song
     if (!(song.audioKey && fs.existsSync(this.wavPath(song.audioKey)))) {
       // one whole-song decode at a time: quick clicks across songs without a clip don't pile up
       while (this._pvFull) await this._pvFull.catch(() => {});
@@ -217,24 +216,6 @@ class AudioService {
     this.foundPreviews.set(k, entry);
     while (this.foundPreviews.size > 500) this.foundPreviews.delete(this.foundPreviews.keys().next().value);
     return entry;
-  }
-
-  /**
-   * 4.30.1: get the clips of the songs around the one clicked ready on disk, one after another,
-   * so the next click (or the first click after starting) plays at once. Only songs with a clip
-   * of their own; it waits while anything else is being decoded.
-   */
-  async warmPreviews(songs) {
-    const n = (this._warmGen = (this._warmGen || 0) + 1);
-    for (const song of songs) {
-      if (this._warmGen !== n) return; // a newer list came
-      if (!song || song.audioFrom) continue;
-      while (this.pending.size || this._pvFull) await new Promise((r) => setTimeout(r, 150));
-      if (this._warmGen !== n) return;
-      try {
-        await this.preparePreview(song, { warm: true });
-      } catch (_) {}
-    }
   }
 
   /** Copies `secs` of a decoded song (from 30% in) into its own small WAV. */

@@ -959,12 +959,6 @@ function registerIpc() {
     const song = requireSong(songId);
     return withFileRead(song.path, () => audio.preparePreview(song));
   });
-  // 4.30.1: the clips of the songs around the one clicked, made ready in the background
-  handle('audio:warmPreviews', (ids) => {
-    const list = (Array.isArray(ids) ? ids : []).slice(0, 8).map((id) => library.get(id)).filter(Boolean);
-    audio.warmPreviews(list).catch(() => {});
-    return true;
-  });
 
   handle('tab:list', (songId) => tabs.list(requireSong(songId)));
   handle('tab:vocals', (songId) => {

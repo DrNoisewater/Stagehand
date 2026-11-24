@@ -224,19 +224,6 @@ const manifest = (key, attrs) => Buffer.from(JSON.stringify({ Entries: { [key + 
     ok('no decoder: the reason is given, not silence');
   }
 
-  {
-    // songs around the one clicked get their clips ready in the background
-    const a = new AudioService({ cacheDir: path.join(dir, 'cache3'), tools: { vgmstreamPath: () => decoder }, library, settings: { get: () => ({ cache: {} }) } });
-    fs.writeFileSync(decodes, '');
-    await a.warmPreviews([songs.get('plain'), songs.get('clipless'), songs.get('old')]);
-    assert.deepStrictEqual(decoded().map((l) => l.split(' ')[0]), ['PREV', 'PREVU']);
-    fs.writeFileSync(decodes, '');
-    const c = await a.preparePreview(songs.get('old'));
-    assert.strictEqual(c.from, 'preview');
-    assert.deepStrictEqual(decoded(), []);
-    ok('the clips of the songs around are made ready (never a whole song), so the next click decodes nothing');
-  }
-
   fs.rmSync(dir, { recursive: true, force: true });
   console.log('preview: all passed');
 })().catch((e) => {

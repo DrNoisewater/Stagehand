@@ -90,7 +90,6 @@ contextBridge.exposeInMainWorld('stagehand', {
   audio: {
     prepare: (songId) => call('audio:prepare', songId),
     preview: (songId) => call('audio:preview', songId),
-    warmPreviews: (ids) => call('audio:warmPreviews', ids),
   },
   rig: {
     available: () => call('rig:available'),
