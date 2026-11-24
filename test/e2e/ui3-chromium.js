@@ -429,8 +429,10 @@ class FakePortMain extends EventEmitter {
     if (m && cur) shape[cur].push(m[1]);
     if (/^  \},?\s*$/.test(line)) cur = null;
   }
-  await page.addInitScript(([fakeIn, shape]) => {
+  await page.addInitScript(([fakeIn, shape, hwTheme]) => {
     localStorage.setItem('stagehand.fluidDye','256');
+    // HWTHEME=studio (or another look): the whole visit with that highway look
+    if (hwTheme && !localStorage.getItem('stagehand.hwlook.v1')) localStorage.setItem('stagehand.hwlook.v1', JSON.stringify({ theme: hwTheme }));
     window.__shFakeAudio = { fakeIn };
     let seq = 0;
     const local = new Map();
@@ -466,7 +468,7 @@ class FakePortMain extends EventEmitter {
     for (const name of Object.keys(shape)) api[name] = ns(name);
     api.rig = rig;
     window.stagehand = api;
-  }, [guitarWav, shape]);
+  }, [guitarWav, shape, process.env.HWTHEME || '']);
 
   await page.goto(`${base}/src/renderer/index.html`);
   await page.waitForTimeout(3500);

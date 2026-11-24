@@ -13,6 +13,7 @@ const { Settings } = require('./services/settings');
 const { Library, norm } = require('./services/library');
 const { Dupes, findDuplicates } = require('./services/dupes');
 const { Tools } = require('./services/tools');
+const { killTracked } = require('./services/proctree');
 const { AudioService } = require('./services/audio');
 const { ClipSessions } = require('./services/clip-sessions');
 const { AudioFinder } = require('./services/audiofind');
@@ -54,7 +55,8 @@ if (process.env.STAGEHAND_HOME) {
   app.setPath('userData', path.join(process.env.STAGEHAND_HOME, 'electron'));
 }
 
-if (!app.requestSingleInstanceLock()) {
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
   app.quit();
 }
 
@@ -561,6 +563,7 @@ function registerIpc() {
     e.sender.postMessage('rig:port', { kind: k }, [port2]);
   });
   handle('rig:available', () => rigAudio.available());
+  handle('rig:restartEngine', () => rigAudio.restartEngine());
 
   // Your tones, every tone in your songs, practice stats and takes (Stagehand 3).
   handle('tones:get', () => toneStore.get());
@@ -1294,6 +1297,7 @@ if (FLICKER_FIX === 'layers') {
 } else if (FLICKER_FIX === 'basic') app.disableHardwareAcceleration();
 
 app.whenReady().then(async () => {
+  if (!gotLock) return; // a second copy never starts the sound engine (it would end the first one's)
   if (IS_WIN) app.setAppUserModelId('app.stagehand.desktop');
   Menu.setApplicationMenu(null);
   D = makeDirs();
@@ -1498,15 +1502,24 @@ app.on('before-quit', async (e) => {
   if (flushed) return;
   e.preventDefault();
   flushed = true;
+  // If saving or cleaning up hangs, the app still ends (saves that finish normally are done well before).
+  const hard = setTimeout(() => {
+    try {
+      killTracked();
+    } catch (_) {}
+    app.exit(0);
+  }, 5000);
   try {
     library.close();
-    if (rigAudio) rigAudio.quit();
+    const helperGone = rigAudio ? rigAudio.quit() : null;
     if (companion) companion.stop().catch(() => {});
     importer.stop();
     discover.cancelGaps();
     stems.stopAll();
-    await Promise.all([room ? room.close() : null, library.save(), settings.save(), discover.save(), importer.save(), toneStore.flush(), stats.flush(), toneIndex ? toneIndex.flush() : null]);
+    killTracked();
+    await Promise.all([helperGone, room ? room.close() : null, library.save(), settings.save(), discover.save(), importer.save(), toneStore.flush(), stats.flush(), toneIndex ? toneIndex.flush() : null]);
   } catch (_) {}
+  clearTimeout(hard);
   app.quit();
 });
 

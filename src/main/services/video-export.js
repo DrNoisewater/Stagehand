@@ -2,11 +2,12 @@
 const fs=require('fs').promises;
 const path=require('path');
 const {spawn}=require('child_process');
+const {track}=require('./proctree');
 const {gunzipSync}=require('zlib');
 const {createHash}=require('crypto');
 const URL='https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-win32-x64.gz';
 let preparing;
-function run(exe,args){return new Promise((resolve,reject)=>{const p=spawn(exe,args,{windowsHide:true});/* 4.18: saving a clip waits its turn behind the app and the sound */try{if(p.pid)require('os').setPriority(p.pid,require('os').constants.priority.PRIORITY_BELOW_NORMAL);}catch{}let tail='';p.stdout.resume();p.stderr.on('data',d=>tail=(tail+d).slice(-2500));p.on('error',reject);p.on('close',code=>code===0?resolve():reject(Error('MP4 encoder failed: '+tail)));});}
+function run(exe,args){return new Promise((resolve,reject)=>{const p=track(spawn(exe,args,{windowsHide:true}));/* 4.18: saving a clip waits its turn behind the app and the sound */try{if(p.pid)require('os').setPriority(p.pid,require('os').constants.priority.PRIORITY_BELOW_NORMAL);}catch{}let tail='';p.stdout.resume();p.stderr.on('data',d=>tail=(tail+d).slice(-2500));p.on('error',reject);p.on('close',code=>code===0?resolve():reject(Error('MP4 encoder failed: '+tail)));});}
 async function ensureEncoder(tools){
  if(process.platform!=='win32')return 'ffmpeg';
  const exe=path.join(tools.toolsDir,'video','ffmpeg-6.1.1.exe');
@@ -31,7 +32,7 @@ async function exportMp4(exe,input,output,audio){
 /** 4.1.2: how loud the saved video's sound is, so a silent video is never a surprise.
  *  → { hasSound, peakDb } (peakDb -91 means digital silence; null when unreadable). */
 function soundLevel(exe,file){return new Promise(resolve=>{
- const p=spawn(exe,['-hide_banner','-nostats','-i',file,'-map','0:a:0?','-af','volumedetect','-f','null','-'],{windowsHide:true});
+ const p=track(spawn(exe,['-hide_banner','-nostats','-i',file,'-map','0:a:0?','-af','volumedetect','-f','null','-'],{windowsHide:true}));
  let err='';p.stdout.resume();p.stderr.on('data',d=>err=(err+d).slice(-20000));
  p.on('error',()=>resolve({hasSound:false,peakDb:null}));
  p.on('close',()=>{const m=/max_volume:\s*(-?[\d.]+|-inf) dB/.exec(err);const hasStream=/Stream #\d+:\d+[^\n]*Audio:/.test(err);

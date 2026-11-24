@@ -130,20 +130,28 @@ function show({ tab, song, kind, plan, key, songName, myName, what, sc, engine }
   };
   const foot = [btnSkip];
   if (plan.drop) {
-    const btnDrop = h('button.btn', { type: 'button', text: `Use the Drop (−${plan.drop})`, title: `Stagehand lowers your ${what} ${plan.drop} semitone${plan.drop === 1 ? '' : 's'}: no retuning` });
+    // the Drop is the easy way: a big button first, the retune below it as the other way
+    const n = plan.drop;
+    const btnDrop = h('button.btn.primary.tcheck-dropbtn', { type: 'button', title: `Stagehand lowers your ${what} ${n} semitone${n === 1 ? '' : 's'}: no retuning` },
+      h('span.tcheck-dropgo', { text: '↓' }), h('span', { text: `Use the Drop (−${n})` }));
     btnDrop.onclick = () => {
       rig.setDrop({ on: true, match: true });
       if (always.checked) setDropAlways(true);
       m.close();
-      toast({ title: `Drop −${plan.drop} for ${songName}`, message: `Your ${what} stays in ${myName}.`, kind: 'info', timeout: 2500 });
+      toast({ title: `Drop −${n} for ${songName}`, message: `Your ${what} stays in ${myName}.`, kind: 'info', timeout: 2500 });
     };
     const always = h('input', { type: 'checkbox' });
-    body.append(h('label.tcheck-always', null, always, h('span', { text: 'Always use the Drop when a song is the same tuning, just lower' })));
-    foot.push(btnDrop);
+    const offer = h('div.tcheck-offer', null,
+      btnDrop,
+      h('p.tcheck-offer-why', { text: `No retuning: Stagehand lowers your sound ${n} semitone${n === 1 ? '' : 's'}.` }),
+      h('label.tcheck-always', null, always, h('span', { text: 'Always use the Drop when a song is the same tuning, just lower' })));
+    intro.after(offer);
+    offer.after(h('p.tcheck-or', { text: 'Or retune your strings by hand:' }));
+    btnDone.classList.remove('primary');
   }
   foot.push(btnDone);
 
-  const m = modal({ title: `Retune for ${song ? song.title : 'this song'}?`, body, footer: foot, onClose: () => {
+  const m = modal({ title: plan.drop ? `Ready for ${song ? song.title : 'this song'}: use the Drop or retune` : `Retune for ${song ? song.title : 'this song'}?`, body, footer: foot, onClose: () => {
     cancelAnimationFrame(raf);
     clearTimeout(finishTimer);
     open = null;

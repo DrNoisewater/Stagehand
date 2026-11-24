@@ -4,9 +4,13 @@
  * so every preview was silent; the Chromium checks use a pretend app and could not see it.
  *  - one click on a song plays its preview: the sound reaches the player's output, the bar shows;
  *  - another song replaces it.
- * Linux has no Rocksmith audio decoder, so a stand-in one writes a 330 Hz tone.
+ * 4.29.1 (previews that sometimes didn't play, or stuttered):
+ *  - quick clicks across songs: the last one clicked plays, alone, without a gap;
+ *  - the app tidied its sound files away (a full cache): a song clicked before still plays.
+ * Linux has no Rocksmith audio decoder, so a stand-in one writes a 330 Hz tone (it takes a moment, like a real one).
  *
  *   ELECTRON=<electron 44> xvfb-run -a node test/e2e/preview-electron.js <outDir>
+ *   PREVIEW_SONGS=<folder of .psarc files> uses those songs instead of the test ones (three or more).
  */
 const path = require('path'), fs = require('fs'), os = require('os');
 const { _electron } = require(process.env.PLAYWRIGHT || 'playwright');
@@ -18,7 +22,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 
 // the stand-in decoder: 6 s of a 330 Hz tone, written where it is asked to
 const FAKE = `#!/usr/bin/env node
-const fs=require('fs');const a=process.argv;const o=a[a.indexOf('-o')+1];
+const fs=require('fs');const a=process.argv;const w=Date.now()+300;while(Date.now()<w);const o=a[a.indexOf('-o')+1];
 const sr=48000,n=sr*6,b=Buffer.alloc(44+n*4);
 b.write('RIFF',0);b.writeUInt32LE(36+n*4,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(2,22);
 b.writeUInt32LE(sr,24);b.writeUInt32LE(sr*4,28);b.writeUInt16LE(4,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(n*4,40);
@@ -33,7 +37,9 @@ fs.writeFileSync(o,b);
   fs.mkdirSync(bin);
   fs.mkdirSync(songs);
   fs.writeFileSync(path.join(bin, 'vgmstream-cli'), FAKE, { mode: 0o755 });
-  for (const f of ['integration_p', 'legacy_p']) fs.copyFileSync(path.join(ROOT, 'test', 'fixtures', `${f}.psarc`), path.join(songs, `${f}.psarc`));
+  const from = process.env.PREVIEW_SONGS;
+  if (from) for (const f of fs.readdirSync(from).filter((f) => f.endsWith('.psarc'))) fs.symlinkSync(path.join(from, f), path.join(songs, f));
+  else for (const f of ['integration_p', 'legacy_p']) fs.copyFileSync(path.join(ROOT, 'test', 'fixtures', `${f}.psarc`), path.join(songs, `${f}.psarc`));
   const app = await _electron.launch({ executablePath: process.env.ELECTRON, args: ['--no-sandbox', ROOT], env: { ...process.env, STAGEHAND_HOME: home, PATH: `${bin}:${process.env.PATH}` } });
   const page = await app.firstWindow();
   const errs = [];
@@ -46,31 +52,52 @@ fs.writeFileSync(o,b);
   for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); }
   await page.evaluate(() => document.querySelectorAll('#overlays .gs').forEach((e) => e.remove())); // Getting started
   await page.evaluate(async () => {
-    window.__plays = [];
-    const orig = HTMLMediaElement.prototype.play;
-    HTMLMediaElement.prototype.play = function () {
-      const src = this.src;
-      return orig.call(this).then(() => window.__plays.push(`ok ${src}`), (e) => { window.__plays.push(`failed ${src}: ${e.message}`); throw e; });
-    };
+    const pv = await import('./js/preview.js');
+    window.__pv = () => pv.previewState();
     // listen to the player's extra sound bus, where the preview goes
     const { engine } = await import('./js/stage.js');
     const { ctx, node } = await engine.extraOut();
     window.__an = ctx.createAnalyser();
     node.connect(window.__an);
     window.__peak = () => { const d = new Float32Array(2048); window.__an.getFloatTimeDomainData(d); let p = 0; for (const v of d) p = Math.max(p, Math.abs(v)); return p; };
+    // the quietest moment over a stretch of time (a gap or stutter shows as a dip)
+    window.__lowest = (ms) => new Promise((done) => { let low = 9; const t0 = performance.now(); const step = () => { low = Math.min(low, window.__peak()); if (performance.now() - t0 < ms) setTimeout(step, 20); else done(low); }; step(); });
   });
   const rows = page.locator('.row .tt-text');
+  const n = await rows.count();
+  const idOf = (i) => rows.nth(i).evaluate((e) => e.closest('[data-id]').dataset.id);
   await rows.nth(0).click();
   await page.waitForTimeout(2500);
-  let r = await page.evaluate(() => ({ peak: window.__peak(), bar: (() => { const b = document.querySelector('.pv-bar'); return b && !b.hidden ? b.textContent : null; })(), plays: window.__plays }));
-  check(r.plays.length === 1 && /^ok stagehand:\/\/audio\/pv/.test(r.plays[0]), `the song's own preview clip loads and plays (${r.plays.join('; ')})`);
+  let r = await page.evaluate(() => ({ peak: window.__peak(), bar: (() => { const b = document.querySelector('.pv-bar'); return b && !b.hidden ? b.textContent : null; })(), pv: window.__pv() }));
+  check(r.pv.plays === 1 && /^stagehand:\/\/audio\/pv/.test(r.pv.url || ''), `the song's own preview clip loads and plays (${JSON.stringify(r.pv)})`);
   check(r.peak > 0.05, `its sound reaches the player's output (peak ${r.peak.toFixed(3)})`);
   check(r.bar && /Preview/.test(r.bar), `the Preview bar shows (${r.bar})`);
   await page.screenshot({ path: path.join(out, 'preview-real.png') });
   await rows.nth(1).click();
   await page.waitForTimeout(2500);
-  r = await page.evaluate(() => ({ peak: window.__peak(), plays: window.__plays }));
-  check(r.plays.length === 2 && /^ok /.test(r.plays[1]) && r.peak > 0.05, `another song's preview replaces it (${r.plays[1]}, peak ${r.peak.toFixed(3)})`);
+  r = await page.evaluate(() => ({ peak: window.__peak(), pv: window.__pv() }));
+  check(r.pv.plays === 2 && r.pv.playing && r.peak > 0.05, `another song's preview replaces it (${JSON.stringify(r.pv)}, peak ${r.peak.toFixed(3)})`);
+
+  // quick clicks across songs, some not heard before: the last one plays, steadily
+  const order = n >= 3 ? [2, 0, 1, 2, 0, 1] : [1, 0, 1, 0];
+  for (const i of order) { await rows.nth(i).click(); await page.waitForTimeout(90); }
+  const last = await idOf(order[order.length - 1]);
+  await page.waitForTimeout(1500);
+  r = await page.evaluate(async () => ({ pv: window.__pv(), low: await window.__lowest(1500) }));
+  check(r.pv.playing === last, `after quick clicks the last song clicked plays (${r.pv.playing} vs ${last})`);
+  check(r.low > 0.05, `it plays without gaps (quietest ${r.low.toFixed(3)})`);
+
+  // the app tidies its sound files away (a full cache): a song heard before still plays
+  const audioDir = path.join(home, 'local', 'Cache', 'audio');
+  for (const f of fs.readdirSync(audioDir)) if (/^pv.*\.wav$/.test(f)) fs.unlinkSync(path.join(audioDir, f));
+  const other = order[order.length - 1] === 0 ? 1 : 0;
+  await page.evaluate(() => [...document.querySelectorAll('.pv-stop')].forEach((b) => b.click()));
+  await page.waitForTimeout(300);
+  await rows.nth(other).click();
+  await page.waitForTimeout(2500);
+  const want = await idOf(other);
+  r = await page.evaluate(() => ({ peak: window.__peak(), pv: window.__pv() }));
+  check(r.pv.playing === want && r.peak > 0.05, `a song heard before plays after its clip was tidied away (${JSON.stringify(r.pv)}, peak ${r.peak.toFixed(3)})`);
   check(!errs.length, `no errors on the page (${errs.join('; ')})`);
   await app.close();
   fs.rmSync(home, { recursive: true, force: true });

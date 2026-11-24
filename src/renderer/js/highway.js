@@ -23,6 +23,8 @@ import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShift } from './detect.js';
 import { createRenderer3D, col, mix, mixHex, rodShades } from './highway3d.js';
+import { loadLooks, onLooks, resolveLook, budgetDrop } from './hwlooks.js';
+import { lookSection } from './hwlooks-pane.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { tuningGuide, checkTuning } from './tuning-check.js';
@@ -164,6 +166,14 @@ export function createHighway(stage) {
   const mixPanel = h('div.hw-mix');
   const dock = h('div.hw-dock', null, mixPanel);
   let mixOpen = !!prefs.mixOpen;
+  // 4.29: every change to the mix or the guitar (each stem as it loads, a song tone) rebuilt the top
+  // bar, the section strip and the whole open Settings panel (a blink). Now each piece is only redone
+  // when what it shows changed.
+  const shown = new Map();
+  const changed = (k, v) => (shown.get(k) === v ? false : (shown.set(k, v), true));
+  function setHtml(el, k, html) {
+    if (changed(k, html)) el.innerHTML = html;
+  }
   const score = h('div.hw-score');
   // the score sits up top (as in the game), leaving the fret numbers under the neck clear
   // switch straight to the Tab or Waveform view of the same song (Back goes to your songs)
@@ -337,6 +347,36 @@ export function createHighway(stage) {
   const R3 = createRenderer3D(glCanvas);
   H.r3 = R3; // tests
 
+  // 4.30: the highway's look (theme) and graphics settings (hwlooks.js). A look changes colours and
+  // light only; where anything is drawn never depends on it.
+  let looks = loadLooks();
+  let lookBudget = 3; // Auto: 3 = every effect; stepped down on a slow PC before the picture gets less sharp
+  let LK = resolveLook(looks, { budget: lookBudget });
+  let P = LK.pal; // the floor and stage colours in use
+  let lookWant = true; // a new look waits for the start of the next frame (like a new sharpness)
+  function refreshLook() {
+    LK = resolveLook(looks, { budget: lookBudget, seeThrough: !!H.seeThrough });
+    P = LK.pal;
+    lookWant = true;
+    canDrop = budgetDrop(looks, lookBudget) >= 0;
+    H.look = LK; // tests
+    if (perfRef) {
+      // a fixed sharpness from the graphics settings, or back to Auto's own
+      const ratio = Math.min(window.devicePixelRatio || 1, 2, 1.5);
+      if (LK.res !== 'auto') perfRef.want = Math.min(LK.res, 2 / ratio), perfRef.ratio = ratio;
+      else if (R3 && R3.scale !== 1 && perfRef.manual) perfRef.want = 1, perfRef.ratio = ratio;
+      perfRef.manual = LK.res !== 'auto';
+    }
+  }
+  let perfRef = null;
+  let canDrop = false; // the look has effects Auto can still turn off
+  onLooks((st) => {
+    looks = st;
+    lookBudget = 3;
+    refreshLook();
+  });
+  H.lookBudget = () => lookBudget; // tests
+
   let lastInteraction = performance.now();
   const wakeControls = () => { lastInteraction = performance.now(); root.classList.remove('hw-quiet'); };
   // anywhere in the window counts (menus sit outside the highway): the top bar never fades under your mouse
@@ -440,6 +480,7 @@ export function createHighway(stage) {
     opts.innerHTML = '';
     opts.append(
       h('div.hw-master-sec', { text: 'Highway' }),
+      lookSection({ compact: true, open: prefs.lookOpen === true, onFold: (v) => setPref('lookOpen', v) }),
       venuePicker(),
       h('div.hw-opt-toggles', null,
         toggle('Practice without a score', !prefs.detect, () => setPref('detect', !prefs.detect)),
@@ -448,7 +489,6 @@ export function createHighway(stage) {
         toggle('Fire on a streak', prefs.fx, () => setPref('fx', !prefs.fx)),
         toggle('Hit burst', prefs.hitBurst !== false, () => setPref('hitBurst', prefs.hitBurst === false)),
         toggle('String sway', prefs.stringSway !== false, () => setPref('stringSway', prefs.stringSway === false)),
-        toggle('Reflections', prefs.reflections !== false, () => setPref('reflections', prefs.reflections === false)),
         toggle('Offer help when notes aren’t counting', !prefs.struggleOff, () => setPref('struggleOff', !prefs.struggleOff)),
         toggle('Frame rate', !!prefs.showFps, () => setPref('showFps', !prefs.showFps))
       )
@@ -1135,6 +1175,8 @@ export function createHighway(stage) {
     if (!mixOpen) return;
     // Don't rebuild under a volume slider that's being dragged.
     if (document.activeElement && document.activeElement.classList.contains('stem-vol') && mixPanel.contains(document.activeElement)) return;
+    shown.set('mix', mixKey());
+    const scroll = mixPanel.scrollTop; // stay where you had scrolled to
     mixPanel.innerHTML = '';
     mixMeters.clear();
     mixPanel.append(h('div.hw-master-title', null, h('b', { text: 'Sound & settings' })), syncButton());
@@ -1143,6 +1185,17 @@ export function createHighway(stage) {
     renderTunerSec();
     renderDropBox();
     renderOpts();
+    mixPanel.scrollTop = scroll;
+  }
+  /** What Sound & settings shows that can change from outside it (the mix, your guitar, the split, the song). */
+  function mixKey() {
+    const kind = instrument();
+    const tracks = stage.stems().map((n) => {
+      const x = stage.engine.tracks[stage.trackIndex(n)] || {};
+      return [n, !!x.muted, !!x.solo, x.volume];
+    });
+    const st = splitNow();
+    return JSON.stringify([tracks, stage.engine.mode, rig.on, rig.muted, rig.knobs.volume, stage.songLevel(), st.state === 'queued' || st.state === 'running' ? st.state : 'none', kind, H.tab && H.tab.id, myTuning(kind), myCents(kind), prefs.offsetMs || 0, !!stage.requestStems]);
   }
   // 4.12: the split's progress in Sound & settings moves as the split goes (it was written
   // once when the menu opened, so it looked stalled until the stems suddenly appeared)
@@ -1170,7 +1223,7 @@ export function createHighway(stage) {
     const st = splitNow();
     const busy = st.state === 'queued' || st.state === 'running';
     const was = note.dataset.split;
-    if (stage.stems().length || (busy ? st.state : 'none') !== was) return renderMix();
+    if (stage.stems().length || (busy ? st.state : 'none') !== was) return shown.get('mix') !== mixKey() && renderMix();
     if (busy) fillMixSplit(note, st);
   }
   function renderMixBody() {
@@ -1258,6 +1311,7 @@ export function createHighway(stage) {
   window.addEventListener('stagehand:highway-pref', (e) => {
     const d = e.detail || {};
     if (d.key === 'lowTop') setPref('lowTop', !!d.value);
+    if (d.key === 'showFps') setPref('showFps', !!d.value); // 4.30: from the graphics settings
   });
   function setPref(k, v) {
     prefs[k] = v;
@@ -1706,7 +1760,8 @@ export function createHighway(stage) {
     canvas.style.height = `${HH}px`;
     if (R3) {
       R3.resize(W, HH, Math.min(dpr, 1.5)); // the 3D picture needs no more than 1.5x on 4K screens (text stays sharp)
-      if (R3.scale > 1 && Math.min(dpr, 1.5) * R3.scale > 1.5 + 1e-6) R3.setScale(1, Math.min(dpr, 1.5)); // moved to a sharper screen
+      const most = LK.res === 'auto' ? 1.5 : 2; // pixels drawn per screen pixel at most (4.30: more when you pick it)
+      if (R3.scale > 1 && Math.min(dpr, 1.5) * R3.scale > most + 1e-6) R3.setScale(LK.res === 'auto' ? 1 : most / Math.min(dpr, 1.5), Math.min(dpr, 1.5)); // moved to a sharper screen
     }
   }
   window.addEventListener('resize', () => H.open && resize());
@@ -1717,11 +1772,39 @@ export function createHighway(stage) {
   // above its size (up to 1.5x, then shrunk to fit: smoother strings and edges, less shimmer). That is
   // only decided while paused or before the first note, never while you play; if frames then suffer,
   // it steps back down (and never tries that size again this session).
-  const perf = { noGlow: false, acc: 0, n: 0, since: 0, msAcc: 0, best: Infinity, cap: 1.5 };
+  const perf = { noGlow: false, acc: 0, n: 0, since: 0, msAcc: 0, best: Infinity, cap: 1.5, want: 0, stalls: 0, manual: false };
   H.perfState = perf;
-  function govern(ms, dt) {
-    if (!R3) return;
-    perf.acc += Math.max(ms, dt * 1000);
+  perfRef = perf;
+  refreshLook();
+  // 4.29: a new sharpness empties the canvas, so it is put in just before a frame is drawn, never after
+  // one (that frame showed empty: a flash as a split finished or Settings opened).
+  function setScale(s, ratio) {
+    perf.want = s;
+    perf.ratio = ratio;
+  }
+  function applyScale() {
+    // 4.30: a new look or effect step goes in here too, before the frame is drawn
+    if (lookWant && R3) {
+      lookWant = false;
+      R3.setLook(LK);
+    }
+    if (!perf.want) return;
+    if (R3 && perf.want !== R3.scale) R3.setScale(perf.want, perf.ratio);
+    perf.want = 0;
+  }
+  function govern(ms, dt, gap = dt * 1000) {
+    if (!R3 || LK.res !== 'auto') return; // 4.30: a sharpness you picked yourself stays as it is
+    // a few long frames are the page busy elsewhere (stems loading, a panel being built), not the
+    // graphics: they don't count (many in a row, or more than a second and a half of them, do)
+    if (dt * 1000 > Math.max(50, perf.best * 4)) {
+      const skip = perf.stalls < 10 && (!canDrop || (perf.stallMs || 0) < 1500);
+      perf.stalls++;
+      perf.stallMs = (perf.stallMs || 0) + gap;
+      if (skip) return;
+    } else perf.stalls = perf.stallMs = 0;
+    // capped: the wait between pictures is on purpose. Otherwise the real wait (up to 250 ms a picture),
+    // so a very slow graphics card is noticed within a second or two, not after many slow pictures
+    perf.acc += LK.fpsCap ? ms : Math.max(ms, Math.min(gap, 250));
     perf.msAcc += ms;
     perf.n++;
     if (perf.n < 60 && perf.acc < 1200) return;
@@ -1734,18 +1817,28 @@ export function createHighway(stage) {
     const ratio = Math.min(dpr, 1.5);
     const top = Math.min(perf.cap, 1.5 / ratio); // never more than 1.5 pixels per screen pixel
     const calm = !stage.engine.playing || (H.targets && H.targets.length && H.clock < H.targets[0].t - 1.5);
-    if (avg > 26 && R3.scale > 1) {
+    const drop = avg > 26 ? budgetDrop(looks, lookBudget) : -1;
+    if (drop >= 0) {
+      // 4.30: too slow: the costliest effects go first (mirror floor, then bloom), sharpness last
+      lookBudget = drop;
+      perf.drops = (perf.drops || 0) + 1;
+      refreshLook();
+    } else if (calm && lookBudget < 3 && (perf.drops || 0) < 2 && avg < Math.min(18, perf.best * 1.1) && cpu < 6) {
+      // plenty of time again (a busy moment had passed): the effects come back, at most once
+      lookBudget = 3;
+      refreshLook();
+    } else if (avg > 26 && R3.scale > 1) {
       perf.cap = 1;
-      R3.setScale(1, ratio);
-    } else if (avg > 26 && R3.scale > 0.5) R3.setScale(R3.scale > 0.75 ? 0.75 : 0.5, ratio);
+      setScale(1, ratio);
+    } else if (avg > 26 && R3.scale > 0.5) setScale(R3.scale > 0.75 ? 0.75 : 0.5, ratio);
     else if (calm && R3.scale > 1 && avg > perf.best * 1.25) {
       // the sharper picture costs frames: back down a step, and stay there
       perf.cap = R3.scale - 0.25;
-      R3.setScale(perf.cap, ratio);
+      setScale(perf.cap, ratio);
     } else if (calm && R3.scale >= 1 && R3.scale + 0.25 <= top + 1e-6 && avg < Math.min(18, perf.best * 1.1) && cpu < 6) {
-      R3.setScale(R3.scale + 0.25, ratio);
+      setScale(R3.scale + 0.25, ratio);
     }
-    H.perf = { avg, glow: R3.glow, scale: R3.scale };
+    H.perf = { avg, glow: R3.glow, scale: R3.scale, effects: lookBudget };
   }
 
   function loop() {
@@ -1765,8 +1858,12 @@ export function createHighway(stage) {
       H.clock = raw; // scoring keeps the exact song clock
       const realDt = Math.min(0.25, (now - (H.lastNow || now)) / 1000);
       H.lastNow = now;
-      if (!eng.playing || !Number.isFinite(H.vclock) || Math.abs(raw - H.vclock) > 0.2) H.vclock = raw;
+      // 4.29: after a start or a jump the song clock waits for the sound to reach the speakers; the
+      // picture waits with it (it ran ahead, then snapped back: a hitch as the song started)
+      if (!eng.playing || !Number.isFinite(H.vclock) || Math.abs(raw - H.vclock) > 0.2) H.vclock = H.holdAt = raw;
+      else if (raw === H.holdAt) H.vclock = raw;
       else {
+        H.holdAt = NaN;
         H.vclock += realDt * (eng.speed || 1);
         H.vclock += (raw - H.vclock) * Math.min(1, realDt * 4);
       }
@@ -1792,9 +1889,18 @@ export function createHighway(stage) {
       if (H.judge && eng.playing && prefs.detect && rig.on && !aside()) H.judge.tick(H.clock - (((rig.latencyMs || 20) / 1000 + 0.03) * eng.speed));
       processEvents(vis);
       followTone(H.clock);
-      const f0 = performance.now();
-      draw(vis, dt);
-      govern(performance.now() - f0, dt);
+      applyScale();
+      // 4.30: a frame rate cap draws fewer pictures; the song clock, listening and scoring above still run every frame
+      const cap = LK.fpsCap;
+      if (!cap || !H.drawnAt || now - H.drawnAt >= 1000 / cap - 4) {
+        const gap = H.drawnAt ? now - H.drawnAt : 16; // the real wait since the last picture (not capped)
+        const ddt = cap && H.drawnAt ? Math.min(0.1, gap / 1000) : dt;
+        H.drawnAt = now;
+        const f0 = performance.now();
+        draw(vis, ddt);
+        // 4.30: while the look still has effects to give up, Auto goes by the real wait between pictures
+        govern(performance.now() - f0, ddt, canDrop ? gap : ddt * 1000);
+      }
       if (prefs.showFps) {
         const ours = performance.now() - (H.stepStart || now);
         H.other = (H.other || 0) * 0.95 + Math.max(0, dt * 1000 - ours) * 0.05;
@@ -2203,9 +2309,11 @@ export function createHighway(stage) {
     H.heat = (H.heat || 0) + (want - (H.heat || 0)) * (want < (H.heat || 0) ? 0.08 : 0.03);
     G.heat = prefs.fx ? H.heat : 0;
     G.pulse = beatPulse(t || 0);
-    const v = VENUES.find((x) => x.id === (H.decorVenue || VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse'));
+    // 4.30: a look with its own room shows that instead of the venue
+    const v = LK.own ? null : VENUES.find((x) => x.id === (H.decorVenue || VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse'));
     // the picture's floor line goes where the highway's far end meets the floor; it drifts a little with the camera
     const vpY = H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 0.8)[1] : HH * 0.4;
+    R3.setHorizon(vpY, H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 4)[0] : W / 2);
     R3.setVenue(v && (v.photo || v.fluid) ? v : null, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
     if (v?.scene && H.open) {
       dropFluid();
@@ -2254,9 +2362,8 @@ export function createHighway(stage) {
   }
 
   /** Cyan edges that warm to orange as you heat up. */
-  const RAIL = '#50e8ff';
-  const RAIL_HOT = '#ff963c';
-  const railCol = (a, k = 1) => mix(RAIL, RAIL_HOT, G.heat || 0, a, k);
+  // 4.30: the floor and stage colours come from the highway look (Classic: the same as always)
+  const railCol = (a, k = 1) => mix(P.rail, P.railHot, G.heat || 0, a, k);
   const BLANK = col('#000000', 0); // no light (the soft edge of a glow)
   function railColor(a) {
     const k = G.heat || 0;
@@ -2265,11 +2372,11 @@ export function createHighway(stage) {
 
   // ------------------------------------------------------------ floor --
   function buildFloor(t, a, f0, f1) {
-    const { floor, glow } = R3.L;
+    const { floor, glow, soft } = R3.L;
     const zF = G.zF;
     const zN = -G.zs * PAST;
     // every fret's line runs off to the vanishing point, faint
-    const lineC = col('#5ad2eb', 0.1);
+    const lineC = col(P.line, P.lineA);
     for (let f = 0; f <= 24; f++) floor.bar([XF(f), 0, zN], [XF(f), 0, zF], 0.035, lineC);
     // hand positions: dark blue channels, one per fret, bright edges, stepping across the floor
     const A = H.tab.anchors || [];
@@ -2285,10 +2392,10 @@ export function createHighway(stage) {
         const l = XF(f - 1);
         const r = XF(f);
         const w = r - l;
-        floor.flat(l, r, za, zb, 0.002, col('#0f3346', 0.92), col('#0b2838', 0.92));
-        floor.flat(l + w * 0.18, r - w * 0.18, za, zb, 0.004, col('#3c8cb4', 0.16), col('#3c8cb4', 0.08));
+        floor.flat(l, r, za, zb, 0.002, col(P.laneA, P.laneFill), col(P.laneB, P.laneFill));
+        floor.flat(l + w * 0.18, r - w * 0.18, za, zb, 0.004, col(P.laneMid, P.laneMidA), col(P.laneMid, P.laneMidA / 2));
       }
-      for (let f = an.fret; f < an.fret - 1 + (an.width || 4); f++) floor.bar([XF(f), 0.006, za], [XF(f), 0.006, zb], 0.04, col('#78e6ff', 0.55));
+      for (let f = an.fret; f < an.fret - 1 + (an.width || 4); f++) floor.bar([XF(f), 0.006, za], [XF(f), 0.006, zb], 0.04, col(P.laneLine, P.laneLineA));
       // the bright rails
       const tw = G.tierW || 0;
       for (const x of [xa, xb]) {
@@ -2296,8 +2403,8 @@ export function createHighway(stage) {
         // 4.17: a soft glow either side of the rail (was a flat band), wider and brighter on a streak
         const gw = 0.18 + 0.1 * tw;
         const gc = railCol(0.2 + 0.1 * tw, 1);
-        glow.q(x - gw, 0.01, za, x, 0.01, za, x, 0.01, zb, x - gw, 0.01, zb, BLANK, gc, gc, BLANK);
-        glow.q(x, 0.01, za, x + gw, 0.01, za, x + gw, 0.01, zb, x, 0.01, zb, gc, BLANK, BLANK, gc);
+        soft.q(x - gw, 0.01, za, x, 0.01, za, x, 0.01, zb, x - gw, 0.01, zb, BLANK, gc, gc, BLANK);
+        soft.q(x, 0.01, za, x + gw, 0.01, za, x + gw, 0.01, zb, x, 0.01, zb, gc, BLANK, BLANK, gc);
       }
       // a new hand position: a light bar across its front edge and its fret numbers on the floor
       if (za > G.zs * 0.3 && za < zF * 0.9) {
@@ -2314,7 +2421,7 @@ export function createHighway(stage) {
     // light instead of just stopping (steady: it never pulses)
     if (prefs.fx !== false) {
       const an = anchorAt(t + G.L * 0.9);
-      const hx = mixHex(RAIL, RAIL_HOT, G.heat || 0, 8);
+      const hx = mixHex(P.rail, P.railHot, G.heat || 0, 8);
       glow.halo((anX0(an) + anX1(an)) / 2, 0.5, zF * 0.82, 10, 2.6, hx, 0.32, 1, 'z', 24);
     }
     // beat lines across the hand position: bars brighter
@@ -2324,7 +2431,7 @@ export function createHighway(stage) {
       if (z < 0.05) continue;
       const bar = beats[i].m >= 0;
       const an = anchorAt(beats[i].t);
-      floor.bar([anX0(an), 0.007, z], [anX1(an), 0.007, z], bar ? 0.06 : 0.03, col('#a0ebff', bar ? 0.45 : 0.16));
+      floor.bar([anX0(an), 0.007, z], [anX1(an), 0.007, z], bar ? 0.06 : 0.03, col(P.beat, bar ? P.beatA : P.beatA * 0.36));
     }
   }
 
@@ -2347,7 +2454,7 @@ export function createHighway(stage) {
     const yb = -0.25;
     const yt = G.yTop + 0.32;
     // your hand position, faintly lit on the neck
-    alpha.up(anX0(a), anX1(a), yb, yt, 0.06, col('#46c8ff', 0.05), col('#46c8ff', 0.1));
+    alpha.up(anX0(a), anX1(a), yb, yt, 0.06, col(P.wash, 0.05), col(P.wash, 0.1));
     // inlay dots between the strings, as on a real fretboard (4.16.2: round dots with a soft glow, were
     // tall see-through panels): gold in your hand position, teal elsewhere; two at the 12th and 24th
     const midY = (G.hl + G.yTop) / 2;
@@ -2359,9 +2466,9 @@ export function createHighway(stage) {
       const r = Math.min(w * 0.12, 0.075);
       const ys = f % 12 === 0 ? [G.hl + (G.yTop - G.hl) * 0.28, G.hl + (G.yTop - G.hl) * 0.72] : [midY];
       for (const y of ys) {
-        disc(alpha, c, y, 0.055, r, inA ? col('#ffe39a', 0.9) : col('#7fdce4', 0.42), inA ? col('#ffc040', 0.82) : col('#4fb8c4', 0.36));
+        disc(alpha, c, y, 0.055, r, inA ? col('#ffe39a', 0.9) : col(P.inlay, P.inlayA), inA ? col('#ffc040', 0.82) : col(P.inlayEdge, P.inlayA * 0.857));
         // 4.17: a soft round glow (was a hard-edged disc)
-        glow.halo(c, y, 0.06, r * 3, r * 3, inA ? '#ffc446' : '#4fb8c4', inA ? 0.2 : 0.06);
+        glow.halo(c, y, 0.06, r * 3, r * 3, inA ? '#ffc446' : P.inlayEdge, inA ? 0.2 : 0.06);
       }
     }
     // fret wires: round metal posts standing across the strings (lit from above, a bright edge
@@ -2411,7 +2518,7 @@ export function createHighway(stage) {
     // (3.12: they used to stand taller, which looked off to the user)
     for (const x of [anX0(a), anX1(a)]) {
       solid.rodY(x, -0.05, yb, yt, 0.03, rodShades('#fff4fb', 'post', 6));
-      glow.upSoft(x - 0.15, x + 0.15, yb, yt, -0.085, col('#ff7ad2', 0.22), col('#50e8ff', 0.18));
+      glow.upSoft(x - 0.15, x + 0.15, yb, yt, -0.085, col(P.postA, 0.22), col(P.postB, 0.18));
     }
   }
 
@@ -2577,7 +2684,7 @@ export function createHighway(stage) {
       const lit = Math.min(1, 0.55 * k + 0.35 * hot);
       const g0 = railCol(0);
       // top and bottom: a thin bright core and a soft glow fading away from it
-      const core = mix(RAIL, '#ffffff', 0.08 + 0.15 * hot, Math.min(1, 0.3 + lit), 0.9 + 0.5 * lit);
+      const core = mix(P.rail, '#ffffff', 0.08 + 0.15 * hot, Math.min(1, 0.3 + lit), 0.9 + 0.5 * lit);
       const th = 0.028; // line half-width
       const R = 0.2 + 0.08 * hot;
       const gc = railCol(0.3 * lit, 1.1);
@@ -2597,7 +2704,7 @@ export function createHighway(stage) {
         glow.quad([x, y0, zg], [x + Rs, y0, zg], [x + Rs, y1, zg], [x, y1, zg], pg, p0, p0, pg);
         // a small bright corner where the side meets the top
         const cR = 0.11 + 0.05 * hot;
-        const cc = mix(RAIL, '#ffffff', 0.4, Math.min(0.9, 0.35 * lit + 0.3 * hot), 1.4);
+        const cc = mix(P.rail, '#ffffff', 0.4, Math.min(0.9, 0.35 * lit + 0.3 * hot), 1.4);
         glow.quad([x - cR, y1 - cR, zg - 0.003], [x + cR, y1 - cR, zg - 0.003], [x + cR, y1, zg - 0.003], [x - cR, y1, zg - 0.003], g0, g0, cc, cc);
         glow.quad([x - cR, y1, zg - 0.003], [x + cR, y1, zg - 0.003], [x + cR, y1 + cR, zg - 0.003], [x - cR, y1 + cR, zg - 0.003], cc, cc, g0, g0);
       }
@@ -2840,7 +2947,7 @@ export function createHighway(stage) {
    * floor, faint, fading away from the floor line, gone near the neck and far away.
    */
   function gemReflection(x0, x1, y0, y1, z, hex, fade) {
-    if (z < 0.05 || prefs.reflections === false) return;
+    if (z < 0.05 || LK.refl !== 'simple') return; // 4.30: the look's reflections (a mirror floor draws its own)
     const k = Math.min(1, z / (G.zs * 0.35)) * Math.max(0, Math.min(1, (G.zF * 0.8 - z) / (G.zF * 0.3))) * fade;
     if (k < 0.02) return;
     R3.L.floor.q(x0, -y0, z, x1, -y0, z, x1, -y1, z, x0, -y1, z, col(hex, 0.2 * k, 1.1), col(hex, 0.2 * k, 1.1), col(hex, 0.03 * k), col(hex, 0.03 * k));
@@ -2851,6 +2958,21 @@ export function createHighway(stage) {
    * its fret's lane, facing you, with a bright rim; a thin stem down to the
    * floor with its fret number there.
    */
+  /**
+   * 4.30: note finishes. face: the block's front (dark to string colour); top/bot: the raised face inside
+   * the rim; faceK its brightness; bevel: how the edge round the face is lit; rim: the glowing rim's
+   * strength (rimW: how much white is in it); bar: the light bar across the middle (barHex: its colour);
+   * shine, halo, edge: the shine, the glow as a note nears, an open string's top light.
+   * Only colours and light: every finish draws the same shapes in the same places.
+   */
+  const GEM_FINISH = {
+    solid: { face: 0.42, top: 0.62, bot: 0.3, faceK: 1, bevel: 'string', rim: 1, rimW: 0, bar: 1, barHex: null, shine: 1, halo: 1, edge: 1 },
+    satin: { face: 0.6, top: 0.8, bot: 0.56, faceK: 1, bevel: 'satin', rim: 0.45, rimW: 0, bar: 0, barHex: null, shine: 0.55, halo: 0.6, edge: 0.6 },
+    glass: { face: 0.15, top: 0.42, bot: 0.05, faceK: 1.05, bevel: 'chrome', rim: 0.9, rimW: 0.6, bar: 0.3, barHex: null, shine: 1.8, halo: 0.8, edge: 1.2 },
+    neon: { face: 0.1, top: 0.2, bot: 0.04, faceK: 1, bevel: 'dark', rim: 1.35, rimW: 0, bar: 0, barHex: null, shine: 0, halo: 1.1, edge: 0.4 },
+    paint: { face: 0.72, top: 0.82, bot: 0.66, faceK: 0.92, bevel: 'paint', rim: 0.4, rimW: 0, bar: 1.4, barHex: '#f0c062', shine: 0.25, halo: 0.6, edge: 0.5 },
+    flat: { face: 0.92, top: 0.92, bot: 0.92, faceK: 1, bevel: 'flat', rim: 0.9, rimW: 0.85, bar: 0, barHex: null, shine: 0, halo: 0.45, edge: 0.8 },
+  };
   function buildGem(nt, z, an, missed, mute, inChord = false, box = null, flare = 0, fade = 1) {
     // held on from the note before (linkNext): no new gem, its sustain just carries on
     if (nt.linked) return;
@@ -2862,18 +2984,24 @@ export function createHighway(stage) {
     const big = 1 + flare * 0.25;
     const y = strH(s);
     const DEPTH = 0.14;
-    const rimK = (missed ? 0.8 : 1.4 + 0.8 * near + 2 * flare) * fade;
+    // 4.30: the look's note finish (gemFinish): colour and light only, the block's shape and size never change
+    const F = GEM_FINISH[LK.gem] || GEM_FINISH.solid;
+    const faceT = F.face;
+    const rimM = F.rim;
+    const shineM = F.shine;
+    const rimK = (missed ? 0.8 : 1.4 + 0.8 * near + 2 * flare) * fade * rimM;
     if (nt.f === 0) {
       // an open string: a bar across the hand position (or the chord's frame)
       const xa = (box ? box[0] : anX0(an)) + 0.1;
       const xb = (box ? box[1] : anX1(an)) - 0.1;
       const hh = G.gy * 0.14 * big;
-      solid.box(xa, xb, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, 0.42, fade), col(hex, fade, 1.2), col(dark, fade));
+      solid.box(xa, xb, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, faceT, fade), col(hex, fade, 1.2), col(dark, fade));
+      if (LK.shadows && !missed && z > 0.05) R3.L.floor.halo((xa + xb) / 2, 0.003, z + DEPTH * 0.5, (xb - xa) / 2 + 0.15, 0.22, '#000000', 0.3 * fade, 1, 'y', 12);
       glow.up(xa, xb, y - hh, y + hh, z - 0.005, col(hex, 0.55 * fade * (missed ? 0.3 : 1), rimK));
       // 4.17: a light line along its top edge, a soft glow as it nears, its reflection on the floor
       if (!missed) {
-        glow.up(xa, xb, y + hh * 0.45, y + hh, z - 0.007, col('#ffffff', 0.35 * fade, 1));
-        if (near > 0.05) glow.acrossSoft(xa - 0.1, xb + 0.1, y - hh * 4, y + hh * 4, z + 0.01, col(hex, 0.16 * near * fade));
+        glow.up(xa, xb, y + hh * 0.45, y + hh, z - 0.007, col('#ffffff', 0.35 * fade * F.edge, 1));
+        if (near > 0.05) glow.acrossSoft(xa - 0.1, xb + 0.1, y - hh * 4, y + hh * 4, z + 0.01, col(hex, 0.16 * near * fade * F.halo));
         gemReflection(xa, xb, y - hh, y + hh, z, hex, fade * 0.5);
       }
       return;
@@ -2889,7 +3017,9 @@ export function createHighway(stage) {
       label(mute || nt.mute ? '×' : String(nt.f), x, 0, z - 0.3, { size: 0.42 * lw, min: 11, max: 36, gold: true, grey: missed });
     }
     // the block: dark glass front, lit top, darker sides
-    solid.box(x - hw, x + hw, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, missed ? 0.15 : 0.42, fade, 1 + 0.3 * near), col(hex, fade, 1.1), col(dark, fade, 0.85));
+    solid.box(x - hw, x + hw, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, missed ? 0.15 : faceT, fade, 1 + 0.3 * near), col(hex, fade, 1.1), col(dark, fade, 0.85));
+    // 4.30: a soft contact shadow on the floor under the note (looks with shadows)
+    if (LK.shadows && !missed && z > 0.05) R3.L.floor.halo(x, 0.003, z + DEPTH * 0.5, hw * 1.7, 0.24, '#000000', 0.32 * fade, 1, 'y', 12);
     // bright rim around the front, and a light bar across the middle
     const rim = Math.min(hw, hh) * 0.3;
     // 4.17: inside the rim the face is raised and bevelled like a cut stone: the top bevel catches the
@@ -2903,32 +3033,43 @@ export function createHighway(stage) {
     const zb = z - 0.001;
     const zi = z - BZ;
     const kf = 1 + 0.3 * near;
-    const cTop = mix(hex, '#ffffff', missed ? 0.1 : 0.4, fade, 1.15 * kf);
-    const cBot = col(dark, fade, 0.8);
-    const cL = mix(dark, hex, 0.62, fade, kf);
-    const cR = mix(dark, hex, 0.38, fade, kf);
+    // the bevel round the face: lit from above in the string's colour (solid), chrome (glass), dark
+    // (neon), chipped warm paint (painted), or one flat colour (flat)
+    const [cTop, cBot, cL, cR] = missed || F.bevel === 'string'
+      ? [mix(hex, '#ffffff', missed ? 0.1 : 0.4, fade, 1.15 * kf), col(dark, fade, 0.8), mix(dark, hex, 0.62, fade, kf), mix(dark, hex, 0.38, fade, kf)]
+      : F.bevel === 'satin'
+        ? [mix(hex, '#ffffff', 0.22, fade, kf), mix(dark, hex, 0.35, fade, 0.9), mix(dark, hex, 0.7, fade, kf), mix(dark, hex, 0.55, fade, kf)]
+        : F.bevel === 'chrome'
+          ? [col('#eef2f7', fade, kf), col('#2e343c', fade), col('#b9c2cc', fade, kf), col('#6f7a86', fade, kf)]
+          : F.bevel === 'dark'
+            ? [mix(dark, '#000000', 0.3, fade), mix(dark, '#000000', 0.7, fade), mix(dark, '#000000', 0.5, fade), mix(dark, '#000000', 0.6, fade)]
+            : F.bevel === 'paint'
+              ? [mix(hex, '#f3e4c4', 0.45, fade, kf), mix(dark, '#1a120a', 0.35, fade), mix(dark, hex, 0.75, fade, kf), mix(dark, hex, 0.5, fade, kf)]
+              : [col(hex, fade, kf), col(hex, fade, kf), col(hex, fade, kf), col(hex, fade, kf)];
     solid.q(x - ox, y + oy, zb, x + ox, y + oy, zb, x + ix, y + iy, zi, x - ix, y + iy, zi, cTop, cTop, cTop, cTop);
     solid.q(x - ix, y - iy, zi, x + ix, y - iy, zi, x + ox, y - oy, zb, x - ox, y - oy, zb, cBot, cBot, cBot, cBot);
     solid.q(x - ox, y - oy, zb, x - ix, y - iy, zi, x - ix, y + iy, zi, x - ox, y + oy, zb, cL, cL, cL, cL);
     solid.q(x + ix, y - iy, zi, x + ox, y - oy, zb, x + ox, y + oy, zb, x + ix, y + iy, zi, cR, cR, cR, cR);
-    const fTop = mix(dark, hex, missed ? 0.25 : 0.62, fade, kf);
-    const fBot = mix(dark, hex, missed ? 0.1 : 0.3, fade, kf);
+    const fTop = mix(dark, hex, missed ? 0.25 : F.top, fade, kf * F.faceK);
+    const fBot = mix(dark, hex, missed ? 0.1 : F.bot, fade, kf * F.faceK);
     solid.q(x - ix, y - iy, zi, x + ix, y - iy, zi, x + ix, y + iy, zi, x - ix, y + iy, zi, fBot, fBot, fTop, fTop);
     // 4.2.1: in its last tenth of a second the rim goes white-hot, as in Rocksmith
-    const rc = flare > 0.05 || (near > 0.8 && !missed) ? col('#ffffff', fade, rimK) : col(hex, fade, rimK);
+    const rimHex = F.rimW ? mixHex(hex, '#ffffff', F.rimW, 8) : hex;
+    const rc = flare > 0.05 || (near > 0.8 && !missed) ? col('#ffffff', fade, rimK) : col(missed ? hex : rimHex, fade, rimK);
     const zf = zi - 0.006;
     glow.up(x - hw, x + hw, y + hh - rim, y + hh, zf, rc);
     glow.up(x - hw, x + hw, y - hh, y - hh + rim, zf, rc);
     glow.up(x - hw, x - hw + rim, y - hh, y + hh, zf, rc);
     glow.up(x + hw - rim, x + hw, y - hh, y + hh, zf, rc);
-    glow.up(x - hw * 0.55, x + hw * 0.55, y - rim * 0.45, y + rim * 0.45, zf, col(hex, fade * 0.9, rimK * 0.9));
+    // the light bar across the middle (painted notes: a strip of gold gaffer tape)
+    glow.up(x - hw * 0.55, x + hw * 0.55, y - rim * 0.45, y + rim * 0.45, zf, col(missed || !F.barHex ? hex : F.barHex, fade * 0.9 * (missed ? 1 : F.bar), rimK * 0.9));
     if (!missed) {
       // a soft shine across the top left of the face (still: it never moves or blinks)
-      glow.bar([x - ix, y + iy * 0.05, zf], [x - ix * 0.05, y + iy, zf], Math.min(ix, iy) * 0.55, col('#ffffff', 0.05 * fade), col('#ffffff', 0.2 * fade), 'z');
+      glow.bar([x - ix, y + iy * 0.05, zf], [x - ix * 0.05, y + iy, zf], Math.min(ix, iy) * 0.55, col('#ffffff', 0.05 * fade * shineM), col('#ffffff', 0.2 * fade * shineM), 'z');
       // a light inside that grows as the note reaches the neck, and a soft round glow around it
       if (near > 0.05) {
-        glow.halo(x, y, zf - 0.002, ix * 1.3, iy * 1.4, mixHex(hex, '#ffffff', 0.5, 8), 0.5 * near * near * fade, 1.2);
-        glow.halo(x, y, z + 0.01, hw * 2.6, hh * 2.4, hex, 0.24 * near * fade, 1.1);
+        glow.halo(x, y, zf - 0.002, ix * 1.3, iy * 1.4, mixHex(hex, '#ffffff', 0.5, 8), 0.5 * near * near * fade * F.halo, 1.2);
+        glow.halo(x, y, z + 0.01, hw * 2.6, hh * 2.4, hex, 0.24 * near * fade * F.halo, 1.1);
       }
       gemReflection(x - hw, x + hw, y - hh, y + hh, z, hex, fade);
     }
@@ -3141,7 +3282,7 @@ export function createHighway(stage) {
         }
       }
     }
-    buildSparks(now);
+    if (LK.sparks) buildSparks(now); // 4.30: a look can leave the sparks out
   }
 
   // 4.23: less movement: the app's calm setting or Windows' "show animations" switched off
@@ -3369,10 +3510,11 @@ export function createHighway(stage) {
   function renderControls() {
     if (H.open) renderDropPop();
     const t = H.tab;
-    titleBox.innerHTML = H.song ? `<b>${esc(H.song.title)}</b><span>${esc(H.song.artist)}${t ? ` · ${esc(t.tuningName || '')}${t.capo ? `, capo ${t.capo}` : ''}` : ''}</span>` : '';
-    capoBox.innerHTML = t && t.capo > 0 ? `<b>Requires capo</b><span>${esc(capoLabel(t.capo))}${t.name ? ` · ${esc(t.name)}` : ''}</span>` : '';
-    parts.innerHTML = '';
-    for (const p of H.parts) {
+    setHtml(titleBox, 'title', H.song ? `<b>${esc(H.song.title)}</b><span>${esc(H.song.artist)}${t ? ` · ${esc(t.tuningName || '')}${t.capo ? `, capo ${t.capo}` : ''}` : ''}</span>` : '');
+    setHtml(capoBox, 'capo', t && t.capo > 0 ? `<b>Requires capo</b><span>${esc(capoLabel(t.capo))}${t.name ? ` · ${esc(t.name)}` : ''}</span>` : '');
+    const partsKey = JSON.stringify([t && t.id, aside(), instrument(), H.parts.map((p) => [p.id, p.name, p.type])]);
+    if (changed('parts', partsKey)) parts.innerHTML = '';
+    for (const p of parts.firstChild ? [] : H.parts) {
       const b = h('button.hw-chip', { type: 'button', 'aria-pressed': String(!!(t && t.id === p.id) && !aside()), text: p.name, title: `Play the ${String(p.name).toLowerCase()} part on your ${p.type === 'bass' ? 'bass' : 'guitar'}` });
       b.dataset.id = p.id;
       b.onclick = () => playAs('guitar', p.id);
@@ -3387,20 +3529,20 @@ export function createHighway(stage) {
     guitarBtn.setAttribute('aria-pressed', String(rig.on && !rig.muted));
     guitarBtn.title = !rig.on ? 'Your guitar isn’t connected' : muted ? 'Your guitar is muted: click to hear it' : 'Mute your guitar';
     guitarBtn.setAttribute('aria-label', guitarBtn.title);
-    guitarBtn.innerHTML = icon(muted || !rig.on ? 'volumeOff' : 'volume');
+    setHtml(guitarBtn, 'guitar', icon(muted || !rig.on ? 'volumeOff' : 'volume'));
     const mineT = (tonelib.list || []).find((x) => x.id === rig.toneId);
     const cur = rig.mode === 'song' ? songToneAt(stage.engine.position) : null;
     const toneName = rig.mode === 'song' ? `Song tone${cur && cur.name ? ` · ${cur.name}` : ''}` : rig.mode === 'live' && rig.liveTone ? rig.liveTone.name : mineT ? `${mineT.slot ? `${mineT.slot} · ` : ''}${mineT.name}` : (TONES.find((x) => x.id === rig.toneId) || {}).name || 'Tone';
-    const shown = toneName;
-    toneBtn.innerHTML = `${icon('amp')}${instrumentTag(rig)}<span>${esc(shown)}</span>${rig.capture ? '<span class="real-badge sm" title="A real amp is playing">REAL</span>' : ''}${icon('chevron')}`;
+    setHtml(toneBtn, 'tone', `${icon('amp')}${instrumentTag(rig)}<span>${esc(toneName)}</span>${rig.capture ? '<span class="real-badge sm" title="A real amp is playing">REAL</span>' : ''}${icon('chevron')}`);
     toneBtn.hidden = !rig.on;
     rigBox.classList.toggle('real', !!rig.capture);
-    renderMix();
+    if (mixOpen && shown.get('mix') !== mixKey()) renderMix();
     paintSpeedChip(speedChip, stage.engine.speed || 1);
-    // section strip
+    // section strip (the same song part and length: left as it is)
+    const total = (t && (stage.engine.duration || t.length)) || 1;
+    if (!changed('sections', JSON.stringify([t && t.id, total, t && t.sections]))) return;
     sections.innerHTML = '';
     if (t && t.sections.length) {
-      const total = stage.engine.duration || t.length || 1;
       // 4.2: a long section (some songs have only one or two) goes to the spot you click,
       // like the arrow keys; a normal one goes to its start. The time shows as you hover.
       const LONG = 30;

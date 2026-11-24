@@ -15,6 +15,7 @@ const { spawn } = require('child_process');
 const { EventEmitter } = require('events');
 const fs = require('fs');
 const path = require('path');
+const { killTree, killLeftovers } = require('./proctree');
 
 class RigAudio extends EventEmitter {
   constructor({ log = () => {}, appRoot }) {
@@ -46,6 +47,11 @@ class RigAudio extends EventEmitter {
     if (this.child) return true;
     const exe = this.helperPath();
     if (!exe) return false;
+    // A helper left by a crashed or hung run would still hold the cable: end it first (once, Windows only).
+    if (!this.swept) {
+      this.swept = true;
+      killLeftovers(path.basename(exe));
+    }
     try {
       this.child = spawn(exe, [], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
     } catch (e) {
@@ -189,19 +195,36 @@ class RigAudio extends EventEmitter {
     }
   }
 
-  quit() {
-    if (!this.child) return;
-    try {
-      this.send({ cmd: 'stop' });
-      this.send({ cmd: 'quit' });
-      this.child.stdin.end();
-    } catch (_) {}
+  /** Asks the helper to stop, waits up to waitMs for it to go, then ends it with anything it started. */
+  quit(waitMs = 2000) {
     const c = this.child;
-    setTimeout(() => {
+    if (!c) return Promise.resolve();
+    return new Promise((resolve) => {
+      let timer = null;
+      const done = () => {
+        clearTimeout(timer);
+        killTree(c);
+        resolve();
+      };
+      if (c.exitCode !== null || c.signalCode) return done();
+      c.once('exit', done);
+      timer = setTimeout(done, waitMs);
       try {
-        c.kill();
+        this.send({ cmd: 'stop' });
+        this.send({ cmd: 'quit' });
+        c.stdin.end();
       } catch (_) {}
-    }, 1500);
+    });
+  }
+
+  /** Settings > Restart sound engine: ends the helper and any leftover, so the next start is fresh. */
+  async restartEngine() {
+    await this.quit(1000);
+    this.child = null;
+    this.swept = false; // the next start clears leftovers again
+    this.hello = null;
+    this.state = 'idle';
+    return true;
   }
 }
 
