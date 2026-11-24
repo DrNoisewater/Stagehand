@@ -73,6 +73,7 @@ let companion = null; // 4.16: the Quest companion
 let organizer;
 let rsprofiles;
 let rigAudio;
+let glimpseLine; // TEMPORARY (4.32), see TODO.md
 let mb;
 let discover;
 let importer;
@@ -1335,6 +1336,8 @@ app.whenReady().then(async () => {
   art = new ArtService({ cacheDir: D.art });
   tabs = new TabService({ log });
   rigAudio = new RigAudio({ log, appRoot: path.join(__dirname, '..', '..') });
+  // TEMPORARY (4.32): Glimpse, the screen recorder, gets Stagehand's sound (see TODO.md)
+  try { glimpseLine = new (require('./services/glimpse-line').GlimpseLine)({ rigAudio, log }); glimpseLine.start(); } catch (e) { log(`Glimpse sound line: ${e.message}`); }
   toneStore = new ToneStore(path.join(D.roaming, 'tones.json'));
   await toneStore.load();
   toneIndex = new ToneIndex({ file: path.join(D.local, 'Cache', 'tone-index.json'), log });
@@ -1511,6 +1514,7 @@ app.on('before-quit', async (e) => {
   }, 5000);
   try {
     library.close();
+    if (glimpseLine) glimpseLine.stop();
     const helperGone = rigAudio ? rigAudio.quit() : null;
     if (companion) companion.stop().catch(() => {});
     importer.stop();

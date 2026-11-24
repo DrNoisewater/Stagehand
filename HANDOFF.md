@@ -1,3 +1,19 @@
+# 4.32.0 — Glimpse records Stagehand's sound (TEMPORARY) (2026-11-24; nothing tried on the user's PC)
+
+**Asked:** "i need glimpse to be able to record audio and video from stagehand … so claude can see what i see." Stagehand's own Record clip only covers the highway ("I need glimpse to see all of the app even while I'm moving through different things"). "I just want to open Stagehand and use Glimpse … It needs to automatically build in." "I like how Glimpse uses very small files, and I don't want to modify how Stagehand records things yet." It's temporary: "remind me to remove it later" (TODO.md, top).
+
+**Why it was needed:** in Fastest mode the sound engine holds the speakers exclusively, so Windows gives Glimpse's system-audio capture nothing.
+
+**Changed:**
+- `src/main/services/glimpse-line.js` (new): a local pipe, `\\.\pipe\stagehand-sound`. While Glimpse is connected (only while it records), the engine's full mix (type 5 frames: song, amp, drums, voice) goes to it as packets: u32 'SHS1', u32 rate, u32 frames, u32 0, then float32 L/R. Dropped, never queued, when Glimpse falls behind. Nothing is sent and the engine isn't asked while nobody is connected.
+- `rigaudio.js`: the engine's one "monitor" switch is shared: on while the page (looper, Record clip) or Glimpse wants it (`pageMonitor`, `glimpseMonitor`, `setGlimpseMonitor`); asked again after the engine restarts; emits `mix`. The page only gets the engine's own sound back when it asked (before, it got it whenever the engine sent it).
+- `main.js`: starts and stops the line (two lines, marked TEMPORARY).
+- Stagehand's own recording is unchanged.
+- Glimpse 0.4.0 (its own repo) reads the pipe: with Stagehand open it always records Stagehand's sound, even when set to Silent; with Stagehand's engine in-app/off, it falls back to system audio.
+- Checks: `test/glimpse-line.test.js` (npm test), `rig-chromium.js` all passed.
+
+**Ask the user:** does a Glimpse recording of Stagehand have the song and the guitar, in time with the picture? Any crackles or gaps?
+
 # 4.31.0 — Fifteen highway styles, backgrounds apart from styles, fewer settings, five new moving backgrounds, previews that always play (2026-11-24; nothing tried on the user's PC)
 
 **Asked:** "Highway graphics. The options look similar. We need an overhaul on this screen. Venues and bg animations should be able to be used with changing highway style. Menu overload … Do the different settings actually apply? … Clicking a song for a preview still sometimes does not play. I thought each psarc file had a preview inside, can't we just use that." Then: "We need to add more animated backgrounds … that react to your music. Way higher quality than mandala." Then: "less options for all the graphic settings, and just more unique highway styles." Then: no getting the songs around a click ready ("most people are just clicking around scrolling").
