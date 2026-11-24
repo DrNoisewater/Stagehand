@@ -18,7 +18,7 @@ const PRESET_ROWS = [
   ['high', 'High', 'The full show, for most PCs.'],
   ['ultra', 'Ultra', 'Your graphics card asked for a challenge.'],
 ];
-const FX_ROWS = [['full', 'Full', 'Everything the style does'], ['calm', 'Calm', 'Hit effects, but nothing moving in the room'], ['off', 'Off', 'No hit effects and nothing moving: just the notes']];
+const FX_ROWS = [['full', 'Full', 'Everything the style does'], ['calm', 'Calm', 'Smaller, softer hit effects and nothing moving in the room'], ['off', 'Off', 'No hit effects and nothing moving: just the notes']];
 
 /** The style's picture, rendered from the real highway (big: the large one). */
 export const styleThumb = (id, big) => `art/hwstyles/${id}${big ? '-big' : ''}.webp`;
@@ -183,7 +183,7 @@ export function lookSection() {
     const box = h('div.hl-theme-opts');
     box.append(
       slider('Brightness', 'The whole highway, darker or lighter. Labels stay as they are.', THEME_SETTINGS.bright, s.bright, pct, (v) => setTheme('bright', v)),
-      seg('Effects', t.sig.amb === 'none' ? 'Hit effects and the style’s moving parts.' : 'Hit effects and the style’s movement in the room.', FX_ROWS, s.fx, (v) => setTheme('fx', v))
+      seg('Effects', t.sig.amb === 'none' ? 'The light and effects on a hit: Calm makes them smaller and softer, Off leaves them out.' : 'The light and effects on a hit, and the style’s movement in the room.', FX_ROWS, s.fx, (v) => setTheme('fx', v))
     );
     const reset = h('button.btn.small.hl-reset', { type: 'button', text: `Reset ${t.name}` });
     reset.onclick = () => change((st2) => delete st2.per[st2.theme]);

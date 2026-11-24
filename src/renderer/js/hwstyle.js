@@ -94,7 +94,10 @@ export function createStyle(env) {
     const now = secs();
     switch (LK.sig.rails) {
       case 'soft':
-        floor.bar([x, 0.008, za], [x, 0.008, zb], 0.05, railCol(0.85, 1));
+        // a warm white strip with a soft shadow either side, so it stays crisp on the pale floor
+        floor.bar([x - 0.05, 0.0075, za], [x - 0.05, 0.0075, zb], 0.05, col('#000000', 0.22));
+        floor.bar([x + 0.05, 0.0075, za], [x + 0.05, 0.0075, zb], 0.05, col('#000000', 0.22));
+        floor.bar([x, 0.008, za], [x, 0.008, zb], 0.055, railCol(0.95, 1.05));
         softAlong(soft, x, 0.01, za, zb, 0.32 + 0.1 * tw, railCol(0.11 + 0.06 * tw + 0.05 * beatK));
         break;
       case 'tape': {
@@ -113,9 +116,11 @@ export function createStyle(env) {
       }
       case 'chrome': {
         // polished metal: a dark bevel, a bright edge, and a glint that runs toward you
-        floor.bar([x, 0.008, za], [x, 0.008, zb], 0.07, col('#26313b', 0.92));
-        floor.bar([x - 0.014, 0.009, za], [x - 0.014, 0.009, zb], 0.024, railCol(0.95, 1.25));
-        softAlong(soft, x, 0.01, za, zb, 0.16, railCol(0.08 + 0.05 * tw));
+        floor.bar([x, 0.008, za], [x, 0.008, zb], 0.11, col('#1a2028', 0.95));
+        floor.bar([x, 0.0085, za], [x, 0.0085, zb], 0.08, mix('#8a9aa8', '#ffffff', 0.35, 1, 1));
+        floor.bar([x - 0.018, 0.009, za], [x - 0.018, 0.009, zb], 0.026, railCol(1, 1.5));
+        floor.bar([x + 0.026, 0.009, za], [x + 0.026, 0.009, zb], 0.012, col('#3a4652', 0.9));
+        softAlong(soft, x, 0.01, za, zb, 0.2, railCol(0.13 + 0.05 * tw));
         if (LK.amb) {
           const span = G.zF + 12;
           const zg = G.zF - ((now * 11 + x * 3) % span);
@@ -232,6 +237,11 @@ export function createStyle(env) {
         if (!B.length) floor.bar([x, 0.008, za], [x, 0.008, zb], 0.06, railCol(0.95));
         break;
       }
+      case 'crisp':
+        // plain and hard-edged: bright white on a black keyline, no glow at all
+        floor.bar([x, 0.0075, za], [x, 0.0075, zb], 0.1, col('#000000', 0.9));
+        floor.bar([x, 0.008, za], [x, 0.008, zb], 0.055, railCol(1, 1.15));
+        break;
       case 'line':
       default:
         floor.bar([x, 0.008, za], [x, 0.008, zb], 0.04, railCol(0.92, 1));
@@ -290,15 +300,78 @@ export function createStyle(env) {
         across(0.5, 0.02, col(P.line, 0.18));
         along(4, col(P.line, 0.07));
         break;
-      case 'ice':
+      case 'matte': {
+        // a pale matte floor under a row of soft ceiling lights: warm pools that stay put while the floor rolls
+        for (const k of [0.1, 0.3, 0.55, 0.85]) {
+          const z = G.zF * k;
+          if (z < za || z > zb) continue;
+          soft.halo((xa + xb) / 2, 0.006, z, (xb - xa) * 0.62, G.zF * 0.09, '#ffe8c8', 0.24 * (1 - k * 0.5), 1, 'y', 16);
+        }
+        // the edges in soft shade, so the middle reads as lit
+        const sh = Math.min(0.6, (xb - xa) * 0.12);
+        floor.q(xa, 0.0045, za, xa + sh, 0.0045, za, xa + sh, 0.0045, zb, xa, 0.0045, zb, col('#000000', 0.22), BLANK, BLANK, col('#000000', 0.22));
+        floor.q(xb - sh, 0.0045, za, xb, 0.0045, za, xb, 0.0045, zb, xb - sh, 0.0045, zb, BLANK, col('#000000', 0.22), col('#000000', 0.22), BLANK);
+        break;
+      }
+      case 'mirror': {
+        // polished: the far floor mirrors the bright room, two bands of reflected light lie across it
+        // (they stay put while the floor rolls), and a long highlight runs down the middle
+        const zF = G.zF;
+        const sheen = (z) => col('#dfe9f2', 0.05 + 0.4 * Math.min(1, Math.max(0, z / zF)) ** 1.3);
+        soft.flat(xa, xb, za, zb, 0.005, sheen(za), sheen(zb));
+        for (const [k, a] of [[0.12, 0.2], [0.3, 0.28], [0.55, 0.3]]) {
+          const z = zF * k;
+          if (z < za || z > zb) continue;
+          softAcross(soft, xa, xb, 0.006, z, zF * 0.04, col('#f2f8ff', a));
+          floor.bar([xa, 0.0055, z], [xb, 0.0055, z], 0.06, col('#ffffff', Math.min(1, a * 2.4)));
+        }
+        softAlong(soft, (xa + xb) / 2, 0.0065, Math.max(za, 0), zb, (xb - xa) * 0.22, col('#eaf3ff', 0.12));
+        break;
+      }
+      case 'ice': {
+        // pale ice: frost glowing in from both edges, white cracks with a cold glow (they roll with the song)
+        const fw = Math.min(0.9, (xb - xa) * 0.22);
+        const fr = col('#e8f8ff', 0.16);
+        soft.q(xa, 0.006, za, xa + fw, 0.006, za, xa + fw, 0.006, zb, xa, 0.006, zb, fr, BLANK, BLANK, fr);
+        soft.q(xb - fw, 0.006, za, xb, 0.006, za, xb, 0.006, zb, xb - fw, 0.006, zb, BLANK, fr, fr, BLANK);
+        const per = 0.6;
+        const k0 = 0.42 + 0.15 * beatK;
+        for (let k = Math.floor((t - 0.4) / per); k * per < t + G.L; k++) {
+          const rnd = seeded(k * 7919 + an.fret * 31 + 17);
+          for (let c = 0; c < 3; c++) {
+            let x = xa + rnd() * (xb - xa);
+            let tt = k * per + rnd() * per;
+            let dir = rnd() - 0.5;
+            for (let s = 0; s < 6; s++) {
+              dir = Math.max(-0.7, Math.min(0.7, dir + (rnd() - 0.5) * 0.9));
+              const nx = Math.max(xa, Math.min(xb, x + dir * 0.7));
+              const nt = tt + 0.03 + rnd() * 0.07;
+              const z0 = zOf(tt);
+              const z1 = zOf(nt);
+              if (z1 > za && z0 < zb) {
+                const c0 = Math.max(za, z0);
+                const c1 = Math.min(zb, z1);
+                floor.bar([x, 0.0045, c0], [nx, 0.0045, c1], 0.028, col('#ffffff', k0 + 0.25), col('#e8f8ff', k0 + 0.1));
+                soft.bar([x, 0.006, c0], [nx, 0.006, c1], 0.12, col('#bfe8ff', 0.1 + 0.06 * beatK));
+                // a short branch now and then
+                if (rnd() > 0.6) {
+                  const bx = Math.max(xa, Math.min(xb, x + (rnd() - 0.5) * 0.6));
+                  floor.bar([x, 0.0045, c0], [bx, 0.0045, Math.min(zb, c0 + 0.25)], 0.016, col('#ffffff', k0), col('#ffffff', 0));
+                }
+              }
+              x = nx;
+              tt = nt;
+            }
+          }
+        }
+        break;
+      }
       case 'ember': {
         // charcoal with cracks glowing through (hotter on the beat and on a streak); the cracks roll with the song
-        const ice = sig.floor === 'ice';
-        if (ice) soft.flat(xa, xb, za, zb, 0.006, col(P.wash, 0.03), col(P.wash, 0.08));
-        else floor.flat(xa, xb, za, zb, 0.0025, col('#000000', 0.22));
-        const per = ice ? 0.8 : 0.55;
-        const heat = ice ? 0.38 + 0.15 * beatK : 0.5 + 0.4 * (G.heat || 0) + 0.3 * beatK;
-        const [hotA, hotB] = ice ? ['#cfefff', '#ffffff'] : ['#ff6a1f', '#ffb347'];
+        floor.flat(xa, xb, za, zb, 0.0025, col('#000000', 0.22));
+        const per = 0.55;
+        const heat = 0.5 + 0.4 * (G.heat || 0) + 0.3 * beatK;
+        const [hotA, hotB] = ['#ff6a1f', '#ffb347'];
         for (let k = Math.floor((t - 0.3) / per); k * per < t + G.L; k++) {
           const rnd = seeded(k * 7919 + an.fret * 31);
           for (let c = 0; c < 2; c++) {
@@ -312,8 +385,8 @@ export function createStyle(env) {
               if (z1 > za && z0 < zb) {
                 const c0 = Math.max(za, z0);
                 const c1 = Math.min(zb, z1);
-                if (!ice) floor.bar([x, 0.004, c0], [nx, 0.004, c1], 0.09, col('#000000', 0.5));
-                soft.bar([x, 0.006, c0], [nx, 0.006, c1], ice ? 0.03 : 0.06, col(hotA, heat), col(hotB, heat * 0.8));
+                floor.bar([x, 0.004, c0], [nx, 0.004, c1], 0.09, col('#000000', 0.5));
+                soft.bar([x, 0.006, c0], [nx, 0.006, c1], 0.06, col(hotA, heat), col(hotB, heat * 0.8));
               }
               x = nx;
               tt = nt;
@@ -339,16 +412,29 @@ export function createStyle(env) {
         break;
       }
       case 'caustics': {
-        // light from the surface wobbling over the floor
+        // light from the surface: a net of bright wavy lines over the whole floor, always there, rippling
+        // slowly (still with Effects calmer); it stays with the water, not the song
         const now = LK.amb ? secs() : 0;
-        const per = 0.45;
-        for (let k = Math.floor((t - 0.2) / per); k * per < t + G.L; k++) {
-          for (let c = 0; c < 3; c++) {
-            const h1 = hash(k * 3 + c);
-            const x = xa + (0.15 + 0.7 * h1) * (xb - xa) + 0.25 * Math.sin(now * 0.9 + k + c * 2);
-            const z = zOf(k * per + hash(k * 7 + c) * per);
-            if (z < za || z > zb) continue;
-            soft.halo(x, 0.007, z, 0.35 + 0.2 * hash(k + c * 5), 0.9 + 0.5 * Math.sin(now * 1.3 + k), P.wash, 0.14 + 0.05 * Math.sin(now * 2 + k * 3 + c), 1, 'y', 10);
+        const zF = G.zF;
+        const cw = 0.55; // cell size across
+        const cz = zF * 0.07; // and deep
+        const n = Math.max(2, Math.ceil((xb - xa) / cw));
+        const wob = (x, z) => 0.12 * Math.sin(x * 3.1 + z * 0.9 + now * 1.1) + 0.08 * Math.sin(x * 1.7 - z * 1.6 - now * 0.8);
+        const c = (z) => col('#aef6ff', (0.3 + 0.08 * beatK) * (1 - 0.6 * Math.min(1, Math.max(0, z / zF))));
+        const z0 = Math.max(0.2, za);
+        for (let j = Math.ceil(z0 / cz); j * cz < zb; j++) {
+          const z = j * cz;
+          // a wavy line across
+          for (let i = 0; i < n; i++) {
+            const x0 = xa + ((xb - xa) * i) / n;
+            const x1 = xa + ((xb - xa) * (i + 1)) / n;
+            soft.bar([x0, 0.007, z + wob(x0, z) * cz * 3], [x1, 0.007, z + wob(x1, z) * cz * 3], 0.07, c(z));
+          }
+          // and wavy lines toward you, shifted every row so they make cells
+          for (let i = 0; i < n; i++) {
+            const x = xa + ((xb - xa) * (i + (j & 1 ? 0.5 : 0))) / n + wob(i, j) * 0.6;
+            if (x <= xa || x >= xb) continue;
+            soft.bar([x, 0.007, z], [x + wob(j, i) * 0.8, 0.007, Math.min(zb, z + cz)], 0.07, c(z));
           }
         }
         break;
@@ -362,12 +448,14 @@ export function createStyle(env) {
           if (z1 <= z0) continue;
           for (let f = an.fret; f < an.fret + (an.width || 4); f++) {
             const hv = hash(i * 13.1 + f * 3.7);
-            floor.bar([XF(f - 1), 0.0035, z0], [XF(f - 1), 0.0035, z1], 0.03, col('#000000', 0.5));
-            if (hv < 0.45) continue;
+            floor.bar([XF(f - 1), 0.0035, z0], [XF(f - 1), 0.0035, z1], 0.04, col('#000000', 0.7));
+            // every tile glows its own colour (some brighter); the beat lights them up more
             const c = RAINBOW[Math.floor(hv * 97) % RAINBOW.length];
-            soft.flat(XF(f - 1) + 0.04, XF(f) - 0.04, z0 + 0.04, z1 - 0.04, 0.006, col(c, 0.2 + 0.2 * beatK));
+            const a = (hv < 0.45 ? 0.07 : 0.14) + (hv < 0.45 ? 0.08 : 0.16) * beatK;
+            floor.flat(XF(f - 1) + 0.05, XF(f) - 0.05, z0 + 0.05, z1 - 0.05, 0.003, col(c, a * 1.3));
+            soft.flat(XF(f - 1) + 0.05, XF(f) - 0.05, z0 + 0.05, z1 - 0.05, 0.006, col(c, a * 0.7));
           }
-          floor.bar([xa, 0.0035, z0], [xb, 0.0035, z0], 0.03, col('#000000', 0.5));
+          floor.bar([xa, 0.0035, z0], [xb, 0.0035, z0], 0.04, col('#000000', 0.7));
         }
         break;
       }
@@ -511,6 +599,11 @@ export function createStyle(env) {
     if (!kind || kind === 'none' || kind === 'sparks' || env.calm()) return;
     const { fx } = R3.L;
     const now = performance.now();
+    // Effects: Full as drawn, Calm fainter, smaller and with every other piece left out
+    const K = LK.fxK ?? 1;
+    const calm = K < 1;
+    const ca = (hex, a, k) => col(hex, a * K, k);
+    const cm = (a, b, t, al, k) => mix(a, b, t, al * K, k);
     for (const h of list) {
       const age = (now - h.at) / 1000;
       if (age > 1.1) continue;
@@ -526,18 +619,19 @@ export function createStyle(env) {
         if (kind === 'flash') {
           if (age > 0.28) continue;
           const k = (1 - age / 0.28) ** 2;
-          const w = 0.32;
-          fx.q(x0 - w, y0 - 0.3, -0.12, x0, y0 - 0.3, -0.12, x0, y0 + 2.6, -0.12, x0 - w, y0 + 2.6, -0.12, BLANK, col(hex, 0.45 * k, 1.3), col(hex, 0), BLANK);
-          fx.q(x0, y0 - 0.3, -0.12, x0 + w, y0 - 0.3, -0.12, x0 + w, y0 + 2.6, -0.12, x0, y0 + 2.6, -0.12, col(hex, 0.45 * k, 1.3), BLANK, BLANK, col(hex, 0));
+          const w = calm ? 0.2 : 0.32;
+          fx.q(x0 - w, y0 - 0.3, -0.12, x0, y0 - 0.3, -0.12, x0, y0 + 2.6, -0.12, x0 - w, y0 + 2.6, -0.12, BLANK, ca(hex, 0.45 * k, 1.3), ca(hex, 0), BLANK);
+          fx.q(x0, y0 - 0.3, -0.12, x0 + w, y0 - 0.3, -0.12, x0 + w, y0 + 2.6, -0.12, x0, y0 + 2.6, -0.12, ca(hex, 0.45 * k, 1.3), BLANK, BLANK, ca(hex, 0));
         } else if (kind === 'ripple') {
           for (const d of [0, 0.14]) {
             const u = (age - d) / 0.6;
             if (u < 0 || u > 1) continue;
-            const r = 0.25 + u * 2.4;
-            floorRing(fx, x0, 0.014, 0.4, r, r * 1.8, 0.12, col(hex, 0.5 * (1 - u) * (1 - u), 1.2));
+            const r = 0.25 + u * (calm ? 1.2 : 2.4);
+            floorRing(fx, x0, 0.014, 0.4, r, r * 1.8, 0.12, ca(hex, 0.5 * (1 - u) * (1 - u), 1.2));
           }
         } else if (kind === 'embers') {
           for (let i = 0; i < 7; i++) {
+            if (calm && i % 2) continue;
             const life = 0.7 + rnd() * 0.4;
             const vx = (rnd() - 0.5) * 1.2;
             const vy = 0.9 + rnd() * 1.4;
@@ -545,10 +639,11 @@ export function createStyle(env) {
             if (age > life) continue;
             const u = age / life;
             const fl = 0.7 + 0.3 * Math.sin(age * 30 + ph);
-            speck(fx, x0 + vx * age + Math.sin(age * 6 + ph) * 0.06, y0 + vy * age, -0.1 - age * 0.3, 0.045, mix('#ffd36a', '#ff5a1a', u, (1 - u) * 0.8 * fl, 1.2));
+            speck(fx, x0 + vx * age + Math.sin(age * 6 + ph) * 0.06, y0 + vy * age, -0.1 - age * 0.3, 0.045, cm('#ffd36a', '#ff5a1a', u, (1 - u) * 0.8 * fl, 1.2));
           }
         } else if (kind === 'shards') {
           for (let i = 0; i < 6; i++) {
+            if (calm && i % 2) continue;
             const life = 0.38 + rnd() * 0.15;
             const ang = Math.PI / 2 + (rnd() - 0.5) * 2.6;
             const sp = 1.6 + rnd() * 1.6;
@@ -560,37 +655,40 @@ export function createStyle(env) {
             const cy = y0 + Math.sin(ang) * sp * age * 0.8 - 4 * age * age;
             const cz = -0.1 - age * 0.6;
             const r = spin * age;
-            const c = mix(hex, '#ffffff', 0.55, (1 - u) * 0.85, 1.2);
+            const c = cm(hex, '#ffffff', 0.55, (1 - u) * 0.85, 1.2);
             const p = (k) => [cx + Math.cos(r + k) * s, cy + Math.sin(r + k) * s];
             const [a1, b1] = p(0);
             const [a2, b2] = p(2.2);
             const [a3, b3] = p(4.0);
-            fx.q(a1, b1, cz, a2, b2, cz, a3, b3, cz, a3, b3, cz, c, c, col(hex, (1 - u) * 0.4), col(hex, (1 - u) * 0.4));
+            fx.q(a1, b1, cz, a2, b2, cz, a3, b3, cz, a3, b3, cz, c, c, ca(hex, (1 - u) * 0.4), ca(hex, (1 - u) * 0.4));
           }
         } else if (kind === 'pixels') {
           // blocky: pixels jump outward a block at a time
           if (age > 0.5) continue;
           const d = Math.floor(age / 0.07) * 0.11;
           for (let i = 0; i < 8; i++) {
+            if (calm && i % 2) continue;
             const ang = (i / 8) * Math.PI * 2 + (rnd() - 0.5) * 0.3;
-            square(fx, x0 + Math.round(Math.cos(ang) * d * 8) / 8, y0 + Math.round(Math.sin(ang) * d * 8) / 8, -0.1, 0.05, 0.05, 0, col(i % 2 ? hex : '#ffffff', 0.9 * (1 - age / 0.5), 1.2));
+            square(fx, x0 + Math.round(Math.cos(ang) * d * 8) / 8, y0 + Math.round(Math.sin(ang) * d * 8) / 8, -0.1, 0.05, 0.05, 0, ca(i % 2 ? hex : '#ffffff', 0.9 * (1 - age / 0.5), 1.2));
           }
         } else if (kind === 'bubbles') {
           for (let i = 0; i < 5; i++) {
+            if (calm && i % 2) continue;
             const life = 0.7 + rnd() * 0.4;
             const vx = (rnd() - 0.5) * 0.5;
             const r = 0.04 + rnd() * 0.05;
             const ph = rnd() * 6;
             if (age > life) continue;
             const u = age / life;
-            fx.ring(x0 + vx * age + Math.sin(age * 9 + ph) * 0.05, y0 + age * 1.3, -0.1, r, r, 0.02, mixHex(hex, '#ffffff', 0.5, 8), 0.7 * (1 - u), 1.2, 12);
+            fx.ring(x0 + vx * age + Math.sin(age * 9 + ph) * 0.05, y0 + age * 1.3, -0.1, r, r, 0.02, mixHex(hex, '#ffffff', 0.5, 8), 0.7 * (1 - u) * K, 1.2, 12);
           }
         } else if (kind === 'flake') {
           if (age > 0.6) continue;
           const u = age / 0.6;
-          const r = 0.12 + 0.3 * (1 - (1 - u) * (1 - u));
-          const c = mix(hex, '#ffffff', 0.6, 0.85 * (1 - u), 1.2);
+          const r = 0.12 + (calm ? 0.15 : 0.3) * (1 - (1 - u) * (1 - u));
+          const c = cm(hex, '#ffffff', 0.6, 0.85 * (1 - u), 1.2);
           for (let i = 0; i < 3; i++) {
+            if (calm && i % 2) continue;
             const a = (i / 3) * Math.PI + age * 1.5;
             const dx = Math.cos(a) * r;
             const dy = Math.sin(a) * r;
@@ -598,6 +696,7 @@ export function createStyle(env) {
           }
         } else if (kind === 'confetti') {
           for (let i = 0; i < 9; i++) {
+            if (calm && i % 2) continue;
             const life = 0.8 + rnd() * 0.4;
             const ang = Math.PI / 2 + (rnd() - 0.5) * 2.2;
             const sp = 1.2 + rnd() * 1.2;
@@ -606,24 +705,25 @@ export function createStyle(env) {
             if (age > life) continue;
             const u = age / life;
             const go = (1 - Math.exp(-age * 4)) / 4;
-            square(fx, x0 + Math.cos(ang) * sp * go + Math.sin(age * 5 + i) * 0.05, y0 + Math.sin(ang) * sp * go - 0.6 * age * age, -0.1 - go * 0.3, 0.05, 0.025 * Math.abs(Math.cos(age * 8 + i)) + 0.008, spin * age, col(c, 0.9 * (1 - u), 1.1));
+            square(fx, x0 + Math.cos(ang) * sp * go + Math.sin(age * 5 + i) * 0.05, y0 + Math.sin(ang) * sp * go - 0.6 * age * age, -0.1 - go * 0.3, 0.05, 0.025 * Math.abs(Math.cos(age * 8 + i)) + 0.008, spin * age, ca(c, 0.9 * (1 - u), 1.1));
           }
         } else if (kind === 'dust' || kind === 'chalk') {
           const n = kind === 'dust' ? 10 : 7;
           const tint = kind === 'dust' ? '#e9d6b0' : '#f2f6ff';
           for (let i = 0; i < n; i++) {
+            if (calm && i % 2) continue;
             const life = 0.6 + rnd() * 0.35;
             const ang = rnd() * Math.PI * 2;
             const sp = 0.6 + rnd() * 0.7;
             if (age > life) continue;
             const u = age / life;
             const go = (1 - Math.exp(-age * 5)) / 5;
-            speck(fx, x0 + Math.cos(ang) * sp * go, y0 + Math.sin(ang) * sp * go * 0.7 - 0.5 * age * age, -0.1 - go * 0.4, 0.04 + 0.05 * u, col(tint, 0.45 * (1 - u)));
+            speck(fx, x0 + Math.cos(ang) * sp * go, y0 + Math.sin(ang) * sp * go * 0.7 - 0.5 * age * age, -0.1 - go * 0.4, 0.04 + 0.05 * u, ca(tint, 0.45 * (1 - u)));
           }
           if (kind === 'chalk' && age < 0.45) {
             const u = age / 0.45;
             const r = 0.3 + 0.35 * (1 - (1 - u) * (1 - u));
-            fx.ring(x0, y0, -0.08, r, r * 0.62, 0.035, '#f2f6ff', 0.6 * (1 - u), 1);
+            fx.ring(x0, y0, -0.08, r, r * 0.62, 0.035, '#f2f6ff', 0.6 * (1 - u) * K, 1);
           }
         }
       }

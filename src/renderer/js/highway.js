@@ -3175,10 +3175,12 @@ export function createHighway(stage) {
     const now = performance.now();
     H.hits = H.hits.filter((h) => now - h.at < 700 || t < h.until);
     H.bursts = H.bursts.filter((b) => now - b.at < 700 || t < b.until);
+    // 4.31: the style's Effects: Full 1 (as always), Calm about half, Off none (only the note's own flare)
+    const fxK = LK.fxK ?? 1;
     // 1. the string blazes along its whole length, hottest at the note
     const byString = new Map();
     for (const b of H.bursts) {
-      const k = Math.max(Math.exp(-(now - b.at) / 150)*.38, t < b.until ? .12 : 0);
+      const k = Math.max(Math.exp(-(now - b.at) / 150)*.38, t < b.until ? .12 : 0) * fxK;
       if (k < 0.02) continue;
       const cur = byString.get(b.s);
       if (!cur || cur.k < k) byString.set(b.s, { k, b });
@@ -3198,7 +3200,7 @@ export function createHighway(stage) {
     const posts = new Map();
     for (const h of H.hits) {
       const tg = H.targets[h.id];
-      const k = Math.max(Math.exp(-(now - h.at) / 180)*.4, t < h.until ? .12 : 0);
+      const k = Math.max(Math.exp(-(now - h.at) / 180)*.4, t < h.until ? .12 : 0) * fxK;
       if (k < 0.03) continue;
       const an = anchorAt(tg.t);
       const xs = h.chord ? chordBox(tg, an) : tg.notes.flatMap((nt) => (nt.f === 0 ? [anX0(an), anX1(an)] : [XF(nt.f - 1), XF(nt.f)]));
@@ -3231,7 +3233,7 @@ export function createHighway(stage) {
     // 4.17: a round shock wave (was four bars making a rectangle), soft on both sides, growing and fading.
     // 4.23: about 15% smaller, a little softer and shorter, so the next notes stay easy to read; with
     // calm motion (Settings, or Windows' reduce animations) the ring doesn't grow at all
-    if (prefs.hitBurst !== false && !calmMotion()) {
+    if (prefs.hitBurst !== false && !calmMotion() && fxK > 0) {
       for (const h of H.hits) {
         const age = (now - h.at) / 1000;
         if (age > 0.3) continue;
@@ -3246,16 +3248,16 @@ export function createHighway(stage) {
           const x = nt.f === 0 ? noteX(nt, an) : laneC(nt.f);
           const y = strH(nt.s);
           const lw = laneW(Math.max(1, nt.f || an.fret));
-          const rx = lw * (0.35 + (dead ? 1.05 : 0.8) * e);
+          const rx = lw * (0.35 + (dead ? 1.05 : 0.8) * e * (fxK < 1 ? 0.5 : 1));
           const ry = rx * 0.62;
           const th = 0.07 + 0.1 * (1 - p);
-          glow.ring(x, y, -0.075, rx, ry, th, dead ? '#ffffff' : STRING[nt.s], (dead ? 0.82 : 0.72) * k, dead ? 2.2 : 1.7);
+          glow.ring(x, y, -0.075, rx, ry, th, dead ? '#ffffff' : STRING[nt.s], (dead ? 0.82 : 0.72) * k * fxK, dead ? 2.2 : 1.7);
           // a second, fainter ring just behind it, in the string's colour
-          if (dead) glow.ring(x, y, -0.074, rx * 0.72, ry * 0.72, th * 0.8, STRING[nt.s], 0.6 * k, 1.6);
+          if (dead) glow.ring(x, y, -0.074, rx * 0.72, ry * 0.72, th * 0.8, STRING[nt.s], 0.6 * k * fxK, 1.6);
         }
       }
     }
-    if (LK.sparks) buildSparks(now); // 4.30: a look can leave the sparks out
+    if (LK.sparks) buildSparks(now, fxK); // 4.30: a look can leave the sparks out
     else styleFx.hits(LK, H.hits, H.targets); // 4.31: the style's own hit effect
   }
 
@@ -3280,7 +3282,7 @@ export function createHighway(stage) {
    * colour (to gold on a long streak). More of them on a dead-on hit. Where each one goes is fixed when
    * you hit, so the same moment always looks the same.
    */
-  function buildSparks(now) {
+  function buildSparks(now, fxK = 1) {
     const { glow } = R3.L;
     const warm = G.tierW || 0;
     for (const h of H.hits) {
@@ -3296,7 +3298,8 @@ export function createHighway(stage) {
         const rnd = seeded((h.id + 1) * 7919 + nt.s * 104729);
         const x0 = noteX(nt, an);
         const y0 = strH(nt.s);
-        const n = (chord ? 3 : 6) + (dead ? (chord ? 2 : 4) : 0) + Math.round(warm * 2);
+        const n0 = (chord ? 3 : 6) + (dead ? (chord ? 2 : 4) : 0) + Math.round(warm * 2);
+        const n = fxK < 1 ? Math.ceil(n0 / 2) : n0; // Calm: half as many, fainter
         const hot = warm > 0.5 ? mixHex(STRING[nt.s], '#ffc060', (warm - 0.3) * 0.8, 8) : STRING[nt.s];
         for (let i = 0; i < n; i++) {
           const ang = Math.PI / 2 + (rnd() - 0.5) * 2.8; // mostly up, fanning out
@@ -3312,7 +3315,7 @@ export function createHighway(stage) {
           const tail = at(Math.max(0, age - 0.06));
           const cool = Math.min(1, u * 1.6);
           const a = (1 - u) * (1 - u * 0.4);
-          const c = mix('#ffffff', hot, cool, Math.min(1, a), 2.2 - 0.7 * cool);
+          const c = mix('#ffffff', hot, cool, Math.min(1, a) * fxK, 2.2 - 0.7 * cool);
           glow.bar(head, tail, 0.034 * (1 - u * 0.5), c, col(hot, 0), 'z');
         }
       }
