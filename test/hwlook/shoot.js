@@ -20,12 +20,190 @@ const srv = http.createServer((req, res) => {
     res.end(d);
   });
 });
+// ===== GFXCHECK=1 (begin): do the highway's look and graphics settings really change the picture? =====
+// One still of a busy moment (notes on screen, a hit with its sparks) per setting value, everything else fixed,
+// measured against a baseline: share of pixels changed noticeably, mean colour difference, the same over the
+// highway area only, and the busiest 1/8 x 1/8 patch of the picture. Also every look against every other.
+// Graphics use the fixed High preset (not Auto, so its budget stepping can't change a shot). Time is frozen in
+// the page so sparks and pulses are the same every shot. Writes <out>/gfxcheck.json, gfxcheck-sheet.png, gfxcheck/*.png
+//   GFXCHECK=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> C:7.0     (1280x720 unless VW/VH are set)
+const GFXCHECK_NOTICE = 12; // a pixel counts as changed when any colour moves by at least this much (of 255)
+async function gfxCheck(browser, page, out, scene, t) {
+  const dir = path.join(out, 'gfxcheck');
+  fs.mkdirSync(dir, { recursive: true });
+  const clock = Number(t);
+  await page.evaluate((clock) => {
+    const H = document.querySelector('.highway').__hw;
+    if (H.perfState) H.perfState.n = -1e9;
+    performance.now = () => 100000; // sparks, pulses and Auto's timing stand still
+    window.__stage.engine.position = clock;
+    window.__gx = { frozen: 100000, shots: {} };
+  }, clock);
+  // gfx: { preset } for a preset, or single settings on top of High (preset becomes custom)
+  const setLook = (theme, per, gfx) => page.evaluate(async ([theme, per, gfx]) => {
+    const m = await import('/js/hwlooks.js');
+    const st = m.loadLooks();
+    const high = m.applyPreset({ ...m.GFX_DEFAULT, dof: false, grain: false, vignette: false, fpsCap: 0 }, 'high');
+    const g = gfx.preset ? m.applyPreset(high, gfx.preset) : { ...high, ...gfx, preset: 'custom' };
+    m.saveLooks({ ...st, theme, per: { [theme]: per }, gfx: g });
+    const H = document.querySelector('.highway').__hw;
+    // a pretend dead-on hit, 0.12 s ago, on the notes just played
+    H.hits = [];
+    H.bursts = [];
+    const pos = window.__stage.engine.position;
+    H.targets.forEach((tg, id) => {
+      if (tg.t > pos || tg.t < pos - 0.7) return;
+      const at = window.__gx.frozen - 120;
+      H.hits.push({ id, at, chord: tg.notes.length > 1, until: tg.t + (tg.sus || 0), offset: 0 });
+      for (const nt of tg.notes) H.bursts.push({ s: nt.s, f: nt.f, at, until: tg.t + (tg.sus || 0) });
+    });
+    return { look: H.look.id, res: H.look.res, bloom: !!H.look.bloom, refl: H.look.refl, sparks: H.look.sparks, budget: H.lookBudget(), hits: H.hits.length };
+  }, [theme, per, gfx]);
+  const take = async (key, theme, per = {}, gfx = {}) => {
+    const info = await setLook(theme, per, gfx);
+    await page.waitForTimeout(900);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const buf = await page.screenshot({ timeout: 90000 });
+    fs.writeFileSync(path.join(dir, key.replace(/[^a-z0-9.-]+/gi, '_') + '.png'), buf);
+    await page.evaluate(async ([key, b64]) => {
+      const bmp = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      const x = c.getContext('2d');
+      x.drawImage(bmp, 0, 0);
+      window.__gx.shots[key] = x.getImageData(0, 0, bmp.width, bmp.height);
+    }, [key, buf.toString('base64')]);
+    console.log('  shot', key, JSON.stringify(info));
+  };
+  const diff = (a, b) => page.evaluate(([a, b, thr]) => {
+    const A = window.__gx.shots[a], B = window.__gx.shots[b];
+    const W = A.width, Hh = A.height;
+    const x0 = Math.floor(W * 0.2), x1 = Math.floor(W * 0.8), y0 = Math.floor(Hh * 0.4), y1 = Math.floor(Hh * 0.95); // the highway area
+    let n = 0, ch = 0, sum = 0, rn = 0, rch = 0, rsum = 0;
+    const cell = new Array(64).fill(0), cellN = new Array(64).fill(0);
+    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const d0 = Math.abs(A.data[i] - B.data[i]), d1 = Math.abs(A.data[i + 1] - B.data[i + 1]), d2 = Math.abs(A.data[i + 2] - B.data[i + 2]);
+      const hit = Math.max(d0, d1, d2) >= thr ? 1 : 0;
+      const m = (d0 + d1 + d2) / 3;
+      const ci = Math.min(7, Math.floor((y * 8) / Hh)) * 8 + Math.min(7, Math.floor((x * 8) / W));
+      n++; ch += hit; sum += m; cell[ci] += hit; cellN[ci]++;
+      if (x >= x0 && x < x1 && y >= y0 && y < y1) { rn++; rch += hit; rsum += m; }
+    }
+    return { pct: (ch / n) * 100, mean: sum / n, rpct: (rch / rn) * 100, rmean: rsum / rn, local: Math.max(...cell.map((c, i) => (c / cellN[i]) * 100)) };
+  }, [a, b, GFXCHECK_NOTICE]);
+
+  const rows = [];
+  const cmp = async (group, label, baseKey, key, note = '') => {
+    const d = await diff(baseKey, key);
+    rows.push({ group, setting: label, vs: baseKey, shot: key, pct: +d.pct.toFixed(3), mean: +d.mean.toFixed(3), regionPct: +d.rpct.toFixed(3), regionMean: +d.rmean.toFixed(3), localMaxPct: +d.local.toFixed(2), note });
+  };
+  const slug = (s) => s.replace(/\s+/g, '-');
+  console.log('GFXCHECK scene', scene, 't', clock);
+
+  // ---- the noise floor: the same picture twice
+  await take('studio-base', 'studio');
+  await take('studio-base2', 'studio');
+  await cmp('noise', 'same picture twice', 'studio-base', 'studio-base2');
+
+  // ---- a look's own settings, on Studio (glow, full reflections, fog, satin notes, sparks all on), High graphics
+  const L = async (label, patch, note) => { const k = 'studio-' + slug(label); await take(k, 'studio', patch); await cmp('look (Studio)', label, 'studio-base', k, note); };
+  await L('bright 0.6', { bright: 0.6 });
+  await L('bright 1.3', { bright: 1.3 });
+  await L('glow 0', { glow: 0 });
+  await L('glow 1.5', { glow: 1.5 });
+  await L('refl off', { refl: 'off' });
+  await L('refl soft', { refl: 'soft' });
+  await L('back venue', { back: 'venue' }, 'this test page has no moving venue behind: only the look\'s own room is dropped');
+  await L('fog 0', { fog: 0 });
+  await L('fog 1', { fog: 1 });
+  for (const g of ['solid', 'glass', 'neon', 'paint', 'flat']) await L('gem ' + g, { gem: g }, 'vs satin');
+  await L('sparks off', { sparks: false });
+  // the look's refl "full" needs graphics refl Mirror: with Simple, full and soft must come out the same
+  await take('studio-gsimple-full', 'studio', { refl: 'full' }, { refl: 'simple' });
+  await take('studio-gsimple-soft', 'studio', { refl: 'soft' }, { refl: 'simple' });
+  await cmp('look (Studio)', 'refl full vs soft, graphics refl Simple', 'studio-gsimple-soft', 'studio-gsimple-full', 'expected the same');
+
+  // ---- the same on looks that differ: Neon (strong bloom) and Classic (no bloom, venue behind)
+  await take('neon-base', 'neon');
+  for (const [lab, p] of [['glow 0', { glow: 0 }], ['glow 1.5', { glow: 1.5 }], ['sparks off', { sparks: false }]]) {
+    await take('neon-' + slug(lab), 'neon', p);
+    await cmp('look (Neon)', lab, 'neon-base', 'neon-' + slug(lab));
+  }
+  await take('classic-base', 'classic');
+  for (const [lab, p] of [['glow 0', { glow: 0 }], ['glow 1.5', { glow: 1.5 }], ['fog 1', { fog: 1 }], ['refl off', { refl: 'off' }], ['refl full', { refl: 'full' }], ['bright 1.3', { bright: 1.3 }], ['back own', { back: 'own' }], ['gem glass', { gem: 'glass' }]]) {
+    await take('classic-' + slug(lab), 'classic', p);
+    await cmp('look (Classic)', lab, 'classic-base', 'classic-' + slug(lab), lab.startsWith('glow') ? 'Classic has no bloom: glow only strengthens the marks and sparks' : '');
+  }
+  await take('classic-bloomoff', 'classic', {}, { bloom: 'off' });
+  await cmp('graphics (Classic)', 'bloom off', 'classic-base', 'classic-bloomoff', 'Classic has no bloom at all');
+
+  // ---- graphics on Studio (High is the baseline; a preset, or one change on top of High)
+  const G = async (label, gfx, note) => { const k = 'gfx-' + slug(label); await take(k, 'studio', {}, gfx); await cmp('graphics (Studio)', label, 'studio-base', k, note); };
+  await G('preset low', { preset: 'low' });
+  await G('preset medium', { preset: 'medium' });
+  await G('preset ultra', { preset: 'ultra' });
+  await G('preset auto', { preset: 'auto' }, 'Auto at full budget');
+  for (const r of [0.5, 0.75, 1.5, 2]) await G('res ' + r, { res: r });
+  for (const a of ['off', 'fxaa', 'msaa8']) await G('aa ' + a, { aa: a }, 'vs msaa4');
+  await G('bloom off', { bloom: 'off' });
+  await G('bloom half', { bloom: 'half' });
+  await G('refl off', { refl: 'off' });
+  await G('refl simple', { refl: 'simple' });
+  await G('shadows off', { shadows: 'off' });
+  await G('dof on', { dof: true });
+  await G('grain on', { grain: true });
+  await G('vignette on', { vignette: true });
+  await G('fpsCap 30', { fpsCap: 30 }, 'a frame limit, not a look');
+
+  // ---- how different the looks are from each other (each at its own starting settings, High graphics)
+  const ids = await page.evaluate(async () => (await import('/js/hwlooks.js')).THEMES.map((x) => x.id));
+  for (const id of ids) await take('look-' + id, id);
+  const pairs = [];
+  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+    const d = await diff('look-' + ids[i], 'look-' + ids[j]);
+    pairs.push({ a: ids[i], b: ids[j], pct: +d.pct.toFixed(2), mean: +d.mean.toFixed(2), regionPct: +d.rpct.toFixed(2), regionMean: +d.rmean.toFixed(2) });
+  }
+  pairs.sort((x, y) => x.regionMean - y.regionMean);
+
+  // ---- verdicts and the table
+  for (const r of rows) r.verdict = r.group === 'noise' ? 'noise floor' : r.pct >= 2 ? 'works' : r.pct >= 0.5 ? 'weak' : r.localMaxPct >= 20 ? 'small area only' : 'no visible effect';
+  console.log('\n' + 'setting'.padEnd(52) + 'pct%'.padStart(8) + 'mean'.padStart(8) + 'hwy%'.padStart(8) + 'hwy-mean'.padStart(10) + 'local%'.padStart(8) + '  verdict');
+  for (const r of rows) console.log(`${(r.group + ' | ' + r.setting).padEnd(51)} ${String(r.pct).padStart(8)}${String(r.mean).padStart(8)}${String(r.regionPct).padStart(8)}${String(r.regionMean).padStart(10)}${String(r.localMaxPct).padStart(8)}  ${r.verdict}${r.note ? '  (' + r.note + ')' : ''}`);
+  console.log('\nLooks against each other, most alike first (highway area: mean colour difference of 255, pixels changed):');
+  for (const p of pairs) console.log(`${(p.a + ' / ' + p.b).padEnd(22)} mean ${String(p.regionMean).padStart(6)}  highway pixels changed ${String(p.regionPct).padStart(6)}%  whole picture ${String(p.pct).padStart(6)}%`);
+  const flagged = rows.filter((r) => ['weak', 'no visible effect', 'small area only'].includes(r.verdict));
+  console.log(`\nFLAGGED (${flagged.length}): ` + flagged.map((r) => `${r.group} ${r.setting} [${r.verdict}, ${r.pct}%]`).join('; '));
+  const noise = rows[0];
+  fs.writeFileSync(path.join(out, 'gfxcheck.json'), JSON.stringify({ scene, t: clock, viewport: page.viewportSize(), threshold: { noticeable: GFXCHECK_NOTICE, noEffectPct: 0.5, weakPct: 2 }, noise: { pct: noise.pct, mean: noise.mean }, rows, lookPairs: pairs }, null, 1));
+
+  // ---- the contact sheet: every shot with its numbers
+  const cap = {};
+  for (const r of rows) cap[r.shot] = `${r.setting}: ${r.pct}% ${r.verdict}`;
+  const cells = fs.readdirSync(dir).filter((f) => f.endsWith('.png')).sort().map((f) => {
+    const k = f.replace(/\.png$/, '');
+    return [cap[k] ? `${k.split('-')[0]} ${cap[k]}` : k, `data:image/png;base64,${fs.readFileSync(path.join(dir, f)).toString('base64')}`];
+  });
+  const sheet = page; // (the browser runs as one process: no second page; the highway is done with)
+  await sheet.goto('about:blank');
+  await sheet.setViewportSize({ width: 1920, height: 1000 });
+  await sheet.setContent('<body style="margin:0;background:#111;color:#eee;font:600 13px sans-serif"></body>');
+  await sheet.evaluate((cells) => {
+    const d = document.createElement('div');
+    d.style.cssText = 'display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:4px';
+    for (const [n, src] of cells) d.insertAdjacentHTML('beforeend', `<figure style="margin:0"><img style="width:100%;display:block" src="${src}"><figcaption style="padding:1px">${n}</figcaption></figure>`);
+    document.body.append(d);
+    return Promise.all([...d.querySelectorAll('img')].map((i) => i.decode()));
+  }, cells);
+  await sheet.screenshot({ path: path.join(out, 'gfxcheck-sheet.png'), fullPage: true, timeout: 120000 });
+  console.log(`DONE gfxcheck: ${rows.length} comparisons, ${flagged.length} flagged; wrote gfxcheck.json and gfxcheck-sheet.png`);
+}
+// ===== GFXCHECK=1 (end) =====
 (async () => {
   await new Promise((r) => srv.listen(PORT, r));
   const out = process.argv[2];
   fs.mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--single-process', '--no-zygote', '--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
-  const page = await browser.newPage({ viewport: { width: Number(process.env.VW || 1920), height: Number(process.env.VH || 1080) }, ...(process.env.VIDEO ? { recordVideo: { dir: out, size: { width: 1280, height: 720 } } } : {}) });
+  const page = await browser.newPage({ viewport: { width: Number(process.env.VW || (process.env.GFXCHECK ? 1280 : 1920)), height: Number(process.env.VH || (process.env.GFXCHECK ? 720 : 1080)) }, ...(process.env.VIDEO ? { recordVideo: { dir: out, size: { width: 1280, height: 720 } } } : {}) });
   page.on('pageerror', (e) => console.log('PAGEERR', e.message, (e.stack || '').split('\n').slice(1, 3).join(' ')));
   page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text()));
   for (const spec of process.argv.slice(3)) {
@@ -37,6 +215,7 @@ const srv = http.createServer((req, res) => {
       await page.reload();
       await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     }
+    if (process.env.GFXCHECK) { await gfxCheck(browser, page, out, scene, t); continue; } // GFXCHECK=1: see the block above
     // HWTHEME=<look> (and HWGFX=<preset>): the highway in that look (hwlooks.js), set before the page loads
     if (process.env.HWTHEME || process.env.HWGFX) {
       await page.evaluate(([t, g]) => { localStorage.setItem('stagehand.hwlook.v1', JSON.stringify({ theme: t || 'classic', gfx: { preset: g || 'auto', ...(g && g !== 'auto' ? {} : {}) } })); }, [process.env.HWTHEME, process.env.HWGFX]);
