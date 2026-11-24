@@ -1528,14 +1528,14 @@ class FakePortMain extends EventEmitter {
   await page.mouse.move(300, 300);
   await shot('25-jam');
   // 3.12: Jam's look picker: Fluid and the four scenes
-  check((await page.getByLabel('Jam look').locator('option').count()) === 6, 'Jam offers Fluid and five scenes (4.5: Valhalla)');
-  // 4.5: scenes open with levels; a new player sees them locked, then (developer unlock) all of them
+  check((await page.getByLabel('Jam look').locator('option').count()) === 11, 'Jam offers Fluid and ten scenes (4.31: five new ones)');
+  // 4.29: every venue and scene is open from the start
   await page.getByLabel('Jam look').focus();
-  check(await page.evaluate(() => [...document.querySelector('select[aria-label="Jam look"]').options].some((o) => o.disabled && /level/.test(o.textContent))), 'Jam shows locked scenes with their level');
+  check(await page.evaluate(() => ![...document.querySelector('select[aria-label="Jam look"]').options].some((o) => o.disabled)), 'Jam has no locked scenes');
   await global.__levels.unlockAll(true);
   await page.evaluate(async () => (await import('/src/renderer/js/rewards.js')).loadLevels());
   await page.getByLabel('Jam look').focus();
-  for (const id of ['nebula', 'swarm', 'mandala', 'strings', 'valhalla']) {
+  for (const id of ['nebula', 'swarm', 'mandala', 'strings', 'valhalla', 'chrome', 'warp', 'sunset', 'borealis', 'lightshow']) {
     await page.getByLabel('Jam look').selectOption(id);
     await page.waitForTimeout(2500);
     check(await page.evaluate(() => !!document.querySelector('.jam canvas.hw-visual') && !document.querySelector('.jam iframe.hw-fluid')), `Jam shows ${id}`);
