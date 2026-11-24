@@ -346,3 +346,10 @@ html[data-look='opera'] #app .dc { border-radius:3px; }
 .pg-sung i { display:grid; width:13px; height:13px; color:var(--gel-vocals); opacity:.8; }
 .pg-sung i svg { width:13px; height:13px; }
 .pg-sung:hover { opacity:1; }
+
+/* 4.31: the five richer moving scenes (scenes/hq.js): a hint of each look, in the picker and the swatches */
+.hw-venue i.fluid.sc-chrome, .vsw.sc-chrome { background:radial-gradient(28% 34% at 42% 42%,#ffffffcc,transparent 30%),radial-gradient(40% 46% at 46% 48%,#c9b7ff,#4a2f7a 55%,transparent 72%),radial-gradient(22% 26% at 70% 40%,#7fe3ff,#1d3a5a 60%,transparent 75%),linear-gradient(180deg,#120c1c,#030306); filter:none; }
+.hw-venue i.fluid.sc-warp, .vsw.sc-warp { background:radial-gradient(circle at 50% 45%,#000 0 6%,#3ff0ff 7% 9%,transparent 11%,transparent 22%,#3ff0ffaa 23% 25%,transparent 28%,transparent 42%,#ff4fd8aa 43% 46%,transparent 50%),repeating-conic-gradient(from 0deg at 50% 45%,#0a1222 0 20deg,#14305a 20deg 22.5deg),#04060c; filter:blur(.4px); }
+.hw-venue i.fluid.sc-sunset, .vsw.sc-sunset { background:radial-gradient(circle at 50% 46%,#ffd23f 0 15%,transparent 16%),repeating-linear-gradient(0deg,#ff2f8f 0 2px,transparent 2px 9px) 0 100%/100% 42% no-repeat,linear-gradient(180deg,#0a0420 0%,#6a1450 45%,#ff5a7a 56%,#1a0624 57%,#0a0214 100%); filter:none; }
+.hw-venue i.fluid.sc-borealis, .vsw.sc-borealis { background:radial-gradient(60% 30% at 40% 30%,#3fffb0aa,transparent 70%),radial-gradient(40% 26% at 70% 22%,#9b5cffaa,transparent 70%),linear-gradient(180deg,#020615 0%,#06142a 58%,#010205 60%,#05121c 100%); filter:blur(.5px); }
+.hw-venue i.fluid.sc-lightshow, .vsw.sc-lightshow { background:conic-gradient(from 160deg at 20% 0%,transparent 0 8deg,#ff4fd8aa 10deg 14deg,transparent 16deg),conic-gradient(from 170deg at 50% 0%,transparent 0 8deg,#7fb8ffaa 10deg 14deg,transparent 16deg),conic-gradient(from 180deg at 80% 0%,transparent 0 8deg,#ff4fd8aa 10deg 14deg,transparent 16deg),linear-gradient(180deg,#07050d,#020203); filter:none; }
