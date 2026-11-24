@@ -222,6 +222,28 @@ const centroid = (y, a, b, sr) => {
   }
   return ((m / (w || 1)) * sr) / n;
 };
+// the brightness again, with the spectrum averaged over 2048-sample windows (half overlapping): steadier on noise
+const centroidAvg = (y, a, b, sr) => {
+  const n = 2048;
+  const p = new Float64Array(n / 2);
+  for (let s = a; s + n <= b; s += n / 2) {
+    const re = new Float64Array(n), im = new Float64Array(n);
+    for (let i = 0; i < n; i++) re[i] = y[s + i] * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / n));
+    fftc(re, im);
+    for (let k = 1; k < n / 2; k++) p[k] += re[k] * re[k] + im[k] * im[k];
+  }
+  let m = 0, w = 0;
+  for (let k = 1; k < n / 2; k++) (m += p[k] * k), (w += p[k]);
+  return ((m / (w || 1)) * sr) / n;
+};
+// noise that is the same every run (a small seeded generator), so a check on it gives one answer
+const seededNoise = (len, amp, seed) => {
+  let x = seed >>> 0 || 1;
+  return new Float32Array(len).map(() => {
+    x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0;
+    return ((x / 4294967296) * 2 - 1) * amp;
+  });
+};
 // the strongest throb between lo and hi Hz
 const throbPeak = (y, a, b, sr, lo, hi) => {
   let best = 0;
@@ -859,9 +881,11 @@ if (want('Hermes')) {
   ok(rms(silent) < 1e-5, 'Hermes: no playing, no static');
 }
 if (want('Icarus')) {
-  const noise = new Float32Array(2 * sr).map(() => (Math.random() * 2 - 1) * 0.05);
+  const noise = seededNoise(2 * sr, 0.05, Number(process.env.ICARUS_SEED) || 7);
   const y = render('Pedal_Icarus', { Rate: 0.05, Depth: 0, Manual: 80, Feedback: 50, Mix: 100 }, noise), d = render('Pedal_Icarus', { Rate: 0.05, Depth: 0, Manual: 80, Feedback: 50, Mix: 100 }, noise, at((t) => word('Pedal_Icarus', t > 0.5 ? B(0) : 0)));
-  ok(Math.abs(centroid(d, ...seg(1.5, 1.95), sr) - centroid(y, ...seg(1.5, 1.95), sr)) > 300, `Icarus: Dive pulls the sweep down (${centroid(y, ...seg(1.5, 1.95), sr).toFixed(0)} → ${centroid(d, ...seg(1.5, 1.95), sr).toFixed(0)} Hz)`);
+  // 4.31.1: the same noise every run, the spectrum averaged (fresh random noise misread about one run in twelve)
+  const cy = centroidAvg(y, ...seg(1.2, 1.95), sr), cd = centroidAvg(d, ...seg(1.2, 1.95), sr);
+  ok(cy - cd > 300, `Icarus: Dive pulls the sweep down (${cy.toFixed(0)} → ${cd.toFixed(0)} Hz)`);
   const ph = render('Pedal_Icarus', { 'Phase/Flange': 0, Mix: 100 }, riff(GTR, sr));
   ok(finite(ph) && peak(ph) < 2, 'Icarus: the phaser stays steady');
 }
