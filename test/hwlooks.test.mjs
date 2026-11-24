@@ -22,9 +22,9 @@ test('Classic is the default and changes nothing', () => {
   assert.equal(lk.res, 'auto');
 });
 
-test('Studio is first in the list and marked new; every look has a name, a wink and a palette', () => {
+test('Studio is first in the list; only the four new styles are marked new; every look has a name, a wink and a palette', () => {
   assert.equal(L.THEMES[0].id, 'studio');
-  assert.ok(L.THEMES[0].isNew);
+  assert.deepEqual(L.THEMES.filter((t) => t.isNew).map((t) => t.id), ['synthwave', 'arena', 'ember', 'blueprint']);
   const keys = Object.keys(L.THEMES.find((t) => t.id === 'classic').pal).sort();
   for (const t of L.THEMES) {
     assert.ok(t.name && t.wink && t.about, t.id);

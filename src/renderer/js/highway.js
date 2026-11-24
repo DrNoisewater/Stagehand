@@ -1,5 +1,5 @@
 import { VenueRotation } from './venue-rotation.mjs';
-import { did, venueLock, venueXpLeft, L as LV } from './rewards.js';
+import { did, venueLock } from './rewards.js';
 import { APPROACH_UNITS, approachDepth, chordSpan, isChordRepeat } from './highway-layout.js';
 /**
  * Note highway: the part coming toward you down a 3D fretboard, Rocksmith
@@ -18,14 +18,14 @@ import { createFluidDriver } from './reactive-bg.js';
 import { createFeatures } from './music-features.js';
 import { createVisuals } from './visuals.js';
 import { createPerformanceTools } from './performance-tools.js';
-import { VENUES, VENUE_ALIAS, venueThumb, createVenue, createFire } from './venues.js';
+import { VENUES, VENUE_ALIAS, createVenue, createFire } from './venues.js';
 import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShift } from './detect.js';
 import { createRenderer3D, col, mix, mixHex, rodShades } from './highway3d.js';
 import { loadLooks, onLooks, resolveLook, budgetDrop } from './hwlooks.js';
 import { createStyle } from './hwstyle.js';
-import { lookSection } from './hwlooks-pane.js';
+import { drawerLooks } from './hwlooks-pane.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { tuningGuide, checkTuning } from './tuning-check.js';
@@ -430,69 +430,32 @@ export function createHighway(stage) {
     };
     return b;
   }
-  let venuePreview = null; // 4.5: a locked venue you clicked, previewed under the list
-  function venuePicker() {
-    const cur = H.decorVenue || VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse';
-    const grid = h('div.hw-venues');
-    // 4.5: in the order they unlock along the Road to 100
-    const order = new Map(((LV.st && LV.st.venues) || []).map((v, i) => [v.venue, i]));
-    const list = [...VENUES].sort((a, b) => (order.has(a.id) ? order.get(a.id) : 99) - (order.has(b.id) ? order.get(b.id) : 99));
-    for (const v of list) {
-      const th = venueThumb(v);
-      const lock = cur === v.id ? 0 : venueLock(v.id);
-      const b = h(`button.hw-venue${lock ? '.locked' : ''}`, { type: 'button', title: lock ? `${v.name}: opens at level ${lock}. Click for a preview.` : v.name, 'aria-pressed': String(cur === v.id), ...(lock ? { 'data-lock': `LV ${lock}` } : {}) }, th ? h('img', { src: th, alt: '' }) : h(v.scene ? `i.fluid.sc-${v.scene}` : v.fluid ? 'i.fluid' : 'i.plain'), h('span', { text: v.name }));
-      b.onclick = () => {
-        if (lock) {
-          venuePreview = venuePreview === v.id ? null : v.id;
-          return renderOpts();
-        }
-        venuePreview = null;
-        setPref('venue', v.id);
-        did('venue');
-        renderOpts();
-      };
-      grid.append(b);
-    }
-    // 4.29: the list folds away under one line that names the venue in use; it stays as you left it
-    const open = prefs.venueOpen === true;
-    const curName = (VENUES.find((x) => x.id === cur) || {}).name || 'Warehouse';
-    const head = h('button.hw-venue-head', { type: 'button', 'aria-expanded': String(open) },
-      h('span.hw-opt-label', { text: 'Venue' }), h('b', { text: curName }), h('span.hw-venue-caret', { 'aria-hidden': 'true', text: open ? '▾' : '▸' }));
-    head.onclick = () => { setPref('venueOpen', !open); renderOpts(); };
-    grid.hidden = !open;
-    const row = h('div.hw-opt-row.hw-venue-fold', null, head, grid);
-    const pv = venuePreview && VENUES.find((x) => x.id === venuePreview);
-    if (pv && venueLock(pv.id)) {
-      const lvl = venueLock(pv.id);
-      const st = LV.st;
-      const left = venueXpLeft(pv.id);
-      const lx = (st && st.levelXp) || [];
-      const k = st && lx[lvl] ? Math.max(0, Math.min(1, st.xp / lx[lvl])) : 0;
-      const th = venueThumb(pv);
-      row.append(h('div.hw-venue-preview', { role: 'status' },
-        h('span.pv-pic', null, th ? h('img', { src: th.replace('-thumb', ''), alt: '' }) : h(`i.vsw.sc-${pv.id}`)),
-        h('div', null, h('b', { text: `${pv.name} · opens at level ${lvl}` }), h('p', { text: pv.desc || 'A stage to earn on the Road to 100.' }),
-          h('div.pv-bar', null, h('i', { style: { width: `${Math.round(k * 100)}%` } })),
-          h('small', { text: st ? `You’re level ${st.level}. ${left.toLocaleString()} XP to go.` : '' }))));
-    }
-    return row;
+  // 4.31: style, background and graphics quality (hwlooks-pane.js), then the switches in three groups;
+  // the frame rate counter and everything else about the look live in Settings › Display
+  function group(label, ...items) {
+    return h('div.hw-opt-group', null, h('span.hw-opt-label', { text: label }), h('div.hw-opt-toggles', null, ...items));
   }
   function renderOpts() {
     opts.innerHTML = '';
     opts.append(
       h('div.hw-master-sec', { text: 'Highway' }),
-      lookSection({ compact: true, open: prefs.lookOpen === true, onFold: (v) => setPref('lookOpen', v) }),
-      venuePicker(),
-      h('div.hw-opt-toggles', null,
-        toggle('Practice without a score', !prefs.detect, () => setPref('detect', !prefs.detect)),
+      drawerLooks({
+        venue: () => H.decorVenue || VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse',
+        pick: (id) => { setPref('venue', id); did('venue'); },
+        bgOpen: () => prefs.venueOpen === true,
+        onBgFold: (v) => setPref('venueOpen', v),
+        more: () => import('./dialogs.js').then((m) => m.settings('display', 'highway')),
+      }),
+      group('Show',
         toggle('Lyrics', prefs.lyrics !== false, () => setPref('lyrics', prefs.lyrics === false)),
-        toggle('Chord names', prefs.chordNames !== false, () => setPref('chordNames', prefs.chordNames === false)),
+        toggle('Chord names', prefs.chordNames !== false, () => setPref('chordNames', prefs.chordNames === false))),
+      group('Effects',
         toggle('Fire on a streak', prefs.fx, () => setPref('fx', !prefs.fx)),
         toggle('Hit burst', prefs.hitBurst !== false, () => setPref('hitBurst', prefs.hitBurst === false)),
-        toggle('String sway', prefs.stringSway !== false, () => setPref('stringSway', prefs.stringSway === false)),
-        toggle('Offer help when notes aren’t counting', !prefs.struggleOff, () => setPref('struggleOff', !prefs.struggleOff)),
-        toggle('Frame rate', !!prefs.showFps, () => setPref('showFps', !prefs.showFps))
-      )
+        toggle('String sway', prefs.stringSway !== false, () => setPref('stringSway', prefs.stringSway === false))),
+      group('Scoring',
+        toggle('Practice without a score', !prefs.detect, () => setPref('detect', !prefs.detect)),
+        toggle('Offer help when notes aren’t counting', !prefs.struggleOff, () => setPref('struggleOff', !prefs.struggleOff)))
     );
   }
   function syncButton() {
@@ -1313,6 +1276,7 @@ export function createHighway(stage) {
     const d = e.detail || {};
     if (d.key === 'lowTop') setPref('lowTop', !!d.value);
     if (d.key === 'showFps') setPref('showFps', !!d.value); // 4.30: from the graphics settings
+    if (d.key === 'venue' && VENUES.some((v) => v.id === d.value)) { setPref('venue', d.value); did('venue'); } // 4.31: from Settings › Display
   });
   function setPref(k, v) {
     prefs[k] = v;

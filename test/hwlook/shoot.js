@@ -744,6 +744,60 @@ const srv = http.createServer((req, res) => {
     if (process.env.TUNER) { await page.keyboard.press('u'); await page.waitForTimeout(300); }
     if (process.env.CARD) { await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.showCard(); }); await page.waitForTimeout(Number(process.env.CARD_WAIT || 0)); }
     if (process.env.MASTER) { await page.evaluate(() => document.querySelector('.hw-dock.collapsed') && document.querySelector('.hw-set-btn').click()); await page.waitForTimeout(500); }
+    // HWMENU=1 (4.31): the highway part of Sound & settings, and Settings › Display's highway part on
+    // its own (hw-menu.png, hw-settings.png, hw-settings-open.png); a style tile and a background tile work
+    if (process.env.HWMENU) {
+      await page.evaluate(() => document.querySelector('.hw-dock.collapsed') && document.querySelector('.hw-set-btn').click());
+      await page.waitForTimeout(500);
+      const r = await page.evaluate(async () => {
+        const d = document.querySelector('.hl-drawer');
+        d.scrollIntoView({ block: 'start' });
+        const tiles = d.querySelectorAll('.hl-style').length;
+        const imgs = await Promise.all([...d.querySelectorAll('.hl-style img')].map((i) => i.decode().then(() => i.naturalWidth > 0, () => false)));
+        d.querySelectorAll('.hl-style')[2].click();
+        const m = await import('/js/hwlooks.js');
+        const picked = m.loadLooks().theme;
+        document.querySelector('.hl-drawer .hl-bg-fold .hl-fold-head').click();
+        await new Promise((r) => setTimeout(r, 50));
+        document.querySelector('.hl-drawer .hl-own').click();
+        const bg = m.loadLooks().bg;
+        return { tiles, imgsOk: imgs.every(Boolean), picked, bg, fps: [...document.querySelectorAll('.hw-master-opts button')].filter((b) => /frame rate/i.test(b.textContent)).length };
+      });
+      console.log('HWMENU', JSON.stringify(r));
+      await page.waitForTimeout(1200);
+      const box = await page.evaluate(() => { const o = document.querySelector('.hw-master-opts'); const b = o.getBoundingClientRect(); return { x: b.x, y: Math.max(0, b.y), w: b.width, h: Math.min(innerHeight, b.height) }; });
+      await page.screenshot({ path: path.join(out, 'hw-menu.png'), clip: { x: Math.max(0, box.x - 8), y: 0, width: Math.min(box.w + 16, 1920), height: 1080 } });
+      await page.screenshot({ path: path.join(out, 'hw-menu-full.png') });
+      await page.evaluate(async () => {
+        const { lookSection } = await import('/js/hwlooks-pane.js');
+        const d = document.createElement('div');
+        d.id = 'hl-sheet';
+        d.style.cssText = 'position:fixed;inset:0;z-index:99999;overflow:auto;background:#1b1814;padding:20px 30px;';
+        const sec = document.createElement('div');
+        sec.className = 'disp-sec';
+        sec.style.cssText = 'max-width:760px;margin:0 auto;color:#eee;font:13px sans-serif';
+        sec.innerHTML = '<h3>Highway</h3>';
+        sec.append(lookSection());
+        d.append(sec);
+        document.body.append(d);
+        await Promise.all([...d.querySelectorAll('img')].map((i) => i.decode().catch(() => {})));
+      });
+      await page.waitForTimeout(300);
+      const fullShot = async (name) => {
+        const hgt = await page.evaluate(() => document.querySelector('#hl-sheet > div').scrollHeight + 40);
+        await page.setViewportSize({ width: 1920, height: Math.min(4000, hgt) });
+        await page.waitForTimeout(300);
+        await page.screenshot({ path: path.join(out, name), clip: { x: 560, y: 0, width: 800, height: Math.min(4000, hgt) } });
+        await page.setViewportSize({ width: 1920, height: 1080 });
+      };
+      await fullShot('hw-settings.png');
+      await page.evaluate(() => document.querySelector('#hl-sheet .hl-tune-fold .hl-fold-head').click());
+      await page.evaluate(() => document.querySelector('#hl-sheet .hl-adv-fold .hl-fold-head').click());
+      await fullShot('hw-settings-open.png');
+      const ok = r.tiles >= 11 && r.imgsOk && r.picked === 'synthwave' && r.bg === 'own' && r.fps === 0;
+      if (!ok) throw new Error('highway menu: ' + JSON.stringify(r));
+      console.log('PASS the highway menu: style pictures, a style and the style’s own room picked, no frame rate switch there');
+    }
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `${scene}_${(file||'').replace('.json','')}_${t}${play === 'p' ? 'p' : ''}${hits || ''}.png`) });
     console.log('shot', spec);

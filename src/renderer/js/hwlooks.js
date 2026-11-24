@@ -70,7 +70,6 @@ export const THEMES = [
   {
     id: 'studio',
     name: 'Studio',
-    isNew: true,
     wink: 'Soft light, grey room, nobody squinting.',
     about: 'A calm grey room under one soft light: matte floor, gentle light strips, dust in the beam.',
     def: { bright: 1, glow: 0.7, refl: 'full', fog: 0.35, gem: 'satin', hit: 'flash', amb: true },
@@ -165,7 +164,6 @@ export const THEMES = [
   {
     id: 'roadcase',
     name: 'Road case',
-    isNew: true,
     wink: 'Gaffer tape, worn boards, a light left on for the crew.',
     about: 'Stagehand’s own: worn wooden boards rolling under you, gaffer-tape rails, sawdust on hits.',
     def: { bright: 1, glow: 0.7, refl: 'soft', fog: 0.3, gem: 'paint', hit: 'dust', amb: true },
@@ -181,7 +179,6 @@ export const THEMES = [
   {
     id: 'chrome',
     name: 'Chrome & glass',
-    isNew: true,
     wink: 'Polished, cool and expensive-looking. Fingerprints not included.',
     about: 'A glass floor with a fine grid, chrome rails with a running glint, glass shards on hits.',
     def: { bright: 0.95, glow: 0.75, refl: 'full', fog: 0.3, gem: 'glass', hit: 'shards', amb: true },
@@ -197,7 +194,6 @@ export const THEMES = [
   {
     id: 'neon',
     name: 'Neon depth',
-    isNew: true,
     wink: 'Late-night synth club, with the dimmer turned down a notch.',
     about: 'Bent neon tubes for rails, lane lines that pulse with the beat, violet haze drifting by.',
     def: { bright: 0.9, glow: 0.7, refl: 'full', fog: 0.35, gem: 'neon', hit: 'ripple', amb: true },
@@ -213,7 +209,6 @@ export const THEMES = [
   {
     id: 'midnight',
     name: 'Midnight',
-    isNew: true,
     wink: 'For the 2 a.m. session. Your eyes (and neighbours) will thank you.',
     about: 'Very dim and calm for long practice: thin soft lines, a sky of faint stars, nothing flying about.',
     def: { bright: 0.8, glow: 0.45, refl: 'off', fog: 0.45, gem: 'satin', hit: 'none', amb: true },
@@ -229,7 +224,6 @@ export const THEMES = [
   {
     id: 'clear',
     name: 'Clear view',
-    isNew: true,
     wink: 'No frills, no fog, nothing in the way. The lightest on your PC.',
     about: 'The most readable: flat dark room, crisp white lines, no glow tricks, nothing moving.',
     def: { bright: 1, glow: 0.25, refl: 'off', fog: 0, gem: 'flat', hit: 'none', amb: false },
