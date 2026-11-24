@@ -24,6 +24,7 @@ import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShift } from './detect.js';
 import { createRenderer3D, col, mix, mixHex, rodShades } from './highway3d.js';
 import { loadLooks, onLooks, resolveLook, budgetDrop } from './hwlooks.js';
+import { createStyle } from './hwstyle.js';
 import { lookSection } from './hwlooks-pane.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
@@ -355,7 +356,7 @@ export function createHighway(stage) {
   let P = LK.pal; // the floor and stage colours in use
   let lookWant = true; // a new look waits for the start of the next frame (like a new sharpness)
   function refreshLook() {
-    LK = resolveLook(looks, { budget: lookBudget, seeThrough: !!H.seeThrough });
+    LK = resolveLook(looks, { budget: lookBudget });
     P = LK.pal;
     lookWant = true;
     canDrop = budgetDrop(looks, lookBudget) >= 0;
@@ -1981,6 +1982,8 @@ export function createHighway(stage) {
   const anX0 = (an) => XF(an.fret - 1);
   const anX1 = (an) => XF(an.fret - 1 + (an.width || 4));
   const noteX = (nt, a) => (nt.f === 0 ? (anX0(a) + anX1(a)) / 2 : laneC(nt.f));
+  // 4.31: each style's own floor, rails, light and hit effect (hwstyle.js; Classic draws none of it)
+  const styleFx = createStyle({ R3, G, XF, zOf, noteX, strH, anchorAt, STRING, anX0, anX1, lower, beats: () => H.tab.beats || [], calm: () => calmMotion() });
 
   // ---- camera --
   /** Frets (as lane edges, lo..hi) that the next few seconds of play use. */
@@ -2140,6 +2143,8 @@ export function createHighway(stage) {
     G.f1 = f1;
     R3.begin();
     buildFloor(t, a, f0, f1);
+    if (LK.sig.rails !== 'tube') styleFx.ambient(LK, P, a);
+
     buildNeck(t, a, f0, f1);
     buildApproach(t, a);
     buildNotes(t, a);
@@ -2395,10 +2400,13 @@ export function createHighway(stage) {
         floor.flat(l, r, za, zb, 0.002, col(P.laneA, P.laneFill), col(P.laneB, P.laneFill));
         floor.flat(l + w * 0.18, r - w * 0.18, za, zb, 0.004, col(P.laneMid, P.laneMidA), col(P.laneMid, P.laneMidA / 2));
       }
+      const tube = LK.sig.rails === 'tube';
+      if (!tube) styleFx.floorPattern(LK, P, an, xa, xb, za, zb, an.t <= t + 0.0001 && (!next || next.t > t));
       for (let f = an.fret; f < an.fret - 1 + (an.width || 4); f++) floor.bar([XF(f), 0.006, za], [XF(f), 0.006, zb], 0.04, col(P.laneLine, P.laneLineA));
       // the bright rails
       const tw = G.tierW || 0;
-      for (const x of [xa, xb]) {
+      if (!tube) for (const x of [xa, xb]) styleFx.rail(LK, P, x, za, zb, railCol);
+      else for (const x of [xa, xb]) {
         floor.bar([x, 0.008, za], [x, 0.008, zb], 0.07, railCol(0.95, 1.1));
         // 4.17: a soft glow either side of the rail (was a flat band), wider and brighter on a streak
         const gw = 0.18 + 0.1 * tw;
@@ -3283,6 +3291,7 @@ export function createHighway(stage) {
       }
     }
     if (LK.sparks) buildSparks(now); // 4.30: a look can leave the sparks out
+    else styleFx.hits(LK, H.hits, H.targets); // 4.31: the style's own hit effect
   }
 
   // 4.23: less movement: the app's calm setting or Windows' "show animations" switched off

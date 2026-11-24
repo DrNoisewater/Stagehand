@@ -44,6 +44,12 @@ const srv = http.createServer((req, res) => {
       await page.reload();
       await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     }
+    // HWBG=own|venue (4.31): the style's own room, or the venue (VENUE=…) behind the highway
+    if (process.env.HWBG) {
+      await page.evaluate(async (b) => { const m = await import('/js/hwlooks.js'); m.saveLooks({ ...m.loadLooks(), bg: b }); }, process.env.HWBG);
+      await page.reload();
+      await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+    }
     // SKIN=<theme>: the song screen in that Appearance theme (its bars and menus; the notes keep their look)
     if (process.env.SKIN) {
       await page.evaluate((k) => { document.documentElement.dataset.look = 'opera'; document.documentElement.dataset.skin = k; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/themes-stage.css'; document.head.append(l); }, process.env.SKIN);

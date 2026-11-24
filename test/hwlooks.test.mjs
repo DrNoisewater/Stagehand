@@ -47,7 +47,7 @@ test('stored settings are made safe', () => {
 
 test('note finishes: each look has its own, and the old Matte reads as Satin', () => {
   const by = Object.fromEntries(L.THEMES.map((t) => [t.id, t.def.gem]));
-  assert.deepEqual(by, { studio: 'satin', classic: 'solid', roadcase: 'paint', chrome: 'glass', neon: 'neon', midnight: 'satin', clear: 'flat' });
+  assert.deepEqual(by, { studio: 'satin', classic: 'solid', synthwave: 'neon', arena: 'solid', ember: 'satin', blueprint: 'flat', roadcase: 'paint', chrome: 'glass', neon: 'neon', midnight: 'satin', clear: 'flat' });
   assert.equal(L.clean({ per: { studio: { gem: 'matte' } } }).per.studio.gem, 'satin');
 });
 
@@ -91,12 +91,50 @@ test('Auto gives up mirror reflections, then bloom size, then bloom and shadows,
   assert.deepEqual(L.resolveLook(hi, { budget: 0 }), L.resolveLook(hi, { budget: 3 }));
 });
 
-test('a moving venue behind the highway turns the after-effects off', () => {
-  const st = { theme: 'studio', per: { studio: { back: 'venue' } }, gfx: { ...L.GFX_DEFAULT, dof: true, grain: true, vignette: true } };
-  const lk = L.resolveLook(st, { seeThrough: true });
-  assert.equal(lk.bloom, null);
-  assert.equal(lk.dof || lk.grain || lk.vignette, false);
+test('every style has its own signature; the four new ones are marked new', () => {
+  const sigs = new Set();
+  for (const t of L.THEMES) {
+    for (const k of ['floor', 'rails', 'pool', 'beat', 'amb']) assert.ok(k in t.sig, `${t.id} sig ${k}`);
+    if (t.id !== 'classic') assert.notEqual(t.sig.rails, 'tube', `${t.id}: only Classic has light-tube rails`);
+    sigs.add(JSON.stringify([t.sig.floor, t.sig.rails, t.sig.amb, t.def.hit]));
+  }
+  assert.equal(sigs.size, L.THEMES.length, 'no two styles share floor, rails, movement and hit effect');
+  for (const id of ['synthwave', 'arena', 'ember', 'blueprint']) assert.ok(L.THEMES.find((t) => t.id === id).isNew, id);
+  for (const t of L.THEMES) assert.ok(L.HITS.some((x) => x[0] === t.def.hit), `${t.id} hit`);
+});
+
+test('the background is its own choice: any style over a venue or its own room', () => {
+  const st = { theme: 'neon', bg: 'venue', per: {}, gfx: { ...L.GFX_DEFAULT, dof: true, grain: true, vignette: true } };
+  const lk = L.resolveLook(st);
+  assert.equal(lk.own, false);
   assert.equal(lk.sky, null);
+  assert.ok(lk.bloom, 'bloom stays on over a venue (moving ones too)');
+  assert.ok(lk.dof && lk.grain && lk.vignette);
+  assert.equal(L.resolveLook({ ...st, bg: 'own' }).own, true);
+  assert.ok(L.resolveLook({ ...st, bg: 'own' }).sky);
+});
+
+test('old settings carry over: the per-style background, the Sparks switch, a preset without style effects', () => {
+  assert.equal(L.clean(null).bg, 'venue', 'new players see the venue, as before');
+  assert.equal(L.clean({ theme: 'classic' }).bg, 'venue');
+  assert.equal(L.clean({ theme: 'studio' }).bg, 'own', 'other styles showed their own room');
+  assert.equal(L.clean({ theme: 'studio', per: { studio: { back: 'venue' } } }).bg, 'venue');
+  assert.equal(L.clean({ theme: 'classic', per: { classic: { back: 'own' } } }).bg, 'own');
+  assert.equal(L.clean({ theme: 'studio', bg: 'own', per: { studio: { back: 'venue' } } }).bg, 'own', 'a saved choice wins');
+  const st = L.clean({ theme: 'studio', per: { studio: { sparks: false, back: 'own' } } });
+  assert.equal(st.per.studio.hit, 'none');
+  assert.ok(!('back' in st.per.studio) && !('sparks' in st.per.studio));
+  assert.equal(L.clean({ gfx: { preset: 'low' } }).gfx.fx, 'simple');
+  assert.equal(L.clean({ gfx: { preset: 'high' } }).gfx.fx, 'full');
+});
+
+test('style effects: Low and a slow PC drop the moving parts', () => {
+  const full = L.resolveLook({ theme: 'studio', bg: 'own', per: {}, gfx: { ...L.GFX_DEFAULT } }, { budget: 3 });
+  assert.equal(full.amb, true);
+  assert.equal(L.resolveLook({ theme: 'studio', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, 'low') }).amb, false);
+  assert.equal(L.resolveLook({ theme: 'studio', per: { studio: { amb: false } }, gfx: { ...L.GFX_DEFAULT } }).amb, false);
+  assert.equal(L.resolveLook({ theme: 'classic', per: {}, gfx: { ...L.GFX_DEFAULT } }).amb, false, 'Classic has none');
+  assert.equal(L.resolveLook({ theme: 'studio', per: { studio: { hit: 'embers' } }, gfx: { ...L.GFX_DEFAULT } }).hit, 'embers');
 });
 
 test('the old Reflections switch carries over to Classic, and saving tells listeners', () => {

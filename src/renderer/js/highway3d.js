@@ -655,7 +655,11 @@ uniform float keyK;    // a soft light behind the highway
 uniform float horK;    // a band of light (haze) along the horizon …
 uniform float horW;    // … and how tall it is (part of the screen height)
 uniform float vx;      // where the floor's lines meet (CSS px from the left)
+uniform float time;    // seconds, for a style's slow movement
+uniform float amb;     // 1: the room moves (sun stripes, embers, beams, twinkling); 0: still
+uniform float stars;   // a sky of faint stars
 float hash(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
+float hash2(vec2 v) { return fract(sin(dot(v, vec2(12.9898, 78.233))) * 43758.5453); }
 void main() {
   vec2 p = vec2(gl_FragCoord.x, res.y * dpr - gl_FragCoord.y) / dpr;
   vec3 c;
@@ -673,9 +677,59 @@ void main() {
       c = 1.0 - (1.0 - c) * (1.0 - l);
     }
   } else if (skyOn > 0.5) {
+    float tm = time * amb;
     if (p.y < vp) {
       float u = clamp(p.y / max(1.0, vp), 0.0, 1.0);
       c = u < 0.6 ? mix(sTop, sMid, u / 0.6) : mix(sMid, sHor, (u - 0.6) / 0.4);
+      if (stars > 0.5) {
+        // faint stars, twinkling slowly
+        vec2 cell = floor(p / 9.0);
+        float h = hash2(cell);
+        if (h > 0.985) {
+          vec2 o = p - (cell + vec2(hash2(cell + 3.1), hash2(cell + 7.7)) * 0.8 + 0.1) * 9.0;
+          float tw = 0.55 + 0.45 * sin(tm * (0.7 + h * 2.0) + h * 40.0);
+          c += vec3(0.75, 0.85, 1.0) * (1.0 - smoothstep(0.3, 1.3, length(o))) * 0.35 * tw * (1.0 - u * 0.7);
+        }
+      }
+      if (pat > 2.5 && pat < 3.5) {
+        // a striped sun sinking into the horizon; its stripes roll down slowly
+        float r = res.y * 0.15;
+        vec2 d = p - vec2(vx, vp - r * 0.25);
+        float dist = length(d);
+        float up = -d.y / r;
+        vec3 sun = mix(vec3(1.0, 0.3, 0.55), vec3(1.0, 0.8, 0.38), clamp(up * 0.6 + 0.4, 0.0, 1.0));
+        float stripe = 1.0;
+        if (up < 0.45) {
+          float f = fract(up * 8.0 + tm * 0.25);
+          stripe = smoothstep(0.0, 0.08, f - mix(0.6, 0.05, clamp((up + 0.25) / 0.7, 0.0, 1.0)));
+        }
+        float inSun = 1.0 - smoothstep(r - 1.5, r + 1.5, dist);
+        c = mix(c, sun * (0.55 + 0.1 * pulse), inSun * stripe * 0.8);
+        c += sun * 0.16 * exp(-max(0.0, dist - r) / (res.y * 0.07));
+      }
+      if (pat > 5.5) {
+        // haze and light beams from the rig above, sweeping slowly; brighter on the beat
+        for (int i = 0; i < 4; i++) {
+          float fi = float(i);
+          vec2 src = vec2(res.x * (0.14 + fi * 0.24), -res.y * 0.05);
+          float ang = 0.32 * sin(tm * (0.23 + fi * 0.05) + fi * 1.9) + (fi - 1.5) * 0.1;
+          vec2 dv = p - src;
+          float a = atan(dv.x, dv.y);
+          float k = exp(-pow((a - ang) / 0.045, 2.0)) * smoothstep(0.0, 0.5, dv.y / max(1.0, vp));
+          c += keyCol * k * patA * 0.16 * (1.0 + pulse * 0.8);
+        }
+        c += keyCol * 0.035 * u;
+      }
+      if (pat > 4.5 && pat < 5.5) {
+        // embers drifting up out of the cracks
+        vec2 g = vec2(p.x / 26.0, p.y / 26.0 + tm * 0.9);
+        vec2 id = floor(g);
+        float h = hash2(id);
+        if (h > 0.94) {
+          vec2 f = fract(g) - vec2(0.5 + 0.3 * sin(tm + h * 30.0), 0.5);
+          c += horCol * (1.0 - smoothstep(0.02, 0.14, length(f))) * 0.45 * u * (0.6 + 0.4 * sin(tm * 3.0 + h * 50.0));
+        }
+      }
     } else {
       float v = clamp((p.y - vp) / max(1.0, res.y - vp), 0.0, 1.0);
       c = mix(sFar, sNear, pow(v, 0.6));
@@ -685,7 +739,32 @@ void main() {
       float dep = res.y / gy * 0.35;
       float run = (p.x - vx) / gy * 0.9;
       float near = smoothstep(0.015, 0.2, v); // patterns fade out before the horizon (no shimmer)
-      if (pat > 1.5) {
+      if (pat > 4.5 && pat < 5.5) {
+        // charcoal with glowing cracks, hotter on the beat and on a streak
+        vec2 q = vec2(run * 1.4, dep * 0.7);
+        float n = abs(sin(q.x * 2.1 + sin(q.y * 1.7) * 2.0 + sin(q.y * 0.6 + q.x * 0.4) * 1.5));
+        float cr = 1.0 - smoothstep(0.0, 0.06 + fwidth(n) * 1.5, n);
+        c *= 0.9 + 0.1 * hash2(floor(q * 3.0));
+        c += horCol * cr * patA * near * (0.35 + 0.4 * heat + 0.3 * pulse) * (0.8 + 0.2 * sin(tm * 1.3 + q.x));
+      } else if (pat > 3.5 && pat < 4.5) {
+        // drafting lines on the floor
+        float fa = fwidth(dep) * 1.2;
+        float fb = fwidth(run * 2.0) * 1.2;
+        float la = 1.0 - smoothstep(0.0, fa, min(fract(dep), 1.0 - fract(dep)));
+        float lb = 1.0 - smoothstep(0.0, fb, min(fract(run * 2.0), 1.0 - fract(run * 2.0)));
+        c += horCol * patA * near * max(la, lb);
+      } else if (pat > 2.5 && pat < 3.5) {
+        // a pink grid rolling toward you, brighter on the beat
+        float dd = dep + tm * 0.8;
+        float fa = fwidth(dd) * 1.2;
+        float fb = fwidth(run) * 1.2;
+        float la = 1.0 - smoothstep(0.0, fa, min(fract(dd), 1.0 - fract(dd)));
+        float lb = 1.0 - smoothstep(0.0, fb, min(fract(run), 1.0 - fract(run)));
+        c += horCol * patA * near * max(la, lb) * (0.8 + 0.4 * pulse);
+      } else if (pat > 5.5) {
+        // a glossy stage floor catching the beams
+        c += keyCol * 0.05 * (1.0 - v) * (1.0 + pulse);
+      } else if (pat > 1.5) {
         // boards running away from you, their ends staggered
         float b = floor(run);
         float len = floor(dep * 0.5 + hash(b) * 3.0);
@@ -710,6 +789,14 @@ void main() {
     float hd = p.y - vp;
     c += horCol * horK * exp(-abs(hd) / (res.y * (hd < 0.0 ? horW : horW * 0.4)));
     c *= 1.0 + pulse * 0.12;
+    if (pat > 3.5 && pat < 4.5) {
+      // blueprint paper: a fine square grid over everything
+      vec2 gm = abs(fract(p / 22.0 + 0.5) - 0.5) * 22.0;
+      vec2 gM = abs(fract(p / 110.0 + 0.5) - 0.5) * 110.0;
+      float lm = 1.0 - smoothstep(0.0, 1.0, min(gm.x, gm.y));
+      float lM = 1.0 - smoothstep(0.0, 1.2, min(gM.x, gM.y));
+      c += horCol * (lm * 0.35 + lM * 0.7) * patA;
+    }
   } else {
     float d = distance(p / res, vec2(0.5, 0.42));
     c = mix(vec3(0.10, 0.12, 0.18), vec3(0.02, 0.03, 0.05), clamp(d * 1.6, 0.0, 1.0)) * (1.0 + pulse * 0.25);
@@ -758,6 +845,9 @@ function makeBackdrop(scene) {
       horK: { value: 0 },
       horW: { value: 0.006 },
       vx: { value: 0 },
+      time: { value: 0 },
+      amb: { value: 0 },
+      stars: { value: 0 },
     },
     depthTest: false,
     depthWrite: false,
@@ -787,6 +877,7 @@ uniform float vpUv;   // the horizon, from the bottom (0..1)
 uniform float vig;
 uniform float grain;
 uniform float time;
+uniform float keepA;  // a moving background behind: keep the picture see-through where nothing is drawn
 varying vec2 vUv;
 float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
 vec3 fx(vec2 uv) {
@@ -812,32 +903,37 @@ vec3 fx(vec2 uv) {
 }
 void main() {
   vec3 c = fx(vUv);
+  float a = keepA > 0.5 ? clamp(texture2D(src, vUv).a, 0.0, 1.0) : 1.0;
   if (dof > 0.5) {
     // strongest at and above the horizon, gone a quarter of the screen below it
     float k = 1.0 - smoothstep(vpUv - 0.25, vpUv, vUv.y);
     k = 1.0 - k;
     if (k > 0.01) {
-      vec3 b = vec3(0.0);
-      for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) b += texture2D(src, vUv + vec2(float(i), float(j)) * px * 1.5).rgb;
-      c = mix(c, b / 25.0, k * 0.85);
+      vec4 b = vec4(0.0);
+      for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) b += texture2D(src, vUv + vec2(float(i), float(j)) * px * 1.5);
+      c = mix(c, b.rgb / 25.0, k * 0.85);
+      if (keepA > 0.5) a = mix(a, clamp(b.a / 25.0, 0.0, 1.0), k * 0.85);
     }
   }
   if (vig > 0.5) {
     float d = distance(vUv, vec2(0.5, 0.5));
-    c *= 1.0 - 0.28 * smoothstep(0.45, 0.85, d);
+    float v = 1.0 - 0.28 * smoothstep(0.45, 0.85, d);
+    c *= v;
+    // over a moving background the corners darken it too: less of it shows through
+    if (keepA > 0.5) a = 1.0 - (1.0 - a) * v;
   }
   if (grain > 0.5) {
     float n = fract(sin(dot(vUv * 1000.0 + time, vec2(12.9898, 78.233))) * 43758.5453);
-    c += (n - 0.5) * 0.035;
+    c += (n - 0.5) * 0.035 * a;
   }
-  gl_FragColor = vec4(c, 1.0);
+  gl_FragColor = vec4(c, a);
 }`;
 
 function makePost(renderer) {
   const mat = new THREE.ShaderMaterial({
     vertexShader: PVS,
     fragmentShader: PFS,
-    uniforms: { src: { value: null }, px: { value: new THREE.Vector2() }, fxaa: { value: 0 }, dof: { value: 0 }, vpUv: { value: 0.6 }, vig: { value: 0 }, grain: { value: 0 }, time: { value: 0 } },
+    uniforms: { src: { value: null }, px: { value: new THREE.Vector2() }, fxaa: { value: 0 }, dof: { value: 0 }, vpUv: { value: 0.6 }, vig: { value: 0 }, grain: { value: 0 }, time: { value: 0 }, keepA: { value: 0 } },
     depthTest: false,
     depthWrite: false,
   });
@@ -871,7 +967,18 @@ function makePost(renderer) {
         const bw = o.bloom.half ? Math.round(w / 2) : w;
         const bh = o.bloom.half ? Math.round(h / 2) : h;
         const key = `${bw}x${bh}`;
-        if (!bloom) bloom = new UnrealBloomPass(new THREE.Vector2(bw, bh), 1, 0.4, 0.8);
+        if (!bloom) {
+          bloom = new UnrealBloomPass(new THREE.Vector2(bw, bh), 1, 0.4, 0.8);
+          // add the light but keep the picture's own alpha, so a moving background still shows
+          // through (where the picture is solid this is the same as before)
+          const bm = bloom.blendMaterial;
+          bm.blending = THREE.CustomBlending;
+          bm.blendEquation = THREE.AddEquation;
+          bm.blendSrc = THREE.SrcAlphaFactor;
+          bm.blendDst = THREE.OneFactor;
+          bm.blendSrcAlpha = THREE.ZeroFactor;
+          bm.blendDstAlpha = THREE.OneFactor;
+        }
         if (key !== bloomKey) {
           bloom.setSize(bw, bh);
           bloomKey = key;
@@ -890,6 +997,7 @@ function makePost(renderer) {
       u.vig.value = o.vignette ? 1 : 0;
       u.grain.value = o.grain ? 1 : 0;
       u.time.value = (performance.now() / 1000) % 100;
+      u.keepA.value = o.keepAlpha ? 1 : 0;
       renderer.setRenderTarget(null);
       renderer.render(qScene, qCam);
     },
@@ -983,6 +1091,8 @@ export function createRenderer3D(canvas) {
     glow: new Layer(scene, { order: 4, additive: true, look: lookU }),
     // the glow layer's soft lights (halos, bands, rings), so a look can turn them up or down on their own
     soft: new Layer(scene, { order: 4, additive: true, look: lookU }),
+    // 4.31: a style's own touches that are not the notes or the neck: hit effects, slow movement
+    fx: new Layer(scene, { order: 5, additive: true, look: lookU }),
   };
   L.glow.softTo = L.soft;
   // a look's mirror floor: the notes, strings and frets (and with "full" their glow) upside down under it
@@ -1073,12 +1183,12 @@ export function createRenderer3D(canvas) {
       const vp = Math.max(H * 0.22, Math.min(H * 0.6, vpY));
       u.vp.value = vp;
       // the Fluid venue lives behind this canvas: draw no backdrop, clear to transparent
+      u.time.value = (performance.now() / 1000) % 1000;
       const fluid = !!(v && v.fluid);
       if (fluid !== seeThrough) {
         seeThrough = fluid;
         backMesh.visible = !fluid;
         renderer.setClearColor(0x05070c, fluid ? 0 : 1);
-        if (look) R.setLook(look);
       }
       if (fluid) return;
       const p = v && v.photo ? photoTextures(v.photo) : null;
@@ -1103,7 +1213,7 @@ export function createRenderer3D(canvas) {
     setLook(lk) {
       look = lk || null;
       const g = look ? look.bright : 1;
-      for (const k of ['floor', 'solid', 'alpha', 'glow']) L[k].mat.uniforms.gain.value = g;
+      for (const k of ['floor', 'solid', 'alpha', 'glow', 'fx']) L[k].mat.uniforms.gain.value = g;
       L.soft.mat.uniforms.gain.value = g * (look ? look.glowK : 1);
       lookU.fogK.value = look ? look.fogK : 0;
       setHex(lookU.fogCol.value, look ? look.fogCol : '#000000');
@@ -1124,7 +1234,9 @@ export function createRenderer3D(canvas) {
         u.keyK.value = sky.key;
         u.horK.value = sky.horLine;
         u.horW.value = sky.horW || 0.006;
+        u.stars.value = sky.stars ? 1 : 0;
       }
+      u.amb.value = look && look.amb ? 1 : 0;
       const mir = !!look && look.refl === 'mirror';
       mirrors.solid.visible = mir;
       mirrors.glow.visible = mir;
@@ -1132,7 +1244,8 @@ export function createRenderer3D(canvas) {
       mirrors.glow.material.uniforms.reflK.value = look ? look.reflK * 0.6 : 0;
       R.mirror = mir;
       const aaPost = look && (look.aa === 'off' || look.aa === 'fxaa' || look.aa === 'msaa8');
-      usePost = !!look && !seeThrough && !!(look.bloom || aaPost || look.dof || look.grain || look.vignette);
+      // 4.31: also over a moving background (the after-effects keep it showing through)
+      usePost = !!look && !!(look.bloom || aaPost || look.dof || look.grain || look.vignette);
       if (!usePost) post.dispose();
     },
     /** The horizon's height on screen (CSS px from the top), for the distance blur. */
@@ -1151,10 +1264,11 @@ export function createRenderer3D(canvas) {
       for (const k in L) L[k].end(zFar, zPast);
       text.end(W, H);
       renderer.info.reset();
-      if (usePost && !seeThrough) {
+      if (usePost) {
         const aa = look.aa;
         const max = renderer.capabilities.maxSamples || 4;
-        post.render(scene, camera, { samples: aa === 'msaa8' ? Math.min(8, max) : aa === 'msaa4' ? Math.min(4, max) : 0, fxaa: aa === 'fxaa', bloom: look.bloom, dof: look.dof, vpUv, vignette: look.vignette, grain: look.grain });
+        post.render(scene, camera, { samples: aa === 'msaa8' ? Math.min(8, max) : aa === 'msaa4' ? Math.min(4, max) : 0, fxaa: aa === 'fxaa', bloom: look.bloom, dof: look.dof, vpUv, vignette: look.vignette, grain: look.grain, keepAlpha: seeThrough });
+
       } else renderer.render(scene, camera);
       // the labels on top, never touched by the after-effects
       renderer.autoClear = false;
