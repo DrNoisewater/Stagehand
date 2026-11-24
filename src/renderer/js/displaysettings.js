@@ -72,7 +72,7 @@ function keepOrUndo(before) {
   }, 1000);
 }
 
-export async function pane(el) {
+export async function pane(el, at = null) {
   if (!(api.app && api.app.display)) {
     el.append(h('p', { text: 'Display settings need the Stagehand app.' }));
     return;
@@ -182,9 +182,14 @@ export async function pane(el) {
         fx.append(h('div.disp-range', null, h('span.disp-sub', { text: 'Restart to use it.' }), rs));
       }
     }
-    // 4.30: the highway's look and graphics (the same block as in the highway's Sound & settings)
-    const hl = sec('Highway look and graphics', 'How the note highway looks and how hard your PC works to draw it. Looks change colours and light only: every note, string, fret and label stays exactly where it is.');
-    hl.append(lookSection({ compact: false }));
+    // 4.30: the highway's look and graphics; 4.31: its style, background, Fine-tune and graphics
+    const hl = sec('Highway', 'How the note highway looks and how hard your PC works to draw it. A style never moves a note, string, fret or label.');
+    hl.id = 'disp-highway';
+    hl.append(lookSection());
+    if (at === 'highway') {
+      at = null; // once: a redraw later keeps your place
+      requestAnimationFrame(() => hl.scrollIntoView({ block: 'start' }));
+    }
     const reset = h('button.btn', { type: 'button', html: `${icon('repeat')}<span>Reset this screen</span>` });
     reset.onclick = async () => {
       await api.app.resetDisplay();

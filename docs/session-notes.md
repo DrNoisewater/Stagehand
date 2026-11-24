@@ -56,4 +56,46 @@ User then: fewer graphics options, more unique styles to pick from. Sent to High
 
 Background artist: merged (82c578c). Five new scenes in src/renderer/js/scenes/hq.js, listed through SCENES: Liquid chrome, Light tunnel, Sunset drive, Northern lights, Light show. Calmer with reduced motion, drawn at 70-85% size. Not tried on a real graphics card (Sunset drive the costliest). Not in the Progress venue list.
 
-Status: Highway builder running.
+Highway builder: merged (3674ad3). See its section below.
+
+Status: all four helpers merged; GFXCHECK names settings that no longer exist (to update).
+
+## 4.31 highway styles overhaul (Highway builder, 2026-11-24)
+
+User: "The options look similar … Venues and bg animations should be able to be used with changing highway style. Menu overload … Do the different settings actually apply?"
+
+Decisions and why:
+- Style and background are separate. `looks.bg` is 'own' (the style's room) or 'venue' (the venue in Sound & settings, with its per-song rotation unchanged). Old saves: the per-style "back" of the style in use becomes `bg`; with none, Classic gets 'venue' and other styles 'own', so nobody sees a change. The old "Sparks" switch becomes Hit effect: None.
+- After-effects over moving backgrounds: the scene's alpha is now kept through the post chain (bloom blends with dst alpha kept, the final pass outputs the texture's alpha, vignette darkens through alpha, grain scaled by alpha). No extra frame: it is the same single pass. So bloom, vignette, grain and distance blur work over Fluid and the scenes; the 4.30 rule that switched them off is gone.
+- Each style has a `sig` (floor pattern, rails, light pool, beat, slow movement) and a hit effect, drawn by `hwstyle.js` only on the floor, soft and the new `fx` layer, never on solid/alpha/glow or text, so THEMES=1 stays at 0.000 px. Classic's tube rails stay in highway.js untouched; Classic is pixel-identical to 4.30.0 (T:17.2 and T:19.1 compared, difference 0). Sky patterns (stars, the striped sun, haze beams, embers, blueprint paper, cracks, gloss) are in the backdrop shader.
+- New styles: Synthwave, Arena, Ember, Blueprint (only these four marked New). Movement in the room is gated by a new graphics option "Style effects" (Low = Simple), the per-style switch, and calm motion for hit effects.
+- Menus: the drawer has style picture tiles, a Background fold (Style's room first, then every entry of VENUES, so new scenes appear by themselves), one Graphics quality row, "More highway settings" (opens Settings › Display scrolled to Highway: `settings('display', 'highway')`), and switches grouped Show / Effects / Scoring. The frame rate switch is only in Settings › Display › Advanced.
+- Settings › Display › Highway: a big picture of the style, a gallery with one line each, Background, a "Fine-tune <style>" fold, presets and an Advanced fold.
+- No live preview: it would need a second WebGL context in Settings (risky on weak cards). The pictures are rendered from the real highway (`HWBG=own THEMES=1 shoot.js T:17.2`, cropped with PIL) into `src/renderer/art/hwstyles/<id>.webp` (192×108, under 8 KB, packed in Setup) and `<id>-big.webp` (768×432, ~20 KB, downloaded through art-files.txt like other art).
+- Moved out of the UI (was "Left out on purpose"): motion blur and temporal smoothing (they smear moving notes), ambient occlusion, shadow maps and texture filtering (nothing on the highway they would improve). V-sync is always on. None of the settings adds delay.
+
+Checks: `node --test test/hwlooks.test.mjs` (new: signatures, background choice, migration, style effects); `THEMES=1` all 0.000; `HWMENU=1 shoot.js` (new) checks the drawer (11 picture tiles load, a style and the style's room can be picked, no frame rate switch) and writes pictures of both menus; `HWBG=own|venue` sets the background in `shoot.js`.
+
+Unknown until the user's PC: how the new styles feel at full speed on a real card, and whether the floor patterns read well enough inside a narrow hand position.
+
+Settings checker's findings (GFXCHECK) acted on:
+- Fog now also fills the style's own room toward the horizon and starts nearer (was only far notes: ~0.05% of pixels).
+- Reflections: the mirror floor is 2.4× stronger; a style that wants Full reflections gets a 2.4× clearer simple reflection too (Classic keeps its faint one).
+- Vignette 28% → 50% at the corners, from nearer the middle; grain ±0.0175 → ±0.04; distance blur reaches down the far highway and blurs twice as wide.
+- Removed from the menu: Shadows (no visible effect) and Bloom "Half size" (looked the same as Full; Auto still uses it to save work). MSAA 8× kept: the same as 4× here only because the software GPU caps at 4 samples.
+- Rooms that looked alike: Chrome is now a light steel room, Neon teal with pink, Clear a neutral grey, Arena a warm hazy stage. Closest pair in the contact sheet (mean difference /255, highway area) went from 6.4 to 9.0.
+- Not changed: the note finishes only differ on note faces (kept as they are; changing the gem drawing risked the THEMES check).
+
+### 4.31 addendum: fewer settings, fifteen styles (user's direction)
+- The user asked for fewer graphics options and more unique styles. Graphics is now only the five
+  presets (Auto/Low/Medium/High/Ultra), a frame rate cap and the frame rate counter. No Advanced fold,
+  no Custom mix. Per style: Brightness and Effects (Full / Calm / Off) only; the style decides fog,
+  reflections, glow and note finish.
+- Old saves: per-style settings other than brightness are dropped; Sparks off or hit 'none' becomes
+  Effects Off, movement off becomes Calm; a custom graphics mix becomes Auto.
+- Four new styles (hwstyle.js): Arcade (checkerboard floor, pixel rails, pixel hits), Deep sea
+  (caustics, swaying rails, bubbles), Frozen lake (ice cracks, frost rails, snow, snowflake hits),
+  Disco (lit beat tiles, rainbow rails, mirror-ball spots, confetti). 15 styles in all.
+- Checks: THEMES=1 0.000 px for all 15; Classic identical to the base renders (T:17.2, T:19.1);
+  closest style pair 9.3 (arena/clear); HWMENU passes with 15 tiles.
+- GFXCHECK (cherry-picked) still names removed settings; it needs updating by its owner.
