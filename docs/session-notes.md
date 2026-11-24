@@ -48,4 +48,8 @@ Helpers (each in its own worktree, merged here after checking):
 
 Preview fixer: merged (420da1c). The psarc's own clip was already used; silences came from songs with no clip not yet opened, a failed decode with no retry, clips the scan missed (unnamed bank, clip inside the bank), a click ignored while a song plays, the engine's backup route only on during songs, hidden errors and a speaker output that never woke. test/preview.test.js (npm test), preview-electron.js extended.
 
-Status: Settings checker, Highway builder, Background artist running.
+Nearby-song preview preparation removed at the user's word (people click around and scroll, not down the list).
+
+Settings checker: merged (1df8ab1). GFXCHECK=1 in shoot.js (C:7.0, ~20 min, alone). Brightness, glow, room, sharpness, edge smoothing and Low change the picture; fog, reflections, note finishes, sparks, shadows, distance blur, vignette, grain, half bloom, Medium vs High and 8x smoothing barely do (<0.5% of pixels). Classic, Chrome, Neon and Clear share the dark-blue room (7-11/255 apart). Findings sent to Highway builder: make each kept setting visible, drop the ones that can't be.
+
+Status: Highway builder, Background artist running.
