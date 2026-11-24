@@ -58,7 +58,9 @@ Background artist: merged (82c578c). Five new scenes in src/renderer/js/scenes/h
 
 Highway builder: merged (3674ad3). See its section below.
 
-Status: all four helpers merged; GFXCHECK names settings that no longer exist (to update).
+Then: Style polisher (Opus) gave the six look-alikes their own floors and made Effects visible; Check updater (Sonnet) rewrote GFXCHECK for the 4.31 settings; Preset fixer (Sonnet) made Medium draw at 85% and fixed the check's contact-sheet crash.
+
+Status: done and checked (GFXCHECK, npm test, ui3 all passed). Waiting on the user to merge and release 4.31.0.
 
 ## 4.31 highway styles overhaul (Highway builder, 2026-11-24)
 
