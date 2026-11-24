@@ -54,4 +54,6 @@ Settings checker: merged (1df8ab1). GFXCHECK=1 in shoot.js (C:7.0, ~20 min, alon
 
 User then: fewer graphics options, more unique styles to pick from. Sent to Highway builder: graphics = quality presets (+ frame rate cap and counter), style tweaks at most brightness and one effects level; aim for 12-15 distinct styles.
 
-Status: Highway builder, Background artist running.
+Background artist: merged (82c578c). Five new scenes in src/renderer/js/scenes/hq.js, listed through SCENES: Liquid chrome, Light tunnel, Sunset drive, Northern lights, Light show. Calmer with reduced motion, drawn at 70-85% size. Not tried on a real graphics card (Sunset drive the costliest). Not in the Progress venue list.
+
+Status: Highway builder running.
