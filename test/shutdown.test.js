@@ -11,6 +11,10 @@ const realPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
 const setPlatform = (v) => Object.defineProperty(process, 'platform', { value: v });
 const realSpawn = cp.spawn;
 const realSpawnSync = cp.spawnSync;
+// The pretend helpers are Node scripts: run them with Node, so the test works on Windows too.
+const nodeSpawn = (cmd, args = [], o) => (String(cmd).endsWith('.fake.js') ? realSpawn(process.execPath, [cmd, ...args], o) : realSpawn(cmd, args, o));
+cp.spawn = nodeSpawn;
+const SLEEP = [process.execPath, ['-e', 'setTimeout(() => {}, 30000)']];
 
 const proctree = require('../src/main/services/proctree');
 const { RigAudio } = require('../src/main/services/rigaudio');
@@ -18,10 +22,10 @@ const { RigAudio } = require('../src/main/services/rigaudio');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sh-shutdown-'));
 // A pretend helper: starts a child of its own, and either leaves when asked or ignores everything.
 const fake = (name, hangs) => {
-  const f = path.join(tmp, name);
+  const f = path.join(tmp, name + '.fake.js');
   fs.writeFileSync(
     f,
-    `#!${process.execPath}\nconst { spawn } = require('child_process');\nconst g = spawn('sleep', ['30'], { stdio: 'ignore' });\nprocess.stdout.write(String(g.pid) + '\\n');\n` +
+    `const { spawn } = require('child_process');\nconst g = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], { stdio: 'ignore' });\nprocess.stdout.write(String(g.pid) + '\\n');\n` +
       (hangs ? 'setInterval(() => {}, 1000);\n' : "process.stdin.on('end', () => { try { process.kill(g.pid); } catch (_) {} process.exit(0); });\nprocess.stdin.resume();\n"),
     { mode: 0o755 }
   );
@@ -42,7 +46,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   {
     const calls = [];
     cp.spawnSync = (...a) => (calls.push(a), { status: 0 });
+    setPlatform('linux');
     assert.strictEqual(proctree.killLeftovers('stagehand-audio.exe'), false);
+    setPlatform(realPlatform.value);
     assert.strictEqual(calls.length, 0, 'nothing is ended off Windows');
     setPlatform('win32');
     assert.strictEqual(proctree.killLeftovers('stagehand-audio.exe'), true);
@@ -113,7 +119,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     proctree.killTree(child); // a second call does nothing
     setPlatform(realPlatform.value);
     await wait(20);
-    cp.spawn = realSpawn;
+    cp.spawn = nodeSpawn;
     assert.strictEqual(calls.length, 1);
     assert.deepStrictEqual(calls[0], ['taskkill', ['/PID', '4242', '/T', '/F']]);
     assert.ok(kills.length >= 1);
@@ -122,8 +128,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // tracked children (decoder, video saving) are all ended on quit, and forgotten when they exit
   {
-    const a = realSpawn('sleep', ['30'], { stdio: 'ignore' });
-    const b = realSpawn('sleep', ['30'], { stdio: 'ignore' });
+    const a = realSpawn(...SLEEP, { stdio: 'ignore' });
+    const b = realSpawn(...SLEEP, { stdio: 'ignore' });
     proctree.track(a);
     proctree.track(b);
     b.kill();
