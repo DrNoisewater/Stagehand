@@ -23,6 +23,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 // the stand-in decoder: 6 s of a 330 Hz tone, written where it is asked to
 const FAKE = `#!/usr/bin/env node
 const fs=require('fs');const a=process.argv;const w=Date.now()+300;while(Date.now()<w);const o=a[a.indexOf('-o')+1];
+if(fs.readFileSync(a[a.length-1]).toString('latin1',0,4)==='FAIL')process.exit(2);
 const sr=48000,n=sr*6,b=Buffer.alloc(44+n*4);
 b.write('RIFF',0);b.writeUInt32LE(36+n*4,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(2,22);
 b.writeUInt32LE(sr,24);b.writeUInt32LE(sr*4,28);b.writeUInt16LE(4,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(n*4,40);
@@ -98,6 +99,50 @@ fs.writeFileSync(o,b);
   const want = await idOf(other);
   r = await page.evaluate(() => ({ peak: window.__peak(), pv: window.__pv() }));
   check(r.pv.playing === want && r.peak > 0.05, `a song heard before plays after its clip was tidied away (${JSON.stringify(r.pv)}, peak ${r.peak.toFixed(3)})`);
+
+  // 4.30.1: songs whose file has no preview clip, or one the decoder can't read, never opened:
+  // a slice of the song plays (before: nothing, and no word why)
+  const more = path.join(home, 'more');
+  fs.mkdirSync(more);
+  const { makePsarc, makeBank } = require('../helpers/psarc-make');
+  const odd = (key, title, prev) => {
+    const files = {
+      [`manifests/songs_dlc_${key}/${key}_lead.json`]: Buffer.from(JSON.stringify({ Entries: { [key]: { Attributes: { SongKey: key, SongName: title, ArtistName: 'Test', ArrangementName: 'Lead', SongBank: `song_${key}.bnk`, PreviewBankPath: `song_${key}_preview.bnk` } } } })),
+      [`audio/windows/song_${key}.bnk`]: makeBank({ event: `Play_${key}`, media: 610000001 }),
+      'audio/windows/610000001.wem': Buffer.alloc(300 * 1024, 3),
+    };
+    if (prev) {
+      files[`audio/windows/song_${key}_preview.bnk`] = makeBank({ event: `Play_${key}_Preview`, media: 610000002 });
+      files['audio/windows/610000002.wem'] = prev;
+    }
+    makePsarc(path.join(more, `${key}_p.psarc`), files);
+  };
+  odd('zzclipless', 'Zz No Clip', null);
+  odd('zzbroken', 'Zz Broken Clip', Buffer.concat([Buffer.from('FAIL'), Buffer.alloc(40 * 1024, 4)]));
+  await page.evaluate(async (d) => (await import('./js/api.js')).api.library.addFolder(d), more);
+  await page.waitForFunction(async () => (await import('./js/store.js')).state.songs.size >= 4, null, { timeout: 30000 });
+  await page.waitForTimeout(800);
+  for (const title of ['Zz No Clip', 'Zz Broken Clip']) {
+    const row = page.locator('.row .tt-text', { hasText: title }).first();
+    await row.scrollIntoViewIfNeeded();
+    await row.click();
+    await page.waitForFunction(() => window.__pv().playing, null, { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(600);
+    r = await page.evaluate(() => ({ peak: window.__peak(), pv: window.__pv() }));
+    check(r.pv.playing && r.pv.from === 'song' && r.peak > 0.05, `${title}: a slice of the song plays (${JSON.stringify(r.pv)}, peak ${r.peak.toFixed(3)})`);
+  }
+
+  // a song playing in the player: a click says why there's no preview instead of staying quiet
+  await page.evaluate(() => [...document.querySelectorAll('.pv-stop')].forEach((b) => b.click()));
+  await page.waitForTimeout(300);
+  await page.evaluate(async () => { (await import('./js/stage.js')).engine.playing = true; });
+  await rows.nth(0).click();
+  await page.waitForTimeout(700);
+  r = await page.evaluate(() => { const b = document.querySelector('.pv-bar'); return { bar: b && !b.hidden ? b.textContent : null, pv: window.__pv() }; });
+  check(r.bar && /song is playing/i.test(r.bar) && !r.pv.playing, `with a song playing, the bar says why nothing plays (${r.bar})`);
+  await page.evaluate(async () => { (await import('./js/stage.js')).engine.playing = false; });
+  await page.screenshot({ path: path.join(out, 'preview-note.png') });
+
   check(!errs.length, `no errors on the page (${errs.join('; ')})`);
   await app.close();
   fs.rmSync(home, { recursive: true, force: true });

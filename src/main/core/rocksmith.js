@@ -328,10 +328,24 @@ async function readSongs(psarc, { metadataOnly = false, signal } = {}) {
       const hit = wemIdsInBank(bank, ids).map((id) => wems.find((w) => w.id === id).name);
       if (hit.length) audio = hit.reduce((best, n) => (sizeOf(n) > sizeOf(best) ? n : best), hit[0]);
     }
-    const pbank = await readBank(s._previewBank);
+    // The preview: the clip the game plays in its song list. 4.30.1: its bank is found by name when
+    // the manifest doesn't say (song_x_preview.bnk), the song's own audio is never taken for it,
+    // and a preview kept inside its bank (no .wem of its own) is used too.
+    const pbankName = s._previewBank || (s._bank ? String(s._bank).replace(/\.bnk$/i, '_preview.bnk') : null);
+    let pbank = await readBank(pbankName);
+    let pbankFull = pbank ? names.find((n) => n.toLowerCase().endsWith('/' + String(pbankName).toLowerCase())) : null;
+    if (!pbank && songs.size === 1) {
+      pbankFull = names.find((n) => /_preview\.bnk$/i.test(n)) || null;
+      if (pbankFull) pbank = await readBank(pbankFull.split('/').pop());
+    }
     if (pbank) {
-      const hit = wemIdsInBank(pbank, ids);
-      if (hit.length) preview = wems.find((w) => w.id === hit[0]).name;
+      const hit = wemIdsInBank(pbank, ids).map((id) => wems.find((w) => w.id === id).name).filter((n) => n !== audio);
+      if (hit.length) preview = hit.reduce((best, n) => (sizeOf(n) < sizeOf(best) ? n : best), hit[0]);
+      else if (pbankFull) {
+        // only a real clip: a bank also holds the first few KB of audio streamed from elsewhere
+        const media = bankMedia(pbank).filter((m) => m.size >= 64 * 1024);
+        if (media.length) preview = `${pbankFull}#${media.reduce((a, b) => (b.size > a.size ? b : a)).id}`;
+      }
     }
     if (!audio && wems.length) {
       const candidates = wems.filter((w) => w.name !== preview);
@@ -348,6 +362,11 @@ async function readSongs(psarc, { metadataOnly = false, signal } = {}) {
         const big = media.reduce((a, b) => (b.size > a.size ? b : a));
         if (full) audio = `${full}#${big.id}`;
       }
+    }
+    // 4.30.1: no preview bank at all, but one file with the song and one much smaller .wem: that's the clip
+    if (!preview && audio && songs.size === 1 && wems.length === 2 && !audio.includes('#')) {
+      const other = wems.find((w) => w.name !== audio);
+      if (other && sizeOf(other.name) < sizeOf(audio) * 0.4) preview = other.name;
     }
 
     }

@@ -9,6 +9,11 @@
  * memory by the sound thread. Before, an <audio> element streamed it from the app's file server
  * into the sound engine, which could stutter or stay silent on a busy PC. Fades are scheduled on
  * the sound clock, so they can't be held up by the page either.
+ *
+ * 4.30.1: a click is never silent without saying why. A clip that fails to load or decode is asked
+ * for once more; a song whose own clip can't be read plays a slice of the song instead (the app
+ * does that); when nothing can play, the bar says so in a few words. The clips of the songs around
+ * the one clicked are made ready in the background, so the next click starts at once.
  */
 import { state, on } from './store.js';
 import { api } from './api.js';
@@ -28,10 +33,13 @@ let cur = null; // { id, src, gain, ctx, ended, timer }
 let stageMod = null;
 let bar = null;
 let plays = 0;
+let noteTimer = 0;
+let lastNote = null; // for checks: the last thing the bar had to say instead of playing
+let lastFrom = null; // for checks: 'preview' (the song's own clip) or 'song' (a slice of it)
 
 /** For checks: how many clips have started, and what is playing now. */
 export function previewState() {
-  return { plays, playing: cur && !cur.ended ? cur.id : null, url: cur && !cur.ended ? cur.url : null };
+  return { plays, playing: cur && !cur.ended ? cur.id : null, url: cur && !cur.ended ? cur.url : null, from: lastFrom, note: lastNote };
 }
 
 function enabled() {
@@ -48,21 +56,64 @@ function playerBusy() {
   }
 }
 
-function showBar(song, loading) {
+function showBar(song, loading, note = null) {
   if (!bar) {
     bar = h('div.pv-bar', { role: 'status', hidden: true });
     document.body.append(bar);
   }
-  const what = loading ? 'Getting the preview' : 'Preview';
-  bar.innerHTML = `<span class="pv-ic">${icon('volume')}</span><span class="pv-t">${what} · <b>${esc(song && song.title ? song.title : 'song')}</b></span>`;
+  clearTimeout(noteTimer);
+  const what = note ? 'No preview' : loading ? 'Getting the preview' : 'Preview';
+  bar.innerHTML = `<span class="pv-ic">${icon(note ? 'info' : 'volume')}</span><span class="pv-t">${what} · <b>${esc(song && song.title ? song.title : 'song')}</b>${note ? `<span class="pv-why">${esc(note)}</span>` : ''}</span>`;
   bar.classList.toggle('loading', !!loading);
+  bar.classList.toggle('note', !!note);
+  if (note) {
+    // a note goes by itself after a few seconds
+    lastNote = note;
+    noteTimer = setTimeout(hideBar, 5000);
+    const ok = h('button.pv-stop', { type: 'button', title: 'Close', 'aria-label': 'Close', html: `${icon('x')}` });
+    ok.onclick = () => hideBar();
+    bar.append(ok);
+    bar.hidden = false;
+    return;
+  }
   const stop = h('button.pv-stop', { type: 'button', title: 'Stop the preview', 'aria-label': 'Stop the preview', html: `${icon('x')}<span>Stop</span>` });
   stop.onclick = () => stopPreview();
   bar.append(stop);
   bar.hidden = false;
 }
 function hideBar() {
+  clearTimeout(noteTimer);
   if (bar) bar.hidden = true;
+}
+
+/** What to tell the player when a click can't play anything (plain words, no codes). */
+function whyNot(err) {
+  const code = err && err.code;
+  if (code === 'NEED_VGMSTREAM') return 'The song audio decoder isn’t installed yet. Open the song once to set it up.';
+  if (code === 'NO_SOUND') return 'The sound output isn’t ready. Check your speakers or headphones in Settings.';
+  if (code === 'PREVIEW_NONE' || code === 'AUDIO_DECODE' || code === 'AUDIO_SEARCH') return 'Stagehand couldn’t read this song’s audio.';
+  if (code === 'NO_AUDIO' || code === 'AUDIO_MISSING') return 'This song’s audio wasn’t found.';
+  return 'It couldn’t be loaded. Click the song again to try once more.';
+}
+
+let warmTimer = 0;
+/** 4.30.1: get the clips of these songs ready in the background (the songs around the one clicked). */
+export function warmPreviews(ids) {
+  if (!enabled() || !ids || !ids.length) return;
+  clearTimeout(warmTimer);
+  warmTimer = setTimeout(() => {
+    try {
+      const p = api.audio.warmPreviews && api.audio.warmPreviews(ids);
+      if (p && p.catch) p.catch(() => {});
+    } catch (_) {}
+  }, 400);
+}
+
+/** Tell the player's sound engine a preview is on (or off), so the rig can check it reaches the speakers. */
+function markEngine(until) {
+  try {
+    if (stageMod && stageMod.engine) stageMod.engine.previewUntil = until;
+  } catch (_) {}
 }
 
 function end(c, quick = false) {
@@ -72,6 +123,7 @@ function end(c, quick = false) {
   if (cur === c) {
     cur = null;
     hideBar();
+    markEngine(0);
   }
   try {
     const t = c.ctx.currentTime;
@@ -134,43 +186,63 @@ function soundFor(ctx, url) {
   return p;
 }
 
-/** Play a short clip of a song (call it when a song is clicked). */
-export async function previewSong(id) {
+/** Play a short clip of a song (call it when a song is clicked). `near`: the songs around it, to get ready. */
+export async function previewSong(id, { near = null } = {}) {
   if (!enabled()) return;
   if (cur && cur.id === id && !cur.ended) return; // already playing this one
   const mine = ++token;
   if (cur) end(cur);
   if (!stageMod) stageMod = await import('./stage.js').catch(() => null);
   const still = () => mine === token && !playerBusy() && state.page === 'songs' && state.selection.has(id);
-  if (mine !== token || playerBusy() || state.page !== 'songs' || !stageMod) return;
+  if (mine !== token || state.page !== 'songs' || !stageMod) return;
   const song = state.songs.get(id);
   if (!song) return;
+  // a song playing in the player: a preview would talk over it, so say why nothing plays
+  if (playerBusy()) return showBar(song, false, 'A song is playing. Pause it to hear previews.');
   // the first time a song is clicked its clip is made, which can take a moment: say so
   const slow = setTimeout(() => still() && showBar(song, true), 250);
-  let out = null;
   let clip = null;
   let sound = null;
+  let why = null;
+  // the sound output and the clip are got ready side by side
+  const outP = stageMod.engine.extraOut();
+  outP.catch(() => {});
   try {
-    out = await stageMod.engine.extraOut();
     for (let attempt = 0; attempt < 2 && !sound; attempt++) {
       clip = await clipFor(id, attempt > 0);
       if (!clip || !still()) break;
+      const out = await outP;
       try {
         sound = await soundFor(out.ctx, clip.url);
       } catch (err) {
-        // the app tidied its sound files away since this clip was made: ask for it again
-        if (!err.gone) throw err;
+        // the clip was tidied away, came in broken, or the decode was cut short: ask for it once more
+        why = err;
+        if (attempt === 0) sounds.delete(clip.url);
       }
     }
-  } catch (_) {
-    sound = null; // no preview and no decoder: stay quiet, the song still opens as always
+  } catch (err) {
+    why = err;
+    sound = null;
   }
   clearTimeout(slow);
-  const quiet = () => mine === token && hideBar(); // nothing newer is on its way: no bar left saying "Getting"
-  if (!still() || !sound) return quiet();
+  if (mine !== token) return; // a newer click took over (it handles the bar)
+  if (why && why.code === 'PREVIEW_SKIPPED') return hideBar();
+  if (!still()) return hideBar();
+  if (!sound) {
+    // nothing to play: say so (the song still opens as always)
+    if (!clip && !why) why = { code: 'PREVIEW_NONE' };
+    console.warn('preview: nothing to play for', id, why && (why.message || why.code));
+    return showBar(song, false, whyNot(why));
+  }
   // the player may have rebuilt its sound engine while this one was loading
-  out = await stageMod.engine.extraOut().catch(() => null);
-  if (!out || !still()) return quiet();
+  let out = await stageMod.engine.extraOut().catch(() => null);
+  if (!still()) return hideBar();
+  if (!out || out.ctx.state !== 'running') {
+    // a sound output that won't start (a device unplugged, or one still waking): one more go
+    if (out) await Promise.race([out.ctx.resume().catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
+    if (!still()) return hideBar();
+    if (!out || out.ctx.state !== 'running') return showBar(song, false, whyNot({ code: 'NO_SOUND' }));
+  }
   const { ctx, node } = out;
   const src = ctx.createBufferSource();
   src.buffer = sound;
@@ -192,13 +264,18 @@ export async function previewSong(id) {
   g.linearRampToValueAtTime(0, t + length);
   try {
     src.start(t, offset, length);
-  } catch (_) {
-    return end(c, true);
+  } catch (err) {
+    end(c, true);
+    return showBar(song, false, whyNot(err));
   }
   plays++;
+  lastFrom = clip.from || 'preview';
+  markEngine(performance.now() + length * 1000);
   showBar(song, false);
   // a safety net: the bar goes even if the sound's own end never arrives (a closed engine)
   c.timer = setTimeout(() => end(c, true), (length + 1) * 1000);
+  // the songs around this one: their clips made ready while this one plays
+  if (near && near.length) warmPreviews(near);
 }
 
 // the player starting (or already playing) ends the preview; so does leaving Songs or picking another song.
