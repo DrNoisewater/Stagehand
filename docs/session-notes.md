@@ -34,3 +34,14 @@ Decisions and why:
 Checks: `node --test test/hwlooks.test.mjs` (in npm test); `THEMES=1 … shoot.js` checks every look against Classic (points, labels and label sizes, limit 1 px; all 0.000) and writes `themes-sheet.png`; `HWTHEME=<look>` works in `shoot.js` and `ui3-chromium.js`.
 
 Unknown until the user's PC: how the looks feel on a real screen, and what bloom and the mirror floor cost on a real graphics card (here only a slow software one).
+
+# Session notes (4.30.0 → 4.31), started 2026-11-24
+
+Asked: the highway looks all look alike, so overhaul that screen; venues and moving backgrounds should work with any highway style; too much in the graphics menus, clean it up; do the settings actually change anything; a click on a song still sometimes plays no preview (use the preview inside the psarc).
+
+Helpers (each in its own worktree, merged here after checking):
+- Preview fixer (Opus): why a click is sometimes silent; preview files only.
+- Settings checker (Sonnet): GFXCHECK=1 in test/hwlook/shoot.js, measures what each setting changes on screen.
+- Highway builder (Opus): styles apart from backgrounds, distinct styles, short drawer, full Settings › Display section.
+
+Status: helpers running.
