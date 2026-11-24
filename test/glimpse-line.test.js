@@ -66,7 +66,8 @@ const frame = (type, f32) => {
     const rig = new EventEmitter();
     const asks = [];
     rig.setGlimpseMonitor = (on) => asks.push(on);
-    const pipe = path.join(os.tmpdir(), `sh-glimpse-test-${process.pid}.sock`);
+    // a real named pipe on Windows (as the app uses), a socket file elsewhere
+    const pipe = process.platform === 'win32' ? `\\\\.\\pipe\\sh-glimpse-test-${process.pid}` : path.join(os.tmpdir(), `sh-glimpse-test-${process.pid}.sock`);
     const line = new GlimpseLine({ rigAudio: rig, pipe });
     line.start();
     await wait(50);
