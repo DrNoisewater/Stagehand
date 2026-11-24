@@ -314,7 +314,7 @@ export const BACKGROUNDS = ['own', 'venue'];
 export const PRESETS = {
   auto: { res: 'auto', aa: 'msaa4', bloom: 'full', refl: 'mirror', shadows: 'on', fx: 'full', post: true },
   low: { res: 0.75, aa: 'fxaa', bloom: 'off', refl: 'off', shadows: 'off', fx: 'simple', post: false },
-  medium: { res: 1, aa: 'msaa4', bloom: 'half', refl: 'simple', shadows: 'on', fx: 'full', post: true },
+  medium: { res: 0.85, aa: 'msaa4', bloom: 'half', refl: 'simple', shadows: 'on', fx: 'full', post: true },
   high: { res: 1, aa: 'msaa4', bloom: 'full', refl: 'mirror', shadows: 'on', fx: 'full', post: true },
   ultra: { res: 1.5, aa: 'msaa8', bloom: 'full', refl: 'mirror', shadows: 'on', fx: 'full', post: true },
 };

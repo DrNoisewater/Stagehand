@@ -69,6 +69,8 @@ test('presets: Low turns the costly things off, and each step up adds something'
   assert.equal(lk.amb, false);
   assert.equal(lk.res, 0.75);
   assert.ok(at('medium').bloom.half);
+  assert.equal(at('medium').res, 0.85, 'Medium draws a little smaller than High');
+  assert.equal(at('high').res, 1);
   assert.equal(at('medium').refl, 'simple');
   assert.ok(at('high').bloom && !at('high').bloom.half);
   assert.equal(at('high').refl, 'mirror');

@@ -192,21 +192,14 @@ async function gfxCheck(browser, page, out, scene, t) {
   // ---- the contact sheet: every shot with its numbers
   const cap = {};
   for (const r of rows) cap[r.shot] = `${r.setting}: ${r.pct}% ${r.verdict}`;
-  const cells = fs.readdirSync(dir).filter((f) => f.endsWith('.png')).sort().map((f) => {
-    const k = f.replace(/\.png$/, '');
-    return [cap[k] || k, `data:image/png;base64,${fs.readFileSync(path.join(dir, f)).toString('base64')}`];
-  });
+  // (pictures are linked from the files, not packed into the page: dozens of inline pictures made the browser drop the page)
+  const esc = (x) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const figs = fs.readdirSync(dir).filter((f) => f.endsWith('.png')).sort().map((f) => `<figure style="margin:0"><img style="width:100%;display:block" src="file://${path.join(dir, f)}"><figcaption style="padding:1px">${esc(cap[f.replace(/\.png$/, '')] || f.replace(/\.png$/, ''))}</figcaption></figure>`);
+  const sheetFile = path.join(out, 'gfxcheck-sheet.html');
+  fs.writeFileSync(sheetFile, `<!doctype html><body style="margin:0;background:#111;color:#eee;font:600 13px sans-serif"><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:4px">${figs.join('')}</div></body>`);
   const sheet = page; // (the browser runs as one process: no second page; the highway is done with)
-  await sheet.goto('about:blank');
   await sheet.setViewportSize({ width: 1920, height: 1000 });
-  await sheet.setContent('<body style="margin:0;background:#111;color:#eee;font:600 13px sans-serif"></body>');
-  await sheet.evaluate((cells) => {
-    const d = document.createElement('div');
-    d.style.cssText = 'display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:4px';
-    for (const [n, src] of cells) d.insertAdjacentHTML('beforeend', `<figure style="margin:0"><img style="width:100%;display:block" src="${src}"><figcaption style="padding:1px">${n}</figcaption></figure>`);
-    document.body.append(d);
-    return Promise.all([...d.querySelectorAll('img')].map((i) => i.decode()));
-  }, cells);
+  await sheet.goto('file://' + sheetFile, { waitUntil: 'load' });
   await sheet.screenshot({ path: path.join(out, 'gfxcheck-sheet.png'), fullPage: true, timeout: 120000 });
   console.log(`DONE gfxcheck: ${rows.length} comparisons, ${failed.length} with no visible effect, ${weak.length} weak, ${flaggedPairs.length} style pairs flagged; wrote gfxcheck.json and gfxcheck-sheet.png`);
   if (failed.length) process.exitCode = 1;

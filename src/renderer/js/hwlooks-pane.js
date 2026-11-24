@@ -14,7 +14,7 @@ import { VENUES, VENUE_ALIAS, venueThumb } from './venues.js';
 const PRESET_ROWS = [
   ['auto', 'Auto', 'Keeps it smooth: the fancy bits go first, sharpness last.'],
   ['low', 'Low', 'Older laptop? Every note still lands in the same place.'],
-  ['medium', 'Medium', 'The sensible middle.'],
+  ['medium', 'Medium', 'The middle: a little less sharp, softer glow, simpler reflections.'],
   ['high', 'High', 'The full show, for most PCs.'],
   ['ultra', 'Ultra', 'Your graphics card asked for a challenge.'],
 ];
