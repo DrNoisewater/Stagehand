@@ -46,4 +46,6 @@ Helpers (each in its own worktree, merged here after checking):
 
 - Background artist (Opus): about five new music-reactive moving backgrounds, higher quality than Mandala (visuals.js), asked mid-session.
 
-Status: helpers running.
+Preview fixer: merged (420da1c). The psarc's own clip was already used; silences came from songs with no clip not yet opened, a failed decode with no retry, clips the scan missed (unnamed bank, clip inside the bank), a click ignored while a song plays, the engine's backup route only on during songs, hidden errors and a speaker output that never woke. test/preview.test.js (npm test), preview-electron.js extended.
+
+Status: Settings checker, Highway builder, Background artist running.
