@@ -103,7 +103,7 @@ export function lookSection(opts = {}) {
       seg('Reflections on the floor', null, [['off', 'Off'], ['soft', 'Soft'], ['full', 'Full', 'A mirror floor (needs Reflections quality set to Mirror floor)']], s.refl, (v) => setTheme('refl', v)),
       seg('Background', null, [['own', 'This look’s room'], ['venue', 'My venue']], s.back, (v) => setTheme('back', v)),
       slider('Fog', 'How much the far end fades into the room.', THEME_SETTINGS.fog, s.fog, pct, (v) => setTheme('fog', v)),
-      seg('Notes', 'Only the finish: every note keeps its string colour, size and place.', [['solid', 'Solid'], ['glass', 'Glass'], ['matte', 'Matte']], s.gem, (v) => setTheme('gem', v)),
+      seg('Notes', 'Only the finish: every note keeps its string colour, size and place.', [['solid', 'Classic', 'Lit edges and a light bar, as always'], ['satin', 'Satin', 'Smooth solid colour, soft edges'], ['glass', 'Glass', 'Tinted glass in a chrome rim'], ['neon', 'Neon', 'Dark inside, a bright glowing outline'], ['paint', 'Painted', 'Worn paint with a strip of gold tape'], ['flat', 'Flat', 'One flat colour, a white outline: the easiest to read']], s.gem, (v) => setTheme('gem', v)),
       sw('Sparks on hits', 'Little sparks fly when you hit a note.', s.sparks, (v) => setTheme('sparks', v))
     );
     const reset = h('button.btn.small.hl-reset', { type: 'button', text: `Reset ${t.name}` });

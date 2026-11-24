@@ -28,6 +28,9 @@ Decisions and why:
 - The old "Reflections" switch in the highway panel is gone; its "off" carries over to Classic's reflections.
 - New looks: Studio, Road case (Stagehand's own: boards and gaffer-tape gold), Chrome & glass, Neon depth, Midnight, Clear view.
 
+- Note finishes (second pass, after the coordinator saw the looks read as recolours): the notes keep their shape, size and place, but their faces, edges and rims are lit differently per look: Classic (as always), Satin (Studio, Midnight: smooth solid colour, soft edges, no light bar), Glass (Chrome: tinted glass in a chrome rim), Neon (dark inside, bright outline), Painted (Road case: worn paint, a strip of gold tape), Flat (Clear view: one colour, white outline). Same quads in every finish (the shine is drawn at 0 rather than skipped) so the accuracy check still compares point for point. The old "Matte" setting reads as Satin.
+- Auto on a very slow graphics card (this container's software one: ~1 s a picture with bloom and the mirror floor): it used to count each slow picture as at most 100 ms and ignore the first 10, so dropping effects took ~12 s a step and the timing check failed on Studio (5 of 21 hits). While a look still has effects to give up, Auto now goes by the real wait (up to 250 ms a picture, slow pictures ignored for at most 1.5 s); with nothing left to give up (Classic) it behaves exactly as before, so Classic's stills stay pixel-identical.
+
 Checks: `node --test test/hwlooks.test.mjs` (in npm test); `THEMES=1 … shoot.js` checks every look against Classic (points, labels and label sizes, limit 1 px; all 0.000) and writes `themes-sheet.png`; `HWTHEME=<look>` works in `shoot.js` and `ui3-chromium.js`.
 
 Unknown until the user's PC: how the looks feel on a real screen, and what bloom and the mirror floor cost on a real graphics card (here only a slow software one).

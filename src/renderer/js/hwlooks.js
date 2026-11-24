@@ -34,7 +34,7 @@ export const THEME_SETTINGS = {
   refl: ['off', 'soft', 'full'],
   back: ['own', 'venue'],
   fog: { min: 0, max: 1, step: 0.05 },
-  gem: ['solid', 'glass', 'matte'],
+  gem: ['solid', 'satin', 'glass', 'neon', 'paint', 'flat'],
   sparks: [true, false],
 };
 
@@ -51,7 +51,7 @@ export const THEMES = [
     isNew: true,
     wink: 'Soft light, grey room, nobody squinting.',
     about: 'A calm, evenly lit room in greys. Matte notes, a gentle sheen on the floor.',
-    def: { bright: 1, glow: 0.7, refl: 'full', back: 'own', fog: 0.35, gem: 'matte', sparks: true },
+    def: { bright: 1, glow: 0.7, refl: 'full', back: 'own', fog: 0.35, gem: 'satin', sparks: true },
     sky: { top: '#232930', mid: '#3c434c', hor: '#87909a', near: '#22262c', far: '#4a525b', pattern: 0, patA: 0, key: 0.18, keyCol: '#dfe6ee', horLine: 0.1, horW: 0.05, horCol: '#e8eef5' },
     fogCol: '#68717b',
     bloom: [0.2, 0.3, 0.82],
@@ -80,7 +80,7 @@ export const THEMES = [
     isNew: true,
     wink: 'Gaffer tape, worn boards, a light left on for the crew.',
     about: 'Stagehand’s own: a warm wooden stage, black road-case lanes, cream tape lines.',
-    def: { bright: 1, glow: 0.7, refl: 'soft', back: 'own', fog: 0.3, gem: 'solid', sparks: true },
+    def: { bright: 1, glow: 0.7, refl: 'soft', back: 'own', fog: 0.3, gem: 'paint', sparks: true },
     sky: { top: '#0a0705', mid: '#1a120c', hor: '#3a2a1c', near: '#140d08', far: '#3a2616', pattern: 2, patA: 0.16, key: 0.2, keyCol: '#ffc67a', horLine: 0, horCol: '#ffc67a' },
     fogCol: '#1c140d',
     bloom: [0.16, 0.3, 0.84],
@@ -110,7 +110,7 @@ export const THEMES = [
     isNew: true,
     wink: 'Late-night synth club, with the dimmer turned down a notch.',
     about: 'Violet and pink light in a dark room, glassy notes. Calmer than the first try.',
-    def: { bright: 0.9, glow: 0.7, refl: 'full', back: 'own', fog: 0.35, gem: 'glass', sparks: true },
+    def: { bright: 0.9, glow: 0.7, refl: 'full', back: 'own', fog: 0.35, gem: 'neon', sparks: true },
     sky: { top: '#020104', mid: '#08040f', hor: '#1c0a28', near: '#040307', far: '#120820', pattern: 1, patA: 0.06, key: 0.08, keyCol: '#c45cff', horLine: 0.22, horCol: '#ff5cd6' },
     fogCol: '#0a0612',
     bloom: [0.36, 0.5, 0.8],
@@ -125,7 +125,7 @@ export const THEMES = [
     isNew: true,
     wink: 'For the 2 a.m. session. Your eyes (and neighbours) will thank you.',
     about: 'Very dim and calm for long practice: no sparks, no shine, soft blue lines.',
-    def: { bright: 0.8, glow: 0.45, refl: 'off', back: 'own', fog: 0.45, gem: 'solid', sparks: false },
+    def: { bright: 0.8, glow: 0.45, refl: 'off', back: 'own', fog: 0.45, gem: 'satin', sparks: false },
     sky: { top: '#010204', mid: '#03060b', hor: '#0a1220', near: '#020305', far: '#070b12', pattern: 0, patA: 0, key: 0.05, keyCol: '#3f8fb8', horLine: 0, horCol: '#3fa9c8' },
     fogCol: '#04070c',
     bloom: [0.1, 0.3, 0.86],
@@ -140,7 +140,7 @@ export const THEMES = [
     isNew: true,
     wink: 'No frills, no fog, nothing in the way. The lightest on your PC.',
     about: 'The most readable: flat dark room, crisp white lines, no glow tricks.',
-    def: { bright: 1, glow: 0.25, refl: 'off', back: 'own', fog: 0, gem: 'solid', sparks: false },
+    def: { bright: 1, glow: 0.25, refl: 'off', back: 'own', fog: 0, gem: 'flat', sparks: false },
     sky: { top: '#0a0c0f', mid: '#0d1013', hor: '#151a20', near: '#090b0e', far: '#12161b', pattern: 0, patA: 0, key: 0, keyCol: '#ffffff', horLine: 0, horCol: '#ffffff' },
     fogCol: '#0d1013',
     bloom: [0, 0, 1],
@@ -185,7 +185,7 @@ export function clean(raw) {
     const keep = {};
     for (const [k, spec] of Object.entries(THEME_SETTINGS)) {
       if (!(k in o)) continue;
-      const v = o[k];
+      const v = k === 'gem' && o[k] === 'matte' ? 'satin' : o[k]; // matte was renamed satin
       if (Array.isArray(spec)) { if (spec.includes(v)) keep[k] = v; }
       else if (Number.isFinite(v)) keep[k] = clamp(v, spec.min, spec.max);
     }

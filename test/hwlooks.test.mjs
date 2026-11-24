@@ -45,6 +45,12 @@ test('stored settings are made safe', () => {
   assert.equal(st.gfx.grain, true);
 });
 
+test('note finishes: each look has its own, and the old Matte reads as Satin', () => {
+  const by = Object.fromEntries(L.THEMES.map((t) => [t.id, t.def.gem]));
+  assert.deepEqual(by, { studio: 'satin', classic: 'solid', roadcase: 'paint', chrome: 'glass', neon: 'neon', midnight: 'satin', clear: 'flat' });
+  assert.equal(L.clean({ per: { studio: { gem: 'matte' } } }).per.studio.gem, 'satin');
+});
+
 test('each look keeps its own settings', () => {
   const st = L.clean({ theme: 'studio', per: { studio: { fog: 0.9 }, neon: { fog: 0.1 } } });
   assert.equal(L.themeSettings(st, 'studio').fog, 0.9);

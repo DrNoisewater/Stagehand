@@ -358,6 +358,7 @@ export function createHighway(stage) {
     LK = resolveLook(looks, { budget: lookBudget, seeThrough: !!H.seeThrough });
     P = LK.pal;
     lookWant = true;
+    canDrop = budgetDrop(looks, lookBudget) >= 0;
     H.look = LK; // tests
     if (perfRef) {
       // a fixed sharpness from the graphics settings, or back to Auto's own
@@ -368,6 +369,7 @@ export function createHighway(stage) {
     }
   }
   let perfRef = null;
+  let canDrop = false; // the look has effects Auto can still turn off
   onLooks((st) => {
     looks = st;
     lookBudget = 3;
@@ -1790,14 +1792,19 @@ export function createHighway(stage) {
     if (R3 && perf.want !== R3.scale) R3.setScale(perf.want, perf.ratio);
     perf.want = 0;
   }
-  function govern(ms, dt) {
+  function govern(ms, dt, gap = dt * 1000) {
     if (!R3 || LK.res !== 'auto') return; // 4.30: a sharpness you picked yourself stays as it is
     // a few long frames are the page busy elsewhere (stems loading, a panel being built), not the
-    // graphics: they don't count (many in a row do)
+    // graphics: they don't count (many in a row, or more than a second and a half of them, do)
     if (dt * 1000 > Math.max(50, perf.best * 4)) {
-      if (perf.stalls++ < 10) return;
-    } else perf.stalls = 0;
-    perf.acc += LK.fpsCap ? ms : Math.max(ms, dt * 1000); // capped: the wait between pictures is on purpose
+      const skip = perf.stalls < 10 && (!canDrop || (perf.stallMs || 0) < 1500);
+      perf.stalls++;
+      perf.stallMs = (perf.stallMs || 0) + gap;
+      if (skip) return;
+    } else perf.stalls = perf.stallMs = 0;
+    // capped: the wait between pictures is on purpose. Otherwise the real wait (up to 250 ms a picture),
+    // so a very slow graphics card is noticed within a second or two, not after many slow pictures
+    perf.acc += LK.fpsCap ? ms : Math.max(ms, Math.min(gap, 250));
     perf.msAcc += ms;
     perf.n++;
     if (perf.n < 60 && perf.acc < 1200) return;
@@ -1886,11 +1893,13 @@ export function createHighway(stage) {
       // 4.30: a frame rate cap draws fewer pictures; the song clock, listening and scoring above still run every frame
       const cap = LK.fpsCap;
       if (!cap || !H.drawnAt || now - H.drawnAt >= 1000 / cap - 4) {
-        const ddt = cap && H.drawnAt ? Math.min(0.1, (now - H.drawnAt) / 1000) : dt;
+        const gap = H.drawnAt ? now - H.drawnAt : 16; // the real wait since the last picture (not capped)
+        const ddt = cap && H.drawnAt ? Math.min(0.1, gap / 1000) : dt;
         H.drawnAt = now;
         const f0 = performance.now();
         draw(vis, ddt);
-        govern(performance.now() - f0, ddt);
+        // 4.30: while the look still has effects to give up, Auto goes by the real wait between pictures
+        govern(performance.now() - f0, ddt, canDrop ? gap : ddt * 1000);
       }
       if (prefs.showFps) {
         const ours = performance.now() - (H.stepStart || now);
@@ -2949,6 +2958,21 @@ export function createHighway(stage) {
    * its fret's lane, facing you, with a bright rim; a thin stem down to the
    * floor with its fret number there.
    */
+  /**
+   * 4.30: note finishes. face: the block's front (dark to string colour); top/bot: the raised face inside
+   * the rim; faceK its brightness; bevel: how the edge round the face is lit; rim: the glowing rim's
+   * strength (rimW: how much white is in it); bar: the light bar across the middle (barHex: its colour);
+   * shine, halo, edge: the shine, the glow as a note nears, an open string's top light.
+   * Only colours and light: every finish draws the same shapes in the same places.
+   */
+  const GEM_FINISH = {
+    solid: { face: 0.42, top: 0.62, bot: 0.3, faceK: 1, bevel: 'string', rim: 1, rimW: 0, bar: 1, barHex: null, shine: 1, halo: 1, edge: 1 },
+    satin: { face: 0.6, top: 0.8, bot: 0.56, faceK: 1, bevel: 'satin', rim: 0.45, rimW: 0, bar: 0, barHex: null, shine: 0.55, halo: 0.6, edge: 0.6 },
+    glass: { face: 0.15, top: 0.42, bot: 0.05, faceK: 1.05, bevel: 'chrome', rim: 0.9, rimW: 0.6, bar: 0.3, barHex: null, shine: 1.8, halo: 0.8, edge: 1.2 },
+    neon: { face: 0.1, top: 0.2, bot: 0.04, faceK: 1, bevel: 'dark', rim: 1.35, rimW: 0, bar: 0, barHex: null, shine: 0, halo: 1.1, edge: 0.4 },
+    paint: { face: 0.72, top: 0.82, bot: 0.66, faceK: 0.92, bevel: 'paint', rim: 0.4, rimW: 0, bar: 1.4, barHex: '#f0c062', shine: 0.25, halo: 0.6, edge: 0.5 },
+    flat: { face: 0.92, top: 0.92, bot: 0.92, faceK: 1, bevel: 'flat', rim: 0.9, rimW: 0.85, bar: 0, barHex: null, shine: 0, halo: 0.45, edge: 0.8 },
+  };
   function buildGem(nt, z, an, missed, mute, inChord = false, box = null, flare = 0, fade = 1) {
     // held on from the note before (linkNext): no new gem, its sustain just carries on
     if (nt.linked) return;
@@ -2960,12 +2984,11 @@ export function createHighway(stage) {
     const big = 1 + flare * 0.25;
     const y = strH(s);
     const DEPTH = 0.14;
-    // 4.30: the look's note finish: solid (as always), glass (darker inside, a brighter rim and shine) or
-    // matte (lighter face, a softer rim, no shine). Colour only: the block's shape and size never change.
-    const gs = LK.gem;
-    const faceT = gs === 'glass' ? 0.3 : gs === 'matte' ? 0.55 : 0.42;
-    const rimM = gs === 'glass' ? 1.1 : gs === 'matte' ? 0.8 : 1;
-    const shineM = gs === 'glass' ? 1.6 : gs === 'matte' ? 0 : 1;
+    // 4.30: the look's note finish (gemFinish): colour and light only, the block's shape and size never change
+    const F = GEM_FINISH[LK.gem] || GEM_FINISH.solid;
+    const faceT = F.face;
+    const rimM = F.rim;
+    const shineM = F.shine;
     const rimK = (missed ? 0.8 : 1.4 + 0.8 * near + 2 * flare) * fade * rimM;
     if (nt.f === 0) {
       // an open string: a bar across the hand position (or the chord's frame)
@@ -2977,8 +3000,8 @@ export function createHighway(stage) {
       glow.up(xa, xb, y - hh, y + hh, z - 0.005, col(hex, 0.55 * fade * (missed ? 0.3 : 1), rimK));
       // 4.17: a light line along its top edge, a soft glow as it nears, its reflection on the floor
       if (!missed) {
-        glow.up(xa, xb, y + hh * 0.45, y + hh, z - 0.007, col('#ffffff', 0.35 * fade, 1));
-        if (near > 0.05) glow.acrossSoft(xa - 0.1, xb + 0.1, y - hh * 4, y + hh * 4, z + 0.01, col(hex, 0.16 * near * fade));
+        glow.up(xa, xb, y + hh * 0.45, y + hh, z - 0.007, col('#ffffff', 0.35 * fade * F.edge, 1));
+        if (near > 0.05) glow.acrossSoft(xa - 0.1, xb + 0.1, y - hh * 4, y + hh * 4, z + 0.01, col(hex, 0.16 * near * fade * F.halo));
         gemReflection(xa, xb, y - hh, y + hh, z, hex, fade * 0.5);
       }
       return;
@@ -3010,32 +3033,43 @@ export function createHighway(stage) {
     const zb = z - 0.001;
     const zi = z - BZ;
     const kf = 1 + 0.3 * near;
-    const cTop = mix(hex, '#ffffff', missed ? 0.1 : 0.4, fade, 1.15 * kf);
-    const cBot = col(dark, fade, 0.8);
-    const cL = mix(dark, hex, 0.62, fade, kf);
-    const cR = mix(dark, hex, 0.38, fade, kf);
+    // the bevel round the face: lit from above in the string's colour (solid), chrome (glass), dark
+    // (neon), chipped warm paint (painted), or one flat colour (flat)
+    const [cTop, cBot, cL, cR] = missed || F.bevel === 'string'
+      ? [mix(hex, '#ffffff', missed ? 0.1 : 0.4, fade, 1.15 * kf), col(dark, fade, 0.8), mix(dark, hex, 0.62, fade, kf), mix(dark, hex, 0.38, fade, kf)]
+      : F.bevel === 'satin'
+        ? [mix(hex, '#ffffff', 0.22, fade, kf), mix(dark, hex, 0.35, fade, 0.9), mix(dark, hex, 0.7, fade, kf), mix(dark, hex, 0.55, fade, kf)]
+        : F.bevel === 'chrome'
+          ? [col('#eef2f7', fade, kf), col('#2e343c', fade), col('#b9c2cc', fade, kf), col('#6f7a86', fade, kf)]
+          : F.bevel === 'dark'
+            ? [mix(dark, '#000000', 0.3, fade), mix(dark, '#000000', 0.7, fade), mix(dark, '#000000', 0.5, fade), mix(dark, '#000000', 0.6, fade)]
+            : F.bevel === 'paint'
+              ? [mix(hex, '#f3e4c4', 0.45, fade, kf), mix(dark, '#1a120a', 0.35, fade), mix(dark, hex, 0.75, fade, kf), mix(dark, hex, 0.5, fade, kf)]
+              : [col(hex, fade, kf), col(hex, fade, kf), col(hex, fade, kf), col(hex, fade, kf)];
     solid.q(x - ox, y + oy, zb, x + ox, y + oy, zb, x + ix, y + iy, zi, x - ix, y + iy, zi, cTop, cTop, cTop, cTop);
     solid.q(x - ix, y - iy, zi, x + ix, y - iy, zi, x + ox, y - oy, zb, x - ox, y - oy, zb, cBot, cBot, cBot, cBot);
     solid.q(x - ox, y - oy, zb, x - ix, y - iy, zi, x - ix, y + iy, zi, x - ox, y + oy, zb, cL, cL, cL, cL);
     solid.q(x + ix, y - iy, zi, x + ox, y - oy, zb, x + ox, y + oy, zb, x + ix, y + iy, zi, cR, cR, cR, cR);
-    const fTop = mix(dark, hex, missed ? 0.25 : gs === 'glass' ? 0.5 : gs === 'matte' ? 0.7 : 0.62, fade, kf);
-    const fBot = mix(dark, hex, missed ? 0.1 : gs === 'glass' ? 0.2 : gs === 'matte' ? 0.45 : 0.3, fade, kf);
+    const fTop = mix(dark, hex, missed ? 0.25 : F.top, fade, kf * F.faceK);
+    const fBot = mix(dark, hex, missed ? 0.1 : F.bot, fade, kf * F.faceK);
     solid.q(x - ix, y - iy, zi, x + ix, y - iy, zi, x + ix, y + iy, zi, x - ix, y + iy, zi, fBot, fBot, fTop, fTop);
     // 4.2.1: in its last tenth of a second the rim goes white-hot, as in Rocksmith
-    const rc = flare > 0.05 || (near > 0.8 && !missed) ? col('#ffffff', fade, rimK) : col(hex, fade, rimK);
+    const rimHex = F.rimW ? mixHex(hex, '#ffffff', F.rimW, 8) : hex;
+    const rc = flare > 0.05 || (near > 0.8 && !missed) ? col('#ffffff', fade, rimK) : col(missed ? hex : rimHex, fade, rimK);
     const zf = zi - 0.006;
     glow.up(x - hw, x + hw, y + hh - rim, y + hh, zf, rc);
     glow.up(x - hw, x + hw, y - hh, y - hh + rim, zf, rc);
     glow.up(x - hw, x - hw + rim, y - hh, y + hh, zf, rc);
     glow.up(x + hw - rim, x + hw, y - hh, y + hh, zf, rc);
-    glow.up(x - hw * 0.55, x + hw * 0.55, y - rim * 0.45, y + rim * 0.45, zf, col(hex, fade * 0.9, rimK * 0.9));
+    // the light bar across the middle (painted notes: a strip of gold gaffer tape)
+    glow.up(x - hw * 0.55, x + hw * 0.55, y - rim * 0.45, y + rim * 0.45, zf, col(missed || !F.barHex ? hex : F.barHex, fade * 0.9 * (missed ? 1 : F.bar), rimK * 0.9));
     if (!missed) {
       // a soft shine across the top left of the face (still: it never moves or blinks)
       glow.bar([x - ix, y + iy * 0.05, zf], [x - ix * 0.05, y + iy, zf], Math.min(ix, iy) * 0.55, col('#ffffff', 0.05 * fade * shineM), col('#ffffff', 0.2 * fade * shineM), 'z');
       // a light inside that grows as the note reaches the neck, and a soft round glow around it
       if (near > 0.05) {
-        glow.halo(x, y, zf - 0.002, ix * 1.3, iy * 1.4, mixHex(hex, '#ffffff', 0.5, 8), 0.5 * near * near * fade, 1.2);
-        glow.halo(x, y, z + 0.01, hw * 2.6, hh * 2.4, hex, 0.24 * near * fade, 1.1);
+        glow.halo(x, y, zf - 0.002, ix * 1.3, iy * 1.4, mixHex(hex, '#ffffff', 0.5, 8), 0.5 * near * near * fade * F.halo, 1.2);
+        glow.halo(x, y, z + 0.01, hw * 2.6, hh * 2.4, hex, 0.24 * near * fade * F.halo, 1.1);
       }
       gemReflection(x - hw, x + hw, y - hh, y + hh, z, hex, fade);
     }
