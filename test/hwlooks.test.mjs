@@ -151,6 +151,10 @@ test('effects: Full, Calm and Off; Low and a slow PC drop the moving parts', () 
   assert.equal(look({}, { ...L.GFX_DEFAULT }, 0).amb, false);
   assert.equal(L.resolveLook({ theme: 'classic', per: {}, gfx: { ...L.GFX_DEFAULT } }).amb, false, 'Classic has none');
   assert.equal(L.resolveLook({ theme: 'classic', per: {}, gfx: { ...L.GFX_DEFAULT } }).sparks, true, 'Classic keeps its sparks');
+  // Calm tones the hit effects down, Off leaves them out; Full is as always
+  assert.equal(full.fxK, 1);
+  assert.ok(look({ fx: 'calm' }).fxK > 0 && look({ fx: 'calm' }).fxK < 0.6);
+  assert.equal(look({ fx: 'off' }).fxK, 0);
 });
 
 test('saving tells listeners and is read back', () => {

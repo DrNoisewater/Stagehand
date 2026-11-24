@@ -46,8 +46,10 @@ export const HITS = [
   ['none', 'None', 'Nothing extra.'],
 ];
 
-// 4.31: what you can change about a style: its brightness, and its effects (Full: its hit effect and
-// its movement in the room; Calm: the hit effect only; Off: neither). The style decides the rest.
+// 4.31: what you can change about a style: its brightness, and its effects (Full: its hit effects and
+// its movement in the room; Calm: hit effects toned down by about half, nothing moving in the room;
+// Off: no hit effects at all, nothing moving). Every style has something here: even with no hit effect
+// of its own, a hit lights the string, the fret posts and a ring. The style decides the rest.
 export const THEME_SETTINGS = {
   bright: { min: 0.6, max: 1.3, step: 0.05 },
   fx: ['full', 'calm', 'off'],
@@ -57,8 +59,8 @@ export const THEME_SETTINGS = {
  * The styles, in the order they are listed. `def` are the settings it starts with (each can be changed
  * and reset); the rest is the style itself.
  * sig, its signature. floor: the pattern on the floor (none, boards, grid, synth, blueprint, ember,
- *   gloss); rails: how the lane edges are drawn (tube, soft, tape, chrome, neon, led, draft, lava, line,
- *   laser); pool: a pool of light under your hand position (strength); beat: how much the floor answers
+ *   gloss, matte, mirror, ice, caustics, tiles, checker); rails: how the lane edges are drawn (tube, soft,
+ *   tape, chrome, neon, led, draft, lava, line, crisp, laser, pixel, wave, frost, rainbow); pool: a pool of light under your hand position (strength); beat: how much the floor answers
  *   the beat (0..1); amb: the slow movement in the room (none, dust, stars, sweep, haze, beams, embers,
  *   scan, sun).
  * sky, the style's own room: top, middle, horizon; floor near, floor far; pattern 0 plain, 1 grid,
@@ -71,16 +73,16 @@ export const THEMES = [
     id: 'studio',
     name: 'Studio',
     wink: 'Soft light, grey room, nobody squinting.',
-    about: 'A calm grey room under one soft light: matte floor, gentle light strips, dust in the beam.',
+    about: 'A calm grey room under soft lights: a warm pale-grey matte floor with pools of light, pencil-dark lines, dust in the beam.',
     def: { bright: 1, glow: 0.7, refl: 'full', fog: 0.35, gem: 'satin', hit: 'flash', amb: true },
-    sig: { floor: 'none', rails: 'soft', pool: 0.14, beat: 0.5, amb: 'dust' },
+    sig: { floor: 'matte', rails: 'soft', pool: 0.1, beat: 0.5, amb: 'dust' },
     sky: { top: '#232930', mid: '#3c434c', hor: '#87909a', near: '#22262c', far: '#4a525b', pattern: 0, patA: 0, key: 0.18, keyCol: '#dfe6ee', horLine: 0.1, horW: 0.05, horCol: '#e8eef5' },
     fogCol: '#68717b',
     bloom: [0.2, 0.3, 0.82],
     reflK: 0.2,
     shadows: true,
-    pal: { line: '#e8ecf2', lineA: 0.06, laneA: '#40464f', laneB: '#3a4049', laneFill: 0.92, laneMid: '#9aa4b0', laneMidA: 0.1, laneLine: '#e8ecf2', laneLineA: 0.42, rail: '#f2f4f7', railHot: '#ffb070', beat: '#ffffff', beatA: 0.32, wash: '#ffffff', inlay: '#d6dbe2', inlayEdge: '#9aa3ae', inlayA: 0.4, postA: '#ffffff', postB: '#cfd8e3' },
-    swatch: ['#1d2126', '#717b86', '#40464f', '#f2f4f7'],
+    pal: { line: '#e8ecf2', lineA: 0.06, laneA: '#77716a', laneB: '#5c5852', laneFill: 0.96, laneMid: '#fff4e6', laneMidA: 0.05, laneLine: '#2a2723', laneLineA: 0.42, rail: '#fffaf2', railHot: '#ffb070', beat: '#2a2723', beatA: 0.36, wash: '#ffffff', inlay: '#d6dbe2', inlayEdge: '#9aa3ae', inlayA: 0.4, postA: '#ffffff', postB: '#cfd8e3' },
+    swatch: ['#1d2126', '#717b86', '#77716a', '#fffaf2'],
   },
   {
     id: 'classic',
@@ -190,7 +192,7 @@ export const THEMES = [
     bloom: [0.24, 0.5, 0.78],
     reflK: 0.2,
     shadows: true,
-    pal: { line: '#7ff0ff', lineA: 0.08, laneA: '#06323c', laneB: '#052a33', laneFill: 0.9, laneMid: '#2aa8b8', laneMidA: 0.12, laneLine: '#bff8ff', laneLineA: 0.45, rail: '#7ff0ff', railHot: '#ffd27a', beat: '#bff8ff', beatA: 0.34, wash: '#7ff0ff', inlay: '#bff8ff', inlayEdge: '#5ac8d4', inlayA: 0.4, postA: '#7ff0ff', postB: '#3ad0e8' },
+    pal: { line: '#7ff0ff', lineA: 0.08, laneA: '#06404c', laneB: '#04303a', laneFill: 0.92, laneMid: '#2aa8b8', laneMidA: 0.06, laneLine: '#bff8ff', laneLineA: 0.45, rail: '#7ff0ff', railHot: '#ffd27a', beat: '#bff8ff', beatA: 0.34, wash: '#7ff0ff', inlay: '#bff8ff', inlayEdge: '#5ac8d4', inlayA: 0.4, postA: '#7ff0ff', postB: '#3ad0e8' },
     swatch: ['#013040', '#0a6a7a', '#06323c', '#7ff0ff'],
   },
   {
@@ -198,7 +200,7 @@ export const THEMES = [
     name: 'Frozen lake',
     isNew: true,
     wink: 'Cold hands, warm heart. Mind the cracks.',
-    about: 'A frozen lake under the stars: cracks in the ice, frost rails, snow falling, snowflakes on hits.',
+    about: 'A frozen lake under the stars: pale ice with white cracks, frost glowing along the edges, snow falling, snowflakes on hits.',
     def: { bright: 1.05, glow: 0.8, refl: 'full', fog: 0.35, gem: 'glass', hit: 'flake', amb: true },
     sig: { floor: 'ice', rails: 'frost', pool: 0.06, beat: 0.4, amb: 'snow' },
     sky: { top: '#02060e', mid: '#0a1a2e', hor: '#4a6e8e', near: '#0e1a26', far: '#3a566e', pattern: 0, patA: 0, key: 0.16, keyCol: '#dff4ff', horLine: 0.12, horW: 0.03, horCol: '#e8f8ff', stars: 1 },
@@ -206,15 +208,15 @@ export const THEMES = [
     bloom: [0.26, 0.4, 0.8],
     reflK: 0.32,
     shadows: true,
-    pal: { line: '#dff4ff', lineA: 0.1, laneA: '#1c3448', laneB: '#182e40', laneFill: 0.88, laneMid: '#8ac8ee', laneMidA: 0.14, laneLine: '#ffffff', laneLineA: 0.45, rail: '#e8f8ff', railHot: '#ffc070', beat: '#ffffff', beatA: 0.36, wash: '#dff4ff', inlay: '#e8f8ff', inlayEdge: '#9cc8e4', inlayA: 0.42, postA: '#ffffff', postB: '#9fe0ff' },
-    swatch: ['#0a1a2e', '#4a6e8e', '#1c3448', '#e8f8ff'],
+    pal: { line: '#dff4ff', lineA: 0.1, laneA: '#46708c', laneB: '#2e5470', laneFill: 0.93, laneMid: '#e8f8ff', laneMidA: 0.06, laneLine: '#ffffff', laneLineA: 0.4, rail: '#e8f8ff', railHot: '#ffc070', beat: '#ffffff', beatA: 0.36, wash: '#dff4ff', inlay: '#e8f8ff', inlayEdge: '#9cc8e4', inlayA: 0.42, postA: '#ffffff', postB: '#9fe0ff' },
+    swatch: ['#0a1a2e', '#4a6e8e', '#46708c', '#e8f8ff'],
   },
   {
     id: 'disco',
     name: 'Disco',
     isNew: true,
     wink: 'The floor lights up. So should you.',
-    about: 'A lit dance floor that flashes with the beat, rainbow rails, mirror-ball spots, confetti on hits.',
+    about: 'A lit dance floor, every tile glowing its own colour and flashing with the beat, rainbow rails, mirror-ball spots, confetti on hits.',
     def: { bright: 1, glow: 0.9, refl: 'full', fog: 0.2, gem: 'paint', hit: 'confetti', amb: true, vig: true },
     sig: { floor: 'tiles', rails: 'rainbow', pool: 0, beat: 1, amb: 'disco' },
     sky: { top: '#050008', mid: '#140420', hor: '#3a0c48', near: '#08020c', far: '#22082e', pattern: 0, patA: 0, key: 0.2, keyCol: '#ff7ae0', horLine: 0.12, horW: 0.03, horCol: '#ffd27a', stars: 1 },
@@ -222,7 +224,7 @@ export const THEMES = [
     bloom: [0.34, 0.45, 0.78],
     reflK: 0.3,
     shadows: false,
-    pal: { line: '#ff7ae0', lineA: 0.08, laneA: '#1a0a24', laneB: '#16081e', laneFill: 0.93, laneMid: '#b45ad8', laneMidA: 0.1, laneLine: '#ffd27a', laneLineA: 0.45, rail: '#ff7ae0', railHot: '#ffd27a', beat: '#ffffff', beatA: 0.4, wash: '#ff9ae8', inlay: '#ffd27a', inlayEdge: '#c89a40', inlayA: 0.4, postA: '#ff7ae0', postB: '#7ae0ff' },
+    pal: { line: '#ff7ae0', lineA: 0.08, laneA: '#0e0614', laneB: '#0c0512', laneFill: 0.95, laneMid: '#b45ad8', laneMidA: 0.04, laneLine: '#ffd27a', laneLineA: 0.45, rail: '#ff7ae0', railHot: '#ffd27a', beat: '#ffffff', beatA: 0.4, wash: '#ff9ae8', inlay: '#ffd27a', inlayEdge: '#c89a40', inlayA: 0.4, postA: '#ff7ae0', postB: '#7ae0ff' },
     swatch: ['#140420', '#3a0c48', '#1a0a24', '#ff7ae0'],
   },
   {
@@ -244,16 +246,16 @@ export const THEMES = [
     id: 'chrome',
     name: 'Chrome & glass',
     wink: 'Polished, cool and expensive-looking. Fingerprints not included.',
-    about: 'A glass floor with a fine grid, chrome rails with a running glint, glass shards on hits.',
+    about: 'A polished mirror floor catching the room’s lights, bright chrome rails with a running glint, glass shards on hits.',
     def: { bright: 0.95, glow: 0.75, refl: 'full', fog: 0.3, gem: 'glass', hit: 'shards', amb: true },
-    sig: { floor: 'grid', rails: 'chrome', pool: 0, beat: 0.4, amb: 'sweep' },
+    sig: { floor: 'mirror', rails: 'chrome', pool: 0, beat: 0.4, amb: 'sweep' },
     sky: { top: '#141c26', mid: '#2e3c4c', hor: '#8ea4b8', near: '#10161d', far: '#334252', pattern: 1, patA: 0.12, key: 0.22, keyCol: '#d8f0ff', horLine: 0.2, horCol: '#bfefff' },
     fogCol: '#4a5c6e',
     bloom: [0.3, 0.4, 0.8],
     reflK: 0.3,
     shadows: true,
-    pal: { line: '#6fb8d0', lineA: 0.08, laneA: '#10293a', laneB: '#0c2130', laneFill: 0.92, laneMid: '#3c8cb4', laneMidA: 0.13, laneLine: '#7ee8ff', laneLineA: 0.4, rail: '#9eeeff', railHot: '#ff963c', beat: '#a0ebff', beatA: 0.36, wash: '#7ee8ff', inlay: '#a8e4ee', inlayEdge: '#5fb4c4', inlayA: 0.38, postA: '#bff4ff', postB: '#7ee8ff' },
-    swatch: ['#0a111a', '#162636', '#10293a', '#9eeeff'],
+    pal: { line: '#9fb4c6', lineA: 0.08, laneA: '#0b1117', laneB: '#151d25', laneFill: 0.96, laneMid: '#dfe9f2', laneMidA: 0.03, laneLine: '#c8d6e2', laneLineA: 0.3, rail: '#eef6ff', railHot: '#ff963c', beat: '#a0ebff', beatA: 0.36, wash: '#7ee8ff', inlay: '#a8e4ee', inlayEdge: '#5fb4c4', inlayA: 0.38, postA: '#bff4ff', postB: '#7ee8ff' },
+    swatch: ['#0a111a', '#162636', '#151d25', '#eef6ff'],
   },
   {
     id: 'neon',
@@ -289,16 +291,16 @@ export const THEMES = [
     id: 'clear',
     name: 'Clear view',
     wink: 'No frills, no fog, nothing in the way. The lightest on your PC.',
-    about: 'The most readable: flat dark room, crisp white lines, no glow tricks, nothing moving.',
+    about: 'The most readable: a pure black highway, crisp bright white lines, no glow tricks, nothing moving.',
     def: { bright: 1, glow: 0.25, refl: 'off', fog: 0, gem: 'flat', hit: 'none', amb: false },
-    sig: { floor: 'none', rails: 'line', pool: 0, beat: 0, amb: 'none' },
+    sig: { floor: 'none', rails: 'crisp', pool: 0, beat: 0, amb: 'none' },
     sky: { top: '#18191b', mid: '#26282b', hor: '#3e4145', near: '#121315', far: '#2c2e31', pattern: 0, patA: 0, key: 0, keyCol: '#ffffff', horLine: 0, horCol: '#ffffff' },
     fogCol: '#1d1e20',
     bloom: [0, 0, 1],
     reflK: 0.15,
     shadows: false,
-    pal: { line: '#a8b8c8', lineA: 0.13, laneA: '#17232d', laneB: '#151f28', laneFill: 0.95, laneMid: '#5f7f9a', laneMidA: 0.08, laneLine: '#d6e2ee', laneLineA: 0.6, rail: '#ffffff', railHot: '#ffb070', beat: '#ffffff', beatA: 0.42, wash: '#ffffff', inlay: '#cfd8e2', inlayEdge: '#8f9aa6', inlayA: 0.45, postA: '#ffffff', postB: '#ffffff' },
-    swatch: ['#0d1013', '#151a20', '#17232d', '#ffffff'],
+    pal: { line: '#ffffff', lineA: 0.14, laneA: '#000000', laneB: '#000000', laneFill: 1, laneMid: '#000000', laneMidA: 0, laneLine: '#ffffff', laneLineA: 0.8, rail: '#ffffff', railHot: '#ffb070', beat: '#ffffff', beatA: 0.6, wash: '#ffffff', inlay: '#cfd8e2', inlayEdge: '#8f9aa6', inlayA: 0.45, postA: '#ffffff', postB: '#ffffff' },
+    swatch: ['#0d1013', '#26282b', '#000000', '#ffffff'],
   },
 ];
 // every style starts with Effects: Full
@@ -402,6 +404,9 @@ export function resolveLook(state, { budget = 3 } = {}) {
     reflK: t.reflK,
     gem: s.gem,
     hit: s.fx === 'off' ? 'none' : s.hit,
+    // how strong the hit effects are: Full 1, Calm about half (smaller, fainter, fewer), Off none
+    // (Off also leaves out the string blaze, the light posts and the shock-wave ring: just the notes)
+    fxK: s.fx === 'off' ? 0 : s.fx === 'calm' ? 0.45 : 1,
     sparks: s.fx !== 'off' && s.hit === 'sparks',
     amb: s.fx === 'full' && t.sig.amb !== 'none' && g.fx === 'full' && lim >= 1,
     shadows: t.shadows && g.shadows === 'on' && lim >= 1,

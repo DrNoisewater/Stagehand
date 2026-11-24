@@ -99,3 +99,28 @@ Settings checker's findings (GFXCHECK) acted on:
 - Checks: THEMES=1 0.000 px for all 15; Classic identical to the base renders (T:17.2, T:19.1);
   closest style pair 9.3 (arena/clear); HWMENU passes with 15 tiles.
 - GFXCHECK (cherry-picked) still names removed settings; it needs updating by its owner.
+
+### 4.31 style polish (Style polisher, Opus; 2026-11-24)
+- Asked: Studio, Clear view, Chrome & glass and Frozen lake looked alike (the room did the work);
+  Deep sea and Disco only showed on the beat. Each now has its own highway floor, still or not:
+  Studio a warm pale-grey matte floor with dark lines, shaded edges and three soft pools of light
+  that stay put; Clear view a pure black highway, bright white lines, hard white rails on a black
+  keyline, no glow; Chrome a polished floor brightening into the distance, bands of reflected light
+  across it, a long highlight and bright chrome rails; Frozen lake pale ice, white branching cracks
+  with a cold glow, frost glowing in from both edges; Deep sea a net of rippling light over the whole
+  floor (always there, still when Effects isn't Full); Disco every tile glowing its own colour,
+  brighter on the beat. Code: `hwstyle.js` (floors matte, mirror, ice, caustics, tiles; rails soft,
+  chrome, crisp), palettes in `hwlooks.js`. Ember's cracks are its own case now (unchanged).
+- Effects (coordinator, from GFXCHECK): Calm and Off barely showed. `resolveLook` gives `fxK`
+  (Full 1, Calm 0.45, Off 0). Calm: hit effects fainter, smaller, half the pieces, the ring grows half
+  as far, string blaze and fret posts at about half; room movement off as before. Off: no string
+  blaze, posts, ring, sparks or style hit effect (the note's own flare stays). Full multiplies by 1,
+  so Classic is unchanged. Every style now has something for Effects (a hit always lights the string,
+  posts and ring), so the control stays on all of them, Midnight and Clear view included.
+- Checks: THEMES=1 0.000 px for all 15; Classic T:17.2 and T:19.1 against b1ce3d6: 0 differing pixels;
+  `node --test test/hwlooks.test.mjs` 12 pass (fxK added); GFXCHECK_ONLY=classic,studio,clear,chrome,
+  ice,deepsea,disco,midnight: every Effects Calm/Off "works" (2.7–7.0% of pixels), exit 0.
+- Pictures: the six styles' `<id>.webp` / `<id>-big.webp` re-rendered (HWBG=own THEMES=1 T:17.2,
+  crop 240,176–1680,986 of 1920×1080, webp q80).
+- Unknown until the user's PC: whether Disco's tiles and Studio's pale floor feel too busy or too
+  bright under real playing.
