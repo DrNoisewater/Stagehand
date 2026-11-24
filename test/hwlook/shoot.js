@@ -37,6 +37,13 @@ const srv = http.createServer((req, res) => {
       await page.reload();
       await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     }
+    // HWTHEME=<look> (and HWGFX=<preset>): the highway in that look (hwlooks.js), set before the page loads
+    if (process.env.HWTHEME || process.env.HWGFX) {
+      await page.evaluate(([t, g]) => { localStorage.setItem('stagehand.hwlook.v1', JSON.stringify({ theme: t || 'classic', gfx: { preset: g || 'auto', ...(g && g !== 'auto' ? {} : {}) } })); }, [process.env.HWTHEME, process.env.HWGFX]);
+      if (process.env.HWGFX) await page.evaluate(async (g) => { const m = await import('/js/hwlooks.js'); const st = m.loadLooks(); m.saveLooks({ ...st, gfx: m.applyPreset(st.gfx, g) }); }, process.env.HWGFX);
+      await page.reload();
+      await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+    }
     // SKIN=<theme>: the song screen in that Appearance theme (its bars and menus; the notes keep their look)
     if (process.env.SKIN) {
       await page.evaluate((k) => { document.documentElement.dataset.look = 'opera'; document.documentElement.dataset.skin = k; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/themes-stage.css'; document.head.append(l); }, process.env.SKIN);
@@ -657,6 +664,77 @@ const srv = http.createServer((req, res) => {
       continue;
     }
     await page.waitForTimeout(play === 'p' ? 2600 : 2200);
+    if (process.env.THEMES) {
+      // every highway look at the same moment: nothing may move (notes, strings, frets, the hit line,
+      // labels and their sizes match Classic within 1 px); a contact sheet of them all
+      await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
+      await page.waitForTimeout(1500);
+      const looks = await page.evaluate(async () => (await import('/js/hwlooks.js')).THEMES.map((t) => t.id));
+      const grab = () => page.evaluate(async () => {
+        const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        await frame();
+        await frame();
+        const H = document.querySelector('.highway').__hw;
+        const R3 = H.r3;
+        const out = { neck: [], solid: [], alpha: [], glow: [], text: [], look: H.look && H.look.id, post: R3.post, info: R3.info() };
+        for (let s = 0; s < H.tab.strings; s++) for (let f = 0; f <= 24; f++) out.neck.push(H.projection.neck(f, s), H.projection.point(f, s, H.vis + 1));
+        for (const k of ['solid', 'alpha', 'glow']) {
+          const L = R3.L[k];
+          for (let i = 0; i < L.n * 4; i++) { const p = R3.project(L.pos[i * 3], L.pos[i * 3 + 1], -L.pos[i * 3 + 2]); out[k].push(p[0], p[1]); }
+        }
+        const T = R3.text;
+        for (let q = 0; q < T.n; q++) { const o = q * 12; out.text.push([T.pos[o], T.pos[o + 1], T.pos[o + 3] - T.pos[o], T.pos[o + 7] - T.pos[o + 1], T.rgba[q * 16 + 3]]); }
+        return out;
+      });
+      const set = (id) => page.evaluate(async (id) => { const m = await import('/js/hwlooks.js'); const st = m.loadLooks(); m.saveLooks({ ...st, theme: id }); }, id);
+      await set('classic');
+      const base = await grab();
+      const shots = [];
+      let worst = { pts: 0, text: 0, size: 0 };
+      const fails = [];
+      for (const id of looks) {
+        await set(id);
+        const g = await grab();
+        if (g.look !== id) fails.push(`${id}: look not in use (${g.look})`);
+        const cmp = (a, b, what) => {
+          if (a.length !== b.length) { fails.push(`${id}: ${what} count ${b.length} vs ${a.length}`); return 0; }
+          let m = 0;
+          for (let i = 0; i < a.length; i++) { const d = Math.abs((Array.isArray(a[i]) ? a[i][0] : a[i]) - (Array.isArray(b[i]) ? b[i][0] : b[i])) + (Array.isArray(a[i]) ? Math.abs(a[i][1] - b[i][1]) : 0); if (Number.isFinite(d)) m = Math.max(m, d); }
+          return m;
+        };
+        const pts = Math.max(cmp(base.neck, g.neck, 'neck points'), cmp(base.solid, g.solid, 'notes, strings and frets'), cmp(base.alpha, g.alpha, 'see-through parts'), cmp(base.glow, g.glow, 'rims and marks'));
+        let tx = 0;
+        let sz = 0;
+        if (base.text.length !== g.text.length) fails.push(`${id}: ${g.text.length} labels vs ${base.text.length}`);
+        else for (let i = 0; i < g.text.length; i++) { tx = Math.max(tx, Math.abs(g.text[i][0] - base.text[i][0]), Math.abs(g.text[i][1] - base.text[i][1])); sz = Math.max(sz, Math.abs(g.text[i][2] - base.text[i][2]), Math.abs(g.text[i][3] - base.text[i][3]), Math.abs(g.text[i][4] - base.text[i][4]) * 100); }
+        if (pts > 1) fails.push(`${id}: something moved ${pts.toFixed(2)} px`);
+        if (tx > 1) fails.push(`${id}: a label moved ${tx.toFixed(2)} px`);
+        if (sz > 1) fails.push(`${id}: a label changed size or strength (${sz.toFixed(2)})`);
+        worst = { pts: Math.max(worst.pts, pts), text: Math.max(worst.text, tx), size: Math.max(worst.size, sz) };
+        console.log(`THEME ${id}: points ${g.neck.length / 2}+${g.solid.length / 2}+${g.alpha.length / 2}+${g.glow.length / 2}, labels ${g.text.length}; most moved ${pts.toFixed(3)} px, labels ${tx.toFixed(3)} px, label size ${sz.toFixed(3)}; after-effects ${g.post ? 'on' : 'off'}`);
+        const f = path.join(out, `theme-${id}.png`);
+        await page.screenshot({ timeout: 60000, path: f });
+        shots.push([id, f]);
+      }
+      await set('classic');
+      // the contact sheet: every look at the same moment, in a grid
+      const names = await page.evaluate(async () => Object.fromEntries((await import('/js/hwlooks.js')).THEMES.map((t) => [t.id, t.name])));
+      const cells = shots.map(([id, f]) => [names[id], `data:image/png;base64,${fs.readFileSync(f).toString('base64')}`]);
+      // laid over the page (one browser page only here), then taken away again
+      await page.evaluate((cells) => {
+        const d = document.createElement('div');
+        d.id = 'theme-sheet';
+        d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#111;color:#eee;font:600 16px sans-serif;display:grid;grid-template-columns:repeat(4,1fr);align-content:start;gap:6px;padding:6px';
+        for (const [n, src] of cells) d.insertAdjacentHTML('beforeend', `<figure style="margin:0"><img style="width:100%;display:block" src="${src}"><figcaption style="padding:2px">${n}</figcaption></figure>`);
+        document.body.append(d);
+        return Promise.all([...d.querySelectorAll('img')].map((i) => i.decode()));
+      }, cells);
+      const sheetH = await page.evaluate(() => Math.ceil(document.getElementById('theme-sheet').lastElementChild.getBoundingClientRect().bottom + 6));
+      await page.screenshot({ timeout: 60000, path: path.join(out, 'themes-sheet.png'), clip: { x: 0, y: 0, width: page.viewportSize().width, height: Math.min(page.viewportSize().height, sheetH) } });
+      await page.evaluate(() => document.getElementById('theme-sheet').remove());
+      if (fails.length) throw new Error(fails.join('; '));
+      console.log(`PASS every look keeps everything in place: most moved ${worst.pts.toFixed(3)} px, labels ${worst.text.toFixed(3)} px, label sizes ${worst.size.toFixed(3)} (limit 1)`);
+    }
     if (process.env.TUNER) { await page.keyboard.press('u'); await page.waitForTimeout(300); }
     if (process.env.CARD) { await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.showCard(); }); await page.waitForTimeout(Number(process.env.CARD_WAIT || 0)); }
     if (process.env.MASTER) { await page.evaluate(() => document.querySelector('.hw-dock.collapsed') && document.querySelector('.hw-set-btn').click()); await page.waitForTimeout(500); }

@@ -8,6 +8,7 @@
  */
 import { api } from './api.js';
 import { h, icon, toast } from './ui.js';
+import { lookSection } from './hwlooks-pane.js';
 
 const root = document.documentElement;
 function applySafe(safe) {
@@ -181,6 +182,9 @@ export async function pane(el) {
         fx.append(h('div.disp-range', null, h('span.disp-sub', { text: 'Restart to use it.' }), rs));
       }
     }
+    // 4.30: the highway's look and graphics (the same block as in the highway's Sound & settings)
+    const hl = sec('Highway look and graphics', 'How the note highway looks and how hard your PC works to draw it. Looks change colours and light only: every note, string, fret and label stays exactly where it is.');
+    hl.append(lookSection({ compact: false }));
     const reset = h('button.btn', { type: 'button', html: `${icon('repeat')}<span>Reset this screen</span>` });
     reset.onclick = async () => {
       await api.app.resetDisplay();
