@@ -52,4 +52,6 @@ Nearby-song preview preparation removed at the user's word (people click around 
 
 Settings checker: merged (1df8ab1). GFXCHECK=1 in shoot.js (C:7.0, ~20 min, alone). Brightness, glow, room, sharpness, edge smoothing and Low change the picture; fog, reflections, note finishes, sparks, shadows, distance blur, vignette, grain, half bloom, Medium vs High and 8x smoothing barely do (<0.5% of pixels). Classic, Chrome, Neon and Clear share the dark-blue room (7-11/255 apart). Findings sent to Highway builder: make each kept setting visible, drop the ones that can't be.
 
+User then: fewer graphics options, more unique styles to pick from. Sent to Highway builder: graphics = quality presets (+ frame rate cap and counter), style tweaks at most brightness and one effects level; aim for 12-15 distinct styles.
+
 Status: Highway builder, Background artist running.
