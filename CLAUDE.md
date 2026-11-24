@@ -75,6 +75,8 @@ PIANO=tune PIANO_END=46 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir>
 PIANO=real PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> R:0.5:::sugar.json
 # the highway's top bar fits (nothing off the edges, the title readable), Piano off and on, at a window width
 TOPBAR=1 VW=1366 VH=768 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
+# 4.31: do the highway settings change the picture? Brightness and Effects per style, Low/Medium/Ultra vs High, room vs venue, the 15 styles against each other (~20 min, run alone; exits 1 when a setting shows nothing; GFXCHECK_ONLY=classic,room limits it)
+GFXCHECK=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> C:7.0
 # getting around: Sing, Karaoke and Piano chips stay put, side menus, 61/88 keys, the tuning card waits for the guitar
 MODES=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
 # (PORT=8771 before any shoot.js command picks another port, to run two at once)

@@ -20,14 +20,22 @@ const srv = http.createServer((req, res) => {
     res.end(d);
   });
 });
-// ===== GFXCHECK=1 (begin): do the highway's look and graphics settings really change the picture? =====
-// One still of a busy moment (notes on screen, a hit with its sparks) per setting value, everything else fixed,
+// ===== GFXCHECK=1 (begin): do the highway's style and graphics settings really change the picture? =====
+// One still of a busy moment (notes on screen, a hit with its effect) per setting value, everything else fixed,
 // measured against a baseline: share of pixels changed noticeably, mean colour difference, the same over the
-// highway area only, and the busiest 1/8 x 1/8 patch of the picture. Also every look against every other.
+// highway area only, and the busiest 1/8 x 1/8 patch of the picture. 4.31 settings only: per style Brightness
+// (both ends) and Effects (Calm, Off) against Full; graphics presets Low/Medium/Ultra against High on a couple
+// of styles; the style's own room against a photo venue; and every style against every other.
 // Graphics use the fixed High preset (not Auto, so its budget stepping can't change a shot). Time is frozen in
-// the page so sparks and pulses are the same every shot. Writes <out>/gfxcheck.json, gfxcheck-sheet.png, gfxcheck/*.png
+// the page so hit effects and pulses are the same every shot. Writes <out>/gfxcheck.json, gfxcheck-sheet.png, gfxcheck/*.png
+// Exit code 1 when a setting that should show moves under 0.5% of the pixels (a style with no hit effect or no
+// room movement is expected to show nothing for the Effects it doesn't have). Style pairs under 9/255 on the
+// highway area are listed as FLAGGED PAIRS but don't fail the run. About 90 shots: ~20 min on the software GPU.
 //   GFXCHECK=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> C:7.0     (1280x720 unless VW/VH are set)
+//   GFXCHECK_ONLY=noise,classic,neon   only these: parts (noise bright fx presets room styles) and/or style ids
+//     (style ids alone run bright and fx for them; presets and room run on their own few styles unless ids are given)
 const GFXCHECK_NOTICE = 12; // a pixel counts as changed when any colour moves by at least this much (of 255)
+const GFXCHECK_PAIR_MIN = 9; // two styles closer than this (mean colour difference of 255, highway area) are flagged
 async function gfxCheck(browser, page, out, scene, t) {
   const dir = path.join(out, 'gfxcheck');
   fs.mkdirSync(dir, { recursive: true });
@@ -35,17 +43,24 @@ async function gfxCheck(browser, page, out, scene, t) {
   await page.evaluate((clock) => {
     const H = document.querySelector('.highway').__hw;
     if (H.perfState) H.perfState.n = -1e9;
-    performance.now = () => 100000; // sparks, pulses and Auto's timing stand still
+    performance.now = () => 100000; // hit effects, pulses and Auto's timing stand still
     window.__stage.engine.position = clock;
     window.__gx = { frozen: 100000, shots: {} };
   }, clock);
-  // gfx: { preset } for a preset, or single settings on top of High (preset becomes custom)
-  const setLook = (theme, per, gfx) => page.evaluate(async ([theme, per, gfx]) => {
+  const styles = await page.evaluate(async () => (await import('/js/hwlooks.js')).THEMES.map((x) => ({ id: x.id, name: x.name, hit: x.def.hit, amb: x.sig.amb })));
+  const ids = styles.map((s) => s.id);
+  const parts = ['noise', 'bright', 'fx', 'presets', 'room', 'styles'];
+  const only = (process.env.GFXCHECK_ONLY || '').split(/[\s,]+/).filter(Boolean);
+  const onlyParts = only.filter((x) => parts.includes(x)), onlyIds = only.filter((x) => ids.includes(x));
+  const bad = only.filter((x) => !parts.includes(x) && !ids.includes(x));
+  if (bad.length) throw new Error('GFXCHECK_ONLY: unknown ' + bad.join(', ') + ' (parts: ' + parts.join(' ') + '; styles: ' + ids.join(' ') + ')');
+  const runs = (p) => !only.length || onlyParts.includes(p) || (!onlyParts.length && onlyIds.length > 0 && (p === 'bright' || p === 'fx'));
+  const pick = (dflt) => (onlyIds.length ? onlyIds : dflt);
+  const sty = (id) => styles.find((s) => s.id === id);
+  // a style (bg: its own room or the venue), its settings, and the graphics: a preset (default High) with the frame rate cap off
+  const setLook = (theme, per, preset, bg) => page.evaluate(async ([theme, per, preset, bg]) => {
     const m = await import('/js/hwlooks.js');
-    const st = m.loadLooks();
-    const high = m.applyPreset({ ...m.GFX_DEFAULT, dof: false, grain: false, vignette: false, fpsCap: 0 }, 'high');
-    const g = gfx.preset ? m.applyPreset(high, gfx.preset) : { ...high, ...gfx, preset: 'custom' };
-    m.saveLooks({ ...st, theme, per: { [theme]: per }, gfx: g });
+    m.saveLooks({ ...m.loadLooks(), theme, bg, per: { [theme]: per }, gfx: { preset, fpsCap: 0 } });
     const H = document.querySelector('.highway').__hw;
     // a pretend dead-on hit, 0.12 s ago, on the notes just played
     H.hits = [];
@@ -57,10 +72,13 @@ async function gfxCheck(browser, page, out, scene, t) {
       H.hits.push({ id, at, chord: tg.notes.length > 1, until: tg.t + (tg.sus || 0), offset: 0 });
       for (const nt of tg.notes) H.bursts.push({ s: nt.s, f: nt.f, at, until: tg.t + (tg.sus || 0) });
     });
-    return { look: H.look.id, res: H.look.res, bloom: !!H.look.bloom, refl: H.look.refl, sparks: H.look.sparks, budget: H.lookBudget(), hits: H.hits.length };
-  }, [theme, per, gfx]);
-  const take = async (key, theme, per = {}, gfx = {}) => {
-    const info = await setLook(theme, per, gfx);
+    return { style: H.look.id, own: H.look.own, bloom: !!H.look.bloom, refl: H.look.refl, hit: H.look.hit, amb: H.look.amb, res: H.look.res, hits: H.hits.length };
+  }, [theme, per, preset, bg]);
+  const have = new Set();
+  const take = async (key, theme, per = {}, preset = 'high', bg = 'own') => {
+    if (have.has(key)) return;
+    have.add(key);
+    const info = await setLook(theme, per, preset, bg);
     await page.waitForTimeout(900);
     await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     const buf = await page.screenshot({ timeout: 90000 });
@@ -93,95 +111,90 @@ async function gfxCheck(browser, page, out, scene, t) {
   }, [a, b, GFXCHECK_NOTICE]);
 
   const rows = [];
-  const cmp = async (group, label, baseKey, key, note = '') => {
+  // expect: false when this setting is meant to show nothing on this style (it has no such effect)
+  const cmp = async (group, label, baseKey, key, note = '', expect = true) => {
     const d = await diff(baseKey, key);
-    rows.push({ group, setting: label, vs: baseKey, shot: key, pct: +d.pct.toFixed(3), mean: +d.mean.toFixed(3), regionPct: +d.rpct.toFixed(3), regionMean: +d.rmean.toFixed(3), localMaxPct: +d.local.toFixed(2), note });
+    rows.push({ group, setting: label, vs: baseKey, shot: key, pct: +d.pct.toFixed(3), mean: +d.mean.toFixed(3), regionPct: +d.rpct.toFixed(3), regionMean: +d.rmean.toFixed(3), localMaxPct: +d.local.toFixed(2), expect, note });
   };
-  const slug = (s) => s.replace(/\s+/g, '-');
-  console.log('GFXCHECK scene', scene, 't', clock);
+  console.log('GFXCHECK scene', scene, 't', clock, only.length ? 'only ' + only.join(',') : 'everything');
+  const base = (id) => take(id + '-base', id);
 
   // ---- the noise floor: the same picture twice
-  await take('studio-base', 'studio');
-  await take('studio-base2', 'studio');
-  await cmp('noise', 'same picture twice', 'studio-base', 'studio-base2');
-
-  // ---- a look's own settings, on Studio (glow, full reflections, fog, satin notes, sparks all on), High graphics
-  const L = async (label, patch, note) => { const k = 'studio-' + slug(label); await take(k, 'studio', patch); await cmp('look (Studio)', label, 'studio-base', k, note); };
-  await L('bright 0.6', { bright: 0.6 });
-  await L('bright 1.3', { bright: 1.3 });
-  await L('glow 0', { glow: 0 });
-  await L('glow 1.5', { glow: 1.5 });
-  await L('refl off', { refl: 'off' });
-  await L('refl soft', { refl: 'soft' });
-  await L('back venue', { back: 'venue' }, 'this test page has no moving venue behind: only the look\'s own room is dropped');
-  await L('fog 0', { fog: 0 });
-  await L('fog 1', { fog: 1 });
-  for (const g of ['solid', 'glass', 'neon', 'paint', 'flat']) await L('gem ' + g, { gem: g }, 'vs satin');
-  await L('sparks off', { sparks: false });
-  // the look's refl "full" needs graphics refl Mirror: with Simple, full and soft must come out the same
-  await take('studio-gsimple-full', 'studio', { refl: 'full' }, { refl: 'simple' });
-  await take('studio-gsimple-soft', 'studio', { refl: 'soft' }, { refl: 'simple' });
-  await cmp('look (Studio)', 'refl full vs soft, graphics refl Simple', 'studio-gsimple-soft', 'studio-gsimple-full', 'expected the same');
-
-  // ---- the same on looks that differ: Neon (strong bloom) and Classic (no bloom, venue behind)
-  await take('neon-base', 'neon');
-  for (const [lab, p] of [['glow 0', { glow: 0 }], ['glow 1.5', { glow: 1.5 }], ['sparks off', { sparks: false }]]) {
-    await take('neon-' + slug(lab), 'neon', p);
-    await cmp('look (Neon)', lab, 'neon-base', 'neon-' + slug(lab));
+  if (runs('noise')) {
+    await take('studio-base', 'studio');
+    await take('studio-base2', 'studio');
+    await cmp('noise', 'same picture twice', 'studio-base', 'studio-base2', '', false);
   }
-  await take('classic-base', 'classic');
-  for (const [lab, p] of [['glow 0', { glow: 0 }], ['glow 1.5', { glow: 1.5 }], ['fog 1', { fog: 1 }], ['refl off', { refl: 'off' }], ['refl full', { refl: 'full' }], ['bright 1.3', { bright: 1.3 }], ['back own', { back: 'own' }], ['gem glass', { gem: 'glass' }]]) {
-    await take('classic-' + slug(lab), 'classic', p);
-    await cmp('look (Classic)', lab, 'classic-base', 'classic-' + slug(lab), lab.startsWith('glow') ? 'Classic has no bloom: glow only strengthens the marks and sparks' : '');
+
+  // ---- per style: Brightness at both ends, Effects Calm and Off, against the style's own starting settings
+  for (const id of pick(ids)) {
+    const s = sty(id), hasAmb = s.amb !== 'none', hasHit = s.hit !== 'none';
+    if (runs('bright')) {
+      await base(id);
+      for (const b of [0.6, 1.3]) { const k = `${id}-bright-${b}`; await take(k, id, { bright: b }); await cmp('brightness', `${id} ${b}`, id + '-base', k); }
+    }
+    if (runs('fx')) {
+      await base(id);
+      await take(id + '-fx-calm', id, { fx: 'calm' });
+      await cmp('effects', `${id} calm`, id + '-base', id + '-fx-calm', hasAmb ? '' : 'no movement in this style\'s room: same as Full', hasAmb);
+      await take(id + '-fx-off', id, { fx: 'off' });
+      await cmp('effects', `${id} off`, id + '-base', id + '-fx-off', hasHit || hasAmb ? '' : 'no hit effect and no movement in this style: same as Full', hasHit || hasAmb);
+    }
   }
-  await take('classic-bloomoff', 'classic', {}, { bloom: 'off' });
-  await cmp('graphics (Classic)', 'bloom off', 'classic-base', 'classic-bloomoff', 'Classic has no bloom at all');
 
-  // ---- graphics on Studio (High is the baseline; a preset, or one change on top of High)
-  const G = async (label, gfx, note) => { const k = 'gfx-' + slug(label); await take(k, 'studio', {}, gfx); await cmp('graphics (Studio)', label, 'studio-base', k, note); };
-  await G('preset low', { preset: 'low' });
-  await G('preset medium', { preset: 'medium' });
-  await G('preset ultra', { preset: 'ultra' });
-  await G('preset auto', { preset: 'auto' }, 'Auto at full budget');
-  for (const r of [0.5, 0.75, 1.5, 2]) await G('res ' + r, { res: r });
-  for (const a of ['off', 'fxaa', 'msaa8']) await G('aa ' + a, { aa: a }, 'vs msaa4');
-  await G('bloom off', { bloom: 'off' });
-  await G('bloom half', { bloom: 'half' });
-  await G('refl off', { refl: 'off' });
-  await G('refl simple', { refl: 'simple' });
-  await G('shadows off', { shadows: 'off' });
-  await G('dof on', { dof: true });
-  await G('grain on', { grain: true });
-  await G('vignette on', { vignette: true });
-  await G('fpsCap 30', { fpsCap: 30 }, 'a frame limit, not a look');
+  // ---- graphics presets against High, on a couple of styles (one with a lot going on, one plain)
+  if (runs('presets')) {
+    for (const id of pick(['classic', 'disco'])) {
+      await base(id);
+      for (const p of ['low', 'medium', 'ultra']) { const k = `${id}-preset-${p}`; await take(k, id, {}, p); await cmp('graphics', `${id} ${p} vs high`, id + '-base', k); }
+    }
+  }
 
-  // ---- how different the looks are from each other (each at its own starting settings, High graphics)
-  const ids = await page.evaluate(async () => (await import('/js/hwlooks.js')).THEMES.map((x) => x.id));
-  for (const id of ids) await take('look-' + id, id);
+  // ---- the style's own room against a photo venue (the page's venue behind the highway)
+  if (runs('room')) {
+    for (const id of pick(['classic', 'studio', 'synthwave', 'blueprint'])) {
+      await base(id);
+      const k = id + '-venue';
+      await take(k, id, {}, 'high', 'venue');
+      await cmp('background', `${id} venue vs own room`, id + '-base', k, id === 'classic' ? 'Classic\'s own room is nearly the venue\'s dark: expect little' : '');
+    }
+  }
+
+  // ---- how different the styles are from each other (each at its own starting settings, High graphics, own room)
   const pairs = [];
-  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
-    const d = await diff('look-' + ids[i], 'look-' + ids[j]);
-    pairs.push({ a: ids[i], b: ids[j], pct: +d.pct.toFixed(2), mean: +d.mean.toFixed(2), regionPct: +d.rpct.toFixed(2), regionMean: +d.rmean.toFixed(2) });
+  if (runs('styles')) {
+    const use = onlyIds.length ? onlyIds : ids;
+    for (const id of use) await base(id);
+    for (let i = 0; i < use.length; i++) for (let j = i + 1; j < use.length; j++) {
+      const d = await diff(use[i] + '-base', use[j] + '-base');
+      pairs.push({ a: use[i], b: use[j], pct: +d.pct.toFixed(2), mean: +d.mean.toFixed(2), regionPct: +d.rpct.toFixed(2), regionMean: +d.rmean.toFixed(2), flagged: d.rmean < GFXCHECK_PAIR_MIN });
+    }
+    pairs.sort((x, y) => x.regionMean - y.regionMean);
   }
-  pairs.sort((x, y) => x.regionMean - y.regionMean);
 
   // ---- verdicts and the table
-  for (const r of rows) r.verdict = r.group === 'noise' ? 'noise floor' : r.pct >= 2 ? 'works' : r.pct >= 0.5 ? 'weak' : r.localMaxPct >= 20 ? 'small area only' : 'no visible effect';
+  for (const r of rows) r.verdict = r.group === 'noise' ? 'noise floor' : r.pct >= 2 ? 'works' : r.pct >= 0.5 ? 'weak' : !r.expect ? 'none expected' : r.localMaxPct >= 20 ? 'small area only' : 'no visible effect';
   console.log('\n' + 'setting'.padEnd(52) + 'pct%'.padStart(8) + 'mean'.padStart(8) + 'hwy%'.padStart(8) + 'hwy-mean'.padStart(10) + 'local%'.padStart(8) + '  verdict');
   for (const r of rows) console.log(`${(r.group + ' | ' + r.setting).padEnd(51)} ${String(r.pct).padStart(8)}${String(r.mean).padStart(8)}${String(r.regionPct).padStart(8)}${String(r.regionMean).padStart(10)}${String(r.localMaxPct).padStart(8)}  ${r.verdict}${r.note ? '  (' + r.note + ')' : ''}`);
-  console.log('\nLooks against each other, most alike first (highway area: mean colour difference of 255, pixels changed):');
-  for (const p of pairs) console.log(`${(p.a + ' / ' + p.b).padEnd(22)} mean ${String(p.regionMean).padStart(6)}  highway pixels changed ${String(p.regionPct).padStart(6)}%  whole picture ${String(p.pct).padStart(6)}%`);
-  const flagged = rows.filter((r) => ['weak', 'no visible effect', 'small area only'].includes(r.verdict));
-  console.log(`\nFLAGGED (${flagged.length}): ` + flagged.map((r) => `${r.group} ${r.setting} [${r.verdict}, ${r.pct}%]`).join('; '));
-  const noise = rows[0];
-  fs.writeFileSync(path.join(out, 'gfxcheck.json'), JSON.stringify({ scene, t: clock, viewport: page.viewportSize(), threshold: { noticeable: GFXCHECK_NOTICE, noEffectPct: 0.5, weakPct: 2 }, noise: { pct: noise.pct, mean: noise.mean }, rows, lookPairs: pairs }, null, 1));
+  const flaggedPairs = pairs.filter((p) => p.flagged);
+  if (pairs.length) {
+    console.log(`\nStyles against each other, most alike first (highway area: mean colour difference of 255, pixels changed; under ${GFXCHECK_PAIR_MIN} flagged):`);
+    for (const p of pairs.slice(0, 20)) console.log(`${(p.a + ' / ' + p.b).padEnd(22)} mean ${String(p.regionMean).padStart(6)}  highway pixels changed ${String(p.regionPct).padStart(6)}%  whole picture ${String(p.pct).padStart(6)}%${p.flagged ? '  FLAGGED' : ''}`);
+    console.log(`FLAGGED PAIRS (${flaggedPairs.length}): ` + (flaggedPairs.map((p) => `${p.a}/${p.b} ${p.regionMean}`).join('; ') || 'none'));
+  }
+  const failed = rows.filter((r) => ['no visible effect', 'small area only'].includes(r.verdict));
+  const weak = rows.filter((r) => r.verdict === 'weak');
+  console.log(`\nNO VISIBLE EFFECT (${failed.length}): ` + failed.map((r) => `${r.group} ${r.setting} [${r.pct}%]`).join('; '));
+  console.log(`WEAK (${weak.length}): ` + weak.map((r) => `${r.group} ${r.setting} [${r.pct}%]`).join('; '));
+  const noise = rows.find((r) => r.group === 'noise') || { pct: null, mean: null };
+  fs.writeFileSync(path.join(out, 'gfxcheck.json'), JSON.stringify({ scene, t: clock, viewport: page.viewportSize(), threshold: { noticeable: GFXCHECK_NOTICE, noEffectPct: 0.5, weakPct: 2, pairMin: GFXCHECK_PAIR_MIN }, noise: { pct: noise.pct, mean: noise.mean }, rows, stylePairs: pairs }, null, 1));
 
   // ---- the contact sheet: every shot with its numbers
   const cap = {};
   for (const r of rows) cap[r.shot] = `${r.setting}: ${r.pct}% ${r.verdict}`;
   const cells = fs.readdirSync(dir).filter((f) => f.endsWith('.png')).sort().map((f) => {
     const k = f.replace(/\.png$/, '');
-    return [cap[k] ? `${k.split('-')[0]} ${cap[k]}` : k, `data:image/png;base64,${fs.readFileSync(path.join(dir, f)).toString('base64')}`];
+    return [cap[k] || k, `data:image/png;base64,${fs.readFileSync(path.join(dir, f)).toString('base64')}`];
   });
   const sheet = page; // (the browser runs as one process: no second page; the highway is done with)
   await sheet.goto('about:blank');
@@ -195,7 +208,8 @@ async function gfxCheck(browser, page, out, scene, t) {
     return Promise.all([...d.querySelectorAll('img')].map((i) => i.decode()));
   }, cells);
   await sheet.screenshot({ path: path.join(out, 'gfxcheck-sheet.png'), fullPage: true, timeout: 120000 });
-  console.log(`DONE gfxcheck: ${rows.length} comparisons, ${flagged.length} flagged; wrote gfxcheck.json and gfxcheck-sheet.png`);
+  console.log(`DONE gfxcheck: ${rows.length} comparisons, ${failed.length} with no visible effect, ${weak.length} weak, ${flaggedPairs.length} style pairs flagged; wrote gfxcheck.json and gfxcheck-sheet.png`);
+  if (failed.length) process.exitCode = 1;
 }
 // ===== GFXCHECK=1 (end) =====
 (async () => {
