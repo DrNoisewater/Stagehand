@@ -53,6 +53,18 @@ function beam(layer, tx, ty, tz, bx, by, bz, w0, w1, cTop, cBot) {
   layer.q(tx - w0, ty, tz, tx, ty, tz, bx, by, bz, bx - w1, by, bz, BLANK, cTop, cBot, BLANK);
   layer.q(tx, ty, tz, tx + w0, ty, tz, bx + w1, by, bz, bx, by, bz, cTop, BLANK, BLANK, cBot);
 }
+/** A small square facing you (a pixel, a scrap of confetti turned by `r`). */
+function square(layer, x, y, z, w, h, r, c) {
+  const cs = Math.cos(r);
+  const sn = Math.sin(r);
+  const p = (dx, dy) => [x + dx * cs - dy * sn, y + dx * sn + dy * cs];
+  const [ax, ay] = p(-w, -h);
+  const [bx, by] = p(w, -h);
+  const [cx, cy] = p(w, h);
+  const [dx, dy] = p(-w, h);
+  layer.q(ax, ay, z, bx, by, z, cx, cy, z, dx, dy, z, c, c, c, c);
+}
+const RAINBOW = ['#ff4b6e', '#ffb03a', '#ffe14a', '#4be07a', '#3ab4ff', '#b67dff'];
 /** A ring lying on the floor (a ripple): radius r across, rz deep, th thick, soft both sides. */
 const RING = Array.from({ length: 29 }, (_, i) => [Math.cos((i / 28) * Math.PI * 2), Math.sin((i / 28) * Math.PI * 2)]);
 function floorRing(layer, x, y, z, r, rz, th, c) {
@@ -167,6 +179,59 @@ export function createStyle(env) {
         softAlong(soft, x, 0.01, za, zb, 0.16, railCol(0.3 + 0.1 * beatK));
         softAlong(soft, x, 0.011, za, zb, 0.5, col(P.postA, 0.07 + 0.05 * tw));
         break;
+      case 'pixel': {
+        // 8-bit: square blocks with gaps, rolling with the song, brighter on the beat
+        const per = 0.18;
+        for (let k = Math.floor((G.t - 0.2) / per); k * per < G.t + G.L; k++) {
+          const z0 = zOf(k * per);
+          const z1 = zOf(k * per + per * 0.6);
+          if (z1 < za || z0 > zb) continue;
+          floor.flat(x - 0.07, x + 0.07, Math.max(za, z0), Math.min(zb, z1), 0.008, railCol(0.95, 0.8 + 0.5 * beatK));
+        }
+        break;
+      }
+      case 'wave': {
+        // sea-soft: a glowing band that sways a little along its length
+        floor.bar([x, 0.008, za], [x, 0.008, zb], 0.035, railCol(0.85, 1));
+        const step = 0.9;
+        const now2 = LK.amb ? now : 0;
+        for (let z = Math.floor(za / step) * step; z < zb; z += step) {
+          const a = Math.max(za, z);
+          const b = Math.min(zb, z + step);
+          const w = 0.22 + 0.12 * Math.sin(z * 0.7 + now2 * 1.6 + x);
+          softAlong(soft, x + 0.05 * Math.sin(z * 0.5 + now2), 0.01, a, b, w, railCol(0.13 + 0.05 * tw));
+        }
+        break;
+      }
+      case 'frost': {
+        // two fine icy lines, a cold glow, and frost crystals along them
+        const c = mix(P.rail, '#ffffff', 0.4, 0.95, 1.1);
+        floor.bar([x - 0.03, 0.008, za], [x - 0.03, 0.008, zb], 0.016, c);
+        floor.bar([x + 0.03, 0.008, za], [x + 0.03, 0.008, zb], 0.016, c);
+        softAlong(soft, x, 0.01, za, zb, 0.26, railCol(0.12 + 0.05 * tw));
+        const per = 0.7;
+        for (let k = Math.floor((G.t - 0.2) / per); k * per < G.t + G.L; k++) {
+          const z = zOf(k * per + hash(k + x) * 0.4);
+          if (z < za || z > zb) continue;
+          floor.bar([x - 0.1, 0.009, z - 0.1], [x + 0.1, 0.009, z + 0.1], 0.012, c);
+          floor.bar([x + 0.1, 0.009, z - 0.1], [x - 0.1, 0.009, z + 0.1], 0.012, c);
+        }
+        break;
+      }
+      case 'rainbow': {
+        // a rainbow running toward you, a colour a beat
+        const B = env.beats();
+        for (let i = Math.max(0, env.lower(B, G.t - 2)); i < B.length && B[i].t < G.t + G.L; i++) {
+          const z0 = Math.max(za, zOf(B[i].t));
+          const z1 = Math.min(zb, zOf(B[i + 1] ? B[i + 1].t : B[i].t + 0.5));
+          if (z1 <= z0) continue;
+          const c = RAINBOW[i % RAINBOW.length];
+          floor.bar([x, 0.008, z0], [x, 0.008, z1], 0.06, col(c, 0.95, 1.05));
+          softAlong(soft, x, 0.01, z0, z1, 0.24, col(c, 0.12 + 0.08 * beatK));
+        }
+        if (!B.length) floor.bar([x, 0.008, za], [x, 0.008, zb], 0.06, railCol(0.95));
+        break;
+      }
       case 'line':
       default:
         floor.bar([x, 0.008, za], [x, 0.008, zb], 0.04, railCol(0.92, 1));
@@ -225,11 +290,15 @@ export function createStyle(env) {
         across(0.5, 0.02, col(P.line, 0.18));
         along(4, col(P.line, 0.07));
         break;
+      case 'ice':
       case 'ember': {
         // charcoal with cracks glowing through (hotter on the beat and on a streak); the cracks roll with the song
-        floor.flat(xa, xb, za, zb, 0.0025, col('#000000', 0.22));
-        const per = 0.55;
-        const heat = 0.5 + 0.4 * (G.heat || 0) + 0.3 * beatK;
+        const ice = sig.floor === 'ice';
+        if (ice) soft.flat(xa, xb, za, zb, 0.006, col(P.wash, 0.03), col(P.wash, 0.08));
+        else floor.flat(xa, xb, za, zb, 0.0025, col('#000000', 0.22));
+        const per = ice ? 0.8 : 0.55;
+        const heat = ice ? 0.38 + 0.15 * beatK : 0.5 + 0.4 * (G.heat || 0) + 0.3 * beatK;
+        const [hotA, hotB] = ice ? ['#cfefff', '#ffffff'] : ['#ff6a1f', '#ffb347'];
         for (let k = Math.floor((t - 0.3) / per); k * per < t + G.L; k++) {
           const rnd = seeded(k * 7919 + an.fret * 31);
           for (let c = 0; c < 2; c++) {
@@ -243,13 +312,62 @@ export function createStyle(env) {
               if (z1 > za && z0 < zb) {
                 const c0 = Math.max(za, z0);
                 const c1 = Math.min(zb, z1);
-                floor.bar([x, 0.004, c0], [nx, 0.004, c1], 0.09, col('#000000', 0.5));
-                soft.bar([x, 0.006, c0], [nx, 0.006, c1], 0.06, col('#ff6a1f', heat), col('#ffb347', heat * 0.8));
+                if (!ice) floor.bar([x, 0.004, c0], [nx, 0.004, c1], 0.09, col('#000000', 0.5));
+                soft.bar([x, 0.006, c0], [nx, 0.006, c1], ice ? 0.03 : 0.06, col(hotA, heat), col(hotB, heat * 0.8));
               }
               x = nx;
               tt = nt;
             }
           }
+        }
+        break;
+      }
+      case 'checker': {
+        // a checkerboard, two squares a fret, rolling with the song
+        const per = 0.25;
+        for (let k = Math.floor((t - 0.2) / per); k * per < t + G.L; k++) {
+          const z0 = Math.max(za, zOf(k * per));
+          const z1 = Math.min(zb, zOf((k + 1) * per));
+          if (z1 <= z0) continue;
+          for (let f = an.fret; f < an.fret + (an.width || 4); f++) {
+            const l = XF(f - 1);
+            const m = (l + XF(f)) / 2;
+            const odd = (k + f) & 1;
+            floor.flat(odd ? l : m, odd ? m : XF(f), z0, z1, 0.003, col('#000000', 0.38));
+          }
+        }
+        break;
+      }
+      case 'caustics': {
+        // light from the surface wobbling over the floor
+        const now = LK.amb ? secs() : 0;
+        const per = 0.45;
+        for (let k = Math.floor((t - 0.2) / per); k * per < t + G.L; k++) {
+          for (let c = 0; c < 3; c++) {
+            const h1 = hash(k * 3 + c);
+            const x = xa + (0.15 + 0.7 * h1) * (xb - xa) + 0.25 * Math.sin(now * 0.9 + k + c * 2);
+            const z = zOf(k * per + hash(k * 7 + c) * per);
+            if (z < za || z > zb) continue;
+            soft.halo(x, 0.007, z, 0.35 + 0.2 * hash(k + c * 5), 0.9 + 0.5 * Math.sin(now * 1.3 + k), P.wash, 0.14 + 0.05 * Math.sin(now * 2 + k * 3 + c), 1, 'y', 10);
+          }
+        }
+        break;
+      }
+      case 'tiles': {
+        // a lit dance floor: a tile a fret and a beat, some lit in a colour on each beat
+        const B = env.beats();
+        for (let i = Math.max(0, env.lower(B, t - 0.5) - 1); i < B.length && B[i].t < t + G.L; i++) {
+          const z0 = Math.max(za, zOf(B[i].t));
+          const z1 = Math.min(zb, zOf(B[i + 1] ? B[i + 1].t : B[i].t + 0.5));
+          if (z1 <= z0) continue;
+          for (let f = an.fret; f < an.fret + (an.width || 4); f++) {
+            const hv = hash(i * 13.1 + f * 3.7);
+            floor.bar([XF(f - 1), 0.0035, z0], [XF(f - 1), 0.0035, z1], 0.03, col('#000000', 0.5));
+            if (hv < 0.45) continue;
+            const c = RAINBOW[Math.floor(hv * 97) % RAINBOW.length];
+            soft.flat(XF(f - 1) + 0.04, XF(f) - 0.04, z0 + 0.04, z1 - 0.04, 0.006, col(c, 0.2 + 0.2 * beatK));
+          }
+          floor.bar([xa, 0.0035, z0], [xb, 0.0035, z0], 0.03, col('#000000', 0.5));
         }
         break;
       }
@@ -332,6 +450,50 @@ export function createStyle(env) {
         }
         break;
       }
+      case 'snow': {
+        for (let i = 0; i < 40; i++) {
+          const h = hash(i + 21);
+          const u = (now * 0.07 * (0.6 + h) + hash(i * 2.3)) % 1;
+          const x = x0 + hash(i * 1.7) * (x1 - x0) + Math.sin(now * 0.6 + i) * 0.35;
+          const z = zF * (0.08 + 0.6 * hash(i * 5.9));
+          speck(fx, x, 4.5 * (1 - u), z, 0.035 + 0.03 * h, col('#ffffff', 0.35 * Math.min(1, u * 4)));
+        }
+        break;
+      }
+      case 'bubbles': {
+        for (let i = 0; i < 22; i++) {
+          const h = hash(i + 31);
+          const u = (now * 0.09 * (0.6 + h) + hash(i * 3.1)) % 1;
+          const x = x0 + hash(i * 2.1) * (x1 - x0) + Math.sin(now * 1.4 + i) * 0.12;
+          const z = zF * (0.1 + 0.5 * hash(i * 4.3));
+          const r = 0.04 + 0.05 * h;
+          fx.ring(x, u * 4.5, z, r, r, 0.018, '#bff8ff', 0.4 * (1 - u), 1, 12);
+        }
+        break;
+      }
+      case 'pixels': {
+        // a few pixels drifting down, a block at a time
+        for (let i = 0; i < 18; i++) {
+          const h = hash(i + 41);
+          const u = Math.floor(((now * 0.12 * (0.5 + h) + hash(i * 1.3)) % 1) * 16) / 16;
+          const x = x0 + (Math.floor(hash(i * 2.7) * 24) / 24) * (x1 - x0);
+          const z = zF * (0.15 + 0.5 * hash(i * 6.1));
+          square(fx, x, 4.5 * (1 - u), z, 0.07, 0.07, 0, col(RAINBOW[i % 6], 0.3));
+        }
+        break;
+      }
+      case 'disco': {
+        // mirror-ball spots wheeling slowly over the floor
+        for (let i = 0; i < 14; i++) {
+          const ang = now * 0.25 + (i / 14) * Math.PI * 2;
+          const rr = (x1 - x0) * (0.2 + 0.3 * hash(i + 2));
+          const x = cx + Math.cos(ang) * rr;
+          const z = zF * 0.3 + Math.sin(ang) * zF * 0.22;
+          if (z < 0.5) continue;
+          fx.halo(x, 0.014, z, 0.35, 0.7, RAINBOW[i % 6], 0.16 * (0.7 + 0.6 * (G.pulse || 0)), 1, 'y', 10);
+        }
+        break;
+      }
       case 'scan': {
         // a drafting line passing slowly over the floor, toward you
         const z = zF * (1 - ((now / 7) % 1));
@@ -404,6 +566,47 @@ export function createStyle(env) {
             const [a2, b2] = p(2.2);
             const [a3, b3] = p(4.0);
             fx.q(a1, b1, cz, a2, b2, cz, a3, b3, cz, a3, b3, cz, c, c, col(hex, (1 - u) * 0.4), col(hex, (1 - u) * 0.4));
+          }
+        } else if (kind === 'pixels') {
+          // blocky: pixels jump outward a block at a time
+          if (age > 0.5) continue;
+          const d = Math.floor(age / 0.07) * 0.11;
+          for (let i = 0; i < 8; i++) {
+            const ang = (i / 8) * Math.PI * 2 + (rnd() - 0.5) * 0.3;
+            square(fx, x0 + Math.round(Math.cos(ang) * d * 8) / 8, y0 + Math.round(Math.sin(ang) * d * 8) / 8, -0.1, 0.05, 0.05, 0, col(i % 2 ? hex : '#ffffff', 0.9 * (1 - age / 0.5), 1.2));
+          }
+        } else if (kind === 'bubbles') {
+          for (let i = 0; i < 5; i++) {
+            const life = 0.7 + rnd() * 0.4;
+            const vx = (rnd() - 0.5) * 0.5;
+            const r = 0.04 + rnd() * 0.05;
+            const ph = rnd() * 6;
+            if (age > life) continue;
+            const u = age / life;
+            fx.ring(x0 + vx * age + Math.sin(age * 9 + ph) * 0.05, y0 + age * 1.3, -0.1, r, r, 0.02, mixHex(hex, '#ffffff', 0.5, 8), 0.7 * (1 - u), 1.2, 12);
+          }
+        } else if (kind === 'flake') {
+          if (age > 0.6) continue;
+          const u = age / 0.6;
+          const r = 0.12 + 0.3 * (1 - (1 - u) * (1 - u));
+          const c = mix(hex, '#ffffff', 0.6, 0.85 * (1 - u), 1.2);
+          for (let i = 0; i < 3; i++) {
+            const a = (i / 3) * Math.PI + age * 1.5;
+            const dx = Math.cos(a) * r;
+            const dy = Math.sin(a) * r;
+            fx.bar([x0 - dx, y0 - dy, -0.1], [x0 + dx, y0 + dy, -0.1], 0.025, c, c, 'z');
+          }
+        } else if (kind === 'confetti') {
+          for (let i = 0; i < 9; i++) {
+            const life = 0.8 + rnd() * 0.4;
+            const ang = Math.PI / 2 + (rnd() - 0.5) * 2.2;
+            const sp = 1.2 + rnd() * 1.2;
+            const spin = (rnd() - 0.5) * 20;
+            const c = RAINBOW[Math.floor(rnd() * 6)];
+            if (age > life) continue;
+            const u = age / life;
+            const go = (1 - Math.exp(-age * 4)) / 4;
+            square(fx, x0 + Math.cos(ang) * sp * go + Math.sin(age * 5 + i) * 0.05, y0 + Math.sin(ang) * sp * go - 0.6 * age * age, -0.1 - go * 0.3, 0.05, 0.025 * Math.abs(Math.cos(age * 8 + i)) + 0.008, spin * age, col(c, 0.9 * (1 - u), 1.1));
           }
         } else if (kind === 'dust' || kind === 'chalk') {
           const n = kind === 'dust' ? 10 : 7;

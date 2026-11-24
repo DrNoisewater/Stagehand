@@ -3,11 +3,12 @@
  * 4.31: two sizes. In the highway's Sound & settings pullout (drawerLooks): style tiles, the
  * background, one quality row and a button to the rest. In Settings › Display (lookSection): a big
  * picture of the style, every style with a line about it, the background, Fine-tune for the style
- * in use, and the graphics presets with the single options under Advanced.
+ * in use (brightness and effects) and the graphics presets, a frame rate cap and the counter.
+ * The style decides everything else (fog, reflections, glow, note finish): fewer knobs, more styles.
  * Changes are saved and used at once; each block redraws itself when something changes.
  */
 import { h } from './ui.js';
-import { THEMES, THEME_SETTINGS, HITS, loadLooks, saveLooks, onLooks, themeById, themeSettings, applyPreset } from './hwlooks.js';
+import { THEMES, THEME_SETTINGS, loadLooks, saveLooks, onLooks, themeById, themeSettings, applyPreset } from './hwlooks.js';
 import { VENUES, VENUE_ALIAS, venueThumb } from './venues.js';
 
 const PRESET_ROWS = [
@@ -17,7 +18,7 @@ const PRESET_ROWS = [
   ['high', 'High', 'The full show, for most PCs.'],
   ['ultra', 'Ultra', 'Your graphics card asked for a challenge.'],
 ];
-const GEMS = [['solid', 'Classic', 'Lit edges and a light bar, as always'], ['satin', 'Satin', 'Smooth solid colour, soft edges'], ['glass', 'Glass', 'Tinted glass in a chrome rim'], ['neon', 'Neon', 'Dark inside, a bright glowing outline'], ['paint', 'Painted', 'Worn paint with a strip of gold tape'], ['flat', 'Flat', 'One flat colour, a white outline: the easiest to read']];
+const FX_ROWS = [['full', 'Full', 'Everything the style does'], ['calm', 'Calm', 'Hit effects, but nothing moving in the room'], ['off', 'Off', 'No hit effects and nothing moving: just the notes']];
 
 /** The style's picture, rendered from the real highway (big: the large one). */
 export const styleThumb = (id, big) => `art/hwstyles/${id}${big ? '-big' : ''}.webp`;
@@ -70,10 +71,7 @@ const pickStyle = (id) => change((s) => (s.theme = id));
 const setTheme = (k, v) => change((st) => {
   st.per[st.theme] = { ...(st.per[st.theme] || {}), [k]: v };
 });
-const setGfx = (k, v) => change((st) => {
-  st.gfx = { ...st.gfx, [k]: v };
-  if (['res', 'aa', 'bloom', 'refl', 'shadows', 'fx'].includes(k)) st.gfx.preset = 'custom';
-});
+const setGfx = (k, v) => change((st) => (st.gfx = { ...st.gfx, [k]: v }));
 
 /** A block that redraws itself on any change to the looks, and stops once it's gone. */
 function live(el, paint) {
@@ -102,10 +100,7 @@ function styleTiles(st, { lines = false } = {}) {
 }
 
 function qualityRow(st, label = 'Graphics quality') {
-  const g = st.gfx;
-  const opts = PRESET_ROWS.map(([id, name, tip]) => [id, name, tip]);
-  if (g.preset === 'custom') opts.push(['custom', 'Custom', 'Your own mix (Settings › Display)']);
-  return seg(label, null, opts, g.preset, (v) => v !== 'custom' && change((s) => (s.gfx = applyPreset(s.gfx, v))));
+  return seg(label, null, PRESET_ROWS, st.gfx.preset, (v) => change((s) => (s.gfx = applyPreset(s.gfx, v))));
 }
 
 /**
@@ -159,7 +154,6 @@ export function drawerLooks(o) {
 export function lookSection() {
   const el = h('div.hl-looks.hl-full');
   let tuneOpen = false;
-  let advOpen = false;
   let bgOpen = false;
   const venueNow = () => {
     const p = hwPrefs();
@@ -189,12 +183,7 @@ export function lookSection() {
     const box = h('div.hl-theme-opts');
     box.append(
       slider('Brightness', 'The whole highway, darker or lighter. Labels stay as they are.', THEME_SETTINGS.bright, s.bright, pct, (v) => setTheme('bright', v)),
-      slider('Glow', 'Soft light round notes, rails and hits, and the bloom.', THEME_SETTINGS.glow, s.glow, pct, (v) => setTheme('glow', v)),
-      slider('Fog', 'How much the far end fades into the room.', THEME_SETTINGS.fog, s.fog, pct, (v) => setTheme('fog', v)),
-      seg('Notes', 'Only the finish: every note keeps its string colour, size and place.', GEMS, s.gem, (v) => setTheme('gem', v)),
-      seg('Reflections on the floor', null, [['off', 'Off'], ['soft', 'Soft'], ['full', 'Full', 'A mirror floor (needs Reflections quality set to Mirror floor)']], s.refl, (v) => setTheme('refl', v)),
-      seg('Hit effect', 'What flies off a note you hit.', HITS.map(([id, name, line]) => [id, name, line]), s.hit, (v) => setTheme('hit', v)),
-      sw('Movement in the room', t.sig.amb === 'none' ? 'This style has none.' : 'The style’s slow movement: light, dust, embers and the like. Graphics quality Low turns it off.', s.amb && t.sig.amb !== 'none', (v) => setTheme('amb', v))
+      seg('Effects', t.sig.amb === 'none' ? 'Hit effects and the style’s moving parts.' : 'Hit effects and the style’s movement in the room.', FX_ROWS, s.fx, (v) => setTheme('fx', v))
     );
     const reset = h('button.btn.small.hl-reset', { type: 'button', text: `Reset ${t.name}` });
     reset.onclick = () => change((st2) => delete st2.per[st2.theme]);
@@ -211,28 +200,14 @@ export function lookSection() {
       b.onclick = () => change((s) => (s.gfx = applyPreset(s.gfx, id)));
       presets.append(b);
     }
-    box.append(h('div.hl-row-t', null, h('b', { text: 'Graphics quality' }), h('small', { text: g.preset === 'custom' ? 'Custom: your own mix of the settings under Advanced.' : 'None of these adds any delay.' })), presets);
-    const auto = g.preset === 'auto';
-    const adv = h('div.hl-adv');
-    adv.append(
-      seg('Sharpness (render size)', auto ? 'Auto picks it as you play.' : 'How big the picture is drawn. Above 100% is supersampling: smoother edges, a lot more work.',
-        [['auto', 'Auto'], [0.5, '50%'], [0.75, '75%'], [1, '100%'], [1.25, '125%'], [1.5, '150%'], [2, '200%']], auto ? 'auto' : g.res, (v) => setGfx('res', v)),
-      seg('Edge smoothing', 'MSAA: clean edges, some work (the usual). FXAA: cheaper, a touch softer. Off: cheapest, jagged edges.',
-        [['off', 'Off'], ['fxaa', 'FXAA'], ['msaa4', 'MSAA 4×'], ['msaa8', 'MSAA 8×']], g.aa, (v) => setGfx('aa', v)),
-      seg('Bloom', 'Bright things shine a little into the dark around them.', [['off', 'Off'], ['full', 'On']], g.bloom === 'off' ? 'off' : 'full', (v) => setGfx('bloom', v)),
-      seg('Reflections quality', 'Simple: a faint copy of each note on the floor (cheap). Mirror floor: notes, strings and frets mirrored (draws them twice).',
-        [['off', 'Off'], ['simple', 'Simple'], ['mirror', 'Mirror floor']], g.refl, (v) => setGfx('refl', v)),
-      seg('Style effects', 'Full: each style’s movement in the room and its moving rails. Simple: still.', [['simple', 'Simple'], ['full', 'Full']], g.fx, (v) => setGfx('fx', v)),
+    box.append(h('div.hl-row-t', null, h('b', { text: 'Graphics quality' }), h('small', { text: 'Low to Ultra: how much the graphics card does. None of these adds any delay, and every note stays in the same place.' })), presets);
+    box.append(
       seg('Frame rate cap', 'Fewer pictures a second: a cooler, quieter PC. The song and scoring keep their own timing.', [[0, 'Screen'], [30, '30'], [60, '60'], [120, '120']], g.fpsCap, (v) => setGfx('fpsCap', v)),
-      sw('Distance blur', 'Softens the far end. Off by default: far notes get a little harder to read early.', g.dof, (v) => setGfx('dof', v)),
-      sw('Vignette', 'Slightly darker corners, like a camera lens. Almost free.', g.vignette, (v) => setGfx('vignette', v)),
-      sw('Film grain', 'A faint moving grain over the room and floor (never the labels). Almost free.', g.grain, (v) => setGfx('grain', v)),
       sw('Show frame rate', 'A small counter in the corner: pictures a second and how busy the graphics card is.', !!hwPrefs().showFps, (v) => {
         tellHighway('showFps', v);
         setTimeout(paint, 0);
       })
     );
-    box.append(fold('hl-adv-fold', 'Advanced', g.preset === 'custom' ? 'Custom' : 'From the preset', advOpen, (v) => ((advOpen = v), paint()), adv));
     return box;
   }
 

@@ -39,18 +39,18 @@ export const HITS = [
   ['flash', 'Flash', 'A quick column of light.'],
   ['ripple', 'Ripple', 'Rings run out across the floor.'],
   ['chalk', 'Chalk', 'A chalk circle and a puff of chalk.'],
+  ['pixels', 'Pixels', 'Blocky pixels burst out.'],
+  ['bubbles', 'Bubbles', 'Bubbles rise and wobble away.'],
+  ['flake', 'Snowflake', 'A snowflake opens and melts.'],
+  ['confetti', 'Confetti', 'A pinch of confetti flutters down.'],
   ['none', 'None', 'Nothing extra.'],
 ];
 
-// Settings each style keeps for itself, with what they can be.
+// 4.31: what you can change about a style: its brightness, and its effects (Full: its hit effect and
+// its movement in the room; Calm: the hit effect only; Off: neither). The style decides the rest.
 export const THEME_SETTINGS = {
   bright: { min: 0.6, max: 1.3, step: 0.05 },
-  glow: { min: 0, max: 1.5, step: 0.05 },
-  refl: ['off', 'soft', 'full'],
-  fog: { min: 0, max: 1, step: 0.05 },
-  gem: ['solid', 'satin', 'glass', 'neon', 'paint', 'flat'],
-  hit: HITS.map((x) => x[0]),
-  amb: [true, false],
+  fx: ['full', 'calm', 'off'],
 };
 
 /**
@@ -103,7 +103,7 @@ export const THEMES = [
     isNew: true,
     wink: 'Somewhere it is always 1986 and the sun never quite sets.',
     about: 'A striped sun on the horizon, a pink grid rolling toward you, laser rails.',
-    def: { bright: 0.95, glow: 0.8, refl: 'soft', fog: 0.3, gem: 'neon', hit: 'ripple', amb: true },
+    def: { bright: 0.95, glow: 0.8, refl: 'soft', fog: 0.3, gem: 'neon', hit: 'ripple', amb: true, grain: true },
     sig: { floor: 'synth', rails: 'laser', pool: 0, beat: 0.8, amb: 'sun' },
     sky: { top: '#07021a', mid: '#1c0a3a', hor: '#5a1650', near: '#0a0418', far: '#1a0830', pattern: 3, patA: 0.5, key: 0.06, keyCol: '#ff5ab4', horLine: 0.25, horW: 0.03, horCol: '#ff4fa8' },
     fogCol: '#1a0a2c',
@@ -119,7 +119,7 @@ export const THEMES = [
     isNew: true,
     wink: 'Twenty thousand people and a lighting rig. Try not to wave.',
     about: 'A big dark stage: light beams sweeping through haze, LED strip rails, the floor flashes on the beat.',
-    def: { bright: 1, glow: 0.8, refl: 'full', fog: 0.4, gem: 'solid', hit: 'sparks', amb: true },
+    def: { bright: 1, glow: 0.8, refl: 'full', fog: 0.4, gem: 'solid', hit: 'sparks', amb: true, vig: true },
     sig: { floor: 'gloss', rails: 'led', pool: 0.08, beat: 1, amb: 'beams' },
     sky: { top: '#06050a', mid: '#1a1622', hor: '#4a3c48', near: '#08070a', far: '#2a2430', pattern: 6, patA: 0.6, key: 0.24, keyCol: '#ffd7a0', horLine: 0.18, horW: 0.04, horCol: '#ffe2b8' },
     fogCol: '#0e121a',
@@ -135,7 +135,7 @@ export const THEMES = [
     isNew: true,
     wink: 'Playing so hot the floor cracked. Mind your boots.',
     about: 'Dark charcoal with glowing cracks, lava rails, embers floating up. Hotter on a streak.',
-    def: { bright: 0.95, glow: 0.8, refl: 'off', fog: 0.35, gem: 'satin', hit: 'embers', amb: true },
+    def: { bright: 0.95, glow: 0.8, refl: 'off', fog: 0.35, gem: 'satin', hit: 'embers', amb: true, vig: true },
     sig: { floor: 'ember', rails: 'lava', pool: 0, beat: 0.7, amb: 'embers' },
     sky: { top: '#050203', mid: '#140606', hor: '#3a1408', near: '#080404', far: '#1c0a06', pattern: 5, patA: 0.6, key: 0.1, keyCol: '#ff7a2a', horLine: 0.16, horW: 0.03, horCol: '#ff6a1f' },
     fogCol: '#1a0806',
@@ -162,11 +162,75 @@ export const THEMES = [
     swatch: ['#0e2244', '#173058', '#0d2140', '#ffffff'],
   },
   {
+    id: 'arcade',
+    name: 'Arcade',
+    isNew: true,
+    wink: 'Insert coin. Your high score is the song.',
+    about: 'An 8-bit cabinet: a checkerboard floor, blocky pixel rails, pixels bursting off every hit.',
+    def: { bright: 1, glow: 0.6, refl: 'off', fog: 0.15, gem: 'flat', hit: 'pixels', amb: true, grain: true },
+    sig: { floor: 'checker', rails: 'pixel', pool: 0, beat: 0.6, amb: 'pixels' },
+    sky: { top: '#000000', mid: '#05020c', hor: '#1a0a3a', near: '#020104', far: '#0c0620', pattern: 1, patA: 0.16, key: 0.06, keyCol: '#39ff7a', horLine: 0.3, horW: 0.012, horCol: '#39ff7a' },
+    fogCol: '#0c0620',
+    bloom: [0.22, 0.25, 0.82],
+    reflK: 0.2,
+    shadows: false,
+    pal: { line: '#39ff7a', lineA: 0.1, laneA: '#120a2a', laneB: '#0e0822', laneFill: 0.95, laneMid: '#5a3ab4', laneMidA: 0.1, laneLine: '#ffe14a', laneLineA: 0.45, rail: '#39ff7a', railHot: '#ffe14a', beat: '#ffffff', beatA: 0.42, wash: '#39ff7a', inlay: '#ffe14a', inlayEdge: '#c0a020', inlayA: 0.4, postA: '#ff3c8c', postB: '#39ff7a' },
+    swatch: ['#05020c', '#1a0a3a', '#120a2a', '#39ff7a'],
+  },
+  {
+    id: 'deepsea',
+    name: 'Deep sea',
+    isNew: true,
+    wink: 'Very calm down here. The fish are into it.',
+    about: 'Under the waves: light rippling over the floor, swaying rails, bubbles rising from your hits.',
+    def: { bright: 1, glow: 0.8, refl: 'soft', fog: 0.55, gem: 'satin', hit: 'bubbles', amb: true, vig: true },
+    sig: { floor: 'caustics', rails: 'wave', pool: 0.1, beat: 0.3, amb: 'bubbles' },
+    sky: { top: '#00121c', mid: '#013040', hor: '#0a6a7a', near: '#011820', far: '#04404c', pattern: 0, patA: 0, key: 0.3, keyCol: '#7ff0ff', horLine: 0.06, horW: 0.06, horCol: '#9ff6ff' },
+    fogCol: '#04404c',
+    bloom: [0.24, 0.5, 0.78],
+    reflK: 0.2,
+    shadows: true,
+    pal: { line: '#7ff0ff', lineA: 0.08, laneA: '#06323c', laneB: '#052a33', laneFill: 0.9, laneMid: '#2aa8b8', laneMidA: 0.12, laneLine: '#bff8ff', laneLineA: 0.45, rail: '#7ff0ff', railHot: '#ffd27a', beat: '#bff8ff', beatA: 0.34, wash: '#7ff0ff', inlay: '#bff8ff', inlayEdge: '#5ac8d4', inlayA: 0.4, postA: '#7ff0ff', postB: '#3ad0e8' },
+    swatch: ['#013040', '#0a6a7a', '#06323c', '#7ff0ff'],
+  },
+  {
+    id: 'ice',
+    name: 'Frozen lake',
+    isNew: true,
+    wink: 'Cold hands, warm heart. Mind the cracks.',
+    about: 'A frozen lake under the stars: cracks in the ice, frost rails, snow falling, snowflakes on hits.',
+    def: { bright: 1.05, glow: 0.8, refl: 'full', fog: 0.35, gem: 'glass', hit: 'flake', amb: true },
+    sig: { floor: 'ice', rails: 'frost', pool: 0.06, beat: 0.4, amb: 'snow' },
+    sky: { top: '#02060e', mid: '#0a1a2e', hor: '#4a6e8e', near: '#0e1a26', far: '#3a566e', pattern: 0, patA: 0, key: 0.16, keyCol: '#dff4ff', horLine: 0.12, horW: 0.03, horCol: '#e8f8ff', stars: 1 },
+    fogCol: '#3a566e',
+    bloom: [0.26, 0.4, 0.8],
+    reflK: 0.32,
+    shadows: true,
+    pal: { line: '#dff4ff', lineA: 0.1, laneA: '#1c3448', laneB: '#182e40', laneFill: 0.88, laneMid: '#8ac8ee', laneMidA: 0.14, laneLine: '#ffffff', laneLineA: 0.45, rail: '#e8f8ff', railHot: '#ffc070', beat: '#ffffff', beatA: 0.36, wash: '#dff4ff', inlay: '#e8f8ff', inlayEdge: '#9cc8e4', inlayA: 0.42, postA: '#ffffff', postB: '#9fe0ff' },
+    swatch: ['#0a1a2e', '#4a6e8e', '#1c3448', '#e8f8ff'],
+  },
+  {
+    id: 'disco',
+    name: 'Disco',
+    isNew: true,
+    wink: 'The floor lights up. So should you.',
+    about: 'A lit dance floor that flashes with the beat, rainbow rails, mirror-ball spots, confetti on hits.',
+    def: { bright: 1, glow: 0.9, refl: 'full', fog: 0.2, gem: 'paint', hit: 'confetti', amb: true, vig: true },
+    sig: { floor: 'tiles', rails: 'rainbow', pool: 0, beat: 1, amb: 'disco' },
+    sky: { top: '#050008', mid: '#140420', hor: '#3a0c48', near: '#08020c', far: '#22082e', pattern: 0, patA: 0, key: 0.2, keyCol: '#ff7ae0', horLine: 0.12, horW: 0.03, horCol: '#ffd27a', stars: 1 },
+    fogCol: '#22082e',
+    bloom: [0.34, 0.45, 0.78],
+    reflK: 0.3,
+    shadows: false,
+    pal: { line: '#ff7ae0', lineA: 0.08, laneA: '#1a0a24', laneB: '#16081e', laneFill: 0.93, laneMid: '#b45ad8', laneMidA: 0.1, laneLine: '#ffd27a', laneLineA: 0.45, rail: '#ff7ae0', railHot: '#ffd27a', beat: '#ffffff', beatA: 0.4, wash: '#ff9ae8', inlay: '#ffd27a', inlayEdge: '#c89a40', inlayA: 0.4, postA: '#ff7ae0', postB: '#7ae0ff' },
+    swatch: ['#140420', '#3a0c48', '#1a0a24', '#ff7ae0'],
+  },
+  {
     id: 'roadcase',
     name: 'Road case',
     wink: 'Gaffer tape, worn boards, a light left on for the crew.',
     about: 'Stagehand’s own: worn wooden boards rolling under you, gaffer-tape rails, sawdust on hits.',
-    def: { bright: 1, glow: 0.7, refl: 'soft', fog: 0.3, gem: 'paint', hit: 'dust', amb: true },
+    def: { bright: 1, glow: 0.7, refl: 'soft', fog: 0.3, gem: 'paint', hit: 'dust', amb: true, vig: true, grain: true },
     sig: { floor: 'boards', rails: 'tape', pool: 0.12, beat: 0.3, amb: 'dust' },
     sky: { top: '#0a0705', mid: '#1a120c', hor: '#3a2a1c', near: '#140d08', far: '#3a2616', pattern: 2, patA: 0.16, key: 0.2, keyCol: '#ffc67a', horLine: 0, horCol: '#ffc67a' },
     fogCol: '#1c140d',
@@ -211,7 +275,7 @@ export const THEMES = [
     name: 'Midnight',
     wink: 'For the 2 a.m. session. Your eyes (and neighbours) will thank you.',
     about: 'Very dim and calm for long practice: thin soft lines, a sky of faint stars, nothing flying about.',
-    def: { bright: 0.8, glow: 0.45, refl: 'off', fog: 0.45, gem: 'satin', hit: 'none', amb: true },
+    def: { bright: 0.8, glow: 0.45, refl: 'off', fog: 0.45, gem: 'satin', hit: 'none', amb: true, vig: true },
     sig: { floor: 'none', rails: 'line', pool: 0.06, beat: 0, amb: 'stars' },
     sky: { top: '#010204', mid: '#03060b', hor: '#0a1220', near: '#020305', far: '#070b12', pattern: 0, patA: 0, key: 0.05, keyCol: '#3f8fb8', horLine: 0, horCol: '#3fa9c8', stars: 1 },
     fogCol: '#04070c',
@@ -237,29 +301,23 @@ export const THEMES = [
     swatch: ['#0d1013', '#151a20', '#17232d', '#ffffff'],
   },
 ];
+// every style starts with Effects: Full
+for (const t of THEMES) t.def = { fx: 'full', ...t.def };
 export const DEFAULT_THEME = 'classic'; // what everyone starts on: nothing changes under you
 export const BACKGROUNDS = ['own', 'venue'];
 
 // ------------------------------------------------------------------ graphics --
+// 4.31: graphics are a preset (and a frame rate cap); each preset decides everything below it.
 // fx: 'full' draws each style's slow movement (dust, beams, embers …); 'simple' leaves it out.
-export const GFX_DEFAULT = { preset: 'auto', res: 'auto', aa: 'msaa4', bloom: 'full', refl: 'mirror', shadows: 'on', fx: 'full', dof: false, grain: false, vignette: false, fpsCap: 0 };
 export const PRESETS = {
-  auto: { res: 'auto', aa: 'msaa4', bloom: 'full', refl: 'mirror', shadows: 'on', fx: 'full' },
-  low: { res: 0.75, aa: 'fxaa', bloom: 'off', refl: 'off', shadows: 'off', fx: 'simple' },
-  medium: { res: 1, aa: 'msaa4', bloom: 'half', refl: 'simple', shadows: 'on', fx: 'full' },
-  high: { res: 1, aa: 'msaa4', bloom: 'full', refl: 'mirror', shadows: 'on', fx: 'full' },
-  ultra: { res: 1.5, aa: 'msaa8', bloom: 'full', refl: 'mirror', shadows: 'on', fx: 'full' },
+  auto: { res: 'auto', aa: 'msaa4', bloom: 'full', refl: 'mirror', shadows: 'on', fx: 'full', post: true },
+  low: { res: 0.75, aa: 'fxaa', bloom: 'off', refl: 'off', shadows: 'off', fx: 'simple', post: false },
+  medium: { res: 1, aa: 'msaa4', bloom: 'half', refl: 'simple', shadows: 'on', fx: 'full', post: true },
+  high: { res: 1, aa: 'msaa4', bloom: 'full', refl: 'mirror', shadows: 'on', fx: 'full', post: true },
+  ultra: { res: 1.5, aa: 'msaa8', bloom: 'full', refl: 'mirror', shadows: 'on', fx: 'full', post: true },
 };
-export const PRESET_KEYS = ['res', 'aa', 'bloom', 'refl', 'shadows', 'fx'];
-export const GFX_OPTIONS = {
-  res: ['auto', 0.5, 0.75, 1, 1.25, 1.5, 2],
-  aa: ['off', 'fxaa', 'msaa4', 'msaa8'],
-  bloom: ['off', 'half', 'full'],
-  refl: ['off', 'simple', 'mirror'],
-  shadows: ['off', 'on'],
-  fx: ['simple', 'full'],
-  fpsCap: [0, 30, 60, 120],
-};
+export const GFX_DEFAULT = { preset: 'auto', fpsCap: 0 };
+export const GFX_OPTIONS = { fpsCap: [0, 30, 60, 120] };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export function themeById(id) {
@@ -269,7 +327,9 @@ export function themeById(id) {
 /**
  * A stored state made safe: unknown styles, settings and values are dropped.
  * Older saves (4.30.0) kept "background" per style: the style in use decides `bg`, so nothing changes
- * on screen (Classic showed the venue, the other styles their own room). Sparks off became hit 'none'.
+ * on screen (Classic showed the venue, the other styles their own room). Their other per-style
+ * settings and single graphics options are gone (4.31): Sparks off or no hit effect becomes Effects
+ * Off, movement off becomes Calm, a custom graphics mix becomes Auto.
  */
 export function clean(raw) {
   const s = raw && typeof raw === 'object' ? raw : {};
@@ -284,21 +344,15 @@ export function clean(raw) {
     const o = s.per && s.per[t.id];
     if (!o || typeof o !== 'object') continue;
     const keep = {};
-    for (const [k, spec] of Object.entries(THEME_SETTINGS)) {
-      if (!(k in o)) continue;
-      const v = k === 'gem' && o[k] === 'matte' ? 'satin' : o[k]; // matte was renamed satin
-      if (Array.isArray(spec)) { if (spec.includes(v)) keep[k] = v; }
-      else if (Number.isFinite(v)) keep[k] = clamp(v, spec.min, spec.max);
-    }
-    if (o.sparks === false && !('hit' in keep)) keep.hit = 'none'; // 4.30.0's Sparks switch
+    if (Number.isFinite(o.bright)) keep.bright = clamp(o.bright, THEME_SETTINGS.bright.min, THEME_SETTINGS.bright.max);
+    if (THEME_SETTINGS.fx.includes(o.fx)) keep.fx = o.fx;
+    else if (o.sparks === false || o.hit === 'none') keep.fx = 'off';
+    else if (o.amb === false) keep.fx = 'calm';
     if (Object.keys(keep).length) out.per[t.id] = keep;
   }
   const g = s.gfx && typeof s.gfx === 'object' ? s.gfx : {};
-  if (g.preset === 'custom' || PRESETS[g.preset]) out.gfx.preset = g.preset;
-  for (const [k, opts] of Object.entries(GFX_OPTIONS)) if (opts.includes(g[k])) out.gfx[k] = g[k];
-  for (const k of ['dof', 'grain', 'vignette']) if (typeof g[k] === 'boolean') out.gfx[k] = g[k];
-  // a saved preset fills in what it stands for (older saves had no 'fx')
-  if (PRESETS[out.gfx.preset] && !('fx' in g)) out.gfx.fx = PRESETS[out.gfx.preset].fx;
+  if (PRESETS[g.preset]) out.gfx.preset = g.preset;
+  if (GFX_OPTIONS.fpsCap.includes(g.fpsCap)) out.gfx.fpsCap = g.fpsCap;
   return out;
 }
 
@@ -308,10 +362,9 @@ export function themeSettings(state, id) {
   return { ...t.def, ...((state.per && state.per[t.id]) || {}) };
 }
 
-/** Picking a preset fills in the settings under it; changing one of those makes it "custom". */
+/** Picking a preset (an unknown one keeps what was there). */
 export function applyPreset(gfx, preset) {
-  if (!PRESETS[preset]) return { ...gfx, preset: 'custom' };
-  return { ...gfx, ...PRESETS[preset], preset };
+  return PRESETS[preset] ? { ...gfx, preset } : { ...gfx };
 }
 
 /**
@@ -324,8 +377,9 @@ export function applyPreset(gfx, preset) {
 export function resolveLook(state, { budget = 3 } = {}) {
   const t = themeById(state.theme);
   const s = themeSettings(state, t.id);
-  const g = { ...GFX_DEFAULT, ...(state.gfx || {}) };
-  const auto = g.preset === 'auto';
+  const gs = { ...GFX_DEFAULT, ...(state.gfx || {}) };
+  const g = PRESETS[gs.preset] || PRESETS.auto;
+  const auto = !PRESETS[gs.preset] || gs.preset === 'auto';
   const lim = auto ? budget : 3;
   // reflections: the style's wish, the quality allowed, and Auto's budget
   const refl = s.refl === 'off' || g.refl === 'off' ? 'off' : s.refl === 'full' && g.refl === 'mirror' && lim >= 3 ? 'mirror' : 'simple';
@@ -347,17 +401,17 @@ export function resolveLook(state, { budget = 3 } = {}) {
     reflWish: s.refl,
     reflK: t.reflK,
     gem: s.gem,
-    hit: s.hit,
-    sparks: s.hit === 'sparks',
-    amb: !!s.amb && t.sig.amb !== 'none' && g.fx === 'full' && lim >= 1,
+    hit: s.fx === 'off' ? 'none' : s.hit,
+    sparks: s.fx !== 'off' && s.hit === 'sparks',
+    amb: s.fx === 'full' && t.sig.amb !== 'none' && g.fx === 'full' && lim >= 1,
     shadows: t.shadows && g.shadows === 'on' && lim >= 1,
     bloom,
     aa: g.aa,
-    dof: !!g.dof,
-    grain: !!g.grain,
-    vignette: !!g.vignette,
+    dof: false, // distance blur makes far notes harder to read: never on
+    grain: !!(t.def.grain && g.post && lim >= 1),
+    vignette: !!(t.def.vig && g.post),
     res: auto ? 'auto' : g.res,
-    fpsCap: g.fpsCap || 0,
+    fpsCap: gs.fpsCap || 0,
   };
 }
 
@@ -380,13 +434,6 @@ export function loadLooks() {
   let raw = null;
   try { raw = JSON.parse((st && st.getItem(KEY)) || 'null'); } catch (_) {}
   cache = clean(raw);
-  if (!raw && st) {
-    // the old "Reflections" switch (before looks): kept as Classic's reflections
-    try {
-      const old = JSON.parse(st.getItem('stagehand.highway') || '{}');
-      if (old && old.reflections === false) cache.per.classic = { refl: 'off' };
-    } catch (_) {}
-  }
   return cache;
 }
 export function saveLooks(next) {

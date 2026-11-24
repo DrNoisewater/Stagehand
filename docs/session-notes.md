@@ -60,3 +60,17 @@ Settings checker's findings (GFXCHECK) acted on:
 - Removed from the menu: Shadows (no visible effect) and Bloom "Half size" (looked the same as Full; Auto still uses it to save work). MSAA 8× kept: the same as 4× here only because the software GPU caps at 4 samples.
 - Rooms that looked alike: Chrome is now a light steel room, Neon teal with pink, Clear a neutral grey, Arena a warm hazy stage. Closest pair in the contact sheet (mean difference /255, highway area) went from 6.4 to 9.0.
 - Not changed: the note finishes only differ on note faces (kept as they are; changing the gem drawing risked the THEMES check).
+
+### 4.31 addendum: fewer settings, fifteen styles (user's direction)
+- The user asked for fewer graphics options and more unique styles. Graphics is now only the five
+  presets (Auto/Low/Medium/High/Ultra), a frame rate cap and the frame rate counter. No Advanced fold,
+  no Custom mix. Per style: Brightness and Effects (Full / Calm / Off) only; the style decides fog,
+  reflections, glow and note finish.
+- Old saves: per-style settings other than brightness are dropped; Sparks off or hit 'none' becomes
+  Effects Off, movement off becomes Calm; a custom graphics mix becomes Auto.
+- Four new styles (hwstyle.js): Arcade (checkerboard floor, pixel rails, pixel hits), Deep sea
+  (caustics, swaying rails, bubbles), Frozen lake (ice cracks, frost rails, snow, snowflake hits),
+  Disco (lit beat tiles, rainbow rails, mirror-ball spots, confetti). 15 styles in all.
+- Checks: THEMES=1 0.000 px for all 15; Classic identical to the base renders (T:17.2, T:19.1);
+  closest style pair 9.3 (arena/clear); HWMENU passes with 15 tiles.
+- GFXCHECK (cherry-picked) still names removed settings; it needs updating by its owner.

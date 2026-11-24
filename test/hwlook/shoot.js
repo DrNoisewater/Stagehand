@@ -971,9 +971,8 @@ async function gfxCheck(browser, page, out, scene, t) {
       };
       await fullShot('hw-settings.png');
       await page.evaluate(() => document.querySelector('#hl-sheet .hl-tune-fold .hl-fold-head').click());
-      await page.evaluate(() => document.querySelector('#hl-sheet .hl-adv-fold .hl-fold-head').click());
       await fullShot('hw-settings-open.png');
-      const ok = r.tiles >= 11 && r.imgsOk && r.picked === 'synthwave' && r.bg === 'own' && r.fps === 0;
+      const ok = r.tiles >= 15 && r.imgsOk && r.picked === 'synthwave' && r.bg === 'own' && r.fps === 0;
       if (!ok) throw new Error('highway menu: ' + JSON.stringify(r));
       console.log('PASS the highway menu: style pictures, a style and the style’s own room picked, no frame rate switch there');
     }

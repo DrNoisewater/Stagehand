@@ -273,7 +273,6 @@ body:has(.highway:not([hidden])) .menu :is(button,.menu-item):hover { background
 .hl-hero figcaption b { font-weight:900; font-size:18px; text-transform:uppercase; letter-spacing:.03em; color:#f1dfbb; }
 .hl-hero figcaption span { color:#e8e0d0; }
 .hl-hero figcaption i { color:var(--hl-gold); }
-.hl-adv { display:grid; gap:8px; margin-top:8px; }
 .hw-opt-group { display:grid; gap:5px; margin-top:8px; }
 .hl-theme-opts { display:grid; gap:6px; padding:8px; border:1px dashed var(--hl-line); border-radius:2px; }
 .hl-note { margin:0; color:var(--hl-ink3); line-height:1.4; }
