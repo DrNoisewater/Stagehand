@@ -1,5 +1,5 @@
 import { VenueRotation } from './venue-rotation.mjs';
-import { did, venueLock, venueXpLeft, L as LV } from './rewards.js';
+import { did, venueLock } from './rewards.js';
 import { APPROACH_UNITS, approachDepth, chordSpan, isChordRepeat } from './highway-layout.js';
 /**
  * Note highway: the part coming toward you down a 3D fretboard, Rocksmith
@@ -18,13 +18,14 @@ import { createFluidDriver } from './reactive-bg.js';
 import { createFeatures } from './music-features.js';
 import { createVisuals } from './visuals.js';
 import { createPerformanceTools } from './performance-tools.js';
-import { VENUES, VENUE_ALIAS, venueThumb, createVenue, createFire } from './venues.js';
+import { VENUES, VENUE_ALIAS, createVenue, createFire } from './venues.js';
 import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
 import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShift } from './detect.js';
 import { createRenderer3D, col, mix, mixHex, rodShades } from './highway3d.js';
 import { loadLooks, onLooks, resolveLook, budgetDrop } from './hwlooks.js';
-import { lookSection } from './hwlooks-pane.js';
+import { createStyle } from './hwstyle.js';
+import { drawerLooks } from './hwlooks-pane.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
 import { tuningGuide, checkTuning } from './tuning-check.js';
@@ -355,7 +356,7 @@ export function createHighway(stage) {
   let P = LK.pal; // the floor and stage colours in use
   let lookWant = true; // a new look waits for the start of the next frame (like a new sharpness)
   function refreshLook() {
-    LK = resolveLook(looks, { budget: lookBudget, seeThrough: !!H.seeThrough });
+    LK = resolveLook(looks, { budget: lookBudget });
     P = LK.pal;
     lookWant = true;
     canDrop = budgetDrop(looks, lookBudget) >= 0;
@@ -429,69 +430,32 @@ export function createHighway(stage) {
     };
     return b;
   }
-  let venuePreview = null; // 4.5: a locked venue you clicked, previewed under the list
-  function venuePicker() {
-    const cur = H.decorVenue || VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse';
-    const grid = h('div.hw-venues');
-    // 4.5: in the order they unlock along the Road to 100
-    const order = new Map(((LV.st && LV.st.venues) || []).map((v, i) => [v.venue, i]));
-    const list = [...VENUES].sort((a, b) => (order.has(a.id) ? order.get(a.id) : 99) - (order.has(b.id) ? order.get(b.id) : 99));
-    for (const v of list) {
-      const th = venueThumb(v);
-      const lock = cur === v.id ? 0 : venueLock(v.id);
-      const b = h(`button.hw-venue${lock ? '.locked' : ''}`, { type: 'button', title: lock ? `${v.name}: opens at level ${lock}. Click for a preview.` : v.name, 'aria-pressed': String(cur === v.id), ...(lock ? { 'data-lock': `LV ${lock}` } : {}) }, th ? h('img', { src: th, alt: '' }) : h(v.scene ? `i.fluid.sc-${v.scene}` : v.fluid ? 'i.fluid' : 'i.plain'), h('span', { text: v.name }));
-      b.onclick = () => {
-        if (lock) {
-          venuePreview = venuePreview === v.id ? null : v.id;
-          return renderOpts();
-        }
-        venuePreview = null;
-        setPref('venue', v.id);
-        did('venue');
-        renderOpts();
-      };
-      grid.append(b);
-    }
-    // 4.29: the list folds away under one line that names the venue in use; it stays as you left it
-    const open = prefs.venueOpen === true;
-    const curName = (VENUES.find((x) => x.id === cur) || {}).name || 'Warehouse';
-    const head = h('button.hw-venue-head', { type: 'button', 'aria-expanded': String(open) },
-      h('span.hw-opt-label', { text: 'Venue' }), h('b', { text: curName }), h('span.hw-venue-caret', { 'aria-hidden': 'true', text: open ? '▾' : '▸' }));
-    head.onclick = () => { setPref('venueOpen', !open); renderOpts(); };
-    grid.hidden = !open;
-    const row = h('div.hw-opt-row.hw-venue-fold', null, head, grid);
-    const pv = venuePreview && VENUES.find((x) => x.id === venuePreview);
-    if (pv && venueLock(pv.id)) {
-      const lvl = venueLock(pv.id);
-      const st = LV.st;
-      const left = venueXpLeft(pv.id);
-      const lx = (st && st.levelXp) || [];
-      const k = st && lx[lvl] ? Math.max(0, Math.min(1, st.xp / lx[lvl])) : 0;
-      const th = venueThumb(pv);
-      row.append(h('div.hw-venue-preview', { role: 'status' },
-        h('span.pv-pic', null, th ? h('img', { src: th.replace('-thumb', ''), alt: '' }) : h(`i.vsw.sc-${pv.id}`)),
-        h('div', null, h('b', { text: `${pv.name} · opens at level ${lvl}` }), h('p', { text: pv.desc || 'A stage to earn on the Road to 100.' }),
-          h('div.pv-bar', null, h('i', { style: { width: `${Math.round(k * 100)}%` } })),
-          h('small', { text: st ? `You’re level ${st.level}. ${left.toLocaleString()} XP to go.` : '' }))));
-    }
-    return row;
+  // 4.31: style, background and graphics quality (hwlooks-pane.js), then the switches in three groups;
+  // the frame rate counter and everything else about the look live in Settings › Display
+  function group(label, ...items) {
+    return h('div.hw-opt-group', null, h('span.hw-opt-label', { text: label }), h('div.hw-opt-toggles', null, ...items));
   }
   function renderOpts() {
     opts.innerHTML = '';
     opts.append(
       h('div.hw-master-sec', { text: 'Highway' }),
-      lookSection({ compact: true, open: prefs.lookOpen === true, onFold: (v) => setPref('lookOpen', v) }),
-      venuePicker(),
-      h('div.hw-opt-toggles', null,
-        toggle('Practice without a score', !prefs.detect, () => setPref('detect', !prefs.detect)),
+      drawerLooks({
+        venue: () => H.decorVenue || VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse',
+        pick: (id) => { setPref('venue', id); did('venue'); },
+        bgOpen: () => prefs.venueOpen === true,
+        onBgFold: (v) => setPref('venueOpen', v),
+        more: () => import('./dialogs.js').then((m) => m.settings('display', 'highway')),
+      }),
+      group('Show',
         toggle('Lyrics', prefs.lyrics !== false, () => setPref('lyrics', prefs.lyrics === false)),
-        toggle('Chord names', prefs.chordNames !== false, () => setPref('chordNames', prefs.chordNames === false)),
+        toggle('Chord names', prefs.chordNames !== false, () => setPref('chordNames', prefs.chordNames === false))),
+      group('Effects',
         toggle('Fire on a streak', prefs.fx, () => setPref('fx', !prefs.fx)),
         toggle('Hit burst', prefs.hitBurst !== false, () => setPref('hitBurst', prefs.hitBurst === false)),
-        toggle('String sway', prefs.stringSway !== false, () => setPref('stringSway', prefs.stringSway === false)),
-        toggle('Offer help when notes aren’t counting', !prefs.struggleOff, () => setPref('struggleOff', !prefs.struggleOff)),
-        toggle('Frame rate', !!prefs.showFps, () => setPref('showFps', !prefs.showFps))
-      )
+        toggle('String sway', prefs.stringSway !== false, () => setPref('stringSway', prefs.stringSway === false))),
+      group('Scoring',
+        toggle('Practice without a score', !prefs.detect, () => setPref('detect', !prefs.detect)),
+        toggle('Offer help when notes aren’t counting', !prefs.struggleOff, () => setPref('struggleOff', !prefs.struggleOff)))
     );
   }
   function syncButton() {
@@ -1312,6 +1276,7 @@ export function createHighway(stage) {
     const d = e.detail || {};
     if (d.key === 'lowTop') setPref('lowTop', !!d.value);
     if (d.key === 'showFps') setPref('showFps', !!d.value); // 4.30: from the graphics settings
+    if (d.key === 'venue' && VENUES.some((v) => v.id === d.value)) { setPref('venue', d.value); did('venue'); } // 4.31: from Settings › Display
   });
   function setPref(k, v) {
     prefs[k] = v;
@@ -1981,6 +1946,8 @@ export function createHighway(stage) {
   const anX0 = (an) => XF(an.fret - 1);
   const anX1 = (an) => XF(an.fret - 1 + (an.width || 4));
   const noteX = (nt, a) => (nt.f === 0 ? (anX0(a) + anX1(a)) / 2 : laneC(nt.f));
+  // 4.31: each style's own floor, rails, light and hit effect (hwstyle.js; Classic draws none of it)
+  const styleFx = createStyle({ R3, G, XF, zOf, noteX, strH, anchorAt, STRING, anX0, anX1, lower, beats: () => H.tab.beats || [], calm: () => calmMotion() });
 
   // ---- camera --
   /** Frets (as lane edges, lo..hi) that the next few seconds of play use. */
@@ -2140,6 +2107,8 @@ export function createHighway(stage) {
     G.f1 = f1;
     R3.begin();
     buildFloor(t, a, f0, f1);
+    if (LK.sig.rails !== 'tube') styleFx.ambient(LK, P, a);
+
     buildNeck(t, a, f0, f1);
     buildApproach(t, a);
     buildNotes(t, a);
@@ -2395,10 +2364,13 @@ export function createHighway(stage) {
         floor.flat(l, r, za, zb, 0.002, col(P.laneA, P.laneFill), col(P.laneB, P.laneFill));
         floor.flat(l + w * 0.18, r - w * 0.18, za, zb, 0.004, col(P.laneMid, P.laneMidA), col(P.laneMid, P.laneMidA / 2));
       }
+      const tube = LK.sig.rails === 'tube';
+      if (!tube) styleFx.floorPattern(LK, P, an, xa, xb, za, zb, an.t <= t + 0.0001 && (!next || next.t > t));
       for (let f = an.fret; f < an.fret - 1 + (an.width || 4); f++) floor.bar([XF(f), 0.006, za], [XF(f), 0.006, zb], 0.04, col(P.laneLine, P.laneLineA));
       // the bright rails
       const tw = G.tierW || 0;
-      for (const x of [xa, xb]) {
+      if (!tube) for (const x of [xa, xb]) styleFx.rail(LK, P, x, za, zb, railCol);
+      else for (const x of [xa, xb]) {
         floor.bar([x, 0.008, za], [x, 0.008, zb], 0.07, railCol(0.95, 1.1));
         // 4.17: a soft glow either side of the rail (was a flat band), wider and brighter on a streak
         const gw = 0.18 + 0.1 * tw;
@@ -2950,7 +2922,8 @@ export function createHighway(stage) {
     if (z < 0.05 || LK.refl !== 'simple') return; // 4.30: the look's reflections (a mirror floor draws its own)
     const k = Math.min(1, z / (G.zs * 0.35)) * Math.max(0, Math.min(1, (G.zF * 0.8 - z) / (G.zF * 0.3))) * fade;
     if (k < 0.02) return;
-    R3.L.floor.q(x0, -y0, z, x1, -y0, z, x1, -y1, z, x0, -y1, z, col(hex, 0.2 * k, 1.1), col(hex, 0.2 * k, 1.1), col(hex, 0.03 * k), col(hex, 0.03 * k));
+    const rk = LK.reflWish === 'full' ? 2.4 : 1; // 4.31: a style that wants a full reflection gets a clear one even on Simple
+    R3.L.floor.q(x0, -y0, z, x1, -y0, z, x1, -y1, z, x0, -y1, z, col(hex, 0.2 * k * rk, 1.1), col(hex, 0.2 * k * rk, 1.1), col(hex, 0.03 * k * rk), col(hex, 0.03 * k * rk));
   }
 
   /**
@@ -3202,10 +3175,12 @@ export function createHighway(stage) {
     const now = performance.now();
     H.hits = H.hits.filter((h) => now - h.at < 700 || t < h.until);
     H.bursts = H.bursts.filter((b) => now - b.at < 700 || t < b.until);
+    // 4.31: the style's Effects: Full 1 (as always), Calm about half, Off none (only the note's own flare)
+    const fxK = LK.fxK ?? 1;
     // 1. the string blazes along its whole length, hottest at the note
     const byString = new Map();
     for (const b of H.bursts) {
-      const k = Math.max(Math.exp(-(now - b.at) / 150)*.38, t < b.until ? .12 : 0);
+      const k = Math.max(Math.exp(-(now - b.at) / 150)*.38, t < b.until ? .12 : 0) * fxK;
       if (k < 0.02) continue;
       const cur = byString.get(b.s);
       if (!cur || cur.k < k) byString.set(b.s, { k, b });
@@ -3225,7 +3200,7 @@ export function createHighway(stage) {
     const posts = new Map();
     for (const h of H.hits) {
       const tg = H.targets[h.id];
-      const k = Math.max(Math.exp(-(now - h.at) / 180)*.4, t < h.until ? .12 : 0);
+      const k = Math.max(Math.exp(-(now - h.at) / 180)*.4, t < h.until ? .12 : 0) * fxK;
       if (k < 0.03) continue;
       const an = anchorAt(tg.t);
       const xs = h.chord ? chordBox(tg, an) : tg.notes.flatMap((nt) => (nt.f === 0 ? [anX0(an), anX1(an)] : [XF(nt.f - 1), XF(nt.f)]));
@@ -3258,7 +3233,7 @@ export function createHighway(stage) {
     // 4.17: a round shock wave (was four bars making a rectangle), soft on both sides, growing and fading.
     // 4.23: about 15% smaller, a little softer and shorter, so the next notes stay easy to read; with
     // calm motion (Settings, or Windows' reduce animations) the ring doesn't grow at all
-    if (prefs.hitBurst !== false && !calmMotion()) {
+    if (prefs.hitBurst !== false && !calmMotion() && fxK > 0) {
       for (const h of H.hits) {
         const age = (now - h.at) / 1000;
         if (age > 0.3) continue;
@@ -3273,16 +3248,17 @@ export function createHighway(stage) {
           const x = nt.f === 0 ? noteX(nt, an) : laneC(nt.f);
           const y = strH(nt.s);
           const lw = laneW(Math.max(1, nt.f || an.fret));
-          const rx = lw * (0.35 + (dead ? 1.05 : 0.8) * e);
+          const rx = lw * (0.35 + (dead ? 1.05 : 0.8) * e * (fxK < 1 ? 0.5 : 1));
           const ry = rx * 0.62;
           const th = 0.07 + 0.1 * (1 - p);
-          glow.ring(x, y, -0.075, rx, ry, th, dead ? '#ffffff' : STRING[nt.s], (dead ? 0.82 : 0.72) * k, dead ? 2.2 : 1.7);
+          glow.ring(x, y, -0.075, rx, ry, th, dead ? '#ffffff' : STRING[nt.s], (dead ? 0.82 : 0.72) * k * fxK, dead ? 2.2 : 1.7);
           // a second, fainter ring just behind it, in the string's colour
-          if (dead) glow.ring(x, y, -0.074, rx * 0.72, ry * 0.72, th * 0.8, STRING[nt.s], 0.6 * k, 1.6);
+          if (dead) glow.ring(x, y, -0.074, rx * 0.72, ry * 0.72, th * 0.8, STRING[nt.s], 0.6 * k * fxK, 1.6);
         }
       }
     }
-    if (LK.sparks) buildSparks(now); // 4.30: a look can leave the sparks out
+    if (LK.sparks) buildSparks(now, fxK); // 4.30: a look can leave the sparks out
+    else styleFx.hits(LK, H.hits, H.targets); // 4.31: the style's own hit effect
   }
 
   // 4.23: less movement: the app's calm setting or Windows' "show animations" switched off
@@ -3306,7 +3282,7 @@ export function createHighway(stage) {
    * colour (to gold on a long streak). More of them on a dead-on hit. Where each one goes is fixed when
    * you hit, so the same moment always looks the same.
    */
-  function buildSparks(now) {
+  function buildSparks(now, fxK = 1) {
     const { glow } = R3.L;
     const warm = G.tierW || 0;
     for (const h of H.hits) {
@@ -3322,7 +3298,8 @@ export function createHighway(stage) {
         const rnd = seeded((h.id + 1) * 7919 + nt.s * 104729);
         const x0 = noteX(nt, an);
         const y0 = strH(nt.s);
-        const n = (chord ? 3 : 6) + (dead ? (chord ? 2 : 4) : 0) + Math.round(warm * 2);
+        const n0 = (chord ? 3 : 6) + (dead ? (chord ? 2 : 4) : 0) + Math.round(warm * 2);
+        const n = fxK < 1 ? Math.ceil(n0 / 2) : n0; // Calm: half as many, fainter
         const hot = warm > 0.5 ? mixHex(STRING[nt.s], '#ffc060', (warm - 0.3) * 0.8, 8) : STRING[nt.s];
         for (let i = 0; i < n; i++) {
           const ang = Math.PI / 2 + (rnd() - 0.5) * 2.8; // mostly up, fanning out
@@ -3338,7 +3315,7 @@ export function createHighway(stage) {
           const tail = at(Math.max(0, age - 0.06));
           const cool = Math.min(1, u * 1.6);
           const a = (1 - u) * (1 - u * 0.4);
-          const c = mix('#ffffff', hot, cool, Math.min(1, a), 2.2 - 0.7 * cool);
+          const c = mix('#ffffff', hot, cool, Math.min(1, a) * fxK, 2.2 - 0.7 * cool);
           glow.bar(head, tail, 0.034 * (1 - u * 0.5), c, col(hot, 0), 'z');
         }
       }

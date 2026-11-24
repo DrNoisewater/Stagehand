@@ -1,6 +1,6 @@
 /**
  * Moving backgrounds drawn on the graphics card (3.12): Nebula, Swarm,
- * Mandala, Strings and (4.5) Valhalla. They sit behind the highway or fill the Jam screen,
+ * Mandala, Strings, (4.5) Valhalla and (4.31) five richer ones in scenes/hq.js. They sit behind the highway or fill the Jam screen,
  * and move with the music you hear and what you play (music-features.js).
  *
  * Each frame: the scene draws into a picture that also sees its own last
@@ -12,6 +12,7 @@
  * stagehand.visualScale, 0.4–1) and scaled up; it's soft by nature.
  */
 import { STRING_RGB } from './music-features.js';
+import { HQ_SCENES, hqSource, GLOW_DOWN, GLOW_BLUR, FINISH_HQ } from './scenes/hq.js';
 
 export const SCENES = [
   { id: 'nebula', name: 'Nebula', desc: 'Glowing gas clouds, lightning on the hits' },
@@ -20,7 +21,10 @@ export const SCENES = [
   { id: 'strings', name: 'Strings', desc: 'Six ribbons of light you pluck as you play' },
   // 4.5: the level-100 venue
   { id: 'valhalla', name: 'Valhalla', desc: 'The end of the road: aurora, stadium beams, a sea of lighters, pyro on the kicks' },
+  // 4.31: five richer ones (scenes/hq.js)
+  ...HQ_SCENES.map(({ id, name, desc }) => ({ id, name, desc })),
 ];
+const HQ = new Map(HQ_SCENES.map((s) => [s.id, s]));
 
 const VERT = `#version 300 es
 out vec2 vUv;
@@ -490,6 +494,9 @@ export function createVisuals(host, { highway = false } = {}) {
   let turnTo = 0;
   let lastBeat = -1;
   let sweep = 0;
+  // 4.31: the richer scenes' own pictures (smaller, with a glow) and their eased inputs
+  let hq = null;
+  const hs = { push: 0, travel: 0, since: 9, sweep: 0, slow: [0, 0, 0, 0], beat: -1, form: 0, formTo: 0, scheme: 0, schemeTo: 0 };
   const specBytes = new Uint8Array(64);
   const waveBytes = new Uint8Array(512);
   const hits = new Float32Array(32);
@@ -712,6 +719,115 @@ export function createVisuals(host, { highway = false } = {}) {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
+  // ------------------------------------------------ 4.31 richer scenes --
+  // the app's calm setting, or Windows' "show animations" switched off
+  const reduceQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const calmNow = () => (typeof document !== 'undefined' && document.documentElement.dataset.calm === 'true') || !!(reduceQuery && reduceQuery.matches);
+
+  /** The scene's own pictures: full ones at its scale, glow ones at a quarter of that. */
+  function hqTargets(scale) {
+    const w = Math.max(16, Math.round(W * scale));
+    const h = Math.max(16, Math.round(H * scale));
+    if (hq && hq.w === w && hq.h === h) return hq;
+    if (hq) for (const t of [...hq.fb, ...hq.glow]) (gl.deleteTexture(t.tex), gl.deleteFramebuffer(t.f));
+    const mk = (a, b) => (floatOK ? target(a, b, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT) : target(a, b, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE));
+    const gw = Math.max(8, Math.round(w / 4));
+    const gh = Math.max(8, Math.round(h / 4));
+    hq = { w, h, gw, gh, fb: [mk(w, h), mk(w, h)], glow: [mk(gw, gh), mk(gw, gh)], cur: 0 };
+    return hq;
+  }
+  function hqEase(F, dt, calm) {
+    const ck = calm ? 0.35 : 1;
+    const kick = F.kick * (highway ? 0.7 : 1) * ck;
+    // the kick eased in (no jolt) and let go slowly
+    hs.push += (kick - hs.push) * Math.min(1, dt * (kick > hs.push ? 16 : 4));
+    const beat = Math.floor(F.beats);
+    if (beat !== hs.beat) {
+      if (hs.beat >= 0) {
+        hs.since = 0;
+        if (beat % 8 === 0) hs.formTo += 1;
+        if (beat % 16 === 0) hs.schemeTo += 1;
+      }
+      hs.beat = beat;
+    }
+    hs.since = Math.min(30, hs.since + dt);
+    hs.travel += dt * (0.5 + F.drive * 1.4 + hs.push * 2.2) * (calm ? 0.5 : 1);
+    hs.sweep += dt * (0.3 + F.drive * 0.7) * (calm ? 0.5 : 1);
+    const k = Math.min(1, dt * 0.4);
+    const sl = [F.energy, Math.max(F.bands[0], F.bands[1]), F.bands[3], F.bands[4]];
+    for (let i = 0; i < 4; i++) hs.slow[i] += (sl[i] - hs.slow[i]) * k;
+    hs.form += (hs.formTo - hs.form) * Math.min(1, dt * 1.2);
+    hs.scheme += (hs.schemeTo - hs.scheme) * Math.min(1, dt * 0.5);
+  }
+  function small(name, src, to, w, h, from, set) {
+    const pr = program(name, src);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, to ? to.f : null);
+    gl.viewport(0, 0, w, h);
+    gl.useProgram(pr.p);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, from);
+    gl.uniform1i(pr.u.uSrc, 0);
+    set(pr.u);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  function drawHQ(id, F, now, dt) {
+    const S = hqTargets(HQ.get(id).scale);
+    const calm = calmNow();
+    hqEase(F, dt, calm);
+    // the scene, into its own picture, reading its last frame
+    const pr = program(`hq-${id}`, hqSource(id, HEAD));
+    const next = S.fb[1 - S.cur];
+    gl.bindFramebuffer(gl.FRAMEBUFFER, next.f);
+    gl.viewport(0, 0, S.w, S.h);
+    gl.useProgram(pr.p);
+    common(pr.u, F, now, dt);
+    const u = pr.u;
+    gl.uniform2f(u.uRes, S.w, S.h);
+    if (calm) {
+      gl.uniform1f(u.uKick, F.kick * (highway ? 0.7 : 1) * 0.35);
+      gl.uniform1f(u.uSnap, F.snap * (highway ? 0.6 : 1) * 0.3);
+    }
+    gl.uniform1f(u.uPush, hs.push);
+    gl.uniform1f(u.uTravel, hs.travel);
+    gl.uniform1f(u.uSince, hs.since);
+    gl.uniform1f(u.uSweep, hs.sweep);
+    gl.uniform1f(u.uCalm, calm ? 1 : 0);
+    gl.uniform1f(u.uForm, hs.form);
+    gl.uniform1f(u.uScheme, hs.scheme);
+    gl.uniform4f(u.uSlow, hs.slow[0], hs.slow[1], hs.slow[2], hs.slow[3]);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, S.fb[S.cur].tex);
+    gl.uniform1i(u.uPrev, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    S.cur = 1 - S.cur;
+    const scene = S.fb[S.cur].tex;
+    // the glow: the bright parts, small and blurred twice
+    small('hq-down', GLOW_DOWN, S.glow[0], S.gw, S.gh, scene, (v) => {
+      gl.uniform2f(v.uTexel, 1 / S.w, 1 / S.h);
+      gl.uniform1f(v.uThresh, 0.35);
+    });
+    for (let i = 0; i < 2; i++) {
+      small('hq-blur', GLOW_BLUR, S.glow[1], S.gw, S.gh, S.glow[0].tex, (v) => (gl.uniform2f(v.uTexel, 1 / S.gw, 1 / S.gh), gl.uniform2f(v.uDir, 1 + i, 0)));
+      small('hq-blur', GLOW_BLUR, S.glow[0], S.gw, S.gh, S.glow[1].tex, (v) => (gl.uniform2f(v.uTexel, 1 / S.gw, 1 / S.gh), gl.uniform2f(v.uDir, 0, 1 + i)));
+    }
+    // onto the screen
+    const fin = program('hq-finish', FINISH_HQ);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, W, H);
+    gl.useProgram(fin.p);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, scene);
+    gl.uniform1i(fin.u.uScene, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, S.glow[0].tex);
+    gl.uniform1i(fin.u.uGlow, 1);
+    gl.uniform1f(fin.u.uHighway, highway ? 1 : 0);
+    gl.uniform1f(fin.u.uTime, (now / 1000) % 100);
+    gl.uniform1f(fin.u.uExposure, highway ? 1.0 : 1.35);
+    gl.uniform1f(fin.u.uGlowAmt, highway ? 0.6 : 0.9);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
   return {
     get canvas() {
       return canvas;
@@ -736,6 +852,11 @@ export function createVisuals(host, { highway = false } = {}) {
         last = now;
         if (id !== lastScene) {
           // a fresh start for each scene: no left-over trails from the last one
+          for (const t of hq ? hq.fb : []) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, t.f);
+            gl.clearColor(0, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+          }
           for (const t of fb) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, t.f);
             gl.clearColor(0, 0, 0, 1);
@@ -744,6 +865,11 @@ export function createVisuals(host, { highway = false } = {}) {
           lastScene = id;
         }
         upload(F);
+        if (HQ.has(id)) {
+          drawHQ(id, F, now, dt);
+          if (tries && now > retryAt + 10000) tries = 0;
+          return true;
+        }
         if (id === 'swarm' && floatOK) drawSwarm(F, now, dt);
         else if (id === 'mandala') {
           // the number of folds changes every 32 kicks
@@ -786,7 +912,7 @@ export function createVisuals(host, { highway = false } = {}) {
         const lose = gl.getExtension('WEBGL_lose_context');
         if (lose && !gl.isContextLost()) lose.loseContext();
       }
-      canvas = gl = specTex = waveTex = swarm = null;
+      canvas = gl = specTex = waveTex = swarm = hq = null;
       fb = [];
       for (const k of Object.keys(progs)) delete progs[k];
       W = H = 0;
@@ -799,7 +925,7 @@ export function createVisuals(host, { highway = false } = {}) {
         const lose = gl.getExtension('WEBGL_lose_context');
         if (lose) lose.loseContext();
       }
-      canvas = gl = specTex = waveTex = swarm = null;
+      canvas = gl = specTex = waveTex = swarm = hq = null;
       fb = [];
       for (const k of Object.keys(progs)) delete progs[k];
       W = H = 0;

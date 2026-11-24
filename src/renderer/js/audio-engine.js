@@ -269,7 +269,8 @@ export class AudioEngine extends EventTarget {
       this.extra = this.ctx.createGain();
       this.extra.connect(this.masterAnalyser);
     }
-    if (this.ctx.state !== 'running') await this.ctx.resume().catch(() => {});
+    // 4.30.1: a sound output that never wakes (a device just unplugged) must not hold a preview forever
+    if (this.ctx.state !== 'running') await Promise.race([this.ctx.resume().catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
     return { ctx: this.ctx, node: this.extra };
   }
 

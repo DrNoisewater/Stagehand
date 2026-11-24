@@ -161,7 +161,7 @@ async function saveSettings(patch) {
   emit('settings');
 }
 
-export async function settings(tab = 'library') {
+export async function settings(tab = 'library', focus = null) {
   state.settings = await api.settings.get();
   const nav = h('nav');
   const section = h('section');
@@ -182,10 +182,10 @@ export async function settings(tab = 'library') {
   const m = modal({ title: 'Settings', body: wrap, wide: true });
   m.body.style.padding = '0';
   m.el.classList.add('panel-modal', 'settings-modal'); // 4.5: one steady size for every section
-  const show = async (key) => {
+  const show = async (key, at = null) => {
     nav.querySelectorAll('.nav-item').forEach((b) => b.setAttribute('aria-current', String(b.dataset.tab === key)));
     section.innerHTML = '';
-    await PANES[key](section);
+    await PANES[key](section, at);
   };
   for (const [k, label] of tabs) {
     const b = h('button.nav-item', { type: 'button', text: label });
@@ -195,12 +195,12 @@ export async function settings(tab = 'library') {
   }
   nav.append(decorativeImage('settings', 'roadshow-settings-art', {next:true}),
     h('p.roadshow-caption', {text:'The roadie handles the details.'}));
-  show(tab);
+  show(tab, focus); // 4.31: focus: a part of the pane to scroll to (Display: 'highway')
 }
 
 const PANES = {
   async appearance(el) { (await import('./identity.js')).appearancePane(el); },
-  async display(el) { await (await import('./displaysettings.js')).pane(el); },
+  async display(el, at) { await (await import('./displaysettings.js')).pane(el, at); },
   async guitar(el) {
     await (await import('./guitarsettings.js')).pane(el, setting);
   },

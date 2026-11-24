@@ -9,9 +9,21 @@ const fsp = fs.promises;
 const path = require('path');
 const crypto = require('crypto');
 const { Psarc } = require('../core/psarc');
-const { readAudio } = require('../core/rocksmith');
+const { readAudio, readSongs } = require('../core/rocksmith');
 const { readWavInfo } = require('../core/files');
 const { run } = require('./tools');
+
+/** 4.30.1: on Windows a virus scanner can hold a new file for a moment: a rename is tried for up to 2 s. */
+async function renameSoon(from, to) {
+  for (let i = 0; ; i++) {
+    try {
+      return await fsp.rename(from, to);
+    } catch (err) {
+      if (i >= 10 || !/^(EPERM|EBUSY|EACCES)$/.test(err.code)) throw err;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+}
 
 class AudioService {
   constructor({ cacheDir, tools, library, settings, finder = null, onSong = () => {}, onSearch = () => {}, log = () => {} }) {
@@ -27,6 +39,9 @@ class AudioService {
     this._evictTimer = null;
     this.inUse = new Set();
     this.previewKeys = new Map(); // a song file and its preview → the clip already made from it
+    this.foundPreviews = new Map(); // 4.30.1: a song file looked at again for its preview → what was found
+    this._pvWant = null; // the song last clicked
+    this._pvFull = null; // a whole song being decoded for a preview
   }
 
   markInUse(key) {
@@ -89,48 +104,118 @@ class AudioService {
 
   /**
    * 4.26: a short clip to hear when you click a song in the list. Rocksmith songs carry a preview
-   * clip of their own: decode that (small, quick) and keep it. A song without one plays a slice of
-   * its full audio, but only when that is already decoded, so a click never waits on a long decode.
-   * Returns { url, duration, start, length } or null when there is nothing to play.
+   * clip of their own: decode that (small, quick) and keep it.
+   * 4.30.1: never nothing when the song has sound. A song with no preview clip, or one the decoder
+   * can't read, gets 30 s cut from its full audio (decoded first if it isn't yet, which takes a few
+   * seconds and is then ready for playing too). A decode that fails is tried once more.
+   * Returns { url, duration, start, length, from: 'preview' | 'song' }. Throws when nothing can play,
+   * with a plain reason; code PREVIEW_SKIPPED when another song was clicked while this one waited.
    */
   async preparePreview(song) {
     if (!song) return null;
-    if (song.previewEntry) {
-      // 4.29.1: a song clicked before goes straight to its clip, without reading its file again
-      let st = null;
+    this._pvWant = song.id;
+    let failed = null;
+    const entry = song.previewEntry || (await this._lookForPreview(song));
+    if (entry) {
       try {
-        st = await fsp.stat(song.path);
-      } catch (_) {}
-      const seen = st ? `${song.path}|${song.previewEntry}|${st.size}|${st.mtimeMs}` : null;
-      let key = seen ? this.previewKeys.get(seen) : null;
-      if (!key || !fs.existsSync(this.wavPath(key))) {
-        const wem = await this._read({ path: song.path, entry: song.previewEntry });
-        key = `pv${crypto.createHash('sha1').update(wem).digest('hex').slice(0, 22)}`;
-        if (!fs.existsSync(this.wavPath(key))) {
-          if (!this.pending.has(key)) this.pending.set(key, this._decode(wem, key).finally(() => this.pending.delete(key)));
-          await this.pending.get(key);
-          this.evictSoon();
-        }
-        if (seen) {
-          this.previewKeys.set(seen, key);
-          while (this.previewKeys.size > 500) this.previewKeys.delete(this.previewKeys.keys().next().value);
-        }
+        const key = await this._previewClip(song, entry);
+        const i = await this._info(key);
+        return { url: i.url, duration: i.duration, start: 0, length: i.duration, from: 'preview' };
+      } catch (err) {
+        if (err.code === 'NEED_VGMSTREAM') throw err;
+        failed = err;
+        this.log(`Preview clip of ${song.title || song.songKey} didn't decode (${err.message}); using a slice of the song`);
       }
-      const i = await this._info(key);
-      return { url: i.url, duration: i.duration, start: 0, length: i.duration };
     }
-    if (song.audioKey && fs.existsSync(this.wavPath(song.audioKey))) {
-      // 4.29.1: a slice of the song in a small file of its own, so a click fetches 30 s, not the whole song
-      const key = `pv${crypto.createHash('sha1').update(`slice:${song.audioKey}`).digest('hex').slice(0, 22)}`;
-      if (!fs.existsSync(this.wavPath(key))) {
-        if (!this.pending.has(key)) this.pending.set(key, this._slice(song.audioKey, key, 30).finally(() => this.pending.delete(key)));
+    if (!(song.audioKey && fs.existsSync(this.wavPath(song.audioKey)))) {
+      // one whole-song decode at a time: quick clicks across songs without a clip don't pile up
+      while (this._pvFull) await this._pvFull.catch(() => {});
+      if (this._pvWant !== song.id) throw Object.assign(new Error('Another song was picked'), { code: 'PREVIEW_SKIPPED' });
+      const job = this.prepare(song);
+      this._pvFull = job;
+      try {
+        await job;
+      } catch (err) {
+        if (err.code === 'NEED_VGMSTREAM') throw err;
+        const e = new Error(failed ? 'Its preview and its audio could not be read' : (err && err.message) || 'Its audio could not be read');
+        e.code = 'PREVIEW_NONE';
+        throw e;
+      } finally {
+        if (this._pvFull === job) this._pvFull = null;
+      }
+      song = this.library.get(song.id) || song;
+      if (!song.audioKey) throw Object.assign(new Error('Its audio could not be read'), { code: 'PREVIEW_NONE' });
+    }
+    // 4.29.1: a slice of the song in a small file of its own, so a click fetches 30 s, not the whole song
+    const key = `pv${crypto.createHash('sha1').update(`slice:${song.audioKey}`).digest('hex').slice(0, 22)}`;
+    if (!fs.existsSync(this.wavPath(key))) {
+      if (!this.pending.has(key)) this.pending.set(key, this._slice(song.audioKey, key, 30).finally(() => this.pending.delete(key)));
+      await this.pending.get(key);
+      this.evictSoon();
+    }
+    const i = await this._info(key);
+    return { url: i.url, duration: i.duration, start: 0, length: i.duration, from: 'song' };
+  }
+
+  /** The song's own preview clip, decoded to a pv<hash> WAV (once; a failed decode is tried again once). */
+  async _previewClip(song, entry) {
+    // 4.29.1: a song clicked before goes straight to its clip, without reading its file again
+    let st = null;
+    try {
+      st = await fsp.stat(song.path);
+    } catch (_) {}
+    const seen = st ? `${song.path}|${entry}|${st.size}|${st.mtimeMs}` : null;
+    let key = seen ? this.previewKeys.get(seen) : null;
+    if (key && fs.existsSync(this.wavPath(key))) return key;
+    const wem = await this._read({ path: song.path, entry });
+    key = `pv${crypto.createHash('sha1').update(wem).digest('hex').slice(0, 22)}`;
+    for (let attempt = 0; attempt < 3 && !fs.existsSync(this.wavPath(key)); attempt++) {
+      if (!this.pending.has(key)) this.pending.set(key, this._decode(wem, key, { timeoutMs: 20000 }).finally(() => this.pending.delete(key)));
+      try {
         await this.pending.get(key);
-        this.evictSoon();
+      } catch (err) {
+        // a busy PC or a virus scanner holding the file can make one try fail: one more go
+        if (err.code === 'NEED_VGMSTREAM' || attempt >= 1) throw err;
+        continue;
       }
-      const i = await this._info(key);
-      return { url: i.url, duration: i.duration, start: 0, length: i.duration };
+      this.evictSoon();
     }
-    return null;
+    if (!fs.existsSync(this.wavPath(key))) throw new Error('The preview clip went missing');
+    if (seen) {
+      this.previewKeys.set(seen, key);
+      while (this.previewKeys.size > 500) this.previewKeys.delete(this.previewKeys.keys().next().value);
+    }
+    return key;
+  }
+
+  /**
+   * 4.30.1: songs read before Stagehand knew every way a file keeps its preview: look again
+   * (once per file version), so the clip in the file is used rather than a slice.
+   */
+  async _lookForPreview(song) {
+    if (!song.path || song.audioFrom) return null;
+    let st;
+    try {
+      st = await fsp.stat(song.path);
+    } catch (_) {
+      return null;
+    }
+    const k = `${song.path}|${song.songKey}|${st.size}|${st.mtimeMs}`;
+    if (this.foundPreviews.has(k)) return this.foundPreviews.get(k);
+    let entry = null;
+    try {
+      const p = await Psarc.open(song.path);
+      try {
+        const all = await readSongs(p);
+        const me = all.find((x) => x.songKey === song.songKey) || (all.length === 1 ? all[0] : null);
+        entry = (me && me.previewEntry) || null;
+      } finally {
+        await p.close();
+      }
+    } catch (_) {}
+    this.foundPreviews.set(k, entry);
+    while (this.foundPreviews.size > 500) this.foundPreviews.delete(this.foundPreviews.keys().next().value);
+    return entry;
   }
 
   /** Copies `secs` of a decoded song (from 30% in) into its own small WAV. */
@@ -162,7 +247,7 @@ class AudioService {
     head.writeUInt32LE(data.length, 40);
     const tmp = path.join(this.dir, `${key}.${crypto.randomBytes(3).toString('hex')}.tmp.wav`);
     await fsp.writeFile(tmp, Buffer.concat([head, data]));
-    await fsp.rename(tmp, this.wavPath(key));
+    await renameSoon(tmp, this.wavPath(key));
   }
 
   async _read(src) {
@@ -204,7 +289,7 @@ class AudioService {
     }
   }
 
-  async _decode(wem, key) {
+  async _decode(wem, key, { timeoutMs = 90000 } = {}) {
     const vgm = this.tools.vgmstreamPath();
     if (!vgm) {
       const e = new Error('Audio decoder not installed');
@@ -219,10 +304,10 @@ class AudioService {
     const tmpWav = path.join(this.dir, `${key}.${tag}.tmp.wav`);
     await fsp.writeFile(wemPath, wem);
     try {
-      await run(vgm, ['-i', '-o', tmpWav, wemPath], { timeoutMs: 90000 }); // a decoder that hangs mustn't hold the song up forever
+      await run(vgm, ['-i', '-o', tmpWav, wemPath], { timeoutMs }); // a decoder that hangs mustn't hold the song up forever
       const info = await readWavInfo(tmpWav);
       if (!info.frames) throw new Error('Decoded audio is empty');
-      await fsp.rename(tmpWav, this.wavPath(key));
+      await renameSoon(tmpWav, this.wavPath(key));
     } catch (err) {
       await fsp.unlink(tmpWav).catch(() => {});
       const e = new Error(`Stagehand found this song’s audio but couldn’t decode it: ${err.message}`);
