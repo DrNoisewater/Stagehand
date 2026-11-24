@@ -53,7 +53,7 @@ const server = http.createServer((req, res) => {
         } else st = await page.evaluate((n) => window.step(n), m - done);
         done = m;
         const file = path.join(out, `${scene}${hw ? '-highway' : ''}-${m}.png`);
-        await page.screenshot({ path: file });
+        await page.screenshot({ path: file, timeout: 180000 }); // the software graphics here can be slow
         shots.push({ file, label: `${scene}${hw ? ' · behind highway' : ''} · ${(m / 60).toFixed(1)} s` });
         const buf = fs.readFileSync(file);
         sums.push(buf.length);
