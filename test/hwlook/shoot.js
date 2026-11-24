@@ -20,12 +20,204 @@ const srv = http.createServer((req, res) => {
     res.end(d);
   });
 });
+// ===== GFXCHECK=1 (begin): do the highway's style and graphics settings really change the picture? =====
+// One still of a busy moment (notes on screen, a hit with its effect) per setting value, everything else fixed,
+// measured against a baseline: share of pixels changed noticeably, mean colour difference, the same over the
+// highway area only, and the busiest 1/8 x 1/8 patch of the picture. 4.31 settings only: per style Brightness
+// (both ends) and Effects (Calm, Off) against Full; graphics presets Low/Medium/Ultra against High on a couple
+// of styles; the style's own room against a photo venue; and every style against every other.
+// Graphics use the fixed High preset (not Auto, so its budget stepping can't change a shot). Time is frozen in
+// the page so hit effects and pulses are the same every shot. Writes <out>/gfxcheck.json, gfxcheck-sheet.png, gfxcheck/*.png
+// Exit code 1 when a setting that should show moves under 0.5% of the pixels (a style with no hit effect or no
+// room movement is expected to show nothing for the Effects it doesn't have). Style pairs under 9/255 on the
+// highway area are listed as FLAGGED PAIRS but don't fail the run. About 90 shots: ~20 min on the software GPU.
+//   GFXCHECK=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> C:7.0     (1280x720 unless VW/VH are set)
+//   GFXCHECK_ONLY=noise,classic,neon   only these: parts (noise bright fx presets room styles) and/or style ids
+//     (style ids alone run bright and fx for them; presets and room run on their own few styles unless ids are given)
+const GFXCHECK_NOTICE = 12; // a pixel counts as changed when any colour moves by at least this much (of 255)
+const GFXCHECK_PAIR_MIN = 9; // two styles closer than this (mean colour difference of 255, highway area) are flagged
+async function gfxCheck(browser, page, out, scene, t) {
+  const dir = path.join(out, 'gfxcheck');
+  fs.mkdirSync(dir, { recursive: true });
+  const clock = Number(t);
+  await page.evaluate((clock) => {
+    const H = document.querySelector('.highway').__hw;
+    if (H.perfState) H.perfState.n = -1e9;
+    performance.now = () => 100000; // hit effects, pulses and Auto's timing stand still
+    window.__stage.engine.position = clock;
+    window.__gx = { frozen: 100000, shots: {} };
+  }, clock);
+  const styles = await page.evaluate(async () => (await import('/js/hwlooks.js')).THEMES.map((x) => ({ id: x.id, name: x.name, hit: x.def.hit, amb: x.sig.amb })));
+  const ids = styles.map((s) => s.id);
+  const parts = ['noise', 'bright', 'fx', 'presets', 'room', 'styles'];
+  const only = (process.env.GFXCHECK_ONLY || '').split(/[\s,]+/).filter(Boolean);
+  const onlyParts = only.filter((x) => parts.includes(x)), onlyIds = only.filter((x) => ids.includes(x));
+  const bad = only.filter((x) => !parts.includes(x) && !ids.includes(x));
+  if (bad.length) throw new Error('GFXCHECK_ONLY: unknown ' + bad.join(', ') + ' (parts: ' + parts.join(' ') + '; styles: ' + ids.join(' ') + ')');
+  const runs = (p) => !only.length || onlyParts.includes(p) || (!onlyParts.length && onlyIds.length > 0 && (p === 'bright' || p === 'fx'));
+  const pick = (dflt) => (onlyIds.length ? onlyIds : dflt);
+  const sty = (id) => styles.find((s) => s.id === id);
+  // a style (bg: its own room or the venue), its settings, and the graphics: a preset (default High) with the frame rate cap off
+  const setLook = (theme, per, preset, bg) => page.evaluate(async ([theme, per, preset, bg]) => {
+    const m = await import('/js/hwlooks.js');
+    m.saveLooks({ ...m.loadLooks(), theme, bg, per: { [theme]: per }, gfx: { preset, fpsCap: 0 } });
+    const H = document.querySelector('.highway').__hw;
+    // a pretend dead-on hit, 0.12 s ago, on the notes just played
+    H.hits = [];
+    H.bursts = [];
+    const pos = window.__stage.engine.position;
+    H.targets.forEach((tg, id) => {
+      if (tg.t > pos || tg.t < pos - 0.7) return;
+      const at = window.__gx.frozen - 120;
+      H.hits.push({ id, at, chord: tg.notes.length > 1, until: tg.t + (tg.sus || 0), offset: 0 });
+      for (const nt of tg.notes) H.bursts.push({ s: nt.s, f: nt.f, at, until: tg.t + (tg.sus || 0) });
+    });
+    return { style: H.look.id, own: H.look.own, bloom: !!H.look.bloom, refl: H.look.refl, hit: H.look.hit, amb: H.look.amb, res: H.look.res, hits: H.hits.length };
+  }, [theme, per, preset, bg]);
+  const have = new Set();
+  const take = async (key, theme, per = {}, preset = 'high', bg = 'own') => {
+    if (have.has(key)) return;
+    have.add(key);
+    const info = await setLook(theme, per, preset, bg);
+    await page.waitForTimeout(900);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const buf = await page.screenshot({ timeout: 90000 });
+    fs.writeFileSync(path.join(dir, key.replace(/[^a-z0-9.-]+/gi, '_') + '.png'), buf);
+    await page.evaluate(async ([key, b64]) => {
+      const bmp = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      const x = c.getContext('2d');
+      x.drawImage(bmp, 0, 0);
+      window.__gx.shots[key] = x.getImageData(0, 0, bmp.width, bmp.height);
+    }, [key, buf.toString('base64')]);
+    console.log('  shot', key, JSON.stringify(info));
+  };
+  const diff = (a, b) => page.evaluate(([a, b, thr]) => {
+    const A = window.__gx.shots[a], B = window.__gx.shots[b];
+    const W = A.width, Hh = A.height;
+    const x0 = Math.floor(W * 0.2), x1 = Math.floor(W * 0.8), y0 = Math.floor(Hh * 0.4), y1 = Math.floor(Hh * 0.95); // the highway area
+    let n = 0, ch = 0, sum = 0, rn = 0, rch = 0, rsum = 0;
+    const cell = new Array(64).fill(0), cellN = new Array(64).fill(0);
+    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const d0 = Math.abs(A.data[i] - B.data[i]), d1 = Math.abs(A.data[i + 1] - B.data[i + 1]), d2 = Math.abs(A.data[i + 2] - B.data[i + 2]);
+      const hit = Math.max(d0, d1, d2) >= thr ? 1 : 0;
+      const m = (d0 + d1 + d2) / 3;
+      const ci = Math.min(7, Math.floor((y * 8) / Hh)) * 8 + Math.min(7, Math.floor((x * 8) / W));
+      n++; ch += hit; sum += m; cell[ci] += hit; cellN[ci]++;
+      if (x >= x0 && x < x1 && y >= y0 && y < y1) { rn++; rch += hit; rsum += m; }
+    }
+    return { pct: (ch / n) * 100, mean: sum / n, rpct: (rch / rn) * 100, rmean: rsum / rn, local: Math.max(...cell.map((c, i) => (c / cellN[i]) * 100)) };
+  }, [a, b, GFXCHECK_NOTICE]);
+
+  const rows = [];
+  // expect: false when this setting is meant to show nothing on this style (it has no such effect)
+  const cmp = async (group, label, baseKey, key, note = '', expect = true) => {
+    const d = await diff(baseKey, key);
+    rows.push({ group, setting: label, vs: baseKey, shot: key, pct: +d.pct.toFixed(3), mean: +d.mean.toFixed(3), regionPct: +d.rpct.toFixed(3), regionMean: +d.rmean.toFixed(3), localMaxPct: +d.local.toFixed(2), expect, note });
+  };
+  console.log('GFXCHECK scene', scene, 't', clock, only.length ? 'only ' + only.join(',') : 'everything');
+  const base = (id) => take(id + '-base', id);
+
+  // ---- the noise floor: the same picture twice
+  if (runs('noise')) {
+    await take('studio-base', 'studio');
+    await take('studio-base2', 'studio');
+    await cmp('noise', 'same picture twice', 'studio-base', 'studio-base2', '', false);
+  }
+
+  // ---- per style: Brightness at both ends, Effects Calm and Off, against the style's own starting settings
+  for (const id of pick(ids)) {
+    const s = sty(id), hasAmb = s.amb !== 'none', hasHit = s.hit !== 'none';
+    if (runs('bright')) {
+      await base(id);
+      for (const b of [0.6, 1.3]) { const k = `${id}-bright-${b}`; await take(k, id, { bright: b }); await cmp('brightness', `${id} ${b}`, id + '-base', k); }
+    }
+    if (runs('fx')) {
+      await base(id);
+      await take(id + '-fx-calm', id, { fx: 'calm' });
+      await cmp('effects', `${id} calm`, id + '-base', id + '-fx-calm', hasAmb ? '' : 'no movement in this style\'s room: same as Full', hasAmb);
+      await take(id + '-fx-off', id, { fx: 'off' });
+      await cmp('effects', `${id} off`, id + '-base', id + '-fx-off', hasHit || hasAmb ? '' : 'no hit effect and no movement in this style: same as Full', hasHit || hasAmb);
+    }
+  }
+
+  // ---- graphics presets against High, on a couple of styles (one with a lot going on, one plain)
+  if (runs('presets')) {
+    for (const id of pick(['classic', 'disco'])) {
+      await base(id);
+      for (const p of ['low', 'medium', 'ultra']) { const k = `${id}-preset-${p}`; await take(k, id, {}, p); await cmp('graphics', `${id} ${p} vs high`, id + '-base', k); }
+    }
+  }
+
+  // ---- the style's own room against a photo venue (the page's venue behind the highway)
+  if (runs('room')) {
+    for (const id of pick(['classic', 'studio', 'synthwave', 'blueprint'])) {
+      await base(id);
+      const k = id + '-venue';
+      await take(k, id, {}, 'high', 'venue');
+      await cmp('background', `${id} venue vs own room`, id + '-base', k, id === 'classic' ? 'Classic\'s own room is nearly the venue\'s dark: expect little' : '');
+    }
+  }
+
+  // ---- how different the styles are from each other (each at its own starting settings, High graphics, own room)
+  const pairs = [];
+  if (runs('styles')) {
+    const use = onlyIds.length ? onlyIds : ids;
+    for (const id of use) await base(id);
+    for (let i = 0; i < use.length; i++) for (let j = i + 1; j < use.length; j++) {
+      const d = await diff(use[i] + '-base', use[j] + '-base');
+      pairs.push({ a: use[i], b: use[j], pct: +d.pct.toFixed(2), mean: +d.mean.toFixed(2), regionPct: +d.rpct.toFixed(2), regionMean: +d.rmean.toFixed(2), flagged: d.rmean < GFXCHECK_PAIR_MIN });
+    }
+    pairs.sort((x, y) => x.regionMean - y.regionMean);
+  }
+
+  // ---- verdicts and the table
+  for (const r of rows) r.verdict = r.group === 'noise' ? 'noise floor' : r.pct >= 2 ? 'works' : r.pct >= 0.5 ? 'weak' : !r.expect ? 'none expected' : r.localMaxPct >= 20 ? 'small area only' : 'no visible effect';
+  console.log('\n' + 'setting'.padEnd(52) + 'pct%'.padStart(8) + 'mean'.padStart(8) + 'hwy%'.padStart(8) + 'hwy-mean'.padStart(10) + 'local%'.padStart(8) + '  verdict');
+  for (const r of rows) console.log(`${(r.group + ' | ' + r.setting).padEnd(51)} ${String(r.pct).padStart(8)}${String(r.mean).padStart(8)}${String(r.regionPct).padStart(8)}${String(r.regionMean).padStart(10)}${String(r.localMaxPct).padStart(8)}  ${r.verdict}${r.note ? '  (' + r.note + ')' : ''}`);
+  const flaggedPairs = pairs.filter((p) => p.flagged);
+  if (pairs.length) {
+    console.log(`\nStyles against each other, most alike first (highway area: mean colour difference of 255, pixels changed; under ${GFXCHECK_PAIR_MIN} flagged):`);
+    for (const p of pairs.slice(0, 20)) console.log(`${(p.a + ' / ' + p.b).padEnd(22)} mean ${String(p.regionMean).padStart(6)}  highway pixels changed ${String(p.regionPct).padStart(6)}%  whole picture ${String(p.pct).padStart(6)}%${p.flagged ? '  FLAGGED' : ''}`);
+    console.log(`FLAGGED PAIRS (${flaggedPairs.length}): ` + (flaggedPairs.map((p) => `${p.a}/${p.b} ${p.regionMean}`).join('; ') || 'none'));
+  }
+  const failed = rows.filter((r) => ['no visible effect', 'small area only'].includes(r.verdict));
+  const weak = rows.filter((r) => r.verdict === 'weak');
+  console.log(`\nNO VISIBLE EFFECT (${failed.length}): ` + failed.map((r) => `${r.group} ${r.setting} [${r.pct}%]`).join('; '));
+  console.log(`WEAK (${weak.length}): ` + weak.map((r) => `${r.group} ${r.setting} [${r.pct}%]`).join('; '));
+  const noise = rows.find((r) => r.group === 'noise') || { pct: null, mean: null };
+  fs.writeFileSync(path.join(out, 'gfxcheck.json'), JSON.stringify({ scene, t: clock, viewport: page.viewportSize(), threshold: { noticeable: GFXCHECK_NOTICE, noEffectPct: 0.5, weakPct: 2, pairMin: GFXCHECK_PAIR_MIN }, noise: { pct: noise.pct, mean: noise.mean }, rows, stylePairs: pairs }, null, 1));
+
+  // ---- the contact sheet: every shot with its numbers
+  const cap = {};
+  for (const r of rows) cap[r.shot] = `${r.setting}: ${r.pct}% ${r.verdict}`;
+  const cells = fs.readdirSync(dir).filter((f) => f.endsWith('.png')).sort().map((f) => {
+    const k = f.replace(/\.png$/, '');
+    return [cap[k] || k, `data:image/png;base64,${fs.readFileSync(path.join(dir, f)).toString('base64')}`];
+  });
+  const sheet = page; // (the browser runs as one process: no second page; the highway is done with)
+  await sheet.goto('about:blank');
+  await sheet.setViewportSize({ width: 1920, height: 1000 });
+  await sheet.setContent('<body style="margin:0;background:#111;color:#eee;font:600 13px sans-serif"></body>');
+  await sheet.evaluate((cells) => {
+    const d = document.createElement('div');
+    d.style.cssText = 'display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:4px';
+    for (const [n, src] of cells) d.insertAdjacentHTML('beforeend', `<figure style="margin:0"><img style="width:100%;display:block" src="${src}"><figcaption style="padding:1px">${n}</figcaption></figure>`);
+    document.body.append(d);
+    return Promise.all([...d.querySelectorAll('img')].map((i) => i.decode()));
+  }, cells);
+  await sheet.screenshot({ path: path.join(out, 'gfxcheck-sheet.png'), fullPage: true, timeout: 120000 });
+  console.log(`DONE gfxcheck: ${rows.length} comparisons, ${failed.length} with no visible effect, ${weak.length} weak, ${flaggedPairs.length} style pairs flagged; wrote gfxcheck.json and gfxcheck-sheet.png`);
+  if (failed.length) process.exitCode = 1;
+}
+// ===== GFXCHECK=1 (end) =====
 (async () => {
   await new Promise((r) => srv.listen(PORT, r));
   const out = process.argv[2];
   fs.mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--single-process', '--no-zygote', '--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
-  const page = await browser.newPage({ viewport: { width: Number(process.env.VW || 1920), height: Number(process.env.VH || 1080) }, ...(process.env.VIDEO ? { recordVideo: { dir: out, size: { width: 1280, height: 720 } } } : {}) });
+  const page = await browser.newPage({ viewport: { width: Number(process.env.VW || (process.env.GFXCHECK ? 1280 : 1920)), height: Number(process.env.VH || (process.env.GFXCHECK ? 720 : 1080)) }, ...(process.env.VIDEO ? { recordVideo: { dir: out, size: { width: 1280, height: 720 } } } : {}) });
   page.on('pageerror', (e) => console.log('PAGEERR', e.message, (e.stack || '').split('\n').slice(1, 3).join(' ')));
   page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text()));
   for (const spec of process.argv.slice(3)) {
@@ -37,10 +229,17 @@ const srv = http.createServer((req, res) => {
       await page.reload();
       await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     }
+    if (process.env.GFXCHECK) { await gfxCheck(browser, page, out, scene, t); continue; } // GFXCHECK=1: see the block above
     // HWTHEME=<look> (and HWGFX=<preset>): the highway in that look (hwlooks.js), set before the page loads
     if (process.env.HWTHEME || process.env.HWGFX) {
       await page.evaluate(([t, g]) => { localStorage.setItem('stagehand.hwlook.v1', JSON.stringify({ theme: t || 'classic', gfx: { preset: g || 'auto', ...(g && g !== 'auto' ? {} : {}) } })); }, [process.env.HWTHEME, process.env.HWGFX]);
       if (process.env.HWGFX) await page.evaluate(async (g) => { const m = await import('/js/hwlooks.js'); const st = m.loadLooks(); m.saveLooks({ ...st, gfx: m.applyPreset(st.gfx, g) }); }, process.env.HWGFX);
+      await page.reload();
+      await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+    }
+    // HWBG=own|venue (4.31): the style's own room, or the venue (VENUE=…) behind the highway
+    if (process.env.HWBG) {
+      await page.evaluate(async (b) => { const m = await import('/js/hwlooks.js'); m.saveLooks({ ...m.loadLooks(), bg: b }); }, process.env.HWBG);
       await page.reload();
       await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
     }
@@ -738,6 +937,59 @@ const srv = http.createServer((req, res) => {
     if (process.env.TUNER) { await page.keyboard.press('u'); await page.waitForTimeout(300); }
     if (process.env.CARD) { await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.showCard(); }); await page.waitForTimeout(Number(process.env.CARD_WAIT || 0)); }
     if (process.env.MASTER) { await page.evaluate(() => document.querySelector('.hw-dock.collapsed') && document.querySelector('.hw-set-btn').click()); await page.waitForTimeout(500); }
+    // HWMENU=1 (4.31): the highway part of Sound & settings, and Settings › Display's highway part on
+    // its own (hw-menu.png, hw-settings.png, hw-settings-open.png); a style tile and a background tile work
+    if (process.env.HWMENU) {
+      await page.evaluate(() => document.querySelector('.hw-dock.collapsed') && document.querySelector('.hw-set-btn').click());
+      await page.waitForTimeout(500);
+      const r = await page.evaluate(async () => {
+        const d = document.querySelector('.hl-drawer');
+        d.scrollIntoView({ block: 'start' });
+        const tiles = d.querySelectorAll('.hl-style').length;
+        const imgs = await Promise.all([...d.querySelectorAll('.hl-style img')].map((i) => i.decode().then(() => i.naturalWidth > 0, () => false)));
+        d.querySelectorAll('.hl-style')[2].click();
+        const m = await import('/js/hwlooks.js');
+        const picked = m.loadLooks().theme;
+        document.querySelector('.hl-drawer .hl-bg-fold .hl-fold-head').click();
+        await new Promise((r) => setTimeout(r, 50));
+        document.querySelector('.hl-drawer .hl-own').click();
+        const bg = m.loadLooks().bg;
+        return { tiles, imgsOk: imgs.every(Boolean), picked, bg, fps: [...document.querySelectorAll('.hw-master-opts button')].filter((b) => /frame rate/i.test(b.textContent)).length };
+      });
+      console.log('HWMENU', JSON.stringify(r));
+      await page.waitForTimeout(1200);
+      const box = await page.evaluate(() => { const o = document.querySelector('.hw-master-opts'); const b = o.getBoundingClientRect(); return { x: b.x, y: Math.max(0, b.y), w: b.width, h: Math.min(innerHeight, b.height) }; });
+      await page.screenshot({ path: path.join(out, 'hw-menu.png'), clip: { x: Math.max(0, box.x - 8), y: 0, width: Math.min(box.w + 16, 1920), height: 1080 } });
+      await page.screenshot({ path: path.join(out, 'hw-menu-full.png') });
+      await page.evaluate(async () => {
+        const { lookSection } = await import('/js/hwlooks-pane.js');
+        const d = document.createElement('div');
+        d.id = 'hl-sheet';
+        d.style.cssText = 'position:fixed;inset:0;z-index:99999;overflow:auto;background:#1b1814;padding:20px 30px;';
+        const sec = document.createElement('div');
+        sec.className = 'disp-sec';
+        sec.style.cssText = 'max-width:760px;margin:0 auto;color:#eee;font:13px sans-serif';
+        sec.innerHTML = '<h3>Highway</h3>';
+        sec.append(lookSection());
+        d.append(sec);
+        document.body.append(d);
+        await Promise.all([...d.querySelectorAll('img')].map((i) => i.decode().catch(() => {})));
+      });
+      await page.waitForTimeout(300);
+      const fullShot = async (name) => {
+        const hgt = await page.evaluate(() => document.querySelector('#hl-sheet > div').scrollHeight + 40);
+        await page.setViewportSize({ width: 1920, height: Math.min(4000, hgt) });
+        await page.waitForTimeout(300);
+        await page.screenshot({ path: path.join(out, name), clip: { x: 560, y: 0, width: 800, height: Math.min(4000, hgt) } });
+        await page.setViewportSize({ width: 1920, height: 1080 });
+      };
+      await fullShot('hw-settings.png');
+      await page.evaluate(() => document.querySelector('#hl-sheet .hl-tune-fold .hl-fold-head').click());
+      await fullShot('hw-settings-open.png');
+      const ok = r.tiles >= 15 && r.imgsOk && r.picked === 'synthwave' && r.bg === 'own' && r.fps === 0;
+      if (!ok) throw new Error('highway menu: ' + JSON.stringify(r));
+      console.log('PASS the highway menu: style pictures, a style and the style’s own room picked, no frame rate switch there');
+    }
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `${scene}_${(file||'').replace('.json','')}_${t}${play === 'p' ? 'p' : ''}${hits || ''}.png`) });
     console.log('shot', spec);
