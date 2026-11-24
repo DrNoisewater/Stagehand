@@ -1,4 +1,4 @@
-# Next (after 4.29.0, not released yet) — preview, flicker, the Drop card, quitting, highway mockups (2026-11-23; nothing tried on the user's PC)
+# 4.30.0 — Highway looks and graphics settings, steady previews, no flicker, a clear Drop button, a clean quit (2026-11-24; nothing tried on the user's PC)
 
 **Asked:** "Previewing a song is not consistent, sometimes it doesn't play, sometimes it is choppy. Still some flickering on the highway right after stems are split or when opening the settings menu. The Drop button is hard to see. Does Stagehand fully close, and reset the audio engine when you open it?" Plus video mockups of a "2035", Unreal-engine-looking highway, same core.
 

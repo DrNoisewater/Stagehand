@@ -184,6 +184,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.30.0:** Seven highway looks to pick from (Studio is new), each with its own settings, plus a full graphics menu. Song previews play every time and smoothly, the highway no longer flickers after a split or when Settings opens, the Drop is a big button on the tuning card, and Stagehand closes cleanly and frees the cable (Settings › Guitar & audio › Restart sound engine if the sound ever stops).
 - **4.29.0:** Pick from twenty-two looks in Settings › Appearance, from warm rooms to something completely different; the song screen's bars and menus match. Every venue is open from the start, and the venue list folds away.
 - **4.28.0:** One look for the whole app: a warm club with a neon sign for each part in the menu. The open part's sign lights up and its colour glows over the page. The Roadshow look is gone.
 - **4.27.1:** Clicking a song once plays its preview again (it had gone silent), and no longer starts splitting the stems. Double-click a song to open it and split it.
