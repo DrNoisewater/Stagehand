@@ -54,7 +54,7 @@ void main() {
   if (mirror > 0.5) a *= reflK * exp(-vY * 1.8) * clamp(vZ / 3.0, 0.0, 1.0);
   if (a < 0.003) discard;
   vec3 c = vC.rgb * gain;
-  float fg = fogK * smoothstep(0.15, 1.0, vZ / zFar);
+  float fg = fogK * smoothstep(0.05, 0.85, vZ / zFar);
   // glow adds light only: alpha 0, so on a see-through highway (Nebula, Fluid)
   // it brightens the moving background instead of covering it with a dark slab
   if (additive > 0.5) gl_FragColor = vec4(c * (1.0 - fg) * a, 0.0);
@@ -642,6 +642,8 @@ uniform float pulse;
 uniform float heat;
 uniform float gain;    // a look's brightness (1 = as is)
 uniform float skyOn;   // a look's own room instead of the venue
+uniform float fogK;    // 4.31: the style's fog also fills its room toward the horizon
+uniform vec3 fogCol;
 uniform vec3 sTop;
 uniform vec3 sMid;
 uniform vec3 sHor;
@@ -812,6 +814,10 @@ void main() {
   c *= 1.0 - 0.4 * smoothstep(0.45, 1.0, vd);
   // warmer as you heat up
   c = mix(c, c * vec3(1.25, 0.95, 0.75) + vec3(0.04, 0.015, 0.0), heat * 0.6);
+  if (skyOn > 0.5 && fogK > 0.0) {
+    float fz = 1.0 - clamp(abs(p.y - vp) / (res.y * 0.4), 0.0, 1.0);
+    c = mix(c, fogCol, fogK * (0.35 + 0.55 * fz));
+  }
   gl_FragColor = vec4(c * gain, 1.0);
 }`;
 
@@ -832,6 +838,8 @@ function makeBackdrop(scene) {
       heat: { value: 0 },
       gain: { value: 1 },
       skyOn: { value: 0 },
+      fogK: { value: 0 },
+      fogCol: { value: new THREE.Color() },
       sTop: { value: new THREE.Color() },
       sMid: { value: new THREE.Color() },
       sHor: { value: new THREE.Color() },
@@ -906,25 +914,25 @@ void main() {
   float a = keepA > 0.5 ? clamp(texture2D(src, vUv).a, 0.0, 1.0) : 1.0;
   if (dof > 0.5) {
     // strongest at and above the horizon, gone a quarter of the screen below it
-    float k = 1.0 - smoothstep(vpUv - 0.25, vpUv, vUv.y);
-    k = 1.0 - k;
+    // 4.31: reaches further down the far highway, and blurs wider (it was hardly visible)
+    float k = smoothstep(vpUv - 0.3, vpUv - 0.02, vUv.y);
     if (k > 0.01) {
       vec4 b = vec4(0.0);
-      for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) b += texture2D(src, vUv + vec2(float(i), float(j)) * px * 1.5);
+      for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) b += texture2D(src, vUv + vec2(float(i), float(j)) * px * 3.0);
       c = mix(c, b.rgb / 25.0, k * 0.85);
       if (keepA > 0.5) a = mix(a, clamp(b.a / 25.0, 0.0, 1.0), k * 0.85);
     }
   }
   if (vig > 0.5) {
     float d = distance(vUv, vec2(0.5, 0.5));
-    float v = 1.0 - 0.28 * smoothstep(0.45, 0.85, d);
+    float v = 1.0 - 0.5 * smoothstep(0.3, 0.8, d);
     c *= v;
     // over a moving background the corners darken it too: less of it shows through
     if (keepA > 0.5) a = 1.0 - (1.0 - a) * v;
   }
   if (grain > 0.5) {
     float n = fract(sin(dot(vUv * 1000.0 + time, vec2(12.9898, 78.233))) * 43758.5453);
-    c += (n - 0.5) * 0.035 * a;
+    c += (n - 0.5) * 0.08 * a;
   }
   gl_FragColor = vec4(c, a);
 }`;
@@ -1221,6 +1229,8 @@ export function createRenderer3D(canvas) {
       u.gain.value = g;
       const sky = look && look.sky;
       u.skyOn.value = sky ? 1 : 0;
+      u.fogK.value = look ? look.fogK : 0;
+      setHex(u.fogCol.value, look ? look.fogCol : '#000000');
       if (sky) {
         setHex(u.sTop.value, sky.top);
         setHex(u.sMid.value, sky.mid);
@@ -1240,8 +1250,9 @@ export function createRenderer3D(canvas) {
       const mir = !!look && look.refl === 'mirror';
       mirrors.solid.visible = mir;
       mirrors.glow.visible = mir;
-      mirrors.solid.material.uniforms.reflK.value = look ? look.reflK : 0;
-      mirrors.glow.material.uniforms.reflK.value = look ? look.reflK * 0.6 : 0;
+      // 4.31: strong enough to read as a mirror floor (it was hardly visible)
+      mirrors.solid.material.uniforms.reflK.value = look ? look.reflK * 2.4 : 0;
+      mirrors.glow.material.uniforms.reflK.value = look ? look.reflK * 1.5 : 0;
       R.mirror = mir;
       const aaPost = look && (look.aa === 'off' || look.aa === 'fxaa' || look.aa === 'msaa8');
       // 4.31: also over a moving background (the after-effects keep it showing through)

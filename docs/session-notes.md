@@ -52,3 +52,11 @@ Decisions and why:
 Checks: `node --test test/hwlooks.test.mjs` (new: signatures, background choice, migration, style effects); `THEMES=1` all 0.000; `HWMENU=1 shoot.js` (new) checks the drawer (11 picture tiles load, a style and the style's room can be picked, no frame rate switch) and writes pictures of both menus; `HWBG=own|venue` sets the background in `shoot.js`.
 
 Unknown until the user's PC: how the new styles feel at full speed on a real card, and whether the floor patterns read well enough inside a narrow hand position.
+
+Settings checker's findings (GFXCHECK) acted on:
+- Fog now also fills the style's own room toward the horizon and starts nearer (was only far notes: ~0.05% of pixels).
+- Reflections: the mirror floor is 2.4× stronger; a style that wants Full reflections gets a 2.4× clearer simple reflection too (Classic keeps its faint one).
+- Vignette 28% → 50% at the corners, from nearer the middle; grain ±0.0175 → ±0.04; distance blur reaches down the far highway and blurs twice as wide.
+- Removed from the menu: Shadows (no visible effect) and Bloom "Half size" (looked the same as Full; Auto still uses it to save work). MSAA 8× kept: the same as 4× here only because the software GPU caps at 4 samples.
+- Rooms that looked alike: Chrome is now a light steel room, Neon teal with pink, Clear a neutral grey, Arena a warm hazy stage. Closest pair in the contact sheet (mean difference /255, highway area) went from 6.4 to 9.0.
+- Not changed: the note finishes only differ on note faces (kept as they are; changing the gem drawing risked the THEMES check).

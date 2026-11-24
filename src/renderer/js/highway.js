@@ -2922,7 +2922,8 @@ export function createHighway(stage) {
     if (z < 0.05 || LK.refl !== 'simple') return; // 4.30: the look's reflections (a mirror floor draws its own)
     const k = Math.min(1, z / (G.zs * 0.35)) * Math.max(0, Math.min(1, (G.zF * 0.8 - z) / (G.zF * 0.3))) * fade;
     if (k < 0.02) return;
-    R3.L.floor.q(x0, -y0, z, x1, -y0, z, x1, -y1, z, x0, -y1, z, col(hex, 0.2 * k, 1.1), col(hex, 0.2 * k, 1.1), col(hex, 0.03 * k), col(hex, 0.03 * k));
+    const rk = LK.reflWish === 'full' ? 2.4 : 1; // 4.31: a style that wants a full reflection gets a clear one even on Simple
+    R3.L.floor.q(x0, -y0, z, x1, -y0, z, x1, -y1, z, x0, -y1, z, col(hex, 0.2 * k * rk, 1.1), col(hex, 0.2 * k * rk, 1.1), col(hex, 0.03 * k * rk), col(hex, 0.03 * k * rk));
   }
 
   /**
