@@ -2,6 +2,14 @@
 
 Ideas and requests not built yet. Newest first.
 
+## REMOVE LATER: the Glimpse sound line (added in 4.32.0, temporary; the user asked to be reminded)
+
+When the user no longer needs Glimpse to record Stagehand's sound, remind them and remove:
+`src/main/services/glimpse-line.js`, its lines in `src/main/main.js` (marked TEMPORARY), `setGlimpseMonitor` / `glimpseMonitor` /
+the `mix` event in `src/main/services/rigaudio.js` (keep `pageMonitor` gating or put back the old forwarding),
+`test/glimpse-line.test.js` and its entry in `package.json`. In Glimpse: `src/stagehand_feed.hpp`, the StagehandLine
+part of `src/audio.cpp`, the line in `startRecording` (`src/app.cpp`) and its tests.
+
 ## Sing along: what's left (the first version shipped in 4.12.0, see HANDOFF.md)
 
 - The lane on the Tab view and Now playing (it is on the highway only).

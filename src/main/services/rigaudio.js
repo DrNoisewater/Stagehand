@@ -29,6 +29,10 @@ class RigAudio extends EventEmitter {
     this.state = 'idle';
     this.lastStarted = null;
     this.songBytes = 0;
+    // Who wants the engine's own sound sent back: the page (looper, Record clip) and/or
+    // Glimpse (glimpse-line.js, temporary). The engine is asked while either one does.
+    this.pageMonitor = false;
+    this.glimpseMonitor = false;
   }
 
   /** Path of the helper, or null where it can't run. */
@@ -98,6 +102,10 @@ class RigAudio extends EventEmitter {
       } else if (type === 3 || type === 4 || type === 5) {
         const f = new Float32Array(len / 4);
         Buffer.from(f.buffer).set(payload);
+        // the full mix also goes to Glimpse while it's listening (temporary)
+        if (type === 5 && this.glimpseMonitor) this.emit('mix', f, (this.lastStarted && this.lastStarted.rate) || 48000);
+        // the engine's own sound goes to the page only when the page asked for it
+        if (type !== 3 && !this.pageMonitor) continue;
         for (const p of this.ports) if (p.kind === 'control') p.port.postMessage({ t: type === 3 ? 'in' : type === 4 ? 'processed' : 'mixed', d: f });
       }
     }
@@ -110,6 +118,8 @@ class RigAudio extends EventEmitter {
       this.state = 'running';
       this.lastStarted = ev;
       this.log(`Audio: ${ev.mode} ${ev.inName} → ${ev.outName} @ ${ev.rate} Hz, in ${ev.inPeriod} / out ${ev.outPeriod} frames, about ${Math.round(ev.latencyMs)} ms`);
+      // a restarted engine forgets; Glimpse still listening asks again
+      if (this.glimpseMonitor) this._sendMonitor();
     }
     if (ev.ev === 'stopped') this.state = 'idle';
     if (ev.ev === 'error') this.log(`Audio error (${ev.code}): ${ev.message}`);
@@ -125,7 +135,25 @@ class RigAudio extends EventEmitter {
     for (const p of this.ports) if (p.kind === 'control') p.port.postMessage({ t: 'ev', ev });
   }
 
-  send(obj) {
+  /** Glimpse started or stopped listening (glimpse-line.js). */
+  setGlimpseMonitor(on) {
+    on = !!on;
+    if (this.glimpseMonitor === on) return;
+    this.glimpseMonitor = on;
+    if (this.child) this._sendMonitor();
+  }
+
+  _sendMonitor() {
+    this.send({ cmd: 'monitor', on: this.pageMonitor || this.glimpseMonitor ? 1 : 0 }, true);
+  }
+
+  /** shared: true when this is the combined switch already (from _sendMonitor). */
+  send(obj, shared = false) {
+    if (obj && obj.cmd === 'monitor' && !shared) {
+      // the page and Glimpse share the engine's one switch: on while either wants it
+      this.pageMonitor = !!Number(obj.on);
+      obj = { cmd: 'monitor', on: this.pageMonitor || this.glimpseMonitor ? 1 : 0 };
+    }
     if (!this.ensure()) return false;
     const json = Buffer.from(JSON.stringify(obj), 'utf8');
     const hdr = Buffer.alloc(8);
