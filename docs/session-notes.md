@@ -44,4 +44,6 @@ Helpers (each in its own worktree, merged here after checking):
 - Settings checker (Sonnet): GFXCHECK=1 in test/hwlook/shoot.js, measures what each setting changes on screen.
 - Highway builder (Opus): styles apart from backgrounds, distinct styles, short drawer, full Settings › Display section.
 
+- Background artist (Opus): about five new music-reactive moving backgrounds, higher quality than Mandala (visuals.js), asked mid-session.
+
 Status: helpers running.
