@@ -4337,3 +4337,8 @@ html.cursor-idle, html.cursor-idle * { cursor: none !important; }
 .pv-bar .pv-stop { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid #ffffff2a; background: #ffffff10; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
 .pv-bar .pv-stop:hover { background: #ffffff22; }
 .pv-bar .pv-stop svg { width: 12px; height: 12px; }
+/* 4.30.1: a click that can't play says why */
+.pv-bar.note { border-radius: 14px; border-color: #ffffff2a; }
+.pv-bar.note .pv-ic { color: var(--ink-2); }
+.pv-bar.note .pv-t { white-space: normal; }
+.pv-bar .pv-why { display: block; color: var(--ink-2); }

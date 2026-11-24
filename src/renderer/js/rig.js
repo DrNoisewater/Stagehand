@@ -897,7 +897,10 @@ export class Rig extends EventTarget {
   /** If the song is playing but none of it reaches the native engine, try the other route. */
   _songWatch(ev) {
     const p = this.player;
-    if (!p || !p.native || !p.playing || this.kind !== 'native') {
+    // 4.30.1: a song preview counts too: with the guitar on, a preview that never reaches the
+    // sound engine was silent until a song had been played once
+    const previewing = !!(p && p.previewUntil && performance.now() < p.previewUntil);
+    if (!p || !p.native || !(p.playing || previewing) || this.kind !== 'native') {
       this._dryFor = 0;
       return;
     }

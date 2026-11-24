@@ -5,7 +5,7 @@ import { decorativeImage } from './menu-art.js';
 import { api } from './api.js';
 import { modesHtml, runMode, modesMenu } from './playmodes.js';
 import { isOfficial, state, on, emit, visibleSongs, viewTitle, persistUi, bump, setSelection, setView, accBand, hasPart, loadLibrary, rsMissing, rsListKeys, rsListLabel, rsStockLabel, lastSearch, clearSearch, viewHas } from './store.js';
-import { previewSong } from './preview.js';
+import { previewSong, warmPreviews } from './preview.js';
 import { singerJob } from './singer-upgrade.js';
 import { h, icon, esc, fmtDuration, debounce } from './ui.js';
 import * as actions from './actions.js';
@@ -667,7 +667,8 @@ scroller.addEventListener('click', (e) => {
   }
   selectClick(id, e);
   // 4.26: a plain click on a song plays a short preview (not while picking several)
-  if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.button === 0) previewSong(id);
+  // 4.30.1: the songs just below and above get their clips ready, so the next click starts at once
+  if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.button === 0) previewSong(id, { near: songsNear(id) });
 });
 
 scroller.addEventListener('dblclick', (e) => {
@@ -708,6 +709,13 @@ scroller.addEventListener('dragstart', (e) => {
 scroller.addEventListener('scroll', () => renderWindow(), { passive: true });
 scroller.addEventListener('focus', refreshDecorations);
 scroller.addEventListener('blur', refreshDecorations);
+
+/** The songs next to this one in the list: below first (the way people go), then above. */
+function songsNear(id) {
+  const i = list.findIndex((s) => s.id === id);
+  if (i < 0) return [];
+  return [list[i + 1], list[i + 2], list[i - 1], list[i + 3], list[i - 2]].filter(Boolean).map((s) => s.id);
+}
 
 function moveFocus(delta, extend) {
   if (!list.length) return;
@@ -828,9 +836,22 @@ on('view', () => {
   // the page may only just be shown again: set it once more after layout
   requestAnimationFrame(() => shownNow() && restoreTop());
 });
+// 4.30.1: the first time Songs shows, the songs in view get their clips ready (and the decoder
+// wakes up), so the very first click plays at once
+let warmedOnce = false;
+function warmView() {
+  if (!libShown() || warmedOnce || !list.length) return;
+  warmedOnce = true;
+  const top = Math.max(0, Math.floor(scroller.scrollTop / ROW_H));
+  const at = state.focus ? list.findIndex((s) => s.id === state.focus) : -1;
+  const from = at >= 0 ? at : top;
+  warmPreviews(list.slice(from, from + 4).map((s) => s.id));
+}
+setTimeout(warmView, 5000); // the app may open on Songs
 on('page', () => {
   if (libShown() && stale) stale === 2 ? rebuild() : render();
   requestAnimationFrame(() => shownNow() && restoreTop());
+  warmView();
 });
 on('selection', refreshDecorations);
 on('playing', refreshDecorations);
