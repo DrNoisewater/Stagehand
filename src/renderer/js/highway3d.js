@@ -463,12 +463,12 @@ class TextLayer {
     this.shelf.x = 14;
     this.shelf.h = 10;
     this.dirty = true;
-    // what changed since the last upload: the whole picture (at the start, after a clean-out) or the box
-    // round the labels drawn since. 4.32.1: a new label sent only its own box, not the whole 4 MB picture
+    // what changed since the last upload: the whole picture (at the start, after a clean-out) or the boxes
+    // round the labels drawn since (one per shelf row). 4.32.1: a new label sent only its own box, not the whole 4 MB picture
     // (that came every time a new fret number, chord name or streak count first showed: little freezes,
     // most of them in the first seconds of a song)
     this.whole = true;
-    this.box = null;
+    this.boxes = [];
     this.renderer = renderer;
     this.part = new THREE.Box2();
     this.at = new THREE.Vector2();
@@ -556,9 +556,9 @@ class TextLayer {
     it = { w, h, u0: x / this.size, v0: y / this.size, u1: (x + w) / this.size, v1: (y + h) / this.size };
     this.items.set(key, it);
     this.dirty = true;
-    const b = this.box;
-    if (!b) this.box = { x0: x, y0: y, x1: x + w, y1: y + h };
-    else Object.assign(b, { x0: Math.min(b.x0, x), y0: Math.min(b.y0, y), x1: Math.max(b.x1, x + w), y1: Math.max(b.y1, y + h) });
+    const b = this.boxes[this.boxes.length - 1];
+    if (b && b.y0 === y) Object.assign(b, { x0: Math.min(b.x0, x), x1: Math.max(b.x1, x + w), y1: Math.max(b.y1, y + h) });
+    else this.boxes.push({ x0: x, y0: y, x1: x + w, y1: y + h });
     return it;
   }
   begin() {
@@ -623,11 +623,10 @@ class TextLayer {
   }
   end(W, H) {
     if (this.dirty) {
-      const b = this.box;
-      if (this.whole || !b || !this.renderer || this.sendWhole) this.tex.needsUpdate = true;
-      else {
-        // only the new labels' box, read from the label picture and sent on its own (turned upside down
-        // on the way, like the whole picture: flipY)
+      if (this.whole || !this.boxes.length || !this.renderer || this.sendWhole) this.tex.needsUpdate = true;
+      else for (const b of this.boxes) {
+        // only the new labels' boxes, read from the label picture and sent on their own (turned upside
+        // down on the way, like the whole picture: flipY)
         const w = b.x1 - b.x0;
         const h = b.y1 - b.y0;
         const px = this.actx.getImageData(b.x0, b.y0, w, h).data;
@@ -638,7 +637,7 @@ class TextLayer {
         this.renderer.copyTextureToTexture(this.src, this.tex, this.part, this.at);
       }
       this.whole = false;
-      this.box = null;
+      this.boxes.length = 0;
       this.dirty = false;
     }
     this.mat.uniforms.res.value.set(W, H);
