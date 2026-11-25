@@ -159,3 +159,7 @@ Done:
   additive blending in three.js multiplies by alpha unless set to One/One (particles were invisible).
 - Stills with hits: frames take ~1 s in software GL, so sparks were either just born or burnt out; shoot.js now stops the clock and ages them 0.25 s.
 - Not known: real GPU cost (estimate ~2–4 ms at 1080p High on a GTX 1070; software GL here: Inferno ~1 s a frame vs Classic ~0.33 s at Ultra 960×540).
+- Stage 1 merged (c2b359a). Review of Inferno stills: floor/sky/strings good; notes still flat small boxes that blow out white
+  near the strike line; Classic's white hit flash hides the sparks.
+- Stage 2 running in parallel: Inferno polisher (Opus: 3D gems for every HD style, styles own their hits, Inferno notes), and
+  one builder each (Opus) for Frozen Lake, Neon Crystal, Synthwave Drive, Deep Ocean (own files; gems last, to adopt the 3D gem).
