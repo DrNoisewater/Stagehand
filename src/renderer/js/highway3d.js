@@ -462,6 +462,15 @@ class TextLayer {
     this.shelf.x = 14;
     this.shelf.h = 10;
     this.dirty = true;
+    // what changed since the last upload: the whole picture (at the start, after a clean-out) or the box
+    // round the labels drawn since. 4.32.1: a new label sent only its own box, not the whole 4 MB picture
+    // (that came every time a new fret number, chord name or streak count first showed: little freezes,
+    // most of them in the first seconds of a song)
+    this.whole = true;
+    this.box = null;
+    this.renderer = renderer;
+    this.part = new THREE.Box2();
+    this.at = new THREE.Vector2();
     this.cap = 0;
     this.n = 0;
     this.geo = new THREE.BufferGeometry();
@@ -528,6 +537,7 @@ class TextLayer {
       this.actx.fillStyle = '#fff';
       this.actx.fillRect(2, 2, 8, 8);
       Object.assign(S, { x: 14, y: 2, h: 10 });
+      this.whole = true;
     }
     const x = S.x;
     const y = S.y;
@@ -544,6 +554,9 @@ class TextLayer {
     it = { w, h, u0: x / this.size, v0: y / this.size, u1: (x + w) / this.size, v1: (y + h) / this.size };
     this.items.set(key, it);
     this.dirty = true;
+    const b = this.box;
+    if (!b) this.box = { x0: x, y0: y, x1: x + w, y1: y + h };
+    else Object.assign(b, { x0: Math.min(b.x0, x), y0: Math.min(b.y0, y), x1: Math.max(b.x1, x + w), y1: Math.max(b.y1, y + h) });
     return it;
   }
   begin() {
@@ -608,7 +621,17 @@ class TextLayer {
   }
   end(W, H) {
     if (this.dirty) {
-      this.tex.needsUpdate = true;
+      const b = this.box;
+      if (this.whole || !b || !this.renderer || this.sendWhole) this.tex.needsUpdate = true;
+      else {
+        // only the new labels' box (canvas pictures are stored upside down: flipY)
+        this.part.min.set(b.x0, this.size - b.y1);
+        this.part.max.set(b.x1, this.size - b.y0);
+        this.at.set(b.x0, this.size - b.y1);
+        this.renderer.copyTextureToTexture(this.tex, this.tex, this.part, this.at);
+      }
+      this.whole = false;
+      this.box = null;
       this.dirty = false;
     }
     this.mat.uniforms.res.value.set(W, H);

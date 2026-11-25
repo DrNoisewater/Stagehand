@@ -2143,6 +2143,8 @@ export function createHighway(stage) {
   const measureCtx = document.createElement('canvas').getContext('2d');
   function glyph(text, style, weight) {
     const key = `${text}|${style}|${weight}`;
+    const have = R3.text.items.get(key); // drawn already: no font set or text measured again
+    if (have) return have;
     const font = `${weight} ${GB}px ${FONT}`;
     measureCtx.font = font;
     const tw = measureCtx.measureText(text).width;
