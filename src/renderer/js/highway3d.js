@@ -446,7 +446,8 @@ class TextLayer {
     this.size = 1024;
     this.atlas = document.createElement('canvas');
     this.atlas.width = this.atlas.height = this.size;
-    this.actx = this.atlas.getContext('2d');
+    // kept in memory (not on the graphics card), so the new labels' box can be read back and sent quickly
+    this.actx = this.atlas.getContext('2d', { willReadFrequently: true });
     this.tex = new THREE.CanvasTexture(this.atlas);
     this.tex.colorSpace = THREE.NoColorSpace;
     this.tex.premultiplyAlpha = false;
@@ -462,6 +463,16 @@ class TextLayer {
     this.shelf.x = 14;
     this.shelf.h = 10;
     this.dirty = true;
+    // what changed since the last upload: the whole picture (at the start, after a clean-out) or the boxes
+    // round the labels drawn since (one per shelf row). 4.32.1: a new label sent only its own box, not the whole 4 MB picture
+    // (that came every time a new fret number, chord name or streak count first showed: little freezes,
+    // most of them in the first seconds of a song)
+    this.whole = true;
+    this.boxes = [];
+    this.renderer = renderer;
+    this.part = new THREE.Box2();
+    this.at = new THREE.Vector2();
+    this.src = new THREE.DataTexture(null, 1, 1); // the box's pixels, read from the label picture
     this.cap = 0;
     this.n = 0;
     this.geo = new THREE.BufferGeometry();
@@ -528,6 +539,7 @@ class TextLayer {
       this.actx.fillStyle = '#fff';
       this.actx.fillRect(2, 2, 8, 8);
       Object.assign(S, { x: 14, y: 2, h: 10 });
+      this.whole = true;
     }
     const x = S.x;
     const y = S.y;
@@ -544,6 +556,9 @@ class TextLayer {
     it = { w, h, u0: x / this.size, v0: y / this.size, u1: (x + w) / this.size, v1: (y + h) / this.size };
     this.items.set(key, it);
     this.dirty = true;
+    const b = this.boxes[this.boxes.length - 1];
+    if (b && b.y0 === y) Object.assign(b, { x0: Math.min(b.x0, x), x1: Math.max(b.x1, x + w), y1: Math.max(b.y1, y + h) });
+    else this.boxes.push({ x0: x, y0: y, x1: x + w, y1: y + h });
     return it;
   }
   begin() {
@@ -608,7 +623,21 @@ class TextLayer {
   }
   end(W, H) {
     if (this.dirty) {
-      this.tex.needsUpdate = true;
+      if (this.whole || !this.boxes.length || !this.renderer || this.sendWhole) this.tex.needsUpdate = true;
+      else for (const b of this.boxes) {
+        // only the new labels' boxes, read from the label picture and sent on their own (turned upside
+        // down on the way, like the whole picture: flipY)
+        const w = b.x1 - b.x0;
+        const h = b.y1 - b.y0;
+        const px = this.actx.getImageData(b.x0, b.y0, w, h).data;
+        this.src.image = { data: new Uint8Array(px.buffer, px.byteOffset, px.length), width: w, height: h };
+        this.part.min.set(0, 0);
+        this.part.max.set(w, h);
+        this.at.set(b.x0, this.size - b.y1);
+        this.renderer.copyTextureToTexture(this.src, this.tex, this.part, this.at);
+      }
+      this.whole = false;
+      this.boxes.length = 0;
       this.dirty = false;
     }
     this.mat.uniforms.res.value.set(W, H);
