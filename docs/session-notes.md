@@ -143,3 +143,12 @@ Done:
   the grid has a fixed height, the switches under it flip in place (`highway.js` `toggle`). `HWMENU=1` checks the picked picture
   and the menu don't move (fails on the old code).
 - Pauses: Stutter finder (Opus): the whole 4 MB label picture was sent on every new label; now only the new boxes (see HANDOFF 4.33).
+
+## 4.34 (2026-11-25): Style engine builder (Opus), branch style-engine
+
+- Engine `hdstyle.js` + one file per style (`styles/<id>.js`); guide `docs/hd-styles.md`. Old pieces are muted (alpha −1), not removed, so THEMES=1 still compares positions.
+- Inferno done in full; four stubs. Pictures redone (six).
+- Dead ends: the z flip is a mirror, so triangle winding must be reversed (strings were dim, gems hollow); the GLSL word `half` is reserved;
+  additive blending in three.js multiplies by alpha unless set to One/One (particles were invisible).
+- Stills with hits: frames take ~1 s in software GL, so sparks were either just born or burnt out; shoot.js now stops the clock and ages them 0.25 s.
+- Not known: real GPU cost (estimate ~2–4 ms at 1080p High on a GTX 1070; software GL here: Inferno ~1 s a frame vs Classic ~0.33 s at Ultra 960×540).
