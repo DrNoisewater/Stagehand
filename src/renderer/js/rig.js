@@ -5,6 +5,7 @@ import { InstrumentSense, reading } from './instrument.js';
 import { instrumentShift } from './detect.js';
 import { loadGear, toSpec, ampGain, describe, labLatch, labVals, gearInfo, LAB_BITS, LAB_KINDS, LAB_WORD0, LAB_VAL0 } from './gearspec.js';
 import { resolveCapture, caps } from './captures.js';
+import { loopView, hasLoopSwitch, toneWho, loadSides, saveSides, bindLoopRig } from './loopswitch.js';
 import { lateWarning } from './lateout.js';
 
 /**
@@ -1109,6 +1110,8 @@ export class Rig extends EventTarget {
       const want = this._want;
       tone = want;
       if (!tone) return { ok: false, tone: null, error: 'No tone to play.' };
+      // 4.35: a Loop switcher: only the playing loop (and the shared gear) reaches the engine
+      const play = loopView(tone, this._sideOf(tone));
       if (!this.on || !this.backend) return { ok: false, tone, error: 'Your guitar isn’t connected.' };
       const backend = this.backend;
       // 4.20: a new or changed tone starts with every footswitch let go; its live switches (Haunt) follow it
@@ -1116,15 +1119,15 @@ export class Rig extends EventTarget {
       if (this.lab.labLever) this.live('labLever', 0);
       if (this.lab.labHold) {
         let present = 0;
-        if ((tone.id || tone.name || '') === this._labWho) for (const g of tone.gear || []) if (g && !g.bypass && LAB_BITS[g.key]) present |= 1 << LAB_BITS[g.key];
+        if ((tone.id || tone.name || '') === this._labWho) for (const g of play.gear || []) if (g && !g.bypass && LAB_BITS[g.key]) present |= 1 << LAB_BITS[g.key];
         this.live('labHold', this.lab.labHold & present);
       }
-      this.live('labLatch', labLatch(tone));
-      this._labFollow(tone);
-      const slot = await this._slotFor(tone);
+      this.live('labLatch', labLatch(play));
+      this._labFollow(play);
+      const slot = await this._slotFor(play);
       if (this.backend !== backend) return { ok: false, tone, error: 'The sound engine restarted. Try again.' };
       if (slot < 0) return { ok: false, tone, error: `${tone.name || 'That tone'} couldn’t be built.` };
-      const cap = backend.nam ? this.captureFor(tone) : null;
+      const cap = backend.nam ? this.captureFor(play) : null;
       if ((cap && cap.path) !== (this.capture && this.capture.path)) {
         this.capture = cap;
         this.dispatchEvent(new Event('capture'));
@@ -1155,8 +1158,54 @@ export class Rig extends EventTarget {
     this._busy = this._run = run;
     run.then((r) => {
       if (r && !r.ok && this.on) this.dispatchEvent(new CustomEvent('tone-error', { detail: r }));
+      if (r && r.ok && r.tone && hasLoopSwitch(r.tone)) this._prebuildLoop(r.tone);
     });
     return run;
+  }
+
+  // ---- 4.35: the Loop switcher (loopswitch.js). Which loop plays is live: never saved in the tone.
+
+  _sideOf(tone) {
+    if (!this._sides) this._sides = loadSides();
+    return this._sides[toneWho(tone)] === 'B' && hasLoopSwitch(tone) ? 'B' : 'A';
+  }
+
+  /** The tone being played (or edited) has a Loop switcher that is on. */
+  hasLoopSwitch() {
+    return hasLoopSwitch(this._currentTone());
+  }
+
+  /** 'A' or 'B': the loop playing now (always 'A' when there is no switcher). */
+  loopSide() {
+    return this._sideOf(this._currentTone());
+  }
+
+  /** Jump to loop 'A' or 'B'. Resolves like a tone change; null when there is no switcher. */
+  setLoop(side) {
+    const tone = this._currentTone();
+    if (!hasLoopSwitch(tone)) return Promise.resolve(null);
+    side = side === 'B' ? 'B' : 'A';
+    if (this._sideOf(tone) === side) return Promise.resolve({ ok: true, tone, side });
+    this._sides[toneWho(tone)] = side;
+    saveSides(this._sides);
+    this.dispatchEvent(new CustomEvent('loop', { detail: { side } }));
+    if (!this.on || !this.backend) return Promise.resolve({ ok: false, tone, side });
+    return this._useTone(tone).then((r) => ({ ...r, side }));
+  }
+
+  toggleLoop() {
+    return this.setLoop(this.loopSide() === 'A' ? 'B' : 'A');
+  }
+
+  /** Builds the loop that isn't playing, so the first stomp is instant (one extra slot at most). */
+  _prebuildLoop(tone) {
+    const other = this._sideOf(tone) === 'A' ? 'B' : 'A';
+    const want = this._want;
+    this._busy = this._busy.then(async () => {
+      // a newer tone (a knob turning, another song tone) is waiting: don't spend a slot on this one
+      if (!this.on || !this.backend || this._queued || this._want !== want) return;
+      await this._slotFor(loopView(tone, other));
+    }).catch(() => {});
   }
 
   /** Builds a song's tones ahead of time so tone changes are instant. */
@@ -1472,4 +1521,5 @@ export function noteName(midi) {
 }
 
 export const rig = new Rig();
+bindLoopRig(rig);
 if (typeof window !== 'undefined') window.__rig = rig;

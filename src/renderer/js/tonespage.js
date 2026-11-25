@@ -21,7 +21,8 @@ import { state, on, emit, setPage } from './store.js';
 import { h, icon, esc, toast, showMenu, confirmDialog } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { loadGear } from './gearspec.js';
-import { readingBar, tonelib, byId, useTone, saveTone, removeTone, assignSlot, SLOT_GELS, SLOT_COUNT, TYPE_GELS, TYPE_NAMES, knobsOf, orderedGear, shortGearName, gelOf, chainText, songToneLibrary, bySlot, activeSlot } from './tonelib.js';
+import { readingBar, tonelib, byId, useTone, saveTone, removeTone, assignSlot, SLOT_GELS, SLOT_COUNT, TYPE_GELS, TYPE_NAMES, knobsOf, orderedGear, shortGearName, gelOf, chainText, songToneLibrary, bySlot, activeSlot, slotKey, slotKeyWords } from './tonelib.js';
+import { shiftToggle } from './slotgrid.js';
 import { aboutCard, linkSheet, sheetFold } from './gearabout.js';
 import { chainEl, gearLineup, gearFaceplate, rotaryKnob, fmtKnob, gearSummary, demoButton, stopDemo, gearKnob, labStrip } from './rigui.js';
 import { realAmpStrip, realBadge, getAllRealAmps, batch } from './realamps.js';
@@ -29,6 +30,8 @@ import { caps, ampOf, packForCurated, resolveCapture } from './captures.js';
 import { slotChange, slotChangeText, isChanged } from './toneslots.js';
 import { groupSongTones, describeTone, CHARACTERS } from './tonesongs.js';
 import { gateControl } from './pedalboard.js';
+import { loopChip, loopFace } from './loopui.js';
+import { LOOP_KEY, LOOP_NAME, hasLoopSwitchGear } from './loopswitch.js';
 
 const root = document.getElementById('page-tones');
 const load = (k, d) => {
@@ -71,23 +74,24 @@ loadGear().then((d) => (DB = d || {}));
 const dirty = () => !!(T.draft && T.saved && isChanged(T.saved, T.draft));
 
 // ------------------------------------------------------------- your keys --
-/** Keys 1–9 as cards. A click picks the tone on that key (you hear it); it never changes the key. */
+/** Keys 1–10 as cards, then (opened by a slim line, or open when used) Shift + 1–0.  A click picks the tone on that key (you hear it); it never changes the key. */
 function keyCards() {
+  const wrap = h('div.tk-wrap');
   const box = h('div.tk-keys', { role: 'group', 'aria-label': 'Your keys' });
   const playing = activeSlot();
   const k1 = h(`button.tk-card.k1${playing === 1 ? '.playing' : ''}`, { type: 'button', style: { '--gel': SLOT_GELS[0] }, title: 'Key 1 follows the song: it switches to the song’s own tones as it plays' });
   k1.append(h('b.tk-n', { text: '1' }), h('span.tk-name', { text: 'Song’s tones' }), h('span.tk-sub', { text: 'Follows the song' }));
-  k1.onclick = () => toast({ title: 'Key 1 follows the song', message: 'While a song plays, key 1 switches to the song’s own tones by itself. Keys 2–9 hold your tones.', kind: 'info', timeout: 4000 });
+  k1.onclick = () => toast({ title: 'Key 1 follows the song', message: 'While a song plays, key 1 switches to the song’s own tones by itself. Keys 2–0 and Shift + key hold your tones.', kind: 'info', timeout: 4000 });
   box.append(k1);
-  for (let n = 2; n <= SLOT_COUNT; n++) {
+  const makeCard = (n, box) => {
     const t = bySlot(n);
     const sel = t && T.draft && T.draft.mine && T.draft.id === t.id;
-    const card = h(`button.tk-card${t ? '' : '.vacant'}${sel ? '.on' : ''}${playing === n ? '.playing' : ''}`, { type: 'button', 'data-key': String(n), style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: t ? `Key ${n}: ${t.name}. Click to hear it.` : T.draft ? `Key ${n} is empty. Click to put ${T.draft.name} here.` : `Key ${n} is empty` });
-    card.append(h('b.tk-n', { text: String(n) }), h('span.tk-name', { text: t ? t.name : 'Empty' }), h('span.tk-sub', { text: t ? describeTone(t).label : T.draft ? 'Put it here' : '' }));
+    const card = h(`button.tk-card${t ? '' : '.vacant'}${sel ? '.on' : ''}${playing === n ? '.playing' : ''}`, { type: 'button', 'data-key': String(n), style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: t ? `Key ${slotKeyWords(n)}: ${t.name}. Click to hear it.` : T.draft ? `Key ${slotKeyWords(n)} is empty. Click to put ${T.draft.name} here.` : `Key ${slotKeyWords(n)} is empty` });
+    card.append(h('b.tk-n', { text: slotKey(n) }), h('span.tk-name', { text: t ? t.name : 'Empty' }), h('span.tk-sub', { text: t ? describeTone(t).label : T.draft ? 'Put it here' : '' }));
     card.onclick = () => {
       if (t) return select(mineItem(t));
       if (T.draft) return putOnKey(n);
-      toast({ title: `Key ${n} is empty`, message: 'Pick a tone below, then put it on a key.', kind: 'info', timeout: 2500 });
+      toast({ title: `Key ${slotKeyWords(n)} is empty`, message: 'Pick a tone below, then put it on a key.', kind: 'info', timeout: 2500 });
     };
     card.ondragover = (e) => {
       e.preventDefault();
@@ -102,9 +106,20 @@ function keyCards() {
       if (it && (await select(it, { audition: false }))) putOnKey(n);
     };
     box.append(card);
+  };
+  for (let n = 2; n <= 10; n++) makeCard(n, box);
+  wrap.append(box);
+  const shift = shiftToggle(renderList);
+  wrap.append(shift.bar);
+  if (shift.show) {
+    const box2 = h('div.tk-keys', { role: 'group', 'aria-label': 'Your keys with Shift' });
+    for (let n = 11; n <= SLOT_COUNT; n++) makeCard(n, box2);
+    wrap.append(box2);
   }
-  return box;
+  return wrap;
 }
+
+
 
 /**
  * Puts the tone you picked on key n. A song tone or preset is saved to your tones first.
@@ -117,7 +132,7 @@ async function putOnKey(n) {
   const list = mine ? tonelib.list : [...tonelib.list, { id: '@new', name: d.name, slot: null }];
   const change = slotChange(list, mine ? d.id : '@new', n);
   if (change.noop) return;
-  if (change.replaces && !(await confirmDialog({ title: `Put it on key ${n}?`, message: slotChangeText(change) + (mine ? '' : ' It is saved to your tones first.'), confirm: `Put on key ${n}` }))) return;
+  if (change.replaces && !(await confirmDialog({ title: `Put it on key ${slotKeyWords(n)}?`, message: slotChangeText(change) + (mine ? '' : ' It is saved to your tones first.'), confirm: `Put on key ${slotKeyWords(n)}` }))) return;
   try {
     let id = d.id;
     let made = null;
@@ -135,7 +150,7 @@ async function putOnKey(n) {
     render();
     flash(n);
     toast({
-      title: `${t.name} is on key ${n}`,
+      title: `${t.name} is on key ${slotKeyWords(n)}`,
       message: change.replaces ? `${change.replaces.name} is still in your tones.` : 'Press its number while you play to switch to it.',
       kind: 'ok',
       timeout: 8000,
@@ -179,7 +194,7 @@ async function offKey(tone) {
     const { change, undo } = await assignSlot(tone.id, null);
     if (T.draft && T.draft.id === tone.id) T.draft.slot = T.saved.slot = null;
     render();
-    toast({ title: `${tone.name} is off key ${change.from}`, message: 'It’s still in your tones.', kind: 'ok', timeout: 6000, actions: [{ label: 'Undo', onClick: async () => (await undo(), T.draft && T.draft.id === tone.id && (T.draft.slot = T.saved.slot = change.from), render()) }] });
+    toast({ title: `${tone.name} is off key ${slotKeyWords(change.from)}`, message: 'It’s still in your tones.', kind: 'ok', timeout: 6000, actions: [{ label: 'Undo', onClick: async () => (await undo(), T.draft && T.draft.id === tone.id && (T.draft.slot = T.saved.slot = change.from), render()) }] });
   } catch (err) {
     toast({ title: 'Couldn’t change the key', message: err.message, kind: 'err' });
   }
@@ -190,12 +205,14 @@ function keyMenu(e) {
   const d = T.draft;
   if (!d) return;
   const items = [{ heading: true, label: 'Put it on a key' }];
-  for (let n = 2; n <= SLOT_COUNT; n++) {
+  const keyItem = (n) => {
     const t = bySlot(n);
     const here = d.mine && t && t.id === d.id;
-    items.push({ label: `Key ${n}`, hint: here ? 'this tone' : t ? t.name : 'empty', icon: here ? 'check' : t ? 'restore' : 'plus', disabled: here, onClick: () => putOnKey(n) });
-  }
-  if (d.mine && d.slot) items.push('-', { label: `Take it off key ${d.slot}`, icon: 'x', onClick: () => offKey(byId(d.id)) });
+    return { label: `Key ${slotKeyWords(n)}`, hint: here ? 'this tone' : t ? t.name : 'empty', icon: here ? 'check' : t ? 'restore' : 'plus', disabled: here, onClick: () => putOnKey(n) };
+  };
+  for (let n = 2; n <= 10; n++) items.push(keyItem(n));
+  items.push({ label: 'Shift + key', icon: 'plus', submenu: Array.from({ length: 10 }, (_, i) => keyItem(11 + i)) });
+  if (d.mine && d.slot) items.push('-', { label: `Take it off key ${slotKeyWords(d.slot)}`, icon: 'x', onClick: () => offKey(byId(d.id)) });
   const r = e.currentTarget.getBoundingClientRect();
   showMenu(r.left, r.bottom + 4, items);
 }
@@ -293,7 +310,7 @@ function renderList() {
   listCol.append(h('div.tones-titlebar.tones-head', null, h('div.tones-title', null, h('h1.page-title', { text: 'Tones' }), h('div.sub', { text: count })), create));
 
   // your keys
-  listCol.append(h('div.tk-head', null, h('h2.tk-h', { text: 'Your keys' }), h('span.tk-note', { text: 'Press a number while you play to switch' })), keyCards(), gateControl({ compact: true }));
+  listCol.append(h('div.tk-head', null, h('h2.tk-h', { text: 'Your keys' }), h('span.tk-note', { text: 'Press a key while you play to switch' })), keyCards(), gateControl({ compact: true }));
 
   // your tones
   const sec = h('div.tones-sec.mine');
@@ -357,7 +374,7 @@ function row(it) {
     e.dataTransfer.effectAllowed = 'copy';
   };
   // the key it's on (its colour as a small accent), or a small dot in that column
-  r.append(it.slot ? h('span.tslot', { text: String(it.slot), title: `On key ${it.slot}` }) : h('span.tslot.none', { 'aria-hidden': 'true' }));
+  r.append(it.slot ? h('span.tslot', { text: slotKey(it.slot), title: `On key ${slotKeyWords(it.slot)}` }) : h('span.tslot.none', { 'aria-hidden': 'true' }));
   const main = h('button.ti-main', { type: 'button' }, h('b', { text: it.name }), h('span', { text: it.sub || '' }));
   main.onclick = () => select(it);
   r.append(main);
@@ -370,7 +387,9 @@ function row(it) {
     const y = e.clientY;
     const items = [{ label: 'Try it on my guitar', icon: 'play', onClick: () => select(it) }];
     const keyItems = [];
-    for (let n = 2; n <= SLOT_COUNT; n++) if (it.slot !== n) keyItems.push({ label: `Key ${n}`, hint: bySlot(n) ? bySlot(n).name : 'empty', onClick: async () => (await select(it, { audition: false })) && putOnKey(n) });
+    const keyItem = (n) => ({ label: `Key ${slotKeyWords(n)}`, hint: bySlot(n) ? bySlot(n).name : 'empty', onClick: async () => (await select(it, { audition: false })) && putOnKey(n) });
+    for (let n = 2; n <= 10; n++) if (it.slot !== n) keyItems.push(keyItem(n));
+    keyItems.push({ label: 'Shift + key', icon: 'plus', submenu: Array.from({ length: 10 }, (_, i) => 11 + i).filter((n) => it.slot !== n).map(keyItem) });
     items.push({ label: 'Put on a key', icon: 'plus', submenu: keyItems });
     if (it.mine) {
       if (it.slot) items.push({ label: 'Take it off its key', icon: 'x', onClick: () => offKey(it.tone) });
@@ -540,7 +559,7 @@ async function save() {
     T.saved = clone(T.draft);
     useTone(saved.id);
     T.live = false;
-    toast({ title: d.mine ? `Saved ${saved.name}` : `${saved.name} is in your tones`, message: saved.slot ? `On key ${saved.slot}` : 'Use Put on a key to play it with a number key.', kind: 'ok', timeout: 2500 });
+    toast({ title: d.mine ? `Saved ${saved.name}` : `${saved.name} is in your tones`, message: saved.slot ? `On key ${slotKeyWords(saved.slot)}` : 'Use Put on a key to play it with a key.', kind: 'ok', timeout: 2500 });
     render();
   } catch (err) {
     toast({ title: 'Couldn’t save the tone', message: err.message, kind: 'err' });
@@ -570,6 +589,7 @@ function gearChoices(slotType, kind) {
     if (slotType === 'cab') continue;
     out.push({ key, name: g.n, cat: g.c, bass: g.a ? bass : isBass }); // a: for guitar and bass alike
   }
+  if (slotType === 'pre') out.push({ key: LOOP_KEY, name: LOOP_NAME, cat: 'Utility', bass }); // 4.35: Stagehand's own A/B box
   out.sort((a, b) => (a.bass === bass ? 0 : 1) - (b.bass === bass ? 0 : 1) || a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name));
   return out;
 }
@@ -645,7 +665,7 @@ function renderEditor() {
   saveBtn.onclick = () => save();
   const revertBtn = h('button.btn.soft.te-revert', { type: 'button', html: `${icon('restore')}<span>Revert</span>`, title: 'Go back to the saved tone', hidden: !on });
   revertBtn.onclick = () => revert();
-  const keyBtn = h('button.btn.soft.te-key', { type: 'button', html: `${icon('plus')}<span>${d.mine && d.slot ? `On key ${d.slot}` : 'Put on a key'}</span>`, title: 'Put this tone on one of the keys 2–9' });
+  const keyBtn = h('button.btn.soft.te-key', { type: 'button', html: `${icon('plus')}<span>${d.mine && d.slot ? `On key ${slotKeyWords(d.slot)}` : 'Put on a key'}</span>`, title: 'Put this tone on one of the keys 2–0 or Shift + key' });
   keyBtn.onclick = (e) => keyMenu(e);
   const more = h('button.icon-btn', { type: 'button', title: 'More', 'aria-label': 'More', html: icon('more') });
   more.onclick = () => {
@@ -667,7 +687,7 @@ function renderEditor() {
   demo.classList.add('te-demo');
   // the small line over the name: guitar or bass, a real amp, where it is
   const real = realBadge(d);
-  const where = d.mine ? (d.slot ? `Key ${d.slot}` : 'Your tone') : d.from && d.from.song ? 'From a song' : d.from && d.from.preset ? 'Preset' : '';
+  const where = d.mine ? (d.slot ? `Key ${slotKeyWords(d.slot)}` : 'Your tone') : d.from && d.from.song ? 'From a song' : d.from && d.from.preset ? 'Preset' : '';
   const kicker = h('small.te-kicker', null, d.kind === 'bass' ? 'Bass' : 'Guitar', real ? [' · ', h('span.te-real', { text: 'Real', title: real.title })] : '', where ? ` · ${where}` : '');
   editCol.append(
     h('div.te-head', null, h('div.te-title', null, kicker, h('label.te-namebox', null, name, h('span.te-pen', { html: icon('edit'), 'aria-hidden': 'true' }))), demo, use),
@@ -736,8 +756,11 @@ function renderAdvanced(d) {
           renderEditor();
         })
       );
+    // 4.35: with a Loop switcher in the tone, say which loop this is in
+    if (hasLoopSwitchGear(d) && g.key !== LOOP_KEY) card.append(draftLoopChip(d, g));
     const knobs = h('div.knobs3');
-    for (const k of knobsOf(g)) {
+    if (g.key === LOOP_KEY) knobs.append(loopFace());
+    else for (const k of knobsOf(g)) {
       knobs.append(
         gearKnob(k, {
           gel: bg,
@@ -754,19 +777,36 @@ function renderAdvanced(d) {
     if (faceplate) card.append(faceplate);
     card.append(knobs);
     // 4.22: what it does and what every control does, under the knobs
+    if (g.key === LOOP_KEY) card.append(h('p.np-fine', { text: 'Two loops, one footswitch. Put pedals, an amp or a cabinet in loop A or loop B; anything left on Both always plays.' }));
+    else {
     const sheet = aboutCard({ key: g.key, t: g.slot, name: shortGearName(g.key) }, g.key);
     linkSheet(card, sheet);
     card.append(sheetFold(sheet)); // 4.24: folds to one line
+    }
     row.append(card);
   }
   row.append(cabCard(d));
   editCol.append(row);
 }
 
+function draftLoopChip(d, g) {
+  return loopChip({
+    value: g.loop,
+    name: shortGearName(g.key),
+    onPick: (v) => {
+      if (v) g.loop = v;
+      else delete g.loop;
+      changed();
+      renderEditor();
+    },
+  });
+}
+
 function cabCard(d) {
   const card = h('div.card.tint.te-cab', { style: { '--gel': 'var(--gel-bass)' } });
   card.append(h('div.card-head', null, h('h2', { text: 'Cabinet' })));
   const ci = d.gear.findIndex((g) => g.slot === 'cab');
+  if (hasLoopSwitchGear(d) && ci >= 0) card.append(draftLoopChip(d, d.gear[ci]));
   const all = cabs();
   if (ci < 0) {
     const add = h('button.btn.soft', { type: 'button', text: '+ Add a cabinet' });
@@ -877,21 +917,27 @@ async function openEditRig(pickKey = null) {
 function renderSimple(d) {
   const chain = chainText(d);
   const keys = h('div.ts-keys', { role: 'group', 'aria-label': 'Put it on a key' });
-  for (let n = 2; n <= SLOT_COUNT; n++) {
+  const keyButton = (n) => {
     const t = bySlot(n);
     const here = d.mine && d.id && t && t.id === d.id;
-    const b = h(`button.ts-key${here ? '.here' : ''}${t ? '' : '.vacant'}`, { type: 'button', style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: here ? `${d.name} is on key ${n}` : t ? `Put ${d.name} on key ${n} (asks first: ${t.name} is there)` : `Put ${d.name} on key ${n}` });
-    b.append(h('b', { text: String(n) }), h('span', { text: here ? 'This tone' : t ? t.name : 'Empty' }));
+    const b = h(`button.ts-key${here ? '.here' : ''}${t ? '' : '.vacant'}`, { type: 'button', style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: here ? `${d.name} is on key ${slotKeyWords(n)}` : t ? `Put ${d.name} on key ${slotKeyWords(n)} (asks first: ${t.name} is there)` : `Put ${d.name} on key ${slotKeyWords(n)}` });
+    b.append(h('b', { text: slotKey(n) }), h('span', { text: here ? 'This tone' : t ? t.name : 'Empty' }));
     b.onclick = () => !here && putOnKey(n);
-    keys.append(b);
-  }
+    return b;
+  };
+  for (let n = 2; n <= 10; n++) keys.append(keyButton(n));
+  const shift = shiftToggle(() => renderEditor());
+  const shiftKeys = shift.show ? h('div.ts-keys', { role: 'group', 'aria-label': 'Put it on a key with Shift' }) : null;
+  if (shiftKeys) for (let n = 11; n <= SLOT_COUNT; n++) shiftKeys.append(keyButton(n));
   const box = h(
     'div.ts-simple',
     null,
     h('div.ts-what', null, h('span.ts-label', { text: 'Chain' }), h('span.ts-chain', { text: chain || 'No gear yet' })),
     h('h3.ts-h', { text: 'Put it on a key' }),
-    h('p.ts-note', { text: 'Press its number while you play (on the highway or in Jam) to switch. Key 1 always follows the song’s own tones. If a key already holds a tone, you’re asked first, and you can undo it.' }),
+    h('p.ts-note', { text: 'Press its key while you play (on the highway or in Jam) to switch: 0 is the tenth, and Shift with a key reaches ten more. Key 1 always follows the song’s own tones. If a key already holds a tone, you’re asked first, and you can undo it.' }),
     keys,
+    shift.bar,
+    shiftKeys || '',
     // the gear itself, under the keys (click a piece to edit it)
     (d.gear && d.gear.length) ? gearLineup(d, { onPick: (_i, g) => { T.block = d.gear.indexOf(g); setAdvanced(true); } }) : ''
   );

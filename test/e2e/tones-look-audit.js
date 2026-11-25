@@ -63,8 +63,8 @@ module.exports = async ({ page, outDir, check }) => {
   });
   check(info.title === 'Tones' && info.upper === 'uppercase', `the page head says TONES in capitals (${info.title}, ${info.upper})`);
   check(/tone/.test(info.count), `with a count line under it (“${info.count}”)`);
-  check(info.keys === 9 && info.create, `keys 1–9 and Create tone are there (${info.keys})`);
-  check(info.name && info.putKeys === 8, `the picked tone has its name to edit and keys 2–9 to put it on (${info.putKeys})`);
+  check(info.keys === 10 && info.create, `keys 1–0 and Create tone are there (${info.keys})`);
+  check(info.name && info.putKeys === 9, `the picked tone has its name to edit and keys 2–0 to put it on (${info.putKeys})`);
 
   // renaming still works: the name is the title, typing changes it and Save changes appears
   const nameEl = page.locator('.tones-edit [aria-label="Tone name"]');

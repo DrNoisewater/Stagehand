@@ -145,7 +145,7 @@ input[type='range'].glow-range:disabled { opacity: 0.4; }
 .play-note { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: rgba(255, 181, 71, 0.08); border: 1px solid rgba(255, 181, 71, 0.3); color: var(--tungsten-hi); font-size: 13px; }
 .play-note.err { background: rgba(255, 107, 107, 0.08); border-color: rgba(255, 107, 107, 0.35); color: #ffb3b3; }
 
-.slots { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 10px; }
+.slots { display: block; } /* holds the two rows of slots (slotgrid.js) */
 .slot { --gel: #363d42; position: relative; height: 86px; padding: 10px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 5px; text-align: left; color: var(--ink); background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)), var(--card); border: 1px solid var(--card-line); min-width: 0; }
 .slot:hover { border-color: color-mix(in srgb, var(--gel) 50%, transparent); }
 .slot .sl-top { display: flex; align-items: center; gap: 6px; }
@@ -1641,7 +1641,7 @@ body.modal-open .toasts { right: auto; left: 18px; width: min(320px, calc(100vw 
 .te-save:disabled { opacity: 0.6; cursor: default; }
 .te-dirty { color: #ffb547; }
 
-/* 4.1.9 the highway's tone menu: now playing, keys 1-9, the song's tones, search */
+/* 4.1.9 the highway's tone menu: now playing, keys 1-20, the song's tones, search */
 .tm { position: fixed; z-index: 400; width: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; border: 1px solid #3b4248; background: rgba(14, 18, 30, 0.97); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55); color: var(--ink); }
 .tm h4 { margin: 4px 0 0; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #a3afb5; font-weight: 700; }
 .tm-now { --gel: #ffb547; display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 11px; background: linear-gradient(90deg, color-mix(in srgb, var(--gel) 20%, transparent), transparent), #141a2a; border: 1px solid color-mix(in srgb, var(--gel) 45%, transparent); }
@@ -2451,3 +2451,44 @@ body:has(.highway:not([hidden])) .menu .label { color: #a99e8c; text-transform: 
 .gr-tone-text b { font-size:15px; color:#f3e9ff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .gr-tone-text .gr-song { color:var(--ink-3); font-size:12px; }
 .gr-tone .gr-acts { grid-column:2; display:flex; flex-wrap:wrap; gap:6px; }
+
+/* 4.35 tone slots: two rows of ten (Keys, Shift +), see slotgrid.js */
+.sg { --sg-cols: 10; display: flex; flex-direction: column; gap: 6px; }
+.sg-group { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; align-items: center; }
+.sg-top .sg-group { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.sg-label { justify-self: start; padding: 0; border: 0; background: none; font: inherit; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #a3afb5; }
+button.sg-label { cursor: pointer; }
+button.sg-label:hover { color: var(--ink); }
+.sg-row { display: grid; grid-template-columns: repeat(var(--sg-cols), minmax(0, 1fr)); gap: 5px; }
+.sg-slot { --gel: #363d42; position: relative; display: flex; align-items: center; gap: 6px; min-width: 0; height: 30px; padding: 0 6px; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--gel) 40%, #252d44); background: color-mix(in srgb, var(--gel) 9%, #121827); color: var(--ink, #e7eaf5); font: inherit; text-align: left; cursor: pointer; }
+.sg-slot:hover:not(.vacant) { background: color-mix(in srgb, var(--gel) 20%, #121827); }
+.sg-k { flex: none; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 2px; border-radius: 6px; background: color-mix(in srgb, var(--gel) 25%, transparent); color: var(--gel); font-size: 11.5px; font-weight: 800; }
+.sg-t { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.sg-name { font-size: 12px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sg-sub { font-size: 10px; color: #a3afb5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sg-slot.on { border-color: var(--gel); background: linear-gradient(180deg, color-mix(in srgb, var(--gel) 24%, transparent), color-mix(in srgb, var(--gel) 6%, transparent)), var(--card, #121827); box-shadow: 0 0 0 1px var(--gel); }
+.sg-slot.on .sg-k { background: var(--gel); color: #10131c; box-shadow: 0 0 8px var(--gel); }
+.sg-slot.vacant { height: 24px; justify-content: center; padding: 0; border: 1px dashed #363d42; background: transparent; }
+.sg-slot.vacant .sg-k { background: transparent; color: #59627f; font-weight: 600; }
+.sg-slot.vacant:hover { border-color: #54626a; }
+.sg-slot[aria-disabled='true'] { cursor: default; }
+.sg-bare .sg-slot { justify-content: center; padding: 0; height: 28px; }
+.sg-bare .sg-slot.vacant { height: 28px; }
+.sg-cards .sg-slot { height: 52px; padding: 0 8px; gap: 8px; border-radius: 12px; }
+.sg-cards .sg-slot.vacant { height: 52px; }
+.sg-cards .sg-k { min-width: 24px; height: 24px; font-size: 12.5px; }
+.sg-cards .sg-name { font-size: 13px; font-weight: 650; }
+.sg-cards .sg-slot.on .eq { height: 12px; }
+.sg-more { display: flex; align-items: center; gap: 6px; width: 100%; height: 24px; padding: 0 10px; border-radius: 9px; border: 1px dashed #363d42; background: transparent; color: #a3afb5; font: inherit; font-size: 11.5px; cursor: pointer; }
+.sg-more:hover { border-color: #54626a; color: var(--ink); }
+.sg-more svg { width: 12px; height: 12px; }
+.slots > .sg:hover { transform: none; }
+@media (max-width: 1050px) { .sg-cards .sg-sub { display: none; } }
+@media (max-width: 800px) { .sg-cards { --sg-cols: 5; } .sg-cards .sg-group { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+/* in the narrow tone menu the key sits over the name so the names stay readable */
+.sg-top .sg-slot:not(.vacant) { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; height: 40px; padding: 0 7px; }
+.sg-top .sg-slot:not(.vacant) .sg-k { min-width: 0; height: 15px; padding: 0 5px; font-size: 10.5px; border-radius: 5px; }
+.sg-top .sg-slot:not(.vacant) .sg-t { width: 100%; flex: none; }
+.sg-top .sg-name { font-size: 11.5px; }
+.sg-top.sg-bare .sg-slot:not(.vacant) { flex-direction: row; align-items: center; justify-content: center; height: 28px; padding: 0; }
+.sg-top.sg-bare .sg-slot:not(.vacant) .sg-k { height: 20px; font-size: 11.5px; }

@@ -85,7 +85,7 @@ function renderHud() {
   const t = rig.playing;
   tone.innerHTML = `${icon('guitar')}${instrumentTag(rig)}<span>${esc(t ? t.name || 'Tone' : 'Tone')}</span>`;
   tone.classList.toggle('off', !rig.on || rig.muted);
-  tone.title = !rig.on ? 'Plug in your Rocksmith cable' : rig.muted ? 'Your guitar is muted' : 'Your tone (1–9 for your slots)';
+  tone.title = !rig.on ? 'Plug in your Rocksmith cable' : rig.muted ? 'Your guitar is muted' : 'Your tone (1–0 for your slots, Shift+1–0 for ten more)';
   drumBtn.innerHTML = `${icon('drum')}<span>${drums.on ? `${drums.bpm} bpm` : 'Drums'}</span>`;
   drumBtn.setAttribute('aria-pressed', String(!!drums.on));
 }

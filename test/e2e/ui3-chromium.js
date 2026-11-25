@@ -510,7 +510,7 @@ class FakePortMain extends EventEmitter {
     }
     await page.locator('.nav-section:has-text("Tones")').click();
     await page.waitForTimeout(1000);
-    check((await page.locator('.tk-keys .tk-card').count()) === 9, 'Tones shows your keys 1–9 at the top');
+    check((await page.locator('.tk-keys .tk-card').count()) === 10, 'Tones shows your keys 1–0 at the top (the Shift row folds away while empty)');
     check((await page.locator('.tones-sec.mine').count()) === 1 && (await page.locator('.tones-sec.find').count()) === 1, 'then your tones, then Find a tone');
     check((await page.locator('.tones-list .gate-ctl .seg button').count()) === 3, 'the noise gate switch (Auto / Strong / Off) is on Tones');
     // clicking a key that holds a tone only picks it
@@ -659,7 +659,7 @@ class FakePortMain extends EventEmitter {
     await page.waitForTimeout(400);
     await page.locator('button.hw-chip[title="Tone for your guitar"]').click();
     await page.waitForTimeout(500);
-    check((await page.locator('.tm .tm-keys .tm-key').count()) === 9, 'the highway tone menu shows keys 1–9');
+    check((await page.locator('.tm .sg .sg-slot').count()) === 10 && (await page.locator('.tm .sg-more').count()) === 1, 'the highway tone menu shows keys 1–0 and a slim Shift + key line');
     check((await page.locator('.tm .tm-now strong').count()) === 1 && (await page.locator('.tm button:has-text("Edit this tone")').count()) === 1 && (await page.locator('.tm button:has-text("Create a tone")').count()) === 1, 'with what is playing now, Edit this tone and Create a tone');
     await shot('55-highway-tone-menu');
     // pressing a number with the menu open: the menu follows
@@ -929,7 +929,7 @@ class FakePortMain extends EventEmitter {
     const c1 = t.find((x) => x.id === 't_old1'), c2 = t.find((x) => x.id === 't_old2'), ch = t.find((x) => x.from && x.from.preset === 'chime');
     check(c1 && c1.slot === 1 && c1.gear.find((g) => g.slot === 'amp').knobs.Gain === 31, 'an untouched old preset in slot 1 is brought up to the real-amp version');
     check(c2 && c2.gear.find((g) => g.slot === 'amp').knobs['Loudness 1'] === 70, 'a preset you edited stays as you made it');
-    check(ch && ch.slot === 9, `the new Chime preset takes a free slot (${ch && ch.slot})`);
+    check(ch && ch.slot === 3, `the new Chime preset takes a free slot (${ch && ch.slot})`);
     await browser.close();
     relay.quit();
     server.close();
@@ -944,8 +944,8 @@ class FakePortMain extends EventEmitter {
   await shot('1-play');
   const st = await page.locator('.guitar-card .gc-top').textContent().catch(() => '');
   check(/Guitar ready/.test(st || ''), `guitar starts by itself: “${(st || '').trim()}”`);
-  check((await page.locator('.slot').count()) === 9, 'nine tone slots');
-  check((await page.locator('.slot.on').count()) === 1, 'one slot is playing');
+  check((await page.locator('.slots .sg-slot').count()) === 10, 'ten tone slots in the first row (the Shift row is folded)');
+  check((await page.locator('.slots .sg-slot.on').count()) === 1, 'one slot is playing');
   // slot key
   await page.keyboard.press('Digit4');
   await page.waitForTimeout(600);
@@ -1211,7 +1211,7 @@ class FakePortMain extends EventEmitter {
   await page.waitForTimeout(2500);
   await page.locator('button.hw-chip[title="Tone for your guitar"]').click();
   await page.waitForTimeout(500);
-  check((await page.locator('.tm .tm-keys .tm-key').count()) === 9, 'highway tone menu lists your keys 1–9');
+  check((await page.locator('.tm .sg .sg-slot').count()) === 10, 'highway tone menu lists your keys 1–0 (Shift row folded)');
   await shot('12-highway-tones');
   await page.keyboard.press('Escape');
 

@@ -15,7 +15,7 @@ import { vibratoAt } from './performance-math.js';
 import { h, icon, esc, showMenu, toast } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
-import { tonelib, useTone } from './tonelib.js';
+import { tonelib, useTone, slotKey } from './tonelib.js';
 import { VENUES, createVenue, createFire } from './venues.js';
 import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
@@ -253,12 +253,12 @@ export function createClassicHighway(stage) {
       items.push({ heading: true, label: 'This song' }, { label: `Song tone${cur ? ` (${cur.name})` : ''}`, hint: c(song || followsSong()), onClick: () => chooseTone('song') }, '-');
     }
     const on = (id) => c(!song && !followsSong() && rig.toneId === id);
-    // your slots first (same as keys 1–9), then your other saved tones, then the presets
+    // your slots first (same as the keys), then your other saved tones, then the presets
     const mine = tonelib.list || [];
     const slots = mine.filter((t) => t.slot).sort((a, b) => a.slot - b.slot);
     if (slots.length) {
-      items.push({ heading: true, label: 'Your slots (keys 1–9)' });
-      for (const t of slots) items.push({ label: `${t.slot}  ${t.name}`, hint: on(t.id), onClick: () => chooseTone(t.id) });
+      items.push({ heading: true, label: 'Your slots (keys 1–0, Shift+1–0)' });
+      for (const t of slots) items.push({ label: `${slotKey(t.slot)}  ${t.name}`, hint: on(t.id), onClick: () => chooseTone(t.id) });
       items.push('-');
     }
     const others = mine.filter((t) => !t.slot && !TONES.some((p) => p.id === t.id));

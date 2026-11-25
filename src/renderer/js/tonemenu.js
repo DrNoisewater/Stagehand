@@ -1,6 +1,6 @@
 /**
- * The highway's tone menu (4.1.9): what you're playing now, your keys 1–9 (the same
- * as pressing the number), this song's own tones, a quick search, and Edit this tone /
+ * The highway's tone menu (4.1.9): what you're playing now, your keys 1–20 (the same
+ * as pressing the key), this song's own tones, a quick search, and Edit this tone /
  * Create a tone. It stays up to date while open: press a number, or let the song
  * change tone, and it follows.
  *
@@ -11,7 +11,8 @@ import { did } from './rewards.js';
 import { h, icon, closeMenu } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { emit, on, setPage } from './store.js';
-import { tonelib, bySlot, byId, activeSlot, nowPlayingTone, gelOf, SLOT_GELS, SLOT_COUNT } from './tonelib.js';
+import { tonelib, byId, activeSlot, nowPlayingTone, gelOf, slotKey, slotKeyWords } from './tonelib.js';
+import { slotGrid } from './slotgrid.js';
 import { describeTone, groupSongTones } from './tonesongs.js';
 import { normText } from './searchmatch.js';
 import { gateControl } from './pedalboard.js';
@@ -59,7 +60,7 @@ export function openToneMenu(anchor, ctx) {
     const slot = activeSlot();
     const box = h('div.tm-now', { style: { '--gel': np.gel || '#ffb547' } });
     box.append(
-      h('b.tm-n', { text: slot ? String(slot) : '·' }),
+      h('b.tm-n', { text: slot ? slotKey(slot) : '·' }),
       h('div.tm-now-main', null, h('small', { text: auto ? 'Following the song' : 'Playing now' }), h('strong', { text: np.name || 'Tone' }), h('span', { text: [desc && desc.text, auto ? null : np.from].filter(Boolean).join(' · ') }))
     );
     const cap = rig.capture;
@@ -74,21 +75,15 @@ export function openToneMenu(anchor, ctx) {
   }
 
   function keys() {
-    const grid = h('div.tm-keys', { role: 'group', 'aria-label': 'Your keys' });
-    const cur = activeSlot();
     const hasSong = !!(ctx.songTones && ctx.songTones());
-    const k1 = h(`button.tm-key${cur === 1 ? '.on' : ''}`, { type: 'button', style: { '--gel': SLOT_GELS[0] }, title: 'Key 1: follow the song’s own tones' });
-    k1.append(h('b', { text: '1' }), h('span', { text: hasSong ? 'Song’s tones' : 'Follows the song' }));
-    k1.onclick = pick(() => ctx.chooseTone('song'));
-    grid.append(k1);
-    for (let n = 2; n <= SLOT_COUNT; n++) {
-      const t = bySlot(n);
-      const b = h(`button.tm-key${t ? '' : '.vacant'}${cur === n ? '.on' : ''}`, { type: 'button', disabled: t ? null : true, style: { '--gel': t ? gelOf(t) : SLOT_GELS[n - 1] }, title: t ? `Key ${n}: ${t.name}` : `Key ${n} is empty (put a tone on it in Tones)` });
-      b.append(h('b', { text: String(n) }), h('span', { text: t ? t.name : 'Empty' }));
-      if (t) b.onclick = pick(() => (did('tone-try'), ctx.chooseTone(t.id)));
-      grid.append(b);
-    }
-    return grid;
+    return slotGrid({
+      cols: 5,
+      emptyPick: false,
+      active: activeSlot(),
+      song: { name: hasSong ? 'Song’s tones' : 'Song', tip: 'Key 1: follow the song’s own tones' },
+      tip: (n, t) => (n === 1 ? 'Key 1: follow the song’s own tones' : t ? `Key ${slotKeyWords(n)}: ${t.name}` : `Key ${slotKeyWords(n)} is empty (put a tone on it in Tones)`),
+      onPick: (n, t) => (n === 1 ? pick(() => ctx.chooseTone('song'))() : pick(() => (did('tone-try'), ctx.chooseTone(t.id)))()),
+    });
   }
 
   function songList() {
@@ -129,7 +124,7 @@ export function openToneMenu(anchor, ctx) {
         return words.every((w) => hay.includes(` ${w}`) || (w.length >= 4 && hay.includes(w)));
       };
       const out = [];
-      for (const t of tonelib.list || []) if (hit(`${t.name} ${describeTone(t).text} ${t.from && t.from.song ? t.from.song : ''} mine`)) out.push({ name: t.name, sub: `${t.slot ? `Key ${t.slot} · ` : ''}${describeTone(t).text}`, gel: gelOf(t), go: () => ctx.chooseTone(t.id) });
+      for (const t of tonelib.list || []) if (hit(`${t.name} ${describeTone(t).text} ${t.from && t.from.song ? t.from.song : ''} mine`)) out.push({ name: t.name, sub: `${t.slot ? `Key ${slotKeyWords(t.slot)} · ` : ''}${describeTone(t).text}`, gel: gelOf(t), go: () => ctx.chooseTone(t.id) });
       for (const t of TONES) if (hit(`${t.name} ${t.desc} ${describeTone(t).text} preset`)) out.push({ name: t.name, sub: `Preset · ${t.desc}`, gel: t.kind === 'bass' ? '#8c7bff' : '#ffb547', go: () => ctx.chooseTone(t.id) });
       if (tonelib.library) {
         const r = groupSongTones(tonelib.library, { query, kind, limit: 12 });
@@ -204,7 +199,7 @@ export function openToneMenu(anchor, ctx) {
     el.style.maxHeight = `${Math.max(240, window.innerHeight - r.bottom - 18)}px`;
   }
 
-  // follow the rig: keys 1–9, the song changing tone, a tone saved elsewhere
+  // follow the rig: the keys, the song changing tone, a tone saved elsewhere
   let raf = 0;
   const redraw = () => {
     cancelAnimationFrame(raf);

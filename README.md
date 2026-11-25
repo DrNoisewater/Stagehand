@@ -37,7 +37,7 @@ A note highway, tab and live amp tones through the Rocksmith cable. Split any so
 
 Plug in the Rocksmith cable and your guitar is live straight away, no song needed.
 
-- **Tones on keys 1–9.** **1** follows the song's own tone; **2–9** are your saved tones. Click any pedal, amp or cabinet to turn its knobs.
+- **Tones on your keys.** **1** follows the song's own tone; **2** to **9** and **0** are your saved tones, and holding **Shift** with those keys gives you ten more (20 in all). Click any pedal, amp or cabinet to turn its knobs.
 - **Guitar or bass:** choose which you're playing in **Settings › Guitar or bass**. A bass part played on guitar is scored an octave up.
 - **Tuner, Drop and input level.** The **Drop** lowers your instrument up to 7 semitones or an octave, so you can play E♭, D or C♯ songs without retuning. Press **D** anywhere.
 - **Jam** is the home screen: rig, tuner, Drop, drums and looper in one place. **Play over song** lets you improvise over a song with your part muted.
@@ -115,17 +115,18 @@ The Quest must be on the same home network as the PC. Nothing is installed on th
 | <kbd>←</kbd> <kbd>→</kbd> | Back / forward 5 s (<kbd>Shift</kbd>: 15 s) on the highway, waveform and tab view; on the Gear page the arrows move between pedals |
 | <kbd>Enter</kbd> | Open the selected song |
 | <kbd>1</kbd> | Follow the song's tone |
-| <kbd>2</kbd>–<kbd>9</kbd> | Switch to the tone in that slot |
+| <kbd>2</kbd>–<kbd>9</kbd>, <kbd>0</kbd> | Switch to the tone in that slot (<kbd>0</kbd> is the tenth) |
+| <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd>, <kbd>Shift</kbd>+<kbd>0</kbd> | Ten more tone slots |
 | <kbd>U</kbd> | Tuner (on the highway and in the tab view) |
 | <kbd>[</kbd> <kbd>]</kbd> | Slower / faster (25% to 150%) |
-| <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>6</kbd> | Turn a stem off or on (<kbd>Shift</kbd>+<kbd>Alt</kbd>: solo) |
+| <kbd>Ctrl</kbd>+<kbd>1</kbd>–<kbd>6</kbd> | Turn a stem off or on (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>: solo) |
 | <kbd>H</kbd> | Note highway (<kbd>Esc</kbd> to go back) |
 | <kbd>T</kbd> | Tab view / waveform view |
 | <kbd>J</kbd> | Jam |
 | <kbd>D</kbd> | Drop on / off |
 | <kbd>L</kbd> | Loop the current section (<kbd>Esc</kbd> clears it) |
 | <kbd>M</kbd> | Original mix / stems |
-| <kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd> | Zoom in / out / whole song |
+| <kbd>+</kbd> <kbd>−</kbd> <kbd>Ctrl</kbd>+<kbd>0</kbd> | Zoom in / out / whole song |
 | <kbd>F2</kbd> or <kbd>Ctrl</kbd>+<kbd>E</kbd> | Edit details |
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> | Search (MusicBrainz while in Discover) |
 | <kbd>Ctrl</kbd>+<kbd>,</kbd> | Settings |

@@ -23,7 +23,7 @@ import { rig } from './rig.js';
 import { loadGear } from './gearspec.js';
 import { caps, loadCaptures, realAmpsOn, setRealAmps, packForCurated, resolveCapture } from './captures.js';
 import { getRealAmp, getAllRealAmps, batch } from './realamps.js';
-import { saveTone, useTone, bySlot, freeSlot, SLOT_COUNT, SLOT_GELS } from './tonelib.js';
+import { saveTone, useTone, bySlot, freeSlot, SLOT_COUNT, SLOT_GELS, slotKey, slotKeyWords } from './tonelib.js';
 import { rotaryKnob, gearFaceplate } from './rigui.js';
 import { ampArt, cabArt, pedalArt, gearArt } from './gearart.js';
 
@@ -297,6 +297,12 @@ export async function openStepByStep({ kind = null } = {}) {
           kind: W.kind,
           board: W.board,
           ampKey: amp.key,
+          loops: { amp: W.ampLoop, cab: W.cabLoop },
+          onLoops: (l) => {
+            W.ampLoop = l.amp;
+            W.cabLoop = l.cab;
+            hear();
+          },
           onChange: (b) => {
             W.board = b;
             hear();
@@ -347,8 +353,8 @@ export async function openStepByStep({ kind = null } = {}) {
       const box = h('div');
       if (saved) {
         box.append(
-          h('div.gs-status.ok', null, h('span.gs-dot'), h('span', { text: `Saved “${saved.name}”${saved.slot ? ` on key ${saved.slot}` : ''}. You’re playing it now.` })),
-          p(saved.slot ? `Press ${saved.slot} any time to switch to it, on the Jam page or while you play a song. It’s in Tones › My tones, where you can change anything later.` : 'It’s in Tones › My tones, where you can put it on a key or change anything later.')
+          h('div.gs-status.ok', null, h('span.gs-dot'), h('span', { text: `Saved “${saved.name}”${saved.slot ? ` on key ${slotKeyWords(saved.slot)}` : ''}. You’re playing it now.` })),
+          p(saved.slot ? `Press ${slotKeyWords(saved.slot)} any time to switch to it, on the Jam page or while you play a song. It’s in Tones › My tones, where you can change anything later.` : 'It’s in Tones › My tones, where you can put it on a key or change anything later.')
         );
         const again = h('button.btn', { type: 'button', html: `${icon('plus')}<span>Create another</span>` });
         again.onclick = () => {
@@ -373,11 +379,11 @@ export async function openStepByStep({ kind = null } = {}) {
       box.append(rigRow(), h('label.te-field', null, h('span', { text: 'Name' }), name));
       const pedals = (W.board || []).filter((x) => !x.off).map((x) => (PEDALS[W.kind].find((q) => q.key === x.key) || {}).name).filter(Boolean);
       box.append(h('p.fine', { text: `${a ? a.name : ''}${W.ir ? ' · your own cabinet' : W.cab !== 'auto' ? ` · ${(CABS[W.kind].find((c) => c[0] === W.cab) || [])[1] || ''}` : ''}${pedals.length ? ` · ${pedals.join(', ').toLowerCase()}` : ''}${W.reverb > 0.02 ? ' · reverb' : ''}` }));
-      box.append(h('h4', { text: 'Put it on a key' }), p('Keys 2–9 switch tones while you play (key 1 is the song’s own tone).'));
+      box.append(h('h4', { text: 'Put it on a key' }), p('Keys 2–0 and Shift + key switch tones while you play (key 1 is the song’s own tone).'));
       const keys = h('div.tw-keys');
       for (let n = 2; n <= SLOT_COUNT; n++) {
         const t = bySlot(n);
-        const b = h(`button.tw-key${W.slot === n ? '.on' : ''}`, { type: 'button', 'aria-pressed': String(W.slot === n), style: { '--gel': SLOT_GELS[n - 1] } }, h('b', { text: String(n) }), h('span', { text: t ? `replaces ${t.name}` : 'empty' }));
+        const b = h(`button.tw-key${W.slot === n ? '.on' : ''}`, { type: 'button', 'aria-pressed': String(W.slot === n), style: { '--gel': SLOT_GELS[n - 1] } }, h('b', { text: slotKey(n) }), h('span', { text: t ? `replaces ${t.name}` : 'empty' }));
         b.onclick = () => {
           W.slot = n;
           draw();
@@ -403,7 +409,7 @@ export async function openStepByStep({ kind = null } = {}) {
       saved = t;
       did('tone-make');
       useTone(t.id);
-      toast({ title: `Saved “${t.name}”`, message: t.slot ? `On key ${t.slot}.` : 'In Tones › My tones.', kind: 'ok', timeout: 3500 });
+      toast({ title: `Saved “${t.name}”`, message: t.slot ? `On key ${slotKeyWords(t.slot)}.` : 'In Tones › My tones.', kind: 'ok', timeout: 3500 });
       draw();
     } catch (err) {
       toast({ title: 'Couldn’t save the tone', message: err.message, kind: 'err' });

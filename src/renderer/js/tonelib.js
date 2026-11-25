@@ -1,7 +1,7 @@
 import { did } from './rewards.js';
 import {toneToast} from './ui.js';
 /**
- * Your tones: the saved list (tones.json via the main process), slots 1–9,
+ * Your tones: the saved list (tones.json via the main process), slots 1–20,
  * and helpers for using, saving and copying tones. The rig looks saved tones
  * up by id (rig.registerTones).
  */
@@ -9,11 +9,18 @@ import { api } from './api.js';
 import { rig, TONES } from './rig.js';
 import { loadGear, describe, gearName, gearInfo } from './gearspec.js';
 import { emit } from './store.js';
-import { slotChange } from './toneslots.js';
+import { slotChange, slotKey, slotKeyWords } from './toneslots.js';
 
-export const SLOT_COUNT = 9;
-/** One colour per slot, from the stem gels, so a slot looks the same everywhere. */
-export const SLOT_GELS = ['#33c8e0', '#ffb547', '#ff6b3d', '#ff4d8d', '#8c7bff', '#9bdb5a', '#b0b8d4', '#ff8a5c', '#5fd4c4'];
+export const SLOT_COUNT = 20;
+const BASE_GELS = ['#33c8e0', '#ffb547', '#ff6b3d', '#ff4d8d', '#8c7bff', '#9bdb5a', '#b0b8d4', '#ff8a5c', '#5fd4c4', '#e3d65a'];
+const lighter = (hex) => {
+  const c = (i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * 0.72 + 255 * 0.28).toString(16).padStart(2, '0');
+  return `#${c(1)}${c(3)}${c(5)}`;
+};
+/** One colour per slot, from the stem gels, so a slot looks the same everywhere. Slots 11–20 (Shift) are
+ * a little lighter than the same key in the first row, so key 3 and Shift+3 look related. */
+export const SLOT_GELS = [...BASE_GELS, ...BASE_GELS.map(lighter)];
+export { slotKey, slotKeyWords };
 export const TYPE_GELS = { pre: '#ff4d8d', post: '#ff4d8d', amp: '#ff6b3d', cab: '#8c7bff', rack: '#33c8e0' };
 export const TYPE_NAMES = { pre: 'Pedal', post: 'Pedal', amp: 'Amp', cab: 'Cabinet', rack: 'Rack' };
 
@@ -58,7 +65,7 @@ async function upgradePresets(list) {
   }
   // the new preset gets an empty slot if there is one
   const chime = TONES.find((p) => p.id === 'chime');
-  const free = [9, 8, 7, 6, 5, 4, 3, 2].find((n) => !list.some((t) => t.slot === n));
+  const free = Array.from({ length: SLOT_COUNT - 1 }, (_, i) => i + 2).find((n) => !list.some((t) => t.slot === n));
   if (chime && free && !list.some((t) => t.from && t.from.preset === 'chime')) {
     await api.tones.save({ name: chime.name, kind: chime.kind, gear: chime.gear, slot: free, from: { preset: 'chime' } });
     changed = true;
@@ -71,7 +78,7 @@ export async function loadTones() {
   let d = await api.tones.get();
   if (!d.seeded) {
     // First run: Stagehand's presets fill slots 1–8 as your own tones.
-    const seed = TONES.map((t, i) => ({ name: t.name, kind: t.kind, gear: t.gear, slot: i < SLOT_COUNT-1 ? i + 2 : null, from: { preset: t.id } }));
+    const seed = TONES.map((t, i) => ({ name: t.name, kind: t.kind, gear: t.gear, slot: i < 8 ? i + 2 : null, from: { preset: t.id } }));
     d = await api.tones.seed(seed);
   } else {
     let done = false;
@@ -153,19 +160,19 @@ export function useSlot(n) {
     let done = null;
     rig.dispatchEvent(new CustomEvent('song-auto', { detail: { reply: (p) => (done = p) } }));
     emit('tones');
-    toneToast(1, 'the song’s own tones', done || Promise.resolve({ ok: false, error: 'open a song first: key 1 follows its tones.' }));
+    toneToast(slotKeyWords(1), 'the song’s own tones', done || Promise.resolve({ ok: false, error: 'open a song first: key 1 follows its tones.' }));
     return true;
   }
   const t = bySlot(n);
   if (!t) {
-    toneToast(n, 'No Tone Assigned');
+    toneToast(slotKeyWords(n), 'No Tone Assigned');
     return false;
   }
   try {
     localStorage.setItem('stagehand.slot', String(n));
   } catch (_) {}
   did('tone-try');
-  toneToast(n, t.name, rig.setTone(t.id));
+  toneToast(slotKeyWords(n), t.name, rig.setTone(t.id));
   emit('tones');
   return true;
 }

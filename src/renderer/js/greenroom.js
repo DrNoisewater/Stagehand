@@ -667,7 +667,7 @@ function catSeg(items, redraw) {
 // ------------------------------------------------------------ shared tones --
 /**
  * 4.24: every tone in a clip someone here is showing. Get it (it comes from their PC with the clip's
- * details), then Try it, Save a copy, or put it on a key (2–9; the key's tone is asked about first).
+ * details), then Try it, Save a copy, or put it on a key (2–20; the key's tone is asked about first).
  * Slot 1 always follows the song. Nothing of yours is overwritten: a copy is saved.
  */
 const toneGot = new Map(); // `${addr}:${clipId}` -> the tone (once fetched)
@@ -725,20 +725,20 @@ function toneCard(p, c) {
 }
 async function equipMenu(e, tone, who) {
   const r = e.currentTarget.getBoundingClientRect();
-  const { bySlot, saveTone, SLOT_COUNT } = await import('./tonelib.js');
+  const { bySlot, saveTone, SLOT_COUNT, slotKeyWords } = await import('./tonelib.js');
   const items = [{ heading: true, label: 'Put a copy on key…' }];
-  for (let n = 2; n <= (SLOT_COUNT || 9); n++) {
+  for (let n = 2; n <= (SLOT_COUNT || 20); n++) {
     const cur = bySlot(n);
     items.push({
-      label: cur ? `${n} · replaces ${cur.name}` : `${n} · empty`,
+      label: cur ? `${slotKeyWords(n)} · replaces ${cur.name}` : `${slotKeyWords(n)} · empty`,
       onClick: async () => {
-        if (cur && !(await confirmDialog({ title: `Put it on key ${n}?`, message: `Key ${n} has “${cur.name}”. That tone stays in your tones; only the key changes.`, confirm: `Use key ${n}` }))) return;
+        if (cur && !(await confirmDialog({ title: `Put it on key ${slotKeyWords(n)}?`, message: `Key ${slotKeyWords(n)} has “${cur.name}”. That tone stays in your tones; only the key changes.`, confirm: `Use key ${slotKeyWords(n)}` }))) return;
         try {
           const saved = await saveTone({ name: tone.name, kind: tone.kind === 'bass' ? 'bass' : 'guitar', gear: tone.gear, capture: tone.capture || null, cabId: tone.cabId || null, autoCab: tone.autoCab !== false, slot: n, from: { song: `${who} (Backstage)` } });
           const { emit } = await import('./store.js');
           emit('tones');
           did('backstage-tone');
-          toast({ title: `“${saved.name}” is on key ${n}`, message: `From ${who}. Press ${n} while you play to switch to it.`, kind: 'ok' });
+          toast({ title: `“${saved.name}” is on key ${slotKeyWords(n)}`, message: `From ${who}. Press ${slotKeyWords(n)} while you play to switch to it.`, kind: 'ok' });
         } catch (err) {
           toast({ title: 'Couldn’t save that tone', message: err.message, kind: 'err' });
         }
