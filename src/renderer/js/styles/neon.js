@@ -216,6 +216,10 @@ vec3 hdSky(HDSky s) {
 
 const GEM = /* glsl */ `
 ${COMMON}
+// 4.34.2: cut crystal, now a solid bevelled block. The flat table shows the room through the glass and the
+// string's colour glowing from the heart; four facets slope round it, each lit differently by the key light;
+// the bevel is an edge of coloured light. The string's colour stays clear (the glow is in it, only the thin
+// cut lines go toward white), and nothing rolls off to a white blob on a hit.
 vec4 hdGem(HDGem g) {
   vec3 cam = vec3(uCamPos.x, uCamPos.y, -uCamPos.z);
   vec3 vd = normalize(g.wp - cam);
@@ -223,7 +227,7 @@ vec4 hdGem(HDGem g) {
   bool missed = g.missed > 0.5;
   vec3 base = missed ? vec3(0.15, 0.17, 0.21) : g.col;
   float front = smoothstep(0.85, 0.99, -nl.z);
-  // the cut: a flat table in the middle, four bevelled facets round it
+  // the cut: a flat table in the middle, four facets round it
   vec2 P = g.l.xy * g.size;
   vec2 fwv = fwidth(P);
   float fwP = max(fwv.x, fwv.y) + 1e-5;
@@ -239,39 +243,47 @@ vec4 hdGem(HDGem g) {
   vec3 V = -vd;
   float fr = hdFresnel(N, V, 3.0);
   vec3 r = reflect(vd, N);
-  vec3 env = r.y > 0.0 ? ncEnv(r, 0.0) * 2.2 : vec3(0.02, 0.05, 0.09);
-  vec3 L = normalize(vec3(-0.3, 0.8, -0.55));
-  float spec = pow(max(dot(r, L), 0.0), 90.0);
+  // the room is only mirrored on the flat table; on the slopes a smooth glow of it stands in (no speckle)
+  vec3 envR = ncEnv(vec3(r.x, max(r.y, 0.0), r.z), 0.0) * 2.2;   // always run, so its derivatives stay sane
+  vec3 env = r.y > 0.0 ? mix(vec3(0.05, 0.14, 0.28) * (0.4 + r.y), envR, front) : vec3(0.02, 0.05, 0.09);
   vec3 rr = refract(vd, N, 0.66);
   vec2 inner = g.l.xy * vec2(1.0, 1.15) + rr.xy * 0.8;
   float core = exp(-dot(inner, inner) * 1.5);
-  float heat = 1.0 + 0.8 * g.near + 2.0 * g.flare + 0.25 * uHeat;
+  float heat = 1.0 + 0.8 * g.near + 1.8 * g.hit + 0.25 * uHeat + 0.5 * g.hold;
   float barK = g.kind > 1.5 ? 0.55 : 1.0;
-  vec3 c;
   if (missed) {
-    c = base * (0.35 + 0.4 * core) + env * fr * 0.5 + spec * 0.3;
-    c += base * 1.5 * edgeL * 0.5;
+    vec3 c = hdGemLit(g, base * 0.7, 0.5) + env * fr * 0.4;
+    c += base * 1.2 * edgeL * 0.5;
     return vec4(c, 1.0);
   }
-  // the face: the string's colour, deep and saturated, its heart glowing through the cut
-  vec3 faceC = base * (0.42 + 0.95 * core) * heat * barK;
-  faceC += mix(base, vec3(1.0), 0.6) * core * core * (0.1 + 0.35 * g.near + 0.5 * g.flare);
-  // each facet of the cut catches the light differently; a glint runs across the table
+  // the heart: the string's colour, deep and saturated, glowing through the cut
+  vec3 c = base * (0.3 + 0.95 * core) * heat * barK;
+  c += mix(base, vec3(1.0), 0.5) * core * core * (0.08 + 0.3 * g.near + 0.4 * g.hit);
+  // each facet of the cut catches the key light differently (real light on the sloping cut), the table is even
   float fl = dot(nf, normalize(vec3(-0.25, 0.85, -0.5)));
-  faceC *= 1.0 + (1.0 - tbl) * (fl - 0.45) * 0.9;
+  c *= 1.0 + (1.0 - tbl) * front * (fl - 0.45) * 0.9;
+  // a glint runs across the table, as on glass
   float gl = g.l.x * 0.55 + g.l.y - 0.35;
-  faceC += vec3(0.9, 0.97, 1.0) * exp(-gl * gl * 18.0) * tbl * 0.16;
-  // the sides and top: darker crystal, the colour still clear
-  vec3 sideC = base * (0.3 + 0.25 * max(N.y, 0.0) + 0.3 * core) * (0.9 + 0.4 * g.near);
-  c = mix(sideC, faceC, front);
-  c += env * fr * 0.9 + vec3(0.9, 0.95, 1.0) * spec * 0.9;
-  // the cut edges catch the light
-  c += mix(base, vec3(1.0), 0.55) * edgeL * (0.55 + 0.7 * g.near + 1.5 * g.flare + 0.5 * g.accent);
-  // the rounded rims glow
-  float bevel = 1.0 - max(abs(nl.x), max(abs(nl.y), abs(nl.z)));
-  float rim = smoothstep(0.03, 0.25, bevel);
-  c += mix(base * 1.2, vec3(1.0), 0.3) * rim * (0.5 + 0.7 * g.near + 1.4 * g.flare + 0.8 * g.accent);
+  c += vec3(0.9, 0.97, 1.0) * exp(-gl * gl * 18.0) * tbl * front * 0.14;
+  // lit as a block: the top bevel and top side catch the key, the underside falls into the room's dark
+  c *= 0.62 + 0.55 * g.lit;
+  // the sides: darker crystal with the colour still clear
+  vec3 sideC = base * (0.26 + 0.3 * g.top + 0.25 * core) * (0.9 + 0.4 * g.near);
+  c = mix(sideC, c, front);
+  // the glass reflects the room and the key light (a tight white glint, kept small)
+  c += env * fr * 0.8 + vec3(0.9, 0.95, 1.0) * (g.spec * 0.7 + g.sheen * 0.05);
+  // the cut lines
+  c += mix(base, vec3(1.0), 0.45) * edgeL * (0.45 + 0.6 * g.near + 1.3 * g.hit + 0.5 * g.accent);
+  // the edge: coloured light caught in the bevel and a glow just inside the outline
+  float eN = g.edge / max(min(g.size.x, g.size.y), 1e-3);
+  float bev = smoothstep(0.25, 0.95, g.bevel);
+  vec3 edgeC = mix(base * 1.25, vec3(0.8, 0.95, 1.0), 0.25 + 0.2 * g.top);
+  c += edgeC * bev * (0.4 + 0.45 * g.near + 0.8 * g.hit + 0.6 * g.accent + 0.4 * g.hold) * barK;
+  c += base * exp(-eN * 7.0) * (0.12 + 0.2 * g.near + 0.5 * g.hit) * front * barK;
   c += vec3(0.5, 0.7, 1.0) * g.bend * front * 0.08;
+  // never a white blob: bright parts roll off softly and keep their colour
+  float mx = max(c.r, max(c.g, c.b));
+  if (mx > 1.0) c *= (1.0 + log(mx)) / mx;
   return vec4(c, 1.0);
 }
 `;
@@ -372,7 +384,7 @@ export default function build(K) {
       const k = e.dead ? 1.2 : 1;
       shards.burst(e.x, e.y, e.z - 0.05, e.chord ? 16 : 28, e.rgb, k);
       motes.burst(e.x, e.y, e.z, 10, e.rgb, k);
-      flash.burst(e.x, e.y, e.z - 0.06, 1, e.rgb, k);
+      if (e.burst) flash.burst(e.x, e.y, e.z - 0.06, 1, e.rgb, k);
     },
     frame(F) {
       // a held note keeps giving off a little light
