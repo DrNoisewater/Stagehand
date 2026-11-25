@@ -143,3 +143,11 @@ Done:
   the grid has a fixed height, the switches under it flip in place (`highway.js` `toggle`). `HWMENU=1` checks the picked picture
   and the menu don't move (fails on the old code).
 - Pauses: Stutter finder (Opus): the whole 4 MB label picture was sent on every new label; now only the new boxes (see HANDOFF 4.33).
+
+### Six HD styles (started 2026-11-25; user: "Finish up what is left. Then we will merge")
+- Why a foundation first: every style is flat vertex-coloured quads (hwstyle.js on highway3d.js Layers); notes and strings are the
+  same in every style. Real HD needs per-style shaders (surface, gems, strings), GPU particles and screen effects.
+- Stage 1: Style engine builder (Opus), branch `style-engine`: the foundation (each style in its own file), the list cut to six
+  (old ids mapped to the nearest), Inferno built fully as the proof, a guide in docs/hd-styles.md.
+- Stage 2 (after checking Inferno): one helper per style (Neon Crystal, Synthwave Drive, Frozen Lake, Deep Ocean), each in its own file.
+- Target: 60+ fps at 1080p on High on a GTX 1070-class card; Low/Medium/Auto scale down; shaders warmed up at song load.
