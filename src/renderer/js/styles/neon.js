@@ -36,7 +36,7 @@ vec3 ncEnv(vec3 rd, float full) {
   // flat plane ahead, so a straight bar stays straight on screen.
   vec2 pr = rd.xy / max(rd.z, 0.05);
   float pw = max(fwidth(pr.y), 1e-5);
-  for (int i = 0; i < 6; i++) {
+  if (pr.y > -0.01 && pr.y < 0.15) for (int i = 0; i < 6; i++) {
     float fi = float(i);
     float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
     float h1 = hdHash(vec2(fi, 1.3));
