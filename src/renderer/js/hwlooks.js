@@ -157,8 +157,9 @@ export const THEMES = [
     id: 'ocean',
     name: 'Deep Ocean',
     isNew: true,
+    hd: 'ocean', // drawn by its own graphics: styles/ocean.js (see docs/hd-styles.md)
     wink: 'Very calm down here. The fish are into it.',
-    about: 'Under the sea: rippling light, god rays, bubbles, glowing notes. (Being rebuilt: shows the old Deep sea look for now.)',
+    about: 'Under the sea: rippling light on the sand, light from the surface, swaying kelp, bubbles, glowing jelly notes.',
     def: { bright: 1, glow: 0.8, refl: 'soft', fog: 0.55, gem: 'satin', hit: 'bubbles', amb: true, vig: true },
     sig: { floor: 'caustics', rails: 'wave', pool: 0.1, beat: 0.3, amb: 'bubbles' },
     sky: { top: '#00121c', mid: '#013040', hor: '#0a6a7a', near: '#011820', far: '#04404c', pattern: 0, patA: 0, key: 0.3, keyCol: '#7ff0ff', horLine: 0.06, horW: 0.06, horCol: '#9ff6ff' },
