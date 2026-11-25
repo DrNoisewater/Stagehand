@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 const store = new Map();
 globalThis.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
 const L = await import('../src/renderer/js/hwlooks.js');
-const NEW = ['synthwave', 'arena', 'ember', 'blueprint', 'arcade', 'deepsea', 'ice', 'disco'];
+const NEW = ['neon', 'synthwave', 'inferno', 'frozen', 'ocean'];
 
 test('Classic is the default and changes nothing', () => {
   const st = L.clean(null);
@@ -25,9 +25,9 @@ test('Classic is the default and changes nothing', () => {
   assert.equal(lk.sig.rails, 'tube');
 });
 
-test('fifteen styles, Studio first; only the new ones are marked new; every look has a name, a wink and a palette', () => {
-  assert.equal(L.THEMES.length, 15);
-  assert.equal(L.THEMES[0].id, 'studio');
+test('six styles, Classic first; only the new ones are marked new; every look has a name, a wink and a palette', () => {
+  assert.equal(L.THEMES.length, 6);
+  assert.equal(L.THEMES[0].id, 'classic');
   assert.deepEqual(L.THEMES.filter((t) => t.isNew).map((t) => t.id), NEW);
   const keys = Object.keys(L.THEMES.find((t) => t.id === 'classic').pal).sort();
   for (const t of L.THEMES) {
@@ -38,30 +38,30 @@ test('fifteen styles, Studio first; only the new ones are marked new; every look
 });
 
 test('stored settings are made safe; only brightness and effects are kept per style', () => {
-  const st = L.clean({ theme: 'nope', per: { studio: { bright: 9, glow: 'x', refl: 'full', gem: 'glass', fog: 0.2, junk: 1 }, neon: { fx: 'calm' }, ghost: { bright: 1 } }, gfx: { preset: 'mega', aa: 'smaa', res: 1.5, fpsCap: 45, dof: 'yes', grain: true } });
+  const st = L.clean({ theme: 'nope', per: { frozen: { bright: 9, glow: 'x', refl: 'full', gem: 'glass', fog: 0.2, junk: 1 }, neon: { fx: 'calm' }, ghost: { bright: 1 } }, gfx: { preset: 'mega', aa: 'smaa', res: 1.5, fpsCap: 45, dof: 'yes', grain: true } });
   assert.equal(st.theme, 'classic');
-  assert.deepEqual(st.per, { studio: { bright: L.THEME_SETTINGS.bright.max }, neon: { fx: 'calm' } });
+  assert.deepEqual(st.per, { frozen: { bright: L.THEME_SETTINGS.bright.max }, neon: { fx: 'calm' } });
   assert.deepEqual(st.gfx, { preset: 'auto', fpsCap: 0 }, 'single graphics options are gone');
   assert.equal(L.clean({ gfx: { preset: 'high', fpsCap: 60 } }).gfx.fpsCap, 60);
 });
 
 test('note finishes: each style has its own', () => {
   const by = Object.fromEntries(L.THEMES.map((t) => [t.id, t.def.gem]));
-  assert.deepEqual(by, { studio: 'satin', classic: 'solid', synthwave: 'neon', arena: 'solid', ember: 'satin', blueprint: 'flat', arcade: 'flat', deepsea: 'satin', ice: 'glass', disco: 'paint', roadcase: 'paint', chrome: 'glass', neon: 'neon', midnight: 'satin', clear: 'flat' });
+  assert.deepEqual(by, { classic: 'solid', neon: 'neon', synthwave: 'neon', inferno: 'solid', frozen: 'glass', ocean: 'satin' });
 });
 
 test('each style keeps its own brightness and effects', () => {
-  const st = L.clean({ theme: 'studio', per: { studio: { bright: 0.8 }, neon: { fx: 'off' } } });
-  assert.equal(L.themeSettings(st, 'studio').bright, 0.8);
-  assert.equal(L.themeSettings(st, 'studio').fx, 'full');
+  const st = L.clean({ theme: 'frozen', per: { frozen: { bright: 0.8 }, neon: { fx: 'off' } } });
+  assert.equal(L.themeSettings(st, 'frozen').bright, 0.8);
+  assert.equal(L.themeSettings(st, 'frozen').fx, 'full');
   assert.equal(L.themeSettings(st, 'neon').fx, 'off');
-  assert.equal(L.themeSettings(st, 'chrome').bright, L.THEMES.find((t) => t.id === 'chrome').def.bright);
+  assert.equal(L.themeSettings(st, 'ocean').bright, L.THEMES.find((t) => t.id === 'ocean').def.bright);
 });
 
 test('presets: Low turns the costly things off, and each step up adds something', () => {
   const low = L.applyPreset(L.GFX_DEFAULT, 'low');
   assert.equal(low.preset, 'low');
-  const at = (p) => L.resolveLook({ theme: 'studio', bg: 'own', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, p) });
+  const at = (p) => L.resolveLook({ theme: 'neon', bg: 'own', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, p) });
   const lk = at('low');
   assert.equal(lk.bloom, null);
   assert.equal(lk.refl, 'off');
@@ -80,7 +80,7 @@ test('presets: Low turns the costly things off, and each step up adds something'
 });
 
 test('Auto gives up mirror reflections, then bloom size, then bloom and shadows, in that order', () => {
-  const st = { theme: 'studio', per: {}, gfx: { ...L.GFX_DEFAULT } };
+  const st = { theme: 'neon', per: {}, gfx: { ...L.GFX_DEFAULT } };
   const at = (b) => L.resolveLook(st, { budget: b });
   assert.equal(at(3).refl, 'mirror');
   assert.ok(at(3).bloom && !at(3).bloom.half);
@@ -94,24 +94,39 @@ test('Auto gives up mirror reflections, then bloom size, then bloom and shadows,
   // Classic has nothing costly to give up: Auto goes straight to sharpness
   assert.equal(L.budgetDrop({ theme: 'classic', per: {}, gfx: { ...L.GFX_DEFAULT } }, 3), -1);
   // a fixed preset ignores the budget
-  const hi = { theme: 'studio', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, 'high') };
+  const hi = { theme: 'neon', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, 'high') };
   assert.deepEqual(L.resolveLook(hi, { budget: 0 }), L.resolveLook(hi, { budget: 3 }));
 });
 
 test('every style has its own signature', () => {
   const sigs = new Set();
-  const floors = new Set();
-  const rails = new Set();
   for (const t of L.THEMES) {
     for (const k of ['floor', 'rails', 'pool', 'beat', 'amb']) assert.ok(k in t.sig, `${t.id} sig ${k}`);
     if (t.id !== 'classic') assert.notEqual(t.sig.rails, 'tube', `${t.id}: only Classic has light-tube rails`);
     sigs.add(JSON.stringify([t.sig.floor, t.sig.rails, t.sig.amb, t.def.hit]));
-    floors.add(t.sig.floor);
-    rails.add(t.sig.rails);
   }
   assert.equal(sigs.size, L.THEMES.length, 'no two styles share floor, rails, movement and hit effect');
-  assert.ok(floors.size >= 11 && rails.size >= 12, `${floors.size} floors, ${rails.size} rails`);
   for (const t of L.THEMES) assert.ok(L.HITS.some((x) => x[0] === t.def.hit), `${t.id} hit`);
+});
+
+test('4.34: Inferno is drawn by its own graphics; old styles become the nearest new one', () => {
+  assert.equal(L.THEMES.find((t) => t.id === 'inferno').hd, 'inferno');
+  assert.equal(L.THEMES.find((t) => t.id === 'classic').hd, undefined, 'Classic stays as it was');
+  const map = { neon: 'neon', chrome: 'neon', midnight: 'neon', blueprint: 'neon', arcade: 'neon', disco: 'neon', synthwave: 'synthwave', ember: 'inferno', ice: 'frozen', deepsea: 'ocean', studio: 'classic', roadcase: 'classic', clear: 'classic', arena: 'classic' };
+  for (const [old, now] of Object.entries(map)) assert.equal(L.clean({ theme: old }).theme, now, old);
+  // the old style's brightness and background go with it
+  const st = L.clean({ theme: 'ember', per: { ember: { bright: 0.8, back: 'venue' } } });
+  assert.equal(st.theme, 'inferno');
+  assert.equal(st.bg, 'venue');
+  assert.equal(st.per.inferno.bright, 0.8);
+  assert.equal(L.clean({ theme: 'studio' }).bg, 'own', 'a style that showed its own room still does');
+  // quality steps for the style's own graphics
+  const q = (preset, budget = 3) => L.resolveLook({ theme: 'inferno', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, preset) }, { budget }).quality;
+  assert.deepEqual([q('low'), q('medium'), q('high'), q('ultra'), q('auto'), q('auto', 0)], [0, 1, 2, 3, 2, 0]);
+  const lk = L.resolveLook({ theme: 'inferno', per: { inferno: { fx: 'calm' } }, gfx: { ...L.GFX_DEFAULT } });
+  assert.equal(lk.hd, 'inferno');
+  assert.equal(lk.motion, false, 'Calm: nothing drifting');
+  assert.equal(L.resolveLook({ theme: 'inferno', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, 'low') }).haze, false, 'Low: no screen effects');
 });
 
 test('the background is its own choice: any style over a venue or its own room', () => {
@@ -129,22 +144,22 @@ test('the background is its own choice: any style over a venue or its own room',
 test('old settings carry over: the per-style background, Sparks and movement switches, a custom graphics mix', () => {
   assert.equal(L.clean(null).bg, 'venue', 'new players see the venue, as before');
   assert.equal(L.clean({ theme: 'classic' }).bg, 'venue');
-  assert.equal(L.clean({ theme: 'studio' }).bg, 'own', 'other styles showed their own room');
-  assert.equal(L.clean({ theme: 'studio', per: { studio: { back: 'venue' } } }).bg, 'venue');
+  assert.equal(L.clean({ theme: 'frozen' }).bg, 'own', 'other styles showed their own room');
+  assert.equal(L.clean({ theme: 'frozen', per: { frozen: { back: 'venue' } } }).bg, 'venue');
   assert.equal(L.clean({ theme: 'classic', per: { classic: { back: 'own' } } }).bg, 'own');
-  assert.equal(L.clean({ theme: 'studio', bg: 'own', per: { studio: { back: 'venue' } } }).bg, 'own', 'a saved choice wins');
-  assert.deepEqual(L.clean({ theme: 'studio', per: { studio: { sparks: false, back: 'own' } } }).per.studio, { fx: 'off' });
-  assert.deepEqual(L.clean({ per: { studio: { hit: 'none' } } }).per.studio, { fx: 'off' });
-  assert.deepEqual(L.clean({ per: { studio: { amb: false } } }).per.studio, { fx: 'calm' });
+  assert.equal(L.clean({ theme: 'frozen', bg: 'own', per: { frozen: { back: 'venue' } } }).bg, 'own', 'a saved choice wins');
+  assert.deepEqual(L.clean({ theme: 'frozen', per: { frozen: { sparks: false, back: 'own' } } }).per.frozen, { fx: 'off' });
+  assert.deepEqual(L.clean({ per: { frozen: { hit: 'none' } } }).per.frozen, { fx: 'off' });
+  assert.deepEqual(L.clean({ per: { frozen: { amb: false } } }).per.frozen, { fx: 'calm' });
   assert.equal(L.clean({ gfx: { preset: 'custom', aa: 'off' } }).gfx.preset, 'auto');
   assert.equal(L.clean({ gfx: { preset: 'low' } }).gfx.preset, 'low');
 });
 
 test('effects: Full, Calm and Off; Low and a slow PC drop the moving parts', () => {
-  const look = (per, gfx = { ...L.GFX_DEFAULT }, budget = 3) => L.resolveLook({ theme: 'studio', bg: 'own', per: { studio: per }, gfx }, { budget });
+  const look = (per, gfx = { ...L.GFX_DEFAULT }, budget = 3) => L.resolveLook({ theme: 'frozen', bg: 'own', per: { frozen: per }, gfx }, { budget });
   const full = look({});
   assert.equal(full.amb, true);
-  assert.equal(full.hit, L.THEMES[0].def.hit);
+  assert.equal(full.hit, L.THEMES.find((t) => t.id === 'frozen').def.hit);
   assert.equal(look({ fx: 'calm' }).amb, false);
   assert.equal(look({ fx: 'calm' }).hit, full.hit, 'Calm keeps the hit effect');
   assert.equal(look({ fx: 'off' }).hit, 'none');
@@ -164,10 +179,10 @@ test('saving tells listeners and is read back', () => {
   L._reset();
   let heard = null;
   const off = L.onLooks((s) => (heard = s.theme));
-  L.saveLooks({ ...L.loadLooks(), theme: 'disco', per: { disco: { fx: 'calm' } } });
-  assert.equal(heard, 'disco');
+  L.saveLooks({ ...L.loadLooks(), theme: 'ocean', per: { ocean: { fx: 'calm' } } });
+  assert.equal(heard, 'ocean');
   off();
   L._reset();
-  assert.equal(L.loadLooks().theme, 'disco', 'saved and read back');
-  assert.equal(L.loadLooks().per.disco.fx, 'calm');
+  assert.equal(L.loadLooks().theme, 'ocean', 'saved and read back');
+  assert.equal(L.loadLooks().per.ocean.fx, 'calm');
 });

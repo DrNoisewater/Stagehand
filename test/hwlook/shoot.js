@@ -80,6 +80,8 @@ async function gfxCheck(browser, page, out, scene, t) {
     have.add(key);
     const info = await setLook(theme, per, preset, bg);
     await page.waitForTimeout(900);
+    // 4.34: a style with its own graphics builds them first
+    await page.evaluate(() => { const hx = document.querySelector('.highway').__hw.hx; return hx && Promise.race([hx.whenReady(), new Promise((r) => setTimeout(r, 20000))]); });
     await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     const buf = await page.screenshot({ timeout: 90000 });
     fs.writeFileSync(path.join(dir, key.replace(/[^a-z0-9.-]+/gi, '_') + '.png'), buf);
@@ -121,9 +123,9 @@ async function gfxCheck(browser, page, out, scene, t) {
 
   // ---- the noise floor: the same picture twice
   if (runs('noise')) {
-    await take('studio-base', 'studio');
-    await take('studio-base2', 'studio');
-    await cmp('noise', 'same picture twice', 'studio-base', 'studio-base2', '', false);
+    await take('neon-base', 'neon');
+    await take('neon-base2', 'neon');
+    await cmp('noise', 'same picture twice', 'neon-base', 'neon-base2', '', false);
   }
 
   // ---- per style: Brightness at both ends, Effects Calm and Off, against the style's own starting settings
@@ -144,7 +146,7 @@ async function gfxCheck(browser, page, out, scene, t) {
 
   // ---- graphics presets against High, on a couple of styles (one with a lot going on, one plain)
   if (runs('presets')) {
-    for (const id of pick(['classic', 'disco'])) {
+    for (const id of pick(['classic', 'inferno'])) {
       await base(id);
       for (const p of ['low', 'medium', 'ultra']) { const k = `${id}-preset-${p}`; await take(k, id, {}, p); await cmp('graphics', `${id} ${p} vs high`, id + '-base', k); }
     }
@@ -152,7 +154,7 @@ async function gfxCheck(browser, page, out, scene, t) {
 
   // ---- the style's own room against a photo venue (the page's venue behind the highway)
   if (runs('room')) {
-    for (const id of pick(['classic', 'studio', 'synthwave', 'blueprint'])) {
+    for (const id of pick(['classic', 'neon', 'synthwave', 'inferno'])) {
       await base(id);
       const k = id + '-venue';
       await take(k, id, {}, 'high', 'venue');
@@ -205,44 +207,284 @@ async function gfxCheck(browser, page, out, scene, t) {
   if (failed.length) process.exitCode = 1;
 }
 // ===== GFXCHECK=1 (end) =====
+// ===== STUTTER=1 (begin): what stops the highway's picture for a moment while a song plays? =====
+// Plays STUTTER_SECS (default 20) seconds from a song start with pretend dead-on hits on every note,
+// in the style, graphics and background given (HWTHEME, HWGFX, HWBG, VENUE as above), and reports the
+// longest waits between pictures, long tasks, and what the graphics card was asked to do in those frames:
+// shader programs built (on Windows each one can take 50-200 ms), textures uploaded, buffers (re)made,
+// render buffers resized. One-time costs (a program, a big upload) show here even on the software GPU;
+// absolute times are slow, so compare spikes to the median frame.
+//   STUTTER=1 HWTHEME=ember HWGFX=ultra VW=960 VH=540 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> A:0
+// Writes <out>/stutter-<scene>.json. STUTTER_HITS=0 leaves out the pretend hits.
+const STUTTER_INIT = () => {
+  const st = (window.__st = { frames: [], gl: [], longs: [], cur: null, t0: 0 });
+  const now = () => performance.now();
+  const newFrame = () => ({ gl: 0, prog: 0, tex: 0, texBytes: 0, buf: 0, bufBytes: 0, rb: 0, made: 0, madeBytes: 0, what: {} });
+  st.cur = newFrame();
+  const tick = (ts) => {
+    const f = st.cur;
+    f.ts = ts;
+    st.frames.push(f);
+    st.cur = newFrame();
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  try {
+    new PerformanceObserver((l) => { for (const e of l.getEntries()) st.longs.push({ at: e.startTime, ms: e.duration }); }).observe({ type: 'longtask', buffered: true });
+  } catch (_) {}
+  const wrap = (proto, name, kind, size) => {
+    const orig = proto[name];
+    if (!orig) return;
+    proto[name] = function (...a) {
+      const t = now();
+      const r = orig.apply(this, a);
+      const ms = now() - t;
+      const f = st.cur;
+      f.gl += ms;
+      if (kind) f[kind]++;
+      f.what[name] = (f.what[name] || 0) + ms;
+      let b = 0;
+      if (size) { b = size(a); if (kind === 'tex') f.texBytes += b; else if (kind === 'made') f.madeBytes += b; else f.bufBytes += b; }
+      if (ms > 2) st.gl.push({ at: t, name, ms: +ms.toFixed(1), info: b || undefined });
+      return r;
+    };
+  };
+  const P = WebGL2RenderingContext.prototype;
+  for (const n of ['compileShader', 'getShaderParameter', 'getUniformLocation', 'useProgram', 'drawElements', 'drawArrays', 'clear', 'blitFramebuffer', 'framebufferTexture2D', 'readPixels', 'finish', 'getError']) wrap(P, n);
+  wrap(P, 'linkProgram', 'prog');
+  wrap(P, 'getProgramParameter');
+  const texSize = (a) => { const s = a[a.length - 1]; return s && s.width ? s.width * s.height * 4 : (a[3] * a[4] * 4) || 0; };
+  const subSize = (a) => (a.length >= 9 ? a[4] * a[5] * 4 : texSize(a)); // texSubImage2D(target, level, x, y, w, h, format, type, source): the box sent
+  wrap(P, 'texImage2D', 'tex', texSize);
+  wrap(P, 'texSubImage2D', 'tex', subSize);
+  wrap(P, 'texStorage2D', 'tex', (a) => a[3] * a[4] * 8);
+  wrap(P, 'generateMipmap', 'tex', () => 0);
+  wrap(P, 'bufferData', 'made', (a) => (a[1] && a[1].byteLength) || (typeof a[1] === 'number' ? a[1] : 0));
+  wrap(P, 'bufferSubData', 'buf', (a) => (a[2] ? (a[4] ? a[4] * a[2].BYTES_PER_ELEMENT : a[2].byteLength) : 0));
+  wrap(P, 'renderbufferStorageMultisample', 'rb');
+  wrap(P, 'renderbufferStorage', 'rb');
+};
+async function stutterRun(browser, page, out, scene, t) {
+  const secs = Number(process.env.STUTTER_SECS || 20);
+  const hits = process.env.STUTTER_HITS !== '0';
+  // a fresh start: at the song's start, Auto allowed to work, then Play
+  await page.evaluate(([t0, hits, whole]) => {
+    const H = document.querySelector('.highway').__hw;
+    if (H.perfState) H.perfState.n = 0;
+    if (whole) H.r3.text.sendWhole = true; // STUTTER_WHOLE=1: the old way (the whole label picture sent each time)
+    const st = window.__st;
+    st.frames.length = 0; st.gl.length = 0; st.longs.length = 0;
+    window.__stage.engine.position = t0;
+    st.t0 = performance.now();
+    window.__stage.engine.play();
+    // pretend dead-on hits: each note lights the moment it reaches the neck
+    let next = 0;
+    const T = H.targets;
+    const go = () => {
+      if (!H.open) return;
+      const pos = window.__stage.engine.position;
+      while (next < T.length && T[next].t <= pos) {
+        const tg = T[next];
+        if (hits && pos - tg.t < 0.2) {
+          const at = performance.now();
+          H.hits.push({ id: next, at, chord: tg.notes.length > 1, until: tg.t + (tg.sus || 0), offset: 0 });
+          for (const nt of tg.notes) H.bursts.push({ s: nt.s, f: nt.f, at, until: tg.t + (tg.sus || 0) });
+        }
+        next++;
+      }
+      requestAnimationFrame(go);
+    };
+    requestAnimationFrame(go);
+  }, [Number(t), hits, !!process.env.STUTTER_WHOLE]);
+  // STUTTER_HEAP=1: what the page makes and throws away while playing (each throw-away is cleaned up later:
+  // a pause), sampled, by the function that made it
+  const cdp = process.env.STUTTER_HEAP && (await page.context().newCDPSession(page));
+  // STUTTER_GC=1: how long each clean-up of thrown-away things stopped the page
+  if (process.env.STUTTER_GC) await browser.startTracing(page, { categories: ['v8', 'disabled-by-default-v8.gc'] });
+  if (cdp) await cdp.send('HeapProfiler.startSampling', { samplingInterval: 4096, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
+  await page.waitForTimeout(secs * 1000);
+  if (process.env.STUTTER_GC) {
+    const tr = JSON.parse((await browser.stopTracing()).toString());
+    const ev = (tr.traceEvents || tr).filter((e) => e.ph === 'X' && /^(V8\.GC_|MinorGC|MajorGC|V8\.GCScavenger$|V8\.GCFinalizeMC$|V8\.GCCompactor$)/.test(e.name) && e.dur);
+    const by = new Map();
+    for (const e of ev) { const b = by.get(e.name) || { n: 0, ms: 0, most: 0 }; b.n++; b.ms += e.dur / 1000; b.most = Math.max(b.most, e.dur / 1000); by.set(e.name, b); }
+    console.log('  clean-ups (GC) while playing:');
+    for (const [k, b] of [...by.entries()].sort((x, y) => y[1].most - x[1].most).slice(0, 10)) console.log(`    ${k}: ${b.n} times, ${b.ms.toFixed(1)} ms in all, longest ${b.most.toFixed(1)} ms`);
+  }
+  if (cdp) {
+    const { profile } = await cdp.send('HeapProfiler.stopSampling');
+    const by = new Map();
+    let all = 0;
+    const walk = (n) => {
+      const f = n.callFrame;
+      const k = `${f.functionName || '(anon)'} ${(f.url || '').split('/').pop()}:${f.lineNumber + 1}`;
+      by.set(k, (by.get(k) || 0) + n.selfSize);
+      all += n.selfSize;
+      for (const c of n.children || []) walk(c);
+    };
+    walk(profile.head);
+    console.log(`  made while playing: ${(all / secs / 1024).toFixed(0)} KB a second; most by:`);
+    for (const [k, v] of [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14)) console.log(`    ${(v / secs / 1024).toFixed(1)} KB/s  ${k}`);
+  }
+  const r = await page.evaluate(() => {
+    const st = window.__st;
+    const H = document.querySelector('.highway').__hw;
+    const F = st.frames.filter((f) => f.ts >= st.t0);
+    const rows = [];
+    for (let i = 1; i < F.length; i++) {
+      const f = F[i];
+      rows.push({ at: +((f.ts - st.t0) / 1000).toFixed(2), gap: +(f.ts - F[i - 1].ts).toFixed(1), gl: +f.gl.toFixed(1), prog: f.prog, tex: f.tex, texKB: Math.round(f.texBytes / 1024), buf: f.buf, bufKB: Math.round(f.bufBytes / 1024), rb: f.rb, top: Object.entries(f.what).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ') });
+    }
+    const gaps = rows.map((x) => x.gap).sort((a, b) => a - b);
+    const med = gaps[Math.floor(gaps.length / 2)] || 0;
+    return {
+      frames: rows.length, median: med, p95: gaps[Math.floor(gaps.length * 0.95)] || 0,
+      worst: rows.slice().sort((a, b) => b.gap - a.gap).slice(0, 15),
+      progs: rows.filter((x) => x.prog).map((x) => `${x.at}s x${x.prog}`),
+      rbs: rows.filter((x) => x.rb).map((x) => `${x.at}s x${x.rb}`),
+      made: F.slice(1).filter((f) => f.made).map((f) => `${((f.ts - st.t0) / 1000).toFixed(2)}s x${f.made} ${Math.round(f.madeBytes / 1024)} KB`),
+      bigTex: rows.filter((x) => x.texKB > 256).map((x) => `${x.at}s ${x.texKB} KB`),
+      texSent: rows.filter((x) => x.texKB > 0).map((x) => `${x.at}s ${x.texKB} KB`), texKB: rows.reduce((a, x) => a + x.texKB, 0),
+      bigBuf: rows.filter((x) => x.bufKB > 1024).map((x) => `${x.at}s ${x.bufKB} KB`),
+      longs: st.longs.filter((l) => l.at >= st.t0).map((l) => `${((l.at - st.t0) / 1000).toFixed(2)}s ${Math.round(l.ms)}ms`),
+      slowGl: st.gl.filter((g) => g.at >= st.t0).sort((a, b) => b.ms - a.ms).slice(0, 12).map((g) => `${((g.at - st.t0) / 1000).toFixed(2)}s ${g.name} ${g.ms}ms${g.info ? ' ' + g.info + 'B' : ''}`),
+      look: H.look && { id: H.look.id, res: H.look.res, aa: H.look.aa, bloom: !!H.look.bloom, refl: H.look.refl },
+      scale: H.r3 && H.r3.scale, budget: H.lookBudget && H.lookBudget(),
+    };
+  });
+  fs.writeFileSync(path.join(out, `stutter-${scene}.json`), JSON.stringify(r, null, 1));
+  console.log(`STUTTER ${scene} ${JSON.stringify(r.look)} scale ${r.scale} budget ${r.budget}: ${r.frames} frames, median ${r.median} ms, p95 ${r.p95} ms`);
+  console.log('  programs built:', r.progs.join(' | ') || 'none');
+  console.log('  render buffers (re)made:', r.rbs.join(' | ') || 'none');
+  console.log('  vertex buffers (re)made:', r.made.join(' | ') || 'none');
+  console.log('  big texture uploads:', r.bigTex.join(' | ') || 'none');
+  console.log(`  pictures sent to the card: ${r.texKB} KB in all:`, r.texSent.slice(0, 12).join(' | ') || 'none');
+  console.log('  big buffer uploads:', r.bigBuf.join(' | ') || 'none');
+  console.log('  long tasks:', r.longs.join(' | ') || 'none');
+  console.log('  slowest GL calls:', r.slowGl.join(' | ') || 'none');
+  console.log('  worst frames:');
+  for (const w of r.worst) console.log(`    ${w.at}s gap ${w.gap} ms  gl ${w.gl} ms  prog ${w.prog} tex ${w.tex} (${w.texKB} KB) buf ${w.buf} (${w.bufKB} KB) rb ${w.rb}  ${w.top}`);
+}
+// ===== STUTTER=1 (end) =====
 (async () => {
   await new Promise((r) => srv.listen(PORT, r));
   const out = process.argv[2];
   fs.mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--single-process', '--no-zygote', '--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
   const page = await browser.newPage({ viewport: { width: Number(process.env.VW || (process.env.GFXCHECK ? 1280 : 1920)), height: Number(process.env.VH || (process.env.GFXCHECK ? 720 : 1080)) }, ...(process.env.VIDEO ? { recordVideo: { dir: out, size: { width: 1280, height: 720 } } } : {}) });
+  if (process.env.STUTTER) await page.addInitScript(STUTTER_INIT);
   page.on('pageerror', (e) => console.log('PAGEERR', e.message, (e.stack || '').split('\n').slice(1, 3).join(' ')));
   page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text()));
   for (const spec of process.argv.slice(3)) {
     const [scene, t, play, hits, file, part] = spec.split(':');
     await page.goto(`http://localhost:${PORT}/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}${process.env.SING ? `&sing=${process.env.SING}` : ''}${process.env.PIANO ? `&piano=${process.env.PIANO}` : ''}${process.env.NONOTES ? '&nonotes=1' : ''}${process.env.TOPBAR || process.env.MODES ? '&piano=tune&sing=1' : ''}`);
-    await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+    await page.waitForFunction(() => window.__hwReady, null, { timeout: Number(process.env.HWWAIT || 15000) });
     if (process.env.VENUE) {
       await page.evaluate((v) => { const p = JSON.parse(localStorage.getItem('stagehand.highway') || '{}'); p.venue = v; p.v = 36; localStorage.setItem('stagehand.highway', JSON.stringify(p)); localStorage.setItem('stagehand.fluidDye', '256'); }, process.env.VENUE);
       await page.reload();
-      await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+      await page.waitForFunction(() => window.__hwReady, null, { timeout: Number(process.env.HWWAIT || 15000) });
     }
     if (process.env.GFXCHECK) { await gfxCheck(browser, page, out, scene, t); continue; } // GFXCHECK=1: see the block above
     // HWTHEME=<look> (and HWGFX=<preset>): the highway in that look (hwlooks.js), set before the page loads
     if (process.env.HWTHEME || process.env.HWGFX) {
       await page.evaluate(([t, g]) => { localStorage.setItem('stagehand.hwlook.v1', JSON.stringify({ theme: t || 'classic', gfx: { preset: g || 'auto', ...(g && g !== 'auto' ? {} : {}) } })); }, [process.env.HWTHEME, process.env.HWGFX]);
-      if (process.env.HWGFX) await page.evaluate(async (g) => { const m = await import('/js/hwlooks.js'); const st = m.loadLooks(); m.saveLooks({ ...st, gfx: m.applyPreset(st.gfx, g) }); }, process.env.HWGFX);
+      if (process.env.HWGFX) await page.evaluate(async (g) => { const m = await import('/js/hwlooks.js'); m._reset(); const st = m.loadLooks(); m.saveLooks({ ...st, gfx: m.applyPreset(st.gfx, g) }); }, process.env.HWGFX);
       await page.reload();
-      await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+      await page.waitForFunction(() => window.__hwReady, null, { timeout: Number(process.env.HWWAIT || 15000) });
     }
     // HWBG=own|venue (4.31): the style's own room, or the venue (VENUE=…) behind the highway
     if (process.env.HWBG) {
       await page.evaluate(async (b) => { const m = await import('/js/hwlooks.js'); m.saveLooks({ ...m.loadLooks(), bg: b }); }, process.env.HWBG);
       await page.reload();
-      await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+      await page.waitForFunction(() => window.__hwReady, null, { timeout: Number(process.env.HWWAIT || 15000) });
     }
     // SKIN=<theme>: the song screen in that Appearance theme (its bars and menus; the notes keep their look)
     if (process.env.SKIN) {
       await page.evaluate((k) => { document.documentElement.dataset.look = 'opera'; document.documentElement.dataset.skin = k; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/themes-stage.css'; document.head.append(l); }, process.env.SKIN);
       await page.waitForTimeout(400);
     }
+    // 4.34: a style with its own graphics: wait until they are built and compiled
+    await page.waitForTimeout(300);
+    await page.evaluate(() => { const H = document.querySelector('.highway').__hw; return H.hx ? Promise.race([H.hx.whenReady(), new Promise((r) => setTimeout(r, 20000))]) : true; });
     // software rendering here is slow: keep the glow on for stills (the app turns it off on slow PCs)
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
+    if (process.env.STUTTER) { await stutterRun(browser, page, out, scene, t); continue; } // STUTTER=1: see the block above
+    // ATLAS=1 (4.32.1): labels that first show mid-song are sent to the graphics card on their own (only
+    // their box of the label picture); the picture must be the same as when the whole label picture is sent
+    // (a few colour values may round one step apart).
+    // Draws every label again from nothing (sent on their own), then sends the whole picture, and compares the
+    // label picture on the graphics card both ways.
+    if (process.env.ATLAS) {
+      const frames = (n) => page.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+      await page.evaluate((b) => { performance.now = () => 100000; window.__atlasBreak = b; }, !!process.env.ATLAS_BREAK);
+      await frames(60); // the camera settles
+      // the labels drawn again from nothing, one box at a time, each sent on its own
+      const before = await page.evaluate(() => {
+        const T = document.querySelector('.highway').__hw.r3.text;
+        const n = T.items.size;
+        T.items.clear();
+        T.actx.clearRect(14, 0, T.size - 14, T.size);
+        T.actx.clearRect(0, 14, T.size, T.size - 14);
+        Object.assign(T.shelf, { x: 14, y: 2, h: 10 });
+        // the card's copy painted over in magenta, so only what is sent now can make the labels show
+        const gl = T.renderer.getContext();
+        const fb = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, T.renderer.properties.get(T.tex).__webglTexture, 0);
+        gl.clearColor(1, 0, 1, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.deleteFramebuffer(fb);
+        T.renderer.resetState();
+        // ATLAS_BREAK=1: nothing sent on its own (the check must then fail)
+        if (window.__atlasBreak) T.renderer.copyTextureToTexture = () => {};
+        return n;
+      });
+      await frames(4);
+      // the label picture as the graphics card holds it
+      const grab = () => page.evaluate(() => {
+        const T = document.querySelector('.highway').__hw.r3.text;
+        const gl = T.renderer.getContext();
+        const fb = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, T.renderer.properties.get(T.tex).__webglTexture, 0);
+        const px = new Uint8Array(T.size * T.size * 4);
+        gl.readPixels(0, 0, T.size, T.size, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.deleteFramebuffer(fb);
+        T.renderer.resetState();
+        (window.__atlas = window.__atlas || []).push(px);
+        return T.items.size;
+      });
+      const after = await grab();
+      await page.evaluate(() => { const T = document.querySelector('.highway').__hw.r3.text; T.sendWhole = true; T.dirty = true; });
+      await frames(4);
+      await grab();
+      // compared where the labels are (outside them the card still holds the old labels the test wiped)
+      const diff = await page.evaluate(() => {
+        const T = document.querySelector('.highway').__hw.r3.text;
+        const [A, B] = window.__atlas.splice(0);
+        const S = T.size;
+        let n = 0, most = 0, where = '', seen = 0;
+        for (const it of T.items.values()) {
+          const x0 = Math.round(it.u0 * S), x1 = Math.round(it.u1 * S), y0 = S - Math.round(it.v1 * S), y1 = S - Math.round(it.v0 * S);
+          for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) for (let c = 0; c < 4; c++) {
+            const i = (y * S + x) * 4 + c;
+            seen++;
+            if (A[i] === B[i]) continue;
+            n++;
+            most = Math.max(most, Math.abs(A[i] - B[i]));
+            if (n < 4) where += ` (${x},${y}) ${A[i]}/${B[i]}`;
+          }
+        }
+        return { n, most, where, seen };
+      });
+      await page.screenshot({ path: path.join(out, `atlas-${scene}.png`) });
+      // a colour value may round one step apart (the two ways in do their own rounding)
+      if (diff.most > 1 || !after || after !== before) throw new Error(`labels sent on their own differ from the whole picture: ${diff.n} values differ, by up to ${diff.most}${diff.where} (${before} labels, then ${after})`);
+      console.log(`PASS labels sent on their own (${after}) are the same as the whole label picture sent (${diff.n} of ${diff.seen} colour values one step apart${diff.where})`);
+      continue;
+    }
     if (process.env.PLAYCAL) {
       // the timing check: its training song on the highway, scored like any song, with a pretend
       // guitar playing the part (real plucked notes at the chart's pitches) PLAYCAL ms late
@@ -276,7 +518,7 @@ async function gfxCheck(browser, page, out, scene, t) {
       if (/space|tap|click/i.test(intro)) throw new Error('the intro still talks about tapping: ' + intro);
       await page.screenshot({ path: path.join(out, 'playcal-intro.png') }).catch(() => {});
       await page.click('.hw-syncbox .btn.primary');
-      await page.waitForFunction(() => { const H = document.querySelector('.highway').__hw; return H.training && window.__stage.engine.playing; }, null, { timeout: 15000 });
+      await page.waitForFunction(() => { const H = document.querySelector('.highway').__hw; return H.training && window.__stage.engine.playing; }, null, { timeout: Number(process.env.HWWAIT || 15000) });
       const song = await page.evaluate(() => { const H = document.querySelector('.highway').__hw; const e = window.__stage.engine; H.judge.debug = []; window.__fps0 = [performance.now(), e.position]; return { title: H.song.title, notes: H.targets.length, duration: e.duration, loaded: e.loaded && e.loaded.bytes, strings: [...new Set(H.tab.notes.map((n) => n.s))].sort() }; });
       console.log('PLAYCAL training song', JSON.stringify(song));
       if (!(song.duration > 24 && song.duration < 30) || !song.loaded || song.notes < 16) throw new Error('the training song did not load');
@@ -419,7 +661,7 @@ async function gfxCheck(browser, page, out, scene, t) {
       if (s0.on.sing || s0.on.karaoke || s0.on.piano || !s0.on.part) fail('at the start: ' + JSON.stringify(s0));
       // piano
       await page.click('.hw-keys-chip');
-      await page.waitForFunction(() => document.querySelector('.highway').__hw.keys.state.arr && !document.querySelector('.hw-piano').hidden, null, { timeout: 15000 });
+      await page.waitForFunction(() => document.querySelector('.highway').__hw.keys.state.arr && !document.querySelector('.hw-piano').hidden, null, { timeout: Number(process.env.HWWAIT || 15000) });
       const s1 = await snap();
       same(s0, s1, 'piano on');
       if (!s1.on.piano || s1.on.part || s1.on.sing) fail('piano on: ' + JSON.stringify(s1.on));
@@ -522,7 +764,7 @@ async function gfxCheck(browser, page, out, scene, t) {
       if (!st0.chip || st0.view || st0.asked) fail('before pressing Piano: ' + JSON.stringify(st0));
       await page.screenshot({ path: path.join(out, 'piano-0-off.png') });
       await page.click('.hw-keys-chip');
-      await page.waitForFunction(() => document.querySelector('.highway').__hw.keys.state.arr && !document.querySelector('.hw-piano').hidden, null, { timeout: 15000 });
+      await page.waitForFunction(() => document.querySelector('.highway').__hw.keys.state.arr && !document.querySelector('.hw-piano').hidden, null, { timeout: Number(process.env.HWWAIT || 15000) });
       const info = await page.evaluate(() => { const K = document.querySelector('.highway').__hw.keys.state; return { key: K.arr.key.name, chords: K.arr.chords.filter((c) => c.len >= 4).slice(0, 12).map((c) => c.name), notes: K.notes.length, sources: K.arr.sources, neck: document.querySelector('.highway').classList.contains('hw-keys-on') }; });
       console.log('PIANO', JSON.stringify(info));
       if (!info.notes || !info.neck) fail('no part: ' + JSON.stringify(info));
@@ -865,8 +1107,11 @@ async function gfxCheck(browser, page, out, scene, t) {
       const grab = () => page.evaluate(async () => {
         const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         await frame();
-        await frame();
         const H = document.querySelector('.highway').__hw;
+        // 4.34: a style with its own graphics loads and builds them first
+        if (H.hx && H.hx.whenReady) await Promise.race([H.hx.whenReady(), new Promise((r) => setTimeout(r, 20000))]);
+        await frame();
+        await frame();
         const R3 = H.r3;
         const out = { neck: [], solid: [], alpha: [], glow: [], text: [], look: H.look && H.look.id, post: R3.post, info: R3.info() };
         for (let s = 0; s < H.tab.strings; s++) for (let f = 0; f <= 24; f++) out.neck.push(H.projection.neck(f, s), H.projection.point(f, s, H.vis + 1));
@@ -938,6 +1183,25 @@ async function gfxCheck(browser, page, out, scene, t) {
       const r = await page.evaluate(async () => {
         const d = document.querySelector('.hl-drawer');
         d.scrollIntoView({ block: 'start' });
+        // 4.33: picking a style or flipping a switch must leave the side menu where it was
+        let pane = d.parentElement;
+        while (pane && pane.scrollHeight <= pane.clientHeight + 2) pane = pane.parentElement;
+        const before = pane ? pane.scrollTop : 0;
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        const strip = d.querySelector('.hl-styles');
+        strip.scrollLeft = strip.scrollWidth; // a strip that scrolls sideways: go to its end first
+        const n = d.querySelectorAll('.hl-style').length - 1;
+        const at = () => { const b = d.querySelectorAll('.hl-style')[n].getBoundingClientRect(); return [Math.round(b.x), Math.round(b.y)]; };
+        const tileBefore = at();
+        d.querySelectorAll('.hl-style')[n].click();
+        await wait(400);
+        const tileAfter = at();
+        const afterStyle = pane ? pane.scrollTop : 0;
+        document.querySelector('.hw-master-opts .hw-opt-toggle').click();
+        await wait(300);
+        const afterSwitch = pane ? pane.scrollTop : 0;
+        document.querySelector('.hw-master-opts .hw-opt-toggle').click();
+        const kept = { before, afterStyle, afterSwitch, scrolled: !!pane, tileBefore, tileAfter };
         const tiles = d.querySelectorAll('.hl-style').length;
         const imgs = await Promise.all([...d.querySelectorAll('.hl-style img')].map((i) => i.decode().then(() => i.naturalWidth > 0, () => false)));
         d.querySelectorAll('.hl-style')[2].click();
@@ -947,7 +1211,7 @@ async function gfxCheck(browser, page, out, scene, t) {
         await new Promise((r) => setTimeout(r, 50));
         document.querySelector('.hl-drawer .hl-own').click();
         const bg = m.loadLooks().bg;
-        return { tiles, imgsOk: imgs.every(Boolean), picked, bg, fps: [...document.querySelectorAll('.hw-master-opts button')].filter((b) => /frame rate/i.test(b.textContent)).length };
+        return { tiles, kept, imgsOk: imgs.every(Boolean), picked, bg, fps: [...document.querySelectorAll('.hw-master-opts button')].filter((b) => /frame rate/i.test(b.textContent)).length };
       });
       console.log('HWMENU', JSON.stringify(r));
       await page.waitForTimeout(1200);
@@ -979,10 +1243,39 @@ async function gfxCheck(browser, page, out, scene, t) {
       await fullShot('hw-settings.png');
       await page.evaluate(() => document.querySelector('#hl-sheet .hl-tune-fold .hl-fold-head').click());
       await fullShot('hw-settings-open.png');
-      const ok = r.tiles >= 15 && r.imgsOk && r.picked === 'synthwave' && r.bg === 'own' && r.fps === 0;
+      const steady = r.kept.tileBefore.join() === r.kept.tileAfter.join() && Math.abs(r.kept.afterStyle - r.kept.before) < 2 && Math.abs(r.kept.afterSwitch - r.kept.before) < 2;
+      const ok = steady && r.tiles >= 6 && r.imgsOk && r.picked === 'synthwave' && r.bg === 'own' && r.fps === 0;
       if (!ok) throw new Error('highway menu: ' + JSON.stringify(r));
-      console.log('PASS the highway menu: style pictures, a style and the style’s own room picked, no frame rate switch there');
+      console.log('PASS the highway menu stays put; style pictures, a style and the style’s own room picked, no frame rate switch there');
     }
+    // 4.34: a style's sparks from the last hit are just born (unseen), and a frame here takes so long that
+    // older ones have burnt out: stop the clock, let the hits land, make the sparks 0.25 s older, draw again
+    if (hits && await page.evaluate(() => { const hx = document.querySelector('.highway').__hw.hx; if (!hx || !hx.on) return false; const t = performance.now(); performance.now = () => t; return true; })) {
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      await page.evaluate(() => { document.querySelector('.highway').__hw.hx.age(0.25); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); });
+    }
+    // :H (4.34.1): the same hit every time, with no playing: the clock stops, the notes of the last 0.15 s are
+    // hit dead on (as in GFXCHECK) and the picture is drawn 0.1 s later. For stills of a hit that do not
+    // depend on how busy the machine is.
+    if (hits === 'H') {
+      await page.evaluate(() => {
+        const H = document.querySelector('.highway').__hw;
+        const T = 100000;
+        performance.now = () => T;
+        H.hits = []; H.bursts = [];
+        const pos = window.__stage.engine.position;
+        H.targets.forEach((tg, id) => {
+          if (tg.t > pos || tg.t < pos - 0.15) return;
+          const at = T - 100;
+          H.hits.push({ id, at, chord: tg.notes.length > 1, until: tg.t + (tg.sus || 0), offset: 0 });
+          for (const nt of tg.notes) H.bursts.push({ s: nt.s, f: nt.f, at, until: tg.t + (tg.sus || 0) });
+        });
+        return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      });
+      await page.evaluate(() => { const hx = document.querySelector('.highway').__hw.hx; if (hx && hx.on) hx.age(0.1); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); });
+    }
+    // HXINFO=1 (4.34): what a style with its own graphics drew in the last frame
+    if (process.env.HXINFO) console.log('hd', await page.evaluate(() => JSON.stringify(document.querySelector('.highway').__hw.hx.info())));
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `${scene}_${(file||'').replace('.json','')}_${t}${play === 'p' ? 'p' : ''}${hits || ''}.png`) });
     console.log('shot', spec);

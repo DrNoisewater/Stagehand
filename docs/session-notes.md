@@ -126,3 +126,47 @@ Settings checker's findings (GFXCHECK) acted on:
   crop 240,176–1680,986 of 1920×1080, webp q80).
 - Unknown until the user's PC: whether Disco's tiles and Studio's pale floor feel too busy or too
   bright under real playing.
+
+## 4.33 (2026-11-25): smooth first, then six real styles
+
+Asked (video of the highway): pauses and hitching; styles look silly and alike ("nothing like a frozen lake"), crooked jagged lines;
+wants real HD graphics (gems, strings, highway, effects), aimed a bit under a GTX 1080 Ti; the sideways style strip is silly and
+jumps back to the start when picking; everything smooth, no flicker.
+User's answers: 6 great styles (Classic kept + Neon Crystal, Synthwave Drive, Inferno, Frozen Lake, Deep Ocean); kinds: sci-fi/neon,
+fire/lava, ice/nature; style picker a grid of pictures; smoothness first, released on its own.
+
+Video measured (ffmpeg freezedetect): highway froze 140–280 ms every 1–2 s in the first 5 s of the song, then every 2–10 s.
+
+Done:
+- Menu jump: picking a style rebuilt the strip, so it scrolled back to its start (the picture moved 1,300 px). Now a 3-wide grid in
+  Sound & settings, blocks swap in place holding their height until pictures are ready (`hwlooks-pane.js` `swap`), the line above
+  the grid has a fixed height, the switches under it flip in place (`highway.js` `toggle`). `HWMENU=1` checks the picked picture
+  and the menu don't move (fails on the old code).
+- Pauses: Stutter finder (Opus): the whole 4 MB label picture was sent on every new label; now only the new boxes (see HANDOFF 4.33).
+
+### Six HD styles (started 2026-11-25; user: "Finish up what is left. Then we will merge")
+- Why a foundation first: every style is flat vertex-coloured quads (hwstyle.js on highway3d.js Layers); notes and strings are the
+  same in every style. Real HD needs per-style shaders (surface, gems, strings), GPU particles and screen effects.
+- Stage 1: Style engine builder (Opus), branch `style-engine`: the foundation (each style in its own file), the list cut to six
+  (old ids mapped to the nearest), Inferno built fully as the proof, a guide in docs/hd-styles.md.
+- Stage 2 (after checking Inferno): one helper per style (Neon Crystal, Synthwave Drive, Frozen Lake, Deep Ocean), each in its own file.
+- Target: 60+ fps at 1080p on High on a GTX 1070-class card; Low/Medium/Auto scale down; shaders warmed up at song load.
+## 4.34 (2026-11-25): Style engine builder (Opus), branch style-engine
+
+- Engine `hdstyle.js` + one file per style (`styles/<id>.js`); guide `docs/hd-styles.md`. Old pieces are muted (alpha −1), not removed, so THEMES=1 still compares positions.
+- Inferno done in full; four stubs. Pictures redone (six).
+- Dead ends: the z flip is a mirror, so triangle winding must be reversed (strings were dim, gems hollow); the GLSL word `half` is reserved;
+  additive blending in three.js multiplies by alpha unless set to One/One (particles were invisible).
+- Stills with hits: frames take ~1 s in software GL, so sparks were either just born or burnt out; shoot.js now stops the clock and ages them 0.25 s.
+- Not known: real GPU cost (estimate ~2–4 ms at 1080p High on a GTX 1070; software GL here: Inferno ~1 s a frame vs Classic ~0.33 s at Ultra 960×540).
+- Stage 1 merged (c2b359a). Review of Inferno stills: floor/sky/strings good; notes still flat small boxes that blow out white
+  near the strike line; Classic's white hit flash hides the sparks.
+- Stage 2 running in parallel: Inferno polisher (Opus: 3D gems for every HD style, styles own their hits, Inferno notes), and
+  one builder each (Opus) for Frozen Lake, Neon Crystal, Synthwave Drive, Deep Ocean (own files; gems last, to adopt the 3D gem).
+- Stage 2 done: Neon, Ocean, Synthwave builders merged; Inferno polisher (3D gems, hits owned by the style) merged; Frozen Lake builder
+  merged (refl off: the mirror only reflects muted pieces); Gem adopter (Sonnet) moved Neon/Ocean/Synthwave to the 3D gem fields.
+- Mirror pass skipped under any HD style (highway3d.js, `look.hd`). hwlooks tests use Neon for "mirror" (Frozen no longer reflects).
+- Glitter on Ocean/Inferno notes fixed by Glitter finder (Opus): the note flags arrive blended across the face (16 as 15.99999), so
+  held/accent flipped pixel by pixel; rounded first in hdstyle.js. Side finding, not changed: a hit note is drawn up to three times
+  in one spot (highway.js flare and landing copies, both z -0.02), which could fight in depth.
+- Then: npm test, THEMES/HWMENU/ATLAS, Classic pixels, bump to 4.34.0, README line, ask the user to merge.

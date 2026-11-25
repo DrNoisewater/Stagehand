@@ -12,7 +12,7 @@ A session once started from a copy several versions old (3.9 while GitHub had 4.
 ## Layout
 
 - `src/main/`: Electron main process (CommonJS): `core/` (PSARC, SNG, saves, tones) and `services/` (library, stems, audio relay).
-- `src/renderer/`: the UI (ES modules, no bundler, no build step): `js/rig.js` (the rig), `js/knobdrag.js` (4.19: the one drag every knob uses: up or right is more, the pointer held in place, a guide over the knob), `js/detect.js` (note detection), `js/instrument.js` (guitar or bass), `js/sing.js` + `js/singlane.js` + `js/mic.js` + `js/vocal-melody.js` (Sing along, an add-on: off until its chip is pressed; 4.19: the singer's pitch line read off the vocals stem and every chart note checked against it), `js/autotune.js` + `worklets/autotune-worklet.js` (4.17 auto-tune and voice changer: the microphone moved onto the song's notes and played with the song; off until a style or voice is picked), `js/playmodes.js` (4.23: a song's Lead/Rhythm/Bass/Sing & play/Karaoke buttons; Karaoke is a list under Songs), `js/activity.js` (4.23: Activity at the bottom of the menu), `js/stemcard.js` (the stem splitting card: the user's Unmixer animation, `vendor/unmixer/`), `js/displaysettings.js` + `src/main/services/display.js` (4.23: Settings › Display), `js/piano-arrange.js` + `js/piano-sheet.js` + `js/keys.js` + `js/midi.js` (Piano, an add-on: a part written from the song, sheet music and falling notes, a USB keyboard).
+- `src/renderer/`: the UI (ES modules, no bundler, no build step): `js/rig.js` (the rig), `js/hdstyle.js` + `js/styles/<id>.js` (4.34: the highway styles with their own HD graphics, guide in `docs/hd-styles.md`), `js/knobdrag.js` (4.19: the one drag every knob uses: up or right is more, the pointer held in place, a guide over the knob), `js/detect.js` (note detection), `js/instrument.js` (guitar or bass), `js/sing.js` + `js/singlane.js` + `js/mic.js` + `js/vocal-melody.js` (Sing along, an add-on: off until its chip is pressed; 4.19: the singer's pitch line read off the vocals stem and every chart note checked against it), `js/autotune.js` + `worklets/autotune-worklet.js` (4.17 auto-tune and voice changer: the microphone moved onto the song's notes and played with the song; off until a style or voice is picked), `js/playmodes.js` (4.23: a song's Lead/Rhythm/Bass/Sing & play/Karaoke buttons; Karaoke is a list under Songs), `js/activity.js` (4.23: Activity at the bottom of the menu), `js/stemcard.js` (the stem splitting card: the user's Unmixer animation, `vendor/unmixer/`), `js/displaysettings.js` + `src/main/services/display.js` (4.23: Settings › Display), `js/piano-arrange.js` + `js/piano-sheet.js` + `js/keys.js` + `js/midi.js` (Piano, an add-on: a part written from the song, sheet music and falling notes, a USB keyboard).
 - `src/companion/`: the Quest companion's page (4.16, plain JS, served by `src/main/services/companion.js` over HTTPS on the home network, only when switched on in Settings › Quest headset; `core/ws.js` and `core/selfcert.js` are its WebSocket and certificate).
 - `engine/stagehand_stems.py`: stem splitting (Demucs/PyTorch, installed on the user's PC at runtime).
 - `native/`: the sound engine in plain C. `dsp/` is the amp, cab, effects and NAM code, shared by the Windows helper (`host/io_wasapi.c` → `native/bin/stagehand-audio.exe`, **prebuilt and committed**) and the in-app WebAssembly engine (`src/renderer/worklets/rig-dsp.wasm`, **committed**).
@@ -80,6 +80,9 @@ GFXCHECK=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> C:7.0
 # getting around: Sing, Karaoke and Piano chips stay put, side menus, 61/88 keys, the tuning card waits for the guitar
 MODES=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
 # (PORT=8771 before any shoot.js command picks another port, to run two at once)
+# 4.34: one HD style's stills (HWTHEME=neon|synthwave|inferno|frozen|ocean); HWGFX=high (Auto drops to Low in software GL), HWWAIT=120000 when the machine is busy;
+# a scene ending in :p:h (e.g. A:2.5:p:h) plays with pretend hits and stops the clock just after them, to see the sparks
+HWGFX=high HWWAIT=120000 HWTHEME=frozen PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:19.1 A:2.5:p:h
 # Famous tones in Create a Tone: the tab, search, a build and a save, the bass room; writes famous-*.png
 SH_AUDIT=test/e2e/famous-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # Piano in the full page: the keyboard in Settings, Piano on a real library song, a key scored
@@ -121,6 +124,14 @@ SH_AUDIT=test/e2e/companion-audit.js node test/e2e/ui3-chromium.js native/build/
 node test/e2e/companion-vr-shot.js <outDir> 3.2 6.6
 # Setup's header art, cut from the app's own banner (commit the results); then pack it for the build
 SH_AUDIT=windows/setup/make-art.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir> && python3 windows/setup/make-art.py
+# 4.33: what freezes the highway: label uploads, shader builds, heap, frame gaps (writes stutter-<scene>.json); STUTTER_WHOLE=1 for the old whole uploads
+STUTTER=1 HWTHEME=ember HWGFX=ultra VW=960 VH=540 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> A:0
+# 4.33: the labels the graphics card holds equal a whole upload (ATLAS_BREAK=1 must fail)
+ATLAS=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
+# 4.33: a song start in the full page, profiled (stutter-app.json)
+SH_AUDIT=test/e2e/stutter-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# 4.33: the highway menu: picking a style or flipping a switch moves nothing
+HWMENU=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
 # a moving background must rebuild itself after the graphics card drops it
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```

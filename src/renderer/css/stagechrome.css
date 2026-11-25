@@ -254,6 +254,7 @@ body:has(.highway:not([hidden])) .menu :is(button,.menu-item):hover { background
 .hl-body { display:grid; gap:8px; margin-top:8px; }
 /* 4.31: style tiles are real pictures of the highway in that style, with a tape label */
 .hl-styles { display:grid; grid-auto-flow:column; grid-auto-columns:104px; gap:7px; overflow-x:auto; padding:2px 2px 6px; scrollbar-width:thin; }
+.hl-drawer .hl-styles { grid-auto-flow:row; grid-template-columns:repeat(3, minmax(0, 1fr)); grid-auto-columns:auto; overflow:visible; }
 .hl-gallery { grid-auto-flow:row; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); grid-auto-columns:auto; overflow:visible; gap:10px; }
 .hl-style { position:relative; display:grid; align-content:start; gap:4px; padding:4px 4px 6px; border:1px solid var(--hl-line); border-radius:2px; background:#26221d; color:inherit; font:inherit; text-align:left; cursor:pointer; box-shadow:2px 3px 0 #0008; }
 .hl-style:hover { border-color:#8a7a62; }
@@ -300,3 +301,5 @@ body:has(.highway:not([hidden])) .menu :is(button,.menu-item):hover { background
 .hl-preset b { font-weight:900; text-transform:uppercase; letter-spacing:.04em; }
 .hl-preset small { color:var(--hl-ink3); font-size:11px; line-height:1.3; }
 .hl-preset[aria-checked='true'] { border-color:var(--hl-gold); box-shadow:0 0 0 2px #f1ce6855; }
+/* 4.33: the style's line above the pictures keeps one height, so picking a style moves nothing */
+.hl-drawer > .hl-row:first-child small { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; line-height:1.35; height:calc(2 * 1.35em); }
