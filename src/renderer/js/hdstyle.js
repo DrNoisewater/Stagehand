@@ -53,6 +53,7 @@ uniform vec3 uFogCol;
 uniform vec4 uHits[8];
 uniform float uHitN;
 uniform vec3 uCamPos;
+uniform float uOwn;      // 1: the style's own room is behind; 0: a venue picture or moving background (keep the sides clear)
 float hdHash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 vec2 hdHash2(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973)); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.xx + p3.yz) * p3.zy); }
 float hdHash3(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
@@ -104,7 +105,8 @@ vec3 hdFog(vec3 c, float z) { return mix(c, uFogCol, uFogK * smoothstep(0.05, 0.
 const FLOOR_VS = /* glsl */ `
 varying vec3 vW;
 void main() {
-  vW = vec3(position.x, position.y, -position.z);
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vW = vec3(w.x, w.y, -w.z);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }`;
 const FLOOR_FS = (glsl) => /* glsl */ `
@@ -215,17 +217,19 @@ varying vec4 vC;
 varying vec4 vD;
 varying float vKind;
 varying vec2 vHalf;
+varying vec3 vNl;
 void main() {
-  vec3 half = vec3(iB.x, iB.y, iB.z * 0.5);
-  float r = min(iB.w, min(half.x, min(half.y, half.z)));
-  vec3 lp = aIn * (half - r) + normal * r;
-  vec3 wp = vec3(iA.x, iA.y, iA.z + half.z) + lp;
+  vNl = normal;
+  vec3 hs = vec3(iB.x, iB.y, iB.z * 0.5);
+  float r = min(iB.w, min(hs.x, min(hs.y, hs.z)));
+  vec3 lp = aIn * (hs - r) + normal * r;
+  vec3 wp = vec3(iA.x, iA.y, iA.z + hs.z) + lp;
   vec4 mv = modelViewMatrix * vec4(wp.x, wp.y, -wp.z, 1.0);
   vN = normalize(normalMatrix * vec3(normal.x, normal.y, -normal.z));
   vV = normalize(-mv.xyz);
-  vL = vec3(lp.x / half.x, lp.y / half.y, lp.z / half.z);
+  vL = lp / hs;
   vWp = wp;
-  vC = iC; vD = iD; vKind = iA.w; vHalf = half.xy;
+  vC = iC; vD = iD; vKind = iA.w; vHalf = hs.xy;
   gl_Position = projectionMatrix * mv;
 }`;
 const GEM_FS = (glsl) => /* glsl */ `
@@ -238,21 +242,23 @@ varying vec4 vC;
 varying vec4 vD;
 varying float vKind;
 varying vec2 vHalf;
+varying vec3 vNl;
 struct HDGem {
   vec3 n;      // normal (view space: x right, y up, z toward you)
+  vec3 nl;     // normal on the box itself (z -1 is the face toward you); flat faces have one axis at ±1
   vec3 v;      // toward the eye (view space)
   vec3 l;      // where on the box, -1..1 each way (l.z = -1 is the face toward you)
   vec3 wp;     // world position (z = time ahead)
   vec3 col;    // the string's colour
   float missed, near, flare, fade, kind;
   float accent, mute, bend, chord;
-  vec2 half;   // half width and height (world units)
+  vec2 size;   // half width and height (world units)
 };
 ${glsl}
 void main() {
   HDGem g;
-  g.n = normalize(vN); g.v = normalize(vV); g.l = vL; g.wp = vWp; g.col = vC.rgb; g.missed = vC.a;
-  g.near = vD.x; g.flare = vD.y; g.fade = vD.z; g.kind = vKind; g.half = vHalf;
+  g.n = normalize(vN); g.nl = normalize(vNl); g.v = normalize(vV); g.l = vL; g.wp = vWp; g.col = vC.rgb; g.missed = vC.a;
+  g.near = vD.x; g.flare = vD.y; g.fade = vD.z; g.kind = vKind; g.size = vHalf;
   float fl = vD.w;
   g.accent = mod(fl, 2.0); g.mute = mod(floor(fl / 2.0), 2.0); g.bend = mod(floor(fl / 4.0), 2.0); g.chord = mod(floor(fl / 8.0), 2.0);
   vec4 c = hdGem(g);
@@ -505,9 +511,9 @@ function roundedBox(m) {
     }
     for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) {
       const p = base + j * N + i;
-      // wound so the outside faces out (checked per face by the sign)
-      if (sg > 0) idx.push(p, p + 1, p + N + 1, p, p + N + 1, p + N);
-      else idx.push(p, p + N + 1, p + 1, p, p + N, p + N + 1);
+      // (b, c) are ordered so b × c points out of every face; wound the other way round because z is
+      // turned round for three.js (a mirror)
+      idx.push(p, p + N + 1, p + 1, p, p + N, p + N + 1);
     }
   }
   const g = new THREE.InstancedBufferGeometry();
@@ -533,7 +539,7 @@ function capsule(seg) {
   const n = seg + 1;
   for (let r = 0; r < rings.length - 1; r++) for (let i = 0; i < seg; i++) {
     const p = r * n + i;
-    idx.push(p, p + n, p + 1, p + 1, p + n, p + n + 1);
+    idx.push(p, p + 1, p + n, p + 1, p + n + 1, p + n); // outside out once z is turned round for three.js
   }
   const g = new THREE.InstancedBufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -613,7 +619,7 @@ export function createHD(R3, { ratio }) {
     uFx: { value: 1 }, uMotion: { value: 1 }, uQ: { value: 2 }, uZFar: { value: 40 }, uZPast: { value: 1 },
     uGain: { value: 1 }, uFogK: R3.lookU.fogK, uFogCol: R3.lookU.fogCol,
     uHits: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) }, uHitN: { value: 0 },
-    uCamPos: { value: new THREE.Vector3() },
+    uCamPos: { value: new THREE.Vector3() }, uOwn: { value: 1 },
   };
   const lanes = Array.from({ length: 8 }, () => new THREE.Vector4());
   const beats = Array.from({ length: 40 }, () => new THREE.Vector2());
@@ -630,6 +636,8 @@ export function createHD(R3, { ratio }) {
   let hitI = 0;
   const hazeSpots = new Float32Array(16);
   let F = null; // the frame's info (kept, reused)
+  const holds = new Float32Array(24);
+  let lastTime = 0;
 
   const mat = (vs, fs, uniforms, o = {}) => new THREE.ShaderMaterial({
     vertexShader: vs,
@@ -852,17 +860,22 @@ export function createHD(R3, { ratio }) {
 
   /** Every program compiled before the style shows (in the background where the graphics driver can). */
   async function warm(parts) {
-    for (const m of parts.meshes) m.visible = true;
-    const was = R3.L;
-    const hide = [];
-    for (const k in was) if (was[k].mesh.visible) hide.push(was[k].mesh);
-    try {
-      if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
-      else renderer.compile(scene, camera);
-    } catch (err) {
-      console.warn('HD style: compile', err);
+    // on a scene of their own, so nothing half-ready is ever drawn
+    const tmp = new THREE.Scene();
+    for (const m of parts.meshes) {
+      m.visible = true;
+      tmp.add(m);
     }
-    for (const m of parts.meshes) m.visible = false;
+    try {
+      if (renderer.compileAsync) await renderer.compileAsync(tmp, camera, scene);
+      else renderer.compile(tmp, camera, scene);
+    } catch (err) {
+      console.error('HD style: compile', err);
+    }
+    for (const m of parts.meshes) {
+      m.visible = false;
+      scene.add(m);
+    }
   }
 
   function drop(p) {
@@ -914,9 +927,16 @@ export function createHD(R3, { ratio }) {
           E.ready = true;
         })
         .catch((err) => {
-          console.warn('HD style: could not load', want, err);
+          console.error('HD style: could not load', want, err);
           if (ticket === loading) want = null;
         });
+    },
+    /** Nothing of the style shows this frame (no highway: karaoke, piano, no song). */
+    hide() {
+      if (!cur) return;
+      for (const m of cur.meshes) m.visible = false;
+      R3.skyOwn(false);
+      R3.setHaze(0, null);
     },
     /** A promise for tests: resolves when the wanted style is in use. */
     whenReady() {
@@ -1043,6 +1063,7 @@ export function createHD(R3, { ratio }) {
       U.uZPast.value = F.zPast;
       U.uGain.value = F.bright;
       U.uCamPos.value.copy(camera.position);
+      U.uOwn.value = F.own ? 1 : 0;
       partU.uNow.value = F.time;
       // the hits: brightest as they land, held while they ring
       let hn = 0;
@@ -1054,6 +1075,20 @@ export function createHD(R3, { ratio }) {
         if (k > 0.01) U.uHits.value[hn++].set(h.x, h.y, h.z, k);
       }
       U.uHitN.value = hn;
+      // notes you are holding (for sparks along a sustain): F.holdN of them, x, y, z each in F.holds
+      F.dt = Math.min(0.1, Math.max(0, F.time - lastTime));
+      lastTime = F.time;
+      F.holdN = 0;
+      F.holds = holds;
+      for (let i = 0; i < 8; i++) {
+        const h = hits[i];
+        if (F.t < h.until && F.time - h.at < 30) {
+          holds[F.holdN * 3] = h.x;
+          holds[F.holdN * 3 + 1] = h.y;
+          holds[F.holdN * 3 + 2] = h.z;
+          F.holdN++;
+        }
+      }
       floorU.uLaneN.value = p.laneN;
       floorU.uBeatN.value = p.beatN;
       if (p.def.frame) p.def.frame(F);

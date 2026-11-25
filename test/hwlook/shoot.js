@@ -401,6 +401,9 @@ async function stutterRun(browser, page, out, scene, t) {
       await page.evaluate((k) => { document.documentElement.dataset.look = 'opera'; document.documentElement.dataset.skin = k; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/themes-stage.css'; document.head.append(l); }, process.env.SKIN);
       await page.waitForTimeout(400);
     }
+    // 4.34: a style with its own graphics: wait until they are built and compiled
+    await page.waitForTimeout(300);
+    await page.evaluate(() => { const H = document.querySelector('.highway').__hw; return H.hx ? Promise.race([H.hx.whenReady(), new Promise((r) => setTimeout(r, 20000))]) : true; });
     // software rendering here is slow: keep the glow on for stills (the app turns it off on slow PCs)
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
     if (process.env.STUTTER) { await stutterRun(browser, page, out, scene, t); continue; } // STUTTER=1: see the block above

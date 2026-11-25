@@ -25,6 +25,7 @@ import { Analyzer, OnsetTracker, Judge, targetsFromTab, tuneShift, instrumentShi
 import { createRenderer3D, col, mix, mixHex, rodShades } from './highway3d.js';
 import { loadLooks, onLooks, resolveLook, budgetDrop } from './hwlooks.js';
 import { createStyle } from './hwstyle.js';
+import { createHD } from './hdstyle.js';
 import { drawerLooks } from './hwlooks-pane.js';
 import { createFluid } from './fluidbg.js';
 import { tuningName, tuningPlan, myTuning, myCents, setMyTuning, refLabel, MY_TUNINGS, MY_TUNINGS_BASS } from './tuning.js';
@@ -1754,6 +1755,7 @@ export function createHighway(stage) {
     if (lookWant && R3) {
       lookWant = false;
       R3.setLook(LK);
+      HX.use(LK);
     }
     if (!perf.want) return;
     if (R3 && perf.want !== R3.scale) R3.setScale(perf.want, perf.ratio);
@@ -1950,6 +1952,44 @@ export function createHighway(stage) {
   const noteX = (nt, a) => (nt.f === 0 ? (anX0(a) + anX1(a)) / 2 : laneC(nt.f));
   // 4.31: each style's own floor, rails, light and hit effect (hwstyle.js; Classic draws none of it)
   const styleFx = createStyle({ R3, G, XF, zOf, noteX, strH, anchorAt, STRING, anX0, anX1, lower, beats: () => H.tab.beats || [], calm: () => calmMotion() });
+  // 4.34: a style with its own graphics (hdstyle.js, styles/<id>.js) draws the floor, notes, strings and
+  // effects itself; the usual pieces are still laid out in the same places but not shown (R3.mute)
+  const HX = createHD(R3, { ratio: RATIO });
+  H.hx = HX; // tests
+  const HF = { t: 0, zs: 16, zFar: 40, zPast: 1, pulse: 0, heat: 0, fxK: 1, motion: true, quality: 2, camX: 0, W: 1, H: 1, vp: 300, vx: 0, bright: 1, own: true, haze: false, neckY: null };
+  function hxBegin(t) {
+    if (!HX.on) return;
+    HF.t = t;
+    HF.zs = G.zs;
+    HF.zFar = G.zF;
+    HF.zPast = G.zs * PAST;
+    HF.pulse = G.pulse || 0;
+    HF.heat = G.heat || 0;
+    HF.fxK = LK.fxK ?? 1;
+    HF.motion = !!LK.motion && !calmMotion();
+    HF.quality = LK.quality ?? 2;
+    HF.camX = G.camX || 0;
+    HF.W = R3.W;
+    HF.H = R3.H;
+    HF.vp = G.vpY || R3.H * 0.4;
+    HF.vx = G.vpX || R3.W / 2;
+    HF.bright = LK.bright ?? 1;
+    HF.own = !!LK.own;
+    HF.haze = !!LK.haze && !calmMotion();
+    HF.neckY = R3.project(G.camX || 0, G.yTop, 0)[1];
+    HX.begin(HF);
+  }
+  /** How lit each string is by what you just hit (0..1), for a style's own strings. */
+  const strGlow = [0, 0, 0, 0, 0, 0, 0, 0];
+  function stringGlow(t) {
+    strGlow.fill(0);
+    const now = performance.now();
+    for (const b of H.bursts || []) {
+      const k = Math.max(Math.exp(-(now - b.at) / 180), t < b.until ? 0.35 : 0);
+      if (k > strGlow[b.s]) strGlow[b.s] = k;
+    }
+    return strGlow;
+  }
 
   // ---- camera --
   /** Frets (as lane edges, lo..hi) that the next few seconds of play use. */
@@ -2081,6 +2121,7 @@ export function createHighway(stage) {
     const T0 = performance.now();
     if (!tab) {
       drawBackdrop(t);
+      HX.hide();
       R3.begin();
       R3.render(40, 1);
       return;
@@ -2091,6 +2132,7 @@ export function createHighway(stage) {
     streakLook(dt);
     if (aside()) {
       // karaoke or piano: the stage only, no neck and no guitar notes
+      HX.hide();
       R3.begin();
       R3.render(G.zF, G.zs * PAST);
       ctx.save();
@@ -2108,6 +2150,7 @@ export function createHighway(stage) {
     G.f0 = f0;
     G.f1 = f1;
     R3.begin();
+    hxBegin(t);
     buildFloor(t, a, f0, f1);
     if (LK.sig.rails !== 'tube') styleFx.ambient(LK, P, a);
 
@@ -2121,6 +2164,7 @@ export function createHighway(stage) {
     drawLabels();
     drawHitsFront(t, a, dt);
     drawFire(a, dt);
+    HX.end();
     const T2 = performance.now();
     R3.render(G.zF, G.zs * PAST);
     const T3 = performance.now();
@@ -2286,7 +2330,9 @@ export function createHighway(stage) {
     const v = LK.own ? null : VENUES.find((x) => x.id === (H.decorVenue || VENUE_ALIAS[prefs.venue] || prefs.venue || 'warehouse'));
     // the picture's floor line goes where the highway's far end meets the floor; it drifts a little with the camera
     const vpY = H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 0.8)[1] : HH * 0.4;
-    R3.setHorizon(vpY, H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 4)[0] : W / 2);
+    G.vpY = vpY;
+    G.vpX = H.tab && G.zF ? R3.project(G.camX || 0, 0, G.zF * 4)[0] : W / 2;
+    R3.setHorizon(vpY, G.vpX);
     R3.setVenue(v && (v.photo || v.fluid) ? v : null, vpY, ((G.camX || 0) - 10) / 14, G.pulse * 0.5, G.heat * 0.5);
     if (v?.scene && H.open) {
       dropFluid();
@@ -2348,6 +2394,8 @@ export function createHighway(stage) {
     const { floor, glow, soft } = R3.L;
     const zF = G.zF;
     const zN = -G.zs * PAST;
+    const hdF = HX.owns('floor'); // 4.34: the style's own surface (the pieces below keep their places, unseen)
+    if (hdF) R3.mute(true);
     // every fret's line runs off to the vanishing point, faint
     const lineC = col(P.line, P.lineA);
     for (let f = 0; f <= 24; f++) floor.bar([XF(f), 0, zN], [XF(f), 0, zF], 0.035, lineC);
@@ -2361,6 +2409,7 @@ export function createHighway(stage) {
       if (zb <= za) continue;
       const xa = anX0(an);
       const xb = anX1(an);
+      if (hdF) HX.lane(za, zb, xa, xb);
       for (let f = an.fret; f < an.fret + (an.width || 4); f++) {
         const l = XF(f - 1);
         const r = XF(f);
@@ -2368,7 +2417,7 @@ export function createHighway(stage) {
         floor.flat(l, r, za, zb, 0.002, col(P.laneA, P.laneFill), col(P.laneB, P.laneFill));
         floor.flat(l + w * 0.18, r - w * 0.18, za, zb, 0.004, col(P.laneMid, P.laneMidA), col(P.laneMid, P.laneMidA / 2));
       }
-      const tube = LK.sig.rails === 'tube';
+      const tube = LK.sig.rails === 'tube' || (LK.sig.rails === 'hd' && !HX.on);
       if (!tube) styleFx.floorPattern(LK, P, an, xa, xb, za, zb, an.t <= t + 0.0001 && (!next || next.t > t));
       for (let f = an.fret; f < an.fret - 1 + (an.width || 4); f++) floor.bar([XF(f), 0.006, za], [XF(f), 0.006, zb], 0.04, col(P.laneLine, P.laneLineA));
       // the bright rails
@@ -2408,7 +2457,9 @@ export function createHighway(stage) {
       const bar = beats[i].m >= 0;
       const an = anchorAt(beats[i].t);
       floor.bar([anX0(an), 0.007, z], [anX1(an), 0.007, z], bar ? 0.06 : 0.03, col(P.beat, bar ? P.beatA : P.beatA * 0.36));
+      if (hdF) HX.beat(z, bar);
     }
+    if (hdF) R3.mute(false);
   }
 
   // ------------------------------------------------------------- neck --
@@ -2452,12 +2503,19 @@ export function createHighway(stage) {
     // shine; a streak warms them (10, 20, 30 in a row), most in your hand position
     const warm = G.tierW || 0;
     const inHand = (f) => f >= a.fret - 1 && f <= a.fret - 1 + (a.width || 4);
+    // 4.34: a style's own strings and frets: round, shaded and lit on the graphics card
+    const hdT = HX.owns('tube');
+    const sg = hdT ? stringGlow(t) : null;
+    if (hdT) solid.muted = true;
     for (let f = Math.max(0, f0 - 1); f <= Math.min(24, f1 + 1); f++) {
       const x = XF(f);
-      if (f === 0) solid.rodY(x, 0, yb, yt, 0.04, rodShades('#e4dcc6', 'post', 6));
-      else {
+      if (f === 0) {
+        solid.rodY(x, 0, yb, yt, 0.04, rodShades('#e4dcc6', 'post', 6));
+        if (hdT) HX.tube(2, x, yb, 0, x, yt, 0, 0.04, '#e4dcc6', 0);
+      } else {
         const w = warm * (inHand(f) ? 0.6 : 0.3);
         solid.rodY(x, 0, yb, yt, 0.021, rodShades(w > 0.01 ? mixHex('#a9adb8', '#ffbe82', w, 12) : '#a9adb8', 'wire', 6));
+        if (hdT) HX.tube(1, x, yb, 0, x, yt, 0, 0.021, '#a9adb8', w);
         if (w > 0.05) glow.upSoft(x - 0.09, x + 0.09, yb, yt, -0.01, col('#ff9a50', 0.14 * w), col('#ffb070', 0.05 * w));
       }
     }
@@ -2469,12 +2527,15 @@ export function createHighway(stage) {
       const th = (n === 4 ? 0.034 : 0.028) - s * (n === 4 ? 0.0035 : 0.0024);
       const sh = rodShades(STRING[s], 'string', 6);
       const sw = sway.get(s);
+      const wound = n === 4 || s < 3 ? 1 : 0;
+      if (hdT && !sw) HX.tube(0, xn, y, 0, xe, y, 0, th, STRING[s], sg[s], s, wound);
       if (!sw) solid.rodX(xn, xe, y, 0, th, sh);
       else {
         // 4.17: the string you hit sways a little around its fret, slowly, and settles at once
         const xa = Math.max(xn, sw.x - SWAY_W * 2.2);
         const xb = Math.min(xe, sw.x + SWAY_W * 2.2);
         solid.rodX(xn, xa, y, 0, th, sh);
+        if (hdT) HX.tube(0, xn, y, 0, xa, y, 0, th, STRING[s], sg[s], s, wound);
         let px = xa;
         let py = y;
         for (let k = 1; k <= 16; k++) {
@@ -2482,10 +2543,12 @@ export function createHighway(stage) {
           const u = (x - sw.x) / SWAY_W;
           const yy = y + sw.d * Math.exp(-u * u);
           solid.rodX(px, x, py, 0, th, sh, yy);
+          if (hdT) HX.tube(0, px, py, 0, x, yy, 0, th, STRING[s], sg[s], s, wound, px - xn);
           px = x;
           py = yy;
         }
         solid.rodX(xb, xe, y, 0, th, sh);
+        if (hdT) HX.tube(0, xb, y, 0, xe, y, 0, th, STRING[s], sg[s], s, wound, xb - xn);
       }
       R3.L.floor.bar([xn, 0.004, 0.05 + s * 0.012], [xe, 0.004, 0.05 + s * 0.012], th * 2.2, col('#000000', 0.22)); // its shadow on the floor
       glow.acrossSoft(xn, xe, y - th * 4, y + th * 4, 0.03, col(STRING[s], 0.12));
@@ -2494,8 +2557,10 @@ export function createHighway(stage) {
     // (3.12: they used to stand taller, which looked off to the user)
     for (const x of [anX0(a), anX1(a)]) {
       solid.rodY(x, -0.05, yb, yt, 0.03, rodShades('#fff4fb', 'post', 6));
+      if (hdT) HX.tube(3, x, yb, -0.05, x, yt, -0.05, 0.03, P.postA, 0.15);
       glow.upSoft(x - 0.15, x + 0.15, yb, yt, -0.085, col(P.postA, 0.22), col(P.postB, 0.18));
     }
+    solid.muted = false;
   }
 
   // 4.17: how the strings you just hit sway: a small, slow swing around the fret, gone in half a second
@@ -2640,11 +2705,15 @@ export function createHighway(stage) {
       }
     }
     // the fret wires: a white post with a warm pink glow, the same height as the frets
+    const hdT = HX.owns('tube');
+    if (hdT) solid.muted = glow.muted = true;
     for (const [xs, k] of posts) {
       const x = Number(xs);
       solid.box(x - 0.03, x + 0.03, -0.2, G.yTop + 0.32, -0.1, -0.03, col('#fff6ee', Math.min(1, k * 1.1), 1 + 1.2 * k));
       glow.upSoft(x - 0.22, x + 0.22, -0.2, G.yTop + 0.32, -0.105, col('#ff7a9a', 0.5 * k, 1.2), col('#ff9a6a', 0.18 * k));
+      if (hdT) HX.tube(3, x, -0.2, -0.065, x, G.yTop + 0.32, -0.065, 0.03, P.postA, Math.min(1, k));
     }
+    solid.muted = glow.muted = false;
     // the chord's box at the neck (as in Rocksmith): a rectangle as wide as the chord's frame,
     // from under the bottom string to just above the top one. Thin neon lines with a soft
     // glow (4.2.1c, user: "a little closer, and soften it"): cyan along the top and bottom,
@@ -2846,13 +2915,21 @@ export function createHighway(stage) {
     const bending = maxBend(nt) > 0 || b0 > 0 || vib;
     let prev = null;
     let peak = null;
+    // 4.34: a style's own sustain ribbon (the usual one keeps its place, unseen)
+    const hdR = HX.owns('trail');
+    if (hdR) R3.mute(true);
+    let prevT = t0;
+    let prevLift = 0;
     for (let k = 0; k <= steps; k++) {
-      const p = posAt(t0 + ((t1 - t0) * k) / steps);
+      const tk = t0 + ((t1 - t0) * k) / steps;
+      const p = posAt(tk);
       const L = p[3];
       if (!peak || Math.abs(L - L0) > Math.abs(peak.L - L0)) peak = { p, L };
       if (prev) {
         // a bend glows warmer and brighter the higher it goes
         const lift = bending ? Math.min(1, Math.abs(L - L0) / 1.5) : 0;
+        if (hdR) HX.trail(prev[0], prev[1], prev[2], prevT, p[0], p[1], p[2], tk, half, hex, missed, holding ? 1 : 0, prevLift, lift);
+        prevLift = lift;
         const c = col(hex, holding ? 0.75 : 0.58, (holding ? 1.3 : 1) + lift * 0.5);
         alpha.quad([prev[0] - half, prev[1], prev[2]], [prev[0] + half, prev[1], prev[2]], [p[0] + half, p[1], p[2]], [p[0] - half, p[1], p[2]], c);
         const ec = missed ? col('#7a7f96', 0.8) : lift > 0.05 ? col('#fff3d6', 0.95, 1.4 + lift) : col(hex, 0.95, holding ? 2.2 : 1.5);
@@ -2867,7 +2944,9 @@ export function createHighway(stage) {
         }
       }
       prev = p;
+      prevT = tk;
     }
+    if (hdR) R3.mute(false);
     // the ↑ and the riser only where a bend starts, not again on the held-on part
     const mb = maxBend(nt) > b0 + 0.25 ? maxBend(nt) : 0;
     if(mb>0 && peak && !b0){
@@ -2954,6 +3033,7 @@ export function createHighway(stage) {
     // held on from the note before (linkNext): no new gem, its sustain just carries on
     if (nt.linked) return;
     const { solid, alpha, glow } = R3.L;
+    const hdG = HX.owns('gem'); // 4.34: the style's own note (the usual one keeps its place, unseen)
     const s = nt.s;
     const hex = missed ? '#5a6078' : STRING[s];
     const dark = missed ? '#3c4050' : STRING_DARK[s];
@@ -2972,6 +3052,10 @@ export function createHighway(stage) {
       const xa = (box ? box[0] : anX0(an)) + 0.1;
       const xb = (box ? box[1] : anX1(an)) - 0.1;
       const hh = G.gy * 0.14 * big;
+      if (hdG) {
+        R3.mute(true);
+        HX.gem(1, (xa + xb) / 2, y, z, (xb - xa) / 2, hh, DEPTH, hh * 0.8, hex, missed, near, flare, fade, gemFlags(nt, mute, inChord));
+      }
       solid.box(xa, xb, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, faceT, fade), col(hex, fade, 1.2), col(dark, fade));
       if (LK.shadows && !missed && z > 0.05) R3.L.floor.halo((xa + xb) / 2, 0.003, z + DEPTH * 0.5, (xb - xa) / 2 + 0.15, 0.22, '#000000', 0.3 * fade, 1, 'y', 12);
       glow.up(xa, xb, y - hh, y + hh, z - 0.005, col(hex, 0.55 * fade * (missed ? 0.3 : 1), rimK));
@@ -2981,6 +3065,7 @@ export function createHighway(stage) {
         if (near > 0.05) glow.acrossSoft(xa - 0.1, xb + 0.1, y - hh * 4, y + hh * 4, z + 0.01, col(hex, 0.16 * near * fade * F.halo));
         gemReflection(xa, xb, y - hh, y + hh, z, hex, fade * 0.5);
       }
+      if (hdG) R3.mute(false);
       return;
     }
     const x = laneC(nt.f);
@@ -2994,6 +3079,10 @@ export function createHighway(stage) {
       label(mute || nt.mute ? '×' : String(nt.f), x, 0, z - 0.3, { size: 0.42 * lw, min: 11, max: 36, gold: true, grey: missed });
     }
     // the block: dark glass front, lit top, darker sides
+    if (hdG) {
+      R3.mute(true);
+      HX.gem(0, x, y, z, hw, hh, DEPTH, Math.min(hw, hh) * 0.32, hex, missed, near, flare, fade, gemFlags(nt, mute, inChord));
+    }
     solid.box(x - hw, x + hw, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, missed ? 0.15 : faceT, fade, 1 + 0.3 * near), col(hex, fade, 1.1), col(dark, fade, 0.85));
     // 4.30: a soft contact shadow on the floor under the note (looks with shadows)
     if (LK.shadows && !missed && z > 0.05) R3.L.floor.halo(x, 0.003, z + DEPTH * 0.5, hw * 1.7, 0.24, '#000000', 0.32 * fade, 1, 'y', 12);
@@ -3050,6 +3139,7 @@ export function createHighway(stage) {
       }
       gemReflection(x - hw, x + hw, y - hh, y + hh, z, hex, fade);
     }
+    if (hdG) R3.mute(false);
     if (nt.accent && !missed) {
       const p = rim * 1.6;
       for (const [a0, a1, b0, b1] of [[x - hw - p, x + hw + p, y + hh + p * 0.4, y + hh + p], [x - hw - p, x + hw + p, y - hh - p, y - hh - p * 0.4], [x - hw - p, x - hw - p * 0.4, y - hh - p, y + hh + p], [x + hw + p * 0.4, x + hw + p, y - hh - p, y + hh + p]]) glow.up(a0, a1, b0, b1, zf, col('#ffffff', 0.9 * fade, 1.5));
@@ -3087,6 +3177,12 @@ export function createHighway(stage) {
     }
   }
 
+  /** 4.34: what a style's own note shows: 1 accent, 2 muted, 4 a bend, 8 in a chord. */
+  function gemFlags(nt, mute, inChord) {
+    const tech = nt._tech || (nt._tech = noteTech(nt));
+    return (nt.accent ? 1 : 0) + (mute || nt.mute ? 2 : 0) + (tech.bend > 0 ? 4 : 0) + (inChord ? 8 : 0);
+  }
+
   /** Where a chord's frame sits across the neck. */
   function chordBox(tg, an) {
     const [left, right] = chordSpan(tg.notes, an);
@@ -3116,14 +3212,23 @@ export function createHighway(stage) {
       for (const nt of tg.notes) buildGem(nt, z, an, missed, tg.kind === 'mute', true, [xa, xb], flare);
       return;
     }
-    // smoked glass inside, the top face, and a dimmer back frame for depth
-    alpha.up(xa, xb, 0, yT, z, missed ? col('#3a3e4c', 0.3) : col('#0b2a36', 0.42), missed ? col('#3a3e4c', 0.3) : col('#103a48', 0.42));
-    alpha.flat(xa, xb, z, z + DZ, yT, missed ? col('#5a6078', 0.25) : col('#0e3646', 0.6));
+    // smoked glass inside, the top face, and a dimmer back frame for depth (4.34: a style can tint the glass)
+    const cg = HX.chordGlass();
+    alpha.up(xa, xb, 0, yT, z, missed ? col('#3a3e4c', 0.3) : col(cg ? cg[0] : '#0b2a36', 0.42), missed ? col('#3a3e4c', 0.3) : col(cg ? cg[1] : '#103a48', 0.42));
+    alpha.flat(xa, xb, z, z + DZ, yT, missed ? col('#5a6078', 0.25) : col(cg ? cg[1] : '#0e3646', 0.6));
     const bc = missed ? col('#6e748c', 0.4) : railCol(0.5, 0.9);
     for (const [p, q] of [[[xa, 0, z + DZ], [xa, yT, z + DZ]], [[xb, 0, z + DZ], [xb, yT, z + DZ]], [[xa, yT, z + DZ], [xb, yT, z + DZ]]]) alpha.bar(p, q, w * 0.7, bc, bc, 'z');
     alpha.bar([xa, yT, z], [xa, yT, z + DZ], w, bc);
     alpha.bar([xb, yT, z], [xb, yT, z + DZ], w, bc);
-    // the front frame, glowing
+    // the front frame, glowing (4.34: a style's own frame, drawn like its notes)
+    const hdG = HX.owns('gem');
+    if (hdG) {
+      R3.mute(true);
+      const fh = missed ? '#6e748c' : mixHex(P.rail, P.railHot, G.heat || 0, 8);
+      HX.gem(2, xa, (yT + w) / 2, z - w, w, (yT + w) / 2, 2 * w, w * 0.9, fh, missed, 0, flare, 1, 0);
+      HX.gem(2, xb, (yT + w) / 2, z - w, w, (yT + w) / 2, 2 * w, w * 0.9, fh, missed, 0, flare, 1, 0);
+      HX.gem(2, (xa + xb) / 2, yT, z - w, (xb - xa) / 2 + w, w, 2 * w, w * 0.9, fh, missed, 0, flare, 1, 0);
+    }
     solid.box(xa - w, xa + w, 0, yT + w, z - w, z + w, ec);
     solid.box(xb - w, xb + w, 0, yT + w, z - w, z + w, ec);
     solid.box(xa - w, xb + w, yT - w, yT + w, z - w, z + w, ec);
@@ -3133,6 +3238,7 @@ export function createHighway(stage) {
       glow.up(xb - 0.12, xb + 0.12, 0, yT + 0.1, z - 0.01, gc);
       glow.up(xa - 0.12, xb + 0.12, yT - 0.1, yT + 0.12, z - 0.01, gc);
     }
+    if (hdG) R3.mute(false);
     if (accent && !missed) {
       const p = 0.09;
       const c = col('#ffffff', 0.85, 1.2);
@@ -3181,6 +3287,15 @@ export function createHighway(stage) {
     H.bursts = H.bursts.filter((b) => now - b.at < 700 || t < b.until);
     // 4.31: the style's Effects: Full 1 (as always), Calm about half, Off none (only the note's own flare)
     const fxK = LK.fxK ?? 1;
+    // 4.34: each new hit, once, to a style's own effects (sparks, a flare on its floor, shimmer)
+    if (HX.on) for (const h of H.hits) {
+      if (h.hx) continue;
+      h.hx = true;
+      const tg = H.targets[h.id];
+      if (!tg) continue;
+      const an = anchorAt(tg.t);
+      for (const nt of tg.notes) if (!nt.linked) HX.hit(nt.f === 0 ? noteX(nt, an) : laneC(nt.f), strH(nt.s), 0, nt.s, nt.f, STRING[nt.s], deadOn(h), h.chord, h.until);
+    }
     // 1. the string blazes along its whole length, hottest at the note
     const byString = new Map();
     for (const b of H.bursts) {
@@ -3210,12 +3325,16 @@ export function createHighway(stage) {
       const xs = h.chord ? chordBox(tg, an) : tg.notes.flatMap((nt) => (nt.f === 0 ? [anX0(an), anX1(an)] : [XF(nt.f - 1), XF(nt.f)]));
       for (const x of xs) posts.set(x.toFixed(3), Math.max(posts.get(x.toFixed(3)) || 0, k));
     }
+    const hdT = HX.owns('tube');
+    if (hdT) solid.muted = glow.muted = true;
     for (const [xs, k] of posts) {
       const x = Number(xs);
       // no taller than the frets (4.0.6: taller ones read as pieces sticking out of the neck)
       solid.box(x - 0.035, x + 0.035, -0.2, G.yTop + 0.32, -0.1, -0.03, col('#fff0f8', k, 2.2));
       glow.upSoft(x - 0.25, x + 0.25, -0.2, G.yTop + 0.32, -0.11, col('#ff5aaa', 0.62 * k, 1.3), col('#ff5aaa', 0.15 * k));
+      if (hdT) HX.tube(3, x, -0.2, -0.065, x, G.yTop + 0.32, -0.065, 0.035, '#ffffff', Math.min(1, k * 2.5));
     }
+    solid.muted = glow.muted = false;
     // 3. the note flares on the neck: a bright pop, held while you sustain
     for (const h of H.hits) {
       const tg = H.targets[h.id];
@@ -3262,7 +3381,7 @@ export function createHighway(stage) {
       }
     }
     if (LK.sparks) buildSparks(now, fxK); // 4.30: a look can leave the sparks out
-    else styleFx.hits(LK, H.hits, H.targets); // 4.31: the style's own hit effect
+    else if (!(HX.style && HX.style.onHit)) styleFx.hits(LK, H.hits, H.targets); // 4.31: the style's own hit effect (4.34: or its own particles)
   }
 
   // 4.23: less movement: the app's calm setting or Windows' "show animations" switched off
