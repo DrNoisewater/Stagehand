@@ -394,7 +394,7 @@ async function flickerRun(page, out, scene, t, hits) {
     window.__fl = { gem, shots: [], mask: null };
     return { style: H.look.id, hd: !!gem, hits: H.hits.length };
   }, [Number(t), hits === 'H']);
-  await frames(60); // the camera settles
+  await frames(30); // the camera settles
   const grab = async (keep) => {
     await frames(3);
     const buf = await page.screenshot({ timeout: 90000 });
@@ -432,7 +432,7 @@ async function flickerRun(page, out, scene, t, hits) {
   for (let k = 0; k < N; k++) {
     await page.evaluate((pos) => { window.__stage.engine.position = pos; }, t0 + k * dt);
     const buf = await grab(true);
-    if (k === 0 || k === N >> 1) fs.writeFileSync(path.join(out, `flicker-${scene}-${info.style}-${k}.png`), buf);
+    if (k === 0 || k === N >> 1 || process.env.FLICKER_SAVE) fs.writeFileSync(path.join(out, `flicker-${scene}-${info.style}-${k}.png`), buf);
   }
   await page.evaluate((pos) => { window.__stage.engine.position = pos; }, t0);
   await grab(true);
@@ -468,10 +468,42 @@ async function flickerRun(page, out, scene, t, hits) {
       per.push(n);
     }
     const frames = S.length - 2;
+    // a map: the first frame darkened, the note pixels outlined faintly, the jumps in red (brighter: more often)
+    const heat = new Uint16Array(mask.length);
+    for (let k = 1; k < S.length - 1; k++) {
+      const a = S[k - 1].data, b = S[k].data, c = S[k + 1].data;
+      for (let i = 0; i < mask.length; i++) {
+        if (!mask[i]) continue;
+        const j = i * 4;
+        for (let ch = 0; ch < 3; ch++) {
+          const da = b[j + ch] - a[j + ch], dc = b[j + ch] - c[j + ch];
+          if (((da > 0 && dc > 0) || (da < 0 && dc < 0)) && Math.min(Math.abs(da), Math.abs(dc)) >= JUMP) { heat[i]++; break; }
+        }
+      }
+    }
+    const img = new ImageData(W, Hh);
+    for (let i = 0; i < mask.length; i++) {
+      const j = i * 4, g = S[0].data;
+      img.data[j] = heat[i] ? 255 : g[j] * 0.35 + (mask[i] ? 40 : 0);
+      img.data[j + 1] = heat[i] ? Math.max(0, 200 - heat[i] * 40) : g[j + 1] * 0.35 + (mask[i] ? 40 : 0);
+      img.data[j + 2] = heat[i] ? 0 : g[j + 2] * 0.35 + (mask[i] ? 40 : 0);
+      img.data[j + 3] = 255;
+    }
+    window.__flMap = img;
     let wi = 0;
     for (let i = 1; i < 64; i++) if (where[i] > where[wi]) wi = i;
     return { area, frames, jumpPct: (jumps / Math.max(1, area * frames)) * 100, meanSpike: sum / Math.max(1, area * frames), most, perFrame: per, again: same, hot: { row: wi >> 3, col: wi & 7, n: where[wi] } };
   }, [JUMP]);
+  const map = await page.evaluate(async () => {
+    const c = new OffscreenCanvas(window.__flMap.width, window.__flMap.height);
+    c.getContext('2d').putImageData(window.__flMap, 0, 0);
+    const b = await c.convertToBlob({ type: 'image/png' });
+    const u = new Uint8Array(await b.arrayBuffer());
+    let s = '';
+    for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+    return btoa(s);
+  });
+  fs.writeFileSync(path.join(out, `flicker-${scene}-${info.style}-map.png`), Buffer.from(map, 'base64'));
   const max = Number(process.env.FLICKER_MAX || 0.5);
   console.log(`FLICKER ${scene}:${t} ${info.style}${info.hits ? ' (held ' + info.hits + ')' : ''}: ${info.hd ? 'note' : 'picture'} pixels ${r.area}, ${r.frames} frames ${dt * 1000} ms apart; ` +
     `pixels that jump and jump back by ${JUMP}/255 or more: ${r.jumpPct.toFixed(3)}% (mean jump ${r.meanSpike.toFixed(2)}, biggest ${r.most}); per frame ${r.perFrame.join(' ')}; busiest eighth row ${r.hot.row} col ${r.hot.col} (${r.hot.n}); same time twice: ${r.again} values differ`);
