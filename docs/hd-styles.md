@@ -62,6 +62,46 @@ sides clear). Helpers: `hdHash`, `hdHash2`, `hdHash3`, `hdNoise`, `hdNoise3`, `h
 
 World axes: x along the neck (fret f sits at (1 − 0.982^f) / 0.018), y up, z = time ahead × `uZs`.
 
+## Gems in 3D (4.34.1)
+
+Every HD style's notes, open-string bars and chord frame bars are now a real bevelled block: the edges
+round off with the corner radius across the face (and as far as the depth allows front to back), with true
+normals, so light runs over the bevel. The footprint is unchanged. `HDGem` keeps every old field and adds:
+
+| field | what it is |
+| --- | --- |
+| `uv` | across the face toward you, 0..1 (left to right, bottom to top) |
+| `edgeD`, `edge` | distance to the outline in world units (x and y, and the smaller one) |
+| `bevel` | 0 on the flat of the face, 1 where the bevel turns into the side |
+| `face` | 1 on the flat face toward you (soft), 0 on bevel and sides |
+| `top` | how much the point faces up (0..1) |
+| `hit` | the hit's glow (same as `flare`: 0, up to about 0.5 as it is hit) |
+| `hold` | 1 while the note is held on the neck (a ringing sustain) |
+| `key`, `lit`, `spec`, `sheen`, `fres` | the shared key light (view space) and its diffuse (0..1), tight and broad highlights, and the rim term |
+
+`n` now includes the bevel. `hdGemLit(g, base, shine)` gives the usual lit block (body, rim, highlight);
+add your own glow on top. Keep a note's string colour clearly readable: players find strings by colour.
+Keep emissive peaks small; a block brighter than about 1 everywhere blooms into a white blob.
+
+```glsl
+vec4 hdGem(HDGem g) {
+  if (g.missed > 0.5) return vec4(hdGemLit(g, vec3(0.15), 0.4), 1.0);
+  vec3 c = hdGemLit(g, g.col * 0.5, 1.0);                       // a lit, bevelled block
+  c += g.col * g.face * (0.35 + 0.4 * g.near + 1.5 * g.hit);    // the face glows as it lands
+  c += mix(g.col, vec3(1.0), 0.4) * smoothstep(0.6, 1.0, g.bevel) * (0.3 + g.hit);  // a lit edge
+  return vec4(c, 1.0);
+}
+```
+
+Hits: when a style has `onHit`, it owns the whole look of a hit. Classic's white flash, the string's blaze
+and the hit ring are left out (the note's own flare, `g.hit`, still draws). `e.burst` in `onHit` is false
+when the player turned Hit burst off (or calm motion is on): leave out the style's ring or shock wave then.
+Bursts already scale with Effects (`F.fxK`); a burst of 1 (a ring, a flare) still shows at Calm and Low.
+The light posts at a hit use the palette's `railHot` (or `postA`) instead of white.
+
+`:H` on a still (`T:17.3::H`) hits the notes of the last 0.15 s dead on with the clock stopped, so a hit
+looks the same however busy the machine is; add `HWGFX=high` (Auto may pick Low in software rendering).
+
 ## Rules
 
 - **Same places, same sizes.** Positions come from the highway; never move a note, string or fret.
