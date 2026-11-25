@@ -4,14 +4,14 @@
  * in your songs, for the Tones section.
  *
  * A saved tone: { id, name, kind: 'guitar'|'bass', gear: [{ slot, key, knobs, order }],
- *                 slot: 1–9 | null, from: { songId, toneKey, song } | null, updatedAt }
+ *                 slot: 2–20 | null, from: { songId, toneKey, song } | null, updatedAt }
  */
 const crypto = require('crypto');
 const { Psarc } = require('../core/psarc');
 const { mapTone } = require('../core/tones');
 const { readJson, writeJsonAtomic } = require('../core/files');
 
-const SLOTS = 9;
+const SLOTS = 20;
 
 function cleanGear(gear) {
   return (Array.isArray(gear) ? gear : [])
@@ -53,7 +53,7 @@ class ToneStore {
     if (!gear.length) throw new Error('A tone needs at least an amp or a pedal.');
     const name = String(tone.name || '').trim().slice(0, 80) || 'My tone';
     let slot = tone.slot === null || tone.slot === undefined || tone.slot === '' ? null : Number(tone.slot);
-    if(slot===1)throw new Error('Slot 1 is reserved for Automatic Song Tone. Choose slots 2–9.');
+    if(slot===1)throw new Error('Slot 1 is reserved for Automatic Song Tone. Choose slots 2–20.');
     if (slot !== null && !(slot >= 2 && slot <= SLOTS)) slot = null;
     const now = Date.now();
     let t = tone.id ? this.data.tones.find((x) => x.id === tone.id) : null;
