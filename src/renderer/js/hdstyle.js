@@ -276,6 +276,8 @@ struct HDGem {
   float spec;  // a tight highlight from the key light
   float sheen; // a broad highlight (polished, not mirror)
   float fres;  // the edge toward the eye: 0 facing you, 1 at grazing (for rims)
+  float aa;    // 4.34.2: 0 where the surface turns slowly across a pixel, up to 1 where it turns faster than a
+               // pixel can show (a small or far note's rounded edge): fade sharp light by it so nothing sparkles
 };
 // the usual lighting for a gem: a lit body, its rim and a highlight. Styles add their own glow on top.
 vec3 hdGemLit(HDGem g, vec3 base, float shine) {
@@ -308,9 +310,20 @@ void main() {
   g.lit = clamp(nk * 0.75 + 0.25, 0.0, 1.0);
   vec3 hv = normalize(g.key + g.v);
   float nh = max(dot(g.n, hv), 0.0);
-  g.spec = pow(nh, 60.0);
-  g.sheen = pow(nh, 8.0);
-  g.fres = hdFresnel(g.n, g.v, 3.0);
+  // 4.34.2: a far or small note's bevel turns more than a pixel can show; its tight highlight then lands on
+  // one pixel one frame and another the next (a sparkle). How fast the surface turns across this pixel widens
+  // the highlights (the same light in all, spread out) and calms the rim, so they stay put as the note moves.
+  vec3 dnx = dFdx(g.n);
+  vec3 dny = dFdy(g.n);
+  float nv = min(0.5, dot(dnx, dnx) + dot(dny, dny));
+  g.aa = clamp(nv * 4.0, 0.0, 1.0);
+  float a2 = 2.0 / 62.0 + nv;
+  float ps = max(1.0, 2.0 / a2 - 2.0);
+  g.spec = pow(nh, ps) * (ps + 2.0) / 62.0;
+  float a2b = 2.0 / 10.0 + nv;
+  float pb = max(1.0, 2.0 / a2b - 2.0);
+  g.sheen = pow(nh, pb) * (pb + 2.0) / 10.0;
+  g.fres = hdFresnel(g.n, g.v, 3.0) * (1.0 - 0.6 * g.aa);
   vec4 c = hdGem(g);
   float a = c.a * vD.z * hdFade(vWp.z);
   if (a < 0.003) discard;
@@ -752,7 +765,14 @@ export function createHD(R3, { ratio }) {
     if (def.gem) {
       const geo = roundedBox(4);
       parts.gems = new Batch(geo, ['iA', 'iB', 'iC', 'iD'], 256);
-      parts.gemMesh = addMesh(geo, mat(GEM_VS, GEM_FS(def.gem.glsl), def.gem.uniforms || {}, { depthWrite: true }), 2);
+      // 4.34.2: a note's face lies exactly where the usual pieces round it do (a chord's glass panel, the target
+      // at the neck), and the two then took turns showing from frame to frame (the note flickered). Pulled a
+      // hair toward you in the depth test only, so the note is always in front; nothing moves on screen.
+      const gm = mat(GEM_VS, GEM_FS(def.gem.glsl), def.gem.uniforms || {}, { depthWrite: true });
+      gm.polygonOffset = true;
+      gm.polygonOffsetFactor = -1;
+      gm.polygonOffsetUnits = -4;
+      parts.gemMesh = addMesh(geo, gm, 2);
       parts.meshes.push(parts.gemMesh);
     }
     if (def.tube) {
