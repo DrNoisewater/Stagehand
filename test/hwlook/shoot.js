@@ -370,7 +370,7 @@ async function stutterRun(browser, page, out, scene, t) {
 // The clock stands still; the song moves on FLICKER_DT ms (default 2) a frame for FLICKER_N frames (default 24),
 // so the notes slide a pixel or less each time. A note drawn steadily changes smoothly; one that flickers has
 // pixels that jump and jump back (frame b far from both a and c, the same way). Counted on the notes only (an
-// HD style's own notes: the pixels that change when they are hidden) or the whole picture (Classic). The same
+// HD style's own notes, or Classic's notes, strings and frets: the pixels that change when they are hidden). The same
 // time drawn twice must be identical. Exits 1 when more than FLICKER_MAX (default 0.5) % of the note pixels jump
 // by 48/255 or more. A scene ending in :H holds the notes just played (a hit flare at the neck while they ring).
 //   FLICKER=1 HWGFX=high HWTHEME=neon VW=960 VH=540 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17.2
@@ -379,7 +379,6 @@ async function flickerRun(page, out, scene, t, hits) {
   const dt = Number(process.env.FLICKER_DT || 2) / 1000;
   const JUMP = 48;
   const frames = (n) => page.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
-  await page.evaluate(([h, o]) => { window.__flHide = h; window.__flOff = o; }, [process.env.FLICKER_HIDE || '', !!process.env.FLICKER_OFF]);
   const info = await page.evaluate(([t0, hold]) => {
     const H = document.querySelector('.highway').__hw;
     const T = 100000;
@@ -393,9 +392,6 @@ async function flickerRun(page, out, scene, t, hits) {
     let gem = null;
     H.r3.scene.traverse((o) => { if (o.material && /hdGem\(HDGem/.test(o.material.fragmentShader || '')) gem = o; });
     window.__fl = { gem, shots: [], mask: null };
-    // TEMP experiments
-    if (window.__flHide) for (const k of window.__flHide.split(',')) H.r3.L[k].mat.visible = false;
-    if (window.__flOff && gem) { gem.material.polygonOffset = true; gem.material.polygonOffsetFactor = -1; gem.material.polygonOffsetUnits = -4; }
     return { style: H.look.id, hd: !!gem, hits: H.hits.length };
   }, [Number(t), hits === 'H']);
   await frames(30); // the camera settles
@@ -415,13 +411,17 @@ async function flickerRun(page, out, scene, t, hits) {
   // the note pixels: what changes when the style's notes are hidden (first, middle and last time)
   const maskAt = async (pos) => {
     await page.evaluate((pos) => { window.__stage.engine.position = pos; }, pos);
-    if (!info.hd) return;
     await grab(true);
-    await page.evaluate(() => { window.__fl.gem.material.visible = false; });
+    // (Classic: its notes are in the solid and glow layers, with the strings and frets, which stand still)
+    const hide = (on) => page.evaluate((on) => {
+      const F = window.__fl, L = document.querySelector('.highway').__hw.r3.L;
+      for (const m of F.gem ? [F.gem.material] : [L.solid.mat, L.glow.mat, L.soft.mat]) m.visible = !on;
+    }, on);
+    await hide(true);
     await grab(true);
+    await hide(false);
     await page.evaluate(() => {
       const F = window.__fl;
-      F.gem.material.visible = true;
       const [A, B] = F.shots.splice(-2);
       if (!F.mask) F.mask = new Uint8Array(A.width * A.height);
       for (let i = 0; i < F.mask.length; i++) {
@@ -509,7 +509,7 @@ async function flickerRun(page, out, scene, t, hits) {
   });
   fs.writeFileSync(path.join(out, `flicker-${scene}-${info.style}-map.png`), Buffer.from(map, 'base64'));
   const max = Number(process.env.FLICKER_MAX || 0.5);
-  console.log(`FLICKER ${scene}:${t} ${info.style}${info.hits ? ' (held ' + info.hits + ')' : ''}: ${info.hd ? 'note' : 'picture'} pixels ${r.area}, ${r.frames} frames ${dt * 1000} ms apart; ` +
+  console.log(`FLICKER ${scene}:${t} ${info.style}${info.hits ? ' (held ' + info.hits + ')' : ''}: note pixels ${r.area}, ${r.frames} frames ${dt * 1000} ms apart; ` +
     `pixels that jump and jump back by ${JUMP}/255 or more: ${r.jumpPct.toFixed(3)}% (mean jump ${r.meanSpike.toFixed(2)}, biggest ${r.most}); per frame ${r.perFrame.join(' ')}; busiest eighth row ${r.hot.row} col ${r.hot.col} (${r.hot.n}); same time twice: ${r.again} values differ`);
   fs.writeFileSync(path.join(out, `flicker-${scene}-${info.style}.json`), JSON.stringify({ scene, t, ...info, ...r }, null, 1));
   if (r.again || r.jumpPct > max) { console.log(`FAIL notes flicker (limit ${max}%)`); process.exitCode = 1; }
@@ -1331,6 +1331,19 @@ async function flickerRun(page, out, scene, t, hits) {
     if (process.env.HWMENU) {
       await page.evaluate(() => document.querySelector('.hw-dock.collapsed') && document.querySelector('.hw-set-btn').click());
       await page.waitForTimeout(500);
+      // 4.35: the tone line at the top, with a Loop switcher on loop B (hw-toneline.png)
+      const tl = await page.evaluate(async () => {
+        const { rig } = await import('/js/rig.js');
+        await rig.setLoop('B');
+        await new Promise((r) => setTimeout(r, 200));
+        const b = document.querySelector('.hw-tone-line');
+        if (!b) return null;
+        b.scrollIntoView({ block: 'start' });
+        return b.textContent;
+      });
+      console.log('TONELINE', JSON.stringify(tl));
+      if (!tl || !/Loop B/.test(tl)) { console.log('FAIL the tone line is missing from Sound & settings, or doesn\u2019t follow the Loop switcher'); process.exitCode = 1; }
+      await page.locator('.hw-dock').screenshot({ path: path.join(out, 'hw-toneline.png') }).catch(() => {});
       const r = await page.evaluate(async () => {
         const d = document.querySelector('.hl-drawer');
         d.scrollIntoView({ block: 'start' });

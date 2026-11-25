@@ -185,6 +185,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.35.0:** Twenty tone slots (Shift + a number key for the second row; Ctrl + a number now mutes a stem), a fresher slot display, a Loop switcher pedal (two sounds on one board, B jumps between them), your tone in the highway's Sound & settings, and steady notes in the HD styles (no more flicker).
 - **4.34.0:** Five new highway styles with real HD graphics (Neon Crystal, Synthwave Drive, Inferno, Frozen Lake, Deep Ocean): solid 3D notes, proper floors and skies, sparks and snow on hits. Classic stays as it was.
 - **4.33.0:** Smoother highway: no more little freezes when new fret numbers and chord names appear. The style pictures sit in a grid, and the menu stays put when you pick one or flip a switch.
 - **4.32.0:** Glimpse, the screen recorder, records Stagehand's sound too, with nothing to set.

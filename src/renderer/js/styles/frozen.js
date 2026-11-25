@@ -410,10 +410,15 @@ vec4 hdGem(HDGem g) {
   float inner = smoothstep(-0.7, 0.6, rf.y + (fh - 0.5) * 0.5 * (1.0 - table));
   float dif = max(dot(fn, L1), 0.0);
   vec3 hv = normalize(L1 + v);
-  float spec = pow(max(dot(fn, hv), 0.0), 120.0);
+  // 4.34.2: where the surface turns faster than a pixel can show (a far note, a chord frame's thin bar), the
+  // glint widens and the sky's reflection evens out, so they don't jump from pixel to pixel as the note moves
+  float a2 = 2.0 / 122.0 + g.aa * 0.125;
+  float ps = max(1.0, 2.0 / a2 - 2.0);
+  float spec = pow(max(dot(fn, hv), 0.0), ps) * (ps + 2.0) / 122.0;
   vec3 r = reflect(-v, fn);
   vec3 env = mix(vec3(0.03, 0.06, 0.1), vec3(0.7, 0.82, 1.0), smoothstep(-0.15, 0.55, r.y));
-  float fr = hdFresnel(fn, v, 3.0);
+  env = mix(env, vec3(0.3, 0.37, 0.48), g.aa * 0.85);
+  float fr = hdFresnel(fn, v, 3.0) * (1.0 - 0.6 * g.aa);
   float glow = 0.85 + 0.6 * g.near + 1.6 * g.flare;
   // the body: the string's colour, rich and clear, lighter where the light comes through
   vec3 deep = base * base * 0.9;                     // the colour where the ice is thickest: richer, darker
@@ -432,7 +437,10 @@ vec4 hdGem(HDGem g) {
   }
   // the rim: rounded edges bright like light through ice, whiter as the note reaches the neck
   float bevel = 1.0 - max(abs(g.nl.x), max(abs(g.nl.y), abs(g.nl.z)));
-  float rim = smoothstep(0.03, 0.26, bevel) * step(g.nl.z, 0.3);
+  // (4.34.2: soft at the back, and evened out where the edge turns faster than a pixel: a hard cut here
+  // crawled along a chord frame's thin bars as they moved)
+  float rim = smoothstep(0.03, 0.26, bevel) * (1.0 - smoothstep(0.1, 0.5, g.nl.z));
+  rim = mix(rim, 0.45, g.aa * 0.7);
   vec3 rimC = mix(base * 1.4, vec3(0.92, 0.97, 1.0), clamp(0.2 + 0.6 * g.near + g.flare, 0.0, 1.0));
   c += rimC * rim * (0.7 + 1.1 * g.near + 2.4 * g.flare + 0.8 * g.accent) * (missed ? 0.4 : 1.0);
   // frost along its top edge

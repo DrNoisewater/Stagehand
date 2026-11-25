@@ -12,7 +12,7 @@ import { api } from './api.js';
 import { h, icon, esc, showMenu, toast, instrumentTag, stemsLeft } from './ui.js';
 import { rig, TONES } from './rig.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
-import { tonelib, useTone } from './tonelib.js';
+import { tonelib, useTone, nowPlayingTone, activeSlot, slotKey } from './tonelib.js';
 import { linkChains, noteTech, heldBend, drawnBend, bendStart, vibratoAt, VIBRATO_HZ } from './performance-math.js';
 import { createFluidDriver } from './reactive-bg.js';
 import { createFeatures } from './music-features.js';
@@ -1087,14 +1087,32 @@ export function createHighway(stage) {
     renderControls();
   }
   // 4.1.9: the tone menu is its own module (tonemenu.js): keys 1–9, the song's tones, search
-  toneBtn.onclick = () =>
-    openToneMenu(toneBtn, {
+  const toneMenuAt = (anchor) =>
+    openToneMenu(anchor, {
       kind: H.tab && H.tab.type === 'bass' ? 'bass' : 'guitar',
       songTones: () => (H.tab && H.tab.songTones) || null,
       songToneNow: () => songToneAt(stage.engine.position),
       chooseTone,
       pause: () => stage.engine.playing && stage.toggle(),
     });
+  toneBtn.onclick = () => toneMenuAt(toneBtn);
+  // 4.35: one line in Sound & settings for the tone (and the Loop switcher's side); it opens
+  // the same tone menu as the top bar's chip, so the panel stays short
+  function toneLine() {
+    const np = nowPlayingTone() || {};
+    const slot = activeSlot();
+    const loop = rig.hasLoopSwitch() ? rig.loopSide() : '';
+    const b = h('button.hw-tone-line', { type: 'button', title: 'Pick a tone: your 20 keys, the song’s tones, the Loop switcher', style: { '--gel': np.gel || '#ffb547' } });
+    b.append(
+      h('span.hw-tl-lbl', { text: 'Tone' }),
+      h('b.hw-tl-key', { text: slot > 0 ? slotKey(slot) : '·' }),
+      h('span.hw-tl-name', { text: np.name || 'Tone' }),
+      loop ? h(`span.hw-tl-loop.${loop}`, { text: `Loop ${loop}` }) : '',
+      h('span.hw-tl-more', { text: '›' })
+    );
+    b.onclick = () => toneMenuAt(b);
+    return b;
+  }
 
   // --------------------------------------------------------------- mix --
   function setMixOpen(on) {
@@ -1146,7 +1164,7 @@ export function createHighway(stage) {
     const scroll = mixPanel.scrollTop; // stay where you had scrolled to
     mixPanel.innerHTML = '';
     mixMeters.clear();
-    mixPanel.append(h('div.hw-master-title', null, h('b', { text: 'Sound & settings' })), syncButton());
+    mixPanel.append(h('div.hw-master-title', null, h('b', { text: 'Sound & settings' })), syncButton(), toneLine());
     renderMixBody();
     mixPanel.append(h('div.hw-master-sec', { text: 'Tuning' }), tunerSec, dropBox, opts);
     renderTunerSec();
@@ -1162,7 +1180,8 @@ export function createHighway(stage) {
       return [n, !!x.muted, !!x.solo, x.volume];
     });
     const st = splitNow();
-    return JSON.stringify([tracks, stage.engine.mode, rig.on, rig.muted, rig.knobs.volume, stage.songLevel(), st.state === 'queued' || st.state === 'running' ? st.state : 'none', kind, H.tab && H.tab.id, myTuning(kind), myCents(kind), prefs.offsetMs || 0, !!stage.requestStems]);
+    const np = nowPlayingTone() || {};
+    return JSON.stringify([np.name, np.gel, activeSlot(), rig.hasLoopSwitch() && rig.loopSide(), tracks, stage.engine.mode, rig.on, rig.muted, rig.knobs.volume, stage.songLevel(), st.state === 'queued' || st.state === 'running' ? st.state : 'none', kind, H.tab && H.tab.id, myTuning(kind), myCents(kind), prefs.offsetMs || 0, !!stage.requestStems]);
   }
   // 4.12: the split's progress in Sound & settings moves as the split goes (it was written
   // once when the menu opened, so it looked stalled until the stems suddenly appeared)
@@ -3799,6 +3818,11 @@ export function createHighway(stage) {
     true
   );
   rig.addEventListener('change', () => H.open && renderControls());
+  // 4.35: Sound & settings' tone line follows the keys and the Loop switcher
+  const toneMoved = () => mixOpen && H.open && shown.get('mix') !== mixKey() && renderMix();
+  rig.addEventListener('change', toneMoved);
+  rig.addEventListener('loop', toneMoved);
+  on('tones', toneMoved);
   stage.engine.addEventListener('speed', () => H.open && renderControls());
   stage.engine.addEventListener('mix', () => H.open && renderControls());
 

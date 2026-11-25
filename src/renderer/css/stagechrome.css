@@ -303,3 +303,12 @@ body:has(.highway:not([hidden])) .menu :is(button,.menu-item):hover { background
 .hl-preset[aria-checked='true'] { border-color:var(--hl-gold); box-shadow:0 0 0 2px #f1ce6855; }
 /* 4.33: the style's line above the pictures keeps one height, so picking a style moves nothing */
 .hl-drawer > .hl-row:first-child small { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; line-height:1.35; height:calc(2 * 1.35em); }
+/* 4.35: the tone line at the top of Sound & settings (opens the tone menu) */
+.highway .hw-tone-line { --gel:#ffb547; display:flex; align-items:center; gap:8px; width:100%; margin:6px 0 4px; padding:7px 10px; border-radius:4px; cursor:pointer; text-align:left; color:#f1dfbb; background:linear-gradient(90deg,color-mix(in srgb,var(--gel) 18%,transparent),transparent),#201c18; border:1px solid color-mix(in srgb,var(--gel) 40%,transparent); font:inherit; }
+.highway .hw-tone-line:hover { border-color:var(--gel); }
+.highway .hw-tl-lbl { font-size:11px; letter-spacing:.08em; text-transform:uppercase; opacity:.7; }
+.highway .hw-tl-key { min-width:24px; padding:1px 5px; border-radius:4px; text-align:center; font-size:12px; color:#14151a; background:var(--gel); }
+.highway .hw-tl-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+.highway .hw-tl-loop { font-size:11px; font-weight:800; padding:1px 6px; border-radius:4px; color:#14151a; background:#ff5a3d; }
+.highway .hw-tl-loop.B { background:#4ad2ff; }
+.highway .hw-tl-more { opacity:.6; font-size:16px; }

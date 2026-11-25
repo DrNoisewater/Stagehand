@@ -179,5 +179,5 @@ Decided with the user: stem mute moves from Shift+number to Ctrl+number (Ctrl+Al
 
 Done: `slotgrid.js` (shared two-row slot grid: Jam, tone menu, Tones page, Now panel), slots 2–20 in `services/tones.js`; `loopswitch.js` + `loopui.js` (pedal `Util_LoopSwitch`, gear `loop: 'A'|'B'`, the playing side is live state per tone in localStorage, never in the tone; the other side is prebuilt), B in `main.js`, A/B switch in `tonemenu.js` (`loopStomp`).
 
-To do in this batch: the gem flicker fix (in progress); a folded "Tone" line in the highway's Sound & settings (opens to the slot grid + loop switch); HANDOFF entry; version bump.
+Status: all done (flicker fix, the Tone line in Sound & settings, HANDOFF, 4.35.0). Waiting on the user: try on the PC.
 

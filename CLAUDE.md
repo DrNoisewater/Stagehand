@@ -132,6 +132,8 @@ ATLAS=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
 SH_AUDIT=test/e2e/stutter-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
 # 4.33: the highway menu: picking a style or flipping a switch moves nothing
 HWMENU=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
+# 4.35: do the notes flicker? moves the song 2 ms a frame and counts note pixels that jump and jump back (~6 min; exits 1 above 0.5%)
+FLICKER=1 FLICKER_N=12 HWGFX=high HWTHEME=neon VW=960 VH=540 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> A:2.4
 # a moving background must rebuild itself after the graphics card drops it
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```

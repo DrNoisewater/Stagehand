@@ -3,6 +3,7 @@ class R extends EventTarget { constructor(){super(); this.on = true; this.muted=
   dropStatus(){const a=this.drop.on?this.dropAmount():0;return a?{state:"on",line:"Working: your guitar sounds "+a+" lower"}:{state:"idle",line:this.drop.on?"Nothing to drop for this song":""}}
   setDrop(p){Object.assign(this.drop,p||{});this.dispatchEvent(new Event('drop'))} setSongTuning(){} setTempoFromBeats(){} autoSong(){} calibrate(){}
   samples(){return null} levels(){return {}} prepareTones(){} setSongTone(){} setTone(){} findTone(){return null} dropAmount(){return this.drop.on?(this.drop.match?this.dropSong:this.drop.st):0} setSink(){} async start(){return true} setMuted(m){this.muted=m} }
+R.prototype.hasLoopSwitch = function () { return !!this._loop; }; R.prototype.loopSide = function () { return this._loop || 'A'; }; R.prototype.setLoop = function (s) { this._loop = s; this.dispatchEvent(new CustomEvent('loop', { detail: { side: s } })); return Promise.resolve({ side: s }); }; R.prototype.toggleLoop = function () { return this.setLoop(this.loopSide() === 'A' ? 'B' : 'A'); };
 export const rig = new R();
 
 export const TUNINGS=[{id:"e-std",name:"E Standard",o:[0,0,0,0,0,0]}];
