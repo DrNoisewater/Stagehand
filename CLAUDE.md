@@ -121,6 +121,14 @@ SH_AUDIT=test/e2e/companion-audit.js node test/e2e/ui3-chromium.js native/build/
 node test/e2e/companion-vr-shot.js <outDir> 3.2 6.6
 # Setup's header art, cut from the app's own banner (commit the results); then pack it for the build
 SH_AUDIT=windows/setup/make-art.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir> && python3 windows/setup/make-art.py
+# 4.33: what freezes the highway: label uploads, shader builds, heap, frame gaps (writes stutter-<scene>.json); STUTTER_WHOLE=1 for the old whole uploads
+STUTTER=1 HWTHEME=ember HWGFX=ultra VW=960 VH=540 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> A:0
+# 4.33: the labels the graphics card holds equal a whole upload (ATLAS_BREAK=1 must fail)
+ATLAS=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
+# 4.33: a song start in the full page, profiled (stutter-app.json)
+SH_AUDIT=test/e2e/stutter-audit.js node test/e2e/ui3-chromium.js native/build/stagehand-audio-fake <outDir>
+# 4.33: the highway menu: picking a style or flipping a switch moves nothing
+HWMENU=1 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:3
 # a moving background must rebuild itself after the graphics card drops it
 LOSE_CONTEXT=1 VENUE=nebula PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17:p
 ```

@@ -142,4 +142,4 @@ Done:
   Sound & settings, blocks swap in place holding their height until pictures are ready (`hwlooks-pane.js` `swap`), the line above
   the grid has a fixed height, the switches under it flip in place (`highway.js` `toggle`). `HWMENU=1` checks the picked picture
   and the menu don't move (fails on the old code).
-- Pauses: Stutter finder (Opus) measuring in its own worktree.
+- Pauses: Stutter finder (Opus): the whole 4 MB label picture was sent on every new label; now only the new boxes (see HANDOFF 4.33).

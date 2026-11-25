@@ -1,3 +1,17 @@
+# 4.33.0 — A smoother highway, a steady menu (2026-11-25; nothing tried on the user's PC)
+
+**Asked (video of the highway):** "still some lagging and pausing"; "Sideways scroll for highway themes is silly"; "when selecting items in the side menu, it jumps back to the beginning. Everything needs to be smooth, no flickering." Also: styles look alike and some silly ("nothing like a frozen lake"), crooked jagged lines; wants real HD graphics for notes, strings, highway and effects, aimed a bit under a GTX 1080 Ti. Answers: smoothness first and released on its own; then 6 great styles (Classic kept + Neon Crystal, Synthwave Drive, Inferno, Frozen Lake, Deep Ocean; kinds sci-fi/neon, fire/lava, ice/nature); the picker a grid of pictures.
+
+**Found:** the video froze 140–280 ms every 1–2 s in the first 5 s of the song, then every 2–10 s. Each new fret number, chord name or streak count sent the whole 4 MB label picture to the graphics card (24.6 MB in the first 12 s of a real chart, at the times the freezes came).
+
+**Changed:**
+- `highway3d.js` TextLayer: only the new labels' boxes are sent (read from the label canvas, kept in memory); 476 KB in those 12 s, 171 KB at most at once. `highway.js` `glyph()` returns a label already drawn. `ATLAS=1` in `test/hwlook/shoot.js` proves the card's copy equals a whole upload (0 values differ; `ATLAS_BREAK=1` must fail). `STUTTER=1` measures uploads, shader builds, heap and frame gaps; `test/e2e/stutter-audit.js` profiles a song start in the full page.
+- Ruled out: shader builds during play (none), buffers remade (none), Auto quality (off on Ultra), garbage pauses (under 4 ms).
+- Menu: style pictures in a 3-wide grid in Sound & settings; blocks swap in place keeping their height (`hwlooks-pane.js` `swap`); the style's line has a fixed height; the switches flip in place (`highway.js` `toggle`). `HWMENU=1` checks the picked picture and the menu don't move (fails on 4.32).
+- Notes: `docs/session-notes.md`.
+
+**Ask the user:** are the freezes gone (Ultra, Ember and Synthwave)? If some remain, do they come the first time an effect shows (then warm the effects up at song load)? Does the menu stay put? Next: the six styles.
+
 # 4.32.0 — Glimpse records Stagehand's sound (TEMPORARY) (2026-11-24; nothing tried on the user's PC)
 
 **Asked:** "i need glimpse to be able to record audio and video from stagehand … so claude can see what i see." Stagehand's own Record clip only covers the highway ("I need glimpse to see all of the app even while I'm moving through different things"). "I just want to open Stagehand and use Glimpse … It needs to automatically build in." "I like how Glimpse uses very small files, and I don't want to modify how Stagehand records things yet." It's temporary: "remind me to remove it later" (TODO.md, top).

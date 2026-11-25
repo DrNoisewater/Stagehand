@@ -184,6 +184,7 @@ Yes. Stagehand only changes the details you edit, checks the new file before usi
 
 ## What's new
 
+- **4.33.0:** Smoother highway: no more little freezes when new fret numbers and chord names appear. The style pictures sit in a grid, and the menu stays put when you pick one or flip a switch.
 - **4.32.0:** Glimpse, the screen recorder, records Stagehand's sound too, with nothing to set.
 - **4.31.0:** Fifteen highway styles that really look different, and any style goes with any venue or moving background. Five new moving backgrounds that react to the music (Liquid chrome, Light tunnel, Sunset drive, Northern lights, Light show). Graphics settings cut down to a few that matter. A click on a song plays its preview every time, or says why it can't.
 - **4.30.0:** Seven highway looks to pick from (Studio is new), each with its own settings, plus a full graphics menu. Song previews play every time and smoothly, the highway no longer flickers after a split or when Settings opens, the Drop is a big button on the tuning card, and Stagehand closes cleanly and frees the cable (Settings › Guitar & audio › Restart sound engine if the sound ever stops).
