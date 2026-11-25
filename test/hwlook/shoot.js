@@ -378,11 +378,11 @@ async function stutterRun(browser, page, out, scene, t) {
   for (const spec of process.argv.slice(3)) {
     const [scene, t, play, hits, file, part] = spec.split(':');
     await page.goto(`http://localhost:${PORT}/?scene=${scene}&t=${t}&play=${play === 'p' ? 1 : 0}&file=${file || ''}&part=${part || ''}${process.env.SING ? `&sing=${process.env.SING}` : ''}${process.env.PIANO ? `&piano=${process.env.PIANO}` : ''}${process.env.NONOTES ? '&nonotes=1' : ''}${process.env.TOPBAR || process.env.MODES ? '&piano=tune&sing=1' : ''}`);
-    await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+    await page.waitForFunction(() => window.__hwReady, null, { timeout: Number(process.env.HWWAIT || 15000) });
     if (process.env.VENUE) {
       await page.evaluate((v) => { const p = JSON.parse(localStorage.getItem('stagehand.highway') || '{}'); p.venue = v; p.v = 36; localStorage.setItem('stagehand.highway', JSON.stringify(p)); localStorage.setItem('stagehand.fluidDye', '256'); }, process.env.VENUE);
       await page.reload();
-      await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+      await page.waitForFunction(() => window.__hwReady, null, { timeout: Number(process.env.HWWAIT || 15000) });
     }
     if (process.env.GFXCHECK) { await gfxCheck(browser, page, out, scene, t); continue; } // GFXCHECK=1: see the block above
     // HWTHEME=<look> (and HWGFX=<preset>): the highway in that look (hwlooks.js), set before the page loads
@@ -390,13 +390,13 @@ async function stutterRun(browser, page, out, scene, t) {
       await page.evaluate(([t, g]) => { localStorage.setItem('stagehand.hwlook.v1', JSON.stringify({ theme: t || 'classic', gfx: { preset: g || 'auto', ...(g && g !== 'auto' ? {} : {}) } })); }, [process.env.HWTHEME, process.env.HWGFX]);
       if (process.env.HWGFX) await page.evaluate(async (g) => { const m = await import('/js/hwlooks.js'); m._reset(); const st = m.loadLooks(); m.saveLooks({ ...st, gfx: m.applyPreset(st.gfx, g) }); }, process.env.HWGFX);
       await page.reload();
-      await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+      await page.waitForFunction(() => window.__hwReady, null, { timeout: Number(process.env.HWWAIT || 15000) });
     }
     // HWBG=own|venue (4.31): the style's own room, or the venue (VENUE=…) behind the highway
     if (process.env.HWBG) {
       await page.evaluate(async (b) => { const m = await import('/js/hwlooks.js'); m.saveLooks({ ...m.loadLooks(), bg: b }); }, process.env.HWBG);
       await page.reload();
-      await page.waitForFunction(() => window.__hwReady, null, { timeout: 15000 });
+      await page.waitForFunction(() => window.__hwReady, null, { timeout: Number(process.env.HWWAIT || 15000) });
     }
     // SKIN=<theme>: the song screen in that Appearance theme (its bars and menus; the notes keep their look)
     if (process.env.SKIN) {
@@ -518,7 +518,7 @@ async function stutterRun(browser, page, out, scene, t) {
       if (/space|tap|click/i.test(intro)) throw new Error('the intro still talks about tapping: ' + intro);
       await page.screenshot({ path: path.join(out, 'playcal-intro.png') }).catch(() => {});
       await page.click('.hw-syncbox .btn.primary');
-      await page.waitForFunction(() => { const H = document.querySelector('.highway').__hw; return H.training && window.__stage.engine.playing; }, null, { timeout: 15000 });
+      await page.waitForFunction(() => { const H = document.querySelector('.highway').__hw; return H.training && window.__stage.engine.playing; }, null, { timeout: Number(process.env.HWWAIT || 15000) });
       const song = await page.evaluate(() => { const H = document.querySelector('.highway').__hw; const e = window.__stage.engine; H.judge.debug = []; window.__fps0 = [performance.now(), e.position]; return { title: H.song.title, notes: H.targets.length, duration: e.duration, loaded: e.loaded && e.loaded.bytes, strings: [...new Set(H.tab.notes.map((n) => n.s))].sort() }; });
       console.log('PLAYCAL training song', JSON.stringify(song));
       if (!(song.duration > 24 && song.duration < 30) || !song.loaded || song.notes < 16) throw new Error('the training song did not load');
@@ -661,7 +661,7 @@ async function stutterRun(browser, page, out, scene, t) {
       if (s0.on.sing || s0.on.karaoke || s0.on.piano || !s0.on.part) fail('at the start: ' + JSON.stringify(s0));
       // piano
       await page.click('.hw-keys-chip');
-      await page.waitForFunction(() => document.querySelector('.highway').__hw.keys.state.arr && !document.querySelector('.hw-piano').hidden, null, { timeout: 15000 });
+      await page.waitForFunction(() => document.querySelector('.highway').__hw.keys.state.arr && !document.querySelector('.hw-piano').hidden, null, { timeout: Number(process.env.HWWAIT || 15000) });
       const s1 = await snap();
       same(s0, s1, 'piano on');
       if (!s1.on.piano || s1.on.part || s1.on.sing) fail('piano on: ' + JSON.stringify(s1.on));
@@ -764,7 +764,7 @@ async function stutterRun(browser, page, out, scene, t) {
       if (!st0.chip || st0.view || st0.asked) fail('before pressing Piano: ' + JSON.stringify(st0));
       await page.screenshot({ path: path.join(out, 'piano-0-off.png') });
       await page.click('.hw-keys-chip');
-      await page.waitForFunction(() => document.querySelector('.highway').__hw.keys.state.arr && !document.querySelector('.hw-piano').hidden, null, { timeout: 15000 });
+      await page.waitForFunction(() => document.querySelector('.highway').__hw.keys.state.arr && !document.querySelector('.hw-piano').hidden, null, { timeout: Number(process.env.HWWAIT || 15000) });
       const info = await page.evaluate(() => { const K = document.querySelector('.highway').__hw.keys.state; return { key: K.arr.key.name, chords: K.arr.chords.filter((c) => c.len >= 4).slice(0, 12).map((c) => c.name), notes: K.notes.length, sources: K.arr.sources, neck: document.querySelector('.highway').classList.contains('hw-keys-on') }; });
       console.log('PIANO', JSON.stringify(info));
       if (!info.notes || !info.neck) fail('no part: ' + JSON.stringify(info));

@@ -2671,6 +2671,7 @@ export function createHighway(stage) {
     }
     // the spots: an outline in the string's colour, filled in and glowing as the note arrives
     const z = -0.012;
+    const hdSpot = HX.owns('gem');
     for (const { nt, an, box, k, missed, landed } of spots.values()) {
       const hex = missed ? '#5a6078' : STRING[nt.s];
       const y = strH(nt.s);
@@ -2695,7 +2696,8 @@ export function createHighway(stage) {
       glow.up(x1 - r, x1, y - hh, y + hh, z, rc);
       alpha.up(x0, x1, y - hh, y + hh, z + 0.004, col(hex, 0.08 + 0.3 * kk));
       // the last moments and while it rings: a white-hot rim and a halo in the string's colour
-      if (!missed && kk > 0.6) {
+      // (4.34.1: not with a style's own notes: its gem lands there and glows itself; a white rim on top washed it out)
+      if (!missed && kk > 0.6 && !hdSpot) {
         const hot = (kk - 0.6) / 0.4;
         const p = r * 0.5;
         glow.up(x0 + p, x1 - p, y + hh - r - p * 0.3, y + hh - p, z - 0.002, col('#ffffff', 0.85 * hot, 1.4));
@@ -3029,7 +3031,7 @@ export function createHighway(stage) {
     paint: { face: 0.72, top: 0.82, bot: 0.66, faceK: 0.92, bevel: 'paint', rim: 0.4, rimW: 0, bar: 1.4, barHex: '#f0c062', shine: 0.25, halo: 0.6, edge: 0.5 },
     flat: { face: 0.92, top: 0.92, bot: 0.92, faceK: 1, bevel: 'flat', rim: 0.9, rimW: 0.85, bar: 0, barHex: null, shine: 0, halo: 0.45, edge: 0.8 },
   };
-  function buildGem(nt, z, an, missed, mute, inChord = false, box = null, flare = 0, fade = 1) {
+  function buildGem(nt, z, an, missed, mute, inChord = false, box = null, flare = 0, fade = 1, hold = false) {
     // held on from the note before (linkNext): no new gem, its sustain just carries on
     if (nt.linked) return;
     const { solid, alpha, glow } = R3.L;
@@ -3054,7 +3056,7 @@ export function createHighway(stage) {
       const hh = G.gy * 0.14 * big;
       if (hdG) {
         R3.mute(true);
-        HX.gem(1, (xa + xb) / 2, y, z, (xb - xa) / 2, hh, DEPTH, hh * 0.8, hex, missed, near, flare, fade, gemFlags(nt, mute, inChord));
+        HX.gem(1, (xa + xb) / 2, y, z, (xb - xa) / 2, hh, DEPTH, hh * 0.8, hex, missed, near, flare, fade, gemFlags(nt, mute, inChord) + (hold ? 16 : 0));
       }
       solid.box(xa, xb, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, faceT, fade), col(hex, fade, 1.2), col(dark, fade));
       if (LK.shadows && !missed && z > 0.05) R3.L.floor.halo((xa + xb) / 2, 0.003, z + DEPTH * 0.5, (xb - xa) / 2 + 0.15, 0.22, '#000000', 0.3 * fade, 1, 'y', 12);
@@ -3081,7 +3083,7 @@ export function createHighway(stage) {
     // the block: dark glass front, lit top, darker sides
     if (hdG) {
       R3.mute(true);
-      HX.gem(0, x, y, z, hw, hh, DEPTH, Math.min(hw, hh) * 0.32, hex, missed, near, flare, fade, gemFlags(nt, mute, inChord));
+      HX.gem(0, x, y, z, hw, hh, DEPTH, Math.min(hw, hh) * 0.32, hex, missed, near, flare, fade, gemFlags(nt, mute, inChord) + (hold ? 16 : 0));
     }
     solid.box(x - hw, x + hw, y - hh, y + hh, z, z + DEPTH, mix(dark, hex, missed ? 0.15 : faceT, fade, 1 + 0.3 * near), col(hex, fade, 1.1), col(dark, fade, 0.85));
     // 4.30: a soft contact shadow on the floor under the note (looks with shadows)
@@ -3288,6 +3290,11 @@ export function createHighway(stage) {
     // 4.31: the style's Effects: Full 1 (as always), Calm about half, Off none (only the note's own flare)
     const fxK = LK.fxK ?? 1;
     // 4.34: each new hit, once, to a style's own effects (sparks, a flare on its floor, shimmer)
+    // 4.34.1: a style with its own hit effect owns the whole look of a hit: the usual white flash, the
+    // string's blaze and the ring are left out (they would cover its sparks); Hit burst and Effects still
+    // reach it (e.burst, F.fxK)
+    const ownHit = HX.on && !!(HX.style && HX.style.onHit);
+    const burstOn = prefs.hitBurst !== false && !calmMotion();
     if (HX.on) for (const h of H.hits) {
       if (h.hx) continue;
       h.hx = true;
@@ -3295,7 +3302,7 @@ export function createHighway(stage) {
       if (!tg) continue;
       const an = anchorAt(tg.t);
       const ago = Math.min(0.5, Math.max(0, (now - h.at) / 1000));
-      for (const nt of tg.notes) if (!nt.linked) HX.hit(nt.f === 0 ? noteX(nt, an) : laneC(nt.f), strH(nt.s), 0, nt.s, nt.f, STRING[nt.s], deadOn(h), h.chord, h.until, ago);
+      for (const nt of tg.notes) if (!nt.linked) HX.hit(nt.f === 0 ? noteX(nt, an) : laneC(nt.f), strH(nt.s), 0, nt.s, nt.f, STRING[nt.s], deadOn(h), h.chord, h.until, ago, burstOn);
     }
     // 1. the string blazes along its whole length, hottest at the note
     const byString = new Map();
@@ -3308,6 +3315,7 @@ export function createHighway(stage) {
     const xn = XF(-3);
     const xe = XF(24) + 0.8;
     for (const [s, { k, b }] of byString) {
+      if (ownHit) break; // the style's own strings glow (HX.tube) and its own flare shows
       const y = strH(s);
       glow.quad([xn, y - G.gy * 0.45, -0.06], [xe, y - G.gy * 0.45, -0.06], [xe, y, -0.06], [xn, y, -0.06], col(STRING[s], 0), col(STRING[s], 0), col(STRING[s], 0.45 * k), col(STRING[s], 0.45 * k));
       glow.quad([xn, y, -0.06], [xe, y, -0.06], [xe, y + G.gy * 0.45, -0.06], [xn, y + G.gy * 0.45, -0.06], col(STRING[s], 0.45 * k), col(STRING[s], 0.45 * k), col(STRING[s], 0), col(STRING[s], 0));
@@ -3347,8 +3355,8 @@ export function createHighway(stage) {
       const fl = Math.exp(-age / 0.12)*.4;
       if (h.chord) {
         const box = chordBox(tg, an);
-        for (const nt of tg.notes) buildGem(nt, -0.02, an, false, false, true, box, fl, Math.min(1, k * 1.2));
-      } else for (const nt of tg.notes) buildGem(nt, -0.02, an, false, tg.kind === 'mute', true, null, fl, Math.min(1, k * 1.2));
+        for (const nt of tg.notes) buildGem(nt, -0.02, an, false, false, true, box, fl, Math.min(1, k * 1.2), holding);
+      } else for (const nt of tg.notes) buildGem(nt, -0.02, an, false, tg.kind === 'mute', true, null, fl, Math.min(1, k * 1.2), holding);
     }
     // 4. 4.11: a ring of light bursts outward from each note you hit, so a hit reads at a glance:
     // in the string's colour, white-hot when you were right on time (within 30 ms). It lives for a
@@ -3357,7 +3365,7 @@ export function createHighway(stage) {
     // 4.17: a round shock wave (was four bars making a rectangle), soft on both sides, growing and fading.
     // 4.23: about 15% smaller, a little softer and shorter, so the next notes stay easy to read; with
     // calm motion (Settings, or Windows' reduce animations) the ring doesn't grow at all
-    if (prefs.hitBurst !== false && !calmMotion() && fxK > 0) {
+    if (burstOn && fxK > 0 && !ownHit) {
       for (const h of H.hits) {
         const age = (now - h.at) / 1000;
         if (age > 0.3) continue;

@@ -209,7 +209,7 @@ attribute vec3 aIn;      // the box's corner side (-1..1)
 attribute vec4 iA;       // x, y, z (front, time ahead), kind (0 note, 1 open string, 2 chord frame bar)
 attribute vec4 iB;       // half width, half height, depth, corner radius
 attribute vec4 iC;       // colour, missed
-attribute vec4 iD;       // near (0..1 as it reaches the neck), flare, fade, flags (1 accent, 2 mute, 4 bend, 8 in a chord)
+attribute vec4 iD;       // near (0..1 as it reaches the neck), flare, fade, flags (1 accent, 2 mute, 4 bend, 8 in a chord, 16 held)
 varying vec3 vN;
 varying vec3 vV;
 varying vec3 vL;        // where on the box (-1..1 each way; z -1 at the front)
@@ -219,14 +219,21 @@ varying vec4 vD;
 varying float vKind;
 varying vec2 vHalf;
 varying vec3 vNl;
+varying vec3 vR;        // 4.34.1: the rounding: across the face (x, y) and in depth (z), world units
 void main() {
-  vNl = normal;
   vec3 hs = vec3(iB.x, iB.y, iB.z * 0.5);
-  float r = min(iB.w, min(hs.x, min(hs.y, hs.z)));
-  vec3 lp = aIn * (hs - r) + normal * r;
+  // 4.34.1: a real bevel. The edges round off with the corner radius across the face and as much as the
+  // depth allows front to back, so the face toward you is a raised block with sloping edges that catch
+  // the light. The outline (the footprint) is the same box as before.
+  float rxy = max(1e-4, min(iB.w, min(hs.x, hs.y)));
+  vec3 rr = vec3(rxy, rxy, max(1e-4, min(rxy, hs.z)));
+  vec3 lp = aIn * (hs - rr) + normal * rr;
+  vec3 nl = normalize(normal / rr);
+  vNl = nl;
+  vR = rr;
   vec3 wp = vec3(iA.x, iA.y, iA.z + hs.z) + lp;
   vec4 mv = modelViewMatrix * vec4(wp.x, wp.y, -wp.z, 1.0);
-  vN = normalize(normalMatrix * vec3(normal.x, normal.y, -normal.z));
+  vN = normalize(normalMatrix * vec3(nl.x, nl.y, -nl.z));
   vV = normalize(-mv.xyz);
   vL = lp / hs;
   vWp = wp;
@@ -244,8 +251,9 @@ varying vec4 vD;
 varying float vKind;
 varying vec2 vHalf;
 varying vec3 vNl;
+varying vec3 vR;
 struct HDGem {
-  vec3 n;      // normal (view space: x right, y up, z toward you)
+  vec3 n;      // normal (view space: x right, y up, z toward you), bevel included
   vec3 nl;     // normal on the box itself (z -1 is the face toward you); flat faces have one axis at ±1
   vec3 v;      // toward the eye (view space)
   vec3 l;      // where on the box, -1..1 each way (l.z = -1 is the face toward you)
@@ -254,7 +262,28 @@ struct HDGem {
   float missed, near, flare, fade, kind;
   float accent, mute, bend, chord;
   vec2 size;   // half width and height (world units)
+  // 4.34.1: gems in 3D (docs/hd-styles.md, "Gems in 3D")
+  vec2 uv;     // across the face toward you: 0..1 left to right, 0..1 bottom to top
+  vec2 edgeD;  // distance to the outline (world units), left/right and bottom/top, 0 at the edge
+  float edge;  // the smaller of the two
+  float bevel; // 0 on the flat of the face, rising to 1 where the bevel turns into the side
+  float face;  // 1 on the flat face toward you, 0 on the bevel and sides (soft)
+  float top;   // how much this point faces up (0..1): lit bevels and the top side
+  float hit;   // the hit's glow (the same as flare; 0 normally, up to about 0.5 right as it is hit)
+  float hold;  // 1 while the note is held (a sustain ringing on the neck)
+  vec3 key;    // the shared key light (view space, from above left and in front)
+  float lit;   // diffuse key light 0..1 (wrapped a little so the dark side is not black)
+  float spec;  // a tight highlight from the key light
+  float sheen; // a broad highlight (polished, not mirror)
+  float fres;  // the edge toward the eye: 0 facing you, 1 at grazing (for rims)
 };
+// the usual lighting for a gem: a lit body, its rim and a highlight. Styles add their own glow on top.
+vec3 hdGemLit(HDGem g, vec3 base, float shine) {
+  vec3 c = base * (0.18 + 0.82 * g.lit);
+  c += mix(base, vec3(1.0), 0.6) * g.fres * 0.55;
+  c += vec3(1.0, 0.97, 0.92) * (g.spec * shine + g.sheen * 0.25 * shine);
+  return c;
+}
 ${glsl}
 void main() {
   HDGem g;
@@ -262,6 +291,24 @@ void main() {
   g.near = vD.x; g.flare = vD.y; g.fade = vD.z; g.kind = vKind; g.size = vHalf;
   float fl = vD.w;
   g.accent = mod(fl, 2.0); g.mute = mod(floor(fl / 2.0), 2.0); g.bend = mod(floor(fl / 4.0), 2.0); g.chord = mod(floor(fl / 8.0), 2.0);
+  g.hold = mod(floor(fl / 16.0), 2.0);
+  g.hit = vD.y;
+  g.uv = vL.xy * 0.5 + 0.5;
+  g.edgeD = max(vec2(0.0), (1.0 - abs(vL.xy)) * vHalf);
+  g.edge = min(g.edgeD.x, g.edgeD.y);
+  float bx = clamp(1.0 - g.edgeD.x / vR.x, 0.0, 1.0);
+  float by = clamp(1.0 - g.edgeD.y / vR.y, 0.0, 1.0);
+  g.bevel = max(bx, by);
+  g.face = smoothstep(0.92, 0.995, -g.nl.z) * (1.0 - smoothstep(0.0, 0.25, g.bevel));
+  g.top = clamp(g.nl.y, 0.0, 1.0);
+  g.key = normalize(vec3(-0.35, 0.75, 0.55));
+  float nk = dot(g.n, g.key);
+  g.lit = clamp(nk * 0.75 + 0.25, 0.0, 1.0);
+  vec3 hv = normalize(g.key + g.v);
+  float nh = max(dot(g.n, hv), 0.0);
+  g.spec = pow(nh, 60.0);
+  g.sheen = pow(nh, 8.0);
+  g.fres = hdFresnel(g.n, g.v, 3.0);
   vec4 c = hdGem(g);
   float a = c.a * vD.z * hdFade(vWp.z);
   if (a < 0.003) discard;
@@ -701,7 +748,7 @@ export function createHD(R3, { ratio }) {
       parts.meshes.push(parts.sky);
     }
     if (def.gem) {
-      const geo = roundedBox(3);
+      const geo = roundedBox(4);
       parts.gems = new Batch(geo, ['iA', 'iB', 'iC', 'iD'], 256);
       parts.gemMesh = addMesh(geo, mat(GEM_VS, GEM_FS(def.gem.glsl), def.gem.uniforms || {}, { depthWrite: true }), 2);
       parts.meshes.push(parts.gemMesh);
@@ -798,7 +845,9 @@ export function createHD(R3, { ratio }) {
     const p = cur;
     if (!p || !p.parts || !F) return;
     const s = e.spec;
-    const count = Math.round(n * QK[F.quality] * F.fxK);
+    let count = Math.round(n * QK[F.quality] * F.fxK);
+    // a single flare or ring still shows at Calm and Low (Effects Off: none)
+    if (!count && n >= 1 && F.fxK > 0) count = 1;
     const B = p.parts;
     const [P, V, Ac, C0, C1, S] = B.arr;
     const now = F.time - burstAgo;
@@ -1036,7 +1085,7 @@ export function createHD(R3, { ratio }) {
       S.n++;
     },
     /** A note was hit (once, when judged): lights the floor and calls the style's onHit. ago: seconds since it happened. */
-    hit(x, y, z, s, f, hex, dead, chord, until, ago = 0) {
+    hit(x, y, z, s, f, hex, dead, chord, until, ago = 0, ring = true) {
       if (!cur || !F) return;
       const h = hits[hitI];
       hitI = (hitI + 1) % 8;
@@ -1047,12 +1096,13 @@ export function createHD(R3, { ratio }) {
       h.until = until;
       const e = E._hitE;
       e.x = x; e.y = y; e.z = z; e.s = s; e.f = f; e.rgb = rgbOf(hex); e.dead = dead; e.chord = chord;
+      e.burst = ring !== false; // 4.34.1: Sound & settings › Hit burst (and calm motion): the style's ring or shock wave
       // bursts made in onHit are born when the note was hit (a hit seen a frame late starts part way)
       burstAgo = ago;
       if (cur.def.onHit) cur.def.onHit(e);
       burstAgo = 0;
     },
-    _hitE: { x: 0, y: 0, z: 0, s: 0, f: 0, rgb: null, dead: false, chord: false },
+    _hitE: { x: 0, y: 0, z: 0, s: 0, f: 0, rgb: null, dead: false, chord: false, burst: true },
     /** The end of the frame's building: everything sent to the graphics card in one go. */
     end() {
       const p = cur;

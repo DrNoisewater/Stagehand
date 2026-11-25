@@ -150,39 +150,64 @@ vec3 hdSky(HDSky s) {
 `;
 
 const GEM = /* glsl */ `
+// 4.34.1: molten metal. A crust of dark, cooled metal in the string's colour, broken into plates; between
+// them the metal still glows, hottest in the middle of the face, cooler (more crust, thinner cracks) toward
+// the edges, and a hot lip runs round the bevel. The string's colour is kept everywhere: the crust is
+// tinted with it and the cracks glow in it (only their thin centres go toward white).
 vec4 hdGem(HDGem g) {
-  vec3 L1 = normalize(vec3(-0.3, 0.75, 0.6));
-  vec3 n = g.n;
-  vec3 v = g.v;
-  bool missed = g.missed > 0.5;
-  vec3 base = missed ? vec3(0.2, 0.19, 0.2) : g.col;
-  float dif = max(dot(n, L1), 0.0);
-  float spec = pow(max(dot(n, normalize(L1 + v)), 0.0), 70.0);
-  vec3 r = reflect(-v, n);
-  // what the metal reflects: glowing lava below, dark smoke above
-  vec3 env = mix(vec3(1.0, 0.5, 0.16) * 0.7, vec3(0.05, 0.02, 0.018), smoothstep(-0.4, 0.3, r.y));
-  float fr = hdFresnel(n, v, 4.0);
-  vec3 metal = mix(base, vec3(1.0), 0.18);
-  vec3 c = base * 0.16 * (0.3 + dif) + metal * env * (0.2 + 0.6 * fr) + vec3(1.0, 0.92, 0.8) * spec * (missed ? 0.3 : 1.1);
-  if (missed) return vec4(c, 1.0);
-  // the face toward you: a molten core under a cooled crust, hottest in the middle
-  float front = smoothstep(0.8, 0.98, -g.nl.z);
-  float rr = max(abs(g.l.x), abs(g.l.y));
-  float core = 1.0 - smoothstep(0.25, 0.95, rr);
-  float crust = smoothstep(0.42, 0.7, hdFbm(g.l.xy * vec2(2.2, 1.6) + g.wp.x * 1.7 + g.col.r * 5.0, 2.0 + uQ * 0.7));
-  float heat = 0.85 + 1.1 * g.near + 2.2 * g.flare + 0.3 * uHeat;
-  vec3 molten = mix(base * 1.2, vec3(1.0, 0.88, 0.62), 0.2 + 0.45 * g.near + 0.4 * g.flare);
-  float kindK = g.kind > 1.5 ? 0.35 : 1.0;
-  c += front * molten * heat * kindK * (0.45 + 0.55 * core) * mix(1.0, 0.55, crust * (1.0 - g.near * 0.7));
-  // the sides glow dimly too: the whole block is hot
-  c += base * 0.28 * kindK * (1.0 - front);
-  // the rim: the rounded edges burn, white-hot as the note reaches the neck
-  float bevel = 1.0 - max(abs(g.nl.x), max(abs(g.nl.y), abs(g.nl.z)));
-  float rim = smoothstep(0.04, 0.28, bevel) * step(g.nl.z, 0.3);
-  vec3 rimC = mix(base * 1.4, vec3(1.0, 0.95, 0.85), clamp(0.15 + g.near * 0.8 + g.flare, 0.0, 1.0));
-  c += rimC * rim * (0.8 + 1.8 * g.near + 3.0 * g.flare + 1.2 * g.accent);
-  // a bend: the face glows a little warmer
-  c += vec3(1.0, 0.5, 0.1) * front * g.bend * 0.15;
+  vec3 base = g.col;
+  if (g.missed > 0.5) {
+    // cooled to grey iron: lit, no glow
+    vec3 iron = vec3(0.13, 0.125, 0.13);
+    return vec4(hdGemLit(g, iron, 0.45), 1.0);
+  }
+  float kindK = g.kind > 1.5 ? 0.45 : 1.0;   // a chord's frame glows less than its notes
+  // each note its own pattern (fixed to the note, never to the screen)
+  vec2 ctr = g.wp.xy - g.l.xy * g.size;
+  float seed = hdHash(ctr * vec2(3.7, 11.3));
+  vec2 asp = g.size / min(g.size.x, g.size.y);
+  float rr = length(max(abs(g.l.xy) * asp - (asp - 1.0), 0.0));  // 0 in the middle, 1 at the edge (round corners)
+  float mid = 1.0 - smoothstep(0.0, 1.0, rr);
+  float boost = 0.6 * g.near + 0.5 * g.hold + 2.0 * g.hit + 0.25 * uHeat + 0.3 * g.accent;
+  // a few big plates of crust per note (they read even when the note is small)
+  vec2 q = g.l.xy * asp * 1.6 + seed * 23.0;
+  if (g.hold > 0.5) q.y -= uTime * 0.5 * uMotion;   // a held note's metal keeps moving
+  vec3 vo = hdVoronoi(q);
+  float aa = length(fwidth(q)) * 0.8 + 1e-4;
+  float cw = 0.05 + 0.08 * mid;
+  float crack = 1.0 - smoothstep(cw - aa, cw + aa, vo.y);
+  float far = clamp(aa / cw - 0.6, 0.0, 1.0);        // thinner than a pixel: an even glow instead
+  crack = mix(crack, 0.2, far);
+  // the crust has cooled over the edges; in the middle the metal is open and molten
+  float wob = hdNoise(q * 1.7 + 3.0) - 0.5;
+  float pool = (1.0 - smoothstep(0.5, 0.8, rr + wob * 0.4 - 0.15 * min(boost, 1.5))) * step(g.kind, 1.5);
+  float onFront = smoothstep(-0.2, 0.6, -g.nl.z);    // face and bevel; the sides are plain crust
+  pool *= onFront;
+  // the crust: dark metal tinted with the string's colour, each plate a little different, lit as a block;
+  // underneath it the lava's orange light catches the lower bevel
+  vec3 crustAlb = mix(vec3(0.035, 0.028, 0.026), base, 0.16 + 0.1 * vo.z);
+  vec3 crust = hdGemLit(g, crustAlb, 1.1);
+  crust += vec3(1.0, 0.35, 0.06) * 0.22 * clamp(-g.nl.y, 0.0, 1.0);
+  crust += base * 0.05 * (1.0 + boost);
+  // glowing cracks between the plates, in the string's colour
+  vec3 hot = mix(base, vec3(1.0, 0.85, 0.6), 0.25);
+  crust += hot * crack * (0.55 + 0.6 * mid + 0.5 * boost) * onFront * (1.0 - far * 0.5);
+  crust += base * exp(-vo.y * 10.0) * 0.18 * onFront;
+  // the open metal: bright in the string's colour, a white-hot shimmer only as it lands or is hit
+  float stir = hdNoise(q * 2.3 + vec2(0.0, uTime * 0.7 * uMotion));
+  vec3 molten = base * (0.95 + 0.35 * stir + 0.35 * boost) + vec3(1.0, 0.85, 0.6) * (0.06 + 0.25 * clamp(boost - 0.5, 0.0, 1.0)) * (0.5 + stir);
+  molten += vec3(1.0) * g.spec * 0.6;               // liquid shine
+  vec3 c = mix(crust, molten, pool * smoothstep(0.0, 0.3, 1.0 - g.bevel));
+  // the hot lip round the bevel
+  float lip = smoothstep(0.6, 0.98, g.bevel) * onFront;
+  vec3 lipC = mix(base * 1.1, vec3(1.0, 0.9, 0.75), clamp(0.08 + 0.35 * g.near + 1.0 * g.hit, 0.0, 0.7));
+  c += lipC * lip * (0.55 + 0.35 * g.near + 1.2 * g.hit + 0.4 * g.accent);
+  // a bend: the face runs a little warmer
+  c += vec3(1.0, 0.45, 0.08) * g.face * g.bend * 0.08;
+  c *= mix(1.0, kindK, onFront * 0.6);
+  // never a white blob: bright parts roll off softly and keep their colour
+  float m = max(c.r, max(c.g, c.b));
+  if (m > 1.0) c *= (1.0 + log(m)) / m;
   return vec4(c, 1.0);
 }
 `;
@@ -257,7 +282,13 @@ vec4 hdTrail(HDTrail r) {
 
 export default function build(K) {
   // hits: white-hot sparks that fly up and fall, embers that rise slowly, a few drops of lava
-  const sparks = K.emitter({ max: 1600, life: [0.4, 0.95], speed: [3.5, 8.0], up: 1, spread: 2.3, toward: [-2.4, 0.6], accel: [0, -9.5, 0], drag: 1.2, size: [0.05, 0.022], shape: 1, stretch: 0.06, colA: [1.8, 1.5, 1.1], colB: [1, 0.28, 0.02], tintB: 0.25, alpha: 1, jitter: 0.12 });
+  // 4.34.1: sparks start hot yellow (not white) with a touch of the string's colour, so a splash reads as
+  // fire on that string and never washes out the notes beside it
+  const sparks = K.emitter({ max: 1600, life: [0.4, 0.95], speed: [3.5, 8.0], up: 1, spread: 2.3, toward: [-2.4, 0.6], accel: [0, -9.5, 0], drag: 1.2, size: [0.04, 0.018], shape: 1, stretch: 0.06, colA: [1.25, 0.85, 0.4], tintA: 0.2, colB: [0.9, 0.22, 0.02], tintB: 0.3, alpha: 0.9, jitter: 0.12 });
+  // the flare: a hot ring that spreads from the note and is gone in a third of a second (Hit burst)
+  const flare = K.emitter({ max: 120, life: [0.28, 0.34], speed: [0, 0], up: 0, spread: 0, accel: [0, 0, 0], drag: 0, size: [0.12, 0.75], shape: 3, colA: [1, 0.6, 0.18], tintA: 0.35, colB: [0.7, 0.12, 0.01], tintB: 0.2, alpha: 0.55 });
+  // and a soft glow of the lava behind it, low and wide (only light, never a white disc)
+  const glow = K.emitter({ max: 120, life: [0.22, 0.3], speed: [0, 0], up: 0, spread: 0, accel: [0, 0, 0], drag: 0, size: [0.5, 0.9], shape: 4, colA: [0.9, 0.32, 0.05], tintA: 0.25, colB: [0.4, 0.06, 0], alpha: 0.5 });
   const embers = K.emitter({ max: 600, life: [1.1, 2.3], speed: [0.3, 1.2], up: 1, spread: 2.0, toward: [-0.6, 0.6], accel: [0, 1.3, 0], drag: 1.1, size: [0.075, 0.03], shape: 0, colA: [1, 0.62, 0.16], colB: [0.6, 0.07, 0], alpha: 0.9, jitter: 0.25, stagger: 0.15 });
   const drops = K.emitter({ max: 300, life: [0.45, 0.8], speed: [1.6, 3.2], up: 1, spread: 1.8, toward: [-1.2, 0.3], accel: [0, -8, 0], drag: 0.6, size: [0.09, 0.06], shape: 0, colA: [1, 0.82, 0.42], colB: [0.85, 0.18, 0], alpha: 0.95, jitter: 0.08 });
   const trickle = K.emitter({ max: 400, life: [0.25, 0.55], speed: [1.0, 2.6], up: 1, spread: 2.2, toward: [-1, 0.4], accel: [0, -6, 0], drag: 1.2, size: [0.035, 0.016], shape: 1, stretch: 0.05, colA: [1, 0.9, 0.7], colB: [1, 0.35, 0.03], alpha: 0.9, jitter: 0.1 });
@@ -275,7 +306,9 @@ export default function build(K) {
     chordGlass: ['#2a0702', '#3d0e04'],
     onHit(e) {
       const k = e.dead ? 1.25 : 1;
-      sparks.burst(e.x, e.y, e.z - 0.05, e.chord ? 22 : 40, e.rgb, k);
+      sparks.burst(e.x, e.y, e.z - 0.05, e.chord ? 18 : 34, e.rgb, k);
+      glow.burst(e.x, e.y, e.z - 0.09, 1, e.rgb, k * (e.chord ? 0.6 : 1));
+      if (e.burst) flare.burst(e.x, e.y, e.z - 0.1, 1, e.rgb, k);
       embers.burst(e.x, e.y, e.z, 10, e.rgb, k);
       drops.burst(e.x, e.y, e.z - 0.05, e.dead ? 5 : 3, e.rgb, k);
     },
