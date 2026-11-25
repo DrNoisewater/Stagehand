@@ -381,7 +381,7 @@ async function stutterRun(page, out, scene, t) {
     // label picture on the graphics card both ways.
     if (process.env.ATLAS) {
       const frames = (n) => page.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
-      await page.evaluate(() => { performance.now = () => 100000; });
+      await page.evaluate((b) => { performance.now = () => 100000; window.__atlasBreak = b; }, !!process.env.ATLAS_BREAK);
       await frames(60); // the camera settles
       // the labels drawn again from nothing, one box at a time, each sent on its own
       const before = await page.evaluate(() => {
@@ -391,6 +391,18 @@ async function stutterRun(page, out, scene, t) {
         T.actx.clearRect(14, 0, T.size - 14, T.size);
         T.actx.clearRect(0, 14, T.size, T.size - 14);
         Object.assign(T.shelf, { x: 14, y: 2, h: 10 });
+        // the card's copy painted over in magenta, so only what is sent now can make the labels show
+        const gl = T.renderer.getContext();
+        const fb = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, T.renderer.properties.get(T.tex).__webglTexture, 0);
+        gl.clearColor(1, 0, 1, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.deleteFramebuffer(fb);
+        T.renderer.resetState();
+        // ATLAS_BREAK=1: nothing sent on its own (the check must then fail)
+        if (window.__atlasBreak) T.renderer.copyTextureToTexture = () => {};
         return n;
       });
       await frames(4);
