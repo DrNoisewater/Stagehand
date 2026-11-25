@@ -286,7 +286,10 @@ vec4 hdGem(HDGem g) {
   float front = smoothstep(0.85, 0.98, -g.nl.z);
   float bev = smoothstep(0.1, 0.9, g.bevel);
   // chrome: the room reflected, a touch of the note's colour, the key light as a hard white glint
-  vec3 chrome = (swEnv(r) * 1.4 + 0.05) * mix(vec3(1.0), base * 1.3 + 0.2, 0.35) * (0.6 + 0.6 * g.fres + 0.3 * g.lit);
+  // (4.34.2: where the bevel turns faster than a pixel can show, the room's thin pink horizon would jump from
+  // pixel to pixel as the note moves: the chrome shows the room's average glow there instead)
+  vec3 envC = mix(swEnv(r), vec3(0.16, 0.07, 0.2), g.aa * 0.85);
+  vec3 chrome = (envC * 1.4 + 0.05) * mix(vec3(1.0), base * 1.3 + 0.2, 0.35) * (0.6 + 0.6 * g.fres + 0.3 * g.lit);
   chrome += vec3(1.0, 0.95, 1.0) * (g.spec * 0.8 + g.sheen * 0.05);
   // the face: lit glossy plastic in the string's colour, with a neon line round it
   vec2 e2 = (1.0 - abs(g.l.xy)) * g.size;
@@ -299,8 +302,8 @@ vec4 hdGem(HDGem g) {
   vec3 plastic = hdGemLit(g, base * 0.3, 1.0) + fill * 0.8;
   plastic += vec3(1.0, 0.9, 1.0) * g.sheen * 0.05 * (1.0 - 0.5 * g.near);
   plastic += mix(base, vec3(1.0), 0.3) * neon * (0.7 + 0.4 * g.near + 1.5 * g.hit + 0.8 * g.accent);
-  plastic += swEnv(r) * 0.08;
-  if (missed) plastic = hdGemLit(g, base * 0.6, 0.4) + swEnv(r) * 0.15;
+  plastic += envC * 0.08;
+  if (missed) plastic = hdGemLit(g, base * 0.6, 0.4) + envC * 0.15;
   vec3 c = mix(chrome, plastic * kindK + chrome * (1.0 - kindK) * 0.6, front * (1.0 - bev));
   // the hot rim: pink fading to the string's colour, flaring as the note lands
   if (!missed) {

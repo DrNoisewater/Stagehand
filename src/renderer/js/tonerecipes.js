@@ -104,6 +104,7 @@ const WACKY = [
 
 export const PEDALS = {
   guitar: [
+    { key: 'Util_LoopSwitch', name: 'Loop switcher', what: 'Two loops, one footswitch: build two sounds on one board and jump between them.', where: 'pre', group: 'util', knobs: [], start: {} },
     { key: 'Pedal_SuperDrive', name: 'Tube drive', what: 'Pushes the mids and tightens a big amp. The metal secret.', where: 'pre', group: 'drive', knobs: [['Gain', 'Drive'], ['Tone', 'Tone']], start: { Gain: 10, Tone: 60 } },
     { key: 'Pedal_LineDrive', name: 'Clean boost', what: 'Hits the amp harder without changing its sound', where: 'pre', group: 'drive', knobs: [['Gain', 'Boost'], ['Tone', 'Tone']], start: { Gain: 40, Tone: 50 } },
     { key: 'Pedal_MarshallGuvnorPlus', name: 'British drive', what: 'A Marshall in a box', where: 'pre', group: 'drive', knobs: [['Gain', 'Gain'], ['Bass', 'Bass'], ['Mid', 'Mid'], ['Treble', 'Treble']], start: { Gain: 45, Bass: 50, Mid: 60, Treble: 55 } },
@@ -125,6 +126,7 @@ export const PEDALS = {
     ...WACKY,
   ],
   bass: [
+    { key: 'Util_LoopSwitch', name: 'Loop switcher', what: 'Two loops, one footswitch: build two sounds on one board and jump between them.', where: 'pre', group: 'util', knobs: [], start: {} },
     { key: 'Bass_Pedal_BassOverdrive', name: 'Bass drive', what: 'Grit, blended with your clean low end', where: 'pre', group: 'drive', knobs: [['Gain', 'Drive'], ['Tone', 'Tone'], ['Blend', 'Blend']], start: { Gain: 35, Tone: 45, Blend: 45, Filter: 75 } },
     { key: 'Bass_Pedal_BassDistortion', name: 'Bass distortion', what: 'Heavy and aggressive', where: 'pre', group: 'drive', knobs: [['Gain', 'Gain'], ['Tone', 'Tone']], start: { Gain: 55, Tone: 35, Filter: 50 } },
     { key: 'Bass_Pedal_BassFuzz', name: 'Bass fuzz', what: 'Fat, buzzing fuzz', where: 'pre', group: 'drive', knobs: [['Gain', 'Fuzz'], ['Tone', 'Tone']], start: { Gain: 60, Tone: 25, Filter: 75 } },
@@ -286,10 +288,13 @@ export function buildTone(W) {
   const gear = [];
   let o = 0;
   const board = (W.board || []).filter((p) => p && p.key);
-  for (const p of board) if (p.where !== 'post') gear.push({ ...G('pre', p.key, { ...p.knobs }, o++), ...(p.off ? { bypass: true } : {}) });
-  gear.push(G('amp', amp.key, knobs, o++));
-  gear.push(G('cab', amp.cab, {}, o++));
-  for (const p of board) if (p.where === 'post') gear.push({ ...G('post', p.key, { ...p.knobs }, o++), ...(p.off ? { bypass: true } : {}) });
+  // 4.35: with a Loop switcher on the board, each piece may sit in loop A or B (loopswitch.js)
+  const loops = board.some((p) => p.key === 'Util_LoopSwitch');
+  const lp = (v) => (loops && (v === 'A' || v === 'B') ? { loop: v } : {});
+  for (const p of board) if (p.where !== 'post') gear.push({ ...G('pre', p.key, { ...p.knobs }, o++), ...(p.off ? { bypass: true } : {}), ...lp(p.loop) });
+  gear.push({ ...G('amp', amp.key, knobs, o++), ...lp(W.ampLoop) });
+  gear.push({ ...G('cab', amp.cab, {}, o++), ...lp(W.cabLoop) });
+  for (const p of board) if (p.where === 'post') gear.push({ ...G('post', p.key, { ...p.knobs }, o++), ...(p.off ? { bypass: true } : {}), ...lp(p.loop) });
   if (W.reverb > 0.02) gear.push(G('rack', 'Rack_StudioPlate', { Decay: 45, Diffusion: 80, Mix: Math.round(5 + W.reverb * 55), Tone: 55 }, o++));
   return {
     name: W.name || 'My tone',

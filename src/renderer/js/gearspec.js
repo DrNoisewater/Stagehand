@@ -6,6 +6,8 @@
  * Pedal_SpringReverb, Cab_…) and knobs maps knob keys (Amp_OrangeAD50_Gain) or
  * knob names (Gain) to values. Missing knobs take Rocksmith's defaults.
  */
+import { LOOP_KEY, LOOP_INFO, loopView } from './loopswitch.js';
+
 let DB = null;
 let loading = null;
 
@@ -25,6 +27,7 @@ export function setGear(db) {
 }
 
 export function gearInfo(key) {
+  if (key === LOOP_KEY) return LOOP_INFO; // the Loop switcher is Stagehand's own, not a game piece
   return (DB && DB[key]) || null;
 }
 
@@ -42,11 +45,12 @@ const ORDER = { pre: 0, amp: 1, post: 2, cab: 3, rack: 4 };
 const clean = (s) => String(s).replace(/[\t\n\r]/g, ' ');
 
 /** The text the engine reads (see native/dsp/sh_util.c). */
-export function toSpec(tone) {
+export function toSpec(tone, side = 'A') {
+  tone = loopView(tone, side); // the Loop switcher and the loop that isn't playing never reach the engine
   const lines = [`kind\t${tone.kind === 'bass' ? 'bass' : 'guitar'}`];
   const gear = [...(tone.gear || [])].sort((a, b) => (ORDER[a.slot] ?? 9) - (ORDER[b.slot] ?? 9) || (a.order || 0) - (b.order || 0));
   for (const g of gear) {
-    if (!g || g.bypass || !g.key || !(g.slot in ORDER)) continue;
+    if (!g || g.bypass || !g.key || g.key === LOOP_KEY || !(g.slot in ORDER)) continue;
     lines.push(`gear\t${g.slot}\t${clean(g.key)}`);
     const info = gearInfo(g.key);
     const given = g.knobs || {};

@@ -1,11 +1,22 @@
 /**
- * Keys 2–9 and your tones (4.1.9), with no page code so tests can run it.
+ * Keys 2–20 and your tones (4.1.9), with no page code so tests can run it.
  * Picking a tone never puts it on a key: that is its own step, which says what it
  * replaces and can be undone. Edits are a draft until you save them.
  *
  * User: "a lot of times I click a slot trying to select it, and write over it…"
  * "Lots of knobs: does it go back to default if a change isn't saved?"
  */
+
+/** The key for a slot, as drawn on a button: '1'..'9', '0' (slot 10), '⇧1'..'⇧9' (11–19), '⇧0' (slot 20). */
+export const slotKey = (n) => (n <= 9 ? String(n) : n === 10 ? '0' : n === 20 ? '⇧0' : `⇧${n - 10}`);
+/** The same in words: '3', '0', 'Shift+3', 'Shift+0'. */
+export const slotKeyWords = (n) => (n <= 10 ? slotKey(n) : `Shift+${n === 20 ? 0 : n - 10}`);
+
+/** The slot a digit key reaches: 1–9 are slots 1–9, 0 is slot 10; with Shift, 11–19 and 20. */
+export const slotForDigit = (digit, shift = false) => {
+  const n = Number(digit) || 10;
+  return shift ? 10 + n : n;
+};
 
 /** What putting tone `id` on key n would do: { tone, from, replaces, noop }. */
 export function slotChange(list, id, n) {
@@ -30,8 +41,8 @@ export function undoSlotChange(list, ch) {
 /** The words for it: "Put “Thrash” on key 3? It replaces “Clean”." */
 export function slotChangeText(ch) {
   if (!ch || !ch.tone) return '';
-  if (!ch.slot) return `Take “${ch.tone.name}” off key ${ch.from}?`;
-  return ch.replaces ? `Put “${ch.tone.name}” on key ${ch.slot}? It replaces “${ch.replaces.name}”, which stays in your tones.` : `Put “${ch.tone.name}” on key ${ch.slot}?`;
+  if (!ch.slot) return `Take “${ch.tone.name}” off key ${slotKeyWords(ch.from)}?`;
+  return ch.replaces ? `Put “${ch.tone.name}” on key ${slotKeyWords(ch.slot)}? It replaces “${ch.replaces.name}”, which stays in your tones.` : `Put “${ch.tone.name}” on key ${slotKeyWords(ch.slot)}?`;
 }
 
 // "Gain" and "Amp_CA100_Gain" are the same knob (the editor writes the long name)
@@ -44,7 +55,7 @@ const print = (tone) =>
   JSON.stringify([
     tone && tone.kind,
     ((tone && tone.gear) || [])
-      .map((g) => [g.slot, g.key, !!g.bypass, g.order || 0, knobPrint(g)])
+      .map((g) => [g.slot, g.key, !!g.bypass, g.order || 0, knobPrint(g), g.loop === 'A' || g.loop === 'B' ? g.loop : ''])  // 4.35: which Loop switcher loop it sits in is an edit; which loop plays is not
       .sort((a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1)),
     (tone && tone.cabId) || null,
     (tone && tone.ir) || null,

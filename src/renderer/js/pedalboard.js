@@ -14,8 +14,11 @@ import { rotaryKnob, gearFaceplate, gearKnob, labStrip } from './rigui.js';
 import { knobsOf } from './tonelib.js';
 import { gearInfo } from './gearspec.js';
 import { LAB_SECTIONS } from './gearbench.js';
+import { loopChip, loopFace } from './loopui.js';
+import { LOOP_KEY } from './loopswitch.js';
 
 const GROUPS = [
+  ['util', 'Switching'],
   ['drive', 'Drive, distortion and fuzz'],
   ['dynamics', 'Gate and compressor'],
   ['filter', 'Wah, filters and EQ'],
@@ -33,7 +36,7 @@ const fmtKnob = (min, max) => (v) => (max - min > 20 ? String(Math.round(v)) : (
 // 4.22: which pedals have their "What does what?" open (kept while the board redraws)
 const OPEN_ABOUT = {};
 
-export function pedalBoard({ kind, board, ampKey, onChange }) {
+export function pedalBoard({ kind, board, ampKey, onChange, loops = {}, onLoops = () => {} }) {
   const el = h('div.pb');
   let adding = false;
   const set = (b, redraw = true) => {
@@ -54,7 +57,9 @@ export function pedalBoard({ kind, board, ampKey, onChange }) {
     del.onclick = () => set(board.filter((_, j) => j !== i));
     const knobs = h('div.pb-knobs');
     let about = '';
-    if (info.group === 'wacky') {
+    if (p.key === LOOP_KEY) {
+      knobs.append(loopFace()); // 4.35: the A/B box: a footswitch and two lights
+    } else if (info.group === 'wacky') {
       // 4.20: The Lab's pedals: every control with its own units, switch names and footswitches
       for (const k of knobsOf({ key: p.key, knobs: p.knobs })) {
         knobs.append(gearKnob(k, { gel: 'var(--tungsten)', onInput: (v) => { p.knobs = { ...p.knobs, [k.name]: v }; set(board, false); } }));
@@ -91,11 +96,14 @@ export function pedalBoard({ kind, board, ampKey, onChange }) {
         })
       );
     }
-    const faceplate = gearFaceplate(p.key, knobs, { bypass: { on: () => !p.off, toggle: () => led.onclick() } });
+    const faceplate = p.key === LOOP_KEY ? null : gearFaceplate(p.key, knobs, { bypass: { on: () => !p.off, toggle: () => led.onclick() } });
+    // 4.35: with a Loop switcher on the board, each pedal says which loop it is in
+    const loopBar = p.key !== LOOP_KEY && board.some((x) => x.key === LOOP_KEY) ? loopChip({ value: p.loop, name: info.name, onPick: (v) => set(board.map((x, j) => (j === i ? { ...x, loop: v || undefined } : x))) }) : null;
     c.append(
       h('div.pb-top', null, h('div.pb-art', { html: pedalArt(p.key) }), h('div.pb-name', null, h('b', { text: info.name }), h('span', { text: info.what }))),
       faceplate,
       knobs,
+      loopBar,
       about,
       h('div.pb-tools', null, led, h('span.grow'), left, right, del)
     );
@@ -108,7 +116,18 @@ export function pedalBoard({ kind, board, ampKey, onChange }) {
     const post = board.map((p, i) => [p, i]).filter(([p]) => p.where === 'post');
     chain.append(h('div.pb-end', { text: kind === 'bass' ? 'Your bass' : 'Your guitar' }));
     for (const [p, i] of pre) chain.append(card(p, i));
-    chain.append(h('div.pb-amp', { title: 'The amp' }, h('div.pb-amp-art', { html: ampArt(ampKey) }), h('small', { text: 'Amp' })));
+    const switched = board.some((x) => x.key === LOOP_KEY);
+    chain.append(
+      h(
+        'div.pb-amp',
+        { title: 'The amp' },
+        h('div.pb-amp-art', { html: ampArt(ampKey) }),
+        h('small', { text: 'Amp' }),
+        switched ? loopChip({ value: loops.amp, name: 'the amp', onPick: (v) => { loops = { ...loops, amp: v || undefined }; onLoops(loops); draw(); } }) : null,
+        switched ? h('small', { text: 'Cabinet' }) : null,
+        switched ? loopChip({ value: loops.cab, name: 'the cabinet', onPick: (v) => { loops = { ...loops, cab: v || undefined }; onLoops(loops); draw(); } }) : null
+      )
+    );
     for (const [p, i] of post) chain.append(card(p, i));
     const add = h('button.pb-add', { type: 'button', html: `${icon('plus')}<span>Add a pedal</span>`, 'aria-expanded': String(adding) });
     add.onclick = () => {

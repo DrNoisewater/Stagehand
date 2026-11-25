@@ -14,7 +14,8 @@ import { drums } from './drums.js';
 import { DiRecorder, saveTake } from './looper.js';
 import { renderTone } from './render.js';
 import { songToneChoice, saveToneChoice } from './tab.js';
-import { tonelib, bySlot, useSlot, SLOT_GELS, SLOT_COUNT, saveSongTone, freeSlot, chainText, activeSlot, nowPlayingTone } from './tonelib.js';
+import { slotGrid } from './slotgrid.js';
+import { tonelib, bySlot, useSlot, saveSongTone, freeSlot, chainText, activeSlot, nowPlayingTone } from './tonelib.js';
 import { demoButton } from './rigui.js';
 import { guitarStatus } from './shell.js';
 import { paintSpeedChip, openSpeedPopover } from './speedpop.js';
@@ -411,21 +412,22 @@ function renderTonePane(box) {
     box.append(list);
   } else box.append(h('p.np-fine', { text: practice.tab ? 'This part has no tones of its own.' : 'Pick a part to see its tones.' }));
   box.append(h('div.sec-head', null, h('span', { text: 'Or use a slot' })));
-  const grid = h('div.slot-keys');
   const act = rig.mode === 'preset' ? activeSlot() : null;
-  for (let n = 1; n <= SLOT_COUNT; n++) {
-    const t = bySlot(n);
-    const b = h(`button${act === n ? '.on.lit' : ''}`, { type: 'button', text: String(n), title: t ? t.name : 'Empty', disabled: !t ? true : null, style: { '--gel': t ? SLOT_GELS[n - 1] : '#2c3552' } });
-    b.onclick = () => {
+  const grid = slotGrid({
+    names: false,
+    active: act,
+    emptyPick: false,
+    song: { name: 'Song', tip: 'Key 1 follows the song’s own tones' },
+    onPick: (n, t) => {
+      if (!t) return;
       if (s) {
         songToneChoice[s.id] = t.id;
         saveToneChoice();
       }
       useSlot(n);
       renderPanel();
-    };
-    grid.append(b);
-  }
+    },
+  });
   box.append(grid);
 }
 

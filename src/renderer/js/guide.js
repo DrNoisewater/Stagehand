@@ -399,14 +399,14 @@ const PAGES = [
   {
     group: 'Around Stagehand',
     title: 'Jam',
-    show: { title: 'Jam', at: '#page-play .slots', go: () => setPage('play'), tip: 'Your tone slots: keys 1–9 switch between them as you play. Above: Set input level, Choose song and Play over song. Below: the rig, the tuner, the Drop, drums and the looper.' },
+    show: { title: 'Jam', at: '#page-play .slots', go: () => setPage('play'), tip: 'Your tone slots: keys 1–0 switch between them as you play, and Shift with a key reaches ten more. Above: Set input level, Choose song and Play over song. Below: the rig, the tuner, the Drop, drums and the looper.' },
     draw: () =>
       h(
         'div',
         null,
         p('Play without a song: the page Stagehand opens on.'),
         steps(
-          ['Tone slots', 'Nine sounds on keys 1–9. Click a pedal, the amp or the cabinet to turn its knobs.'],
+          ['Tone slots', 'Your own sounds on keys 1–0, and ten more under Shift. Click a pedal, the amp or the cabinet to turn its knobs.'],
           ['Play over a song', 'Choose a song and it becomes your backing band, with your part taken out.'],
           ['Drums and looper', 'Pick a beat and a tempo. Record a riff and it loops straight away; add layers on top.'],
           ['Full screen', 'Press J for a moving background that reacts to what you play.']
@@ -547,7 +547,11 @@ const PAGES = [
             ['T', 'Tab view'],
             ['U', 'Tuner'],
             ['D', 'The Drop on or off'],
-            ['1–9', 'Tone slots'],
+            ['1–0', 'Tone slots'],
+            ['Shift+1–0', 'More tone slots'],
+            ['B', 'Loop switcher: loop A or B'],
+            ['Ctrl+1–9', 'Mute a stem (Ctrl+Alt: solo)'],
+            ['Ctrl+0', 'Zoom out to the whole song'],
             ['J', 'Full-screen Jam'],
             ['Ctrl+F', 'Search'],
             ['Esc', 'Back'],

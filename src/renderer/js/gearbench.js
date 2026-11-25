@@ -17,6 +17,7 @@ import { gearPhotoInfo, GEAR_PHOTOS } from './gear-photos.js';
 import { gearArt } from './gearart.js';
 import { rotaryKnob, fmtKnob, gearFaceplate, stepFor, gearKnob, labStrip } from './rigui.js';
 import { knobsOf, orderedGear } from './tonelib.js';
+import { LOOP_KEY, LOOP_NAME, hasLoopSwitchGear } from './loopswitch.js';
 
 export const CAB_RE = /^(.*)_(57|Condenser|Ribbon|Tube)_(Cone|Edge|OffAxis)$/;
 export const MICS = [
@@ -44,6 +45,7 @@ export const GEAR_CATS = [
   { id: 'dynamics', label: 'Comp, gate & EQ', hint: 'Compressors, limiters, gates, EQs' },
   { id: 'pitch', label: 'Pitch & octave', hint: 'Octavers, pitch shifters, harmonizers' },
   { id: 'wacky', label: 'The Lab', hint: 'Fifty-four strange pedals: voices, monsters, pitch, echoes, freezes, strange rooms, lo-fi and rhythms' },
+  { id: 'util', label: 'Switching', hint: 'The Loop switcher: two loops, one footswitch' },
   { id: 'rack', label: 'Rack units', hint: 'Studio effects after the cabinet' },
 ];
 
@@ -93,6 +95,7 @@ export function gearItems(db) {
     const slot = g.t === 'amp' ? 'amp' : g.t === 'rack' ? 'rack' : g.sec === 'echoes' || g.sec === 'rooms' ? 'post' : defaultSlot(g.c);
     out.push({ key, t: g.t, slot, cat, bass, any: !!g.a, name: g.n, sub: g.c, ...(g.sec ? { lsec: g.sec } : {}) });
   }
+  out.push({ key: LOOP_KEY, t: 'pedal', slot: 'pre', cat: 'util', bass: false, any: true, name: LOOP_NAME, sub: 'Utility' }); // 4.35: Stagehand's own A/B box
   for (const f of Object.values(fams)) {
     f.defaultKey = f.keys['57|Cone'] || Object.values(f.keys)[0];
     f.sub = f.pa ? 'PA speaker' : 'Cabinet';
@@ -383,6 +386,8 @@ export function rigBoard(tone, { selected = -1, onPick, onBypass, onMove, onNudg
     }
     foot.append(h('span.rb-tape', { text: short(g.key) }));
     el.append(art, foot);
+    // 4.35: which Loop switcher loop it is in
+    if (hasLoopSwitchGear(tone) && (g.loop === 'A' || g.loop === 'B')) el.append(h(`span.rb-loopbadge.${g.loop}`, { text: g.loop, title: `Plays in loop ${g.loop} only` }));
     const at = Array.isArray(g.at) ? [Number(g.at[0]) || 0, Number(g.at[1]) || 0] : [0, 0];
     P.set(i, { el, art, pic, foot, g, i, at, canMove });
     board.append(el);

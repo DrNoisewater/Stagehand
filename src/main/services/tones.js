@@ -4,14 +4,14 @@
  * in your songs, for the Tones section.
  *
  * A saved tone: { id, name, kind: 'guitar'|'bass', gear: [{ slot, key, knobs, order }],
- *                 slot: 1–9 | null, from: { songId, toneKey, song } | null, updatedAt }
+ *                 slot: 2–20 | null, from: { songId, toneKey, song } | null, updatedAt }
  */
 const crypto = require('crypto');
 const { Psarc } = require('../core/psarc');
 const { mapTone } = require('../core/tones');
 const { readJson, writeJsonAtomic } = require('../core/files');
 
-const SLOTS = 9;
+const SLOTS = 20;
 
 function cleanGear(gear) {
   return (Array.isArray(gear) ? gear : [])
@@ -22,6 +22,7 @@ function cleanGear(gear) {
       for (const [k, v] of Object.entries(g.knobs || {})) if (Number.isFinite(Number(v))) knobs[String(k)] = Number(v);
       const out = { slot: g.slot, key: String(g.key), knobs, order: Number.isFinite(g.order) ? g.order : i };
       if (g.bypass) out.bypass = true;
+      if (g.loop === 'A' || g.loop === 'B') out.loop = g.loop; // 4.35: which Loop switcher loop it sits in
       // 4.10: where you nudged it on the Create a Tone board (pixels off its place; looks only)
       if (Array.isArray(g.at) && g.at.length === 2 && g.at.every((v) => Number.isFinite(Number(v))) && (Number(g.at[0]) || Number(g.at[1]))) out.at = [Math.max(-40, Math.min(40, Math.round(Number(g.at[0])))), Math.max(-40, Math.min(40, Math.round(Number(g.at[1]))))];
       return out;
@@ -53,7 +54,7 @@ class ToneStore {
     if (!gear.length) throw new Error('A tone needs at least an amp or a pedal.');
     const name = String(tone.name || '').trim().slice(0, 80) || 'My tone';
     let slot = tone.slot === null || tone.slot === undefined || tone.slot === '' ? null : Number(tone.slot);
-    if(slot===1)throw new Error('Slot 1 is reserved for Automatic Song Tone. Choose slots 2–9.');
+    if(slot===1)throw new Error('Slot 1 is reserved for Automatic Song Tone. Choose slots 2–20.');
     if (slot !== null && !(slot >= 2 && slot <= SLOTS)) slot = null;
     const now = Date.now();
     let t = tone.id ? this.data.tones.find((x) => x.id === tone.id) : null;

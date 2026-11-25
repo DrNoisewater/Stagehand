@@ -28,6 +28,7 @@ import { rig } from './rig.js';
 import { nudgeSpeed } from './speedpop.js';
 import { pct } from './speed.js';
 import { loadTones, useSlot } from './tonelib.js';
+import { slotForDigit } from './toneslots.js';
 
 // 4.4: while a song is being split, its time left counts down every second
 // (between the engine's own updates)
@@ -137,14 +138,14 @@ document.addEventListener('keydown', (e) => {
   const m = topModal();
   if (m) {
     if (e.key === 'Escape' && m.dismissable) m.close();
-    // 4.26: keys 1-9 still switch tones with Settings open (you tune the app while you play);
-    // not while you type a number or words into a box
-    else if (m.el.classList.contains('settings-modal') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-      const dm = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+    // 4.26: the tone keys still switch tones with Settings open (you tune the app while you play);
+    // 4.35: 1-9, 0, and Shift with them for slots 11-20; not while you type a number or words into a box
+    else if (m.el.classList.contains('settings-modal') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const dm = /^(?:Digit|Numpad)([0-9])$/.exec(e.code);
       const a = document.activeElement;
       const typed = a && (a.tagName === 'TEXTAREA' || a.isContentEditable || (a.tagName === 'INPUT' && !/^(checkbox|radio|range|button|submit|reset|color|file)$/.test(a.type)));
       if (dm && !typed) {
-        useSlot(Number(dm[1]));
+        useSlot(slotForDigit(dm[1], e.shiftKey));
         e.preventDefault();
       }
     }
@@ -168,8 +169,8 @@ document.addEventListener('keydown', (e) => {
     import('./tuner.js').then((t) => t.openTuner());
     return;
   }
-  // 1–9: tone slots. Shift+1–6: mute a stem.
-  const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+  // 1–9 and 0: tone slots 1–10. Shift+1–9 and Shift+0: slots 11–20. Ctrl+1–9: mute a stem (Ctrl+Alt: solo). Ctrl+0: zoom back.
+  const digit = /^(?:Digit|Numpad)([0-9])$/.exec(e.code);
   if (e.code === 'Space') stage.toggle();
   // 4.26: the arrows move the song only where the song is shown (the waveform and the tab view on
   // Now playing; the highway has its own); elsewhere they are free for the page (the Gear page's pedals)
@@ -186,13 +187,18 @@ document.addEventListener('keydown', (e) => {
     const ds = rig.dropStatus();
     toast({ title: `Drop ${ds.line.replace(/^(On|Off)/, (w) => w.toLowerCase())}`, message: ds.state === 'on' ? ds.warn : '', kind: 'info', timeout: 2000 });
   }
-  else if (digit && !ctrl && e.shiftKey) stage.toggleMute(Number(digit[1]) - 1, e.altKey);
-  else if (digit && !ctrl) useSlot(Number(digit[1]));
+  // 4.35: B stomps the Loop switcher (A ↔ B) on the tone that's playing
+  else if ((e.key === 'b' || e.key === 'B') && !ctrl && !e.altKey) {
+    if (!rig.hasLoopSwitch()) toast({ title: 'No Loop switcher on this tone', message: 'Add one in Create a tone to jump between two loops with B.', kind: 'info', timeout: 2200 });
+    else rig.toggleLoop().then((r) => r && toast({ title: `Loop ${r.side}`, kind: 'info', timeout: 1000 }));
+  }
+  else if (digit && ctrl && !e.shiftKey && digit[1] !== '0') stage.toggleMute(Number(digit[1]) - 1, e.altKey);
+  else if (digit && ctrl && !e.shiftKey && !e.altKey) stage.zoom(0);
+  else if (digit && !ctrl) useSlot(slotForDigit(digit[1], e.shiftKey));
   else if (e.key === 'Escape' && state.page === 'now' && !stage.highwayOpen()) setPage(state.backPage || 'songs');
   else if (e.key === 'F2' || (ctrl && e.key.toLowerCase() === 'e')) actions.editSongs();
   else if (e.key === '+' || e.key === '=') stage.zoom(1);
   else if (e.key === '-') stage.zoom(-1);
-  else if (e.key === '0') stage.zoom(0);
   else if ((e.key === '[' || e.key === ']') && !ctrl && !e.altKey && stage.current()) {
     // practice speed, 5% at a time; say it when no speed chip is in sight
     const s = nudgeSpeed(stage.engine, e.key === ']' ? 1 : -1);

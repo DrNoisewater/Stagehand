@@ -284,7 +284,7 @@ function buildBody() {
   const zoom = h('div.zoom');
   const zOut = h('button.icon-btn', { type: 'button', title: 'Zoom out (-)', html: icon('zoomOut') });
   const zIn = h('button.icon-btn', { type: 'button', title: 'Zoom in (+)', html: icon('zoomIn') });
-  const zFit = h('button.icon-btn', { type: 'button', title: 'Show whole song (0)', html: icon('fit') });
+  const zFit = h('button.icon-btn', { type: 'button', title: 'Show whole song (Ctrl+0)', html: icon('fit') });
   zOut.onclick = () => zoomBy(1.6);
   zIn.onclick = () => zoomBy(1 / 1.6);
   zFit.onclick = () => fit();

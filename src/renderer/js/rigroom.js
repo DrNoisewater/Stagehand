@@ -15,14 +15,14 @@
  *
  * Nothing opens on top of anything: the board, the piece and the wall keep their places and
  * sizes. Every change is heard at once (live input), undo/redo/reset work on everything, and
- * the saved tone is the same tone as before (saved tones, song tones, keys 1–9, the engine).
+ * the saved tone is the same tone as before (saved tones, song tones, keys 1–20, the engine).
  */
 import { scrap, stamp } from './cameo.js';
 import { h, icon, toast, modal, confirmDialog, topModal } from './ui.js';
 import { rig } from './rig.js';
 import { did } from './rewards.js';
 import { loadGear, gearName, gearInfo } from './gearspec.js';
-import { saveTone, useTone, bySlot, SLOT_COUNT, SLOT_GELS, orderedGear, gelOf, TYPE_NAMES } from './tonelib.js';
+import { saveTone, useTone, bySlot, SLOT_COUNT, SLOT_GELS, slotKeyWords, orderedGear, gelOf, TYPE_NAMES } from './tonelib.js';
 import { buildTone, freshChoices } from './tonerecipes.js';
 import { demoButton, stopDemo, demoPlaying } from './rigui.js';
 import { realAmpStrip } from './realamps.js';
@@ -31,6 +31,8 @@ import { aboutCard, linkSheet, sheetFold, fullSizeButton } from './gearabout.js'
 import { gearItems, GEAR_CATS, gearPanel, micPanel, rigBoard, gearThumb, knobHelp, defaultSlot, CAB_RE, labSections } from './gearbench.js';
 import { FAMOUS, GENRES, famousTone, searchFamous } from './famous-tones.js';
 import { playBuild, playSave } from './rigbuild.js';
+import { loopChip, loopFace } from './loopui.js';
+import { LOOP_KEY, hasLoopSwitchGear } from './loopswitch.js';
 
 const MAX = { pre: 6, post: 6, rack: 4 };
 let open = null;
@@ -314,14 +316,14 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
   undoB.onclick = undo;
   redoB.onclick = redo;
   resetB.onclick = reset;
-  const keySel = h('select.input.rr-key', { 'aria-label': 'Put it on a key', title: 'Press this number while you play to switch to the tone' });
+  const keySel = h('select.input.rr-key', { 'aria-label': 'Put it on a key', title: 'Press this key while you play to switch to the tone' });
   const fillKeys = () => {
     keySel.innerHTML = '';
     keySel.append(h('option', { value: '', text: 'No key' }));
     for (let n = 2; n <= SLOT_COUNT; n++) {
       const t = bySlot(n);
       const mine = t && R.saved && t.id === R.saved.id;
-      keySel.append(h('option', { value: String(n), text: `Key ${n}${t && !mine ? ` (replaces ${t.name})` : ''}`, selected: R.t.slot === n ? true : null }));
+      keySel.append(h('option', { value: String(n), text: `Key ${slotKeyWords(n)}${t && !mine ? ` (replaces ${t.name})` : ''}`, selected: R.t.slot === n ? true : null }));
     }
   };
   keySel.onchange = () => {
@@ -436,6 +438,8 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
     const head = h('div.rr-ihead');
     const title = h('div.rr-ititle', null, h('small', { text: kindName }), h('h3', { text: g.slot === 'cab' ? cabName(g.key) : gearName(g.key) }));
     head.append(title, h('span.grow'));
+    // 4.35: with a Loop switcher on the board, every piece says which loop it is in
+    if (hasLoopSwitchGear(R.t) && g.key !== LOOP_KEY) head.append(loopChip({ value: g.loop, name: gearName(g.key), onPick: (v) => change(() => (v ? (g.loop = v) : delete g.loop)) }));
     if (g.slot !== 'amp' && g.slot !== 'cab') {
       const onoff = h(`button.btn.small.rr-onoff${g.bypass ? '' : '.on'}`, { type: 'button', 'aria-pressed': String(!g.bypass), html: `<span class="rr-led"></span><span>${g.bypass ? 'Off' : 'On'}</span>`, title: 'Stomp it on or off' });
       onoff.onclick = () => toggle(R.sel);
@@ -480,6 +484,8 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
           R.touched = true;
         }, { structure: !!p.key, coalesce: p.key ? '' : 'mic' }),
       }))));
+    } else if (g.key === LOOP_KEY) {
+      body.append(h('div.rr-loopface', null, loopFace(), h('p.gb-reason', { text: 'Two loops, one footswitch. Pick a piece on the board and put it in loop A or loop B. Anything left on Both always plays. Stomp to jump between the loops; the echoes and reverb of the loop you leave stop.' })));
     } else {
       if (g.slot === 'amp' && !g.bypass) body.append(realAmpStrip(R.t, () => change(() => {}, { structure: true })));
       panel = gearPanel(g, {
@@ -677,7 +683,7 @@ export async function openRig({ tone = null, kind = null, add = null, onSaved = 
       await playSave(b, R.t);
       // 4.9: the inspection sticker slapped on the board
       stamp(boardWrap, scrap(Math.random() < 0.75 ? 'engineers-inspection' : 'eq-sign', { cls: 'saved-stamp' }));
-      toast({ title: `Saved “${t.name}”`, message: t.slot ? `On key ${t.slot}: press ${t.slot} while you play.` : 'It’s in Tones › Your tones.', kind: 'ok', timeout: 3000 });
+      toast({ title: `Saved “${t.name}”`, message: t.slot ? `On key ${slotKeyWords(t.slot)}: press ${slotKeyWords(t.slot)} while you play.` : 'It’s in Tones › Your tones.', kind: 'ok', timeout: 3000 });
       if (onSaved) onSaved(t);
     } catch (err) {
       toast({ title: 'Couldn’t save the tone', message: err.message, kind: 'err' });

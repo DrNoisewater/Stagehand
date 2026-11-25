@@ -170,3 +170,14 @@ Done:
   held/accent flipped pixel by pixel; rounded first in hdstyle.js. Side finding, not changed: a hit note is drawn up to three times
   in one spot (highway.js flare and landing copies, both z -0.02), which could fight in depth.
 - Then: npm test, THEMES/HWMENU/ATLAS, Classic pixels, bump to 4.34.0, README line, ask the user to merge.
+
+## 4.35 (in progress, 2026-11-25): gem flicker, Loop switcher, 20 tone slots
+
+Asked: gems flicker under the 4.34 HD styles; a loop switcher pedal (two outputs, switch between); tone slots doubled with Shift (slot 1 unchanged), the slot display freshened up, switching on the highway (also the loop switcher), and tone picking in the highway's Sound & settings without crowding it.
+
+Decided with the user: stem mute moves from Shift+number to Ctrl+number (Ctrl+Alt solo); B stomps the loop switcher; keys 1–0 + Shift = 20 slots (0 = slot 10, Shift+1..0 = 11..20); zoom reset moves to Ctrl+0; the loop switcher is a clean A↔B jump (echo/reverb of the old loop stops; trails or both loops at once need native engine work, the Windows engine can't be built here).
+
+Done: `slotgrid.js` (shared two-row slot grid: Jam, tone menu, Tones page, Now panel), slots 2–20 in `services/tones.js`; `loopswitch.js` + `loopui.js` (pedal `Util_LoopSwitch`, gear `loop: 'A'|'B'`, the playing side is live state per tone in localStorage, never in the tone; the other side is prebuilt), B in `main.js`, A/B switch in `tonemenu.js` (`loopStomp`).
+
+Status: all done (flicker fix, the Tone line in Sound & settings, HANDOFF, 4.35.0). Waiting on the user: try on the PC.
+

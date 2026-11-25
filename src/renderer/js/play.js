@@ -1,6 +1,6 @@
 /**
  * Play: where Stagehand opens. Your guitar is live, no song needed: the tone
- * you're on, slots 1–9, the rig with its knobs, the tuner, drums and the looper.
+ * you're on, slots 1–20, the rig with its knobs, the tuner, drums and the looper.
  */
 import { did } from './rewards.js';
 import { state, on, setPage, emit } from './store.js';
@@ -10,7 +10,8 @@ import { dropConsole } from './dropui.js';
 import { h, icon, esc, toast, showMenu, holdButton } from './ui.js';
 import { rig } from './rig.js';
 import { api } from './api.js';
-import { tonelib, bySlot, byId, useSlot, useTone, SLOT_GELS, SLOT_COUNT, nowPlayingTone, kindLabel, saveTone, freeSlot, knobsOf, orderedGear, TYPE_GELS, TYPE_NAMES, shortGearName, gelOf } from './tonelib.js';
+import { slotGrid, playingSlot } from './slotgrid.js';
+import { tonelib, bySlot, byId, useSlot, useTone, slotKeyWords, nowPlayingTone, kindLabel, saveTone, freeSlot, knobsOf, orderedGear, TYPE_GELS, TYPE_NAMES, shortGearName, gelOf } from './tonelib.js';
 import { chainEl, gearFaceplate, rotaryKnob, fmtKnob, gearSummary } from './rigui.js';
 import { createTuner } from './tuner.js';
 import { drums, PATTERNS } from './drums.js';
@@ -149,31 +150,28 @@ function renderHead() {
 // ---------------------------------------------------------------- slots --
 function renderSlots() {
   slotsHost.innerHTML = '';
-  const active = rig.autoSong?1:rig.mode === 'preset' ? (byId(rig.toneId) || {}).slot : null;
-  for (let n = 1; n <= SLOT_COUNT; n++) {
-    const t = bySlot(n);
-    const gel = SLOT_GELS[n - 1];
-    const on = active === n;
-    const b = h(`button.slot${on ? '.on.lit' : ''}${t ? '' : '.vacant'}`, { type: 'button', style: { '--gel': t ? gel : '#2c3552' }, title: t ? `${t.name} (key ${n})` : `Empty slot ${n}: click to save the tone you’re playing here` });
-    const top = h('span.sl-top', null, h('span.num', { text: String(n) }));
-    if (on && rig.on && !rig.muted) top.append(h('span.eq', { style: { '--gel': gel } }, h('i'), h('i'), h('i')));
-    else top.append(h('span.kind', { text: n===1?'Reserved':t ? kindLabel(t) : 'Empty' }));
-    b.append(top, h('span.name', { text: n===1?'Song tone · Auto':t ? t.name : '+ Save here' }), h('span.strip'));
-    b.onclick = () => (t ? useSlot(n) : saveHere(n));
-    b.oncontextmenu = (e) => {
-      if(n===1){e.preventDefault();return;}
-      e.preventDefault();
-      const items = [];
-      if (t) items.push({ label: `Use ${t.name}`, icon: 'play', onClick: () => useSlot(n) });
-      items.push({ label: 'Save the tone I’m playing here', icon: 'plus', onClick: () => saveHere(n) });
-      if (t) {
-        items.push({ label: 'Edit in Tones', icon: 'edit', onClick: () => (emit('tones-open', { id: t.id }), setPage('tones')) });
-        items.push('-', { label: 'Empty this slot', icon: 'x', onClick: () => clearSlot(t) });
-      }
-      showMenu(e.clientX, e.clientY, items);
-    };
-    slotsHost.append(b);
-  }
+  const live = !!(rig.on && !rig.muted);
+  slotsHost.append(
+    slotGrid({
+      cards: true,
+      active: playingSlot(rig),
+      live,
+      song: { name: 'Song tone', sub: 'Auto', tip: 'Key 1 follows the song’s own tones (reserved)' },
+      tip: (n, t) => (n === 1 ? 'Key 1 follows the song’s own tones (reserved)' : t ? `${t.name} (key ${slotKeyWords(n)})` : `Empty slot, key ${slotKeyWords(n)}: click to save the tone you’re playing here`),
+      onPick: (n, t) => (t ? useSlot(n) : saveHere(n)),
+      onContext: (e, n, t) => {
+        if (n === 1) return;
+        const items = [];
+        if (t) items.push({ label: `Use ${t.name}`, icon: 'play', onClick: () => useSlot(n) });
+        items.push({ label: 'Save the tone I’m playing here', icon: 'plus', onClick: () => saveHere(n) });
+        if (t) {
+          items.push({ label: 'Edit in Tones', icon: 'edit', onClick: () => (emit('tones-open', { id: t.id }), setPage('tones')) });
+          items.push('-', { label: 'Empty this slot', icon: 'x', onClick: () => clearSlot(t) });
+        }
+        showMenu(e.clientX, e.clientY, items);
+      },
+    })
+  );
 }
 
 async function saveHere(n) {
@@ -188,7 +186,7 @@ async function saveHere(n) {
     else saved = await saveTone({ name: tone.name || np.name || 'My tone', kind: tone.kind, gear: tone.gear, slot: n, from: mine ? mine.from : tone.key ? { toneKey: tone.key, song: tone.songLabel || null } : null });
     P.draft = null;
     useTone(saved.id);
-    toast({ title: `${saved.name} is in slot ${n}`, message: `Press ${n} anywhere to switch to it.`, kind: 'ok' });
+    toast({ title: `${saved.name} is on key ${slotKeyWords(n)}`, message: `Press ${n <= 10 ? slotKeyWords(n) : slotKeyWords(n).replace('+', ' and ')} anywhere to switch to it.`, kind: 'ok' });
   } catch (err) {
     toast({ title: 'Couldn’t save the tone', message: err.message, kind: 'err' });
   }

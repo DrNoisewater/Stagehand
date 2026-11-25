@@ -26,6 +26,7 @@ ok('every starting sound and pedal uses gear and knobs the engine knows', () => 
   const gear = JSON.parse(fs.readFileSync(path.join(SH_ROOT, 'src/renderer/data/gear2014.json'), 'utf8'));
   for (const kind of ['guitar', 'bass']) {
     for (const p of R.PEDALS[kind]) {
+      if (p.key === 'Util_LoopSwitch') continue; // Stagehand's own A/B box: never sent to the engine (loopswitch.js)
       assert.ok(gear[p.key], `${p.key} is in the gear list`);
       const names = gear[p.key].k.map((k) => k[0].toLowerCase());
       for (const [n] of p.knobs) assert.ok(names.includes(n.toLowerCase()), `${p.key} has a ${n} knob`);

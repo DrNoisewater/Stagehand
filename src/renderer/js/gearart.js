@@ -223,6 +223,7 @@ function pedalColour(key) {
 
 /** A stompbox: its colour says what it does; as many knobs as the real one (up to 4). */
 function pedalDrawing(key) {
+  if (key === 'Util_LoopSwitch') return loopSwitchDrawing(); // 4.35: the A/B box
   const c = pedalColour(key);
   const n = Math.max(1, Math.min(4, ((gearInfo(key) && gearInfo(key).k) || []).length || 2));
   const light = /#c9ccd4|#e9e6de|#e6c93a/.test(c);
@@ -235,6 +236,21 @@ function pedalDrawing(key) {
     <rect x="10" y="50" width="40" height="10" rx="2" fill="rgba(0,0,0,.12)"/>
     <circle cx="30" cy="74" r="8" fill="#c7cad1" stroke="#7d828c" stroke-width="1.4"/>
     <circle cx="30" cy="74" r="4" fill="#9ea3ad"/>
+  </svg>`;
+}
+
+/** The Loop switcher: a box with two lights (A, B), a jack row and one big footswitch. */
+function loopSwitchDrawing() {
+  return `<svg viewBox="0 0 60 92" class="gear-art pedal loopswitch" aria-hidden="true">
+    <rect x="3" y="3" width="54" height="86" rx="7" fill="#2f3a4a"/>
+    <rect x="3" y="3" width="54" height="86" rx="7" fill="none" stroke="rgba(0,0,0,.3)" stroke-width="1.2"/>
+    <circle cx="19" cy="18" r="4" fill="#ff5a3d"/><circle cx="41" cy="18" r="4" fill="#3a2a2a" stroke="#4ad2ff" stroke-width="1"/>
+    <text x="19" y="32" font-size="9" font-weight="700" text-anchor="middle" fill="rgba(255,255,255,.9)" font-family="sans-serif">A</text>
+    <text x="41" y="32" font-size="9" font-weight="700" text-anchor="middle" fill="rgba(255,255,255,.9)" font-family="sans-serif">B</text>
+    <path d="M30 38v8M30 46l-11 0M30 46l11 0" stroke="rgba(255,255,255,.55)" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+    <rect x="10" y="50" width="40" height="8" rx="2" fill="rgba(0,0,0,.2)"/>
+    <circle cx="30" cy="74" r="9" fill="#c7cad1" stroke="#7d828c" stroke-width="1.4"/>
+    <circle cx="30" cy="74" r="4.5" fill="#9ea3ad"/>
   </svg>`;
 }
 

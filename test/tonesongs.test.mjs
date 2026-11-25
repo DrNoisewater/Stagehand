@@ -115,3 +115,13 @@ ok('an edit is a change until it is saved; turning a knob back is not', () => {
 
 if (bad) process.exit(1);
 console.log('all ok');
+
+// 4.35: twenty slots: keys 1–9, 0, then Shift with them
+{
+  assert.deepEqual([1, 2, 9, 10, 11, 19, 20].map(K.slotKey), ['1', '2', '9', '0', '⇧1', '⇧9', '⇧0']);
+  assert.deepEqual([3, 10, 11, 20].map(K.slotKeyWords), ['3', '0', 'Shift+1', 'Shift+0']);
+  assert.deepEqual(['1', '9', '0'].map((d) => K.slotForDigit(d)), [1, 9, 10]);
+  assert.deepEqual(['1', '9', '0'].map((d) => K.slotForDigit(d, true)), [11, 19, 20]);
+  assert.equal(K.slotChangeText(K.slotChange([{ id: 'a', name: 'Lead', slot: null }], 'a', 13)), 'Put “Lead” on key Shift+3?');
+  console.log('PASS twenty slots: key names and digits');
+}

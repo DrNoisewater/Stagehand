@@ -1,3 +1,21 @@
+# 4.35.0 — Twenty tone slots, a Loop switcher pedal, steady HD notes (2026-11-25; nothing tried on the user's PC)
+
+**Asked:** "It looks like the actual gems themselves are flickering" (4.34 HD styles). "We need a loop switch pedal … two outputs off of a pedal that you can switch between." Tones: "Tone 1 should remain the way it is … holding Shift while selecting a number goes to a new tone slot … about nineteen tone slots … the way we display the tone slots needs to be overhauled and freshened up to be smarter … work on the highway, where you can switch between these tones and even use the loop switcher." Then: tone picking in the highway's settings menu, "as long as it doesn't overcrowd". Answers: stem mute moves to Ctrl+number (Ctrl+Alt solo); B stomps the switcher; 0 is slot 10, Shift+1..0 are 11..20 (zoom reset is Ctrl+0); the switcher is a clean A↔B jump. (A Stream Deck setup was asked for, then stopped by the user: nothing built.)
+
+**Changed:**
+- Flicker (`hdstyle.js`, `styles/synthwave.js`, `styles/frozen.js`): a chord's notes lay exactly in the plane of its glass panel, so the panel covered them on some frames (the gem material now has a polygon offset; nothing moves); highlights, reflections and rims smaller than a pixel are spread by how fast the surface turns across a pixel (`g.aa` for styles). `FLICKER=1` in `test/hwlook/shoot.js` moves the song 2 ms a frame and counts note pixels that jump and jump back (fails above 0.5%): Neon 1.13% → 0.02%, Synthwave 0.97% → 0.02%, Frozen 1.63% → 0.04%, Ocean 0.03%, Inferno 0.19%, Classic 0.02%. Classic byte-identical.
+- Tone slots: 20 (`tonelib.js` SLOT_COUNT, 20 colours, slots 11–20 a lighter shade of their key; `services/tones.js` keeps 2–20, slot 1 is still the song's automatic tone). Keys in `main.js`: 1–9, 0 = slot 10, Shift+digit = 11–20, Ctrl+1–9 mutes a stem (Ctrl+Alt solos), Ctrl+0 zoom reset; same with Settings open. `toneslots.js` `slotKey` ('⇧3'), `slotKeyWords` ('Shift+3'), `slotForDigit`.
+- `slotgrid.js` (new): one slot display for Jam, the tone menu, the Tones page and Now playing: a "Keys" row (1…9 0) and a "Shift +" row; empty slots small and dashed; an empty Shift row is one slim line until opened (`stagehand.slotsShift`).
+- Loop switcher (`loopswitch.js`, `loopui.js`, new): pedal `Util_LoopSwitch` (group Switching, before the amp, guitar and bass; drawn, not a photo; not in gear2014.json, overlaid in `gearspec.js`). Any amp, cabinet or pedal on a tone with a switcher gets Both · A · B (gear `loop: 'A'|'B'`, saved; `cleanGear` keeps it). The loop playing is live state per tone (`stagehand.loopSides`), never in the tone, so a stomp doesn't mark the tone edited. Only the playing loop and shared gear are sent to the engine; a stomp is a tone change (30 ms crossfade); the other loop is built ahead. A bypassed switcher plays loop A. API: `rig.hasLoopSwitch()`, `rig.loopSide()`, `rig.setLoop()`, `rig.toggleLoop()`, event `loop`.
+- B (`main.js`) stomps it anywhere (says so when the tone has none); the tone menu shows an A | B switch (`loopStomp`); Sound & settings on the highway starts with one Tone line (key, name, Loop A/B) that opens the tone menu (`highway.js` `toneLine`). `HWMENU=1` checks the line follows the switcher (hw-toneline.png).
+- Getting started's key list, README.
+
+**Checked:** npm test (see the commit); `test/loopswitch.test.mjs` (new, in npm test); FLICKER=1 per style; HWMENU=1 passes; Chromium checks of Jam's grid, the tone menu and keys 0 / Shift+3 / Shift+0. Not run: ui3-chromium (its slot counts were updated).
+
+**Not done:** echoes ringing out across a stomp, or both loops at once (needs the sound engine; the Windows engine can't be built here). Shift with the number pad on Windows untested.
+
+**Ask the user:** do the notes still flicker anywhere (which style, High or Ultra)? Do Shift+number and Ctrl+number feel right? Is the stomp quick and clean with the cable in? Is the slot grid clear on Jam and the highway?
+
 # 4.34.0 — Six highway styles with real HD graphics (2026-11-25; nothing tried on the user's PC)
 
 **Asked:** real HD graphics for some styles (gems, strings, highway, effects), nothing jagged or "artsy", aimed a bit under a GTX 1080 Ti (60+ fps at 1080p High on a GTX 1070). Six styles: Classic (unchanged, default), Neon Crystal, Synthwave Drive, Inferno, Frozen Lake, Deep Ocean.

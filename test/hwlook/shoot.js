@@ -366,6 +366,156 @@ async function stutterRun(browser, page, out, scene, t) {
   for (const w of r.worst) console.log(`    ${w.at}s gap ${w.gap} ms  gl ${w.gl} ms  prog ${w.prog} tex ${w.tex} (${w.texKB} KB) buf ${w.buf} (${w.bufKB} KB) rb ${w.rb}  ${w.top}`);
 }
 // ===== STUTTER=1 (end) =====
+// ===== FLICKER=1 (begin): do the notes flicker from one frame to the next? =====
+// The clock stands still; the song moves on FLICKER_DT ms (default 2) a frame for FLICKER_N frames (default 24),
+// so the notes slide a pixel or less each time. A note drawn steadily changes smoothly; one that flickers has
+// pixels that jump and jump back (frame b far from both a and c, the same way). Counted on the notes only (an
+// HD style's own notes, or Classic's notes, strings and frets: the pixels that change when they are hidden). The same
+// time drawn twice must be identical. Exits 1 when more than FLICKER_MAX (default 0.5) % of the note pixels jump
+// by 48/255 or more. A scene ending in :H holds the notes just played (a hit flare at the neck while they ring).
+//   FLICKER=1 HWGFX=high HWTHEME=neon VW=960 VH=540 PLAYWRIGHT=playwright node test/hwlook/shoot.js <outDir> T:17.2
+async function flickerRun(page, out, scene, t, hits) {
+  const N = Number(process.env.FLICKER_N || 24);
+  const dt = Number(process.env.FLICKER_DT || 2) / 1000;
+  const JUMP = 48;
+  const frames = (n) => page.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+  const info = await page.evaluate(([t0, hold]) => {
+    const H = document.querySelector('.highway').__hw;
+    const T = 100000;
+    performance.now = () => T;
+    window.__stage.engine.position = t0;
+    H.hits = []; H.bursts = [];
+    if (hold) H.targets.forEach((tg, id) => {
+      if (tg.t > t0 || tg.t < t0 - 0.15) return;
+      H.hits.push({ id, at: T - 100, chord: tg.notes.length > 1, until: tg.t + Math.max(0.6, tg.sus || 0), offset: 0 });
+    });
+    let gem = null;
+    H.r3.scene.traverse((o) => { if (o.material && /hdGem\(HDGem/.test(o.material.fragmentShader || '')) gem = o; });
+    window.__fl = { gem, shots: [], mask: null };
+    return { style: H.look.id, hd: !!gem, hits: H.hits.length };
+  }, [Number(t), hits === 'H']);
+  await frames(30); // the camera settles
+  const grab = async (keep) => {
+    await frames(3);
+    const buf = await page.screenshot({ timeout: 90000 });
+    return page.evaluate(async ([b64, keep]) => {
+      const bmp = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      const x = c.getContext('2d');
+      x.drawImage(bmp, 0, 0);
+      const d = x.getImageData(0, 0, bmp.width, bmp.height);
+      if (keep) window.__fl.shots.push(d);
+      return d;
+    }, [buf.toString('base64'), keep]).then(() => buf);
+  };
+  // the note pixels: what changes when the style's notes are hidden (first, middle and last time)
+  const maskAt = async (pos) => {
+    await page.evaluate((pos) => { window.__stage.engine.position = pos; }, pos);
+    await grab(true);
+    // (Classic: its notes are in the solid and glow layers, with the strings and frets, which stand still)
+    const hide = (on) => page.evaluate((on) => {
+      const F = window.__fl, L = document.querySelector('.highway').__hw.r3.L;
+      for (const m of F.gem ? [F.gem.material] : [L.solid.mat, L.glow.mat, L.soft.mat]) m.visible = !on;
+    }, on);
+    await hide(true);
+    await grab(true);
+    await hide(false);
+    await page.evaluate(() => {
+      const F = window.__fl;
+      const [A, B] = F.shots.splice(-2);
+      if (!F.mask) F.mask = new Uint8Array(A.width * A.height);
+      for (let i = 0; i < F.mask.length; i++) {
+        const j = i * 4;
+        if (Math.max(Math.abs(A.data[j] - B.data[j]), Math.abs(A.data[j + 1] - B.data[j + 1]), Math.abs(A.data[j + 2] - B.data[j + 2])) > 8) F.mask[i] = 1;
+      }
+    });
+  };
+  const t0 = Number(t);
+  for (const k of [0, Math.floor(N / 2), N - 1]) await maskAt(t0 + k * dt);
+  // the frames, and the first one again
+  for (let k = 0; k < N; k++) {
+    await page.evaluate((pos) => { window.__stage.engine.position = pos; }, t0 + k * dt);
+    const buf = await grab(true);
+    if (k === 0 || k === N >> 1 || process.env.FLICKER_SAVE) fs.writeFileSync(path.join(out, `flicker-${scene}-${info.style}-${k}.png`), buf);
+  }
+  await page.evaluate((pos) => { window.__stage.engine.position = pos; }, t0);
+  await grab(true);
+  const r = await page.evaluate(([JUMP]) => {
+    const F = window.__fl;
+    const S = F.shots;
+    const again = S.pop();
+    const W = S[0].width, Hh = S[0].height;
+    const mask = F.mask || new Uint8Array(W * Hh).fill(1);
+    let area = 0;
+    for (let i = 0; i < mask.length; i++) area += mask[i];
+    let same = 0;
+    for (let i = 0; i < S[0].data.length; i++) if (S[0].data[i] !== again.data[i]) same++;
+    let jumps = 0, most = 0, sum = 0;
+    const per = [];
+    const where = new Uint32Array(64);
+    for (let k = 1; k < S.length - 1; k++) {
+      const a = S[k - 1].data, b = S[k].data, c = S[k + 1].data;
+      let n = 0;
+      for (let i = 0; i < mask.length; i++) {
+        if (!mask[i]) continue;
+        const j = i * 4;
+        let sp = 0;
+        for (let ch = 0; ch < 3; ch++) {
+          const da = b[j + ch] - a[j + ch], dc = b[j + ch] - c[j + ch];
+          if ((da > 0 && dc > 0) || (da < 0 && dc < 0)) sp = Math.max(sp, Math.min(Math.abs(da), Math.abs(dc)));
+        }
+        sum += sp;
+        if (sp >= JUMP) { n++; where[Math.min(7, Math.floor(((i / W) | 0) * 8 / Hh)) * 8 + Math.min(7, Math.floor((i % W) * 8 / W))]++; }
+        most = Math.max(most, sp);
+      }
+      jumps += n;
+      per.push(n);
+    }
+    const frames = S.length - 2;
+    // a map: the first frame darkened, the note pixels outlined faintly, the jumps in red (brighter: more often)
+    const heat = new Uint16Array(mask.length);
+    for (let k = 1; k < S.length - 1; k++) {
+      const a = S[k - 1].data, b = S[k].data, c = S[k + 1].data;
+      for (let i = 0; i < mask.length; i++) {
+        if (!mask[i]) continue;
+        const j = i * 4;
+        for (let ch = 0; ch < 3; ch++) {
+          const da = b[j + ch] - a[j + ch], dc = b[j + ch] - c[j + ch];
+          if (((da > 0 && dc > 0) || (da < 0 && dc < 0)) && Math.min(Math.abs(da), Math.abs(dc)) >= JUMP) { heat[i]++; break; }
+        }
+      }
+    }
+    const img = new ImageData(W, Hh);
+    for (let i = 0; i < mask.length; i++) {
+      const j = i * 4, g = S[0].data;
+      img.data[j] = heat[i] ? 255 : g[j] * 0.35 + (mask[i] ? 40 : 0);
+      img.data[j + 1] = heat[i] ? Math.max(0, 200 - heat[i] * 40) : g[j + 1] * 0.35 + (mask[i] ? 40 : 0);
+      img.data[j + 2] = heat[i] ? 0 : g[j + 2] * 0.35 + (mask[i] ? 40 : 0);
+      img.data[j + 3] = 255;
+    }
+    window.__flMap = img;
+    let wi = 0;
+    for (let i = 1; i < 64; i++) if (where[i] > where[wi]) wi = i;
+    return { area, frames, jumpPct: (jumps / Math.max(1, area * frames)) * 100, meanSpike: sum / Math.max(1, area * frames), most, perFrame: per, again: same, hot: { row: wi >> 3, col: wi & 7, n: where[wi] } };
+  }, [JUMP]);
+  const map = await page.evaluate(async () => {
+    const c = new OffscreenCanvas(window.__flMap.width, window.__flMap.height);
+    c.getContext('2d').putImageData(window.__flMap, 0, 0);
+    const b = await c.convertToBlob({ type: 'image/png' });
+    const u = new Uint8Array(await b.arrayBuffer());
+    let s = '';
+    for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+    return btoa(s);
+  });
+  fs.writeFileSync(path.join(out, `flicker-${scene}-${info.style}-map.png`), Buffer.from(map, 'base64'));
+  const max = Number(process.env.FLICKER_MAX || 0.5);
+  console.log(`FLICKER ${scene}:${t} ${info.style}${info.hits ? ' (held ' + info.hits + ')' : ''}: note pixels ${r.area}, ${r.frames} frames ${dt * 1000} ms apart; ` +
+    `pixels that jump and jump back by ${JUMP}/255 or more: ${r.jumpPct.toFixed(3)}% (mean jump ${r.meanSpike.toFixed(2)}, biggest ${r.most}); per frame ${r.perFrame.join(' ')}; busiest eighth row ${r.hot.row} col ${r.hot.col} (${r.hot.n}); same time twice: ${r.again} values differ`);
+  fs.writeFileSync(path.join(out, `flicker-${scene}-${info.style}.json`), JSON.stringify({ scene, t, ...info, ...r }, null, 1));
+  if (r.again || r.jumpPct > max) { console.log(`FAIL notes flicker (limit ${max}%)`); process.exitCode = 1; }
+  else console.log('PASS the notes are steady');
+}
+// ===== FLICKER=1 (end) =====
 (async () => {
   await new Promise((r) => srv.listen(PORT, r));
   const out = process.argv[2];
@@ -409,6 +559,7 @@ async function stutterRun(browser, page, out, scene, t) {
     // software rendering here is slow: keep the glow on for stills (the app turns it off on slow PCs)
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
     if (process.env.STUTTER) { await stutterRun(browser, page, out, scene, t); continue; } // STUTTER=1: see the block above
+    if (process.env.FLICKER) { await flickerRun(page, out, scene, t, hits); continue; } // FLICKER=1: see the block above
     // ATLAS=1 (4.32.1): labels that first show mid-song are sent to the graphics card on their own (only
     // their box of the label picture); the picture must be the same as when the whole label picture is sent
     // (a few colour values may round one step apart).
@@ -1180,6 +1331,19 @@ async function stutterRun(browser, page, out, scene, t) {
     if (process.env.HWMENU) {
       await page.evaluate(() => document.querySelector('.hw-dock.collapsed') && document.querySelector('.hw-set-btn').click());
       await page.waitForTimeout(500);
+      // 4.35: the tone line at the top, with a Loop switcher on loop B (hw-toneline.png)
+      const tl = await page.evaluate(async () => {
+        const { rig } = await import('/js/rig.js');
+        await rig.setLoop('B');
+        await new Promise((r) => setTimeout(r, 200));
+        const b = document.querySelector('.hw-tone-line');
+        if (!b) return null;
+        b.scrollIntoView({ block: 'start' });
+        return b.textContent;
+      });
+      console.log('TONELINE', JSON.stringify(tl));
+      if (!tl || !/Loop B/.test(tl)) { console.log('FAIL the tone line is missing from Sound & settings, or doesn\u2019t follow the Loop switcher'); process.exitCode = 1; }
+      await page.locator('.hw-dock').screenshot({ path: path.join(out, 'hw-toneline.png') }).catch(() => {});
       const r = await page.evaluate(async () => {
         const d = document.querySelector('.hl-drawer');
         d.scrollIntoView({ block: 'start' });
