@@ -213,28 +213,28 @@ vec4 hdGem(HDGem g) {
   float front = smoothstep(0.6, 0.95, -g.nl.z);
   // jelly: see-through body in the string's colour with a soft light inside it, strongest in the middle
   vec2 lc = g.l.xy;
-  float core = exp(-dot(lc, lc) * 1.6);
+  // the light sits in the middle of the body, so every face (the top too) shows it
+  float core = exp(-dot(g.l, g.l) * 0.9);
   float kindK = g.kind > 1.5 ? 0.4 : 1.0;
-  float glow = (0.8 + 1.0 * g.near + 2.2 * g.flare + 0.2 * uPulse * uFx) * kindK;
+  float glow = (0.85 + 0.9 * g.near + 1.1 * g.flare + 0.2 * uPulse * uFx) * kindK;
   float breathe = 1.0 + 0.08 * sin(uTime * 1.7 + g.wp.z * 0.6 + g.col.g * 6.0) * uMotion;
   vec3 c = base * (0.2 + 0.2 * dif);
-  vec3 inner = mix(base, vec3(1.0), 0.12 + 0.3 * g.near + 0.4 * g.flare);
-  c += inner * (0.35 + 0.85 * core) * glow * breathe * mix(0.55, 1.0, front);
+  vec3 inner = mix(base, vec3(1.0), 0.1 + 0.25 * g.near + 0.2 * g.flare);
+  c += inner * (0.3 + 0.9 * core) * glow * breathe * mix(0.8, 1.0, front);
   if (missed) {
     c = base * (0.3 + 0.4 * dif) + vec3(0.7, 0.85, 0.9) * spec * 0.25 + base * fr * 0.4;
-    return vec4(c, 0.8);
+    return vec4(c, 1.0);
   }
   // the rim: the rounded edges catch the light, tinted by the string, whiter as it reaches the neck
   vec3 rimC = mix(base * 1.4, vec3(0.85, 1.0, 1.0), 0.3 + 0.45 * g.near + 0.3 * g.flare);
-  c += rimC * fr * (0.7 + 1.1 * g.near + 2.4 * g.flare + 0.8 * g.accent) * kindK;
+  c += rimC * fr * (0.7 + 1.0 * g.near + 1.2 * g.flare + 0.8 * g.accent) * kindK;
   // a glint from above, like light on wet glass, and a soft highlight high on the face
   c += vec3(0.8, 1.0, 1.0) * spec * 0.9;
   vec2 hp = lc - vec2(-0.45, 0.5);
   c += vec3(0.75, 0.95, 1.0) * exp(-dot(hp, hp) * 14.0) * front * 0.35 * kindK;
   // a bend: the light inside grows a little
   c += base * front * g.bend * 0.25;
-  float a = clamp(0.84 + 0.16 * max(fr, core), 0.0, 1.0);
-  return vec4(c, a);
+  return vec4(c, 1.0);
 }
 `;
 
@@ -263,7 +263,7 @@ vec4 hdTube(HDTube t) {
   if (t.kind < 1.5) {
     // a fret wire: pale, wet metal lit from above; it lights up when a note lands on it
     float fr = hdFresnel(n, v, 2.0);
-    vec3 c = vec3(0.42, 0.55, 0.56) * (0.35 + 0.65 * dif) + vec3(0.25, 0.6, 0.6) * fr * 0.4 + vec3(0.8, 1.0, 1.0) * spec * 0.9;
+    vec3 c = vec3(0.42, 0.55, 0.56) * (0.6 + 0.4 * dif) + vec3(0.25, 0.6, 0.6) * fr * 0.4 + vec3(0.8, 1.0, 1.0) * spec * 0.9;
     c += vec3(0.35, 0.95, 0.9) * t.glow * 0.7 * pow(facing, 1.5);
     return vec4(c, 1.0);
   }
