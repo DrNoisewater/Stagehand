@@ -379,6 +379,7 @@ async function flickerRun(page, out, scene, t, hits) {
   const dt = Number(process.env.FLICKER_DT || 2) / 1000;
   const JUMP = 48;
   const frames = (n) => page.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+  await page.evaluate(([h, o]) => { window.__flHide = h; window.__flOff = o; }, [process.env.FLICKER_HIDE || '', !!process.env.FLICKER_OFF]);
   const info = await page.evaluate(([t0, hold]) => {
     const H = document.querySelector('.highway').__hw;
     const T = 100000;
@@ -392,6 +393,9 @@ async function flickerRun(page, out, scene, t, hits) {
     let gem = null;
     H.r3.scene.traverse((o) => { if (o.material && /hdGem\(HDGem/.test(o.material.fragmentShader || '')) gem = o; });
     window.__fl = { gem, shots: [], mask: null };
+    // TEMP experiments
+    if (window.__flHide) for (const k of window.__flHide.split(',')) H.r3.L[k].mat.visible = false;
+    if (window.__flOff && gem) { gem.material.polygonOffset = true; gem.material.polygonOffsetFactor = -1; gem.material.polygonOffsetUnits = -4; }
     return { style: H.look.id, hd: !!gem, hits: H.hits.length };
   }, [Number(t), hits === 'H']);
   await frames(30); // the camera settles
