@@ -150,12 +150,10 @@ vec4 hdFloor(HDFloor f) {
     float dl = length(d);
     float inside = 1.0 - smoothstep(R * 0.55, R, dl);
     float feather = hdNoise(q * 3.2 + vec2(atan(d.y, d.x) * 2.0, 0.0));
-    bloom += inside * smoothstep(0.25, 0.75, feather + 0.25 * (1.0 - dl / R)) * min(1.0, h.w * 2.5);
+    float edgeR = exp(-pow((dl - R * 0.85) / (0.08 + 0.1 * R), 2.0));
+    bloom += (inside * smoothstep(0.3, 0.75, feather + 0.25 * (1.0 - dl / R)) + edgeR * 0.5 * feather) * min(1.0, h.w * 2.5);
     lit += h.w * exp(-dl * dl * 2.0);
   }
-  bloom = clamp(bloom, 0.0, 1.0) * uFx;
-  c += vec3(0.4, 0.75, 1.0) * lit * 0.22;
-  c = mix(c, vec3(0.75, 0.88, 1.0), bloom * 0.45);
   // your hand position: a slab of polished clear ice, lighter and bluer, frosted at its edges
   vec3 slab = c * 0.65 + vec3(0.04, 0.1, 0.15) * (0.75 + 0.25 * f.cur);
   c = mix(c, slab, inL * 0.85);
@@ -164,6 +162,10 @@ vec4 hdFloor(HDFloor f) {
   c += vec3(0.6, 0.8, 1.0) * rimIn * 0.22 * rimK;
   c += vec3(0.8, 0.93, 1.0) * hdLine(edge, 0.022, f.fw.x * 1.2) * 1.3 * rimK;
   c += vec3(0.35, 0.65, 1.0) * exp(-abs(edge) * 6.0) * 0.18 * rimK * step(edge, 50.0);
+  // the frost bloom over everything (the slab too), and the ice lit from inside under the hit
+  bloom = clamp(bloom, 0.0, 1.0) * uFx;
+  c += vec3(0.4, 0.75, 1.0) * lit * 0.35;
+  c = mix(c, vec3(0.78, 0.9, 1.0), bloom * 0.6);
   // inside it: fret lines etched in the ice, beat lines like frost lines
   c += vec3(0.6, 0.8, 0.95) * hdLine(f.fret, 0.012, f.fw.x) * inL * 0.32;
   c += vec3(0.75, 0.9, 1.0) * f.beat * inL * (0.55 + 0.3 * uPulse * uFx);
@@ -361,6 +363,9 @@ vec4 hdSprite(HDSprite p) {
     float dd = abs(w.x) / 0.38 + abs(w.y);
     a = 1.0 - smoothstep(0.7, 1.0, dd);
     a *= 0.55 + 0.45 * smoothstep(-0.4, 0.4, w.x + w.y * 0.3);
+  } else if (p.shape > 2.5 && p.shape < 3.5) {
+    // a ring of frost light spreading from a hit
+    a = exp(-pow((d - 0.78) / 0.1, 2.0)) * (1.0 - smoothstep(0.92, 1.0, d)) + 0.08 * (1.0 - d);
   } else if (p.shape > 3.5 && p.shape < 4.5) {
     a = (1.0 - smoothstep(0.0, 1.0, d)) * 0.5;
   } else if (p.shape > 4.5) {
@@ -411,26 +416,28 @@ vec4 hdGem(HDGem g) {
   float fr = hdFresnel(fn, v, 3.0);
   float glow = 0.85 + 0.6 * g.near + 1.6 * g.flare;
   // the body: the string's colour, rich and clear, lighter where the light comes through
-  vec3 body = base * (0.45 + 0.75 * inner + 0.25 * dif) * glow;
-  body += mix(base, vec3(1.0), 0.5) * inner * inner * 0.25 * (1.0 - table * 0.5);
-  vec3 c = mix(base * (0.45 + 0.3 * dif) * glow, body, front);
-  c += env * fr * 0.45;
+  vec3 deep = base * base * 0.9;                     // the colour where the ice is thickest: richer, darker
+  vec3 body = mix(deep, base * 1.15, inner) * (0.7 + 0.25 * dif) * glow;
+  // light gathered in the middle of the crystal
+  body += base * (1.0 - smoothstep(0.0, 0.85, rr)) * 0.45 * glow;
+  vec3 c = mix(mix(deep, base, 0.45 + 0.4 * dif) * glow * 0.8, body, front);
+  c += env * fr * 0.35;
   c += vec3(0.95, 0.98, 1.0) * spec * (missed ? 0.3 : 1.4);
   // the cut's edges catch the light: thin, soft lines between the facets and round the table
   if (facets) {
     float bd = abs(fract(s + 0.5) - 0.5) * 6.2832 / sN * length(fp);
     float eL = (1.0 - smoothstep(0.0, px * 1.4, bd)) * (1.0 - table) * smoothstep(0.1, 0.3, rr);
     float tL = 1.0 - smoothstep(0.0, px * 1.4, abs(rr - tR));
-    c += mix(base, vec3(1.0), 0.7) * max(eL, tL) * front * 0.35;
+    c += mix(base, vec3(1.0), 0.6) * max(eL, tL) * front * 0.22;
   }
   // the rim: rounded edges bright like light through ice, whiter as the note reaches the neck
   float bevel = 1.0 - max(abs(g.nl.x), max(abs(g.nl.y), abs(g.nl.z)));
   float rim = smoothstep(0.03, 0.26, bevel) * step(g.nl.z, 0.3);
-  vec3 rimC = mix(base * 1.3, vec3(0.92, 0.97, 1.0), clamp(0.35 + 0.5 * g.near + g.flare, 0.0, 1.0));
+  vec3 rimC = mix(base * 1.4, vec3(0.92, 0.97, 1.0), clamp(0.2 + 0.6 * g.near + g.flare, 0.0, 1.0));
   c += rimC * rim * (0.7 + 1.1 * g.near + 2.4 * g.flare + 0.8 * g.accent) * (missed ? 0.4 : 1.0);
   // frost along its top edge
-  float fz = smoothstep(0.55, 0.95, g.l.y) * smoothstep(0.3, 0.7, hdNoise(g.l.xz * vec2(9.0, 4.0) + g.wp.x * 3.0));
-  c = mix(c, vec3(0.85, 0.93, 1.0), fz * 0.35 * (1.0 - g.flare));
+  float fz = smoothstep(0.6, 0.98, g.l.y) * smoothstep(0.2, 0.8, g.nl.y);
+  c = mix(c, vec3(0.85, 0.93, 1.0), fz * 0.3 * (1.0 - g.flare));
   if (g.kind > 1.5) c *= 0.8;
   return vec4(c, 1.0);
 }
@@ -439,9 +446,10 @@ vec4 hdGem(HDGem g) {
 const ICE = [1.4, 1.65, 1.9];
 export default function build(K) {
   // hits: ice shards flying up and falling, glints, a puff of frost
-  const shards = K.emitter({ max: 900, life: [0.45, 0.95], speed: [2.6, 6.2], up: 1, spread: 2.2, toward: [-2.0, 0.6], accel: [0, -10, 0], drag: 1.0, size: [0.075, 0.04], shape: 2, colA: ICE, colB: [0.5, 0.7, 0.9], tintA: 0.35, tintB: 0.6, alpha: 0.95, jitter: 0.12 });
+  const shards = K.emitter({ max: 900, life: [0.45, 0.95], speed: [2.6, 6.2], up: 1, spread: 2.2, toward: [-2.0, 0.6], accel: [0, -10, 0], drag: 1.0, size: [0.11, 0.05], shape: 2, colA: ICE, colB: [0.5, 0.7, 0.9], tintA: 0.35, tintB: 0.6, alpha: 0.95, jitter: 0.12 });
   const glints = K.emitter({ max: 500, life: [0.5, 1.1], speed: [1.0, 3.2], up: 1, spread: 2.6, toward: [-1, 0.5], accel: [0, -2.5, 0], drag: 1.6, size: [0.04, 0.012], shape: 0, colA: [1.6, 1.8, 2.0], colB: [0.5, 0.75, 1.0], alpha: 1, jitter: 0.15 });
   const puff = K.emitter({ max: 240, life: [0.7, 1.4], speed: [0.2, 0.7], up: 1, spread: 2.4, toward: [-0.4, 0.3], accel: [0, 0.4, 0], drag: 1.5, size: [0.12, 0.42], shape: 4, colA: [0.55, 0.7, 0.85], colB: [0.2, 0.3, 0.42], tintA: 0.2, alpha: 0.55, jitter: 0.2 });
+  const ring = K.emitter({ max: 64, life: [0.32, 0.4], speed: [0, 0.01], up: 1, spread: 0.1, accel: [0, 0, 0], drag: 0, size: [0.1, 0.75], shape: 3, colA: [1.2, 1.4, 1.6], colB: [0.3, 0.5, 0.8], tintA: 0.3, alpha: 0.8 });
   const trickle = K.emitter({ max: 300, life: [0.4, 0.8], speed: [0.5, 1.6], up: 1, spread: 2.4, toward: [-0.6, 0.3], accel: [0, -1.5, 0], drag: 1.4, size: [0.035, 0.012], shape: 0, colA: [1.4, 1.6, 1.9], colB: [0.4, 0.6, 0.9], tintB: 0.4, alpha: 0.9, jitter: 0.1 });
   // snow falling all the time, and a few big soft flakes close to the camera
   K.field({ count: 1000, box: [-16, 16, -0.2, 8, -2, 46], vel: [0.25, -0.6, -0.5], size: [0.02, 0.05], colA: '#ffffff', colB: '#bfdcff', alpha: 0.75, sway: 0.3, shape: 5 });
@@ -457,8 +465,9 @@ export default function build(K) {
     chordGlass: ['#0a2232', '#2a5470'],
     onHit(e) {
       const k = e.dead ? 1.2 : 1;
-      shards.burst(e.x, e.y, e.z - 0.05, e.chord ? 16 : 26, e.rgb, k);
-      glints.burst(e.x, e.y, e.z, e.chord ? 10 : 16, e.rgb, k);
+      shards.burst(e.x, e.y, e.z - 0.05, e.chord ? 22 : 34, e.rgb, k);
+      glints.burst(e.x, e.y, e.z, e.chord ? 14 : 22, e.rgb, k);
+      ring.burst(e.x, e.y, e.z, 1, e.rgb, k);
       puff.burst(e.x, e.y - 0.05, e.z, 4, e.rgb, k);
     },
     frame(F) {
