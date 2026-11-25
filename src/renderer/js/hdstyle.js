@@ -647,8 +647,9 @@ export function createHD(R3, { ratio }) {
     depthWrite: !!o.depthWrite,
     depthTest: o.depthTest !== false,
     side: o.side || THREE.FrontSide,
-    blending: o.add ? THREE.AdditiveBlending : THREE.NormalBlending,
-    ...(o.add ? { premultipliedAlpha: false } : {}),
+    // add: the shader's colour is added as it is (light), alpha ignored
+    blending: o.add ? THREE.CustomBlending : THREE.NormalBlending,
+    ...(o.add ? { blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor } : {}),
   });
   const addMesh = (geo, m, order) => {
     const mesh = new THREE.Mesh(geo, m);
@@ -791,6 +792,7 @@ export function createHD(R3, { ratio }) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
   const lerp = (r, a, b) => a + (b - a) * r;
+  let burstAgo = 0;
   function burst(e, x, y, z, n, rgb, k) {
     const p = cur;
     if (!p || !p.parts || !F) return;
@@ -798,7 +800,7 @@ export function createHD(R3, { ratio }) {
     const count = Math.round(n * QK[F.quality] * F.fxK);
     const B = p.parts;
     const [P, V, Ac, C0, C1, S] = B.arr;
-    const now = F.time;
+    const now = F.time - burstAgo;
     for (let i = 0; i < count; i++) {
       const o = p.ring * 4;
       if (p.ring < p.dirty0) p.dirty0 = p.ring;
@@ -1032,19 +1034,22 @@ export function createHD(R3, { ratio }) {
       }
       S.n++;
     },
-    /** A note was hit (once, when judged): lights the floor and calls the style's onHit. */
-    hit(x, y, z, s, f, hex, dead, chord, until) {
+    /** A note was hit (once, when judged): lights the floor and calls the style's onHit. ago: seconds since it happened. */
+    hit(x, y, z, s, f, hex, dead, chord, until, ago = 0) {
       if (!cur || !F) return;
       const h = hits[hitI];
       hitI = (hitI + 1) % 8;
       h.x = x;
       h.y = y;
       h.z = z;
-      h.at = F.time;
+      h.at = F.time - ago;
       h.until = until;
       const e = E._hitE;
       e.x = x; e.y = y; e.z = z; e.s = s; e.f = f; e.rgb = rgbOf(hex); e.dead = dead; e.chord = chord;
+      // bursts made in onHit are born when the note was hit (a hit seen a frame late starts part way)
+      burstAgo = ago;
       if (cur.def.onHit) cur.def.onHit(e);
+      burstAgo = 0;
     },
     _hitE: { x: 0, y: 0, z: 0, s: 0, f: 0, rgb: null, dead: false, chord: false },
     /** The end of the frame's building: everything sent to the graphics card in one go. */
@@ -1167,7 +1172,20 @@ export function createHD(R3, { ratio }) {
     },
     info() {
       if (!cur) return null;
-      return { id: cur.id, gems: cur.gems ? cur.gems.n : 0, tubes: cur.tubes ? cur.tubes.n : 0, trail: cur.trail ? cur.trail.n : 0, particles: cur.parts ? cur.parts.cap : 0, fields: cur.fields.map((f) => f.u.uCount.value), meshes: cur.meshes.length };
+      let alive = 0;
+      if (cur.parts && F) {
+        const [P, V] = cur.parts.arr;
+        for (let i = 0; i < cur.parts.cap; i++) if (F.time >= P[i * 4 + 3] && F.time - P[i * 4 + 3] < V[i * 4 + 3]) alive++;
+      }
+      return { id: cur.id, gems: cur.gems ? cur.gems.n : 0, tubes: cur.tubes ? cur.tubes.n : 0, trail: cur.trail ? cur.trail.n : 0, particles: cur.parts ? cur.parts.cap : 0, alive, fields: cur.fields.map((f) => f.u.uCount.value), meshes: cur.meshes.length };
+    },
+    /** For test stills (the clock stands still there): every particle made s seconds earlier, so a burst shows. */
+    age(s) {
+      if (!cur || !cur.parts) return;
+      const P = cur.parts.arr[0];
+      for (let i = 0; i < cur.parts.cap; i++) P[i * 4 + 3] -= s;
+      cur.dirty0 = 0;
+      cur.dirty1 = cur.parts.cap;
     },
   };
   return E;

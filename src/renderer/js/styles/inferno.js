@@ -206,8 +206,8 @@ vec4 hdTube(HDTube t) {
       wind = 0.72 + 0.28 * mix(0.5 + 0.5 * sin(w * 6.2832), 0.5, clamp(aw * 1.5 - 0.3, 0.0, 1.0));
     }
     float flow = 1.0 + 0.12 * sin(t.along * 1.7 - uTime * 2.5) * uMotion;
-    vec3 hot = mix(t.col, vec3(1.0, 0.95, 0.82), 0.2 + 0.6 * t.glow);
-    vec3 c = t.col * (0.35 + 0.5 * dif) * wind + hot * pow(facing, 1.2) * (1.1 + 2.4 * t.glow + 0.35 * uHeat) * flow * wind;
+    vec3 hot = mix(t.col, vec3(1.0, 0.95, 0.82), 0.12 + 0.35 * t.glow);
+    vec3 c = t.col * (0.35 + 0.5 * dif) * wind + hot * pow(facing, 1.2) * (1.1 + 1.1 * t.glow + 0.35 * uHeat) * flow * wind;
     c += vec3(1.0, 0.88, 0.75) * spec * 0.7 * wind;
     return vec4(c, 1.0);
   }
@@ -215,7 +215,7 @@ vec4 hdTube(HDTube t) {
     // a fret wire: dark steel catching the lava's light; warms on a streak
     float fr = hdFresnel(n, v, 2.0);
     vec3 c = vec3(0.32, 0.31, 0.33) * (0.25 + 0.75 * dif) + env * 0.35 * (0.3 + 0.7 * fr) + vec3(1.0, 0.92, 0.85) * spec * 1.2;
-    c += vec3(1.0, 0.42, 0.08) * t.glow * 1.3 * pow(facing, 1.5);
+    c += vec3(1.0, 0.42, 0.08) * t.glow * 0.7 * pow(facing, 1.5);
     return vec4(c, 1.0);
   }
   if (t.kind < 2.5) {
@@ -224,7 +224,7 @@ vec4 hdTube(HDTube t) {
     return vec4(c, 1.0);
   }
   // a light post: white-hot metal in the light's colour
-  vec3 c = mix(t.col, vec3(1.0, 0.92, 0.8), 0.55) * (0.25 + 2.8 * t.glow) * (0.45 + 0.75 * pow(facing, 2.0));
+  vec3 c = mix(t.col, vec3(1.0, 0.92, 0.8), 0.3) * (0.25 + 1.4 * t.glow) * (0.45 + 0.75 * pow(facing, 2.0));
   c += vec3(1.0, 0.9, 0.8) * spec * 0.5;
   return vec4(c, 1.0);
 }
@@ -257,10 +257,10 @@ vec4 hdTrail(HDTrail r) {
 
 export default function build(K) {
   // hits: white-hot sparks that fly up and fall, embers that rise slowly, a few drops of lava
-  const sparks = K.emitter({ max: 1600, life: [0.35, 0.85], speed: [2.6, 6.0], up: 1, spread: 2.3, toward: [-2.4, 0.6], accel: [0, -9.5, 0], drag: 1.6, size: [0.026, 0.012], shape: 1, stretch: 0.045, colA: [1, 0.95, 0.8], colB: [1, 0.28, 0.02], tintB: 0.25, alpha: 1, jitter: 0.12 });
-  const embers = K.emitter({ max: 600, life: [1.1, 2.3], speed: [0.3, 1.2], up: 1, spread: 2.0, toward: [-0.6, 0.6], accel: [0, 1.3, 0], drag: 1.1, size: [0.05, 0.018], shape: 0, colA: [1, 0.62, 0.16], colB: [0.6, 0.07, 0], alpha: 0.9, jitter: 0.25, stagger: 0.15 });
-  const drops = K.emitter({ max: 300, life: [0.45, 0.8], speed: [1.6, 3.2], up: 1, spread: 1.8, toward: [-1.2, 0.3], accel: [0, -8, 0], drag: 0.6, size: [0.06, 0.045], shape: 0, colA: [1, 0.82, 0.42], colB: [0.85, 0.18, 0], alpha: 0.95, jitter: 0.08 });
-  const trickle = K.emitter({ max: 400, life: [0.25, 0.55], speed: [1.0, 2.6], up: 1, spread: 2.2, toward: [-1, 0.4], accel: [0, -6, 0], drag: 1.2, size: [0.018, 0.008], shape: 1, stretch: 0.035, colA: [1, 0.9, 0.7], colB: [1, 0.35, 0.03], alpha: 0.9, jitter: 0.1 });
+  const sparks = K.emitter({ max: 1600, life: [0.4, 0.95], speed: [3.5, 8.0], up: 1, spread: 2.3, toward: [-2.4, 0.6], accel: [0, -9.5, 0], drag: 1.2, size: [0.05, 0.022], shape: 1, stretch: 0.06, colA: [1.8, 1.5, 1.1], colB: [1, 0.28, 0.02], tintB: 0.25, alpha: 1, jitter: 0.12 });
+  const embers = K.emitter({ max: 600, life: [1.1, 2.3], speed: [0.3, 1.2], up: 1, spread: 2.0, toward: [-0.6, 0.6], accel: [0, 1.3, 0], drag: 1.1, size: [0.075, 0.03], shape: 0, colA: [1, 0.62, 0.16], colB: [0.6, 0.07, 0], alpha: 0.9, jitter: 0.25, stagger: 0.15 });
+  const drops = K.emitter({ max: 300, life: [0.45, 0.8], speed: [1.6, 3.2], up: 1, spread: 1.8, toward: [-1.2, 0.3], accel: [0, -8, 0], drag: 0.6, size: [0.09, 0.06], shape: 0, colA: [1, 0.82, 0.42], colB: [0.85, 0.18, 0], alpha: 0.95, jitter: 0.08 });
+  const trickle = K.emitter({ max: 400, life: [0.25, 0.55], speed: [1.0, 2.6], up: 1, spread: 2.2, toward: [-1, 0.4], accel: [0, -6, 0], drag: 1.2, size: [0.035, 0.016], shape: 1, stretch: 0.05, colA: [1, 0.9, 0.7], colB: [1, 0.35, 0.03], alpha: 0.9, jitter: 0.1 });
   // all the time: embers drifting up from the lava, and big soft ones far off (more on a streak)
   K.field({ count: 900, box: [-16, 16, -0.2, 7, -2, 46], vel: [0.12, 0.5, -0.45], size: [0.018, 0.045], colA: '#ffb347', colB: '#ff3a0a', alpha: 0.85, sway: 0.35, heatMore: 0.8 });
   K.field({ count: 90, box: [-30, 30, 1, 14, 18, 70], vel: [0.2, 0.35, -0.6], size: [0.12, 0.3], colA: '#ff7a2a', colB: '#ff2a05', alpha: 0.13, sway: 0.6 });
@@ -275,8 +275,8 @@ export default function build(K) {
     chordGlass: ['#2a0702', '#3d0e04'],
     onHit(e) {
       const k = e.dead ? 1.25 : 1;
-      sparks.burst(e.x, e.y, e.z - 0.05, e.chord ? 14 : 26, e.rgb, k);
-      embers.burst(e.x, e.y, e.z, 7, e.rgb, k);
+      sparks.burst(e.x, e.y, e.z - 0.05, e.chord ? 22 : 40, e.rgb, k);
+      embers.burst(e.x, e.y, e.z, 10, e.rgb, k);
       drops.burst(e.x, e.y, e.z - 0.05, e.dead ? 5 : 3, e.rgb, k);
     },
     frame(F) {

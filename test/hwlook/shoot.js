@@ -1243,6 +1243,14 @@ async function stutterRun(browser, page, out, scene, t) {
       if (!ok) throw new Error('highway menu: ' + JSON.stringify(r));
       console.log('PASS the highway menu stays put; style pictures, a style and the style’s own room picked, no frame rate switch there');
     }
+    // 4.34: a style's sparks from the last hit are just born (unseen), and a frame here takes so long that
+    // older ones have burnt out: stop the clock, let the hits land, make the sparks 0.25 s older, draw again
+    if (hits && await page.evaluate(() => { const hx = document.querySelector('.highway').__hw.hx; if (!hx || !hx.on) return false; const t = performance.now(); performance.now = () => t; return true; })) {
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      await page.evaluate(() => { document.querySelector('.highway').__hw.hx.age(0.25); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); });
+    }
+    // HXINFO=1 (4.34): what a style with its own graphics drew in the last frame
+    if (process.env.HXINFO) console.log('hd', await page.evaluate(() => JSON.stringify(document.querySelector('.highway').__hw.hx.info())));
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `${scene}_${(file||'').replace('.json','')}_${t}${play === 'p' ? 'p' : ''}${hits || ''}.png`) });
     console.log('shot', spec);

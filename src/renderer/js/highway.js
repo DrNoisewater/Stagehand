@@ -3294,7 +3294,8 @@ export function createHighway(stage) {
       const tg = H.targets[h.id];
       if (!tg) continue;
       const an = anchorAt(tg.t);
-      for (const nt of tg.notes) if (!nt.linked) HX.hit(nt.f === 0 ? noteX(nt, an) : laneC(nt.f), strH(nt.s), 0, nt.s, nt.f, STRING[nt.s], deadOn(h), h.chord, h.until);
+      const ago = Math.min(0.5, Math.max(0, (now - h.at) / 1000));
+      for (const nt of tg.notes) if (!nt.linked) HX.hit(nt.f === 0 ? noteX(nt, an) : laneC(nt.f), strH(nt.s), 0, nt.s, nt.f, STRING[nt.s], deadOn(h), h.chord, h.until, ago);
     }
     // 1. the string blazes along its whole length, hottest at the note
     const byString = new Map();
