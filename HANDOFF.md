@@ -1,3 +1,19 @@
+# 4.34 (work in progress, branch style-engine) — HD styles: the engine, six styles, Inferno in full (2026-11-25; nothing tried on the user's PC)
+
+**Asked:** real HD graphics for some styles (gems, strings, highway, effects), nothing jagged or "artsy", aimed a bit under a GTX 1080 Ti (60+ fps at 1080p High on a GTX 1070). Six styles: Classic (unchanged, default), Neon Crystal, Synthwave Drive, Inferno, Frozen Lake, Deep Ocean.
+
+**Changed:**
+- `src/renderer/js/hdstyle.js` (new): the engine for styles with their own graphics. Each style is one file, `src/renderer/js/styles/<id>.js`, switched on by `hd: '<id>'` in `hwlooks.js`. It can draw its own highway surface, sky, shaded notes (rounded boxes), strings/frets/posts (tubes), sustain ribbons, particles (bursts on the graphics card) and ambient drift, and heat shimmer. The highway still makes every old piece (muted with alpha −1), so places and sizes can't drift (THEMES=1); labels are never touched; every program is compiled before the style shows; no garbage per frame. Guide at the top of `hdstyle.js` and in `docs/hd-styles.md`.
+- `highway.js`: hands lanes, beats, gems, tubes, trails and hits to the engine (`HX`); `highway3d.js`: mute, own sky, see-through, haze hooks.
+- `styles/inferno.js`: dark basalt plates with lava flowing in the cracks (flares on hits), an obsidian hand-position slab with molten seams, molten-metal notes with hot rims, hot-wire strings, steel frets, sparks/embers/lava drops on hits, rising embers, heat shimmer, a smoky sky over lava fields and ridges.
+- `styles/neon.js`, `synthwave.js`, `frozen.js`, `ocean.js`: stubs with a plan; those styles still draw their old look.
+- Pictures: six in `art/hwstyles/` from the real highway; the twelve unused ones removed. GFXCHECK uses only the six.
+- Fixed in the engine on the way: additive light ignored alpha wrongly (particles were invisible).
+
+**Checked:** npm test passed; THEMES=1 (nothing moves, every style), HWMENU=1, ATLAS=1 pass; Classic pixel-identical to 4.33 (T:17.2, T:19.1); STUTTER on Inferno Ultra: no shader builds or picture uploads during play, buffer uploads the same as Classic.
+
+**Ask the user:** how Inferno looks and runs on the PC (High and Ultra), whether hits are too bright or too quiet, whether the sparks read. Then build the other four the same way.
+
 # 4.33.0 — A smoother highway, a steady menu (2026-11-25; nothing tried on the user's PC)
 
 **Asked (video of the highway):** "still some lagging and pausing"; "Sideways scroll for highway themes is silly"; "when selecting items in the side menu, it jumps back to the beginning. Everything needs to be smooth, no flickering." Also: styles look alike and some silly ("nothing like a frozen lake"), crooked jagged lines; wants real HD graphics for notes, strings, highway and effects, aimed a bit under a GTX 1080 Ti. Answers: smoothness first and released on its own; then 6 great styles (Classic kept + Neon Crystal, Synthwave Drive, Inferno, Frozen Lake, Deep Ocean; kinds sci-fi/neon, fire/lava, ice/nature); the picker a grid of pictures.

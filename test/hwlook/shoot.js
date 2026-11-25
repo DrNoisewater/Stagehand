@@ -80,6 +80,8 @@ async function gfxCheck(browser, page, out, scene, t) {
     have.add(key);
     const info = await setLook(theme, per, preset, bg);
     await page.waitForTimeout(900);
+    // 4.34: a style with its own graphics builds them first
+    await page.evaluate(() => { const hx = document.querySelector('.highway').__hw.hx; return hx && Promise.race([hx.whenReady(), new Promise((r) => setTimeout(r, 20000))]); });
     await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     const buf = await page.screenshot({ timeout: 90000 });
     fs.writeFileSync(path.join(dir, key.replace(/[^a-z0-9.-]+/gi, '_') + '.png'), buf);
@@ -121,9 +123,9 @@ async function gfxCheck(browser, page, out, scene, t) {
 
   // ---- the noise floor: the same picture twice
   if (runs('noise')) {
-    await take('studio-base', 'studio');
-    await take('studio-base2', 'studio');
-    await cmp('noise', 'same picture twice', 'studio-base', 'studio-base2', '', false);
+    await take('neon-base', 'neon');
+    await take('neon-base2', 'neon');
+    await cmp('noise', 'same picture twice', 'neon-base', 'neon-base2', '', false);
   }
 
   // ---- per style: Brightness at both ends, Effects Calm and Off, against the style's own starting settings
@@ -144,7 +146,7 @@ async function gfxCheck(browser, page, out, scene, t) {
 
   // ---- graphics presets against High, on a couple of styles (one with a lot going on, one plain)
   if (runs('presets')) {
-    for (const id of pick(['classic', 'disco'])) {
+    for (const id of pick(['classic', 'inferno'])) {
       await base(id);
       for (const p of ['low', 'medium', 'ultra']) { const k = `${id}-preset-${p}`; await take(k, id, {}, p); await cmp('graphics', `${id} ${p} vs high`, id + '-base', k); }
     }
@@ -152,7 +154,7 @@ async function gfxCheck(browser, page, out, scene, t) {
 
   // ---- the style's own room against a photo venue (the page's venue behind the highway)
   if (runs('room')) {
-    for (const id of pick(['classic', 'studio', 'synthwave', 'blueprint'])) {
+    for (const id of pick(['classic', 'neon', 'synthwave', 'inferno'])) {
       await base(id);
       const k = id + '-venue';
       await take(k, id, {}, 'high', 'venue');
@@ -401,6 +403,9 @@ async function stutterRun(browser, page, out, scene, t) {
       await page.evaluate((k) => { document.documentElement.dataset.look = 'opera'; document.documentElement.dataset.skin = k; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/themes-stage.css'; document.head.append(l); }, process.env.SKIN);
       await page.waitForTimeout(400);
     }
+    // 4.34: a style with its own graphics: wait until they are built and compiled
+    await page.waitForTimeout(300);
+    await page.evaluate(() => { const H = document.querySelector('.highway').__hw; return H.hx ? Promise.race([H.hx.whenReady(), new Promise((r) => setTimeout(r, 20000))]) : true; });
     // software rendering here is slow: keep the glow on for stills (the app turns it off on slow PCs)
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
     if (process.env.STUTTER) { await stutterRun(browser, page, out, scene, t); continue; } // STUTTER=1: see the block above
@@ -1102,8 +1107,11 @@ async function stutterRun(browser, page, out, scene, t) {
       const grab = () => page.evaluate(async () => {
         const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         await frame();
-        await frame();
         const H = document.querySelector('.highway').__hw;
+        // 4.34: a style with its own graphics loads and builds them first
+        if (H.hx && H.hx.whenReady) await Promise.race([H.hx.whenReady(), new Promise((r) => setTimeout(r, 20000))]);
+        await frame();
+        await frame();
         const R3 = H.r3;
         const out = { neck: [], solid: [], alpha: [], glow: [], text: [], look: H.look && H.look.id, post: R3.post, info: R3.info() };
         for (let s = 0; s < H.tab.strings; s++) for (let f = 0; f <= 24; f++) out.neck.push(H.projection.neck(f, s), H.projection.point(f, s, H.vis + 1));
@@ -1240,6 +1248,14 @@ async function stutterRun(browser, page, out, scene, t) {
       if (!ok) throw new Error('highway menu: ' + JSON.stringify(r));
       console.log('PASS the highway menu stays put; style pictures, a style and the style’s own room picked, no frame rate switch there');
     }
+    // 4.34: a style's sparks from the last hit are just born (unseen), and a frame here takes so long that
+    // older ones have burnt out: stop the clock, let the hits land, make the sparks 0.25 s older, draw again
+    if (hits && await page.evaluate(() => { const hx = document.querySelector('.highway').__hw.hx; if (!hx || !hx.on) return false; const t = performance.now(); performance.now = () => t; return true; })) {
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      await page.evaluate(() => { document.querySelector('.highway').__hw.hx.age(0.25); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); });
+    }
+    // HXINFO=1 (4.34): what a style with its own graphics drew in the last frame
+    if (process.env.HXINFO) console.log('hd', await page.evaluate(() => JSON.stringify(document.querySelector('.highway').__hw.hx.info())));
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `${scene}_${(file||'').replace('.json','')}_${t}${play === 'p' ? 'p' : ''}${hits || ''}.png`) });
     console.log('shot', spec);
