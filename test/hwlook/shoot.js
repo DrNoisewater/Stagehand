@@ -1254,6 +1254,26 @@ async function stutterRun(browser, page, out, scene, t) {
       await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
       await page.evaluate(() => { document.querySelector('.highway').__hw.hx.age(0.25); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); });
     }
+    // :H (4.34.1): the same hit every time, with no playing: the clock stops, the notes of the last 0.15 s are
+    // hit dead on (as in GFXCHECK) and the picture is drawn 0.1 s later. For stills of a hit that do not
+    // depend on how busy the machine is.
+    if (hits === 'H') {
+      await page.evaluate(() => {
+        const H = document.querySelector('.highway').__hw;
+        const T = 100000;
+        performance.now = () => T;
+        H.hits = []; H.bursts = [];
+        const pos = window.__stage.engine.position;
+        H.targets.forEach((tg, id) => {
+          if (tg.t > pos || tg.t < pos - 0.15) return;
+          const at = T - 100;
+          H.hits.push({ id, at, chord: tg.notes.length > 1, until: tg.t + (tg.sus || 0), offset: 0 });
+          for (const nt of tg.notes) H.bursts.push({ s: nt.s, f: nt.f, at, until: tg.t + (tg.sus || 0) });
+        });
+        return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      });
+      await page.evaluate(() => { const hx = document.querySelector('.highway').__hw.hx; if (hx && hx.on) hx.age(0.1); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); });
+    }
     // HXINFO=1 (4.34): what a style with its own graphics drew in the last frame
     if (process.env.HXINFO) console.log('hd', await page.evaluate(() => JSON.stringify(document.querySelector('.highway').__hw.hx.info())));
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });

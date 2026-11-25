@@ -249,8 +249,10 @@ vec4 hdTube(HDTube t) {
     return vec4(c, 1.0);
   }
   // a light post: white-hot metal in the light's colour
-  vec3 c = mix(t.col, vec3(1.0, 0.92, 0.8), 0.3) * (0.25 + 1.4 * t.glow) * (0.45 + 0.75 * pow(facing, 2.0));
-  c += vec3(1.0, 0.9, 0.8) * spec * 0.5;
+  // (4.34.1: in the light's colour with only a thin hot core, so a chord's posts never blaze white)
+  vec3 c = t.col * (0.25 + 0.85 * t.glow) * (0.45 + 0.75 * pow(facing, 2.0));
+  c += vec3(1.0, 0.8, 0.5) * pow(facing, 6.0) * 0.35 * t.glow;
+  c += vec3(1.0, 0.9, 0.8) * spec * 0.4;
   return vec4(c, 1.0);
 }
 `;
@@ -284,7 +286,7 @@ export default function build(K) {
   // hits: white-hot sparks that fly up and fall, embers that rise slowly, a few drops of lava
   // 4.34.1: sparks start hot yellow (not white) with a touch of the string's colour, so a splash reads as
   // fire on that string and never washes out the notes beside it
-  const sparks = K.emitter({ max: 1600, life: [0.4, 0.95], speed: [3.5, 8.0], up: 1, spread: 2.3, toward: [-2.4, 0.6], accel: [0, -9.5, 0], drag: 1.2, size: [0.04, 0.018], shape: 1, stretch: 0.06, colA: [1.25, 0.85, 0.4], tintA: 0.2, colB: [0.9, 0.22, 0.02], tintB: 0.3, alpha: 0.9, jitter: 0.12 });
+  const sparks = K.emitter({ max: 1600, life: [0.4, 0.95], speed: [3.5, 8.0], up: 1, spread: 2.3, toward: [-2.4, 0.6], accel: [0, -9.5, 0], drag: 1.2, size: [0.085, 0.035], shape: 1, stretch: 0.1, colA: [1.7, 1.1, 0.5], tintA: 0.2, colB: [1.0, 0.25, 0.02], tintB: 0.3, alpha: 1, jitter: 0.12 });
   // the flare: a hot ring that spreads from the note and is gone in a third of a second (Hit burst)
   const flare = K.emitter({ max: 120, life: [0.28, 0.34], speed: [0, 0], up: 0, spread: 0, accel: [0, 0, 0], drag: 0, size: [0.12, 0.75], shape: 3, colA: [1, 0.6, 0.18], tintA: 0.35, colB: [0.7, 0.12, 0.01], tintB: 0.2, alpha: 0.55 });
   // and a soft glow of the lava behind it, low and wide (only light, never a white disc)
@@ -306,7 +308,7 @@ export default function build(K) {
     chordGlass: ['#2a0702', '#3d0e04'],
     onHit(e) {
       const k = e.dead ? 1.25 : 1;
-      sparks.burst(e.x, e.y, e.z - 0.05, e.chord ? 18 : 34, e.rgb, k);
+      sparks.burst(e.x, e.y, e.z - 0.05, e.chord ? 24 : 38, e.rgb, k);
       glow.burst(e.x, e.y, e.z - 0.09, 1, e.rgb, k * (e.chord ? 0.6 : 1));
       if (e.burst) flare.burst(e.x, e.y, e.z - 0.1, 1, e.rgb, k);
       embers.burst(e.x, e.y, e.z, 10, e.rgb, k);

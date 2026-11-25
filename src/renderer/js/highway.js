@@ -3341,7 +3341,7 @@ export function createHighway(stage) {
       // no taller than the frets (4.0.6: taller ones read as pieces sticking out of the neck)
       solid.box(x - 0.035, x + 0.035, -0.2, G.yTop + 0.32, -0.1, -0.03, col('#fff0f8', k, 2.2));
       glow.upSoft(x - 0.25, x + 0.25, -0.2, G.yTop + 0.32, -0.11, col('#ff5aaa', 0.62 * k, 1.3), col('#ff5aaa', 0.15 * k));
-      if (hdT) HX.tube(3, x, -0.2, -0.065, x, G.yTop + 0.32, -0.065, 0.035, '#ffffff', Math.min(1, k * 2.5));
+      if (hdT) HX.tube(3, x, -0.2, -0.065, x, G.yTop + 0.32, -0.065, 0.035, P.railHot || P.postA, Math.min(1, k * 2.5)); // 4.34.1: the style's hot colour, not white
     }
     solid.muted = glow.muted = false;
     // 3. the note flares on the neck: a bright pop, held while you sustain
