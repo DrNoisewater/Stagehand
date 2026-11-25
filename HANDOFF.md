@@ -11,6 +11,7 @@
 - `highway3d.js`: the mirror floor is not drawn under an HD style (it only mirrored the hidden old pieces: it cost time and showed nothing). Frozen Lake has reflections off for the same reason.
 - Pictures: six in `art/hwstyles/` from the real highway; the twelve unused ones removed. GFXCHECK uses only the six.
 - Fixed in the engine on the way: additive light ignored alpha wrongly (particles were invisible).
+- Fixed: a glittery speckle on held and just-hit notes (Ocean, Inferno): the note's flags were read before rounding.
 
 **Checked:** npm test passed; THEMES=1 (nothing moves, every style), HWMENU=1, ATLAS=1 pass; Classic pixel-identical to 4.33 (T:17.2, T:19.1); STUTTER on Inferno Ultra: no shader builds or picture uploads during play, buffer uploads the same as Classic.
 

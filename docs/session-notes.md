@@ -166,5 +166,7 @@ Done:
 - Stage 2 done: Neon, Ocean, Synthwave builders merged; Inferno polisher (3D gems, hits owned by the style) merged; Frozen Lake builder
   merged (refl off: the mirror only reflects muted pieces); Gem adopter (Sonnet) moved Neon/Ocean/Synthwave to the 3D gem fields.
 - Mirror pass skipped under any HD style (highway3d.js, `look.hd`). hwlooks tests use Neon for "mirror" (Frozen no longer reflects).
-- Open: a fine glitter on Ocean's notes (also before the gem change; not the haze): Glitter finder (Opus) on it.
+- Glitter on Ocean/Inferno notes fixed by Glitter finder (Opus): the note flags arrive blended across the face (16 as 15.99999), so
+  held/accent flipped pixel by pixel; rounded first in hdstyle.js. Side finding, not changed: a hit note is drawn up to three times
+  in one spot (highway.js flare and landing copies, both z -0.02), which could fight in depth.
 - Then: npm test, THEMES/HWMENU/ATLAS, Classic pixels, bump to 4.34.0, README line, ask the user to merge.
