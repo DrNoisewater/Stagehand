@@ -24,6 +24,8 @@ varying vec4 vC;
 varying float vZ;
 varying float vY;
 void main() {
+  // 4.34: a piece a style draws with its own graphics (R3.mute): kept in the buffer, never drawn
+  if (rgba.a < -0.5) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); vC = vec4(0.0); vZ = 0.0; vY = 0.0; return; }
   vC = rgba;
   vZ = -position.z;
   vY = position.y;
@@ -185,6 +187,7 @@ class Layer {
     this.additive = additive;
     this.softTo = null; // the glow layer sends its soft lights (halos, bands, rings) to their own layer
     this.n = 0;
+    this.muted = false; // 4.34: R3.mute(): pieces are stored (same places) but not drawn
     this.geo = new THREE.BufferGeometry();
     this.mat = new THREE.ShaderMaterial({
       vertexShader: VS,
@@ -270,6 +273,7 @@ class Layer {
     r[o + 4] = cb[0]; r[o + 5] = cb[1]; r[o + 6] = cb[2]; r[o + 7] = cb[3];
     r[o + 8] = cc[0]; r[o + 9] = cc[1]; r[o + 10] = cc[2]; r[o + 11] = cc[3];
     r[o + 12] = cd[0]; r[o + 13] = cd[1]; r[o + 14] = cd[2]; r[o + 15] = cd[3];
+    if (this.muted) r[o + 3] = r[o + 7] = r[o + 11] = r[o + 15] = -1;
     this.n++;
   }
   /** Four corners [x, y, z], colours: one, or one per corner. */
@@ -915,6 +919,11 @@ uniform float vig;
 uniform float grain;
 uniform float time;
 uniform float keepA;  // a moving background behind: keep the picture see-through where nothing is drawn
+uniform float haze;   // 4.34: a style's heat shimmer (0 = none)
+uniform vec4 hazeAt[4]; // where it shimmers most: x, y (0..1 from the bottom left), radius, strength
+uniform float hazeBand; // a band of shimmer along the neck (0..1 up the screen) …
+uniform float hazeBandK; // … and how strong
+uniform float hTime;
 varying vec2 vUv;
 float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
 vec3 fx(vec2 uv) {
@@ -938,8 +947,25 @@ vec3 fx(vec2 uv) {
   float lB = luma(b);
   return (lB < lMin || lB > lMax) ? a : b;
 }
+vec2 shimmer(vec2 uv) {
+  float m = hazeBandK * exp(-pow((uv.y - hazeBand) / 0.16, 2.0)) * smoothstep(hazeBand - 0.2, hazeBand + 0.1, uv.y);
+  for (int i = 0; i < 4; i++) {
+    vec4 h = hazeAt[i];
+    if (h.w > 0.001) {
+      vec2 d = (uv - h.xy) / vec2(h.z * px.y / px.x, h.z);
+      d.y = d.y < 0.0 ? d.y * 3.0 : d.y * 0.6; // rises above the spot
+      m += h.w * exp(-dot(d, d));
+    }
+  }
+  if (m < 0.002) return uv;
+  // two slow waves of warm air rising (smooth: no jitter)
+  vec2 q = uv * vec2(38.0, 24.0) - vec2(0.0, hTime * 2.3);
+  vec2 o = vec2(sin(q.y * 1.7 + sin(q.x * 0.9) * 1.3), cos(q.x * 1.3 + q.y * 0.8)) + 0.5 * vec2(sin(q.y * 3.1 + q.x * 0.4 - hTime), cos(q.x * 2.7 - hTime * 0.7));
+  return uv + o * px * 3.5 * haze * min(m, 1.5);
+}
 void main() {
-  vec3 c = fx(vUv);
+  vec2 uv0 = haze > 0.0 ? shimmer(vUv) : vUv;
+  vec3 c = fx(uv0);
   float a = keepA > 0.5 ? clamp(texture2D(src, vUv).a, 0.0, 1.0) : 1.0;
   if (dof > 0.5) {
     // strongest at and above the horizon, gone a quarter of the screen below it
@@ -970,7 +996,7 @@ function makePost(renderer) {
   const mat = new THREE.ShaderMaterial({
     vertexShader: PVS,
     fragmentShader: PFS,
-    uniforms: { src: { value: null }, px: { value: new THREE.Vector2() }, fxaa: { value: 0 }, dof: { value: 0 }, vpUv: { value: 0.6 }, vig: { value: 0 }, grain: { value: 0 }, time: { value: 0 }, keepA: { value: 0 } },
+    uniforms: { src: { value: null }, px: { value: new THREE.Vector2() }, fxaa: { value: 0 }, dof: { value: 0 }, vpUv: { value: 0.6 }, vig: { value: 0 }, grain: { value: 0 }, time: { value: 0 }, keepA: { value: 0 }, haze: { value: 0 }, hazeAt: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, hazeBand: { value: 0.2 }, hazeBandK: { value: 0 }, hTime: { value: 0 } },
     depthTest: false,
     depthWrite: false,
   });
@@ -1034,6 +1060,7 @@ function makePost(renderer) {
       u.vig.value = o.vignette ? 1 : 0;
       u.grain.value = o.grain ? 1 : 0;
       u.time.value = (performance.now() / 1000) % 100;
+      u.hTime.value = (performance.now() / 1000) % 3600;
       u.keepA.value = o.keepAlpha ? 1 : 0;
       renderer.setRenderTarget(null);
       renderer.render(qScene, qCam);
@@ -1149,11 +1176,35 @@ export function createRenderer3D(canvas) {
   const e = M.elements;
   let scale = 1; // render resolution (lowered automatically on slow graphics)
 
+  let skyOwn = false; // 4.34: a style's own sky is drawn instead of the backdrop
   const R = {
     THREE,
     L,
     text,
     camera,
+    scene,
+    renderer,
+    lookU,
+    /** 4.34: pieces drawn from here on are kept in place but not shown (a style draws them its own way). */
+    mute(on) {
+      for (const k in L) L[k].muted = on;
+    },
+    /** 4.34: a style's own sky in place of the backdrop (only when no moving background is behind). */
+    skyOwn(on) {
+      skyOwn = !!on;
+      backMesh.visible = !seeThrough && !skyOwn;
+    },
+    get seeThrough() {
+      return seeThrough;
+    },
+    /** 4.34: heat shimmer in the after-effects (k 0 = none); spots: up to 4 × [x, y (0..1 from bottom left), radius, strength]. */
+    setHaze(k, spots, bandY = 0.2, bandK = 0) {
+      const u = post.mat.uniforms;
+      u.haze.value = k;
+      for (let i = 0; i < 4; i++) u.hazeAt.value[i].set(spots ? spots[i * 4] : 0, spots ? spots[i * 4 + 1] : 0, spots ? spots[i * 4 + 2] || 0.1 : 0.1, spots ? spots[i * 4 + 3] : 0);
+      u.hazeBand.value = bandY;
+      u.hazeBandK.value = bandK;
+    },
     gpuName,
     glow: false,
     mirror: false,
@@ -1224,7 +1275,7 @@ export function createRenderer3D(canvas) {
       const fluid = !!(v && v.fluid);
       if (fluid !== seeThrough) {
         seeThrough = fluid;
-        backMesh.visible = !fluid;
+        backMesh.visible = !fluid && !skyOwn;
         renderer.setClearColor(0x05070c, fluid ? 0 : 1);
       }
       if (fluid) return;
