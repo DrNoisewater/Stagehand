@@ -28,7 +28,7 @@ vec3 ncEnv(vec3 rd, float full) {
   float ang = acos(clamp(dot(rd, gd), -1.0, 1.0));
   const float R = 0.30;
   float dr = ang - R;
-  float ring = exp(-dr * dr / 0.00002) * 0.8 + exp(-dr * dr / 0.0016) * 0.16 + exp(-pow(ang - R * 0.88, 2.0) / 0.000006) * 0.22;
+  float ring = exp(-dr * dr / 0.00002) * 0.8 + exp(-dr * dr / 0.0016) * 0.16 + exp(-(ang - R * 0.88) * (ang - R * 0.88) / 0.000006) * 0.22;
   float glow = ring;
   c += vec3(0.35, 0.72, 1.0) * ring * above;
   c += vec3(0.03, 0.10, 0.24) * (1.0 - smoothstep(0.0, R, ang)) * above;
@@ -256,6 +256,11 @@ vec4 hdGem(HDGem g) {
   // the face: the string's colour, deep and saturated, its heart glowing through the cut
   vec3 faceC = base * (0.42 + 0.95 * core) * heat * barK;
   faceC += mix(base, vec3(1.0), 0.6) * core * core * (0.12 + 0.45 * g.near + 0.9 * g.flare);
+  // each facet of the cut catches the light differently; a glint runs across the table
+  float fl = dot(nf, normalize(vec3(-0.25, 0.85, -0.5)));
+  faceC *= 1.0 + (1.0 - tbl) * (fl - 0.45) * 0.9;
+  float gl = g.l.x * 0.55 + g.l.y - 0.35;
+  faceC += vec3(0.9, 0.97, 1.0) * exp(-gl * gl * 18.0) * tbl * 0.16;
   // the sides and top: darker crystal, the colour still clear
   vec3 sideC = base * (0.3 + 0.25 * max(N.y, 0.0) + 0.3 * core) * (0.9 + 0.4 * g.near);
   c = mix(sideC, faceC, front);
@@ -314,7 +319,8 @@ vec4 hdTrail(HDTrail r) {
   vec3 base = missed ? vec3(0.14, 0.16, 0.2) : r.col;
   float body = 1.0 - smoothstep(1.0 - r.fu * 1.5, 1.0 + r.fu * 1.5, a);
   // a ribbon of light: two fine bright edges, a hot centre line, light pulsing along it with the note
-  float edges = exp(-pow((a - 0.8) / 0.22, 2.0));
+  float ea = (a - 0.8) / 0.22;
+  float edges = exp(-ea * ea);
   float core = exp(-a * a * 7.0);
   float m = uMotion;
   float pulse = 0.5 + 0.5 * sin(r.t * 14.0 - uTime * 5.0 * m);
@@ -345,7 +351,7 @@ vec4 hdSprite(HDSprite p) {
 
 export default function build(K) {
   // hits: crisp shards of light that fly out and slow, small sparks, a ring of light where it landed
-  const shards = K.emitter({ max: 900, life: [0.3, 0.6], speed: [4.0, 9.0], up: 1, spread: 2.7, toward: [-2.2, 1.0], accel: [0, -3.5, 0], drag: 2.6, size: [0.04, 0.012], shape: 1, stretch: 0.05, colA: [1.7, 1.8, 2.0], colB: null, tintA: 0.3, tintB: 0, alpha: 1, jitter: 0.08 });
+  const shards = K.emitter({ max: 900, life: [0.3, 0.6], speed: [4.0, 9.0], up: 1, spread: 2.7, toward: [-2.2, 1.0], accel: [0, -3.5, 0], drag: 2.6, size: [0.06, 0.016], shape: 1, stretch: 0.07, colA: [1.7, 1.8, 2.0], colB: null, tintA: 0.3, tintB: 0, alpha: 1, jitter: 0.08 });
   const motes = K.emitter({ max: 500, life: [0.6, 1.3], speed: [0.4, 1.6], up: 1, spread: 2.4, toward: [-0.8, 0.5], accel: [0, 0.9, 0], drag: 1.6, size: [0.06, 0.018], shape: 0, colA: null, colB: [0.3, 0.8, 1.0], tintA: 0, tintB: 0.4, alpha: 0.85, jitter: 0.2, stagger: 0.1 });
   const flash = K.emitter({ max: 64, life: [0.2, 0.28], speed: [0, 0], up: 0, spread: 0, toward: [0, 0], accel: [0, 0, 0], drag: 0, size: [0.12, 0.75], shape: 3, colA: [1.3, 1.5, 1.7], colB: null, tintA: 0.4, tintB: 0, alpha: 0.9 });
   const trickle = K.emitter({ max: 300, life: [0.35, 0.7], speed: [0.6, 1.8], up: 1, spread: 2.0, toward: [-1, 0.3], accel: [0, 1.2, 0], drag: 1.8, size: [0.035, 0.01], shape: 0, colA: null, colB: [0.6, 0.9, 1.0], tintB: 0.3, alpha: 0.8, jitter: 0.1 });
