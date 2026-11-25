@@ -464,3 +464,10 @@ html[data-decoration='reduced'] .rr-ititle h3::after { display:none; }
 .rb-loopbadge.B { background:#4ad2ff; }
 .rr-loopface { display:flex; gap:22px; align-items:center; flex-wrap:wrap; }
 .rr-ihead .loop-bar { margin:0 8px; }
+/* 4.35: the loop A/B switch in the tone menu and Sound & settings */
+.loop-stompbar { display:flex; align-items:center; gap:6px; margin:8px 0 2px; }
+.loop-stompbar .loop-lbl { flex:1; }
+.loop-side { min-width:40px; padding:4px 10px; border-radius:6px; font-weight:800; font-size:13px; color:var(--ink-2,#cbb); background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.14); cursor:pointer; }
+.loop-side.A.on { color:#14151a; background:#ff5a3d; border-color:#ff5a3d; box-shadow:0 0 10px rgba(255,90,61,.55); }
+.loop-side.B.on { color:#14151a; background:#4ad2ff; border-color:#4ad2ff; box-shadow:0 0 10px rgba(74,210,255,.55); }
+.loop-key { font-size:11px; padding:1px 6px; border-radius:4px; border:1px solid rgba(255,255,255,.2); color:var(--ink-3,#a99); }

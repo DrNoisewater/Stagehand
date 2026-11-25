@@ -187,6 +187,11 @@ document.addEventListener('keydown', (e) => {
     const ds = rig.dropStatus();
     toast({ title: `Drop ${ds.line.replace(/^(On|Off)/, (w) => w.toLowerCase())}`, message: ds.state === 'on' ? ds.warn : '', kind: 'info', timeout: 2000 });
   }
+  // 4.35: B stomps the Loop switcher (A ↔ B) on the tone that's playing
+  else if ((e.key === 'b' || e.key === 'B') && !ctrl && !e.altKey) {
+    if (!rig.hasLoopSwitch()) toast({ title: 'No Loop switcher on this tone', message: 'Add one in Create a tone to jump between two loops with B.', kind: 'info', timeout: 2200 });
+    else rig.toggleLoop().then((r) => r && toast({ title: `Loop ${r.side}`, kind: 'info', timeout: 1000 }));
+  }
   else if (digit && ctrl && !e.shiftKey && digit[1] !== '0') stage.toggleMute(Number(digit[1]) - 1, e.altKey);
   else if (digit && ctrl && !e.shiftKey && !e.altKey) stage.zoom(0);
   else if (digit && !ctrl) useSlot(slotForDigit(digit[1], e.shiftKey));

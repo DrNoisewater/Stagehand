@@ -18,6 +18,7 @@ import { normText } from './searchmatch.js';
 import { gateControl } from './pedalboard.js';
 import { suggestionFor } from './captures.js';
 import { getRealAmp, modelLabel } from './realamps.js';
+import { loopStomp } from './loopui.js';
 
 let open = null;
 // a tone saved or put on a key elsewhere (the store has no way to unsubscribe, so once here)
@@ -179,7 +180,10 @@ export function openToneMenu(anchor, ctx) {
     const focused = searchEl && document.activeElement === searchEl.input;
     const caret = focused ? searchEl.input.selectionStart : null;
     el.innerHTML = '';
-    el.append(nowBox(), h('h4', { text: 'Your keys' }), keys());
+    el.append(nowBox());
+    const ls = loopStomp(rig); // 4.35: only when this tone has a Loop switcher
+    if (ls) el.append(ls);
+    el.append(h('h4', { text: 'Your keys' }), keys());
     const s = songList();
     if (s) el.append(s);
     searchEl = search();
@@ -206,6 +210,7 @@ export function openToneMenu(anchor, ctx) {
     raf = requestAnimationFrame(draw);
   };
   rig.addEventListener('change', redraw);
+  rig.addEventListener('loop', redraw);
   const outside = (e) => {
     if (!el.contains(e.target) && !anchor.contains(e.target) && !e.target.closest('.modal, .menu, .toast')) close();
   };
@@ -225,6 +230,7 @@ export function openToneMenu(anchor, ctx) {
     open = null;
     cancelAnimationFrame(raf);
     rig.removeEventListener('change', redraw);
+    rig.removeEventListener('loop', redraw);
     document.removeEventListener('mousedown', outside, true);
     window.removeEventListener('keydown', esc, true);
     window.removeEventListener('resize', place);

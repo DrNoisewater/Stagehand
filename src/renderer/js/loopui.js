@@ -47,3 +47,21 @@ export function loopFace() {
   paint();
   return el;
 }
+
+/**
+ * 4.35: the A/B switch for the tone that's playing (the highway's tone menu and Sound & settings).
+ * Null when that tone has no Loop switcher. Same as pressing B.
+ */
+export function loopStomp(rig) {
+  if (!rig.hasLoopSwitch()) return null;
+  const side = rig.loopSide();
+  const row = h('div.loop-stompbar', { role: 'group', 'aria-label': 'Loop switcher' });
+  row.append(h('span.loop-lbl', { text: 'Loop switcher' }));
+  for (const s of ['A', 'B']) {
+    const b = h(`button.loop-side.${s}${side === s ? '.on' : ''}`, { type: 'button', text: s, title: `Play loop ${s} (B switches)`, 'aria-pressed': String(side === s) });
+    b.onclick = () => rig.setLoop(s);
+    row.append(b);
+  }
+  row.append(h('kbd.loop-key', { text: 'B', title: 'Press B to switch loops while you play' }));
+  return row;
+}

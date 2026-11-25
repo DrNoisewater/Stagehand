@@ -549,6 +549,7 @@ const PAGES = [
             ['D', 'The Drop on or off'],
             ['1–0', 'Tone slots'],
             ['Shift+1–0', 'More tone slots'],
+            ['B', 'Loop switcher: loop A or B'],
             ['Ctrl+1–9', 'Mute a stem (Ctrl+Alt: solo)'],
             ['Ctrl+0', 'Zoom out to the whole song'],
             ['J', 'Full-screen Jam'],
