@@ -40,7 +40,7 @@ vec3 swSunGlow(float daz, float del, float wx, float wy) {
 }
 // the ground: wet black asphalt, a neon grid fixed to the road, the sky mirrored in the puddles.
 // q = (x, z on the road, moving with the song), fw its change per pixel, v the view ray, dist from the eye.
-vec3 swGround(vec2 q, vec2 fw, vec3 v, float dist, float under, out float grid) {
+vec3 swGround(vec2 q, vec2 fw, vec3 v, float dist, float under, float gridK, out float grid) {
   float m = uMotion;
   float fwm = max(fw.x, fw.y);
   // puddles: mirror-smooth in places, rougher between
@@ -64,7 +64,7 @@ vec3 swGround(vec2 q, vec2 fw, vec3 v, float dist, float under, out float grid) 
   float gx = swGrid(q.x, 2.0, 0.022, fw.x) + swGrid(q.x, 2.0, 0.14, fw.x) * 0.12;
   float gz = swGrid(q.y, 2.0, 0.022, fw.y) + swGrid(q.y, 2.0, 0.14, fw.y) * 0.12;
   float pulse = 1.0 + 0.35 * uPulse * uFx;
-  float near = exp(-dist * 0.012);
+  float near = exp(-dist * 0.007) * gridK;
   grid = (gx + gz) * pulse * near;
   c += (vec3(0.15, 0.55, 1.0) * gx * 0.55 + vec3(1.0, 0.18, 0.75) * gz * 0.7) * pulse * near * mix(1.0, 0.22, under);
   // the grid's light caught in the wet surface
@@ -86,7 +86,8 @@ vec4 hdFloor(HDFloor f) {
   vec2 q = vec2(f.p.x, f.track);
   float inL = f.inLane;
   float grid;
-  vec3 c = swGround(q, f.fw, v, dist, inL, grid);
+  // the grid fades out just before the strings, so its lines are never mistaken for one
+  vec3 c = swGround(q, f.fw, v, dist, inL, smoothstep(0.5, 5.0, f.p.y), grid);
   // your hand position: a dark glass panel over the road (its own fainter gloss)
   vec3 glass = vec3(0.022, 0.012, 0.05) + vec3(0.25, 0.06, 0.4) * 0.05 * (0.5 + 0.5 * f.cur);
   c = mix(c, glass + c * 0.35, inL * 0.8);
@@ -162,7 +163,7 @@ vec3 hdSky(HDSky s) {
     vec3 gp = s.ro + rd * t;
     vec2 q = vec2(gp.x, gp.z + uSong * uZs);
     float grid;
-    c = swGround(q, max(fwidth(q), vec2(1e-4)), rd, t, 0.0, grid);
+    c = swGround(q, max(fwidth(q), vec2(1e-4)), rd, t, 0.0, 1.0, grid);
     c = hdFog(c, gp.z);
     c = mix(c, swHorizon(), smoothstep(-0.02, 0.0, y));
   } else {
@@ -282,22 +283,22 @@ vec4 hdGem(HDGem g) {
   float spec = pow(max(dot(n, normalize(L1 + v)), 0.0), 90.0);
   float fr = hdFresnel(n, v, 3.0);
   // chrome everywhere but the face: the room reflected, a touch of the note's colour
-  vec3 chrome = swEnv(r) * mix(vec3(1.0), base * 1.3 + 0.2, 0.35) * (0.7 + 0.6 * fr) + vec3(1.0, 0.95, 1.0) * spec * 1.4;
+  vec3 chrome = (swEnv(r) * 1.5 + 0.05) * mix(vec3(1.0), base * 1.3 + 0.2, 0.35) * (0.7 + 0.6 * fr) + vec3(1.0, 0.95, 1.0) * spec * 1.6;
   float front = smoothstep(0.85, 0.98, -g.nl.z);
   float kindK = g.kind > 1.5 ? 0.35 : 1.0;
   // the face: a neon panel in the string's colour, a bright neon line round it, a glossy sheen on top
   vec2 e2 = (1.0 - abs(g.l.xy)) * g.size;
   float e = min(e2.x, e2.y);
   float fe = max(fwidth(e), 1e-4);
-  float lineW = min(0.035, min(g.size.x, g.size.y) * 0.22);
+  float lineW = min(0.026, min(g.size.x, g.size.y) * 0.16);
   float lineAt = lineW * 1.8;
   float neon = swLineG(e - lineAt, lineW * 0.5, fe);
-  float heat = 0.9 + 0.8 * g.near + 2.0 * g.flare + 0.25 * uHeat;
-  vec3 fill = base * (0.62 + 0.25 * smoothstep(-1.0, 1.0, g.l.y)) * heat;
-  float sheen = smoothstep(0.15, 0.9, g.l.y - g.l.x * 0.25) * 0.22;
+  float heat = 0.9 + 0.45 * g.near + 1.6 * g.flare + 0.2 * uHeat;
+  vec3 fill = base * (0.8 + 0.3 * smoothstep(-1.0, 1.0, g.l.y)) * heat;
+  float sheen = smoothstep(0.55, 0.95, g.l.y - g.l.x * 0.2) * 0.12;
   vec3 face = fill + vec3(1.0) * sheen * (1.0 - 0.5 * g.near);
-  face += mix(base, vec3(1.0), 0.55) * neon * (1.3 + 1.2 * g.near + 2.5 * g.flare + 1.0 * g.accent);
-  face += swEnv(r) * 0.15;
+  face += mix(base, vec3(1.0), 0.3) * neon * (0.8 + 0.4 * g.near + 2.0 * g.flare + 0.8 * g.accent);
+  face += swEnv(r) * 0.08;
   if (missed) face = base * 0.5 + swEnv(r) * 0.2;
   vec3 c = mix(chrome, face * kindK + chrome * (1.0 - kindK) * 0.6, front);
   // the sides carry a little of the colour's light so the block reads from any angle
@@ -332,7 +333,8 @@ vec4 hdTube(HDTube t) {
   if (t.kind < 2.5) {
     // fret wires and the nut: polished chrome showing the neon room
     float fr = hdFresnel(n, v, 2.0);
-    vec3 c = vec3(0.3, 0.3, 0.36) * 0.25 + swEnv(r) * (0.7 + 0.5 * fr) + vec3(1.0) * spec * 1.2;
+    float dif = max(dot(n, L1), 0.0);
+    vec3 c = vec3(0.42, 0.4, 0.52) * (0.2 + 0.6 * dif) + swEnv(r) * (0.9 + 0.6 * fr) + vec3(1.0) * spec * 1.3;
     c += vec3(1.0, 0.35, 0.9) * t.glow * 0.6 * pow(facing, 1.5);
     return vec4(c, 1.0);
   }
@@ -383,8 +385,8 @@ vec4 hdSprite(HDSprite p) {
 
 export default function build(K) {
   // hits: neon sparks in the note's colour with white-hot heads, and slower glowing motes
-  const sparks = K.emitter({ max: 1600, life: [0.35, 0.8], speed: [3.0, 7.0], up: 1, spread: 2.5, toward: [-2.0, 1.0], accel: [0, -7.5, 0], drag: 1.4, size: [0.045, 0.016], shape: 1, stretch: 0.05, colA: [1.6, 1.5, 1.6], colB: [1, 0.2, 0.8], tintA: 0.55, tintB: 0.85, alpha: 1, jitter: 0.12 });
-  const motes = K.emitter({ max: 500, life: [0.6, 1.2], speed: [0.6, 1.8], up: 1, spread: 2.2, toward: [-0.8, 0.6], accel: [0, 0.8, 0], drag: 1.6, size: [0.07, 0.02], shape: 0, colA: [1, 1, 1], colB: [0.3, 0.8, 1], tintA: 0.8, tintB: 0.5, alpha: 0.8, jitter: 0.2, stagger: 0.08 });
+  const sparks = K.emitter({ max: 1600, life: [0.35, 0.8], speed: [3.5, 8.0], up: 1, spread: 2.5, toward: [-2.0, 1.0], accel: [0, -7.5, 0], drag: 1.4, size: [0.075, 0.028], shape: 1, stretch: 0.07, colA: [2.0, 1.9, 2.0], colB: [1, 0.2, 0.8], tintA: 0.55, tintB: 0.85, alpha: 1, jitter: 0.12 });
+  const motes = K.emitter({ max: 500, life: [0.6, 1.2], speed: [0.6, 1.8], up: 1, spread: 2.2, toward: [-0.8, 0.6], accel: [0, 0.8, 0], drag: 1.6, size: [0.13, 0.04], shape: 0, colA: [1.2, 1.2, 1.2], colB: [0.3, 0.8, 1], tintA: 0.8, tintB: 0.5, alpha: 0.8, jitter: 0.2, stagger: 0.08 });
   const trickle = K.emitter({ max: 400, life: [0.25, 0.5], speed: [1.0, 2.4], up: 1, spread: 2.2, toward: [-1.2, 0.2], accel: [0, -5, 0], drag: 1.3, size: [0.03, 0.012], shape: 1, stretch: 0.04, colA: [1.4, 1.3, 1.5], colB: [1, 0.3, 0.9], tintA: 0.5, tintB: 0.9, alpha: 0.85, jitter: 0.1 });
   let acc = 0;
   return {
@@ -398,8 +400,8 @@ export default function build(K) {
     chordGlass: ['#14062e', '#2e0c52'],
     onHit(e) {
       const k = e.dead ? 1.2 : 1;
-      sparks.burst(e.x, e.y, e.z - 0.05, e.chord ? 20 : 36, e.rgb, k);
-      motes.burst(e.x, e.y, e.z, e.chord ? 5 : 9, e.rgb, k);
+      sparks.burst(e.x, e.y, e.z - 0.05, e.chord ? 26 : 46, e.rgb, k);
+      motes.burst(e.x, e.y, e.z, e.chord ? 6 : 12, e.rgb, k);
     },
     frame(F) {
       // a held note keeps throwing a few sparks, like a grinder on chrome
