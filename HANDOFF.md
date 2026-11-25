@@ -1,4 +1,4 @@
-# 4.34 (work in progress, branch style-engine) — HD styles: the engine, six styles, Inferno in full (2026-11-25; nothing tried on the user's PC)
+# 4.34.0 — Six highway styles with real HD graphics (2026-11-25; nothing tried on the user's PC)
 
 **Asked:** real HD graphics for some styles (gems, strings, highway, effects), nothing jagged or "artsy", aimed a bit under a GTX 1080 Ti (60+ fps at 1080p High on a GTX 1070). Six styles: Classic (unchanged, default), Neon Crystal, Synthwave Drive, Inferno, Frozen Lake, Deep Ocean.
 
@@ -6,13 +6,17 @@
 - `src/renderer/js/hdstyle.js` (new): the engine for styles with their own graphics. Each style is one file, `src/renderer/js/styles/<id>.js`, switched on by `hd: '<id>'` in `hwlooks.js`. It can draw its own highway surface, sky, shaded notes (rounded boxes), strings/frets/posts (tubes), sustain ribbons, particles (bursts on the graphics card) and ambient drift, and heat shimmer. The highway still makes every old piece (muted with alpha −1), so places and sizes can't drift (THEMES=1); labels are never touched; every program is compiled before the style shows; no garbage per frame. Guide at the top of `hdstyle.js` and in `docs/hd-styles.md`.
 - `highway.js`: hands lanes, beats, gems, tubes, trails and hits to the engine (`HX`); `highway3d.js`: mute, own sky, see-through, haze hooks.
 - `styles/inferno.js`: dark basalt plates with lava flowing in the cracks (flares on hits), an obsidian hand-position slab with molten seams, molten-metal notes with hot rims, hot-wire strings, steel frets, sparks/embers/lava drops on hits, rising embers, heat shimmer, a smoky sky over lava fields and ridges.
-- `styles/neon.js`, `synthwave.js`, `frozen.js`, `ocean.js`: stubs with a plan; those styles still draw their old look.
+- `styles/neon.js` (Neon Crystal: dark polished glass mirroring a ring-lit room, crystal notes with coloured edge glow), `styles/synthwave.js` (Synthwave Drive: a neon grid to a striped sun, palms and hills, glossy notes with a chrome bevel and hot rim), `styles/ocean.js` (Deep Ocean: a sea floor under moving caustics, wet pearl-stone notes, bubbles), `styles/frozen.js` (Frozen Lake: clear dark ice with cracks and trapped bubbles, pines, moon and aurora, snow, ice-crystal notes, frosted steel strings, shard and frost-ring hits).
+- 3D notes for every HD style: the engine gives each gem a bevel, faces, a key light, shine and Fresnel (`hdGemLit`); held notes and hits are the style's own (Classic's white flash is off under an HD style, so colours stay readable).
+- `highway3d.js`: the mirror floor is not drawn under an HD style (it only mirrored the hidden old pieces: it cost time and showed nothing). Frozen Lake has reflections off for the same reason.
 - Pictures: six in `art/hwstyles/` from the real highway; the twelve unused ones removed. GFXCHECK uses only the six.
 - Fixed in the engine on the way: additive light ignored alpha wrongly (particles were invisible).
 
 **Checked:** npm test passed; THEMES=1 (nothing moves, every style), HWMENU=1, ATLAS=1 pass; Classic pixel-identical to 4.33 (T:17.2, T:19.1); STUTTER on Inferno Ultra: no shader builds or picture uploads during play, buffer uploads the same as Classic.
 
-**Ask the user:** how Inferno looks and runs on the PC (High and Ultra), whether hits are too bright or too quiet, whether the sparks read. Then build the other four the same way.
+**Not done (engine gaps the builders reported):** notes and strings are not mirrored in glass or ice; hits carry only a fading strength (no age or colour); outline target boxes and fret inlays are still drawn the Classic way.
+
+**Ask the user:** how each of the five new styles looks and runs on the PC (High and Ultra on the 1080 Ti), whether hits are too bright or too quiet, and whether anything flickers.
 
 # 4.33.0 — A smoother highway, a steady menu (2026-11-25; nothing tried on the user's PC)
 

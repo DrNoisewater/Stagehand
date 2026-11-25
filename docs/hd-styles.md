@@ -2,8 +2,8 @@
 
 A highway style can draw its own highway surface, notes, strings, sustains, sky and effects with real
 shaders, instead of recolouring Classic. The engine is `src/renderer/js/hdstyle.js`; each style is one file,
-`src/renderer/js/styles/<id>.js`. Inferno (`styles/inferno.js`) is the full worked example. Neon Crystal,
-Synthwave Drive, Frozen Lake and Deep Ocean have stub files with a plan and still draw their old look.
+`src/renderer/js/styles/<id>.js`. Inferno (`styles/inferno.js`) is the full worked example; Neon Crystal,
+Synthwave Drive, Frozen Lake and Deep Ocean are built the same way.
 
 ## Switching a style on
 

@@ -163,3 +163,8 @@ Done:
   near the strike line; Classic's white hit flash hides the sparks.
 - Stage 2 running in parallel: Inferno polisher (Opus: 3D gems for every HD style, styles own their hits, Inferno notes), and
   one builder each (Opus) for Frozen Lake, Neon Crystal, Synthwave Drive, Deep Ocean (own files; gems last, to adopt the 3D gem).
+- Stage 2 done: Neon, Ocean, Synthwave builders merged; Inferno polisher (3D gems, hits owned by the style) merged; Frozen Lake builder
+  merged (refl off: the mirror only reflects muted pieces); Gem adopter (Sonnet) moved Neon/Ocean/Synthwave to the 3D gem fields.
+- Mirror pass skipped under any HD style (highway3d.js, `look.hd`). hwlooks tests use Neon for "mirror" (Frozen no longer reflects).
+- Open: a fine glitter on Ocean's notes (also before the gem change; not the haze): Glitter finder (Opus) on it.
+- Then: npm test, THEMES/HWMENU/ATLAS, Classic pixels, bump to 4.34.0, README line, ask the user to merge.
