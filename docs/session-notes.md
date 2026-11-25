@@ -181,4 +181,3 @@ Done: `slotgrid.js` (shared two-row slot grid: Jam, tone menu, Tones page, Now p
 
 To do in this batch: the gem flicker fix (in progress); a folded "Tone" line in the highway's Sound & settings (opens to the slot grid + loop switch); HANDOFF entry; version bump.
 
-Next session (asked 2026-11-25): a Stream Deck (15-key) setup for streaming with all Stagehand features. User had no preference; going with: a live-keys Stream Deck plugin (tone names on keys, loop A/B lit, play state, Drop; works with OBS in front; a Settings switch lets the deck connect to Stagehand). Main page: Play/Pause, Back 5 s, Repeat section, Slower, Faster / Song tone, Previous tone, Next tone, Loop A/B, Drop / Tones folder (20 slots, two pages), Stems folder (mute/solo, guitar mute), Tuner, Record clip, More (highway, tab view, Jam, next song, mute my guitar, sing along, piano). Can't be tried here: no Stream Deck.
