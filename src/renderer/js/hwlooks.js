@@ -143,7 +143,7 @@ export const THEMES = [
     hd: 'frozen', // drawn by its own graphics: styles/frozen.js (see docs/hd-styles.md)
     wink: 'Cold hands, warm heart. Mind the cracks.',
     about: 'A frozen lake at night: clear dark ice with cracks and bubbles under it, pines, a moon and an aurora, falling snow, notes cut from ice crystal and frosted steel strings.',
-    def: { bright: 1.05, glow: 0.8, refl: 'full', fog: 0.35, gem: 'glass', hit: 'flake', amb: true },
+    def: { bright: 1.05, glow: 0.8, refl: 'off', fog: 0.35, gem: 'glass', hit: 'flake', amb: true },
     sig: { floor: 'ice', rails: 'frost', pool: 0.06, beat: 0.4, amb: 'snow' },
     sky: { top: '#02060e', mid: '#0a1a2e', hor: '#4a6e8e', near: '#0e1a26', far: '#3a566e', pattern: 0, patA: 0, key: 0.16, keyCol: '#dff4ff', horLine: 0.12, horW: 0.03, horCol: '#e8f8ff', stars: 1 },
     fogCol: '#1a2c3e',
