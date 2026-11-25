@@ -262,7 +262,7 @@ const STUTTER_INIT = () => {
   wrap(P, 'renderbufferStorageMultisample', 'rb');
   wrap(P, 'renderbufferStorage', 'rb');
 };
-async function stutterRun(page, out, scene, t) {
+async function stutterRun(browser, page, out, scene, t) {
   const secs = Number(process.env.STUTTER_SECS || 20);
   const hits = process.env.STUTTER_HITS !== '0';
   // a fresh start: at the song's start, Auto allowed to work, then Play
@@ -294,7 +294,36 @@ async function stutterRun(page, out, scene, t) {
     };
     requestAnimationFrame(go);
   }, [Number(t), hits, !!process.env.STUTTER_WHOLE]);
+  // STUTTER_HEAP=1: what the page makes and throws away while playing (each throw-away is cleaned up later:
+  // a pause), sampled, by the function that made it
+  const cdp = process.env.STUTTER_HEAP && (await page.context().newCDPSession(page));
+  // STUTTER_GC=1: how long each clean-up of thrown-away things stopped the page
+  if (process.env.STUTTER_GC) await browser.startTracing(page, { categories: ['v8', 'disabled-by-default-v8.gc'] });
+  if (cdp) await cdp.send('HeapProfiler.startSampling', { samplingInterval: 4096, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
   await page.waitForTimeout(secs * 1000);
+  if (process.env.STUTTER_GC) {
+    const tr = JSON.parse((await browser.stopTracing()).toString());
+    const ev = (tr.traceEvents || tr).filter((e) => e.ph === 'X' && /^(V8\.GC_|MinorGC|MajorGC|V8\.GCScavenger$|V8\.GCFinalizeMC$|V8\.GCCompactor$)/.test(e.name) && e.dur);
+    const by = new Map();
+    for (const e of ev) { const b = by.get(e.name) || { n: 0, ms: 0, most: 0 }; b.n++; b.ms += e.dur / 1000; b.most = Math.max(b.most, e.dur / 1000); by.set(e.name, b); }
+    console.log('  clean-ups (GC) while playing:');
+    for (const [k, b] of [...by.entries()].sort((x, y) => y[1].most - x[1].most).slice(0, 10)) console.log(`    ${k}: ${b.n} times, ${b.ms.toFixed(1)} ms in all, longest ${b.most.toFixed(1)} ms`);
+  }
+  if (cdp) {
+    const { profile } = await cdp.send('HeapProfiler.stopSampling');
+    const by = new Map();
+    let all = 0;
+    const walk = (n) => {
+      const f = n.callFrame;
+      const k = `${f.functionName || '(anon)'} ${(f.url || '').split('/').pop()}:${f.lineNumber + 1}`;
+      by.set(k, (by.get(k) || 0) + n.selfSize);
+      all += n.selfSize;
+      for (const c of n.children || []) walk(c);
+    };
+    walk(profile.head);
+    console.log(`  made while playing: ${(all / secs / 1024).toFixed(0)} KB a second; most by:`);
+    for (const [k, v] of [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14)) console.log(`    ${(v / secs / 1024).toFixed(1)} KB/s  ${k}`);
+  }
   const r = await page.evaluate(() => {
     const st = window.__st;
     const H = document.querySelector('.highway').__hw;
@@ -374,7 +403,7 @@ async function stutterRun(page, out, scene, t) {
     }
     // software rendering here is slow: keep the glow on for stills (the app turns it off on slow PCs)
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; if (H.perfState) H.perfState.n = -1e9; });
-    if (process.env.STUTTER) { await stutterRun(page, out, scene, t); continue; } // STUTTER=1: see the block above
+    if (process.env.STUTTER) { await stutterRun(browser, page, out, scene, t); continue; } // STUTTER=1: see the block above
     // ATLAS=1 (4.32.1): labels that first show mid-song are sent to the graphics card on their own (only
     // their box of the label picture); the picture must be the same as when the whole label picture is sent
     // (a few colour values may round one step apart).
