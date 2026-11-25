@@ -938,6 +938,25 @@ async function gfxCheck(browser, page, out, scene, t) {
       const r = await page.evaluate(async () => {
         const d = document.querySelector('.hl-drawer');
         d.scrollIntoView({ block: 'start' });
+        // 4.33: picking a style or flipping a switch must leave the side menu where it was
+        let pane = d.parentElement;
+        while (pane && pane.scrollHeight <= pane.clientHeight + 2) pane = pane.parentElement;
+        const before = pane ? pane.scrollTop : 0;
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        const strip = d.querySelector('.hl-styles');
+        strip.scrollLeft = strip.scrollWidth; // a strip that scrolls sideways: go to its end first
+        const n = d.querySelectorAll('.hl-style').length - 1;
+        const at = () => { const b = d.querySelectorAll('.hl-style')[n].getBoundingClientRect(); return [Math.round(b.x), Math.round(b.y)]; };
+        const tileBefore = at();
+        d.querySelectorAll('.hl-style')[n].click();
+        await wait(400);
+        const tileAfter = at();
+        const afterStyle = pane ? pane.scrollTop : 0;
+        document.querySelector('.hw-master-opts .hw-opt-toggle').click();
+        await wait(300);
+        const afterSwitch = pane ? pane.scrollTop : 0;
+        document.querySelector('.hw-master-opts .hw-opt-toggle').click();
+        const kept = { before, afterStyle, afterSwitch, scrolled: !!pane, tileBefore, tileAfter };
         const tiles = d.querySelectorAll('.hl-style').length;
         const imgs = await Promise.all([...d.querySelectorAll('.hl-style img')].map((i) => i.decode().then(() => i.naturalWidth > 0, () => false)));
         d.querySelectorAll('.hl-style')[2].click();
@@ -947,7 +966,7 @@ async function gfxCheck(browser, page, out, scene, t) {
         await new Promise((r) => setTimeout(r, 50));
         document.querySelector('.hl-drawer .hl-own').click();
         const bg = m.loadLooks().bg;
-        return { tiles, imgsOk: imgs.every(Boolean), picked, bg, fps: [...document.querySelectorAll('.hw-master-opts button')].filter((b) => /frame rate/i.test(b.textContent)).length };
+        return { tiles, kept, imgsOk: imgs.every(Boolean), picked, bg, fps: [...document.querySelectorAll('.hw-master-opts button')].filter((b) => /frame rate/i.test(b.textContent)).length };
       });
       console.log('HWMENU', JSON.stringify(r));
       await page.waitForTimeout(1200);
@@ -979,9 +998,10 @@ async function gfxCheck(browser, page, out, scene, t) {
       await fullShot('hw-settings.png');
       await page.evaluate(() => document.querySelector('#hl-sheet .hl-tune-fold .hl-fold-head').click());
       await fullShot('hw-settings-open.png');
-      const ok = r.tiles >= 15 && r.imgsOk && r.picked === 'synthwave' && r.bg === 'own' && r.fps === 0;
+      const steady = r.kept.tileBefore.join() === r.kept.tileAfter.join() && Math.abs(r.kept.afterStyle - r.kept.before) < 2 && Math.abs(r.kept.afterSwitch - r.kept.before) < 2;
+      const ok = steady && r.tiles >= 6 && r.imgsOk && r.picked === 'synthwave' && r.bg === 'own' && r.fps === 0;
       if (!ok) throw new Error('highway menu: ' + JSON.stringify(r));
-      console.log('PASS the highway menu: style pictures, a style and the style’s own room picked, no frame rate switch there');
+      console.log('PASS the highway menu stays put; style pictures, a style and the style’s own room picked, no frame rate switch there');
     }
     await page.evaluate(() => { const H = document.querySelector('.highway').__hw; H.open = false; cancelAnimationFrame(H.raf); });
     await page.screenshot({ timeout: 60000, path: path.join(out, `${scene}_${(file||'').replace('.json','')}_${t}${play === 'p' ? 'p' : ''}${hits || ''}.png`) });

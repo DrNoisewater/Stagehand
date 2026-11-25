@@ -126,3 +126,20 @@ Settings checker's findings (GFXCHECK) acted on:
   crop 240,176–1680,986 of 1920×1080, webp q80).
 - Unknown until the user's PC: whether Disco's tiles and Studio's pale floor feel too busy or too
   bright under real playing.
+
+## 4.33 (2026-11-25): smooth first, then six real styles
+
+Asked (video of the highway): pauses and hitching; styles look silly and alike ("nothing like a frozen lake"), crooked jagged lines;
+wants real HD graphics (gems, strings, highway, effects), aimed a bit under a GTX 1080 Ti; the sideways style strip is silly and
+jumps back to the start when picking; everything smooth, no flicker.
+User's answers: 6 great styles (Classic kept + Neon Crystal, Synthwave Drive, Inferno, Frozen Lake, Deep Ocean); kinds: sci-fi/neon,
+fire/lava, ice/nature; style picker a grid of pictures; smoothness first, released on its own.
+
+Video measured (ffmpeg freezedetect): highway froze 140–280 ms every 1–2 s in the first 5 s of the song, then every 2–10 s.
+
+Done:
+- Menu jump: picking a style rebuilt the strip, so it scrolled back to its start (the picture moved 1,300 px). Now a 3-wide grid in
+  Sound & settings, blocks swap in place holding their height until pictures are ready (`hwlooks-pane.js` `swap`), the line above
+  the grid has a fixed height, the switches under it flip in place (`highway.js` `toggle`). `HWMENU=1` checks the picked picture
+  and the menu don't move (fails on the old code).
+- Pauses: Stutter finder (Opus) measuring in its own worktree.

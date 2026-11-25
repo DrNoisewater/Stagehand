@@ -424,9 +424,11 @@ export function createHighway(stage) {
   function closeOpts() {}
   function toggle(label, on, onFlip, sub) {
     const b = h('button.hw-opt-toggle', { type: 'button', role: 'switch', 'aria-checked': String(!!on) }, h('span.hw-switch'), h('span', null, h('b', { text: label }), sub ? h('small', { text: sub }) : null));
+    // 4.33: flip just this switch; rebuilding the whole block made the side menu jump back to the top
     b.onclick = () => {
+      on = !on;
       onFlip();
-      renderOpts();
+      b.setAttribute('aria-checked', String(!!on));
     };
     return b;
   }

@@ -73,6 +73,19 @@ const setTheme = (k, v) => change((st) => {
 });
 const setGfx = (k, v) => change((st) => (st.gfx = { ...st.gfx, [k]: v }));
 
+/**
+ * Swap a block's contents without the menu around it jumping: the block keeps its height until the
+ * new pictures are ready (an empty block for a moment let the side menu snap back to the top).
+ */
+function swap(el, ...kids) {
+  const hgt = el.isConnected ? el.offsetHeight : 0;
+  if (hgt) el.style.minHeight = `${hgt}px`;
+  el.replaceChildren(...kids.filter(Boolean));
+  if (!hgt) return;
+  const pics = [...el.querySelectorAll('img')].map((i) => (i.complete ? null : i.decode().catch(() => {}))).filter(Boolean);
+  Promise.all(pics).then(() => requestAnimationFrame(() => (el.style.minHeight = '')));
+}
+
 /** A block that redraws itself on any change to the looks, and stops once it's gone. */
 function live(el, paint) {
   paint();
@@ -136,10 +149,9 @@ export function drawerLooks(o) {
   const el = h('div.hl-looks.hl-drawer');
   const paint = () => {
     const st = loadLooks();
-    el.innerHTML = '';
     const more = h('button.btn.small.hl-more', { type: 'button', text: 'More highway settings' });
     more.onclick = () => o.more();
-    el.append(
+    swap(el,
       h('div.hl-row', null, h('div.hl-row-t', null, h('b', { text: 'Style' }), h('small', { text: themeById(st.theme).about }))),
       styleTiles(st),
       backgroundPicker(st, { venue: o.venue, pick: o.pick, open: o.bgOpen, onFold: (v) => (o.onBgFold(v), paint()), redraw: paint }),
@@ -162,20 +174,19 @@ export function lookSection() {
   const paint = () => {
     const st = loadLooks();
     const t = themeById(st.theme);
-    el.innerHTML = '';
     // the big picture of the style in use
-    el.append(h('figure.hl-hero', null, h('img', { src: styleThumb(t.id, true), alt: `The highway in ${t.name}` }),
-      h('figcaption', null, h('b', { text: t.name }), h('span', { text: t.about }), h('i', { text: t.wink }))));
-    el.append(styleTiles(st, { lines: true }));
-    el.append(backgroundPicker(st, {
+    swap(el, h('figure.hl-hero', null, h('img', { src: styleThumb(t.id, true), alt: `The highway in ${t.name}` }),
+      h('figcaption', null, h('b', { text: t.name }), h('span', { text: t.about }), h('i', { text: t.wink }))),
+    styleTiles(st, { lines: true }),
+    backgroundPicker(st, {
       venue: venueNow,
       pick: (id) => tellHighway('venue', id),
       open: () => bgOpen,
       onFold: (v) => ((bgOpen = v), paint()),
       redraw: () => setTimeout(paint, 0),
-    }));
-    el.append(fineTune(st, t));
-    el.append(graphics(st));
+    }),
+    fineTune(st, t),
+    graphics(st));
   };
 
   function fineTune(st, t) {
