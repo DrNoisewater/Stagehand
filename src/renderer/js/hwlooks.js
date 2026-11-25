@@ -105,10 +105,11 @@ export const THEMES = [
   },
   {
     id: 'synthwave',
+    hd: 'synthwave',
     name: 'Synthwave Drive',
     isNew: true,
     wink: 'Somewhere it is always 1986 and the sun never quite sets.',
-    about: 'A night drive into a striped sun: a rolling grid, laser rails. (Being rebuilt: shows the old Synthwave look for now.)',
+    about: 'A night drive into a banded sun: wet neon road, palms going by, chrome notes, laser strings.',
     def: { bright: 0.95, glow: 0.8, refl: 'soft', fog: 0.3, gem: 'neon', hit: 'ripple', amb: true, grain: true },
     sig: { floor: 'synth', rails: 'laser', pool: 0, beat: 0.8, amb: 'sun' },
     sky: { top: '#07021a', mid: '#1c0a3a', hor: '#5a1650', near: '#0a0418', far: '#1a0830', pattern: 3, patA: 0.5, key: 0.06, keyCol: '#ff5ab4', horLine: 0.25, horW: 0.03, horCol: '#ff4fa8' },
