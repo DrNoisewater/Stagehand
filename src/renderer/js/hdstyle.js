@@ -289,7 +289,9 @@ void main() {
   HDGem g;
   g.n = normalize(vN); g.nl = normalize(vNl); g.v = normalize(vV); g.l = vL; g.wp = vWp; g.col = vC.rgb; g.missed = vC.a;
   g.near = vD.x; g.flare = vD.y; g.fade = vD.z; g.kind = vKind; g.size = vHalf;
-  float fl = vD.w;
+  // the flags are whole numbers, but they arrive blended across the face: 16 can come in as 15.99999 on some
+  // pixels, and then "held" and "accent" flip pixel by pixel (a glittery speckle that flickers). Round first.
+  float fl = floor(vD.w + 0.5);
   g.accent = mod(fl, 2.0); g.mute = mod(floor(fl / 2.0), 2.0); g.bend = mod(floor(fl / 4.0), 2.0); g.chord = mod(floor(fl / 8.0), 2.0);
   g.hold = mod(floor(fl / 16.0), 2.0);
   g.hit = vD.y;
