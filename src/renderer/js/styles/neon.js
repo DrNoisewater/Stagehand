@@ -255,7 +255,7 @@ vec4 hdGem(HDGem g) {
   }
   // the face: the string's colour, deep and saturated, its heart glowing through the cut
   vec3 faceC = base * (0.42 + 0.95 * core) * heat * barK;
-  faceC += mix(base, vec3(1.0), 0.6) * core * core * (0.12 + 0.45 * g.near + 0.9 * g.flare);
+  faceC += mix(base, vec3(1.0), 0.6) * core * core * (0.1 + 0.35 * g.near + 0.5 * g.flare);
   // each facet of the cut catches the light differently; a glint runs across the table
   float fl = dot(nf, normalize(vec3(-0.25, 0.85, -0.5)));
   faceC *= 1.0 + (1.0 - tbl) * (fl - 0.45) * 0.9;
@@ -270,7 +270,7 @@ vec4 hdGem(HDGem g) {
   // the rounded rims glow
   float bevel = 1.0 - max(abs(nl.x), max(abs(nl.y), abs(nl.z)));
   float rim = smoothstep(0.03, 0.25, bevel);
-  c += mix(base * 1.2, vec3(1.0), 0.4) * rim * (0.5 + 0.7 * g.near + 2.0 * g.flare + 0.8 * g.accent);
+  c += mix(base * 1.2, vec3(1.0), 0.3) * rim * (0.5 + 0.7 * g.near + 1.4 * g.flare + 0.8 * g.accent);
   c += vec3(0.5, 0.7, 1.0) * g.bend * front * 0.08;
   return vec4(c, 1.0);
 }
