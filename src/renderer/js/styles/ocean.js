@@ -201,39 +201,51 @@ vec3 hdSky(HDSky s) {
 `;
 
 const GEM = /* glsl */ `
+// 4.34.2: wet polished stone, like a sea-pearl. A solid bevelled block in the string's colour: a soft light
+// deep inside (strongest in the middle), a slick of water on top (a tight glint and a broad sheen), a pale
+// aqua rim, and slow caustic ripples of sunlight sliding over the face, fixed to each note. The colour is
+// kept everywhere; the ripples and rim only lift it, and a hit brightens the body, never to white.
 vec4 hdGem(HDGem g) {
   bool missed = g.missed > 0.5;
   vec3 base = missed ? vec3(0.16, 0.2, 0.23) : g.col;
-  vec3 n = g.n;
-  vec3 v = g.v;
-  vec3 L = normalize(vec3(-0.25, 0.85, 0.45));   // the light from the surface above
-  float dif = max(dot(n, L), 0.0);
-  float spec = pow(max(dot(n, normalize(L + v)), 0.0), 60.0);
-  float fr = hdFresnel(n, v, 2.2);
-  float front = smoothstep(0.6, 0.95, -g.nl.z);
-  // jelly: see-through body in the string's colour with a soft light inside it, strongest in the middle
-  vec2 lc = g.l.xy;
-  // the light sits in the middle of the body, so every face (the top too) shows it
-  float core = exp(-dot(g.l, g.l) * 0.9);
   float kindK = g.kind > 1.5 ? 0.4 : 1.0;
-  float glow = (0.85 + 0.9 * g.near + 1.1 * g.flare + 0.2 * uPulse * uFx) * kindK;
-  float breathe = 1.0 + 0.08 * sin(uTime * 1.7 + g.wp.z * 0.6 + g.col.g * 6.0) * uMotion;
-  vec3 c = base * (0.2 + 0.2 * dif);
-  vec3 inner = mix(base, vec3(1.0), 0.1 + 0.25 * g.near + 0.2 * g.flare);
-  c += inner * (0.3 + 0.9 * core) * glow * breathe * mix(0.8, 1.0, front);
+  float front = smoothstep(0.6, 0.95, -g.nl.z);
   if (missed) {
-    c = base * (0.3 + 0.4 * dif) + vec3(0.7, 0.85, 0.9) * spec * 0.25 + base * fr * 0.4;
+    vec3 c = hdGemLit(g, base * 0.8, 0.5);
     return vec4(c, 1.0);
   }
-  // the rim: the rounded edges catch the light, tinted by the string, whiter as it reaches the neck
-  vec3 rimC = mix(base * 1.4, vec3(0.85, 1.0, 1.0), 0.3 + 0.45 * g.near + 0.3 * g.flare);
-  c += rimC * fr * (0.7 + 1.0 * g.near + 1.2 * g.flare + 0.8 * g.accent) * kindK;
-  // a glint from above, like light on wet glass, and a soft highlight high on the face
-  c += vec3(0.8, 1.0, 1.0) * spec * 0.9;
-  vec2 hp = lc - vec2(-0.45, 0.5);
-  c += vec3(0.75, 0.95, 1.0) * exp(-dot(hp, hp) * 14.0) * front * 0.35 * kindK;
+  float core = exp(-dot(g.l, g.l) * 0.9);
+  float breathe = 1.0 + 0.07 * sin(uTime * 1.7 + g.wp.z * 0.6 + g.col.g * 6.0) * uMotion;
+  float glow = (0.55 + 0.7 * g.near + 0.6 * g.hit + 0.15 * uPulse * uFx + 0.4 * g.hold) * kindK;
+  // the stone: lit by the key light, its colour a little deeper in the shade
+  vec3 alb = base * (0.55 + 0.25 * core);
+  vec3 c = hdGemLit(g, alb, 0.0);
+  // light inside it, like a pearl: soft, strongest in the middle, brighter toward the neck
+  vec3 inner = mix(base, vec3(0.85, 1.0, 1.0), 0.08 + 0.15 * g.near + 0.1 * g.hit);
+  c += inner * (0.18 + 0.75 * core) * glow * breathe * mix(0.7, 1.0, front);
+  // caustics: bright net-like ripples from the surface above, slowly sliding over the face and bevel
+  vec2 q = g.l.xy * 0.9 + g.wp.xy * 0.5 + vec2(0.0, g.wp.z * 0.2);
+  float t = uTime * 0.55 * uMotion;
+  float c1 = hdNoise(q * 1.4 + vec2(t, -t * 0.7));
+  float c2 = hdNoise(q * 2.2 + vec2(-t * 0.8, t * 0.6) + 4.0);
+  float ca = 1.0 - abs(c1 - c2) * 3.0;
+  ca = smoothstep(0.45, 1.0, ca) * (1.0 - clamp(length(fwidth(q)) * 1.2 - 0.1, 0.0, 1.0));   // soft, and gone when too fine to read
+  vec3 caC = mix(base, vec3(0.75, 1.0, 1.0), 0.45);
+  c += caC * ca * (0.12 + 0.12 * g.near + 0.12 * g.hit) * (0.35 + 0.65 * g.top) * kindK;
+  // the wet slick: a tight glint of the key, a broad sheen, a glint high on the face
+  c += vec3(0.85, 1.0, 1.0) * (g.spec * 0.85 + g.sheen * 0.1);
+  vec2 hp = g.l.xy - vec2(-0.45, 0.5);
+  c += vec3(0.75, 0.97, 1.0) * exp(-dot(hp, hp) * 14.0) * front * 0.28 * kindK;
+  // the pearl's sheen: a faint shift of colour toward the edges
+  c += mix(vec3(0.3, 0.7, 0.9), vec3(0.9, 0.6, 0.9), g.uv.x) * base * g.fres * 0.3;
+  // the rim of water on the bevel, tinted by the string, paler as it reaches the neck
+  vec3 rimC = mix(base * 1.3, vec3(0.8, 1.0, 1.0), 0.25 + 0.25 * g.near + 0.15 * g.hit);
+  float bev = smoothstep(0.3, 0.95, g.bevel);
+  c += rimC * (bev * 0.35 + g.fres * 0.45) * (0.5 + 0.8 * g.near + 0.7 * g.hit + 0.6 * g.accent) * kindK;
   // a bend: the light inside grows a little
-  c += base * front * g.bend * 0.25;
+  c += base * front * g.bend * 0.2;
+  float mx = max(c.r, max(c.g, c.b));
+  if (mx > 1.0) c *= (1.0 + log(mx)) / mx;
   return vec4(c, 1.0);
 }
 `;
@@ -348,7 +360,7 @@ export default function build(K) {
       const k = e.dead ? 1.2 : 1;
       bubbles.burst(e.x, e.y, e.z - 0.05, e.chord ? 10 : 18, e.rgb, k);
       motes.burst(e.x, e.y, e.z - 0.05, e.chord ? 8 : 14, e.rgb, k);
-      rings.burst(e.x, e.y, e.z - 0.08, 1, e.rgb, k);
+      if (e.burst) rings.burst(e.x, e.y, e.z - 0.08, 1, e.rgb, k);
     },
     frame(F) {
       // a held note keeps letting go a thin stream of bubbles

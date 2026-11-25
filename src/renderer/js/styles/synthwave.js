@@ -273,37 +273,44 @@ vec3 swEnv(vec3 r) {
   c += vec3(1.0, 0.4, 0.55) * exp(-abs(r.y - 0.03) * 14.0) * 0.9;
   return c;
 }
+// 4.34.2: a solid block of glossy plastic in the string's colour with a chrome bevel. The face is lit
+// plastic (a broad sheen, a tight glint, a neon line round it); the bevel is polished chrome showing the
+// room, with a hot pink-and-colour rim that flares as the note lands. The string's colour stays on the face.
 vec4 hdGem(HDGem g) {
-  vec3 L1 = normalize(vec3(-0.3, 0.75, 0.6));
   vec3 n = g.n;
   vec3 v = g.v;
   bool missed = g.missed > 0.5;
   vec3 base = missed ? vec3(0.22, 0.21, 0.25) : g.col;
   vec3 r = reflect(-v, n);
-  float spec = pow(max(dot(n, normalize(L1 + v)), 0.0), 90.0);
-  float fr = hdFresnel(n, v, 3.0);
-  // chrome everywhere but the face: the room reflected, a touch of the note's colour
-  vec3 chrome = (swEnv(r) * 1.5 + 0.05) * mix(vec3(1.0), base * 1.3 + 0.2, 0.35) * (0.7 + 0.6 * fr) + vec3(1.0, 0.95, 1.0) * spec * 1.6;
-  float front = smoothstep(0.85, 0.98, -g.nl.z);
   float kindK = g.kind > 1.5 ? 0.35 : 1.0;
-  // the face: a neon panel in the string's colour, a bright neon line round it, a glossy sheen on top
+  float front = smoothstep(0.85, 0.98, -g.nl.z);
+  float bev = smoothstep(0.1, 0.9, g.bevel);
+  // chrome: the room reflected, a touch of the note's colour, the key light as a hard white glint
+  vec3 chrome = (swEnv(r) * 1.4 + 0.05) * mix(vec3(1.0), base * 1.3 + 0.2, 0.35) * (0.6 + 0.6 * g.fres + 0.3 * g.lit);
+  chrome += vec3(1.0, 0.95, 1.0) * (g.spec * 0.8 + g.sheen * 0.05);
+  // the face: lit glossy plastic in the string's colour, with a neon line round it
   vec2 e2 = (1.0 - abs(g.l.xy)) * g.size;
   float e = min(e2.x, e2.y);
   float fe = max(fwidth(e), 1e-4);
   float lineW = min(0.026, min(g.size.x, g.size.y) * 0.16);
-  float lineAt = lineW * 1.8;
-  float neon = swLineG(e - lineAt, lineW * 0.5, fe);
-  float heat = 0.9 + 0.45 * g.near + 1.6 * g.flare + 0.2 * uHeat;
-  vec3 fill = base * (0.8 + 0.3 * smoothstep(-1.0, 1.0, g.l.y)) * heat;
-  float sheen = smoothstep(0.55, 0.95, g.l.y - g.l.x * 0.2) * 0.12;
-  vec3 face = fill + vec3(1.0) * sheen * (1.0 - 0.5 * g.near);
-  face += mix(base, vec3(1.0), 0.3) * neon * (0.8 + 0.4 * g.near + 2.0 * g.flare + 0.8 * g.accent);
-  face += swEnv(r) * 0.08;
-  if (missed) face = base * 0.5 + swEnv(r) * 0.2;
-  vec3 c = mix(chrome, face * kindK + chrome * (1.0 - kindK) * 0.6, front);
+  float neon = swLineG(e - lineW * 1.8, lineW * 0.5, fe);
+  float heat = 0.8 + 0.4 * g.near + 0.9 * g.hit + 0.2 * uHeat + 0.3 * g.hold;
+  vec3 fill = base * (0.75 + 0.3 * smoothstep(-1.0, 1.0, g.l.y)) * heat;
+  vec3 plastic = hdGemLit(g, base * 0.3, 1.0) + fill * 0.8;
+  plastic += vec3(1.0, 0.9, 1.0) * g.sheen * 0.05 * (1.0 - 0.5 * g.near);
+  plastic += mix(base, vec3(1.0), 0.3) * neon * (0.7 + 0.4 * g.near + 1.5 * g.hit + 0.8 * g.accent);
+  plastic += swEnv(r) * 0.08;
+  if (missed) plastic = hdGemLit(g, base * 0.6, 0.4) + swEnv(r) * 0.15;
+  vec3 c = mix(chrome, plastic * kindK + chrome * (1.0 - kindK) * 0.6, front * (1.0 - bev));
+  // the hot rim: pink fading to the string's colour, flaring as the note lands
+  if (!missed) {
+    vec3 rimC = mix(vec3(1.0, 0.3, 0.7), base * 1.2 + 0.1, 0.45);
+    c += rimC * smoothstep(0.45, 1.0, g.bevel) * (0.35 + 0.45 * g.near + 0.8 * g.hit + 0.4 * g.accent + 0.3 * g.hold) * kindK;
+  }
   // the sides carry a little of the colour's light so the block reads from any angle
-  c += base * (1.0 - front) * 0.25 * kindK * (missed ? 0.3 : 1.0);
-  c += vec3(1.0) * g.flare * 0.4;
+  c += base * (1.0 - front) * 0.2 * kindK * (missed ? 0.3 : 1.0);
+  float mx = max(c.r, max(c.g, c.b));
+  if (mx > 1.0) c *= (1.0 + log(mx)) / mx;
   return vec4(c, 1.0);
 }
 `.replace('vec4 hdGem', 'float swLineG(float d, float w, float fw) { float W = max(w, fw); return (1.0 - smoothstep(W - fw, W + fw, abs(d))) * (w / W); }\nvec4 hdGem');
