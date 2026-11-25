@@ -11,7 +11,7 @@
 
 // shared by the floor and the sky: the sky's colour in a direction (used for reflections too), and the ice
 const COMMON = /* glsl */ `
-const vec3 MOON = vec3(-0.5, 0.3, 0.81);       // toward the moon (world: x across, y up, z ahead)
+const vec3 MOON = vec3(-0.4, 0.17, 0.9);       // toward the moon (world: x across, y up, z ahead)
 vec3 skyBase(vec3 rd) {
   float y = max(rd.y, 0.0);
   vec3 top = vec3(0.006, 0.012, 0.035);
@@ -44,11 +44,20 @@ vec3 aurora(vec3 rd, float detail) {
   vec3 green = vec3(0.12, 0.85, 0.5);
   vec3 violet = vec3(0.4, 0.2, 0.75);
   vec3 col = mix(green, violet, smoothstep(0.0, 0.18, h));
-  return col * band * strong * rays * 0.42 * (0.85 + 0.25 * uFx);
+  return col * band * (0.25 + 0.75 * strong) * rays * 0.7 * (0.85 + 0.25 * uFx);
 }
+// frost on the surface: soft white patches, more toward the edges of the lake
+float frost(vec2 q, float more) {
+  float n = hdFbm(q * 0.35, 2.0 + uQ * 0.7);
+  float fine = hdNoise(q * 2.7);
+  return smoothstep(0.55 - 0.25 * more, 0.85, n) * (0.7 + 0.3 * fine);
+}
+`;
+
+const ICE_DEEP = /* glsl */ `
 // the ice seen from above: its colour, given the point on the ice q (fixed to the song), the view ray rd,
-// and its change per pixel fw. deep (0 Low .. 1) asks for the bubbles and the deeper cracks.
-vec3 iceDeep(vec2 q, vec3 rd, vec2 fw, float detail, out float crackOut) {
+// and its change per pixel fw.
+vec3 iceDeep(vec2 q, vec3 rd, vec2 fw, out float crackOut) {
   // the view ray bends going into the ice (steeper), so things under the surface slide less than they would
   vec3 rr = refract(rd, vec3(0.0, 1.0, 0.0), 0.76);
   vec2 par = rr.xz / max(-rr.y, 0.08);
@@ -64,17 +73,19 @@ vec3 iceDeep(vec2 q, vec3 rd, vec2 fw, float detail, out float crackOut) {
     float fk = float(k);
     float dep = mix(0.35, 0.9, fk);
     float sc = mix(0.17, 0.11, fk);
-    vec2 qc = (q + par * dep) * sc + fk * 17.3;
+    vec2 qq = q + par * dep;
+    // cells stretched along a slant, so the cracks run long and straight instead of making a honeycomb
+    vec2 qc = vec2(qq.x * 0.8 + qq.y * 0.6, (qq.y * 0.8 - qq.x * 0.6) * 2.4) * sc + fk * 17.3;
     vec3 vo = hdVoronoi(qc);
-    float aa = px * sc * 1.3 + 1e-4;
-    float w = mix(0.008, 0.016, fk);
+    float aa = px * sc * 2.6 + 1e-4;
+    float w = mix(0.012, 0.022, fk);
     // only some borders crack: the rest of each cell's edge is whole ice
-    float live = smoothstep(0.42, 0.62, hdNoise((q + par * dep) * 0.09 + fk * 5.1));
+    float live = smoothstep(0.52, 0.68, hdNoise(qq * 0.16 + fk * 5.1)) * smoothstep(0.3, 0.6, hdNoise(qq * 0.05 + 3.0 + fk)) * (0.6 + 0.4 * vo.z);
     float core = 1.0 - smoothstep(w - aa, w + aa, vo.y);
     float glow = exp(-vo.y / (w * 6.0 + aa));
     float far = clamp(aa / w - 0.7, 0.0, 1.0);
     core = mix(core, 0.08, far);
-    float kk = mix(1.0, 0.45, fk);
+    float kk = mix(1.0, 0.4, fk);
     vec3 cc = vec3(0.62, 0.8, 0.95);
     c += cc * live * (core * 0.75 + glow * 0.22) * kk;
     crackOut = max(crackOut, live * core * kk);
@@ -89,7 +100,7 @@ vec3 iceDeep(vec2 q, vec3 rd, vec2 fw, float detail, out float crackOut) {
     vec2 cell = floor(qb);
     vec2 h = hdHash2(cell + 31.0);
     float patchK = smoothstep(0.45, 0.75, hdNoise(cell * 0.13 + 2.0));
-    if (h.x * patchK > 0.32) {
+    if (h.x * patchK > 0.62) {
       vec2 ctr = cell + 0.25 + 0.5 * hdHash2(cell + 7.0);
       float r = (0.05 + 0.12 * h.y) * (1.0 - fk * 0.22);
       float d = length(qb - ctr);
@@ -98,29 +109,24 @@ vec3 iceDeep(vec2 q, vec3 rd, vec2 fw, float detail, out float crackOut) {
       float rim = disc * smoothstep(r * 0.5, r, d);
       float tiny = clamp(r / aa - 1.0, 0.0, 1.0);
       vec3 bc = vec3(0.7, 0.85, 1.0);
-      c += bc * (disc * 0.12 + rim * 0.42) * tiny * (1.0 - fk * 0.25);
+      c += bc * (disc * 0.1 + rim * 0.28) * tiny * (1.0 - fk * 0.25);
       // the bright moon glint on top of each bubble
-      c += vec3(1.0) * (1.0 - smoothstep(0.0, r * 0.35 + aa, length(qb - ctr - vec2(-0.3, 0.35) * r))) * 0.5 * tiny;
+      c += vec3(1.0) * (1.0 - smoothstep(0.0, r * 0.3 + aa, length(qb - ctr - vec2(-0.3, 0.35) * r))) * 0.25 * tiny;
     }
   }
   return c;
-}
-// frost on the surface: soft white patches, more toward the edges of the lake
-float frost(vec2 q, float more) {
-  float n = hdFbm(q * 0.35, 2.0 + uQ * 0.7);
-  float fine = hdNoise(q * 2.7);
-  return smoothstep(0.55 - 0.25 * more, 0.85, n) * (0.7 + 0.3 * fine);
 }
 `;
 
 const FLOOR = /* glsl */ `
 ${COMMON}
+${ICE_DEEP}
 vec4 hdFloor(HDFloor f) {
   vec2 q = vec2(f.p.x, f.track);
   vec3 cam = vec3(uCamPos.x, uCamPos.y, -uCamPos.z);
   vec3 rd = normalize(vec3(f.p.x, 0.0, f.p.y) - cam);
   float crack;
-  vec3 c = iceDeep(q, rd, f.fw, uQ, crack);
+  vec3 c = iceDeep(q, rd, f.fw, crack);
   float inL = f.inLane;
   float edge = f.lane;
   // the sky reflected off the top of the ice (more at a glancing look)
@@ -179,8 +185,9 @@ float pines(float az, float cellW, float hMax, float seed) {
   for (int k = -1; k <= 1; k++) {
     float id = ci + float(k);
     float hh = hdHash(vec2(id, seed));
-    float gap = step(0.18, hdNoise(vec2(id * 0.11, seed)));      // clearings
-    float h = hMax * (0.45 + 0.55 * hh) * gap;
+    float dens = hdNoise(vec2(id * 0.045, seed + 1.0));
+    float gap = step(0.3, dens);                                  // clearings
+    float h = hMax * (0.35 + 0.65 * hh * hh) * (0.45 + 0.55 * smoothstep(0.3, 0.8, dens)) * gap;
     float cx = id + 0.5 + (hdHash(vec2(id, seed + 3.0)) - 0.5) * 0.5;
     float dx = abs(s - cx) * cellW;
     // a pine: narrow at the top, its boughs in soft tiers
@@ -197,16 +204,21 @@ vec3 hdSky(HDSky s) {
   float aa = fwidth(y) * 1.2 + 1e-5;
   // the far shore: a snowbank, and two lines of pines behind it
   float bank = 0.006 + 0.004 * hdFbm(vec2(az * 6.0, 1.3), 3.0);
-  float far = bank + max(pines(az, 0.009, 0.026, 4.0), 0.0) + 0.004 * hdNoise(vec2(az * 3.0, 9.0));
-  float near = bank + max(pines(az + 0.37, 0.014, 0.045, 11.0), 0.0) * smoothstep(0.2, 0.55, hdNoise(vec2(az * 1.3, 2.0)));
+  // hills far behind the lake, then the far woods on low ground, then nearer woods on the shore
+  float hills = 0.012 + 0.05 * hdFbm(vec2(az * 1.4 + 3.0, 5.0), 4.0) * smoothstep(-0.2, 0.6, hdNoise(vec2(az * 0.7, 8.0)));
+  float ground = bank + 0.008 * hdFbm(vec2(az * 2.5, 9.0), 3.0);
+  float wood = smoothstep(0.25, 0.65, hdNoise(vec2(az * 3.0, 6.0)));
+  float far = ground + 0.008 * wood + max(pines(az, 0.0075, 0.03, 4.0), 0.0) * (0.35 + 0.65 * wood);
+  float near = bank + 0.004 + max(pines(az + 0.37, 0.016, 0.06, 11.0), 0.0) * smoothstep(0.08, 0.45, hdNoise(vec2(az * 1.1, 2.0)));
   vec3 c;
   if (y < -0.0005) {
     // the rest of the lake: dark clear ice reflecting the sky and the shore
     float t = -s.ro.y / y;
     vec3 gp = s.ro + rd * t;
     vec2 q = vec2(gp.x, gp.z + uSong * uZs);
-    float crack;
-    vec3 g = iceDeep(q, rd, fwidth(q), 0.0, crack);
+    // so far off and so glancing, only the ice's dark body, a few soft streaks and the reflection show
+    float murk = hdFbm(q * vec2(0.12, 0.05), 2.0);
+    vec3 g = mix(vec3(0.006, 0.02, 0.04), vec3(0.03, 0.08, 0.12), murk);
     vec3 rf = reflect(rd, vec3(0.0, 1.0, 0.0));
     float fr = 0.04 + 0.96 * pow(1.0 - max(-rd.y, 0.0), 5.0);
     vec3 refl = skyBase(rf) + aurora(rf, 0.0) * 0.6;
@@ -239,11 +251,17 @@ vec3 hdSky(HDSky s) {
   float mr = 0.026;
   float maw = fwidth(dm) * 1.2 + 1e-5;
   float disc = (1.0 - smoothstep(mr - maw, mr + maw, dm)) * step(0.0, dot(md, MOON));
-  float maria = hdFbm(vec2(dot(md, vec3(1, 0, 0)), md.y) * 160.0, 3.0);
-  c = mix(c, vec3(0.92, 0.95, 1.0) * (0.82 + 0.18 * smoothstep(0.35, 0.65, maria)), disc);
-  c += vec3(0.5, 0.6, 0.75) * exp(-dm * 22.0) * 0.18;
+  vec3 mu = normalize(cross(MOON, vec3(0.0, 1.0, 0.0)));
+  vec3 mv = cross(mu, MOON);
+  vec2 mp = vec2(dot(md, mu), dot(md, mv)) / mr;
+  float maria = hdFbm(mp * 1.6 + 4.0, 3.0);
+  vec3 moonC = vec3(0.86, 0.9, 0.96) * (0.78 + 0.22 * smoothstep(0.62, 0.35, maria)) * (0.85 + 0.15 * sqrt(max(0.0, 1.0 - dot(mp, mp))));
+  c = mix(c, moonC, disc);
+  c += vec3(0.5, 0.6, 0.75) * (exp(-dm * 18.0) * 0.16 + exp(-dm * 60.0) * 0.2) * (1.0 - disc);
   // the horizon's cold mist
   c += vec3(0.16, 0.24, 0.34) * exp(-y * 40.0) * 0.5;
+  float mHill = 1.0 - smoothstep(hills - aa, hills + aa, y);
+  c = mix(c, mix(vec3(0.07, 0.1, 0.15), vec3(0.2, 0.26, 0.34), smoothstep(0.03, 0.0, hills - y) * 0.6), mHill * 0.85);
   // the far pines, misty blue; the snowbank lit by the moon; the near pines dark
   float mFar = 1.0 - smoothstep(far - aa, far + aa, y);
   c = mix(c, vec3(0.06, 0.1, 0.15), mFar * 0.9);
