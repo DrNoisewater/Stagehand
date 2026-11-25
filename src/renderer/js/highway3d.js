@@ -446,7 +446,8 @@ class TextLayer {
     this.size = 1024;
     this.atlas = document.createElement('canvas');
     this.atlas.width = this.atlas.height = this.size;
-    this.actx = this.atlas.getContext('2d');
+    // kept in memory (not on the graphics card), so the new labels' box can be read back and sent quickly
+    this.actx = this.atlas.getContext('2d', { willReadFrequently: true });
     this.tex = new THREE.CanvasTexture(this.atlas);
     this.tex.colorSpace = THREE.NoColorSpace;
     this.tex.premultiplyAlpha = false;
@@ -471,6 +472,7 @@ class TextLayer {
     this.renderer = renderer;
     this.part = new THREE.Box2();
     this.at = new THREE.Vector2();
+    this.src = new THREE.DataTexture(null, 1, 1); // the box's pixels, read from the label picture
     this.cap = 0;
     this.n = 0;
     this.geo = new THREE.BufferGeometry();
@@ -624,11 +626,16 @@ class TextLayer {
       const b = this.box;
       if (this.whole || !b || !this.renderer || this.sendWhole) this.tex.needsUpdate = true;
       else {
-        // only the new labels' box (canvas pictures are stored upside down: flipY)
-        this.part.min.set(b.x0, this.size - b.y1);
-        this.part.max.set(b.x1, this.size - b.y0);
+        // only the new labels' box, read from the label picture and sent on its own (turned upside down
+        // on the way, like the whole picture: flipY)
+        const w = b.x1 - b.x0;
+        const h = b.y1 - b.y0;
+        const px = this.actx.getImageData(b.x0, b.y0, w, h).data;
+        this.src.image = { data: new Uint8Array(px.buffer, px.byteOffset, px.length), width: w, height: h };
+        this.part.min.set(0, 0);
+        this.part.max.set(w, h);
         this.at.set(b.x0, this.size - b.y1);
-        this.renderer.copyTextureToTexture(this.tex, this.tex, this.part, this.at);
+        this.renderer.copyTextureToTexture(this.src, this.tex, this.part, this.at);
       }
       this.whole = false;
       this.box = null;

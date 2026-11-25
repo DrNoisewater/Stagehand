@@ -266,9 +266,10 @@ async function stutterRun(page, out, scene, t) {
   const secs = Number(process.env.STUTTER_SECS || 20);
   const hits = process.env.STUTTER_HITS !== '0';
   // a fresh start: at the song's start, Auto allowed to work, then Play
-  await page.evaluate(([t0, hits]) => {
+  await page.evaluate(([t0, hits, whole]) => {
     const H = document.querySelector('.highway').__hw;
     if (H.perfState) H.perfState.n = 0;
+    if (whole) H.r3.text.sendWhole = true; // STUTTER_WHOLE=1: the old way (the whole label picture sent each time)
     const st = window.__st;
     st.frames.length = 0; st.gl.length = 0; st.longs.length = 0;
     window.__stage.engine.position = t0;
@@ -292,7 +293,7 @@ async function stutterRun(page, out, scene, t) {
       requestAnimationFrame(go);
     };
     requestAnimationFrame(go);
-  }, [Number(t), hits]);
+  }, [Number(t), hits, !!process.env.STUTTER_WHOLE]);
   await page.waitForTimeout(secs * 1000);
   const r = await page.evaluate(() => {
     const st = window.__st;
