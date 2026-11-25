@@ -1327,7 +1327,8 @@ export function createRenderer3D(canvas) {
         u.stars.value = sky.stars ? 1 : 0;
       }
       u.amb.value = look && look.amb ? 1 : 0;
-      const mir = !!look && look.refl === 'mirror';
+      // a style with its own graphics hides the pieces the mirror would show, so it is not drawn there
+      const mir = !!look && look.refl === 'mirror' && !look.hd;
       mirrors.solid.visible = mir;
       mirrors.glow.visible = mir;
       // 4.31: strong enough to read as a mirror floor (it was hardly visible)

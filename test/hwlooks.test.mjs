@@ -61,7 +61,7 @@ test('each style keeps its own brightness and effects', () => {
 test('presets: Low turns the costly things off, and each step up adds something', () => {
   const low = L.applyPreset(L.GFX_DEFAULT, 'low');
   assert.equal(low.preset, 'low');
-  const at = (p) => L.resolveLook({ theme: 'frozen', bg: 'own', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, p) });
+  const at = (p) => L.resolveLook({ theme: 'neon', bg: 'own', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, p) });
   const lk = at('low');
   assert.equal(lk.bloom, null);
   assert.equal(lk.refl, 'off');
@@ -80,7 +80,7 @@ test('presets: Low turns the costly things off, and each step up adds something'
 });
 
 test('Auto gives up mirror reflections, then bloom size, then bloom and shadows, in that order', () => {
-  const st = { theme: 'frozen', per: {}, gfx: { ...L.GFX_DEFAULT } };
+  const st = { theme: 'neon', per: {}, gfx: { ...L.GFX_DEFAULT } };
   const at = (b) => L.resolveLook(st, { budget: b });
   assert.equal(at(3).refl, 'mirror');
   assert.ok(at(3).bloom && !at(3).bloom.half);
@@ -94,7 +94,7 @@ test('Auto gives up mirror reflections, then bloom size, then bloom and shadows,
   // Classic has nothing costly to give up: Auto goes straight to sharpness
   assert.equal(L.budgetDrop({ theme: 'classic', per: {}, gfx: { ...L.GFX_DEFAULT } }, 3), -1);
   // a fixed preset ignores the budget
-  const hi = { theme: 'frozen', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, 'high') };
+  const hi = { theme: 'neon', per: {}, gfx: L.applyPreset(L.GFX_DEFAULT, 'high') };
   assert.deepEqual(L.resolveLook(hi, { budget: 0 }), L.resolveLook(hi, { budget: 3 }));
 });
 
