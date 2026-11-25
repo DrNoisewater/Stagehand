@@ -16,14 +16,15 @@
  *        haze:   0..1                heat shimmer over hits and the neck (after-effects on)
  *        chordGlass: [hexIn, hexTop]  colours of a chord frame's see-through panel
  *        onHit(e)                    a note was hit: e = { x, y, z, s, f, rgb, dead, chord, n }
- *        frame(F)                    once a frame, before drawing: F = see `frame` below
+ *        frame(F)                    once a frame, before drawing: F as in begin() below, plus time, dt, holdN, holds
  *      Everything a hook leaves out is drawn the usual way.
  *   3. Particles: K.emitter(spec) at build time, then emitter.burst(x, y, z, n, rgb, k) (no garbage);
  *      K.field(spec) for ambient drift (embers, snow, bubbles) computed entirely on the graphics card.
  *   4. Uniforms shared by every HD shader: uTime (s), uSong (song s), uZs (units per song s), uPulse
  *      (beat 0..1), uHeat (streak 0..1), uFx (Effects 1 / 0.45 / 0), uMotion (0/1), uQ (quality 0..3),
- *      uZFar, uHits[8] (x, y, z, strength) and uHitN; helpers hdHash, hdNoise, hdNoise3, hdFbm, hdVoronoi,
- *      hdFresnel, hdEnvSky (see LIB below).
+ *      uZFar, uHits[8] (x, y, z, strength) and uHitN; helpers hdHash, hdHash2, hdHash3, hdNoise, hdNoise3,
+ *      hdFbm, hdVoronoi, hdFresnel, hdFade, hdFog (see LIB below); the floor also has hdLine(d, w, fw)
+ *      for lines that stay smooth at any distance.
  *
  * Rules: same places and sizes as Classic (the highway passes positions in; never move them); labels are
  * drawn after everything and are never touched; nothing is built or compiled mid-song (use() compiles every
